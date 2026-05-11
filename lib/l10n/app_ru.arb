@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Sync-архив с remote требует более новой сборки"
+  "errSyncArchiveFutureVersion": "Sync-архив с remote требует более новой сборки",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Коснитесь hardware key",
+  "hardwareKeyPin": "PIN hardware key",
+  "hardwareKeyTimeout": "Hardware key не ответил",
+  "hardwareKeyNotFound": "Hardware key не найден",
+  "hardwareKeyUnsupported": "Прямой доступ к hardware key недоступен на этой платформе",
+  "hardwareKeyAppleEntitlementRequired": "Требуется Apple Developer Program entitlement; используйте ssh-agent на macOS",
+  "skKeyRequiresDevice": "Этому SSH-ключу нужен hardware key — коснитесь устройства для аутентификации",
+  "errSkWrongPin": "Неверный PIN",
+  "hardwareKeyImport": "Импорт hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

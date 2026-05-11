@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/security/ssh_key.dart';
@@ -14,6 +15,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/fido2.dart' as rust_fido2;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../theme/app_theme.dart';
@@ -47,6 +49,19 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   List<SshKeyMetadata> _keys = [];
   bool _loading = true;
   String _filter = '';
+
+  /// FIDO2 hardware-key direct-CTAP2 probe — captured once at build
+  /// time. `false` in flutter_test contexts where FRB is not loaded
+  /// (the probe throws `StateError`) and on platforms / builds where
+  /// the `fido2` feature is off. The hardware-import action gates
+  /// off this flag.
+  bool get _fido2Available {
+    try {
+      return rust_fido2.fido2IsAvailable();
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -126,6 +141,20 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
           label: s.importKey,
           onTap: _importKey,
         ),
+        // Hardware-key (sk-*) import. Gated on the direct CTAP2 HID
+        // path being reachable; disabled with a tap-toast reason
+        // when not (Linux without udev rules, mobile / macOS without
+        // the Apple entitlement). The `try` guards flutter_test
+        // contexts where FRB is not loaded — the probe falls back
+        // to "not available" rather than throwing through the build.
+        _ToolbarButton(
+          icon: Icons.usb,
+          label: s.hardwareKeyImport,
+          tooltip: _fido2Available
+              ? s.hardwareKeyImport
+              : s.hardwareKeyUnsupported,
+          onTap: _fido2Available ? _importHardwareKey : null,
+        ),
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -158,8 +187,17 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   Widget _buildKeyEntry(S s, SshKeyMetadata entry) {
     final hasCert = entry.hasCertificate;
     final expired = entry.validity?.isExpired ?? false;
+    // `keyType` is the short tag stored in the DB. The metadata
+    // listing does not pull credential_id (private material adjacent
+    // field), so the hardware-bound flag derives off the wire-format
+    // discriminator OpenSSH itself uses.
+    final isHardware =
+        entry.keyType == 'sk-ed25519' ||
+        entry.keyType == 'sk-ecdsa-p256' ||
+        entry.keyType.startsWith('sk-ssh-') ||
+        entry.keyType.startsWith('sk-ecdsa-sha2-');
     return AppDataRow(
-      icon: Icons.vpn_key,
+      icon: isHardware ? Icons.usb : Icons.vpn_key,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
       title: entry.label,
       secondary:
@@ -168,6 +206,11 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       secondaryMono: true,
       tertiary: hasCert ? _certTertiary(s, entry) : null,
       trailing: [
+        if (isHardware)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: _HardwareBadge(label: s.hardwareKeyBadge),
+          ),
         if (expired)
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.xs),
@@ -540,6 +583,123 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     await _persistImportedKey(result.label, result.pem);
   }
 
+  /// File-picker path for FIDO2 hardware-bound (`sk-*`) keys. The
+  /// file the user picks is the OpenSSH-armored `id_*_sk` private
+  /// key produced by `ssh-keygen -t ed25519-sk` / `-t ecdsa-sk` —
+  /// despite the "private" suffix, the file carries no signing
+  /// material (the device keeps it). It carries the credential id +
+  /// application + user-verification flag the connect path needs to
+  /// route through `lfs_core::fido2::get_assertion`.
+  Future<void> _importHardwareKey() async {
+    final s = S.of(context);
+    final FilePickerResult? picked;
+    try {
+      picked = await FilePicker.pickFiles(
+        dialogTitle: s.hardwareKeyImport,
+        allowMultiple: false,
+        type: FileType.any,
+      );
+    } on MissingPluginException catch (e) {
+      AppLogger.instance.log(
+        'File picker missing on ${Platform.operatingSystem}: $e',
+        name: 'KeyManager',
+      );
+      if (mounted) {
+        Toast.show(
+          context,
+          message: s.filePickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    } catch (e) {
+      AppLogger.instance.log('File picker failed: $e', name: 'KeyManager');
+      if (mounted) {
+        Toast.show(
+          context,
+          message: s.filePickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+    if (!mounted || picked == null) return;
+    final path = picked.files.single.path;
+    if (path == null) return;
+
+    String pem;
+    try {
+      pem = await rust_keys.keysReadTextForManualImport(path: path);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Hardware key read failed: $e',
+        name: 'KeyManager',
+      );
+      if (mounted) {
+        Toast.show(context, message: s.invalidPem, level: ToastLevel.error);
+      }
+      return;
+    }
+
+    final rust_keys.DbSkKeyMetadata meta;
+    try {
+      meta = rust_keys.keysParseSkPrivateKey(pem: pem);
+    } catch (e) {
+      AppLogger.instance.log('sk-* parse failed: $e', name: 'KeyManager');
+      if (mounted) {
+        Toast.show(
+          context,
+          message: localizeError(s, e),
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    final fileName = path.split(Platform.pathSeparator).last;
+    final entry = SshKeyEntry(
+      id: const Uuid().v4(),
+      label: fileName,
+      // The "private" file carries no signing material — store it
+      // verbatim so the row round-trips through .lfs export / import,
+      // but the connect path never reads it back: the credential id +
+      // application + UV flag are what drive `fido2_get_assertion`.
+      privateKey: pem,
+      publicKey: meta.publicOpenssh,
+      keyType: meta.keyType,
+      createdAt: DateTime.now(),
+      credentialId: Uint8List.fromList(meta.credentialId),
+      applicationString: meta.application,
+      hasUserVerification: meta.hasUserVerification,
+    );
+    try {
+      final store = ref.read(sshKeysProvider.notifier);
+      await store.save(entry);
+      ref.invalidate(sshKeysProvider);
+      await _loadKeys();
+      if (mounted) {
+        Toast.show(
+          context,
+          message: s.keyImported(entry.label),
+          level: ToastLevel.success,
+        );
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Hardware key save failed: $e',
+        name: 'KeyManager',
+      );
+      if (mounted) {
+        Toast.show(
+          context,
+          message: localizeError(s, e),
+          level: ToastLevel.error,
+        );
+      }
+    }
+  }
+
   Future<void> _persistImportedKey(String label, String pem) async {
     try {
       final store = ref.read(sshKeysProvider.notifier);
@@ -642,7 +802,13 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 8,
-            children: SshKeyType.values.map((t) {
+            // Hardware-bound sk-* variants are generated on the
+            // device by `ssh-keygen -t ed25519-sk` / `-t ecdsa-sk`,
+            // not by the app. The key-manager toolbar exposes a
+            // separate "Import hardware key" action for those.
+            children: SshKeyType.values.where((t) => !t.isHardwareBound).map((
+              t,
+            ) {
               final selected = t == _type;
               return ChoiceChip(
                 label: Text(t.label),
@@ -812,18 +978,26 @@ class _AddKeyDialogState extends State<_AddKeyDialog> {
 class _ToolbarButton extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? tooltip;
   final VoidCallback? onTap;
 
-  const _ToolbarButton({required this.icon, required this.label, this.onTap});
+  const _ToolbarButton({
+    required this.icon,
+    required this.label,
+    this.tooltip,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return AppButton.secondary(
+    final button = AppButton.secondary(
       label: label,
       icon: icon,
       onTap: onTap,
       dense: true,
     );
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip!, child: button);
   }
 }
 
@@ -867,6 +1041,45 @@ class _ExpiredBadge extends StatelessWidget {
             style: AppFonts.inter(
               fontSize: AppFonts.xxs,
               color: AppTheme.red,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Hardware-bound (FIDO2)" pill rendered in the key-manager row's
+/// trailing slot when the stored key is an `sk-*` variant. Visual
+/// contract mirrors `_ExpiredBadge` so the row tail reads
+/// consistently when multiple badges co-exist.
+class _HardwareBadge extends StatelessWidget {
+  final String label;
+  const _HardwareBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(alpha: 0.16),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.usb, size: 12, color: AppTheme.accent),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: AppFonts.inter(
+              fontSize: AppFonts.xxs,
+              color: AppTheme.accent,
               fontWeight: FontWeight.w600,
             ),
           ),

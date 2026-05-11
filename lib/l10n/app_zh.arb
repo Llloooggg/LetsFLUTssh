@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Remote 的 sync 归档需要更新版本"
+  "errSyncArchiveFutureVersion": "Remote 的 sync 归档需要更新版本",
+  "hardwareKey": "硬件密钥",
+  "hardwareKeyTapPrompt": "请触碰硬件密钥",
+  "hardwareKeyPin": "硬件密钥 PIN",
+  "hardwareKeyTimeout": "硬件密钥未响应",
+  "hardwareKeyNotFound": "未找到硬件密钥",
+  "hardwareKeyUnsupported": "此平台不支持直接访问硬件密钥",
+  "hardwareKeyAppleEntitlementRequired": "需要 Apple Developer Program entitlement;在 macOS 上请使用 ssh-agent",
+  "skKeyRequiresDevice": "此 SSH 密钥需要硬件密钥 — 触碰以认证",
+  "errSkWrongPin": "PIN 错误",
+  "hardwareKeyImport": "导入硬件密钥 (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

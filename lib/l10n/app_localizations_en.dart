@@ -2909,4 +2909,40 @@ class SEn extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Remote sync archive needs a newer build to read';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Tap your hardware key';
+
+  @override
+  String get hardwareKeyPin => 'Hardware key PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key did not respond';
+
+  @override
+  String get hardwareKeyNotFound => 'No hardware key found';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Direct hardware key access is not available on this platform';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Requires Apple Developer Program entitlement; use ssh-agent on macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'This SSH key requires a hardware key — tap it to authenticate';
+
+  @override
+  String get errSkWrongPin => 'Incorrect PIN';
+
+  @override
+  String get hardwareKeyImport => 'Import hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

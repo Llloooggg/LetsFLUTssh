@@ -36,6 +36,12 @@ pub mod crypto;
 pub mod db;
 pub mod deeplink;
 pub mod error;
+// Direct CTAP2 over USB HID for hardware-bound SSH keys
+// (`sk-ssh-ed25519@openssh.com` / `sk-ecdsa-sha2-nistp256@openssh.com`).
+// Gated by the `fido2` Cargo feature; the module stubs out the
+// surface to `is_available() = false` when the feature is off so
+// the runtime probe drives the capability ladder.
+pub mod fido2;
 pub mod folder_path;
 pub mod format;
 pub mod fs;

@@ -2861,4 +2861,40 @@ class SFa extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'بایگانی sync از remote نیاز به build جدیدتر دارد';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'hardware key را لمس کن';
+
+  @override
+  String get hardwareKeyPin => 'PIN ـ hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'hardware key پاسخ نداد';
+
+  @override
+  String get hardwareKeyNotFound => 'hardware key یافت نشد';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'دسترسی مستقیم به hardware key در این پلتفرم در دسترس نیست';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'نیاز به Apple Developer Program entitlement؛ روی macOS از ssh-agent استفاده کن';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'این کلید SSH به hardware key نیاز دارد — برای auth لمس کن';
+
+  @override
+  String get errSkWrongPin => 'PIN اشتباه است';
+
+  @override
+  String get hardwareKeyImport => 'import کردن hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

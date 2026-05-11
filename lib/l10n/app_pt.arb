@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Arquivo de sync remoto precisa de um build mais recente"
+  "errSyncArchiveFutureVersion": "Arquivo de sync remoto precisa de um build mais recente",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Toque seu hardware key",
+  "hardwareKeyPin": "PIN do hardware key",
+  "hardwareKeyTimeout": "Hardware key não respondeu",
+  "hardwareKeyNotFound": "Nenhum hardware key encontrado",
+  "hardwareKeyUnsupported": "Acesso direto a hardware key não está disponível nesta plataforma",
+  "hardwareKeyAppleEntitlementRequired": "Requer entitlement do Apple Developer Program; use ssh-agent no macOS",
+  "skKeyRequiresDevice": "Esta chave SSH precisa de um hardware key — toque para autenticar",
+  "errSkWrongPin": "PIN incorreto",
+  "hardwareKeyImport": "Importar hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

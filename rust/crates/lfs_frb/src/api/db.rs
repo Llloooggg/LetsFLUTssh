@@ -125,6 +125,17 @@ pub struct DbSshKey {
     pub key_type: String,
     pub is_generated: bool,
     pub created_at_ms: i64,
+    /// FIDO2 credential id for `sk-*` keys; `None` for software keys.
+    /// The opaque CTAP2 blob the device matches against on every
+    /// assertion; persisted alongside the SSH wire-format public key
+    /// so the connect path can resolve it without a separate FRB hop.
+    pub credential_id: Option<Vec<u8>>,
+    /// FIDO2 `application` field — the SSH RP-id (typically `ssh:`).
+    /// `None` for software keys.
+    pub application_string: Option<String>,
+    /// User-verification bit captured at import. Drives the PIN prompt
+    /// on connect.
+    pub has_user_verification: bool,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -137,6 +148,9 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             key_type: r.key_type,
             is_generated: r.is_generated,
             created_at_ms: r.created_at_ms,
+            credential_id: r.credential_id,
+            application_string: r.application_string,
+            has_user_verification: r.has_user_verification,
         }
     }
 }
@@ -151,6 +165,9 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             key_type: r.key_type,
             is_generated: r.is_generated,
             created_at_ms: r.created_at_ms,
+            credential_id: r.credential_id,
+            application_string: r.application_string,
+            has_user_verification: r.has_user_verification,
         }
     }
 }
@@ -1598,6 +1615,9 @@ mod tests {
             key_type: "ed25519".into(),
             is_generated: true,
             created_at_ms: 1_700_000_000,
+            credential_id: None,
+            application_string: None,
+            has_user_verification: false,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

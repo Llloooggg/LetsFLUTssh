@@ -2941,4 +2941,40 @@ class SPt extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Arquivo de sync remoto precisa de um build mais recente';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Toque seu hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN do hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key não respondeu';
+
+  @override
+  String get hardwareKeyNotFound => 'Nenhum hardware key encontrado';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Acesso direto a hardware key não está disponível nesta plataforma';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Requer entitlement do Apple Developer Program; use ssh-agent no macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Esta chave SSH precisa de um hardware key — toque para autenticar';
+
+  @override
+  String get errSkWrongPin => 'PIN incorreto';
+
+  @override
+  String get hardwareKeyImport => 'Importar hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

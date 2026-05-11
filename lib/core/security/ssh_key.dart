@@ -4,14 +4,30 @@ import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/keys.dart' as rust_keys;
 
-/// Supported SSH key types for generation.
+/// Supported SSH key types for generation and import.
+///
+/// The `sk*` variants are FIDO2 hardware-bound keys —
+/// `sk-ssh-ed25519@openssh.com` and
+/// `sk-ecdsa-sha2-nistp256@openssh.com`. These keys cannot be
+/// generated inside the app (the device firmware mints them via
+/// `ssh-keygen -t ed25519-sk` / `-t ecdsa-sk`); they're imported by
+/// pasting the matching `*.pub` file. Persisted alongside the rest
+/// of the key manager rows so the connect path can resolve them
+/// transparently.
 enum SshKeyType {
   ed25519('Ed25519'),
   rsa2048('RSA 2048'),
-  rsa4096('RSA 4096');
+  rsa4096('RSA 4096'),
+  skEd25519('FIDO2 Ed25519'),
+  skEcdsaP256('FIDO2 ECDSA P-256');
 
   const SshKeyType(this.label);
   final String label;
+
+  /// True for hardware-bound (`sk-*`) variants — used by the connect
+  /// dispatch and the key-manager row badge.
+  bool get isHardwareBound =>
+      this == SshKeyType.skEd25519 || this == SshKeyType.skEcdsaP256;
 }
 
 /// Validity window of a paired OpenSSH certificate. `from` / `to`
@@ -55,6 +71,21 @@ class SshKeyEntry {
   final List<String> principals;
   final Map<String, String> criticalOptions;
 
+  /// FIDO2 credential id for hardware-bound `sk-*` keys. `null` for
+  /// software keys; the opaque CTAP2 blob the device matches against
+  /// on every assertion for hardware-bound keys. Persists alongside
+  /// the `*.pub` body so the connect path can resolve it without an
+  /// extra FRB hop.
+  final Uint8List? credentialId;
+
+  /// FIDO2 `application` field — the SSH RP-id (typically `ssh:`).
+  /// `null` for software keys.
+  final String? applicationString;
+
+  /// User-verification bit captured at import. Drives the PIN prompt
+  /// in [HardwareKeyPromptDialog] on connect.
+  final bool hasUserVerification;
+
   const SshKeyEntry({
     required this.id,
     required this.label,
@@ -67,7 +98,15 @@ class SshKeyEntry {
     this.validity,
     this.principals = const [],
     this.criticalOptions = const {},
+    this.credentialId,
+    this.applicationString,
+    this.hasUserVerification = false,
   });
+
+  /// True when the row is a hardware-bound `sk-*` key. Drives the
+  /// "Hardware-bound (FIDO2)" badge in the key manager + the connect
+  /// path's dispatch into [ssh_connect_pubkey_sk].
+  bool get isHardwareBound => credentialId != null;
 
   SshKeyEntry copyWith({
     String? label,
@@ -75,6 +114,9 @@ class SshKeyEntry {
     CertValidity? validity,
     List<String>? principals,
     Map<String, String>? criticalOptions,
+    Uint8List? credentialId,
+    String? applicationString,
+    bool? hasUserVerification,
   }) => SshKeyEntry(
     id: id,
     label: label ?? this.label,
@@ -87,6 +129,9 @@ class SshKeyEntry {
     validity: validity ?? this.validity,
     principals: principals ?? this.principals,
     criticalOptions: criticalOptions ?? this.criticalOptions,
+    credentialId: credentialId ?? this.credentialId,
+    applicationString: applicationString ?? this.applicationString,
+    hasUserVerification: hasUserVerification ?? this.hasUserVerification,
   );
 
   Map<String, dynamic> toJson() => {
@@ -104,6 +149,9 @@ class SshKeyEntry {
     },
     if (principals.isNotEmpty) 'principals': principals,
     if (criticalOptions.isNotEmpty) 'critical_options': criticalOptions,
+    if (credentialId != null) 'credential_id': credentialId!.toList(),
+    if (applicationString != null) 'application_string': applicationString,
+    if (hasUserVerification) 'has_user_verification': true,
   };
 
   factory SshKeyEntry.fromJson(Map<String, dynamic> json) {
@@ -124,6 +172,10 @@ class SshKeyEntry {
     final Map<String, String> critical = critRaw is Map
         ? critRaw.map((k, v) => MapEntry(k.toString(), v.toString()))
         : const {};
+    final credIdList = json['credential_id'];
+    final Uint8List? credentialId = credIdList is List
+        ? Uint8List.fromList(credIdList.cast<int>())
+        : null;
     return SshKeyEntry(
       id: json['id'] as String,
       label: json['label'] as String? ?? '',
@@ -138,6 +190,9 @@ class SshKeyEntry {
       validity: validity,
       principals: principals,
       criticalOptions: critical,
+      credentialId: credentialId,
+      applicationString: json['application_string'] as String?,
+      hasUserVerification: json['has_user_verification'] as bool? ?? false,
     );
   }
 
@@ -236,6 +291,17 @@ Future<SshKeyEntry> generateSshKeyPair(SshKeyType type, String label) async {
       km = await rust_keys.keysGenerateRsa(bits: 2048, comment: label);
     case SshKeyType.rsa4096:
       km = await rust_keys.keysGenerateRsa(bits: 4096, comment: label);
+    case SshKeyType.skEd25519:
+    case SshKeyType.skEcdsaP256:
+      // Hardware-bound keys are minted on the device by `ssh-keygen
+      // -t ed25519-sk` / `-t ecdsa-sk`; the app imports the matching
+      // public-key file rather than generating one in-process. The
+      // key manager dialog gates the generate flow before reaching
+      // here — surface a typed error if the dispatch leaks through.
+      throw const KeyStoreException(
+        'Hardware-bound (sk-*) keys are generated on the device, '
+        'not by the app — import the matching *.pub file instead.',
+      );
   }
 
   return SshKeyEntry(

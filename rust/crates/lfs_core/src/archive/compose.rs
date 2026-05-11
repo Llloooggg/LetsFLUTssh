@@ -376,15 +376,30 @@ fn build_manager_keys_value(
         .into_iter()
         .filter(|k| include_all || used_ids.contains(&k.id))
         .map(|k| {
-            json!({
-                "id": k.id,
-                "label": k.label,
-                "private_key": k.private_key,
-                "public_key": k.public_key,
-                "key_type": k.key_type,
-                "is_generated": k.is_generated,
-                "created_at": format_iso8601_utc(k.created_at_ms),
-            })
+            let mut obj = serde_json::Map::new();
+            obj.insert("id".into(), json!(k.id));
+            obj.insert("label".into(), json!(k.label));
+            obj.insert("private_key".into(), json!(k.private_key));
+            obj.insert("public_key".into(), json!(k.public_key));
+            obj.insert("key_type".into(), json!(k.key_type));
+            obj.insert("is_generated".into(), json!(k.is_generated));
+            obj.insert(
+                "created_at".into(),
+                json!(format_iso8601_utc(k.created_at_ms)),
+            );
+            // FIDO2 hardware-key fields. Emitted only when populated
+            // so a non-sk-* export does not bloat the manifest with
+            // null fields the peer's older build won't understand.
+            if let Some(ref cid) = k.credential_id {
+                obj.insert("credential_id".into(), json!(cid));
+            }
+            if let Some(ref app) = k.application_string {
+                obj.insert("application_string".into(), json!(app));
+            }
+            if k.has_user_verification {
+                obj.insert("has_user_verification".into(), json!(true));
+            }
+            Value::Object(obj)
         })
         .collect();
     if arr.is_empty() {
@@ -916,6 +931,9 @@ mod tests {
                 key_type: "ed25519".into(),
                 is_generated: true,
                 created_at_ms: 1_700_000_000_000,
+                credential_id: None,
+                application_string: None,
+                has_user_verification: false,
             },
         )
         .unwrap();

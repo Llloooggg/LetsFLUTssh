@@ -1154,6 +1154,20 @@ class DbSshKey {
   final bool isGenerated;
   final PlatformInt64 createdAtMs;
 
+  /// FIDO2 credential id for `sk-*` keys; `None` for software keys.
+  /// The opaque CTAP2 blob the device matches against on every
+  /// assertion; persisted alongside the SSH wire-format public key
+  /// so the connect path can resolve it without a separate FRB hop.
+  final Uint8List? credentialId;
+
+  /// FIDO2 `application` field — the SSH RP-id (typically `ssh:`).
+  /// `None` for software keys.
+  final String? applicationString;
+
+  /// User-verification bit captured at import. Drives the PIN prompt
+  /// on connect.
+  final bool hasUserVerification;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1162,6 +1176,9 @@ class DbSshKey {
     required this.keyType,
     required this.isGenerated,
     required this.createdAtMs,
+    this.credentialId,
+    this.applicationString,
+    required this.hasUserVerification,
   });
 
   @override
@@ -1172,7 +1189,10 @@ class DbSshKey {
       publicKey.hashCode ^
       keyType.hashCode ^
       isGenerated.hashCode ^
-      createdAtMs.hashCode;
+      createdAtMs.hashCode ^
+      credentialId.hashCode ^
+      applicationString.hashCode ^
+      hasUserVerification.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1185,7 +1205,10 @@ class DbSshKey {
           publicKey == other.publicKey &&
           keyType == other.keyType &&
           isGenerated == other.isGenerated &&
-          createdAtMs == other.createdAtMs;
+          createdAtMs == other.createdAtMs &&
+          credentialId == other.credentialId &&
+          applicationString == other.applicationString &&
+          hasUserVerification == other.hasUserVerification;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].

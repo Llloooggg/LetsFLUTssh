@@ -119,6 +119,40 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 - Detection is automatic at import time. The auth chain handles legacy PKCS#1 (`Proc-Type: 4,ENCRYPTED` + `DEK-Info` headers), PKCS#8 encrypted (`-----BEGIN ENCRYPTED PRIVATE KEY-----`), and modern OpenSSH KDF-encrypted (`-----BEGIN OPENSSH PRIVATE KEY-----` with a non-`none` KDF in the binary frame) uniformly.
 - If the key is encrypted and you didn't supply a passphrase up front, Tools → SSH Keys / Session edit → Auth tab prompts for one before saving. On connect the same prompt fires for any key whose passphrase is not stored.
 
+### Hardware key (FIDO2 `sk-*`)
+
+OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openssh.com` keys whose private half lives on a hardware authenticator (YubiKey, SoloKey, Titan, Feitian, Nitrokey, Trezor). The app talks to the device directly over USB HID — no `ssh-agent` required.
+
+1. Generate the key with `ssh-keygen` on the host where you want to install the `authorized_keys` entry:
+   - `ssh-keygen -t ed25519-sk -O resident -O application=ssh: -f ~/.ssh/id_ed25519_sk`
+   - For PIN-required (user verification): add `-O verify-required`.
+2. Copy the matching `~/.ssh/id_ed25519_sk.pub` to the server's `~/.ssh/authorized_keys`.
+3. In the app: **Tools → SSH Keys → Import hardware key (sk-*)**. Pick the private file (`id_ed25519_sk`, not `.pub`). The row shows the "Hardware-bound (FIDO2)" badge once imported.
+4. Reference the key from a session's **Auth → Key from manager** drop-down.
+5. On connect: the device LED starts blinking. Tap the metal contact (or enter the PIN first if the credential was created with `verify-required`).
+
+**Platform availability**
+
+| Platform | Path | Status |
+|---|---|---|
+| Linux | Direct USB HID via `hidraw` | Supported; install `70-letsflutssh-fido.rules` (see below) |
+| Windows 10+ | Direct USB HID | Supported |
+| macOS | Direct USB HID | Disabled at runtime — requires Apple Developer Program entitlement on a signed build |
+| iOS | NFC | Disabled — future follow-up |
+| Android | USB host | Disabled — future follow-up |
+
+**Linux: install the udev rules**
+
+`/dev/hidraw*` defaults to `root:root 0600`. Install the bundled rules to grant the seat-owning user passthrough:
+
+```bash
+sudo cp /usr/share/letsflutssh/udev/70-letsflutssh-fido.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+The rules cover Yubico (1050), STMicroelectronics (0483, SoloKey), Feitian (096e), Trezor (1209/53c1), Nitrokey (20a0), Google Titan (18d1), and OpenMoko (1d50, OnlyKey + assorted FIDO2 firmware).
+
 ---
 
 ## 4. Terminal

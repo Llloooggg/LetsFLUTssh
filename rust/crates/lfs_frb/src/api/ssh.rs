@@ -345,6 +345,41 @@ pub async fn ssh_connect_pubkey_cert(
     Ok(SshSession::from_core(session))
 }
 
+/// Connect + authenticate with a FIDO2 hardware-bound `sk-*` SSH
+/// key. Private key material never crosses this boundary: russh
+/// asks the device to sign every userauth challenge through
+/// `lfs_core::fido2::get_assertion`, the touch / PIN prompt fires
+/// inside the device firmware, and only the resulting signature
+/// blob reaches the process.
+///
+/// `public_openssh` is the single-line `id_*.pub` body. `credential_id`
+/// is the opaque CTAP2 blob captured at import. `application` is the
+/// SSH `application` string (typically `ssh:`). `pin` is forwarded
+/// to the device when the credential carries the user-verification
+/// bit; touch-only credentials should pass `None`.
+pub async fn ssh_connect_pubkey_sk(
+    host: String,
+    port: u16,
+    user: String,
+    public_openssh: String,
+    credential_id: Vec<u8>,
+    application: String,
+    pin: Option<String>,
+) -> Result<SshSession, String> {
+    let session = lfs_core::ssh::Session::connect_pubkey_sk(
+        &host,
+        port,
+        &user,
+        &public_openssh,
+        &credential_id,
+        &application,
+        pin.as_deref(),
+    )
+    .await
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(SshSession::from_core(session))
+}
+
 /// Connect + authenticate with username + private key. Accepts both
 /// OpenSSH PEM and PuTTY PPK formats (see `ssh_try_connect_pubkey`
 /// for the format list). `passphrase` is required only when the key

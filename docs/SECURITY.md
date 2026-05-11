@@ -535,6 +535,16 @@ carries only the SecretStore id pointers; plaintext never lands
 on disk in the preferences file. Wipe-all clears both slots
 alongside every other SecretStore entry.
 
+## FIDO2 hardware-bound SSH keys (`sk-*`)
+
+OpenSSH `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openssh.com` keys hold their private half on a hardware authenticator (YubiKey, SoloKey, Titan, Feitian, Nitrokey, Trezor). The signing scalar never leaves the device, the app never sees it, and at-rest theft of the laptop yields nothing the attacker can replay against an SSH server.
+
+What we persist alongside the SSH key row: the opaque CTAP2 credential id, the SSH `application` field (typically `ssh:`), the user-verification flag captured at import, and the OpenSSH public-key body. None of these grants signing capability — the device matches the credential id against its on-board secret on every assertion. An attacker reading the on-disk SQLCipher DB obtains the credential id but still needs the physical device (and the PIN, when user-verification is set) to mint a signature.
+
+PIN entry is per-connect, never cached: the `hardware_key_prompt_dialog` collects the PIN, hands it straight to `lfs_core::fido2::get_assertion`, and the PIN string is dropped at the end of the FRB call. The Rust core forwards it once to the CTAP2 layer and never retains it.
+
+The connect path's `FidoSigner` (russh `auth::Signer` impl) SHA-256-hashes the SSH userauth signature input, sends it to the device as the WebAuthn `clientDataHash`, and embeds the resulting CTAP signature in the OpenSSH `sk-*` wire-format trailer (`flags || u32 counter` for sk-ed25519; `mpint r || mpint s || flags || u32 counter` for sk-ecdsa-p256). The counter increments per assertion — replay across the wire is detectable by any SSH server that tracks it.
+
 ## Known limits
 
 - The running unlocked app must hold the decrypted DB key in process

@@ -2860,4 +2860,40 @@ class SVi extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Archive sync từ remote cần build mới hơn';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Chạm vào hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN của hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key không phản hồi';
+
+  @override
+  String get hardwareKeyNotFound => 'Không tìm thấy hardware key';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Truy cập trực tiếp hardware key không khả dụng trên platform này';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Cần Apple Developer Program entitlement; dùng ssh-agent trên macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'SSH key này cần hardware key — chạm để auth';
+
+  @override
+  String get errSkWrongPin => 'PIN không đúng';
+
+  @override
+  String get hardwareKeyImport => 'Import hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

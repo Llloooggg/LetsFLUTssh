@@ -198,6 +198,9 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     keyType: e.keyType,
     isGenerated: e.isGenerated,
     createdAtMs: e.createdAt.millisecondsSinceEpoch,
+    credentialId: e.credentialId,
+    applicationString: e.applicationString,
+    hasUserVerification: e.hasUserVerification,
   );
 
   /// Project the `ssh_keys` row + optional `ssh_key_certificates`

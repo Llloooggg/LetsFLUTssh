@@ -2777,4 +2777,38 @@ class SZh extends S {
 
   @override
   String get errSyncArchiveFutureVersion => 'Remote 的 sync 归档需要更新版本';
+
+  @override
+  String get hardwareKey => '硬件密钥';
+
+  @override
+  String get hardwareKeyTapPrompt => '请触碰硬件密钥';
+
+  @override
+  String get hardwareKeyPin => '硬件密钥 PIN';
+
+  @override
+  String get hardwareKeyTimeout => '硬件密钥未响应';
+
+  @override
+  String get hardwareKeyNotFound => '未找到硬件密钥';
+
+  @override
+  String get hardwareKeyUnsupported => '此平台不支持直接访问硬件密钥';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      '需要 Apple Developer Program entitlement;在 macOS 上请使用 ssh-agent';
+
+  @override
+  String get skKeyRequiresDevice => '此 SSH 密钥需要硬件密钥 — 触碰以认证';
+
+  @override
+  String get errSkWrongPin => 'PIN 错误';
+
+  @override
+  String get hardwareKeyImport => '导入硬件密钥 (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

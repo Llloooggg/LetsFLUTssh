@@ -2876,4 +2876,40 @@ class STr extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Remote sync arşivi daha yeni bir build gerektiriyor';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Hardware key\'e dokun';
+
+  @override
+  String get hardwareKeyPin => 'Hardware key PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key yanıt vermedi';
+
+  @override
+  String get hardwareKeyNotFound => 'Hardware key bulunamadı';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Bu platformda doğrudan hardware key erişimi yok';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement gerekli; macOS\'ta ssh-agent kullan';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Bu SSH key bir hardware key gerektiriyor — auth için dokun';
+
+  @override
+  String get errSkWrongPin => 'PIN hatalı';
+
+  @override
+  String get hardwareKeyImport => 'Hardware key import et (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

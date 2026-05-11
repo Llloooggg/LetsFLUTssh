@@ -91,6 +91,7 @@ Future<void> _populateDb({
         keyType: 'ed25519',
         isGenerated: false,
         createdAtMs: DateTime(2025).millisecondsSinceEpoch,
+        hasUserVerification: false,
       ),
     );
   }

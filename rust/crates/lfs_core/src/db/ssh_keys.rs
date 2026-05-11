@@ -24,6 +24,20 @@ pub struct SshKeyRow {
     /// DateTime value as INTEGER milliseconds-since-epoch via
     /// `DateTimeColumn`'s default mapping.
     pub created_at_ms: i64,
+    /// FIDO2 credential id captured at import for `sk-*` keys.
+    /// `None` (NULL on disk) for software keys; the wrapped CTAP2
+    /// blob the device matches against on every assertion for
+    /// hardware-bound keys. Routed through
+    /// `lfs_core::fido2::get_assertion` on the SSH connect path.
+    pub credential_id: Option<Vec<u8>>,
+    /// FIDO2 `application` field — the SSH RP-id captured at import
+    /// from the `sk-*` public-key wire body. Typically the literal
+    /// string `ssh:`. `None` for software keys.
+    pub application_string: Option<String>,
+    /// User-verification bit captured at import. When `true` the
+    /// connect path prompts the user for a PIN; when `false` the
+    /// device accepts a touch-only assertion.
+    pub has_user_verification: bool,
 }
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
@@ -36,6 +50,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         // drift maps Bool to int 0/1
         is_generated: row.get::<_, i64>("is_generated")? != 0,
         created_at_ms: row.get("created_at")?,
+        credential_id: row.get("credential_id")?,
+        application_string: row.get("application_string")?,
+        has_user_verification: row.get::<_, i64>("has_user_verification")? != 0,
     })
 }
 
@@ -43,7 +60,8 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
+            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
+                    credential_id, application_string, has_user_verification \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -61,7 +79,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
+            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
+                    credential_id, application_string, has_user_verification \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -77,8 +96,9 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
 
 pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Error> {
     conn.raw().execute(
-        "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+        "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
+                               credential_id, application_string, has_user_verification) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -86,6 +106,9 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            key_type = excluded.key_type, \
            is_generated = excluded.is_generated, \
            created_at = excluded.created_at, \
+           credential_id = excluded.credential_id, \
+           application_string = excluded.application_string, \
+           has_user_verification = excluded.has_user_verification, \
            deleted_at = NULL",
         params![
             row.id,
@@ -95,6 +118,9 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.key_type,
             if row.is_generated { 1 } else { 0 },
             row.created_at_ms,
+            row.credential_id,
+            row.application_string,
+            if row.has_user_verification { 1 } else { 0 },
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -131,7 +157,8 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
+            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
+                    credential_id, application_string, has_user_verification \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata prepare: {e}")))?;
@@ -211,8 +238,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
     {
         let mut stmt = tx
             .prepare_cached(
-                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
+                                       credential_id, application_string, has_user_verification) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -220,6 +248,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    key_type = excluded.key_type, \
                    is_generated = excluded.is_generated, \
                    created_at = excluded.created_at, \
+                   credential_id = excluded.credential_id, \
+                   application_string = excluded.application_string, \
+                   has_user_verification = excluded.has_user_verification, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -232,6 +263,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.key_type,
                 if row.is_generated { 1 } else { 0 },
                 row.created_at_ms,
+                row.credential_id,
+                row.application_string,
+                if row.has_user_verification { 1 } else { 0 },
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -350,6 +384,9 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             key_type: proposed.key_type.clone(),
             is_generated: proposed.is_generated,
             created_at_ms: proposed.created_at_ms,
+            credential_id: proposed.credential_id.clone(),
+            application_string: proposed.application_string.clone(),
+            has_user_verification: proposed.has_user_verification,
         },
     )?;
     tx.commit()
@@ -413,6 +450,9 @@ mod import_for_merge_tests {
             key_type: "ed25519".into(),
             is_generated: false,
             created_at_ms: 0,
+            credential_id: None,
+            application_string: None,
+            has_user_verification: false,
         }
     }
 
@@ -511,6 +551,9 @@ mod tombstone_tests {
                     key_type: "ed25519".into(),
                     is_generated: false,
                     created_at_ms: 0,
+                    credential_id: None,
+                    application_string: None,
+                    has_user_verification: false,
                 },
             )
         })
@@ -593,6 +636,9 @@ mod tombstone_tests {
             key_type: "ed25519".into(),
             is_generated: true,
             created_at_ms: 0,
+            credential_id: None,
+            application_string: None,
+            has_user_verification: false,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

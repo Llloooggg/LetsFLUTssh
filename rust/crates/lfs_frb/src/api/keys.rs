@@ -167,6 +167,44 @@ pub async fn keys_read_text_for_manual_import(path: String) -> Result<String, St
     .map_err(|e| format!("read text task: {e}"))?
 }
 
+/// FRB mirror of [`lfs_core::keys::SkKeyMetadata`]. Returned by
+/// [`keys_parse_sk_private_key`] to the Dart key-manager when the
+/// user imports an OpenSSH `sk-*` private key file
+/// (`id_ed25519_sk`, `id_ecdsa_sk`). Carries the credential id,
+/// application string, algorithm short tag, single-line public-key
+/// body, and the user-verification flag — every field the connect
+/// path needs to authenticate against the hardware authenticator.
+#[derive(Debug, Clone)]
+pub struct DbSkKeyMetadata {
+    pub credential_id: Vec<u8>,
+    pub application: String,
+    pub key_type: String,
+    pub public_openssh: String,
+    pub has_user_verification: bool,
+}
+
+impl From<lfs_core::keys::SkKeyMetadata> for DbSkKeyMetadata {
+    fn from(m: lfs_core::keys::SkKeyMetadata) -> Self {
+        Self {
+            credential_id: m.credential_id,
+            application: m.application,
+            key_type: m.key_type,
+            public_openssh: m.public_openssh,
+            has_user_verification: m.has_user_verification,
+        }
+    }
+}
+
+/// Parse an OpenSSH-armored `sk-*` private key file and surface
+/// the metadata the connect path needs. Sync — the parse is a
+/// single OpenSSH PEM decode + base64 walk, no I/O.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_parse_sk_private_key(pem: String) -> Result<DbSkKeyMetadata, String> {
+    lfs_core::keys::parse_sk_private_key(&pem)
+        .map(DbSkKeyMetadata::from)
+        .map_err(|e| crate::api::frb_err::from_core(&e))
+}
+
 /// FRB mirror of [`lfs_core::keys::CertSummary`]. The Dart key-
 /// manager UI consumes this to render the principals chip list,
 /// validity row, expired badge, and critical-options summary on

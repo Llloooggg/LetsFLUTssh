@@ -2961,4 +2961,40 @@ class SFr extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'L\'archive sync du remote nécessite un build plus récent';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Touche ton hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN du hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Le hardware key n\'a pas répondu';
+
+  @override
+  String get hardwareKeyNotFound => 'Aucun hardware key détecté';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'L\'accès direct au hardware key n\'est pas disponible sur cette plateforme';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Nécessite un entitlement Apple Developer Program ; utilise ssh-agent sur macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Cette clé SSH nécessite un hardware key — touche-le pour t\'authentifier';
+
+  @override
+  String get errSkWrongPin => 'PIN incorrect';
+
+  @override
+  String get hardwareKeyImport => 'Importer un hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

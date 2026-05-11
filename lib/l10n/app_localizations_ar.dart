@@ -2874,4 +2874,40 @@ class SAr extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'أرشيف sync البعيد يحتاج إصدارًا أحدث';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'المس hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN الـ hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key لم يستجب';
+
+  @override
+  String get hardwareKeyNotFound => 'لم يتم العثور على hardware key';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'الوصول المباشر إلى hardware key غير متاح على هذه المنصة';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'يتطلب Apple Developer Program entitlement؛ استخدم ssh-agent على macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'هذا المفتاح SSH يحتاج hardware key — المسه للمصادقة';
+
+  @override
+  String get errSkWrongPin => 'PIN غير صحيح';
+
+  @override
+  String get hardwareKeyImport => 'استيراد hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

@@ -23,6 +23,7 @@ pub mod credential_prompt;
 pub mod crypto;
 pub mod db;
 pub mod deeplink;
+pub mod fido2;
 pub mod folder_path;
 pub mod format;
 pub mod forward;

@@ -2872,4 +2872,40 @@ class SHi extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Remote sync archive के लिए नया build चाहिए';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'अपने hardware key को टैप करें';
+
+  @override
+  String get hardwareKeyPin => 'Hardware key PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key ने जवाब नहीं दिया';
+
+  @override
+  String get hardwareKeyNotFound => 'कोई hardware key नहीं मिला';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'इस platform पर direct hardware key access उपलब्ध नहीं है';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement चाहिए; macOS पर ssh-agent इस्तेमाल करें';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'इस SSH key के लिए hardware key चाहिए — auth के लिए टैप करें';
+
+  @override
+  String get errSkWrongPin => 'PIN गलत है';
+
+  @override
+  String get hardwareKeyImport => 'Hardware key import करें (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

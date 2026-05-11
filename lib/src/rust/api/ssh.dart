@@ -135,6 +135,36 @@ Future<SshSession> sshConnectPubkeyCert({
   cert: cert,
 );
 
+/// Connect + authenticate with a FIDO2 hardware-bound `sk-*` SSH
+/// key. Private key material never crosses this boundary: russh
+/// asks the device to sign every userauth challenge through
+/// `lfs_core::fido2::get_assertion`, the touch / PIN prompt fires
+/// inside the device firmware, and only the resulting signature
+/// blob reaches the process.
+///
+/// `public_openssh` is the single-line `id_*.pub` body. `credential_id`
+/// is the opaque CTAP2 blob captured at import. `application` is the
+/// SSH `application` string (typically `ssh:`). `pin` is forwarded
+/// to the device when the credential carries the user-verification
+/// bit; touch-only credentials should pass `None`.
+Future<SshSession> sshConnectPubkeySk({
+  required String host,
+  required int port,
+  required String user,
+  required String publicOpenssh,
+  required List<int> credentialId,
+  required String application,
+  String? pin,
+}) => RustLib.instance.api.crateApiSshSshConnectPubkeySk(
+  host: host,
+  port: port,
+  user: user,
+  publicOpenssh: publicOpenssh,
+  credentialId: credentialId,
+  application: application,
+  pin: pin,
+);
+
 /// Connect + authenticate with username + private key. Accepts both
 /// OpenSSH PEM and PuTTY PPK formats (see `ssh_try_connect_pubkey`
 /// for the format list). `passphrase` is required only when the key

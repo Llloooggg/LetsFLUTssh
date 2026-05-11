@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Remote sync arşivi daha yeni bir build gerektiriyor"
+  "errSyncArchiveFutureVersion": "Remote sync arşivi daha yeni bir build gerektiriyor",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Hardware key'e dokun",
+  "hardwareKeyPin": "Hardware key PIN",
+  "hardwareKeyTimeout": "Hardware key yanıt vermedi",
+  "hardwareKeyNotFound": "Hardware key bulunamadı",
+  "hardwareKeyUnsupported": "Bu platformda doğrudan hardware key erişimi yok",
+  "hardwareKeyAppleEntitlementRequired": "Apple Developer Program entitlement gerekli; macOS'ta ssh-agent kullan",
+  "skKeyRequiresDevice": "Bu SSH key bir hardware key gerektiriyor — auth için dokun",
+  "errSkWrongPin": "PIN hatalı",
+  "hardwareKeyImport": "Hardware key import et (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

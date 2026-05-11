@@ -200,6 +200,9 @@ mod tests {
                     key_type: "ssh-ed25519".into(),
                     is_generated: false,
                     created_at_ms: 0,
+                    credential_id: None,
+                    application_string: None,
+                    has_user_verification: false,
                 },
             )
         })

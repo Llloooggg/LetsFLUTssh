@@ -352,6 +352,22 @@ fn merge_keys(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOu
                 .and_then(|x| x.as_bool())
                 .unwrap_or(false),
             created_at_ms: peer_ts,
+            credential_id: v
+                .get("credential_id")
+                .and_then(|x| x.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|b| b.as_u64().map(|n| n as u8))
+                        .collect()
+                }),
+            application_string: v
+                .get("application_string")
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string()),
+            has_user_verification: v
+                .get("has_user_verification")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false),
         };
         match ssh_keys::upsert(conn, &row) {
             Ok(_) => outcome.keys_merged += 1,
@@ -719,6 +735,9 @@ mod tests {
             key_type: "ed25519".into(),
             is_generated: true,
             created_at_ms: 1_700_000_000_000,
+            credential_id: None,
+            application_string: None,
+            has_user_verification: false,
         };
         db.with_conn(|c| ssh_keys::upsert(c, &row)).unwrap();
         let peer = r#"[{

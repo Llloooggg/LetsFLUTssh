@@ -157,6 +157,77 @@ fn parse_ppk_argon2_memory(ppk_text: &str) -> Option<u32> {
     None
 }
 
+/// Parsed metadata for an `sk-*` SSH private key. The "private" file
+/// produced by `ssh-keygen -t ed25519-sk` carries the credential id,
+/// flags byte, application string, and public-key body — the actual
+/// secret never leaves the authenticator. We persist all four so the
+/// connect path can resolve the credential without re-prompting.
+#[derive(Debug, Clone)]
+pub struct SkKeyMetadata {
+    /// Opaque CTAP2 credential id (the U2F key handle). Variable
+    /// length up to 255 bytes per PROTOCOL.u2f.
+    pub credential_id: Vec<u8>,
+    /// FIDO/U2F application string. Typically `ssh:`; can be
+    /// customised at `ssh-keygen` time via `-O application=...`.
+    pub application: String,
+    /// Algorithm tag. Wire form is the OpenSSH SSH-key algorithm
+    /// string (`sk-ssh-ed25519@openssh.com` /
+    /// `sk-ecdsa-sha2-nistp256@openssh.com`); the DB stores the
+    /// short tag (`sk-ed25519` / `sk-ecdsa-p256`).
+    pub key_type: String,
+    /// Public-key body in single-line OpenSSH form. The connect path
+    /// hands this back to russh for the userauth handshake.
+    pub public_openssh: String,
+    /// True when the credential was minted with `-O verify-required` —
+    /// the device demands a PIN before signing. UI prompts the user
+    /// at connect time.
+    pub has_user_verification: bool,
+}
+
+/// Parse an OpenSSH-armored `sk-*` private key file
+/// (`id_ed25519_sk`, `id_ecdsa_sk`). The file carries the public
+/// point + application + key handle + flags — the device holds the
+/// real signing key. Returns the metadata the connect path needs to
+/// route through `lfs_core::fido2::get_assertion`.
+pub fn parse_sk_private_key(pem: &str) -> Result<SkKeyMetadata, Error> {
+    use russh::keys::ssh_key::private::KeypairData;
+
+    let parsed = PrivateKey::from_openssh(pem.as_bytes())
+        .map_err(|e| Error::KeyParse(format!("parse sk openssh: {e}")))?;
+    if parsed.is_encrypted() {
+        return Err(Error::KeyParse(
+            "sk-* private keys are not passphrase-encrypted".into(),
+        ));
+    }
+    let public_openssh = parsed
+        .public_key()
+        .to_openssh()
+        .map_err(|e| Error::KeyParse(format!("encode public: {e}")))?;
+    match parsed.key_data() {
+        KeypairData::SkEd25519(k) => Ok(SkKeyMetadata {
+            credential_id: k.key_handle().to_vec(),
+            application: k.public().application().to_string(),
+            key_type: "sk-ed25519".to_string(),
+            public_openssh,
+            // SSH_SK_USER_VERIFICATION_REQD = 0x04 per OpenSSH
+            // PROTOCOL.u2f; the flag is OR'd into the byte at
+            // generation time when the user passed `-O
+            // verify-required`.
+            has_user_verification: k.flags() & 0x04 != 0,
+        }),
+        KeypairData::SkEcdsaSha2NistP256(k) => Ok(SkKeyMetadata {
+            credential_id: k.key_handle().to_vec(),
+            application: k.public().application().to_string(),
+            key_type: "sk-ecdsa-p256".to_string(),
+            public_openssh,
+            has_user_verification: k.flags() & 0x04 != 0,
+        }),
+        _ => Err(Error::KeyParse(
+            "not an sk-* private key (missing FIDO2 credential body)".into(),
+        )),
+    }
+}
+
 /// True when [`text`] looks like a PuTTY PPK file (first line
 /// matches the v2 / v3 header). Cheap shape sniff used by the
 /// import dispatcher to route `.ppk` content to the PPK parser

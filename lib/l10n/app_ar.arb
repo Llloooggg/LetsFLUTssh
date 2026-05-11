@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "أرشيف sync البعيد يحتاج إصدارًا أحدث"
+  "errSyncArchiveFutureVersion": "أرشيف sync البعيد يحتاج إصدارًا أحدث",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "المس hardware key",
+  "hardwareKeyPin": "PIN الـ hardware key",
+  "hardwareKeyTimeout": "Hardware key لم يستجب",
+  "hardwareKeyNotFound": "لم يتم العثور على hardware key",
+  "hardwareKeyUnsupported": "الوصول المباشر إلى hardware key غير متاح على هذه المنصة",
+  "hardwareKeyAppleEntitlementRequired": "يتطلب Apple Developer Program entitlement؛ استخدم ssh-agent على macOS",
+  "skKeyRequiresDevice": "هذا المفتاح SSH يحتاج hardware key — المسه للمصادقة",
+  "errSkWrongPin": "PIN غير صحيح",
+  "hardwareKeyImport": "استيراد hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

@@ -132,6 +132,15 @@ pub enum Error {
     #[error("crypto: {0}")]
     Crypto(String),
 
+    /// FIDO2 / CTAP2 hardware-key failures surfaced by
+    /// `lfs_core::fido2` — no device reachable, PIN rejected, user
+    /// timeout (the device LED stopped blinking without a tap), HID
+    /// transport drop. Carved out of `Io` / `Platform` so the connect
+    /// path's hardware-key prompt dialog can route a `wrong PIN`
+    /// retry differently from a `no device reachable` cancel.
+    #[error("fido2: {0}")]
+    Fido2(String),
+
     #[error("timeout")]
     Timeout,
 

@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Archive sync từ remote cần build mới hơn"
+  "errSyncArchiveFutureVersion": "Archive sync từ remote cần build mới hơn",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Chạm vào hardware key",
+  "hardwareKeyPin": "PIN của hardware key",
+  "hardwareKeyTimeout": "Hardware key không phản hồi",
+  "hardwareKeyNotFound": "Không tìm thấy hardware key",
+  "hardwareKeyUnsupported": "Truy cập trực tiếp hardware key không khả dụng trên platform này",
+  "hardwareKeyAppleEntitlementRequired": "Cần Apple Developer Program entitlement; dùng ssh-agent trên macOS",
+  "skKeyRequiresDevice": "SSH key này cần hardware key — chạm để auth",
+  "errSkWrongPin": "PIN không đúng",
+  "hardwareKeyImport": "Import hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

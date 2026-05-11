@@ -38,7 +38,7 @@ subtle = { workspace = true }
 # Used by `keys::generate_*` for keypair RNG. Kept on rand 0.8 to
 # match the trait bound on russh-keys 0.6.16's `PrivateKey::random`.
 rand = "0.8"
-# Phase 2 crypto envelopes — HKDF-SHA-256 + Ed25519 verify in
+# Crypto envelopes — HKDF-SHA-256 + Ed25519 verify in
 # `lfs_core::crypto`. Replaces pointycastle / pinenacl on the Dart
 # side once the call sites flip.
 hkdf = { workspace = true }
@@ -75,6 +75,13 @@ url = { workspace = true }
 quick-xml = { workspace = true }
 md-5 = { workspace = true }
 httpdate = { workspace = true }
+# FIDO2 direct CTAP2 HID transport. Optional — gated behind the
+# `fido2` Cargo feature so platforms with no HID surface
+# (iOS / Android prior to the future USB-host plumbing) compile
+# `lfs_core` without the HID dep and the matching `fido2` module
+# stubs `is_available() = false`. Desktop builds (Linux / Windows /
+# macOS) enable the feature in their respective build profiles.
+ctap-hid-fido2 = { workspace = true, optional = true }
 
 # Linux-only D-Bus client for the fprintd shim under
 # `platform::linux::fprintd`. The TSS2 ESAPI binding (`tss-esapi`)
@@ -91,6 +98,22 @@ serde = { workspace = true }
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
+
+[features]
+# Direct CTAP2 over USB HID for hardware-bound SSH keys.
+# Opt-in via `--features fido2` because the underlying `hidapi`
+# crate needs a system `libudev-dev` on Linux / `hidapi.lib` on
+# Windows to link, and a local dev host without those headers
+# shouldn't fail the workspace `cargo check`. Production Linux +
+# Windows release pipelines flip the feature on; iOS / Android /
+# macOS-without-driverkit stay off because the HID stack isn't
+# reachable there. When disabled, `lfs_core::fido2::is_available()`
+# returns `false` and `get_assertion` returns
+# `Error::Fido2("feature disabled at build time")` — the runtime
+# probe is the single source of truth, the cfg-gate just removes
+# the dep.
+default = []
+fido2 = ["dep:ctap-hid-fido2"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

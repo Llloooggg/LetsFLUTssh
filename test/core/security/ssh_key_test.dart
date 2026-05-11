@@ -219,4 +219,78 @@ void main() {
       expect(e.toString(), 'KeyStoreException: outer');
     });
   });
+
+  group('SshKeyEntry FIDO2 hardware-bound fields', () {
+    SshKeyEntry hardwareEntry({bool uv = false}) => SshKeyEntry(
+      id: 'sk-id',
+      label: 'YubiKey',
+      privateKey: '-----BEGIN OPENSSH PRIVATE KEY-----\n...',
+      publicKey: 'sk-ssh-ed25519@openssh.com AAAA',
+      keyType: 'sk-ed25519',
+      createdAt: DateTime.utc(2026, 1, 2, 3, 4, 5),
+      credentialId: Uint8List.fromList([0x01, 0x02, 0x03, 0x04]),
+      applicationString: 'ssh:',
+      hasUserVerification: uv,
+    );
+
+    test('isHardwareBound reflects credentialId presence', () {
+      expect(hardwareEntry().isHardwareBound, isTrue);
+      expect(_entry().isHardwareBound, isFalse);
+    });
+
+    test('JSON round-trip preserves credentialId / application / UV', () {
+      final original = hardwareEntry(uv: true);
+      final restored = SshKeyEntry.fromJson(original.toJson());
+      expect(restored.credentialId, equals(original.credentialId));
+      expect(restored.applicationString, 'ssh:');
+      expect(restored.hasUserVerification, isTrue);
+      expect(restored.isHardwareBound, isTrue);
+    });
+
+    test('toJson omits FIDO2 fields for software keys', () {
+      // Software-key rows must not bloat the manifest with null
+      // FIDO2 fields — peer / older builds may not understand them.
+      final json = _entry().toJson();
+      expect(json.containsKey('credential_id'), isFalse);
+      expect(json.containsKey('application_string'), isFalse);
+      expect(json.containsKey('has_user_verification'), isFalse);
+    });
+
+    test('toJson omits has_user_verification when false', () {
+      // The flag is the most common-false of the three FIDO fields;
+      // emitting `false` would add wire noise on touch-only keys.
+      final json = hardwareEntry(uv: false).toJson();
+      expect(json.containsKey('has_user_verification'), isFalse);
+      expect(json['credential_id'], isA<List<dynamic>>());
+      expect(json['application_string'], 'ssh:');
+    });
+
+    test('copyWith threads FIDO2 fields without touching unrelated fields', () {
+      final base = hardwareEntry();
+      final updated = base.copyWith(
+        credentialId: Uint8List.fromList([0xFF]),
+        applicationString: 'ssh:custom',
+        hasUserVerification: true,
+      );
+      expect(updated.credentialId, [0xFF]);
+      expect(updated.applicationString, 'ssh:custom');
+      expect(updated.hasUserVerification, isTrue);
+      // Identifier / label preserved.
+      expect(updated.id, base.id);
+      expect(updated.label, base.label);
+    });
+  });
+
+  group('SshKeyType.isHardwareBound', () {
+    test('sk-* variants are hardware-bound', () {
+      expect(SshKeyType.skEd25519.isHardwareBound, isTrue);
+      expect(SshKeyType.skEcdsaP256.isHardwareBound, isTrue);
+    });
+
+    test('software variants are not hardware-bound', () {
+      expect(SshKeyType.ed25519.isHardwareBound, isFalse);
+      expect(SshKeyType.rsa2048.isHardwareBound, isFalse);
+      expect(SshKeyType.rsa4096.isHardwareBound, isFalse);
+    });
+  });
 }

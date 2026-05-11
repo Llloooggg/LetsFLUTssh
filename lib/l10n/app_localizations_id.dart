@@ -2874,4 +2874,40 @@ class SId extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Arsip sync remote butuh build yang lebih baru';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Sentuh hardware key kamu';
+
+  @override
+  String get hardwareKeyPin => 'PIN hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key tidak merespons';
+
+  @override
+  String get hardwareKeyNotFound => 'Hardware key tidak ditemukan';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Akses langsung ke hardware key tidak tersedia di platform ini';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Butuh Apple Developer Program entitlement; pakai ssh-agent di macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'SSH key ini butuh hardware key — sentuh untuk auth';
+
+  @override
+  String get errSkWrongPin => 'PIN salah';
+
+  @override
+  String get hardwareKeyImport => 'Import hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

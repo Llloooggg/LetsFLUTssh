@@ -2799,4 +2799,38 @@ class SKo extends S {
 
   @override
   String get errSyncArchiveFutureVersion => 'Remote 의 sync 아카이브에 새 빌드가 필요합니다';
+
+  @override
+  String get hardwareKey => '하드웨어 키';
+
+  @override
+  String get hardwareKeyTapPrompt => '하드웨어 키를 탭하세요';
+
+  @override
+  String get hardwareKeyPin => '하드웨어 키 PIN';
+
+  @override
+  String get hardwareKeyTimeout => '하드웨어 키가 응답하지 않았습니다';
+
+  @override
+  String get hardwareKeyNotFound => '하드웨어 키를 찾을 수 없습니다';
+
+  @override
+  String get hardwareKeyUnsupported => '이 플랫폼에서는 직접 하드웨어 키 접근을 사용할 수 없습니다';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement 가 필요합니다. macOS 에서는 ssh-agent 를 사용하세요';
+
+  @override
+  String get skKeyRequiresDevice => '이 SSH 키는 하드웨어 키가 필요합니다 — 인증하려면 탭하세요';
+
+  @override
+  String get errSkWrongPin => 'PIN 이 올바르지 않습니다';
+
+  @override
+  String get hardwareKeyImport => '하드웨어 키 import (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

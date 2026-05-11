@@ -430,6 +430,9 @@ mod tests {
                 key_type: "ed25519".into(),
                 is_generated: false,
                 created_at_ms: 1_700_000_000_000,
+                credential_id: None,
+                application_string: None,
+                has_user_verification: false,
             },
         )
         .unwrap();

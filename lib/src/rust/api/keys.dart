@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Generate a fresh Ed25519 keypair tagged with [comment]
 /// (the trailing comment in `authorized_keys` format).
@@ -115,6 +115,12 @@ Future<String?> keysTryReadPemFromPath({required String path}) =>
 Future<String> keysReadTextForManualImport({required String path}) =>
     RustLib.instance.api.crateApiKeysKeysReadTextForManualImport(path: path);
 
+/// Parse an OpenSSH-armored `sk-*` private key file and surface
+/// the metadata the connect path needs. Sync — the parse is a
+/// single OpenSSH PEM decode + base64 walk, no I/O.
+DbSkKeyMetadata keysParseSkPrivateKey({required String pem}) =>
+    RustLib.instance.api.crateApiKeysKeysParseSkPrivateKey(pem: pem);
+
 /// Parse an OpenSSH-format certificate (`*-cert.pub` /
 /// armored `-----BEGIN OPENSSH CERTIFICATE-----`) and return a
 /// typed summary the Dart key-manager UI can render. Sync — the
@@ -188,6 +194,48 @@ class DbCertSummary {
           validBeforeUnix == other.validBeforeUnix &&
           criticalOptions == other.criticalOptions &&
           fingerprint == other.fingerprint;
+}
+
+/// FRB mirror of [`lfs_core::keys::SkKeyMetadata`]. Returned by
+/// [`keys_parse_sk_private_key`] to the Dart key-manager when the
+/// user imports an OpenSSH `sk-*` private key file
+/// (`id_ed25519_sk`, `id_ecdsa_sk`). Carries the credential id,
+/// application string, algorithm short tag, single-line public-key
+/// body, and the user-verification flag — every field the connect
+/// path needs to authenticate against the hardware authenticator.
+class DbSkKeyMetadata {
+  final Uint8List credentialId;
+  final String application;
+  final String keyType;
+  final String publicOpenssh;
+  final bool hasUserVerification;
+
+  const DbSkKeyMetadata({
+    required this.credentialId,
+    required this.application,
+    required this.keyType,
+    required this.publicOpenssh,
+    required this.hasUserVerification,
+  });
+
+  @override
+  int get hashCode =>
+      credentialId.hashCode ^
+      application.hashCode ^
+      keyType.hashCode ^
+      publicOpenssh.hashCode ^
+      hasUserVerification.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSkKeyMetadata &&
+          runtimeType == other.runtimeType &&
+          credentialId == other.credentialId &&
+          application == other.application &&
+          keyType == other.keyType &&
+          publicOpenssh == other.publicOpenssh &&
+          hasUserVerification == other.hasUserVerification;
 }
 
 class KeyMaterial {

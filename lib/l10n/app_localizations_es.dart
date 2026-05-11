@@ -2949,4 +2949,40 @@ class SEs extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'El archivo de sync remoto necesita un build más reciente';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Toca tu hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN del hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'El hardware key no respondió';
+
+  @override
+  String get hardwareKeyNotFound => 'No se encontró ningún hardware key';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'El acceso directo al hardware key no está disponible en esta plataforma';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Requiere entitlement de Apple Developer Program; usa ssh-agent en macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Esta clave SSH requiere un hardware key — tócalo para autenticar';
+
+  @override
+  String get errSkWrongPin => 'PIN incorrecto';
+
+  @override
+  String get hardwareKeyImport => 'Importar hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

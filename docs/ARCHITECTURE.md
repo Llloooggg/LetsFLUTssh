@@ -1318,18 +1318,38 @@ Two keys live in the CNG key store, each serving a separate role:
 
 **Outstanding device-testing pass:** the NCrypt calls are synchronous. Not observed blocking the UI thread in practice — they run inside the FRB worker pool and the Flutter UI isolate remains responsive — but the Hello prompt from the overlay key still takes focus while it is on-screen. A Windows 10 / 11 host *with* Hello + TPM has to exercise `backingLevel == hardware_tpm`, a host *with* TPM but *without* Hello needs to confirm the primary path still unlocks silently, a host without either has to verify the software-KSP fallback stores/reads without error and reports `backingLevel == software`, and a TPM-cleared recovery + a domain-managed-policy host both need to be exercised before the Rust port retires its `device-testing pass pending` flag. Cross-compile is verified clean under `x86_64-pc-windows-gnu`.
 
-#### FIDO2 / hardware-security-key unlock (deferred — upstream library gap)
+#### FIDO2 hardware-bound SSH keys (`sk-*`) — direct CTAP2
 
-A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the master password: plug / tap the key, the app takes that as proof-of-presence and decrypts the DB. The intent was multiplatform from day one — Android USB/NFC, iOS Lightning/NFC, desktops via USB HID.
+The connect path supports OpenSSH `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openssh.com` keys produced by `ssh-keygen -t ed25519-sk` / `-t ecdsa-sk`. Private key material lives on the authenticator (YubiKey, SoloKey, Titan, Feitian, Nitrokey, Trezor) and never reaches the app; every signature attempt routes through `lfs_core::fido2::get_assertion`, which talks CTAP2 over USB HID via the `ctap-hid-fido2` crate.
 
-**Why the feature is not shipped:** the pub.dev landscape for FIDO2 in Dart is immature for the constraint "end-user installs nothing via README". Candidates reviewed and their failure mode:
+```mermaid
+sequenceDiagram
+  participant Dart as Key manager (Dart)
+  participant Frb as lfs_frb
+  participant Core as lfs_core::fido2
+  participant Dev as HID FIDO2 device
+  Dart->>Frb: keys_parse_sk_private_key(pem)
+  Frb->>Core: parse_sk_private_key
+  Core-->>Dart: credential_id + application + UV flag
+  Dart->>Frb: ssh_connect_pubkey_sk(public, credential_id, application, pin?)
+  Frb->>Core: Session::connect_pubkey_sk → FidoSigner
+  Core->>Dev: CTAP2 get_assertion(rp_id, clientDataHash, credential_ids[], pin)
+  Dev-->>Core: assertion (signature || authenticator_data)
+  Core-->>Frb: SSH wire signature (sk-* trailer + length-prefixed string)
+  Frb-->>Dart: SshSession (live)
+```
 
-- `fido2` (pub.dev) — WebAuthn client surface only; no HID transport, no NFC transport, no PC/SC transport. Dead for desktop USB, dead for Android NFC, dead for iOS Lightning.
-- `yubikit_flutter` — Yubico-only (skip other FIDO2 keys), hard-requires a native plugin per platform, and the desktop builds pull in PC/SC-Lite (Linux needs `libpcsclite1` installed, which breaks zero-install).
-- Platform-native paths — Android `fido.U2fApi` lives in Google Play Services (incompatible with the project's no-GMS stance), iOS `AuthenticationServices.ASAuthorizationSecurityKeyPublicKeyCredential` works only for WebAuthn challenges and requires an `ASAuthorizationController`, no cross-platform wrapper exists.
-- Rolling our own HID+APDU layer — feasible in pure Dart via `libusb`/`hidraw`, but every platform has its own permission model (Linux udev rules, macOS entitlements, Windows driver). That pushes the feature back into a per-platform README install snippet (`libpcsclite1` / `libhidapi` / Windows driver) — exactly the kind of weaker-fallback path the project avoids when stronger options aren't yet feasible.
+Persistence: `db::ssh_keys` carries three FIDO2 columns (`credential_id BLOB`, `application_string TEXT`, `has_user_verification INTEGER`) from schema v7 onwards. Software keys leave the columns NULL / 0; `sk-*` rows populate all three at import. The row's `key_type` short tag is `sk-ed25519` or `sk-ecdsa-p256`; the connect dispatch maps these back to `ssh_key::Algorithm::SkEd25519` / `SkEcdsaSha2NistP256` through `ssh::sk::algorithm_from_key_type`.
 
-**Current status:** feature is **deferred**, not cancelled. Master-password + biometric unlock already covers the user-visible use cases; a YubiKey factor would be a nice-to-have, not a closing-the-gap-at-any-cost. Revisit when a multiplatform Dart library surfaces that works across all 5 desktops + Android + iOS without mandatory native-dep installs (a realistic candidate: a future `flutter_webauthn` that wraps each platform's native authenticator surface). Until then the table-stakes master-password path is the sole secret boundary and that is fine for the project's threat model (lost device, hostile same-UID process — **not** kernel-level attackers or advanced persistent threats).
+Wire format: the `FidoSigner` impl of russh's `auth::Signer` SHA-256-hashes the SSH userauth signature input, asks the device for an assertion against `(rp_id=application, clientDataHash)`, then composes the OpenSSH `sk-*` signature trailer — `64-byte raw Ed25519 sig || u8 flags || u32 counter` for sk-ed25519, `string mpint r || string mpint s || u8 flags || u32 counter` for sk-ecdsa-p256 — and appends `string(algo_name) || string(sk_signature)` as a single length-prefixed SSH string to the buffer russh handed in.
+
+Capability ladder. The runtime probe `fido2::is_available()` drives the UI: the key manager's "Import hardware key (sk-*)" row renders disabled with a tooltip reason on platforms where the path is inert. Desktop (Linux + Windows) gets the real HID path. macOS reports `is_available() = true` against the HID stack, but the first `get_assertion` may fail with `kIOReturnNotPermitted` until a build is shipped under the Apple Developer Program entitlement (the UI tooltip surfaces the `hardwareKeyAppleEntitlementRequired` string). iOS keeps the path disabled — NFC-only is a future follow-up. Android needs the USB-host JNI bridge.
+
+Linux udev. `linux/packaging/70-letsflutssh-fido.rules` carries `uaccess` / `plugdev` rules for the maintained vendor list (Yubico 1050, STMicroelectronics 0483, Feitian 096e, Trezor 1209/53c1, Nitrokey 20a0, Google Titan 18d1, OpenMoko 1d50). Packaging installs it into `/etc/udev/rules.d/`; the bundle ships a copy under `data/udev/` for distro maintainers who want to inspect the source. Without the rules `/dev/hidraw*` defaults to `root:root 0600` and the direct CTAP2 path cannot open the device.
+
+Error envelope. `Error::Fido2(String)` carves the FIDO path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::FIDO2` discriminator lets the Dart UI route `wrong pin:` (the matcher in `client::map_upstream_err` prepends this discriminator) to the PIN re-prompt branch versus `timeout:` ("did not respond" toast) versus the catch-all "hardware key error" toast.
+
+**Status:** today's build ships the Linux + Windows direct CTAP2 path, the runtime probe, the key manager import row + badge, the localized hardware-key prompt dialog, and the `ssh_connect_pubkey_sk` FRB entry point. The connections-notifier's `_authFromConfig` dispatch still routes through the secret-staged composer (`connectionPrepareAuth`) which is unaware of `sk-*` keys — wiring the composer's `DbPreparedAuthRef` to learn a `HardwareKey` variant is a follow-up commit. Until then a Dart caller wanting the hardware path calls `sshConnectPubkeySk` directly with the captured credential metadata.
 
 #### Cipher choice — SQLCipher 4.x (AES-256-CBC + HMAC-SHA512)
 

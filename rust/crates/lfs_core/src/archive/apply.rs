@@ -609,6 +609,22 @@ fn apply_keys(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: 
                 v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""),
                 now_ms,
             ),
+            credential_id: v
+                .get("credential_id")
+                .and_then(|x| x.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|b| b.as_u64().map(|n| n as u8))
+                        .collect()
+                }),
+            application_string: v
+                .get("application_string")
+                .and_then(|x| x.as_str())
+                .map(|s| s.to_string()),
+            has_user_verification: v
+                .get("has_user_verification")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false),
         };
         if row.id.is_empty() {
             result.errors.push("key row missing id".to_string());
@@ -821,6 +837,9 @@ mod tests {
                 key_type: "ssh-ed25519".into(),
                 is_generated: false,
                 created_at_ms: 0,
+                credential_id: None,
+                application_string: None,
+                has_user_verification: false,
             },
         )
         .unwrap();
@@ -995,6 +1014,9 @@ mod tests {
                 key_type: "ssh-ed25519".into(),
                 is_generated: false,
                 created_at_ms: 0,
+                credential_id: None,
+                application_string: None,
+                has_user_verification: false,
             },
         )
         .unwrap();
@@ -1491,6 +1513,9 @@ mod tests {
                 key_type: "ssh-ed25519".into(),
                 is_generated: false,
                 created_at_ms: 0,
+                credential_id: None,
+                application_string: None,
+                has_user_verification: false,
             },
         )
         .unwrap();

@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "بایگانی sync از remote نیاز به build جدیدتر دارد"
+  "errSyncArchiveFutureVersion": "بایگانی sync از remote نیاز به build جدیدتر دارد",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "hardware key را لمس کن",
+  "hardwareKeyPin": "PIN ـ hardware key",
+  "hardwareKeyTimeout": "hardware key پاسخ نداد",
+  "hardwareKeyNotFound": "hardware key یافت نشد",
+  "hardwareKeyUnsupported": "دسترسی مستقیم به hardware key در این پلتفرم در دسترس نیست",
+  "hardwareKeyAppleEntitlementRequired": "نیاز به Apple Developer Program entitlement؛ روی macOS از ssh-agent استفاده کن",
+  "skKeyRequiresDevice": "این کلید SSH به hardware key نیاز دارد — برای auth لمس کن",
+  "errSkWrongPin": "PIN اشتباه است",
+  "hardwareKeyImport": "import کردن hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

@@ -18,6 +18,7 @@ import 'api/credential_prompt.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/deeplink.dart';
+import 'api/fido2.dart';
 import 'api/folder_path.dart';
 import 'api/format.dart';
 import 'api/forward.dart';
@@ -566,6 +567,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbExportOptions dco_decode_db_export_options(dynamic raw);
 
   @protected
+  DbFido2Device dco_decode_db_fido_2_device(dynamic raw);
+
+  @protected
   DbFileSortKey dco_decode_db_file_sort_key(dynamic raw);
 
   @protected
@@ -750,6 +754,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSha256ManifestEntry dco_decode_db_sha_256_manifest_entry(dynamic raw);
 
   @protected
+  DbSkAssertion dco_decode_db_sk_assertion(dynamic raw);
+
+  @protected
+  DbSkKeyMetadata dco_decode_db_sk_key_metadata(dynamic raw);
+
+  @protected
   DbSnippet dco_decode_db_snippet(dynamic raw);
 
   @protected
@@ -872,6 +882,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
+
+  @protected
+  List<DbFido2Device> dco_decode_list_db_fido_2_device(dynamic raw);
 
   @protected
   List<DbFileSortKey> dco_decode_list_db_file_sort_key(dynamic raw);
@@ -1737,6 +1750,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbExportOptions sse_decode_db_export_options(SseDeserializer deserializer);
 
   @protected
+  DbFido2Device sse_decode_db_fido_2_device(SseDeserializer deserializer);
+
+  @protected
   DbFileSortKey sse_decode_db_file_sort_key(SseDeserializer deserializer);
 
   @protected
@@ -1997,6 +2013,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSkAssertion sse_decode_db_sk_assertion(SseDeserializer deserializer);
+
+  @protected
+  DbSkKeyMetadata sse_decode_db_sk_key_metadata(SseDeserializer deserializer);
+
+  @protected
   DbSnippet sse_decode_db_snippet(SseDeserializer deserializer);
 
   @protected
@@ -2143,6 +2165,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbChangelogRelease> sse_decode_list_db_changelog_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbFido2Device> sse_decode_list_db_fido_2_device(
     SseDeserializer deserializer,
   );
 
@@ -3222,6 +3249,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_fido_2_device(
+    DbFido2Device self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_file_sort_key(
     DbFileSortKey self,
     SseSerializer serializer,
@@ -3561,6 +3594,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_sk_assertion(DbSkAssertion self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_sk_key_metadata(
+    DbSkKeyMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_snippet(DbSnippet self, SseSerializer serializer);
 
   @protected
@@ -3749,6 +3791,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_changelog_release(
     List<DbChangelogRelease> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_fido_2_device(
+    List<DbFido2Device> self,
     SseSerializer serializer,
   );
 

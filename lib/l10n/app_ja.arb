@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Remote の sync アーカイブには新しいビルドが必要です"
+  "errSyncArchiveFutureVersion": "Remote の sync アーカイブには新しいビルドが必要です",
+  "hardwareKey": "ハードウェアキー",
+  "hardwareKeyTapPrompt": "ハードウェアキーをタップ",
+  "hardwareKeyPin": "ハードウェアキーの PIN",
+  "hardwareKeyTimeout": "ハードウェアキーが応答しませんでした",
+  "hardwareKeyNotFound": "ハードウェアキーが見つかりません",
+  "hardwareKeyUnsupported": "このプラットフォームでは直接のハードウェアキーアクセスは利用できません",
+  "hardwareKeyAppleEntitlementRequired": "Apple Developer Program entitlement が必要です。macOS では ssh-agent を使用してください",
+  "skKeyRequiresDevice": "この SSH キーはハードウェアキーが必要です — タップして認証してください",
+  "errSkWrongPin": "PIN が違います",
+  "hardwareKeyImport": "ハードウェアキーをインポート (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

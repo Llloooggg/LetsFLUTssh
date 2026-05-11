@@ -141,6 +141,12 @@ pub mod kind {
     /// reason; UI surfaces the localized "S3 server rejected the
     /// request" message.
     pub const S3: &str = "s3";
+    /// FIDO2 / CTAP2 hardware-key failure (no device plugged in,
+    /// PIN rejected, user tap timeout, HID transport drop). Detail
+    /// carries the short reason; the Dart UI's hardware-key prompt
+    /// branches on the leading discriminator (`wrong pin:`,
+    /// `timeout:`, generic) to pick the right toast.
+    pub const FIDO2: &str = "fido2";
 }
 
 /// Compose a JSON envelope with the given kind + detail. Use
@@ -200,6 +206,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::Crypto(s) => wire(kind::CRYPTO, s),
         CoreError::WebDav(s) => wire(kind::WEBDAV, s),
         CoreError::S3(s) => wire(kind::S3, s),
+        CoreError::Fido2(s) => wire(kind::FIDO2, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

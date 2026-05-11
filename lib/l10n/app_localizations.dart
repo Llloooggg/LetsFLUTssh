@@ -5048,6 +5048,72 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Remote sync archive needs a newer build to read'**
   String get errSyncArchiveFutureVersion;
+
+  /// No description provided for @hardwareKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key'**
+  String get hardwareKey;
+
+  /// No description provided for @hardwareKeyTapPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your hardware key'**
+  String get hardwareKeyTapPrompt;
+
+  /// No description provided for @hardwareKeyPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key PIN'**
+  String get hardwareKeyPin;
+
+  /// No description provided for @hardwareKeyTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key did not respond'**
+  String get hardwareKeyTimeout;
+
+  /// No description provided for @hardwareKeyNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No hardware key found'**
+  String get hardwareKeyNotFound;
+
+  /// No description provided for @hardwareKeyUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct hardware key access is not available on this platform'**
+  String get hardwareKeyUnsupported;
+
+  /// No description provided for @hardwareKeyAppleEntitlementRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires Apple Developer Program entitlement; use ssh-agent on macOS'**
+  String get hardwareKeyAppleEntitlementRequired;
+
+  /// No description provided for @skKeyRequiresDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This SSH key requires a hardware key — tap it to authenticate'**
+  String get skKeyRequiresDevice;
+
+  /// No description provided for @errSkWrongPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect PIN'**
+  String get errSkWrongPin;
+
+  /// No description provided for @hardwareKeyImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import hardware key (sk-*)'**
+  String get hardwareKeyImport;
+
+  /// No description provided for @hardwareKeyBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound (FIDO2)'**
+  String get hardwareKeyBadge;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

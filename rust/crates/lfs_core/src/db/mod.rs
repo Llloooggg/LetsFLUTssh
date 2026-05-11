@@ -401,8 +401,14 @@ impl Db {
 /// `s3_session_details` join table so S3-compatible sessions
 /// (AWS, MinIO, Wasabi, R2, Spaces, B2-S3, Scaleway) sit
 /// alongside SSH + WebDAV with per-kind configuration owned by
-/// the same side-table pattern.
-pub const SCHEMA_VERSION: i32 = 6;
+/// the same side-table pattern. v7 adds the FIDO2 hardware-key
+/// columns on `ssh_keys` — `credential_id` (opaque CTAP2 blob),
+/// `application_string` (the SSH `application` field, typically
+/// `ssh:`), and `has_user_verification` (PIN-required flag captured
+/// at import) — so `sk-ssh-ed25519@openssh.com` and
+/// `sk-ecdsa-sha2-nistp256@openssh.com` keys persist alongside
+/// the plain-text PEM rows without needing a separate side table.
+pub const SCHEMA_VERSION: i32 = 7;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -479,6 +485,14 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // the column directly from `SCHEMA_SQL` and skip this arm.
         if (1..5).contains(&current) {
             add_sessions_kind_column(conn)?;
+        }
+        // v1..v6 → v7: stamp the FIDO2 hardware-key columns on
+        // `ssh_keys`. `ALTER TABLE … ADD COLUMN` lands the column
+        // with its schema-declared default; existing software-key
+        // rows backfill to NULL / NULL / 0, matching the wire
+        // contract a fresh install gets from `SCHEMA_SQL`.
+        if (1..7).contains(&current) {
+            add_ssh_keys_fido2_columns(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -586,6 +600,21 @@ fn add_sessions_kind_column(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add sessions.kind: {e}")))
 }
 
+/// Issue the three `ALTER TABLE ssh_keys ADD COLUMN ...` statements
+/// the v6 → v7 hop needs for FIDO2 hardware-bound SSH keys.
+/// Same shape contract as [`add_deleted_at_column`] — duplicate-column
+/// errors are guarded by the version gate in `bootstrap_schema`,
+/// re-running the bootstrap is a no-op after the stamp lands at v7.
+fn add_ssh_keys_fido2_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN credential_id BLOB NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN application_string TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN has_user_verification INTEGER NOT NULL DEFAULT 0;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys fido2 cols: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -624,7 +653,17 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     key_type TEXT NOT NULL,
     is_generated INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL,
-    deleted_at INTEGER NULL
+    deleted_at INTEGER NULL,
+    -- FIDO2 hardware-key columns. NULL for software keys (the
+    -- common case); populated for `sk-ssh-ed25519@openssh.com` /
+    -- `sk-ecdsa-sha2-nistp256@openssh.com` rows captured at import.
+    -- `credential_id` is the opaque CTAP2 blob the device matches
+    -- against on every assertion. `application_string` is the SSH
+    -- `application` field (typically `ssh:`). `has_user_verification`
+    -- gates the PIN prompt on connect.
+    credential_id BLOB NULL,
+    application_string TEXT NULL,
+    has_user_verification INTEGER NOT NULL DEFAULT 0
 );
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
@@ -930,6 +969,16 @@ mod tests {
         conn.inner()
             .execute_batch("ALTER TABLE sessions DROP COLUMN kind")
             .unwrap();
+        // Same reason for the v7 FIDO2 columns on `ssh_keys` — the
+        // v1..v6 → v7 arm replays on rewind. Drop here so the ALTER
+        // does not trip on a duplicate column.
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+            )
+            .unwrap();
         conn.inner().pragma_update(None, "user_version", 2).unwrap();
 
         bootstrap_schema(&conn).unwrap();
@@ -975,11 +1024,16 @@ mod tests {
         bootstrap_schema(&conn).unwrap();
         // Drop the s3 table + index to mimic a v5 install, then
         // rewind user_version. The `CREATE TABLE IF NOT EXISTS`
-        // block in SCHEMA_SQL recreates it on re-bootstrap.
+        // block in SCHEMA_SQL recreates it on re-bootstrap. Also
+        // drop the v7 FIDO2 columns from `ssh_keys` so the
+        // subsequent v6 → v7 ALTER arm doesn't double-add them.
         conn.inner()
             .execute_batch(
                 "DROP INDEX IF EXISTS idx_s3_session_details_session_id; \
-                 DROP TABLE IF EXISTS s3_session_details;",
+                 DROP TABLE IF EXISTS s3_session_details; \
+                 ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 5).unwrap();
@@ -1004,6 +1058,55 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v6 → v7 upgrade hop. A database stamped at v6 with the
+    /// pre-v7 ssh_keys shape (no FIDO2 columns) must pick up
+    /// `credential_id`, `application_string`, and
+    /// `has_user_verification` on bootstrap. Mirrors the
+    /// v4 → v5 test — strip the columns to simulate a v6 install,
+    /// rewind user_version, re-bootstrap, confirm the columns
+    /// land, then re-run for idempotency.
+    #[test]
+    fn bootstrap_v6_to_v7_adds_fido2_columns_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 6).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "credential_id",
+            "application_string",
+            "has_user_verification",
+        ] {
+            assert!(
+                seen.contains(col),
+                "ssh_keys.{col} missing after v6 → v7 upgrade"
+            );
+        }
+
+        // Re-running is a no-op because the version stamp now sits
+        // at v7; the gate `(1..7).contains(&current)` keeps the ALTER
+        // from re-firing.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1017,8 +1120,18 @@ mod tests {
         // DROP COLUMN` is available on the SQLCipher 4.x build
         // (sqlite3 >= 3.35.0). Rewind user_version to v4 so the
         // upgrade arm re-runs.
+        // Also drop the v7 FIDO2 columns from `ssh_keys` and the
+        // v6 `s3_session_details` table so the subsequent ALTER
+        // arms don't surface duplicate-column / table-exists errors.
         conn.inner()
-            .execute_batch("ALTER TABLE sessions DROP COLUMN kind")
+            .execute_batch(
+                "ALTER TABLE sessions DROP COLUMN kind; \
+                 DROP INDEX IF EXISTS idx_s3_session_details_session_id; \
+                 DROP TABLE IF EXISTS s3_session_details; \
+                 ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+            )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 4).unwrap();
 
@@ -1062,6 +1175,9 @@ mod tests {
             key_type: "ssh-ed25519".into(),
             is_generated: true,
             created_at_ms: 1700000000000,
+            credential_id: None,
+            application_string: None,
+            has_user_verification: false,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

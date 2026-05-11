@@ -2946,4 +2946,40 @@ class SDe extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Sync-Archiv vom Remote benötigt einen neueren Build';
+
+  @override
+  String get hardwareKey => 'Hardware Key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Hardware Key berühren';
+
+  @override
+  String get hardwareKeyPin => 'Hardware-Key-PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware Key hat nicht reagiert';
+
+  @override
+  String get hardwareKeyNotFound => 'Kein Hardware Key gefunden';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Direkter Hardware-Key-Zugriff ist auf dieser Plattform nicht verfügbar';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Erfordert Apple-Developer-Program-Entitlement; nutze ssh-agent auf macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Dieser SSH-Schlüssel benötigt einen Hardware Key — zum Authentifizieren berühren';
+
+  @override
+  String get errSkWrongPin => 'Falscher PIN';
+
+  @override
+  String get hardwareKeyImport => 'Hardware Key importieren (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

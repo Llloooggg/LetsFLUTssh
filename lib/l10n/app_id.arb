@@ -997,5 +997,16 @@
       }
     }
   },
-  "errSyncArchiveFutureVersion": "Arsip sync remote butuh build yang lebih baru"
+  "errSyncArchiveFutureVersion": "Arsip sync remote butuh build yang lebih baru",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Sentuh hardware key kamu",
+  "hardwareKeyPin": "PIN hardware key",
+  "hardwareKeyTimeout": "Hardware key tidak merespons",
+  "hardwareKeyNotFound": "Hardware key tidak ditemukan",
+  "hardwareKeyUnsupported": "Akses langsung ke hardware key tidak tersedia di platform ini",
+  "hardwareKeyAppleEntitlementRequired": "Butuh Apple Developer Program entitlement; pakai ssh-agent di macOS",
+  "skKeyRequiresDevice": "SSH key ini butuh hardware key — sentuh untuk auth",
+  "errSkWrongPin": "PIN salah",
+  "hardwareKeyImport": "Import hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
 }

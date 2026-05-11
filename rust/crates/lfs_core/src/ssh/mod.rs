@@ -22,6 +22,8 @@ use zeroize::Zeroizing;
 
 use crate::error::Error;
 
+pub mod sk;
+
 /// russh `Handler` impl for our client side. Carries an mpsc sender
 /// for inbound `-R` (server-initiated `forwarded-tcpip`) channels —
 /// `request_remote_forward` registers the server-side listener, then
@@ -709,6 +711,37 @@ impl Session {
         finish_authenticate_pubkey(&mut handle, user, key).await?;
 
         Ok(Session::from_handle(handle, forward_rx))
+    }
+
+    /// Connect + authenticate with a hardware-bound `sk-*` SSH key.
+    ///
+    /// **Connect path NOT wired yet.** russh's `auth::Signer` trait
+    /// is `pub(crate)` in the upstream fork the project pins, so an
+    /// external impl of the custom signer the FIDO2 connect path
+    /// needs is unreachable today. The function returns a typed
+    /// `Error::Fido2` until the russh integration lands. The
+    /// `lfs_core::fido2` surface (probe / list / get_assertion) and
+    /// the import flow (parse the sk-* `.pub`, persist credential_id
+    /// plus application plus UV) are fully functional — the user
+    /// can import a hardware key today; the connect path completes
+    /// in a follow-up commit that either lifts russh's `Signer` to
+    /// `pub` or routes through a local ssh-agent shim that the
+    /// fork already accepts.
+    pub async fn connect_pubkey_sk(
+        _host: &str,
+        _port: u16,
+        _user: &str,
+        _public_openssh: &str,
+        _credential_id: &[u8],
+        _application: &str,
+        _pin: Option<&str>,
+    ) -> Result<Self, Error> {
+        Err(Error::Fido2(
+            "FIDO2 connect path requires a russh signer-trait lift; \
+             import + DB persistence work today, but auth must route \
+             through ssh-agent or a russh upstream patch until then"
+                .into(),
+        ))
     }
 
     /// Open a PTY-backed shell channel sized to `cols × rows`. The

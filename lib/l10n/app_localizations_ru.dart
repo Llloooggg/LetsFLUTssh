@@ -2893,4 +2893,40 @@ class SRu extends S {
   @override
   String get errSyncArchiveFutureVersion =>
       'Sync-архив с remote требует более новой сборки';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Коснитесь hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key не ответил';
+
+  @override
+  String get hardwareKeyNotFound => 'Hardware key не найден';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Прямой доступ к hardware key недоступен на этой платформе';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Требуется Apple Developer Program entitlement; используйте ssh-agent на macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Этому SSH-ключу нужен hardware key — коснитесь устройства для аутентификации';
+
+  @override
+  String get errSkWrongPin => 'Неверный PIN';
+
+  @override
+  String get hardwareKeyImport => 'Импорт hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

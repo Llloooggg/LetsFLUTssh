@@ -2802,4 +2802,38 @@ class SJa extends S {
 
   @override
   String get errSyncArchiveFutureVersion => 'Remote の sync アーカイブには新しいビルドが必要です';
+
+  @override
+  String get hardwareKey => 'ハードウェアキー';
+
+  @override
+  String get hardwareKeyTapPrompt => 'ハードウェアキーをタップ';
+
+  @override
+  String get hardwareKeyPin => 'ハードウェアキーの PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'ハードウェアキーが応答しませんでした';
+
+  @override
+  String get hardwareKeyNotFound => 'ハードウェアキーが見つかりません';
+
+  @override
+  String get hardwareKeyUnsupported => 'このプラットフォームでは直接のハードウェアキーアクセスは利用できません';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement が必要です。macOS では ssh-agent を使用してください';
+
+  @override
+  String get skKeyRequiresDevice => 'この SSH キーはハードウェアキーが必要です — タップして認証してください';
+
+  @override
+  String get errSkWrongPin => 'PIN が違います';
+
+  @override
+  String get hardwareKeyImport => 'ハードウェアキーをインポート (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
 }

@@ -256,6 +256,13 @@ md-5 = "0.10"
 # pure-Rust parser for it. Tiny crate (~200 LOC, zero deps),
 # preferred over pulling all of `chrono` for one date format.
 httpdate = "1"
+# Direct CTAP2 over USB HID for hardware-bound SSH keys (sk-ed25519,
+# sk-ecdsa-sha2-nistp256). Pure-Rust HID transport via `hidapi-rs`
+# (transitive); covers the verbs the `lfs_core::fido2` wrapper
+# uses — enumerate devices, request an assertion with PIN auth.
+# Gated behind the `fido2` Cargo feature on `lfs_core` so non-
+# desktop builds (iOS / Android pre-Phase-2) skip the dep entirely.
+ctap-hid-fido2 = { version = "3", default-features = false, features = ["ring"] }
 
 [profile.release]
 # Bundle-size-tightened profile. Flags:
