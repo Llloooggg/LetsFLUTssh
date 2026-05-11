@@ -554,6 +554,140 @@ pub async fn recorder_delete_recording(
     .map_err(|e| format!("recorder delete task: {e}"))?
 }
 
+// =====================================================================
+// Storage-cap surface
+// =====================================================================
+//
+// LRU eviction sweep that bounds the recordings tree against
+// `AppConfig.recordings_storage_cap_bytes`. The lifecycle hooks in
+// `lfs_core::recorder::RecorderRegistry::{register_with_io,
+// close_with_io}` invoke `enforce_storage_cap` automatically on
+// every register / close; the entry points below let the future
+// Settings UI surface the running total, push a new cap, and
+// trigger a manual "delete all" without waiting on a register /
+// close pair.
+
+/// FRB mirror of [`lfs_core::recorder::storage_cap::EvictionOutcome`].
+/// Carries the counts the Settings UI tile renders after a
+/// user-driven cap change.
+#[derive(Debug, Clone)]
+pub struct DbEvictionOutcome {
+    pub files_evicted: u32,
+    pub bytes_reclaimed: u64,
+    pub used_after: u64,
+}
+
+impl From<lfs_core::recorder::storage_cap::EvictionOutcome> for DbEvictionOutcome {
+    fn from(o: lfs_core::recorder::storage_cap::EvictionOutcome) -> Self {
+        Self {
+            files_evicted: o.files_evicted,
+            bytes_reclaimed: o.bytes_reclaimed,
+            used_after: o.used_after,
+        }
+    }
+}
+
+/// Bytes currently used under `<recordings_root>`. Walks every
+/// session sub-directory and sums regular-file byte sizes. Cheap
+/// enough on the typical hundreds-of-files tree but the walk runs
+/// inside `spawn_blocking` because a large library on a slow
+/// filesystem (network mount, spinning disk) can take real time.
+pub async fn recorder_storage_used(recordings_root: String) -> Result<u64, String> {
+    tokio::task::spawn_blocking(move || {
+        let root = std::path::PathBuf::from(recordings_root);
+        lfs_core::recorder::storage_cap::storage_used(&root)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    })
+    .await
+    .map_err(|e| format!("recorder storage used task: {e}"))?
+}
+
+/// Update the persisted `recordings_storage_cap_bytes` field on
+/// the `config_store` actor and run an immediate eviction sweep
+/// against the new cap. Returns the [`DbEvictionOutcome`] so the
+/// caller can surface "freed N MB" feedback after a user lowers
+/// the cap.
+///
+/// The config_store actor debounces the write to disk on its own
+/// schedule; the in-memory state flips synchronously so a
+/// follow-up `register_with_io` already sees the new cap.
+pub async fn recorder_set_storage_cap(
+    recordings_root: String,
+    bytes: u64,
+) -> Result<DbEvictionOutcome, String> {
+    tokio::task::spawn_blocking(move || {
+        // Pull the current canonical JSON, splice the new cap,
+        // push it back. The store actor's `set_json` re-parses
+        // through `AppConfig::from_json_value` which runs
+        // `sanitized()` so a zero / absurd value lands on the
+        // canonical default rather than the raw input. The sweep
+        // below reads the post-sanitisation cap through the same
+        // accessor the recorder hooks use.
+        let store = lfs_core::config_store::instance();
+        let current_json = store
+            .get_json()
+            .ok_or_else(|| "config_store not initialised".to_string())?;
+        let mut value: serde_json::Value = serde_json::from_str(&current_json)
+            .map_err(|e| format!("config_store snapshot parse: {e}"))?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| "config_store snapshot not a JSON object".to_string())?;
+        obj.insert("recordings_storage_cap_bytes".into(), bytes.into());
+        let new_json =
+            serde_json::to_string(&value).map_err(|e| format!("config_store serialise: {e}"))?;
+        store.set_json(&new_json)?;
+
+        let root = std::path::PathBuf::from(recordings_root);
+        let app = lfs_core::app::instance();
+        let active = app.recorders.active_paths();
+        let cap = read_cap_from_store();
+        let outcome = lfs_core::recorder::storage_cap::enforce_storage_cap(&root, cap, &active)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
+        Ok::<DbEvictionOutcome, String>(outcome.into())
+    })
+    .await
+    .map_err(|e| format!("recorder set cap task: {e}"))?
+}
+
+/// Delete every recording the user has on disk under
+/// `recordings_root`. The currently-writing files (registered IO
+/// actors) are skipped — closing a recording mid-clear would
+/// strand the live file handle. Returns the count of files
+/// actually removed.
+pub async fn recorder_clear_all_recordings(recordings_root: String) -> Result<u32, String> {
+    tokio::task::spawn_blocking(move || {
+        let root = std::path::PathBuf::from(recordings_root);
+        let app = lfs_core::app::instance();
+        let active = app.recorders.active_paths();
+        lfs_core::recorder::storage_cap::clear_all(&root, &active)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    })
+    .await
+    .map_err(|e| format!("recorder clear all task: {e}"))?
+}
+
+/// Pull the current cap value out of the config_store snapshot.
+/// Falls back to
+/// [`lfs_core::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`] when
+/// the actor is unavailable or the snapshot lacks the field —
+/// mirrors the same defensive read the recorder lifecycle hooks
+/// run against, so the cap an FRB caller observes lines up with
+/// the cap the in-process eviction sweep enforces.
+fn read_cap_from_store() -> u64 {
+    let default = lfs_core::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES;
+    let Some(json) = lfs_core::config_store::instance().get_json() else {
+        return default;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
+        return default;
+    };
+    value
+        .as_object()
+        .and_then(|o| o.get("recordings_storage_cap_bytes"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(default)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,5 +741,18 @@ mod tests {
         assert_eq!(db.size_bytes, 1024);
         assert_eq!(db.mtime_unix_secs, 1_700_000_000);
         assert!(!db.encrypted);
+    }
+
+    #[test]
+    fn eviction_outcome_carries_every_field() {
+        let core = lfs_core::recorder::storage_cap::EvictionOutcome {
+            files_evicted: 3,
+            bytes_reclaimed: 4096,
+            used_after: 16_384,
+        };
+        let db: DbEvictionOutcome = core.into();
+        assert_eq!(db.files_evicted, 3);
+        assert_eq!(db.bytes_reclaimed, 4096);
+        assert_eq!(db.used_after, 16_384);
     }
 }

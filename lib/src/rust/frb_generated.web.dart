@@ -490,6 +490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbDownloadedAsset dco_decode_db_downloaded_asset(dynamic raw);
 
   @protected
+  DbEvictionOutcome dco_decode_db_eviction_outcome(dynamic raw);
+
+  @protected
   DbExportInput dco_decode_db_export_input(dynamic raw);
 
   @protected
@@ -1522,6 +1525,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbDownloadedAsset sse_decode_db_downloaded_asset(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbEvictionOutcome sse_decode_db_eviction_outcome(
     SseDeserializer deserializer,
   );
 
@@ -2839,6 +2847,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_downloaded_asset(
     DbDownloadedAsset self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_eviction_outcome(
+    DbEvictionOutcome self,
     SseSerializer serializer,
   );
 

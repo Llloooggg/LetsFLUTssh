@@ -11,8 +11,8 @@
 use std::collections::HashMap;
 
 use super::artefacts::{
-    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, HwSaltArtefact, KdfArtefact,
-    PassGateArtefact,
+    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, ConfigV4ToV5, HwSaltArtefact,
+    KdfArtefact, PassGateArtefact,
 };
 use super::{Artefact, Migration};
 
@@ -72,6 +72,11 @@ pub fn build_app_registry() -> Registry {
     // no runtime caller in either Rust or Dart by the time the
     // bank-style password modifier landed; v4 retires them.
     reg.migrations.push(Box::new(ConfigV3ToV4));
+    // v4 → v5: stamp `recordings_storage_cap_bytes` with the
+    // canonical 500 MiB default when absent so the recorder's LRU
+    // eviction sweep has a configurable byte ceiling persisted
+    // alongside the rest of the user preferences.
+    reg.migrations.push(Box::new(ConfigV4ToV5));
     reg
 }
 
@@ -155,6 +160,21 @@ mod tests {
             "ConfigV3ToV4 must be registered so v3 installs migrate \
              to v4 on the next launch (drop legacy biometric_shortcut \
              + pin_length fields)",
+        );
+    }
+
+    #[test]
+    fn config_v4_to_v5_migration_registered() {
+        let reg = build_app_registry();
+        assert!(
+            reg.migrations
+                .iter()
+                .any(|m| m.artefact_id() == "config.json"
+                    && m.source_version() == 4
+                    && m.target_version() == 5),
+            "ConfigV4ToV5 must be registered so v4 installs migrate \
+             to v5 on the next launch (stamp default recordings \
+             storage cap)",
         );
     }
 }

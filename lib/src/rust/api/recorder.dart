@@ -6,7 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `read_cap_from_store`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -226,6 +227,71 @@ Future<void> recorderDeleteRecording({
   sessionId: sessionId,
   fileName: fileName,
 );
+
+/// Bytes currently used under `<recordings_root>`. Walks every
+/// session sub-directory and sums regular-file byte sizes. Cheap
+/// enough on the typical hundreds-of-files tree but the walk runs
+/// inside `spawn_blocking` because a large library on a slow
+/// filesystem (network mount, spinning disk) can take real time.
+Future<BigInt> recorderStorageUsed({required String recordingsRoot}) => RustLib
+    .instance
+    .api
+    .crateApiRecorderRecorderStorageUsed(recordingsRoot: recordingsRoot);
+
+/// Update the persisted `recordings_storage_cap_bytes` field on
+/// the `config_store` actor and run an immediate eviction sweep
+/// against the new cap. Returns the [`DbEvictionOutcome`] so the
+/// caller can surface "freed N MB" feedback after a user lowers
+/// the cap.
+///
+/// The config_store actor debounces the write to disk on its own
+/// schedule; the in-memory state flips synchronously so a
+/// follow-up `register_with_io` already sees the new cap.
+Future<DbEvictionOutcome> recorderSetStorageCap({
+  required String recordingsRoot,
+  required BigInt bytes,
+}) => RustLib.instance.api.crateApiRecorderRecorderSetStorageCap(
+  recordingsRoot: recordingsRoot,
+  bytes: bytes,
+);
+
+/// Delete every recording the user has on disk under
+/// `recordings_root`. The currently-writing files (registered IO
+/// actors) are skipped — closing a recording mid-clear would
+/// strand the live file handle. Returns the count of files
+/// actually removed.
+Future<int> recorderClearAllRecordings({required String recordingsRoot}) =>
+    RustLib.instance.api.crateApiRecorderRecorderClearAllRecordings(
+      recordingsRoot: recordingsRoot,
+    );
+
+/// FRB mirror of [`lfs_core::recorder::storage_cap::EvictionOutcome`].
+/// Carries the counts the Settings UI tile renders after a
+/// user-driven cap change.
+class DbEvictionOutcome {
+  final int filesEvicted;
+  final BigInt bytesReclaimed;
+  final BigInt usedAfter;
+
+  const DbEvictionOutcome({
+    required this.filesEvicted,
+    required this.bytesReclaimed,
+    required this.usedAfter,
+  });
+
+  @override
+  int get hashCode =>
+      filesEvicted.hashCode ^ bytesReclaimed.hashCode ^ usedAfter.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbEvictionOutcome &&
+          runtimeType == other.runtimeType &&
+          filesEvicted == other.filesEvicted &&
+          bytesReclaimed == other.bytesReclaimed &&
+          usedAfter == other.usedAfter;
+}
 
 /// One playback event. `line` carries a decoded JSON-Lines record;
 /// `error` (when set) carries a typed reason the playback aborted.

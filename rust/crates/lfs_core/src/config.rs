@@ -401,6 +401,21 @@ pub const SUPPORTED_LOCALES: &[&str] = &[
     "en", "ru", "zh", "de", "ja", "pt", "es", "fr", "ko", "ar", "fa", "tr", "vi", "id", "hi",
 ];
 
+/// Default byte ceiling for the recordings tree. 500 MiB is large
+/// enough to hold months of typical interactive sessions plus a
+/// handful of long-running terminal multiplexer dumps, small
+/// enough that a forgotten `record-everything` toggle does not eat
+/// a laptop's free disk before the user notices. Sweep details:
+/// [`crate::recorder::storage_cap::enforce_storage_cap`].
+pub const DEFAULT_RECORDINGS_STORAGE_CAP_BYTES: u64 = 500 * 1024 * 1024;
+
+/// Hard ceiling on the configured recordings cap. A user-supplied
+/// value above this is treated as a fat-finger error and clamped
+/// to the default — there is no realistic scenario where the
+/// recordings tree should occupy a terabyte, and an unsanitised
+/// `u64::MAX` would silently disable the cap.
+const MAX_RECORDINGS_STORAGE_CAP_BYTES: u64 = 1024 * 1024 * 1024 * 1024; // 1 TiB
+
 /// Top-level app configuration. Mirror of Dart `AppConfig`.
 ///
 /// Sub-structs flatten into the JSON object at the same level so
@@ -417,6 +432,14 @@ pub struct AppConfig {
     pub locale: Option<String>,
     pub security: Option<SecurityConfig>,
     pub security_probe_cache: Option<SecurityCapabilities>,
+    /// Aggregate byte ceiling for the recordings tree. The
+    /// recorder's `register_with_io` + `close_with_io` hooks call
+    /// [`crate::recorder::storage_cap::enforce_storage_cap`] after
+    /// every register / close to bring the on-disk total at or below
+    /// this value via oldest-mtime eviction. Default
+    /// [`DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`] (500 MiB); zero or
+    /// values above 1 TiB collapse to the default on sanitise.
+    pub recordings_storage_cap_bytes: u64,
 }
 
 impl Default for AppConfig {
@@ -431,6 +454,7 @@ impl Default for AppConfig {
             locale: None,
             security: None,
             security_probe_cache: None,
+            recordings_storage_cap_bytes: DEFAULT_RECORDINGS_STORAGE_CAP_BYTES,
         }
     }
 }
@@ -481,6 +505,20 @@ impl AppConfig {
                 .filter(|l| SUPPORTED_LOCALES.contains(&l.as_str())),
             security: self.security,
             security_probe_cache: self.security_probe_cache,
+            // Zero would mean "evict everything continuously" (the
+            // sweep deletes until total <= cap); values above 1 TiB
+            // are well outside any plausible disk budget for a
+            // recordings tree. Both collapse to the default so a
+            // hand-edited config.json that flips the field to
+            // garbage still produces a usable cap on the next
+            // launch.
+            recordings_storage_cap_bytes: if self.recordings_storage_cap_bytes == 0
+                || self.recordings_storage_cap_bytes > MAX_RECORDINGS_STORAGE_CAP_BYTES
+            {
+                d.recordings_storage_cap_bytes
+            } else {
+                self.recordings_storage_cap_bytes
+            },
         }
     }
 
@@ -518,6 +556,10 @@ impl AppConfig {
         m.extend(self.behavior.to_json_object());
         m.insert("transfer_workers".into(), json!(self.transfer_workers));
         m.insert("max_history".into(), json!(self.max_history));
+        m.insert(
+            "recordings_storage_cap_bytes".into(),
+            json!(self.recordings_storage_cap_bytes),
+        );
         if let Some(ref l) = self.locale {
             m.insert("locale".into(), json!(l));
         }
@@ -571,6 +613,10 @@ impl AppConfig {
             locale: obj.get("locale").and_then(|v| v.as_str()).map(String::from),
             security,
             security_probe_cache,
+            recordings_storage_cap_bytes: obj
+                .get("recordings_storage_cap_bytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(d.recordings_storage_cap_bytes),
         }
         .sanitized()
     }
@@ -911,5 +957,64 @@ mod tests {
         }
         .sanitized();
         assert_eq!(cfg.max_history, 500);
+    }
+
+    #[test]
+    fn recordings_storage_cap_default_is_500_mib() {
+        let cfg = AppConfig::default();
+        assert_eq!(
+            cfg.recordings_storage_cap_bytes,
+            DEFAULT_RECORDINGS_STORAGE_CAP_BYTES,
+        );
+        assert_eq!(cfg.recordings_storage_cap_bytes, 500 * 1024 * 1024);
+    }
+
+    #[test]
+    fn recordings_storage_cap_round_trips_through_json() {
+        let cfg = AppConfig {
+            recordings_storage_cap_bytes: 750 * 1024 * 1024,
+            ..AppConfig::default()
+        };
+        let v = cfg.to_json_value();
+        let parsed = AppConfig::from_json_value(&v);
+        assert_eq!(parsed.recordings_storage_cap_bytes, 750 * 1024 * 1024);
+    }
+
+    #[test]
+    fn recordings_storage_cap_zero_collapses_to_default() {
+        // Zero means "evict every file every sweep" — that is never
+        // what the user wants; sanitiser maps it to the default.
+        let cfg = AppConfig {
+            recordings_storage_cap_bytes: 0,
+            ..AppConfig::default()
+        }
+        .sanitized();
+        assert_eq!(
+            cfg.recordings_storage_cap_bytes,
+            DEFAULT_RECORDINGS_STORAGE_CAP_BYTES,
+        );
+    }
+
+    #[test]
+    fn recordings_storage_cap_absurd_value_collapses_to_default() {
+        let cfg = AppConfig {
+            recordings_storage_cap_bytes: u64::MAX,
+            ..AppConfig::default()
+        }
+        .sanitized();
+        assert_eq!(
+            cfg.recordings_storage_cap_bytes,
+            DEFAULT_RECORDINGS_STORAGE_CAP_BYTES,
+        );
+    }
+
+    #[test]
+    fn recordings_storage_cap_field_in_json_envelope() {
+        // The cap is part of the persisted shape — it must show up
+        // at the top level so a hand-edit / out-of-band tool can
+        // round-trip the field.
+        let v = AppConfig::default().to_json_value();
+        let obj = v.as_object().unwrap();
+        assert!(obj.contains_key("recordings_storage_cap_bytes"));
     }
 }

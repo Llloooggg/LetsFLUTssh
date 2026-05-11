@@ -179,6 +179,17 @@ final configProvider = NotifierProvider<ConfigNotifier, AppConfig>(
   ConfigNotifier.new,
 );
 
+/// Read-only accessor for the recordings storage cap. Selected off
+/// [configProvider] so a widget that only needs the cap (Settings
+/// tile, recordings browser footer summary) re-renders solely when
+/// the cap changes — not on every unrelated config mutation. The
+/// Rust recorder hooks are the source of truth for eviction; this
+/// provider is the Dart read path for surfacing the configured
+/// value.
+final recordingsStorageCapBytesProvider = Provider<int>(
+  (ref) => ref.watch(configProvider.select((c) => c.recordingsStorageCapBytes)),
+);
+
 class ConfigNotifier extends Notifier<AppConfig> {
   /// Sequential save lock — prevents concurrent file writes.
   Future<void> _pendingSave = Future.value();

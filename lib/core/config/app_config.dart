@@ -367,6 +367,25 @@ class AppConfig {
   /// `macos-resign.sh`, enrol a biometric, etc.).
   final SecurityCapabilities? securityProbeCache;
 
+  /// Aggregate byte ceiling for the recordings tree under
+  /// `<appSupport>/recordings/`. The Rust recorder's
+  /// `register_with_io` + `close_with_io` hooks call
+  /// `enforce_storage_cap` (LRU eviction sweep, oldest-mtime first)
+  /// against this value so the on-disk total stays at or below the
+  /// configured cap. Mirror of `AppConfig.recordings_storage_cap_bytes`
+  /// in `lfs_core::config`. Default
+  /// `defaultRecordingsStorageCapBytes` (500 MiB). The Settings UI
+  /// tile that exposes this lands as a follow-up; today the field is
+  /// reachable for tests + future call sites through the provider
+  /// accessor below.
+  final int recordingsStorageCapBytes;
+
+  /// 500 MiB, mirror of
+  /// `lfs_core::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`. Pinned
+  /// as a Dart-side constant so tests / call sites can reference the
+  /// canonical value without re-running the Rust round-trip.
+  static const int defaultRecordingsStorageCapBytes = 500 * 1024 * 1024;
+
   /// Locale codes supported by the app.
   static const supportedLocales = [
     'en',
@@ -396,6 +415,7 @@ class AppConfig {
     this.locale,
     this.security,
     this.securityProbeCache,
+    this.recordingsStorageCapBytes = defaultRecordingsStorageCapBytes,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -436,6 +456,14 @@ class AppConfig {
         (maxHistory < 0 ? 'Max history must be non-negative' : null);
   }
 
+  /// Hard ceiling on the configured recordings cap. Same value as
+  /// the Rust-side `MAX_RECORDINGS_STORAGE_CAP_BYTES` (1 TiB). A
+  /// user-supplied value above this falls through to the default
+  /// on sanitise — defence-in-depth in case a hand-edited
+  /// `config.json` slips a `u64::MAX`-like value past the Rust
+  /// sanitiser.
+  static const int _maxRecordingsStorageCapBytes = 1024 * 1024 * 1024 * 1024;
+
   /// Return a copy with invalid values clamped to safe defaults.
   AppConfig sanitized() {
     const d = AppConfig.defaults;
@@ -453,6 +481,11 @@ class AppConfig {
           : null,
       security: security,
       securityProbeCache: securityProbeCache,
+      recordingsStorageCapBytes:
+          (recordingsStorageCapBytes <= 0 ||
+              recordingsStorageCapBytes > _maxRecordingsStorageCapBytes)
+          ? d.recordingsStorageCapBytes
+          : recordingsStorageCapBytes,
     );
   }
 
@@ -472,6 +505,7 @@ class AppConfig {
     int? transferWorkers,
     int? maxHistory,
     Object? locale = _unset,
+    int? recordingsStorageCapBytes,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -483,6 +517,8 @@ class AppConfig {
       locale: identical(locale, _unset) ? this.locale : locale as String?,
       security: security,
       securityProbeCache: securityProbeCache,
+      recordingsStorageCapBytes:
+          recordingsStorageCapBytes ?? this.recordingsStorageCapBytes,
     );
   }
 
@@ -508,6 +544,7 @@ class AppConfig {
       securityProbeCache: identical(securityProbeCache, _unset)
           ? this.securityProbeCache
           : securityProbeCache as SecurityCapabilities?,
+      recordingsStorageCapBytes: recordingsStorageCapBytes,
     );
   }
 
@@ -523,7 +560,8 @@ class AppConfig {
           maxHistory == other.maxHistory &&
           locale == other.locale &&
           security == other.security &&
-          securityProbeCache == other.securityProbeCache;
+          securityProbeCache == other.securityProbeCache &&
+          recordingsStorageCapBytes == other.recordingsStorageCapBytes;
 
   @override
   int get hashCode => Object.hash(
@@ -536,6 +574,7 @@ class AppConfig {
     locale,
     security,
     securityProbeCache,
+    recordingsStorageCapBytes,
   );
 
   /// JSON stays flat for backward compatibility.
@@ -553,6 +592,7 @@ class AppConfig {
       ...behavior.toJson(),
       'transfer_workers': transferWorkers,
       'max_history': maxHistory,
+      'recordings_storage_cap_bytes': recordingsStorageCapBytes,
       if (locale != null) 'locale': locale,
       if (security != null) 'security_tier': security!.tier.wireName,
       if (security != null) 'security_modifiers': security!.modifiers.toJson(),
@@ -616,6 +656,9 @@ class AppConfig {
       securityProbeCache: SecurityCapabilities.fromJson(
         json['security_probe_cache'] as Map<String, dynamic>?,
       ),
+      recordingsStorageCapBytes:
+          (json['recordings_storage_cap_bytes'] as num?)?.toInt() ??
+          d.recordingsStorageCapBytes,
     ).sanitized();
   }
 }

@@ -34,6 +34,7 @@
 pub mod browser;
 pub mod queue;
 pub mod reader;
+pub mod storage_cap;
 
 use std::collections::HashMap;
 use std::fs::OpenOptions;
@@ -245,6 +246,21 @@ impl RecorderRegistry {
         self.lock().by_id.len()
     }
 
+    /// Snapshot every currently-registered actor's on-disk path.
+    /// Used by the recordings storage-cap sweep
+    /// ([`crate::recorder::storage_cap::enforce_storage_cap`]) so
+    /// the LRU eviction loop never unlinks a file the registry is
+    /// still writing to. The clone-out keeps the registry mutex
+    /// off the disk walk that follows; readers downstream operate
+    /// on the snapshot independently.
+    pub fn active_paths(&self) -> Vec<std::path::PathBuf> {
+        let g = self.lock();
+        g.by_id
+            .values()
+            .map(|a| std::path::PathBuf::from(&a.path))
+            .collect()
+    }
+
     /// Test escape hatch: panics while holding the registry's
     /// inner mutex so an integration-test thread can poison it.
     /// `#[doc(hidden)]` keeps it out of the rendered API surface;
@@ -334,6 +350,35 @@ impl RecorderRegistry {
         {
             let mut g = self.lock();
             g.by_id.insert(id.clone(), actor);
+        }
+        // Best-effort LRU eviction sweep against the configured
+        // cap. The recordings root is two levels up from the new
+        // file's path (`<root>/<sessionId>/<file>`). Active-paths
+        // snapshot is taken AFTER the insert so the newly-opened
+        // file is skipped by the sweep itself. Failures are logged
+        // but never block the register flow — the cap is a
+        // best-effort cleanup, not a precondition.
+        if let Some(root) = recordings_root_from_path(std::path::Path::new(&snap.path)) {
+            let cap = read_storage_cap_from_config_store();
+            let active = self.active_paths();
+            match storage_cap::enforce_storage_cap(&root, cap, &active) {
+                Ok(outcome) => {
+                    if outcome.files_evicted > 0 {
+                        crate::app_log_info!(
+                            "Recorder",
+                            "register_with_io eviction sweep: {} files, {} bytes reclaimed",
+                            outcome.files_evicted,
+                            outcome.bytes_reclaimed
+                        );
+                    }
+                }
+                Err(e) => {
+                    crate::app_log_warn!(
+                        "Recorder",
+                        "register_with_io eviction sweep failed (best-effort): {e}"
+                    );
+                }
+            }
         }
         bus.publish(Event::RecorderStarted { id, path });
         Ok(snap)
@@ -589,10 +634,91 @@ impl RecorderRegistry {
                     .map_err(|e| Error::Recorder(format!("close flush: {e}")))?;
                 // File drops with the guard; OS handle closes.
             }
+            // Re-run the eviction sweep now that the just-closed
+            // file is no longer in the active-paths set. A long
+            // recording that pushed the tree past the cap during
+            // its lifetime gets reclaimed here on close, before
+            // the next register would otherwise inherit the bloat.
+            if let Some(root) = recordings_root_from_path(std::path::Path::new(&actor.path)) {
+                let cap = read_storage_cap_from_config_store();
+                let active = self.active_paths();
+                match storage_cap::enforce_storage_cap(&root, cap, &active) {
+                    Ok(outcome) => {
+                        if outcome.files_evicted > 0 {
+                            crate::app_log_info!(
+                                "Recorder",
+                                "close_with_io eviction sweep: {} files, {} bytes reclaimed",
+                                outcome.files_evicted,
+                                outcome.bytes_reclaimed
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        crate::app_log_warn!(
+                            "Recorder",
+                            "close_with_io eviction sweep failed (best-effort): {e}"
+                        );
+                    }
+                }
+            }
             bus.publish(Event::RecorderStopped { id: id.to_string() });
         }
         Ok(())
     }
+}
+
+/// Resolve `<recordings_root>` from an actor's per-file path. The
+/// canonical layout is
+/// `<recordings_root>/<sessionId>/<isoTimestamp>.<lfsr|cast>` —
+/// two levels up from the file lands on the root the storage-cap
+/// sweep operates against. Returns `None` when:
+///
+/// - the path lacks two parents (test paths like `/tmp/foo` —
+///   skip rather than evict against `/`);
+/// - the resolved root has no further parent (filesystem root, `/`
+///   or `C:\`) — same defensive posture, an accidental sweep
+///   against `/` would walk the entire filesystem looking for
+///   recording files;
+/// - the resolved root is the empty path.
+///
+/// Production callers route through
+/// `<appSupport>/recordings/<sessionId>/<file>` where the root
+/// always has a parent (the app-support dir), so the canonical
+/// path resolves cleanly.
+fn recordings_root_from_path(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let session_dir = path.parent()?;
+    let root = session_dir.parent()?;
+    if root.as_os_str().is_empty() {
+        return None;
+    }
+    // Root must itself have a parent — filesystem root (`/` on
+    // Unix, drive root on Windows) returns `None` here and the
+    // sweep is skipped. This is the test-suite guard plus a
+    // defence-in-depth net against a misconfigured caller.
+    root.parent()?;
+    Some(root.to_path_buf())
+}
+
+/// Snapshot the configured cap from the live `config_store`
+/// actor. Returns the default
+/// ([`crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`]) when
+/// the actor has not been initialised yet (cold-start register
+/// race) or when the snapshot JSON does not carry a parseable
+/// value — both branches fall back to the canonical default so
+/// the sweep still bounds the tree rather than skipping entirely.
+fn read_storage_cap_from_config_store() -> u64 {
+    let default = crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES;
+    let Some(json) = crate::config_store::instance().get_json() else {
+        return default;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
+        return default;
+    };
+    value
+        .as_object()
+        .and_then(|o| o.get("recordings_storage_cap_bytes"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(default)
 }
 
 /// JSON-escape a string for embedding inside a `"…"` JSON
@@ -994,6 +1120,45 @@ mod tests {
         reg.register("r1".into(), "s1".into(), "/tmp/x".into(), false, &bus);
         let err = reg.rotate_to("r1", "/tmp/y".into(), &bus).unwrap_err();
         assert!(err.to_string().contains("no file handle"));
+    }
+
+    #[test]
+    fn active_paths_snapshots_every_registered_actor() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let p1 = tempfile_path("active1");
+        let p2 = tempfile_path("active2");
+        reg.register_with_io("r1".into(), "s1".into(), p1.clone(), None, &bus)
+            .expect("register r1");
+        reg.register_with_io("r2".into(), "s2".into(), p2.clone(), None, &bus)
+            .expect("register r2");
+        let mut paths = reg.active_paths();
+        paths.sort();
+        let mut expected = vec![std::path::PathBuf::from(&p1), std::path::PathBuf::from(&p2)];
+        expected.sort();
+        assert_eq!(paths, expected);
+        // Close r1 → only r2 remains in the active set.
+        reg.close_with_io("r1", &bus).expect("close r1");
+        let after = reg.active_paths();
+        assert_eq!(after, vec![std::path::PathBuf::from(&p2)]);
+        let _ = std::fs::remove_file(&p1);
+        let _ = std::fs::remove_file(&p2);
+    }
+
+    #[test]
+    fn recordings_root_from_path_resolves_two_levels_up() {
+        let p = std::path::PathBuf::from("/var/lib/lfs/recordings/sess-a/2026.cast");
+        let root = recordings_root_from_path(&p).expect("root");
+        assert_eq!(root, std::path::PathBuf::from("/var/lib/lfs/recordings"));
+    }
+
+    #[test]
+    fn recordings_root_from_path_rejects_root_without_parent() {
+        // /tmp/foo → parent=/tmp, parent.parent=/. `/` has no
+        // parent → return None so the eviction sweep cannot walk
+        // the filesystem root.
+        let p = std::path::PathBuf::from("/tmp/foo");
+        assert!(recordings_root_from_path(&p).is_none());
     }
 
     #[test]

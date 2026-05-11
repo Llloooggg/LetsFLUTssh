@@ -52,7 +52,15 @@ impl SchemaVersions {
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
     ///
-    /// v4 (current): drops the legacy `biometric_shortcut` /
+    /// v5 (current): stamps a `recordings_storage_cap_bytes` field
+    /// at the top level so the recorder's LRU eviction sweep has a
+    /// user-configurable byte ceiling. v4 readers had no such field
+    /// — the v4→v5 migration writes the default
+    /// ([`crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`])
+    /// when the field is absent so existing installs adopt the
+    /// canonical shape on first launch under v5.
+    ///
+    /// v4: drops the legacy `biometric_shortcut` /
     /// `pin_length` fields from `security_modifiers`. Both were
     /// retained as backward-compat aliases after the bank-style
     /// password modifier landed; v4 retires them entirely (no
@@ -72,7 +80,7 @@ impl SchemaVersions {
     /// value — either an object or `null`. v1→v2 ensures the field
     /// exists (as `null` if absent) so post-migration reads can
     /// distinguish "never probed" from "probed-but-empty".
-    pub const CONFIG: i32 = 4;
+    pub const CONFIG: i32 = 5;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked

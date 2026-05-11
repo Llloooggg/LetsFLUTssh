@@ -250,6 +250,56 @@ impl Migration for ConfigV3ToV4 {
     }
 }
 
+/// `config.json` v4 → v5: introduce the
+/// `recordings_storage_cap_bytes` field with the canonical default
+/// (`crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`, 500
+/// MiB) when the v4 file did not carry the key. Pairs with the
+/// recorder LRU eviction sweep added under
+/// `lfs_core::recorder::storage_cap` — without the field, the
+/// sweep would key off the runtime default every launch and a
+/// hand-edited `config.json` could never persist a different cap.
+/// Bumping the stamp + materialising the default closes that gap.
+///
+/// Idempotent on already-stamped configs: if the field is present
+/// the migration leaves it untouched, only the version stamp
+/// flips. Atomic — writes via [`crate::path::write_bytes_atomic`]
+/// (tmp + fsync + rename) so a crash mid-migration leaves the v4
+/// file untouched on disk.
+pub struct ConfigV4ToV5;
+
+impl Migration for ConfigV4ToV5 {
+    fn artefact_id(&self) -> &'static str {
+        ConfigArtefact::FILE_NAME
+    }
+
+    fn source_version(&self) -> i32 {
+        4
+    }
+
+    fn target_version(&self) -> i32 {
+        5
+    }
+
+    fn apply(&self, support_dir: &Path) -> Result<(), String> {
+        let path = support_dir.join(ConfigArtefact::FILE_NAME);
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let mut value: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{}: not a JSON object", ConfigArtefact::FILE_NAME))?;
+        obj.entry("recordings_storage_cap_bytes")
+            .or_insert_with(|| Value::from(crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES));
+        obj.insert("config_schema_version".into(), Value::from(5));
+        let serialised = serde_json::to_vec(&value)
+            .map_err(|e| format!("{}: serialise: {e}", ConfigArtefact::FILE_NAME))?;
+        crate::path::write_bytes_atomic(&path, &serialised)
+            .map_err(|e| format!("{}: write: {e}", ConfigArtefact::FILE_NAME))?;
+        Ok(())
+    }
+}
+
 /// `security_pass_hash.bin` — keychain password gate. Wire format
 /// is a single-line JSON envelope `{"v": N, "salt": "<b64>", "hmac":
 /// "<b64>"}`. The `v` field is the schema marker; missing field on
@@ -796,5 +846,52 @@ mod tests {
             .as_object()
             .unwrap();
         assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+    }
+
+    // ── ConfigV4ToV5 ─────────────────────────────────────────────
+
+    #[test]
+    fn config_v4_to_v5_stamps_default_cap_when_field_absent() {
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":4,"theme":"dark"}"#,
+        )
+        .unwrap();
+        ConfigV4ToV5.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(5)));
+        assert_eq!(
+            obj.get("recordings_storage_cap_bytes")
+                .and_then(Value::as_u64),
+            Some(crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES),
+        );
+        // Non-migration fields survive.
+        assert_eq!(obj.get("theme"), Some(&Value::String("dark".into())));
+    }
+
+    #[test]
+    fn config_v4_to_v5_preserves_existing_cap_value() {
+        // A v4 file that already carries `recordings_storage_cap_bytes`
+        // (hand-edited or written by a forward-compat build) must not
+        // get its value clobbered by the migration.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":4,"recordings_storage_cap_bytes":1073741824}"#,
+        )
+        .unwrap();
+        ConfigV4ToV5.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(5)));
+        assert_eq!(
+            obj.get("recordings_storage_cap_bytes")
+                .and_then(Value::as_u64),
+            Some(1_073_741_824),
+        );
     }
 }
