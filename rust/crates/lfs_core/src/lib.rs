@@ -81,6 +81,13 @@ pub mod update_http;
 pub mod update_metadata;
 pub mod update_orchestrator;
 pub mod update_signing;
+// Raw WebDAV transport (PROPFIND / GET / PUT / DELETE / MKCOL /
+// MOVE + basic / digest / bearer auth + multistatus parser).
+// Consumed by both the sync orchestrator and the WebDAV
+// `storage::Provider` impl; lives at the same level as `ssh` /
+// `sftp` so neither consumer needs to dip into the other's
+// module tree to reach the transport.
+pub mod webdav;
 
 pub use error::Error;
 

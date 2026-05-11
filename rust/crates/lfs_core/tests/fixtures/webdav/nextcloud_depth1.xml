@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:response>
+    <d:href>/remote.php/dav/files/alice/notes/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>notes</d:displayname>
+        <d:resourcetype><d:collection/></d:resourcetype>
+        <d:getlastmodified>Sun, 06 Nov 1994 08:49:37 GMT</d:getlastmodified>
+        <d:getetag>"folder-etag"</d:getetag>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/files/alice/notes/notes.txt</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>notes.txt</d:displayname>
+        <d:getcontentlength>123</d:getcontentlength>
+        <d:getcontenttype>text/plain</d:getcontenttype>
+        <d:getlastmodified>Sun, 06 Nov 1994 08:49:37 GMT</d:getlastmodified>
+        <d:getetag>"abc123"</d:getetag>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/files/alice/notes/readme.md</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>readme.md</d:displayname>
+        <d:getcontentlength>512</d:getcontentlength>
+        <d:getcontenttype>text/markdown</d:getcontenttype>
+        <d:getlastmodified>Sun, 06 Nov 1994 08:49:37 GMT</d:getlastmodified>
+        <d:getetag>"def456"</d:getetag>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/files/alice/notes/subdir/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>subdir</d:displayname>
+        <d:resourcetype><d:collection/></d:resourcetype>
+        <d:getlastmodified>Sun, 06 Nov 1994 08:49:37 GMT</d:getlastmodified>
+        <d:getetag>"sub-etag"</d:getetag>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>

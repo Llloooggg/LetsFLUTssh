@@ -132,6 +132,11 @@ pub mod kind {
     /// `lfs_core::migration::SchemaVersions::ARCHIVE`. Dart UI shows
     /// "newer build needed" copy; archive is NOT applied.
     pub const ARCHIVE_FUTURE_VERSION: &str = "archive_future_version";
+    /// WebDAV transport failure (PROPFIND parse, ETag mismatch,
+    /// auth challenge cycle, depth=infinity refusal). Detail
+    /// carries the short reason; UI surfaces the localized
+    /// "sync server rejected the request" message.
+    pub const WEBDAV: &str = "webdav";
 }
 
 /// Compose a JSON envelope with the given kind + detail. Use
@@ -189,6 +194,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::Update(s) => wire(kind::UPDATE, s),
         CoreError::Platform(s) => wire(kind::PLATFORM, s),
         CoreError::Crypto(s) => wire(kind::CRYPTO, s),
+        CoreError::WebDav(s) => wire(kind::WEBDAV, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

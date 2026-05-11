@@ -227,6 +227,35 @@ reqwest = { version = "0.12", default-features = false, features = [
 # own mpsc is single-consumer by design and there is no broadcast-
 # style fit (every worker would see every message, not one).
 async-channel = "2"
+# WHATWG URL parser. The WebDAV transport (`lfs_core::webdav`)
+# uses it to join a relative resource path onto the configured
+# base URL with correct percent-encoding of path segments —
+# server paths can contain spaces, Unicode, and reserved
+# characters that string concatenation would corrupt. Pure-Rust,
+# no system deps. Already pulled transitively by reqwest; the
+# re-declaration lets `lfs_core` name `url::Url` directly
+# instead of relying on resolution through a re-export.
+url = "2"
+# Pull-based XML reader used by the WebDAV PROPFIND multistatus
+# parser (`lfs_core::webdav::parser`). Streaming reader so the
+# 16 MiB body cap can short-circuit oversized responses without
+# materialising a DOM. Namespace-aware via the explicit
+# `read_event_into` loop — WebDAV servers vary on which
+# prefix they bind `DAV:` under (`<D:multistatus>`,
+# `<d:multistatus>`, default-namespaced `<multistatus>`).
+quick-xml = "0.36"
+# MD5 hashing for HTTP Digest authentication (RFC 7616). Only
+# consumer is `lfs_core::webdav::auth::digest` — MD5 is
+# cryptographically broken but Digest auth requires it. Never
+# used outside that one helper; all real crypto goes through
+# the SHA-2 / AES-GCM / Argon2 stack.
+md-5 = "0.10"
+# RFC 1123 date parser. WebDAV PROPFIND surfaces
+# `<getlastmodified>` in HTTP-date format ("Sun, 06 Nov 1994
+# 08:49:37 GMT"); `httpdate::parse_http_date` is the smallest
+# pure-Rust parser for it. Tiny crate (~200 LOC, zero deps),
+# preferred over pulling all of `chrono` for one date format.
+httpdate = "1"
 
 [profile.release]
 # Bundle-size-tightened profile. Flags:

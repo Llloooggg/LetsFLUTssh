@@ -66,6 +66,15 @@ uuid = { workspace = true }
 # reqwest), so backends that wrap an HTTP client (S3, WebDAV) can
 # forward chunks without an extra copy.
 bytes = { workspace = true }
+# WebDAV transport (`lfs_core::webdav`) dependency set. `url`
+# percent-encodes resource paths joined onto the base URL;
+# `quick-xml` parses the PROPFIND multistatus response stream;
+# `md-5` implements the MD5 hash RFC 7616 Digest auth requires;
+# `httpdate` parses `<getlastmodified>` RFC 1123 timestamps.
+url = { workspace = true }
+quick-xml = { workspace = true }
+md-5 = { workspace = true }
+httpdate = { workspace = true }
 
 # Linux-only D-Bus client for the fprintd shim under
 # `platform::linux::fprintd`. The TSS2 ESAPI binding (`tss-esapi`)
@@ -86,6 +95,12 @@ libc = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
+# HTTP mocking server for the WebDAV client tests. `wiremock`
+# stands up a real `hyper`-backed server on a loopback port,
+# matches requests against declarative builders, and returns
+# canned responses. Picks an ephemeral port per test so
+# parallel runs don't collide.
+wiremock = "0.6"
 
 # Hardening: deny `unsafe` blocks at the lfs_core level. Transitive
 # crates (russh, tokio, ring, ...) still use `unsafe` internally —

@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/webdav/readable.txt</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>readable.txt</d:displayname>
+        <d:getcontentlength>16</d:getcontentlength>
+        <d:getcontenttype>text/plain</d:getcontenttype>
+        <d:getlastmodified>Thu, 13 Nov 2025 10:00:00 GMT</d:getlastmodified>
+        <d:getetag>"ok-etag"</d:getetag>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/webdav/locked.txt</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>locked.txt</d:displayname>
+      </d:prop>
+      <d:status>HTTP/1.1 404 Not Found</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>

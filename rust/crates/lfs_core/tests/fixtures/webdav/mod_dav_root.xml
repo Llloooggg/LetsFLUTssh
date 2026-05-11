@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<multistatus xmlns="DAV:">
+  <response>
+    <href>/webdav/</href>
+    <propstat>
+      <prop>
+        <displayname>webdav</displayname>
+        <resourcetype><collection/></resourcetype>
+        <getlastmodified>Mon, 10 Nov 2025 12:00:00 GMT</getlastmodified>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+  <response>
+    <href>/webdav/binary.dat</href>
+    <propstat>
+      <prop>
+        <displayname>binary.dat</displayname>
+        <getcontentlength>4096</getcontentlength>
+        <getcontenttype>application/octet-stream</getcontenttype>
+        <getlastmodified>Mon, 10 Nov 2025 12:05:00 GMT</getlastmodified>
+        <getetag>"bin-etag"</getetag>
+        <resourcetype/>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>

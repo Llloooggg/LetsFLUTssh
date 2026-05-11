@@ -97,6 +97,18 @@ pub enum Error {
     #[error("update: {0}")]
     Update(String),
 
+    /// WebDAV transport failures surfaced from
+    /// `lfs_core::webdav` — multistatus XML parse, transport drop
+    /// mid-PROPFIND, auth challenge that did not yield a recognised
+    /// scheme, ETag mismatch on a conditional PUT, server returning
+    /// a forbidden `depth=infinity` listing. Carved out of the
+    /// generic `Io` bucket so the sync orchestrator and the
+    /// file-browser provider can route a 412 (etag-mismatch needs
+    /// a re-read) differently from a 401 (credential prompt)
+    /// without substring matching the message.
+    #[error("webdav: {0}")]
+    WebDav(String),
+
     /// Platform-tooling subprocess errors (Linux `tpm2-tools`, macOS
     /// `security` / `codesign` / `productsign`). The first-launch
     /// wizard + Settings → Security surfaces these against the
