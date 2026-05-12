@@ -813,6 +813,24 @@ Centralised key store so a single key can be referenced from many sessions.
 - To detach the cert later, tap the same icon again → confirm. After removal the next connect attempt falls back to plain public-key auth.
 - The cert pairing is opportunistic — the connect path prefers cert auth whenever a paired certificate exists for the key the session references, otherwise it uses the plain key.
 
+### System ssh-agent
+
+The Rust core can authenticate a session against the user's running ssh-agent over the platform's default channels — keys stay inside the agent, every signature round-trips back through it. No session-edit knob in the current build picks this path; once it ships, the platform mechanics below already apply.
+
+On Linux and macOS the app reads `$SSH_AUTH_SOCK` (the same variable OpenSSH `ssh` honours). Run `ssh-add -l` in the same shell that launches the app to confirm the keys you expect are listed.
+
+On Windows the app first tries the OpenSSH-on-Windows named pipe `\\.\pipe\openssh-ssh-agent` — what Microsoft's `OpenSSH Authentication Agent` service registers when you enable the *OpenSSH Client* optional feature and `Start-Service ssh-agent`. If that pipe doesn't exist it falls back to **Pageant** automatically; both the legacy `WM_COPYDATA` mailbox and modern named-pipe Pageant builds are picked up. PuTTY 0.78+ ships the named-pipe variant by default. We do not stand up our own Pageant-compatible endpoint for other tools to consume — the `WM_COPYDATA` channel has known injection vectors (see WithSecure Labs' Pageant analysis). For PuTTY-side consumption of keys you imported into the app, point PuTTY at the OpenSSH named pipe exposed by Settings → External SSH client integration (see [§10b](#10b-using-hardware-bound-keys-outside-the-app)).
+
+**gpg-agent.** `gpg-agent --enable-ssh-support` exposes a Unix domain socket that speaks the standard OpenSSH agent protocol, so the app picks up its keys exactly like any other ssh-agent. To use OpenPGP-card-resident keys or GPG-managed key files for SSH:
+
+```bash
+export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
+```
+
+Then list the keygrips you want exposed in `~/.gnupg/sshcontrol` (one per line). Launch the app from the same shell — or wire the export into your shell's startup file — and `ssh-add -l` should show the gpg-agent identities.
+
+On Windows, gpg4win ships a Pageant-compatible bridge (`gpg-agent --enable-putty-support`), not the OpenSSH named-pipe bridge — so the app can't reach gpg-agent directly through the OpenSSH pipe. The workaround is a shim that re-publishes gpg-agent's identities at `\\.\pipe\openssh-ssh-agent`; `wsl-ssh-pageant` is the most common choice. Once the shim is running the app picks the keys up automatically on its next connect.
+
 ---
 
 ## 10b. Using hardware-bound keys outside the app
