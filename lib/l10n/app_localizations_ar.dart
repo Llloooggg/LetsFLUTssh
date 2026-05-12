@@ -2574,6 +2574,21 @@ class SAr extends S {
   String get t2MigrationContinue => 'متابعة';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'عيّن كلمة مرور للحفاظ على مستوى Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'أدخل كلمة مرور رئيسية جديدة. يُعاد ختم مفتاح DB المختوم بالفعل داخل وحدة hardware تحت هذه الكلمة — جلساتك ومفاتيحك تبقى سليمة.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'محو والبدء من جديد';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'فشل إعادة ختم مستوى Hardware — اختر كلمة مرور أخرى أو امحُ للبدء من جديد.';
+
+  @override
   String get biometricOverlayEnable =>
       'تفعيل اختصار القياس الحيوي على مستوى Hardware';
 

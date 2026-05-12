@@ -2558,6 +2558,20 @@ class SVi extends S {
   String get t2MigrationContinue => 'Tiếp tục';
 
   @override
+  String get t2MigrationSetPasswordTitle => 'Đặt password để giữ tier Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Nhập master password mới. DB key đã sealed trong hardware module sẽ được re-seal dưới password này — session và key của bạn vẫn còn nguyên.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe và bắt đầu lại';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal tier Hardware thất bại — chọn password khác hoặc wipe để bắt đầu lại.';
+
+  @override
   String get biometricOverlayEnable =>
       'Kích hoạt shortcut biometric trên tier Hardware';
 

@@ -2591,6 +2591,20 @@ class SRu extends S {
   String get t2MigrationContinue => 'Продолжить';
 
   @override
+  String get t2MigrationSetPasswordTitle => 'Задайте пароль для Hardware-тира';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Введите новый мастер-пароль. DB-ключ, уже запечатанный в hardware-модуле, перезапечатается под этим паролем — сессии и ключи останутся целы.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Стереть и начать заново';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Не удалось перезапечатать Hardware-тир — выберите другой пароль или сотрите всё.';
+
+  @override
   String get biometricOverlayEnable =>
       'Включить биометрический ярлык на Hardware-уровне';
 

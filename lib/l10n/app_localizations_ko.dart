@@ -2505,6 +2505,20 @@ class SKo extends S {
   String get t2MigrationContinue => '계속';
 
   @override
+  String get t2MigrationSetPasswordTitle => 'Hardware 티어 유지를 위해 패스워드 설정';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      '새 master 패스워드를 입력하세요. hardware 모듈에 이미 sealed 된 DB key가 이 패스워드로 re-seal 됩니다 — 세션과 key는 그대로 유지됩니다.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe 후 처음부터 다시 시작';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware 티어 re-seal 실패 — 다른 패스워드를 선택하거나 wipe 하세요.';
+
+  @override
   String get biometricOverlayEnable => 'Hardware 티어에서 바이오메트릭 shortcut 활성화';
 
   @override

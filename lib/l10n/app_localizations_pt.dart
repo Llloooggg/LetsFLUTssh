@@ -2640,6 +2640,21 @@ class SPt extends S {
   String get t2MigrationContinue => 'Continuar';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Defina uma senha para manter a camada Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Digite uma nova master password. A DB key já sealed dentro do módulo hardware é re-sealed sob esta senha — sessões e keys ficam intactas.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe e começar do zero';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal da camada Hardware falhou — escolha outra senha ou wipe para começar do zero.';
+
+  @override
   String get biometricOverlayEnable =>
       'Ativar shortcut biométrico na camada Hardware';
 

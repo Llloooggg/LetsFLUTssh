@@ -2578,6 +2578,21 @@ class STr extends S {
   String get t2MigrationContinue => 'Devam';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Hardware tier\'ı korumak için bir password belirle';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Yeni bir master password gir. Hardware module içinde zaten sealed olan DB key bu password altında re-seal edilir — session\'ların ve key\'lerin sağlam kalır.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe edip sıfırdan başla';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware tier re-seal başarısız — farklı bir password seç ya da wipe et.';
+
+  @override
   String get biometricOverlayEnable =>
       'Hardware tier üzerinde biometric shortcut\'ı etkinleştir';
 

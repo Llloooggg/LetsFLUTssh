@@ -2561,6 +2561,21 @@ class SFa extends S {
   String get t2MigrationContinue => 'ادامه';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'برای حفظ لایه Hardware یک رمز تعیین کنید';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'یک passphrase اصلی جدید وارد کنید. کلید DB که قبلاً در ماژول hardware مهر شده، تحت این رمز re-seal می‌شود — sessionها و کلیدها دست‌نخورده می‌مانند.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'پاک‌سازی و شروع دوباره';
+
+  @override
+  String get t2MigrationResealFailed =>
+      're-seal لایه Hardware ناموفق بود — رمز دیگری انتخاب کنید یا پاک‌سازی کنید.';
+
+  @override
   String get biometricOverlayEnable =>
       'فعال‌سازی shortcut بیومتریک روی لایه Hardware';
 

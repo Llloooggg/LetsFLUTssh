@@ -2574,6 +2574,21 @@ class SId extends S {
   String get t2MigrationContinue => 'Lanjutkan';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Set password untuk menyimpan tier Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Ketik master password baru. DB key yang sudah di-seal di hardware module akan di-re-seal di bawah password ini — session dan key kamu tetap utuh.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe dan mulai ulang';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal tier Hardware gagal — pilih password lain atau wipe untuk mulai dari nol.';
+
+  @override
   String get biometricOverlayEnable =>
       'Aktifkan shortcut biometric pada tier Hardware';
 

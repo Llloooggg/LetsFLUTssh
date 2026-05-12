@@ -2571,6 +2571,21 @@ class SHi extends S {
   String get t2MigrationContinue => 'जारी रखें';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Hardware tier रखने के लिए पासवर्ड सेट करें';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'एक नया master password टाइप करें। hardware module में पहले से sealed DB key इस password के तहत re-seal हो जाएगी — sessions और keys बरकरार रहेंगे।';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe करके नए सिरे से शुरू करें';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware tier का re-seal विफल — दूसरा password चुनें या wipe करें।';
+
+  @override
   String get biometricOverlayEnable =>
       'Hardware tier पर बायोमेट्रिक shortcut सक्षम करें';
 

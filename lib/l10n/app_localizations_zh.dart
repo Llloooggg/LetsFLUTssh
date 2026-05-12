@@ -2485,6 +2485,20 @@ class SZh extends S {
   String get t2MigrationContinue => '继续';
 
   @override
+  String get t2MigrationSetPasswordTitle => '设置密码以保留 Hardware 层级';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      '输入新的 master 密码。hardware 模块中已经 sealed 的 DB key 会在此密码下 re-seal — 会话和 key 保持不变。';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe 后重新开始';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware 层级 re-seal 失败 — 换一个密码或 wipe 后重新开始。';
+
+  @override
   String get biometricOverlayEnable => '在 Hardware 层级启用生物识别 shortcut';
 
   @override

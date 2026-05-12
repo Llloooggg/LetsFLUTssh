@@ -2642,6 +2642,21 @@ class SDe extends S {
   String get t2MigrationContinue => 'Weiter';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Passwort setzen, um die Hardware-Stufe zu behalten';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Gib ein neues Master-Passwort ein. Der bereits im Hardware-Modul versiegelte DB-Key wird unter diesem Passwort neu versiegelt — deine Sessions und Keys bleiben unangetastet.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipen und neu starten';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware-Stufe konnte nicht neu versiegelt werden — anderes Passwort wählen oder wipen.';
+
+  @override
   String get biometricOverlayEnable =>
       'Biometrie-Shortcut auf Hardware-Stufe aktivieren';
 

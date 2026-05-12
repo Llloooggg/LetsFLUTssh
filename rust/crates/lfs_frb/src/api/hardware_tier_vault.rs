@@ -480,6 +480,127 @@ pub async fn hardware_tier_vault_clear_biometric_password(
     .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?
 }
 
+// ── v6 → v7 password-set wizard ────────────────────────────────
+//
+// The migration leaves a Hardware-tier install with the wrapped key
+// sealed under the empty PIN-HMAC: there is no live password the
+// bootstrap could derive from. The wizard runs once, asks the user
+// for a fresh password, and re-seals the same DB key under the new
+// auth value. The plaintext DB key never crosses the FRB boundary —
+// it is unsealed, re-sealed, and dropped all inside the
+// `spawn_blocking` task.
+//
+// Re-seal contract:
+// 1. Read the on-disk salt (Linux: inside the envelope; others:
+//    sibling `hardware_vault_salt.bin`).
+// 2. Read the existing vault under `pin_hmac = HMAC(salt, "")`.
+// 3. Clear the vault (drops the platform-bound persistent key on
+//    NCrypt / Keystore / SE; drops the on-disk envelope on every
+//    target) and any sibling salt file.
+// 4. Provision a fresh salt, derive `pin_hmac = HMAC(new_salt, pw)`,
+//    store the same DB key under the new auth value.
+// 5. On full success, clear the marker so the next bootstrap routes
+//    the regular unlock path.
+//
+// Any step short of (5) leaves the marker in place and the previous
+// vault state intact (steps 3/4 are atomic on disk) so a crash mid-
+// re-seal lets the user retry rather than wiping their data.
+
+/// True when the v6 → v7 password-set wizard needs to run before
+/// the regular Hardware-tier unlock path. Sync because the probe is
+/// a pure path-stat on the `support_dir` — bootstrap calls this
+/// once before `unlock_hardware` to avoid a rate-limited round-trip
+/// against a vault that no live password can unseal.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_password_set_wizard_required(support_dir: String) -> bool {
+    vault::hardware_password_set_wizard_required(std::path::Path::new(&support_dir))
+}
+
+/// Clear the v6 → v7 password-set marker. Idempotent — a missing
+/// target is treated as success. Caller fires this only after the
+/// re-seal succeeded; surfacing the call separately keeps the
+/// wizard widget's success path explicit (no hidden side effect
+/// inside `reseal_with_password`).
+pub async fn hardware_tier_vault_clear_password_set_marker(
+    support_dir: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        vault::clear_v6_v7_password_set_marker(std::path::Path::new(&support_dir))
+            .map_err(|e| format!("clear hw v7 marker: {e}"))
+    })
+    .await
+    .map_err(|e| format!("clear hw v7 marker join: {e}"))?
+}
+
+/// Re-seal the Hardware-tier vault under a freshly-typed password.
+///
+/// Used by the v6 → v7 password-set wizard. Reads the existing
+/// vault under the empty PIN-HMAC the migration left behind, drops
+/// the vault + sibling salt, provisions a fresh salt, and re-stores
+/// the same DB key under `HMAC(new_salt, new_password)`.
+///
+/// Returns `Err(_)` if any step fails — the marker stays in place
+/// (the caller never reaches the `clear_password_set_marker` call),
+/// the vault is either fully under the empty PIN-HMAC (steps 1-2
+/// failed) or fully under the new password (steps 3-5 succeeded).
+/// A new-password that arrives empty short-circuits as
+/// `Err("password must not be empty")` — the contract mirrors
+/// `unlock_hardware`'s typed-secret invariant.
+pub async fn hardware_tier_vault_reseal_with_password(
+    support_dir: String,
+    new_password: String,
+) -> Result<(), String> {
+    if new_password.is_empty() {
+        return Err("password must not be empty".to_string());
+    }
+    tokio::task::spawn_blocking(move || reseal_blocking(&support_dir, &new_password))
+        .await
+        .map_err(|e| format!("hw_vault reseal join: {e}"))?
+}
+
+fn reseal_blocking(support_dir: &str, new_password: &str) -> Result<(), String> {
+    let dir = std::path::Path::new(support_dir);
+    // Step 1 — read salt the migration left behind.
+    let old_salt = read_existing_salt(support_dir)?
+        .ok_or_else(|| "reseal: no salt on disk (vault was already wiped)".to_string())?;
+    // Step 2 — unseal with empty PIN-HMAC. The v6 vault was sealed
+    // under HMAC(salt, "") which `resolve_auth_value` rejects as
+    // "no secret"; we compute the same empty-payload HMAC inline
+    // here so the read path mirrors what v6 wrote.
+    let empty_pin_hmac = lfs_core::crypto::hmac_sha256(&old_salt, b"");
+    let db_key = dispatch_read(support_dir, empty_pin_hmac.as_slice())?
+        .ok_or_else(|| "reseal: vault read returned no key (already re-sealed?)".to_string())?;
+    // Step 3 — drop the old vault + sibling salt so the salt-then-
+    // vault provisioning below starts from a clean slate. Linux's
+    // salt rides inside the envelope so `delete_salt` is a no-op
+    // there; Apple / Android / Windows need both halves dropped.
+    dispatch_clear(support_dir)?;
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_core::security::hardware_tier_vault::salt::delete(dir)
+            .map_err(|e| format!("reseal: salt delete: {e}"))?;
+    }
+    // Step 4 — fresh salt + new auth value + store.
+    let new_salt = lfs_core::security::hardware_tier_vault::salt::provision(dir)
+        .map_err(|e| format!("reseal: salt provision: {e}"))?;
+    let new_pin_hmac = lfs_core::crypto::hmac_sha256(&new_salt, new_password.as_bytes());
+    dispatch_store(support_dir, &db_key, &new_salt, new_pin_hmac.as_slice())?;
+    Ok(())
+}
+
+fn read_existing_salt(support_dir: &str) -> Result<Option<Vec<u8>>, String> {
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::read_blob_salt(support_dir)
+            .map_err(map_linux_vault_error)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_core::security::hardware_tier_vault::salt::read(std::path::Path::new(support_dir))
+            .map_err(|e| format!("reseal: salt read: {e}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -558,5 +679,65 @@ mod tests {
         let salt = vec![0x55; 16];
         let res = hardware_tier_vault_resolve_auth_value(false, true, salt, None, None);
         assert!(res.is_none());
+    }
+
+    #[test]
+    fn wizard_required_probe_keys_off_marker_file() {
+        // Sync FRB probe — the wizard fires only when the marker
+        // sibling sits next to `config.json`. Absent file → no
+        // wizard; present file → wizard.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().to_str().unwrap().to_string();
+        assert!(!hardware_tier_vault_password_set_wizard_required(
+            path.clone()
+        ));
+        lfs_core::security::hardware_tier_vault::write_v6_v7_password_set_marker(dir.path())
+            .unwrap();
+        assert!(hardware_tier_vault_password_set_wizard_required(path));
+    }
+
+    #[tokio::test]
+    async fn clear_password_set_marker_drops_the_file() {
+        // The wizard's success path is "re-seal + clear marker".
+        // The clear shim is the second half; pin its semantics
+        // (idempotent on missing, removes when present).
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().to_str().unwrap().to_string();
+        lfs_core::security::hardware_tier_vault::write_v6_v7_password_set_marker(dir.path())
+            .unwrap();
+        assert!(hardware_tier_vault_password_set_wizard_required(
+            path.clone()
+        ));
+        hardware_tier_vault_clear_password_set_marker(path.clone())
+            .await
+            .expect("clear");
+        assert!(!hardware_tier_vault_password_set_wizard_required(path));
+    }
+
+    #[tokio::test]
+    async fn clear_password_set_marker_is_idempotent_on_missing() {
+        // Re-entrant safety: a wizard that already cleared the
+        // marker but then has the caller retry the cleanup leg
+        // must not blow up. Matches the underlying
+        // `clear_v6_v7_password_set_marker` contract.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().to_str().unwrap().to_string();
+        hardware_tier_vault_clear_password_set_marker(path)
+            .await
+            .expect("idempotent");
+    }
+
+    #[tokio::test]
+    async fn reseal_with_empty_password_short_circuits_as_error() {
+        // The Hardware tier is mandatory-password — the wizard's
+        // re-seal call rejects an empty payload up front so the
+        // dispatcher never writes a vault sealed under the same
+        // empty PIN-HMAC the migration left behind.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().to_str().unwrap().to_string();
+        let err = hardware_tier_vault_reseal_with_password(path, String::new())
+            .await
+            .unwrap_err();
+        assert!(err.contains("empty"));
     }
 }

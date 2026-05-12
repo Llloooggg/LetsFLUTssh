@@ -4533,6 +4533,30 @@ abstract class S {
   /// **'Continue'**
   String get t2MigrationContinue;
 
+  /// No description provided for @t2MigrationSetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a Hardware-tier password'**
+  String get t2MigrationSetPasswordTitle;
+
+  /// No description provided for @t2MigrationSetPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a new master password. The DB key already sealed in the hardware module gets re-sealed under this password — your sessions and keys stay intact.'**
+  String get t2MigrationSetPasswordBody;
+
+  /// No description provided for @t2MigrationWipeAndRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe and start over'**
+  String get t2MigrationWipeAndRestart;
+
+  /// No description provided for @t2MigrationResealFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-tier re-seal failed — pick a different password or wipe to start over.'**
+  String get t2MigrationResealFailed;
+
   /// No description provided for @biometricOverlayEnable.
   ///
   /// In en, this message translates to:

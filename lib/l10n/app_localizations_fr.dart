@@ -2659,6 +2659,21 @@ class SFr extends S {
   String get t2MigrationContinue => 'Continuer';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Définir un mot de passe pour garder la couche Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Saisis un nouveau mot de passe maître. La clé DB déjà scellée dans le module hardware est re-scellée sous ce mot de passe — sessions et clés restent intactes.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe et repartir de zéro';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal de la couche Hardware échoué — choisis un autre mot de passe ou wipe.';
+
+  @override
   String get biometricOverlayEnable =>
       'Activer le raccourci biométrique sur la couche Hardware';
 

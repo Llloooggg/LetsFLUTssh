@@ -2507,6 +2507,20 @@ class SJa extends S {
   String get t2MigrationContinue => '続行';
 
   @override
+  String get t2MigrationSetPasswordTitle => 'Hardware ティアを維持するためパスワードを設定';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      '新しいマスターパスワードを入力してください。hardware モジュール内で既に sealed された DB key はこのパスワードで re-seal されます — セッションと key はそのまま残ります。';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe してやり直す';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware ティアの re-seal が失敗 — 別のパスワードを選ぶか wipe してください。';
+
+  @override
   String get biometricOverlayEnable => 'Hardware ティアでバイオメトリクス shortcut を有効化';
 
   @override

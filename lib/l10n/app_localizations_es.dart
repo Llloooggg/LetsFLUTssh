@@ -2646,6 +2646,21 @@ class SEs extends S {
   String get t2MigrationContinue => 'Continuar';
 
   @override
+  String get t2MigrationSetPasswordTitle =>
+      'Configura una contraseña para conservar la capa Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Introduce una nueva contraseña maestra. La clave de la DB ya sellada en el módulo hardware se resella bajo esta contraseña — sesiones y claves quedan intactas.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Borrar y empezar de cero';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Resellado de la capa Hardware fallido — elige otra contraseña o borra para empezar de cero.';
+
+  @override
   String get biometricOverlayEnable =>
       'Activar atajo biométrico en la capa Hardware';
 

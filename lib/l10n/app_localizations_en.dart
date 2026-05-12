@@ -2609,6 +2609,20 @@ class SEn extends S {
   String get t2MigrationContinue => 'Continue';
 
   @override
+  String get t2MigrationSetPasswordTitle => 'Set a Hardware-tier password';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Type a new master password. The DB key already sealed in the hardware module gets re-sealed under this password — your sessions and keys stay intact.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe and start over';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware-tier re-seal failed — pick a different password or wipe to start over.';
+
+  @override
   String get biometricOverlayEnable =>
       'Enable biometric shortcut on Hardware tier';
 

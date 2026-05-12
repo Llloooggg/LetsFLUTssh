@@ -4,6 +4,7 @@ import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
+import 'package:letsflutssh/widgets/hardware_password_setup_wizard.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
 import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
@@ -72,11 +73,17 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
   /// behaviour when biometric hardware is available.
   bool fireBiometricUnlock = false;
 
+  /// Response for [showHardwarePasswordSetup]. Defaults to null so a
+  /// test that doesn't override sees the bootstrap orchestrator's
+  /// "wipe-and-restart" fallback fire.
+  HardwarePasswordWizardOutcome? hardwarePasswordSetupResult;
+
   int wizardCalls = 0;
   int corruptCalls = 0;
   int tierResetCalls = 0;
   int masterPasswordCalls = 0;
   int tierSecretCalls = 0;
+  int hardwarePasswordSetupCalls = 0;
 
   FakeSecurityDialogPrompter({
     this.wizardResult = const SecuritySetupResult(),
@@ -87,6 +94,7 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
     this.tierSecretSimulatedInput,
     this.fireOnReset = false,
     this.fireBiometricUnlock = false,
+    this.hardwarePasswordSetupResult,
   });
 
   @override
@@ -151,5 +159,13 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
         if (fireOnReset && onReset != null) await onReset();
         return null;
     }
+  }
+
+  @override
+  Future<HardwarePasswordWizardOutcome?> showHardwarePasswordSetup({
+    required String supportDir,
+  }) async {
+    hardwarePasswordSetupCalls++;
+    return hardwarePasswordSetupResult;
   }
 }

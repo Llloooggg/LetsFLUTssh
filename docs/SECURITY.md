@@ -144,6 +144,23 @@ in the path**. The chip refuses to unseal without the original device.
   needs to re-run the wizard on the new device and re-add their
   sessions from a `.lfs` archive or manual re-entry. The wizard
   warns about this in its T2 subtitle.
+- **Cross-version password set.** Older builds let T2 run without a
+  password — biometric stood in as the primary unlock against a vault
+  sealed under the empty PIN-HMAC. The current model makes the
+  password mandatory and treats biometric as the optional shortcut
+  on top. The `ConfigV6ToV7` migration stamps the password modifier
+  on every existing T2 install and writes a sibling marker so the
+  next bootstrap routes a one-shot password-set wizard ahead of the
+  regular unlock dialog. The wizard reads the existing vault under
+  the empty PIN-HMAC, drops the salt + sealed file, provisions a
+  fresh salt, and re-stores the same DB key under
+  `HMAC(new_salt, typed_password)` — user data is preserved, only
+  the auth value changes. A wipe-and-restart escape sits on every
+  screen of the wizard so users without a usable password to type
+  can reset to a fresh first-launch wizard instead. The re-seal
+  steps are atomic on disk; a crash mid-flow leaves either the
+  pre-flip empty-PIN seal or the post-flip new-password seal —
+  never a half-formed state.
 
 ### Escape — derived-only (Paranoid)
 
