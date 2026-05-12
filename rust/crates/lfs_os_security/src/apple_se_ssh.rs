@@ -88,7 +88,7 @@ use security_framework_sys::item::{
     kSecAttrAccessControl, kSecAttrIsPermanent, kSecAttrKeyClass, kSecAttrKeyClassPrivate,
     kSecAttrKeySizeInBits, kSecAttrKeyType, kSecAttrKeyTypeECSECPrimeRandom, kSecAttrTokenID,
     kSecAttrTokenIDSecureEnclave, kSecClass, kSecClassKey, kSecMatchLimit, kSecMatchLimitAll,
-    kSecMatchLimitOne, kSecPrivateKeyAttrs, kSecReturnAttributes, kSecReturnRef,
+    kSecPrivateKeyAttrs, kSecReturnAttributes, kSecReturnRef,
 };
 use security_framework_sys::key::{
     SecKeyCopyExternalRepresentation, SecKeyCopyPublicKey, SecKeyCreateRandomKey,
@@ -110,6 +110,13 @@ extern "C" {
     static kSecUseAuthenticationContext: CFStringRef;
     static kSecKeyAlgorithmECDSASignatureMessageX962SHA256: CFStringRef;
     static kSecAttrApplicationLabel: CFStringRef;
+    // `security-framework-sys` exports `kSecMatchLimit` (the attr
+    // key) and `kSecMatchLimitAll` (a value), but not
+    // `kSecMatchLimitOne`. Re-declare it here as an extern static so
+    // the lookup query can request a single match — the OS resolves
+    // the symbol from Security.framework at load time like every
+    // other entry in this block.
+    static kSecMatchLimitOne: CFStringRef;
 }
 
 /// `errSecMissingEntitlement` — Keychain Services refuses an SE
@@ -233,7 +240,13 @@ const PROBE_KEY_TAG: &[u8] = b"letsflutssh.ssh.probe";
 /// `hardware_tier_vault::probe_se_round_trip` shape one crate
 /// over so both paths stay in sync.
 pub fn probe_availability() -> AvailabilityResult {
-    let access = build_access_control(AuthPolicy::UserPresence)?;
+    // `build_access_control` returns `Result<_, Error>`; map back into
+    // `UnavailableReason` for the probe-side envelope. A failure here
+    // is always an Apple API mishap (SecAccessControlCreateWithFlags
+    // refused our flag combination) — not a hardware-class signal —
+    // so it routes through `Other` rather than a dedicated variant.
+    let access = build_access_control(AuthPolicy::UserPresence)
+        .map_err(|e| UnavailableReason::Other(e.to_string()))?;
     let private_attrs = unsafe { build_private_attrs(PROBE_KEY_TAG, &access) };
     let create_attrs = unsafe { build_create_attrs(private_attrs) };
     let mut err: *mut core_foundation_sys::error::__CFError = ptr::null_mut();

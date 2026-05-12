@@ -23,7 +23,8 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         deps-linux deps-macos deps-windows fuzz-build hooks help setup setup-rust-tools \
         lint-workflows lint-release-hardening rust-mutants \
         dart-test dart-lint dart-format dart-format-check \
-        rust-format rust-format-check rust-lint rust-test rust-build rust-codegen rust-clean rust-machete rust-coverage
+        rust-format rust-format-check rust-lint rust-test rust-build rust-codegen rust-clean rust-machete rust-coverage \
+        rust-lint-android rust-lint-ios rust-lint-macos-arm
 
 all: build
 
@@ -336,6 +337,33 @@ rust-format-check: ## Verify Rust formatting (exit non-zero if changes needed)
 
 rust-lint: ## Run clippy (deny warnings)
 	cd $(RUST_DIR) && cargo clippy --workspace --all-targets --locked -- -D warnings
+
+# Cross-target clippy gates — catch regressions in cfg-gated code
+# that the host-target `rust-lint` above never sees
+# (`lfs_os_security::{android,ios,macos}` and the Apple-cfg blocks
+# under `apple_se_ssh`, `fido2_broker`, `backup_exclusion`). Scoped
+# to `lfs_os_security` because that crate owns every OS-FFI module;
+# the rest of the workspace is target-agnostic and falls under the
+# host-target `make rust-lint`.
+#
+# NOT wired into the `make rust-lint` umbrella on purpose — local
+# `make check` stays fast (a single host-target clippy run) while
+# CI's `rust-cross-clippy` job picks these up per-PR on the native
+# runner for each target. Local dev runs them ad-hoc only when
+# touching the relevant cfg-gated module.
+#
+# Requires `rustup target add aarch64-linux-android aarch64-apple-ios
+# aarch64-apple-darwin` (Apple targets ignored on non-macOS hosts —
+# they need an Apple SDK for the link step; clippy short-circuits
+# before link so the type-check still surfaces).
+rust-lint-android: ## clippy lint for aarch64-linux-android (lfs_os_security only)
+	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-linux-android --all-targets --locked -- -D warnings
+
+rust-lint-ios: ## clippy lint for aarch64-apple-ios (lfs_os_security only)
+	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-apple-ios --all-targets --locked -- -D warnings
+
+rust-lint-macos-arm: ## clippy lint for aarch64-apple-darwin (lfs_os_security only)
+	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-apple-darwin --all-targets --locked -- -D warnings
 
 rust-test: ## Run Rust tests (unit + integration + doc), --locked enforces Cargo.lock parity
 	cd $(RUST_DIR) && cargo test --workspace --locked

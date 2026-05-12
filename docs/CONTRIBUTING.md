@@ -158,7 +158,7 @@ cargo install flutter_rust_bridge_codegen --version 2.12.0
 make rust-build          # cargo build --release --workspace --locked
 make rust-test           # cargo test --workspace (unit + integration + doc), --locked
 make rust-format         # cargo fmt --all
-make rust-lint           # cargo clippy -D warnings
+make rust-lint           # cargo clippy -D warnings (host target)
 make rust-codegen        # regenerate Dart bindings after editing rust/crates/lfs_frb/src/api/*.rs
 make rust-machete        # detect unused dependencies (requires `make setup-rust-tools`)
 make rust-coverage       # cargo llvm-cov → rust-lcov.info (SonarCloud feed)
@@ -166,6 +166,28 @@ make rust-clean          # cargo clean
 ```
 
 After editing any FFI-facing function under `rust/crates/lfs_frb/src/api/`, run `make rust-codegen` and stage the regenerated `lib/src/rust/` alongside the Rust change.
+
+**Cross-target lint (optional, CI runs these automatically).**
+
+`make rust-lint` only sees the host target — Linux x86_64 on Debian/Ubuntu, Darwin arm64 on Apple Silicon, etc. Code gated on a different `target_os` (the FFI shims under `lfs_os_security::android::*` for Android Hardware Keystore, `apple_se_ssh` for the Secure Enclave, `fido2_broker::platform_impl` for Apple WebAuthN, etc.) compiles to nothing on the host run, which means lint regressions in those modules slip past local commits.
+
+Three per-target Makefile targets exist for ad-hoc local checks when touching one of those cfg-gated modules:
+
+```bash
+make rust-lint-android      # cargo clippy -p lfs_os_security --target aarch64-linux-android
+make rust-lint-ios          # cargo clippy -p lfs_os_security --target aarch64-apple-ios
+make rust-lint-macos-arm    # cargo clippy -p lfs_os_security --target aarch64-apple-darwin
+```
+
+Install the targets once per machine:
+
+```bash
+rustup target add aarch64-linux-android aarch64-apple-ios aarch64-apple-darwin
+```
+
+The Android target works on any host (Linux, macOS, Windows) — rustup ships a hosted stdlib and clippy short-circuits before the link step, so no NDK is needed. The Apple targets only work on a macOS host because rustup does not ship a Linux- or Windows-hosted Apple `std` / `core`.
+
+You do **not** need to run these locally on every commit — they are intentionally outside the `make rust-lint` umbrella so `make check` stays fast. CI's `rust-cross-check` job runs them on the native runner for each target on every PR that touches `rust/**`, gating the merge on a clean cross-target lint.
 
 ## Development
 

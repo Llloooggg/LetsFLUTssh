@@ -353,7 +353,6 @@ mod platform_impl {
 mod platform_impl {
     use super::{BrokerAssertion, BrokerAvailability, BrokerError, BrokerUnavailable};
     use libloading::{Library, Symbol};
-    use std::ffi::c_void;
     use std::os::raw::{c_char, c_int};
     use std::sync::OnceLock;
     use tokio::sync::oneshot;

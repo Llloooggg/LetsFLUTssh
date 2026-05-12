@@ -220,13 +220,24 @@ jobs:
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
 
   rust-cross-check:
-    # Cross-target compile validation for cfg-gated Rust code paths
-    # the canonical `ci` job (ubuntu-latest, runs `make check`)
-    # never sees. Runs `cargo check --workspace --all-targets` per
-    # target on its native runner — clippy + test stay in `make
-    # check` because they catch 95 % of bugs at lower latency on a
-    # single host. This job's job is to ensure that, e.g., a
-    # dependency bump that breaks
+    # Cross-target compile + lint validation for cfg-gated Rust code
+    # paths the canonical `ci` job (ubuntu-latest, runs `make check`)
+    # never sees. Two steps per matrix entry:
+    #
+    #   1. `cargo check --workspace --all-targets --target <T>` —
+    #      type-checks every crate including dev-deps / test modules.
+    #      Catches FFI / cfg-gated symbol drift across the whole
+    #      workspace.
+    #   2. `cargo clippy -p lfs_os_security --target <T> -- -D
+    #      warnings` — lints the per-OS FFI surface (the only crate
+    #      whose lints actually diverge per target). Mirrors the
+    #      `make rust-lint-{android,ios,macos-arm}` Makefile targets
+    #      contributors can run locally.
+    #
+    # Clippy + test stay in `make check` for the workspace at large
+    # because they catch 95 % of bugs at lower latency on a single
+    # host. This job's job is to ensure that, e.g., a dependency
+    # bump that breaks
     # `cfg(any(target_os = "macos", target_os = "ios"))` code in
     # `lfs_os_security::hardware_tier_vault::apple` (~700 LOC of
     # Apple-cfg Rust) surfaces on the PR check, not on the next
@@ -270,8 +281,18 @@ jobs:
 
       - name: Install Rust toolchain + target
         shell: bash
+        # `clippy` component is required by the cross-target clippy
+        # step below — the per-target `cargo clippy` gate that catches
+        # regressions in cfg-gated `lfs_os_security` modules
+        # (`apple_se_ssh`, `fido2_broker`'s Apple branch, `winbio` on
+        # Windows, `android::*`) that the host-target `make rust-lint`
+        # never sees. Coupled to `cargo check` on the same matrix so
+        # both run on the native runner with the platform SDK in
+        # scope; running clippy on `ubuntu-latest` for Apple targets
+        # would fail at the `std` / `core` resolution step because
+        # rustup ships Apple targets without a Linux-hosted stdlib.
         run: |
-          rustup toolchain install stable --profile minimal
+          rustup toolchain install stable --profile minimal --component clippy
           rustup default stable
           rustup target add ${{ matrix.target }}
           rustup show
@@ -310,4 +331,30 @@ jobs:
             cargo ndk --target ${{ matrix.target }} -- check --workspace --all-targets --locked
           else
             cargo check --workspace --all-targets --target ${{ matrix.target }} --locked
+          fi
+
+      - name: cargo clippy (${{ matrix.label }}, lfs_os_security)
+        # Cross-target clippy gate — narrower than the `cargo check`
+        # above. Scoped to `lfs_os_security` because that crate is the
+        # single OS-FFI perimeter, and its cfg-gated modules
+        # (`apple_se_ssh`, `fido2_broker::platform_impl`,
+        # `winbio`, `android::*`, `macos::*`) are the only ones whose
+        # lints actually differ from the host-target run that
+        # `ci::make check` already does. Wider scope would
+        # double-lint the cross-platform crates without catching
+        # anything new.
+        #
+        # `make rust-lint-{android,ios,macos-arm}` targets exist for
+        # local invocation; this step runs the same flags so the
+        # PR-time gate and the local `make rust-lint-*` agree.
+        # Windows-target clippy reuses the same scoping convention via
+        # an inline `cargo clippy` invocation because `make` is not
+        # a first-class tool on the windows runner image.
+        working-directory: rust
+        shell: bash
+        run: |
+          if [ "${{ matrix.ndk }}" = "true" ]; then
+            cargo ndk --target ${{ matrix.target }} -- clippy -p lfs_os_security --all-targets --locked -- -D warnings
+          else
+            cargo clippy -p lfs_os_security --target ${{ matrix.target }} --all-targets --locked -- -D warnings
           fi

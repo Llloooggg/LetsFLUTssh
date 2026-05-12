@@ -145,6 +145,19 @@ tss-esapi = "7.5"
 # skip the whole objc2 crate tree.
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 objc2 = "0.6"
+# `thiserror::Error` derive used by `apple_se_ssh::Error` (and the
+# upcoming Apple-side broker error envelopes). Declared as workspace
+# dep for one-source-of-truth versioning across the workspace; pulled
+# in only for Apple targets here because `lfs_os_security`'s non-Apple
+# code stitches its errors manually rather than via `thiserror`.
+thiserror = { workspace = true }
+# `fido2_broker::platform_impl` on Apple dynamically loads the Swift
+# `ASAuthorizationController` glue via `dlopen` — same `libloading`
+# pattern the Windows path uses for `webauthn.dll`. We keep the
+# dlopen approach (rather than direct link) so self-signed dev builds
+# without the WebAuthn entitlement degrade to `AppleEntitlementMissing`
+# at runtime instead of failing to launch.
+libloading = { workspace = true }
 # `NSDistributedNotificationCenter` + `NSRunLoop` features added
 # for the macOS `session_lock_listener` path — the observer that
 # fires on `com.apple.screenIsLocked` lives in NSDistributedNotificationCenter
