@@ -143,6 +143,22 @@ pub enum ConnectAuthRef {
         application: String,
         pin_secret_id: Option<String>,
     },
+    /// FIDO2 hardware-bound `sk-*` SSH key AND a paired OpenSSH
+    /// certificate. Carries the same FIDO2 metadata block as
+    /// [`ConnectAuthRef::PubkeySk`] plus the staged cert blob's
+    /// SecretStore id. The connect path's dispatcher routes this to
+    /// [`crate::ssh::Session::connect_pubkey_sk_cert_owned`], which
+    /// composes T-1's `FidoSigner` with russh 0.59's
+    /// `authenticate_certificate_with<S: Signer>`. Cert is the
+    /// strictly stronger credential, so the composer picks this
+    /// variant whenever a cert is paired to the resolved sk-* row.
+    PubkeySkCert {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        cert_secret_id: String,
+        pin_secret_id: Option<String>,
+    },
     /// PKCS#11 hardware-token key. The `module_path`, `token_serial`,
     /// and `cka_id` triple carries the disambiguation surface; `key_type`
     /// drives the wire-name selection (rsa, ecdsa-*, ed25519); and
@@ -1034,15 +1050,39 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
             .await
         }
         (ConnectAuthRef::PubkeySk { .. }, Some(_parent)) => {
-            // FIDO2-via-ProxyJump composition (cert-via-FIDO) is
-            // tracked separately; the bastion-aware connect path
-            // for `sk-*` lands alongside it. Until then surface the
-            // gap loudly rather than dialing the inner hop with the
-            // wrong auth shape.
+            // FIDO2-via-ProxyJump composition is tracked separately;
+            // the bastion-aware connect path for `sk-*` lands
+            // alongside it. Until then surface the gap loudly rather
+            // than dialing the inner hop with the wrong auth shape.
             Err(Error::Auth(
                 "FIDO2 hardware key over ProxyJump is not supported yet".into(),
             ))
         }
+        (
+            ConnectAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                cert_secret_id,
+                pin_secret_id,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_sk_cert_owned(crate::ssh::ConnectPubkeySkCertOwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                credential_id,
+                application,
+                cert_secret_id,
+                pin_secret_id,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeySkCert { .. }, Some(_parent)) => Err(Error::Auth(
+            "FIDO2 hardware key over ProxyJump is not supported yet".into(),
+        )),
         (
             ConnectAuthRef::PubkeyPkcs11 {
                 public_openssh,

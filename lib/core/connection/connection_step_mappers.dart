@@ -58,6 +58,20 @@ rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
         application: application,
         pinSecretId: pinSecretId,
       ),
+    SshAuthPubkeySkCertRef(
+      :final publicOpenssh,
+      :final credentialId,
+      :final application,
+      :final certSecretId,
+      :final pinSecretId,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeySkCert(
+        publicOpenssh: publicOpenssh,
+        credentialId: credentialId,
+        application: application,
+        certSecretId: certSecretId,
+        pinSecretId: pinSecretId,
+      ),
     SshAuthPubkeyPkcs11Ref(
       :final publicOpenssh,
       :final modulePath,

@@ -141,6 +141,8 @@ OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openss
 
 The signing path is in-process even when the OS dialog drives the UX: every userauth challenge SHA-256-hashes the SSH packet, asks the device for an assertion against the credential id captured at import, and assembles the `sk-*` signature trailer. Private key material never leaves the authenticator; `ssh-agent` is not involved.
 
+**Paired OpenSSH certificate.** If you've imported an OpenSSH user certificate (`-cert.pub`) and paired it with this hardware key through **Tools → SSH Keys → Import certificate**, the cert is presented automatically when the session connects — the app sends the cert-form algorithm (`sk-ssh-ed25519-cert-v01@openssh.com` / `sk-ecdsa-sha2-nistp256-cert-v01@openssh.com`) instead of the bare public key, and the server validates the CA signature via its `TrustedUserCAKeys`. Same touch / PIN UX as the bare-key path; the device signs the cert-form userauth payload through the same CTAP2 round trip.
+
 **Settings → Hardware security keys → "Prefer direct USB HID over system dialog"** lets advanced users bypass the OS dialog on Windows and macOS, falling through to the in-app CTAP2 path. Off by default. On Linux the toggle is disabled (no broker exists); on iOS and Android it is disabled (no HID fallback exists). Direct HID exposes more authenticator features (hmac-secret, large-blob, credBlob — none of which SSH consumes today) but requires per-app permission grants (`udev` rules on Linux, HID class access on Windows).
 
 **Platform availability**

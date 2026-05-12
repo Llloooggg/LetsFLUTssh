@@ -127,6 +127,21 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     String? pinSecretId,
   }) = DbPreparedAuthRef_PubkeySk;
 
+  /// FIDO2 hardware-bound `sk-*` SSH key AND a paired OpenSSH
+  /// certificate resolved from the manager. Picked ahead of
+  /// `PubkeySk` whenever the resolved manager-key row has a cert
+  /// attached — the cert is the strictly stronger credential
+  /// (CA-signed), matching the precedence the software path
+  /// already enforces between `PubkeyCert` and `Pubkey`.
+  const factory DbPreparedAuthRef.pubkeySkCert({
+    required String publicOpenssh,
+    required Uint8List credentialId,
+    required String application,
+    required bool hasUserVerification,
+    required String certSecretId,
+    String? pinSecretId,
+  }) = DbPreparedAuthRef_PubkeySkCert;
+
   /// PKCS#11 hardware-token key resolved from the manager. The Dart
   /// connect path routes this through the same dispatcher that
   /// shipped FIDO2; the surface mirrors the underlying

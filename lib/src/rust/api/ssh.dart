@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'ssh.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `cancel_remote_forward_inner`, `from_arc`, `from_core`, `from_core`, `next_forwarded_connection_inner`, `open_direct_tcpip_inner`, `open_sftp_inner`, `request_remote_forward_inner`, `snapshot`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 
 /// Compute the OpenSSH `SHA256:<base64-no-pad>` host-key
 /// fingerprint. Sync — one SHA-256 + one base64 encode, runs in
@@ -229,6 +229,19 @@ Future<SshSession> sshConnectPubkeyCertWithSecret({
   passphraseSecretId: passphraseSecretId,
 );
 
+/// Cert-via-FIDO connect — combines a FIDO2 hardware-bound `sk-*`
+/// key with an OpenSSH certificate paired to it. Cert blob and
+/// optional PIN ride through the SecretStore so neither crosses
+/// the FRB boundary on the connect path. russh 0.59's
+/// `authenticate_certificate_with<S: Signer>` drives the cert-form
+/// userauth method; the device signs every assertion round trip
+/// via T-1's `FidoSigner`.
+Future<SshSession> sshConnectPubkeySkCertWithSecret({
+  required SshConnectPubkeySkCertArgs args,
+}) => RustLib.instance.api.crateApiSshSshConnectPubkeySkCertWithSecret(
+  args: args,
+);
+
 /// Password auth tunnelled through `parent`.
 Future<SshSession> sshConnectPasswordViaProxy({
   required SshSession parent,
@@ -329,6 +342,60 @@ abstract class SshShell implements RustOpaqueInterface {
 
   /// Send stdin bytes to the remote shell.
   Future<void> write({required List<int> data});
+}
+
+/// Inputs to [`ssh_connect_pubkey_sk_cert_with_secret`]. Carries the
+/// FIDO2 credential metadata + the cert-blob secret id + an optional
+/// PIN secret id. Bundled so the FRB shim stays under clippy's
+/// too-many-arguments threshold while every field is load-bearing
+/// (`public_openssh` re-parses to the algorithm; `credential_id` +
+/// `application` drive the CTAP2 round trip; `cert_secret_id` and
+/// `pin_secret_id` resolve into SecretStore entries Rust-side).
+class SshConnectPubkeySkCertArgs {
+  final String host;
+  final int port;
+  final String user;
+  final String publicOpenssh;
+  final Uint8List credentialId;
+  final String application;
+  final String certSecretId;
+  final String? pinSecretId;
+
+  const SshConnectPubkeySkCertArgs({
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.publicOpenssh,
+    required this.credentialId,
+    required this.application,
+    required this.certSecretId,
+    this.pinSecretId,
+  });
+
+  @override
+  int get hashCode =>
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      publicOpenssh.hashCode ^
+      credentialId.hashCode ^
+      application.hashCode ^
+      certSecretId.hashCode ^
+      pinSecretId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SshConnectPubkeySkCertArgs &&
+          runtimeType == other.runtimeType &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          publicOpenssh == other.publicOpenssh &&
+          credentialId == other.credentialId &&
+          application == other.application &&
+          certSecretId == other.certSecretId &&
+          pinSecretId == other.pinSecretId;
 }
 
 @freezed

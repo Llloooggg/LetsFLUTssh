@@ -116,6 +116,71 @@ async fn fido2_round_trips_through_a_live_authenticator() {
     drop(session);
 }
 
+/// Manual cert-via-FIDO integration test. Same preconditions as
+/// `fido2_round_trips_through_a_live_authenticator` plus a cert
+/// blob: the operator runs `ssh-keygen -s ca_key -I id -n alice
+/// /tmp/id_ed25519_sk.pub` against their CA and points
+/// `LFS_FIDO2_TEST_CERT` at the resulting `-cert.pub`. The server's
+/// `sshd_config` must carry `TrustedUserCAKeys` pointing at the
+/// CA's public half.
+///
+/// Run manually (cert blob in addition to the bare-sk env block):
+///
+/// ```bash
+/// LFS_FIDO2_TEST_HOST=127.0.0.1:22 \
+///   LFS_FIDO2_TEST_USER=alice \
+///   LFS_FIDO2_TEST_CREDENTIAL_ID=AAAA... \
+///   LFS_FIDO2_TEST_PUB="sk-ssh-ed25519@openssh.com AAAA... ssh:" \
+///   LFS_FIDO2_TEST_CERT=/tmp/id_ed25519_sk-cert.pub \
+///   cargo test -p lfs_core --features fido2 --test sk_signer_test \
+///     -- --ignored fido2_cert_round_trips_through_a_live_authenticator
+/// ```
+#[cfg(all(feature = "fido2", any(target_os = "linux", target_os = "windows")))]
+#[ignore = "requires plugged-in FIDO2 hardware + matching authorized_keys + CA-signed cert"]
+#[tokio::test]
+async fn fido2_cert_round_trips_through_a_live_authenticator() {
+    use base64::Engine as _;
+    use lfs_core::ssh::Session;
+
+    let host_port = std::env::var("LFS_FIDO2_TEST_HOST").expect("LFS_FIDO2_TEST_HOST");
+    let user = std::env::var("LFS_FIDO2_TEST_USER").expect("LFS_FIDO2_TEST_USER");
+    let cred_b64 =
+        std::env::var("LFS_FIDO2_TEST_CREDENTIAL_ID").expect("LFS_FIDO2_TEST_CREDENTIAL_ID");
+    let public_openssh = std::env::var("LFS_FIDO2_TEST_PUB").expect("LFS_FIDO2_TEST_PUB");
+    let cert_path = std::env::var("LFS_FIDO2_TEST_CERT").expect("LFS_FIDO2_TEST_CERT");
+    let pin = std::env::var("LFS_FIDO2_TEST_PIN").ok();
+
+    let credential_id = base64::engine::general_purpose::STANDARD
+        .decode(cred_b64.as_bytes())
+        .expect("LFS_FIDO2_TEST_CREDENTIAL_ID must be base64");
+    let cert_bytes =
+        std::fs::read(&cert_path).expect("LFS_FIDO2_TEST_CERT must point at a readable cert blob");
+
+    let (host, port) = host_port
+        .rsplit_once(':')
+        .map(|(h, p)| (h.to_owned(), p.parse::<u16>().expect("port")))
+        .unwrap_or_else(|| (host_port.clone(), 22));
+
+    let application = sk::extract_application_from_openssh_pub(&public_openssh)
+        .expect("public key must be a well-formed sk-* line");
+
+    let session = Session::connect_pubkey_sk_cert(
+        &host,
+        port,
+        lfs_core::ssh::ConnectPubkeySkCertArgs {
+            user: &user,
+            public_openssh: &public_openssh,
+            credential_id: &credential_id,
+            application: &application,
+            cert_bytes: &cert_bytes,
+            pin: pin.as_deref(),
+        },
+    )
+    .await
+    .expect("FIDO2 cert connect must succeed");
+    drop(session);
+}
+
 /// FidoCredential round-trips through Clone — the trait bound the
 /// signer's async tail requires (each `auth_sign` call captures a
 /// fresh clone so subsequent rounds re-enter cleanly).

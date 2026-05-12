@@ -473,6 +473,52 @@ pub async fn ssh_connect_pubkey_cert_with_secret(
     Ok(SshSession::from_core(session))
 }
 
+/// Inputs to [`ssh_connect_pubkey_sk_cert_with_secret`]. Carries the
+/// FIDO2 credential metadata + the cert-blob secret id + an optional
+/// PIN secret id. Bundled so the FRB shim stays under clippy's
+/// too-many-arguments threshold while every field is load-bearing
+/// (`public_openssh` re-parses to the algorithm; `credential_id` +
+/// `application` drive the CTAP2 round trip; `cert_secret_id` and
+/// `pin_secret_id` resolve into SecretStore entries Rust-side).
+#[derive(Debug, Clone)]
+pub struct SshConnectPubkeySkCertArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub public_openssh: String,
+    pub credential_id: Vec<u8>,
+    pub application: String,
+    pub cert_secret_id: String,
+    pub pin_secret_id: Option<String>,
+}
+
+/// Cert-via-FIDO connect — combines a FIDO2 hardware-bound `sk-*`
+/// key with an OpenSSH certificate paired to it. Cert blob and
+/// optional PIN ride through the SecretStore so neither crosses
+/// the FRB boundary on the connect path. russh 0.59's
+/// `authenticate_certificate_with<S: Signer>` drives the cert-form
+/// userauth method; the device signs every assertion round trip
+/// via T-1's `FidoSigner`.
+pub async fn ssh_connect_pubkey_sk_cert_with_secret(
+    args: SshConnectPubkeySkCertArgs,
+) -> Result<SshSession, String> {
+    let session = lfs_core::ssh::Session::connect_pubkey_sk_cert_owned(
+        lfs_core::ssh::ConnectPubkeySkCertOwnedArgs {
+            host: args.host,
+            port: args.port,
+            user: args.user,
+            public_openssh: args.public_openssh,
+            credential_id: args.credential_id,
+            application: args.application,
+            cert_secret_id: args.cert_secret_id,
+            pin_secret_id: args.pin_secret_id,
+        },
+    )
+    .await
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(SshSession::from_core(session))
+}
+
 // ---- ProxyJump bastion variants (1.10b) -------------------------------
 //
 // Each `ssh_connect_*_via_proxy` mirrors its non-proxy counterpart

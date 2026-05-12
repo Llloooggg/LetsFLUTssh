@@ -132,6 +132,32 @@ class SshAuthPubkeySkRef extends SshAuthMethod {
   });
 }
 
+/// FIDO2 hardware-bound `sk-*` SSH key AND a paired OpenSSH
+/// certificate. Selected ahead of [`SshAuthPubkeySkRef`] whenever
+/// the resolved manager-key row has a cert paired to it — the cert
+/// is the strictly stronger credential (CA-signed), matching the
+/// precedence software keys already enforce between
+/// [`SshAuthPubkeyCertRef`] and [`SshAuthPubkeyRef`].
+///
+/// `certSecretId` resolves the staged cert blob (same `key.cert.<id>`
+/// namespace the software path uses). The FIDO2 metadata block
+/// matches the bare sk-* variant; the connect path composes
+/// T-1's signer with russh's `authenticate_certificate_with`.
+class SshAuthPubkeySkCertRef extends SshAuthMethod {
+  final String publicOpenssh;
+  final Uint8List credentialId;
+  final String application;
+  final String certSecretId;
+  final String? pinSecretId;
+  const SshAuthPubkeySkCertRef({
+    required this.publicOpenssh,
+    required this.credentialId,
+    required this.application,
+    required this.certSecretId,
+    this.pinSecretId,
+  });
+}
+
 /// PKCS#11 hardware-token key. Mirrors the FIDO2 sk-* shape: the
 /// `publicOpenssh` body the connect path re-parses, the resolved
 /// vendor library path + token serial + opaque `CKA_ID` the signing

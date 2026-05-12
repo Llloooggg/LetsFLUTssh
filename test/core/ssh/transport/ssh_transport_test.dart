@@ -57,6 +57,7 @@ void main() {
         SshAuthPubkeyRef() => 'pubkey',
         SshAuthPubkeyCertRef() => 'pubkey-cert',
         SshAuthPubkeySkRef() => 'pubkey-sk',
+        SshAuthPubkeySkCertRef() => 'pubkey-sk-cert',
         SshAuthPubkeyPkcs11Ref() => 'pubkey-pkcs11',
         SshAuthPubkeyEnclaveRef() => 'pubkey-enclave',
         SshAuthPubkeyHelloRef() => 'pubkey-hello',
@@ -77,6 +78,18 @@ void main() {
           ),
         ),
         'pubkey-sk',
+      );
+      expect(
+        describe(
+          SshAuthPubkeySkCertRef(
+            publicOpenssh: 'sk-ssh-ed25519@openssh.com AAAA...',
+            credentialId: Uint8List.fromList([0xCA, 0xFE]),
+            application: 'ssh:',
+            certSecretId: 'key.cert.sk1',
+            pinSecretId: 'key.pin.sk1',
+          ),
+        ),
+        'pubkey-sk-cert',
       );
       expect(
         describe(

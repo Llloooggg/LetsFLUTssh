@@ -78,6 +78,20 @@ pub enum DbPreparedAuthRef {
         has_user_verification: bool,
         pin_secret_id: Option<String>,
     },
+    /// FIDO2 hardware-bound `sk-*` SSH key AND a paired OpenSSH
+    /// certificate resolved from the manager. Picked ahead of
+    /// `PubkeySk` whenever the resolved manager-key row has a cert
+    /// attached — the cert is the strictly stronger credential
+    /// (CA-signed), matching the precedence the software path
+    /// already enforces between `PubkeyCert` and `Pubkey`.
+    PubkeySkCert {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        has_user_verification: bool,
+        cert_secret_id: String,
+        pin_secret_id: Option<String>,
+    },
     /// PKCS#11 hardware-token key resolved from the manager. The Dart
     /// connect path routes this through the same dispatcher that
     /// shipped FIDO2; the surface mirrors the underlying
@@ -177,6 +191,21 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 credential_id,
                 application,
                 has_user_verification,
+                pin_secret_id,
+            },
+            auth_compose::PreparedAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                cert_secret_id,
+                pin_secret_id,
+            } => DbPreparedAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                cert_secret_id,
                 pin_secret_id,
             },
             auth_compose::PreparedAuthRef::PubkeyPkcs11 {
@@ -385,6 +414,40 @@ mod tests {
                 assert_eq!(pin_secret_id.as_deref(), Some("key.pin.sk1"));
             }
             _ => panic!("expected PubkeySk variant"),
+        }
+    }
+
+    #[test]
+    fn db_prepared_auth_pubkey_sk_cert_variant_carries_every_field() {
+        let core = auth_compose::PreparedAuth {
+            auth: auth_compose::PreparedAuthRef::PubkeySkCert {
+                public_openssh: "sk-ssh-ed25519@openssh.com AAAA...".into(),
+                credential_id: vec![0xDE, 0xAD, 0xBE, 0xEF],
+                application: "ssh:".into(),
+                has_user_verification: true,
+                cert_secret_id: "key.cert.sk1".into(),
+                pin_secret_id: Some("key.pin.sk1".into()),
+            },
+            transient_secret_ids: vec!["key.pin.sk1".into()],
+        };
+        let db: DbPreparedAuth = core.into();
+        match db.auth {
+            DbPreparedAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                cert_secret_id,
+                pin_secret_id,
+            } => {
+                assert!(public_openssh.starts_with("sk-ssh-ed25519"));
+                assert_eq!(credential_id, vec![0xDE, 0xAD, 0xBE, 0xEF]);
+                assert_eq!(application, "ssh:");
+                assert!(has_user_verification);
+                assert_eq!(cert_secret_id, "key.cert.sk1");
+                assert_eq!(pin_secret_id.as_deref(), Some("key.pin.sk1"));
+            }
+            _ => panic!("expected PubkeySkCert variant"),
         }
     }
 }

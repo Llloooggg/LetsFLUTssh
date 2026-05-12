@@ -103,6 +103,29 @@ pub enum PreparedAuthRef {
         has_user_verification: bool,
         pin_secret_id: Option<String>,
     },
+    /// FIDO2 hardware-bound `sk-*` SSH key AND a paired OpenSSH
+    /// certificate. Selected ahead of [`PreparedAuthRef::PubkeySk`]
+    /// whenever the manager-key row resolves a cert pairing — the
+    /// cert is the strictly stronger credential (CA-signed) so
+    /// picking the bare sk-* path when a cert is available would
+    /// force re-certification on every short-lived cert rotation.
+    /// Mirrors the same precedence rule the software path enforces
+    /// between [`PreparedAuthRef::PubkeyCert`] and
+    /// [`PreparedAuthRef::Pubkey`].
+    ///
+    /// `cert_secret_id` points at the staged cert blob (same
+    /// `key.cert.<key_id>` namespace the software path uses). The
+    /// FIDO2 metadata block matches the bare sk-* variant: the
+    /// device signs every userauth round trip; private key material
+    /// never crosses the FRB boundary.
+    PubkeySkCert {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        has_user_verification: bool,
+        cert_secret_id: String,
+        pin_secret_id: Option<String>,
+    },
     /// PKCS#11 hardware-token key resolved from the manager.
     /// `module_path` + `token_serial` + `cka_id` carry the
     /// disambiguation surface the sign path needs at runtime;
@@ -369,7 +392,12 @@ pub fn prepare_auth(
                 // `id_*.pub` body the connect path re-parses to
                 // recover the SSH `Algorithm`. PIN staging is
                 // transient under `key.pin.<id>` so the bytes do
-                // not survive the connect handshake.
+                // not survive the connect handshake. Cert pairing
+                // gets the same precedence treatment as the
+                // software path — when a cert is attached the
+                // composer picks the cert-bearing variant so the
+                // user authenticates with the strictly stronger
+                // CA-signed credential.
                 let pin_secret_id = if row.has_user_verification && !input.pin.is_empty() {
                     let id = format!("key.pin.{}", input.key_id);
                     crate::app::instance()
@@ -380,6 +408,21 @@ pub fn prepare_auth(
                 } else {
                     None
                 };
+                if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
+                    return Ok(PreparedAuth {
+                        auth: PreparedAuthRef::PubkeySkCert {
+                            public_openssh: row.public_key.clone(),
+                            credential_id: credential_id.clone(),
+                            application: application.clone(),
+                            has_user_verification: row.has_user_verification,
+                            cert_secret_id: ssh_key_certificates::certificate_secret_id(
+                                &input.key_id,
+                            ),
+                            pin_secret_id,
+                        },
+                        transient_secret_ids: transients,
+                    });
+                }
                 return Ok(PreparedAuth {
                     auth: PreparedAuthRef::PubkeySk {
                         public_openssh: row.public_key.clone(),
@@ -898,6 +941,102 @@ mod tests {
             assert!(has_user_verification);
             assert_eq!(pin_secret_id.as_deref(), Some("key.pin.sk2"));
             assert_eq!(r.transient_secret_ids, vec!["key.pin.sk2".to_string()]);
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn manager_key_sk_with_paired_cert_returns_pubkey_sk_cert_variant() {
+        // Cert-paired hardware-bound row — composer must pick the
+        // cert-bearing variant ahead of the bare sk-* path. Mirrors
+        // the software-key precedence between PubkeyCert and Pubkey;
+        // the cert is the strictly stronger credential because the
+        // server's `TrustedUserCAKeys` carries the CA fingerprint.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_sk_key(
+                c,
+                "sk-cert",
+                "sk-ssh-ed25519@openssh.com AAAA...",
+                &[0xCA, 0xFE],
+                "ssh:",
+                false,
+            );
+            insert_cert(c, "sk-cert", &[0xDE, 0xAD, 0xBE, 0xEF]);
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "sk-cert".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                cert_secret_id,
+                pin_secret_id,
+            } = r.auth
+            else {
+                panic!("expected PubkeySkCert");
+            };
+            assert_eq!(public_openssh, "sk-ssh-ed25519@openssh.com AAAA...");
+            assert_eq!(credential_id, vec![0xCA, 0xFE]);
+            assert_eq!(application, "ssh:");
+            assert!(!has_user_verification);
+            assert_eq!(cert_secret_id, "key.cert.sk-cert");
+            assert!(pin_secret_id.is_none());
+            assert!(r.transient_secret_ids.is_empty());
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn manager_key_sk_with_paired_cert_and_uv_stages_pin_and_picks_cert_variant() {
+        // UV bit set + cert paired — composer stages the PIN under
+        // the transient `key.pin.<id>` namespace AND returns the
+        // cert-bearing variant. PIN handling matches the bare sk-*
+        // path; the cert selection matches the software cert path.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_sk_key(
+                c,
+                "sk-uv-cert",
+                "sk-ssh-ed25519@openssh.com AAAA...",
+                &[0x01],
+                "ssh:",
+                true,
+            );
+            insert_cert(c, "sk-uv-cert", &[0xDE, 0xAD]);
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "sk-uv-cert".into(),
+                    pin: "123456".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeySkCert {
+                has_user_verification,
+                cert_secret_id,
+                pin_secret_id,
+                ..
+            } = r.auth
+            else {
+                panic!("expected PubkeySkCert");
+            };
+            assert!(has_user_verification);
+            assert_eq!(cert_secret_id, "key.cert.sk-uv-cert");
+            assert_eq!(pin_secret_id.as_deref(), Some("key.pin.sk-uv-cert"));
+            assert_eq!(
+                r.transient_secret_ids,
+                vec!["key.pin.sk-uv-cert".to_string()]
+            );
             Ok::<(), Error>(())
         })
         .unwrap();

@@ -511,6 +511,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (String, String) dco_decode_box_autoadd_record_string_string(dynamic raw);
 
   @protected
+  SshConnectPubkeySkCertArgs
+  dco_decode_box_autoadd_ssh_connect_pubkey_sk_cert_args(dynamic raw);
+
+  @protected
   SshShellEvent dco_decode_box_autoadd_ssh_shell_event(dynamic raw);
 
   @protected
@@ -1342,6 +1346,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SftpFileMetadata dco_decode_sftp_file_metadata(dynamic raw);
 
   @protected
+  SshConnectPubkeySkCertArgs dco_decode_ssh_connect_pubkey_sk_cert_args(
+    dynamic raw,
+  );
+
+  @protected
   SshShellEvent dco_decode_ssh_shell_event(dynamic raw);
 
   @protected
@@ -1813,6 +1822,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, String) sse_decode_box_autoadd_record_string_string(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SshConnectPubkeySkCertArgs
+  sse_decode_box_autoadd_ssh_connect_pubkey_sk_cert_args(
     SseDeserializer deserializer,
   );
 
@@ -2908,6 +2923,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SftpFileMetadata sse_decode_sftp_file_metadata(SseDeserializer deserializer);
 
   @protected
+  SshConnectPubkeySkCertArgs sse_decode_ssh_connect_pubkey_sk_cert_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SshShellEvent sse_decode_ssh_shell_event(SseDeserializer deserializer);
 
   @protected
@@ -3484,6 +3504,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_record_string_string(
     (String, String) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_ssh_connect_pubkey_sk_cert_args(
+    SshConnectPubkeySkCertArgs self,
     SseSerializer serializer,
   );
 
@@ -4881,6 +4907,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sftp_file_metadata(
     SftpFileMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ssh_connect_pubkey_sk_cert_args(
+    SshConnectPubkeySkCertArgs self,
     SseSerializer serializer,
   );
 

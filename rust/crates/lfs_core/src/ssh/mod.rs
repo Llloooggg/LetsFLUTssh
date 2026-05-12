@@ -634,6 +634,39 @@ pub struct ConnectPubkeySkOwnedArgs {
     pub pin_secret_id: Option<String>,
 }
 
+/// Borrow-shaped bundle for [`Session::connect_pubkey_sk_cert`]. Keeps
+/// the call shape under clippy's too-many-arguments threshold while
+/// pinning every load-bearing field. The `_owned` twin exists for
+/// the FRB / `Send + 'static` path.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeySkCertArgs<'a> {
+    pub user: &'a str,
+    pub public_openssh: &'a str,
+    pub credential_id: &'a [u8],
+    pub application: &'a str,
+    pub cert_bytes: &'a [u8],
+    pub pin: Option<&'a str>,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_sk_cert_owned`].
+/// Combines the FIDO2 credential metadata from
+/// [`ConnectPubkeySkOwnedArgs`] with an OpenSSH certificate secret id
+/// — the cert blob is staged through the SecretStore (same shape as
+/// the software cert path) so this struct never carries the bytes.
+/// The connect path re-parses `public_openssh` to recover the
+/// algorithm + inner public-key blob the cert wraps.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeySkCertOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub public_openssh: String,
+    pub credential_id: Vec<u8>,
+    pub application: String,
+    pub cert_secret_id: String,
+    pub pin_secret_id: Option<String>,
+}
+
 /// Borrow-shaped bundle for [`Session::connect_pubkey_pkcs11`]. Keeps
 /// the call shape under clippy's too-many-arguments threshold while
 /// pinning every load-bearing field. The `_owned` twin exists for
@@ -963,8 +996,9 @@ impl Session {
     /// dials the inner SSH transport through a `direct-tcpip` channel
     /// on `parent` instead of opening a fresh TCP socket — exactly
     /// the same composition trick the other `connect_*_via_proxy`
-    /// variants use. Not wired through FRB today; reserved for the
-    /// cert-via-FIDO composition that lands on top of this.
+    /// variants use. Used by the cert-via-FIDO composition
+    /// ([`Session::connect_pubkey_sk_cert_via_proxy`]); the bare-sk
+    /// dispatcher gates this until a future arc wires it through FRB.
     pub async fn connect_pubkey_sk_via_proxy(
         parent: &Session,
         host: &str,
@@ -981,6 +1015,48 @@ impl Session {
             args.pin,
         )
         .await?;
+        Ok(Session::from_handle(handle, forward_rx))
+    }
+
+    /// Connect + authenticate with a FIDO2 hardware-bound `sk-*` key
+    /// AND an OpenSSH certificate paired to it. The cert is the
+    /// CA-signed credential the server accepts via `TrustedUserCAKeys`;
+    /// the device-resident private half signs every userauth round
+    /// trip. Free composition of T-1's signer + russh's
+    /// `authenticate_certificate_with<S: Signer>` introduced in 0.59.
+    ///
+    /// `public_openssh` is the captured `id_*.pub` body; we re-parse
+    /// it to confirm the algorithm is `sk-*` before driving the cert
+    /// handshake. `cert_bytes` is the parsed OpenSSH certificate
+    /// (`*-cert-v01@openssh.com`). The cert's inner signing key MUST
+    /// match `public_openssh` — the cert-pairing import flow already
+    /// verifies the fingerprint match, so any divergence here is a
+    /// DB-corruption story rather than an expected failure mode.
+    pub async fn connect_pubkey_sk_cert(
+        host: &str,
+        port: u16,
+        args: ConnectPubkeySkCertArgs<'_>,
+    ) -> Result<Self, Error> {
+        let (mut handle, forward_rx) = open_handle_for_session(host, port).await?;
+        finish_authenticate_pubkey_sk_cert(&mut handle, args).await?;
+        Ok(Session::from_handle(handle, forward_rx))
+    }
+
+    /// Cert-via-FIDO tunnelled through a ProxyJump parent. Same
+    /// composition as the non-proxy
+    /// [`Session::connect_pubkey_sk_cert`] but the russh handshake
+    /// rides a `direct-tcpip` channel on `parent`. Reserved for a
+    /// future arc that wires hardware-bound auth through bastions —
+    /// the bare-sk dispatcher in `connection::mod` gates both the
+    /// `sk` and `sk-cert` arms until that wiring lands.
+    pub async fn connect_pubkey_sk_cert_via_proxy(
+        parent: &Session,
+        host: &str,
+        port: u16,
+        args: ConnectPubkeySkCertArgs<'_>,
+    ) -> Result<Self, Error> {
+        let (mut handle, forward_rx) = open_handle_via_proxy(parent, host, port).await?;
+        finish_authenticate_pubkey_sk_cert(&mut handle, args).await?;
         Ok(Session::from_handle(handle, forward_rx))
     }
 
@@ -1306,6 +1382,46 @@ impl Session {
                 &args.credential_id,
                 &args.application,
                 pin.as_deref(),
+            )
+            .await
+        })
+    }
+
+    /// Owned-arg twin of [`connect_pubkey_sk_cert`]. Resolves the
+    /// cert blob + optional PIN from the SecretStore inside the
+    /// future so the FRB `wrap_async` `Send + 'static` bound holds.
+    /// The cert blob is staged by the Dart-side `prepare_auth`
+    /// composer under `key.cert.<key_id>` — same shape as the
+    /// software cert path — and dropped after the connect attempt
+    /// settles.
+    pub fn connect_pubkey_sk_cert_owned(
+        args: ConnectPubkeySkCertOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let store = &crate::app::instance().secrets;
+            let cert_bytes = store
+                .get(&args.cert_secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached cert '{}'", args.cert_secret_id)))?;
+            let pin_bytes = args.pin_secret_id.as_deref().and_then(|id| store.get(id));
+            let pin: Option<String> = match pin_bytes.as_ref() {
+                Some(b) => Some(
+                    std::str::from_utf8(b)
+                        .map_err(|e| Error::Auth(format!("pin not utf-8: {e}")))?
+                        .to_owned(),
+                ),
+                None => None,
+            };
+            Self::connect_pubkey_sk_cert(
+                &args.host,
+                args.port,
+                ConnectPubkeySkCertArgs {
+                    user: &args.user,
+                    public_openssh: &args.public_openssh,
+                    credential_id: &args.credential_id,
+                    application: &args.application,
+                    cert_bytes: &cert_bytes,
+                    pin: pin.as_deref(),
+                },
             )
             .await
         })
@@ -2295,6 +2411,52 @@ async fn finish_authenticate_pubkey_sk(
 
     let auth_result = session
         .authenticate_publickey_with(user, public, sk::hash_alg_for(&algorithm), &mut signer)
+        .await
+        .map_err(Error::from)?;
+
+    if !matches!(auth_result, AuthResult::Success) {
+        return Err(Error::AuthFailed);
+    }
+    Ok(())
+}
+
+/// Authenticate against `session` with a FIDO2 hardware-bound key
+/// AND a paired OpenSSH certificate. Re-parses `public_openssh` to
+/// confirm the algorithm is `sk-*` (we never route a software key
+/// down this path), parses the cert blob, and drives russh's
+/// `authenticate_certificate_with<S: Signer>` with a [`FidoSigner`].
+///
+/// russh asks the device for an assertion per signature round trip
+/// — same wire shape as the bare-sk path, only the userauth method
+/// is `publickey` with the cert blob attached (algorithm name
+/// `sk-ssh-ed25519-cert-v01@openssh.com` /
+/// `sk-ecdsa-sha2-nistp256-cert-v01@openssh.com`).
+async fn finish_authenticate_pubkey_sk_cert(
+    session: &mut Handle<LfsHandler>,
+    args: ConnectPubkeySkCertArgs<'_>,
+) -> Result<(), Error> {
+    let public = ssh_key::PublicKey::from_openssh(args.public_openssh.trim())
+        .map_err(|e| Error::KeyParse(format!("sk public key: {e}")))?;
+    let algorithm = public.algorithm();
+    if !sk::is_sk_algorithm(&algorithm) {
+        return Err(Error::Auth(format!(
+            "fido2 signer: public key algorithm {algorithm:?} is not an sk-* variant"
+        )));
+    }
+
+    let cert = parse_certificate(args.cert_bytes)?;
+
+    let mut signer = FidoSigner {
+        algorithm: algorithm.clone(),
+        credential: sk::FidoCredential {
+            credential_id: args.credential_id.to_vec(),
+            application: args.application.to_owned(),
+            pin: args.pin.map(str::to_owned),
+        },
+    };
+
+    let auth_result = session
+        .authenticate_certificate_with(args.user, cert, sk::hash_alg_for(&algorithm), &mut signer)
         .await
         .map_err(Error::from)?;
 

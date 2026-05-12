@@ -597,6 +597,19 @@ pub enum BusConnectAuthRef {
         application: String,
         pin_secret_id: Option<String>,
     },
+    /// FIDO2 hardware-bound `sk-*` SSH key + paired OpenSSH
+    /// certificate. Carries the same FIDO2 metadata block as
+    /// `PubkeySk` plus the staged cert blob's SecretStore id.
+    /// Reaches `Session::connect_pubkey_sk_cert_owned` on dispatch,
+    /// which composes T-1's `FidoSigner` with russh's
+    /// `authenticate_certificate_with<S: Signer>`.
+    PubkeySkCert {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        cert_secret_id: String,
+        pin_secret_id: Option<String>,
+    },
     /// PKCS#11 hardware-token key. Carries the captured `id_*.pub`
     /// body, resolved module path, captured token serial, opaque
     /// `CKA_ID`, key-type short tag, and a transient PIN secret id.
@@ -686,6 +699,19 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
                 public_openssh,
                 credential_id,
                 application,
+                pin_secret_id,
+            },
+            BusConnectAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                cert_secret_id,
+                pin_secret_id,
+            } => lfs_core::connection::ConnectAuthRef::PubkeySkCert {
+                public_openssh,
+                credential_id,
+                application,
+                cert_secret_id,
                 pin_secret_id,
             },
             BusConnectAuthRef::PubkeyPkcs11 {
@@ -1096,6 +1122,13 @@ mod tests {
                 public_openssh: "sk-ssh-ed25519@openssh.com AAAA...".into(),
                 credential_id: vec![0xCA, 0xFE],
                 application: "ssh:".into(),
+                pin_secret_id: Some("key.pin.k1".into()),
+            },
+            BusConnectAuthRef::PubkeySkCert {
+                public_openssh: "sk-ssh-ed25519@openssh.com AAAA...".into(),
+                credential_id: vec![0xCA, 0xFE],
+                application: "ssh:".into(),
+                cert_secret_id: "key.cert.k1".into(),
                 pin_secret_id: Some("key.pin.k1".into()),
             },
             BusConnectAuthRef::Agent,

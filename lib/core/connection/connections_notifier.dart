@@ -788,6 +788,26 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           application: application,
           pinSecretId: pinSecretId,
         ),
+      // Cert-paired sk-* branch — composed when the manager row
+      // carries `credential_id` AND `ssh_key_certificates` has a
+      // cert blob attached. The cert is the strictly stronger
+      // credential so the composer picks this ahead of the bare
+      // sk-* variant; matches the precedence software keys
+      // already enforce between PubkeyCert and Pubkey.
+      rust_auth.DbPreparedAuthRef_PubkeySkCert(
+        :final publicOpenssh,
+        :final credentialId,
+        :final application,
+        :final certSecretId,
+        :final pinSecretId,
+      ) =>
+        SshAuthPubkeySkCertRef(
+          publicOpenssh: publicOpenssh,
+          credentialId: credentialId,
+          application: application,
+          certSecretId: certSecretId,
+          pinSecretId: pinSecretId,
+        ),
       // PKCS#11 hardware-token branch — composed by
       // `auth_compose::prepare_auth` when the resolved manager-key
       // row carries `backend = 'pkcs11'`. The PIN stages as a

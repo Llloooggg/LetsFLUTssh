@@ -181,6 +181,20 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     String? pinSecretId,
   }) = BusConnectAuthRef_PubkeySk;
 
+  /// FIDO2 hardware-bound `sk-*` SSH key + paired OpenSSH
+  /// certificate. Carries the same FIDO2 metadata block as
+  /// `PubkeySk` plus the staged cert blob's SecretStore id.
+  /// Reaches `Session::connect_pubkey_sk_cert_owned` on dispatch,
+  /// which composes T-1's `FidoSigner` with russh's
+  /// `authenticate_certificate_with<S: Signer>`.
+  const factory BusConnectAuthRef.pubkeySkCert({
+    required String publicOpenssh,
+    required Uint8List credentialId,
+    required String application,
+    required String certSecretId,
+    String? pinSecretId,
+  }) = BusConnectAuthRef_PubkeySkCert;
+
   /// PKCS#11 hardware-token key. Carries the captured `id_*.pub`
   /// body, resolved module path, captured token serial, opaque
   /// `CKA_ID`, key-type short tag, and a transient PIN secret id.
