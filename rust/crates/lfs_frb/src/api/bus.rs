@@ -642,6 +642,16 @@ pub enum BusConnectAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Android Hardware Keystore / StrongBox-bound SSH key. Carries
+    /// the captured `id_*.pub` body, the AndroidKeyStore alias, and
+    /// the `key_type` short tag that drives algorithm selection. No
+    /// PIN slot — the BiometricPrompt fires at the OS layer inside
+    /// the signer (`Session::connect_pubkey_keystore_owned`).
+    PubkeyKeystore {
+        public_openssh: String,
+        keystore_alias: String,
+        key_type: String,
+    },
     Agent,
 }
 
@@ -723,6 +733,15 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
                 cng_key_name,
                 key_type,
                 pin_secret_id,
+            },
+            BusConnectAuthRef::PubkeyKeystore {
+                public_openssh,
+                keystore_alias,
+                key_type,
+            } => lfs_core::connection::ConnectAuthRef::PubkeyKeystore {
+                public_openssh,
+                keystore_alias,
+                key_type,
             },
             BusConnectAuthRef::Agent => lfs_core::connection::ConnectAuthRef::Agent,
         }

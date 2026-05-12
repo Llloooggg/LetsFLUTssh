@@ -36,6 +36,7 @@ pub mod keychain_marker;
 pub mod keychain_password_gate;
 pub mod keychain_password_gate_actor;
 pub mod keys;
+pub mod keystore_ssh;
 pub mod known_hosts_parser;
 pub mod local_fs;
 pub mod log_sanitize;

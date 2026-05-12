@@ -3347,4 +3347,71 @@ class SAr extends S {
   @override
   String get tpmSshSilentWarning =>
       'يوقع هذا المفتاح دون مطالبة Hello / PIN — أي شخص لديه وصول إلى سطح المكتب أثناء تسجيل دخولك يمكنه استخدامه.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (مرتبط بالعتاد)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (مدعوم بالعتاد)';
+
+  @override
+  String get keystoreKeyGenerating => 'جاري إنشاء مفتاح مرتبط بالعتاد...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'أكد هويتك لاستخدام مفتاح SSH';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'تم إتلاف المفتاح: تم تسجيل قياس حيوي جديد. أعد تسجيل المفتاح العام على خوادمك.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM غير متاح على هذا الجهاز';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'اطلب القياس الحيوي / فتح الجهاز لكل توقيع';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'لا يمكن تصدير المفاتيح المرتبطة بالعتاد';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'حذف هذا المفتاح يزيله من مخزن العتاد. سترفض الخوادم هذا المفتاح حتى تسجل واحدا جديدا.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'سجل القياس الحيوي أو PIN الجهاز أولا';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (مؤهل لـ StrongBox)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+، TEE فقط)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (أوسع توافق)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM غير متاح';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'جهازك لا يعرض StrongBox HSM. هل تريد إنشاء مفتاح مدعوم بـ TEE بدلاً منه؟ سيظل مرتبطًا بالعتاد، فقط بدون عزل StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'استخدم TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'إلغاء';
 }

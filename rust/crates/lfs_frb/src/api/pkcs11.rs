@@ -300,6 +300,10 @@ pub async fn pkcs11_import_key(args: DbPkcs11ImportArgs) -> Result<String, Strin
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         };
         lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
     })

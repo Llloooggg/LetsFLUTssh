@@ -650,6 +650,10 @@ fn apply_keys(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: 
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         };
         if row.id.is_empty() {
             result.errors.push("key row missing id".to_string());
@@ -879,6 +883,10 @@ mod tests {
                 tpm_provider: None,
                 tpm_pin_required: false,
                 cng_key_name: None,
+                keystore_alias: None,
+                keystore_strongbox: false,
+                keystore_user_auth_required: false,
+                keystore_platform: None,
             },
         )
         .unwrap();
@@ -1070,6 +1078,10 @@ mod tests {
                 tpm_provider: None,
                 tpm_pin_required: false,
                 cng_key_name: None,
+                keystore_alias: None,
+                keystore_strongbox: false,
+                keystore_user_auth_required: false,
+                keystore_platform: None,
             },
         )
         .unwrap();
@@ -1583,6 +1595,10 @@ mod tests {
                 tpm_provider: None,
                 tpm_pin_required: false,
                 cng_key_name: None,
+                keystore_alias: None,
+                keystore_strongbox: false,
+                keystore_user_auth_required: false,
+                keystore_platform: None,
             },
         )
         .unwrap();

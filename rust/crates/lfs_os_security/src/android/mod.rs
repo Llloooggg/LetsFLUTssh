@@ -20,3 +20,4 @@ pub mod hardware_vault;
 pub mod jni_bootstrap;
 pub mod jni_helpers;
 pub mod keystore;
+pub mod keystore_signer;

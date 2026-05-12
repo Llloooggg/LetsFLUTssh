@@ -3260,4 +3260,68 @@ class SKo extends S {
   @override
   String get tpmSshSilentWarning =>
       '이 키는 Hello / PIN 프롬프트 없이 서명합니다 — 로그인 중에 데스크톱에 접근할 수 있는 사람은 누구나 사용할 수 있습니다.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (하드웨어 바인드)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (하드웨어 백드)';
+
+  @override
+  String get keystoreKeyGenerating => '하드웨어 바인드 키 생성 중...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'SSH 키를 사용하려면 인증하세요';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      '키가 파기되었습니다: 새 생체 인식이 등록되었습니다. 서버에 공개키를 다시 등록하세요.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      '이 기기에서는 StrongBox HSM을 사용할 수 없습니다';
+
+  @override
+  String get keystoreKeyUserAuthRequired => '서명마다 생체 인식 / 기기 잠금 해제를 요구';
+
+  @override
+  String get keystoreKeyExportDisabled => '하드웨어 바인드 키는 내보낼 수 없습니다';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      '이 키를 삭제하면 하드웨어 저장소에서도 제거됩니다. 새 키를 등록할 때까지 서버는 거부합니다.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled => '먼저 생체 인식 또는 기기 PIN을 등록하세요';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox 가능)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE 전용)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (최대 호환)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM 사용 불가';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      '이 기기는 StrongBox HSM 을 노출하지 않습니다. 대신 TEE 기반 키를 만들까요? 여전히 hardware-backed 이며 StrongBox isolation 만 빠집니다.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE 사용';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => '취소';
 }

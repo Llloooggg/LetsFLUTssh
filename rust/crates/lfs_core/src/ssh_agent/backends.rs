@@ -80,6 +80,15 @@ pub enum BackendKind {
     /// contract differs — Hello rows fire a PIN/fingerprint/face
     /// prompt on every sign; silent TPM rows do not.
     Tpm,
+    /// Android Hardware Keystore / StrongBox HSM. The agent endpoint
+    /// itself is `#[cfg(any(target_os = "linux", target_os = "macos",
+    /// target_os = "windows"))]` — Android has no in-process agent
+    /// surface — so this variant only ever surfaces on the connect
+    /// path's typed dispatcher. The dispatch arm here exists for
+    /// symmetry; the agent-side `dispatch_sign_by_kind` surfaces a
+    /// typed `Error::Keystore("unavailable on this platform")` on
+    /// the desktop targets where the agent endpoint exists.
+    Keystore,
 }
 
 impl BackendKind {
@@ -100,6 +109,7 @@ impl BackendKind {
             KeyBackend::Enclave => Self::Enclave,
             KeyBackend::Hello => Self::Hello,
             KeyBackend::Tpm => Self::Tpm,
+            KeyBackend::Keystore => Self::Keystore,
             _ => Self::Software,
         }
     }
@@ -144,7 +154,22 @@ pub async fn dispatch_sign_by_kind(
         BackendKind::Enclave => enclave_sign(row, data).await,
         BackendKind::Hello => hello_sign(row, data, flags).await,
         BackendKind::Tpm => tpm_sign(row, data, flags).await,
+        BackendKind::Keystore => keystore_sign(row, data).await,
     }
+}
+
+/// Android Hardware Keystore dispatcher stub. The agent endpoint
+/// module is `#[cfg(any(target_os = "linux", target_os = "macos",
+/// target_os = "windows"))]` so this arm only runs on desktop —
+/// where the Keystore key cannot exist (the chip is Android-only and
+/// the listing path filters `backend = 'keystore'` rows out long
+/// before the dispatcher sees them). Surface the typed unsupported
+/// error so a manually-crafted row never silently downgrades to a
+/// software arm.
+async fn keystore_sign(_row: &SshKeyRow, _data: &[u8]) -> Result<SignOutput, BackendError> {
+    Err(BackendError::Signer(Error::Keystore(
+        "Android Hardware Keystore is reachable only on Android in-app sessions".into(),
+    )))
 }
 
 /// TPM 2.0 dispatcher. Routes to the Linux ESAPI driver (`tss-esapi`)
@@ -687,6 +712,10 @@ mod tests {
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         }
     }
 
@@ -721,6 +750,38 @@ mod tests {
             ..row_software()
         };
         assert_eq!(BackendKind::from_row(&row), BackendKind::Hello);
+    }
+
+    #[test]
+    fn from_row_resolves_keystore_when_backend_is_keystore() {
+        let row = SshKeyRow {
+            backend: crate::db::ssh_keys::KeyBackend::Keystore,
+            key_type: "ecdsa-sha2-nistp256".into(),
+            keystore_alias: Some("lfs-keystore-1234".into()),
+            keystore_strongbox: true,
+            keystore_user_auth_required: true,
+            ..row_software()
+        };
+        assert_eq!(BackendKind::from_row(&row), BackendKind::Keystore);
+    }
+
+    #[tokio::test]
+    async fn dispatch_keystore_on_desktop_surfaces_unsupported() {
+        let row = SshKeyRow {
+            backend: crate::db::ssh_keys::KeyBackend::Keystore,
+            key_type: "ecdsa-sha2-nistp256".into(),
+            keystore_alias: Some("lfs-keystore-1234".into()),
+            keystore_strongbox: true,
+            keystore_user_auth_required: true,
+            ..row_software()
+        };
+        let err = dispatch_sign(&row, b"data", 0).await.unwrap_err();
+        match err {
+            BackendError::Signer(Error::Keystore(s)) => {
+                assert!(s.contains("Android"), "expected Android note, got {s}");
+            }
+            other => panic!("expected BackendError::Signer(Error::Keystore), got {other:?}"),
+        }
     }
 
     #[tokio::test]

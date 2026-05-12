@@ -3415,4 +3415,71 @@ class SPt extends S {
   @override
   String get tpmSshSilentWarning =>
       'Esta chave assina SEM prompt de Hello / PIN — qualquer pessoa com acesso ao desktop enquanto você está logado pode usá-la.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Gerando chave hardware-bound...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'Autentique para usar a chave SSH';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Chave destruída: nova biometria foi registrada. Registre novamente a chave pública nos seus servidores.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM indisponível neste dispositivo';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Exigir biometria / desbloqueio do dispositivo a cada assinatura';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Chaves hardware-bound não podem ser exportadas';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Apagar esta chave remove-a do armazenamento de hardware. Os servidores vão rejeitá-la até você registrar uma nova.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Configure biometria ou PIN do dispositivo primeiro';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, só TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (compatibilidade máxima)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM indisponível';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Teu device não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Usar TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Cancelar';
 }

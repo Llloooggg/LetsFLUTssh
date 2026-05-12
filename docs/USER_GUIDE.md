@@ -359,7 +359,47 @@ The TPM bonds keys to the chip. If the device is lost, wiped, or the TPM is clea
 | Windows 10 1607+ with TPM 2.0 | Supported — silent variant (no Hello prompt). |
 | Windows without PCP / Server Core minimal | Hidden with "No TPM detected on this device". |
 | macOS / iOS | Hidden — use the Secure Enclave wizard instead. |
-| Android | Hidden — use the Hardware Keystore path (Android-specific) when it lands. |
+| Android | Hidden — use the Android Hardware Keystore wizard below. |
+
+### Hardware key (Android Hardware Keystore / StrongBox)
+
+On Android, LetsFLUTssh can generate SSH keys whose private half lives in the Hardware Keystore — StrongBox HSM on phones that ship one (Pixel 3+, Samsung S20+, etc.) and the TEE elsewhere. The chip refuses to export the private bytes; every connect-time signature routes through `BiometricPrompt.CryptoObject(Signature)` and fires the system biometric prompt (fingerprint / face) inside the call.
+
+- **Algorithms.** ECDSA P-256 (`ecdsa-sha2-nistp256`, the only uniformly StrongBox-eligible choice — preferred default), Ed25519 (`ssh-ed25519`, Android 13+ only, TEE-only — StrongBox is not guaranteed even on capable devices), and RSA-2048 PKCS#1 v1.5 (`rsa-sha2-256`, widest compatibility with older servers).
+- **Device-bound.** Keystore-bound keys cannot leave the chip — the key works only on the Android device that generated it. A factory reset or app uninstall destroys the key.
+- **Per-signature prompt.** Every connect attempt fires the BiometricPrompt. There is no caching layer; Android's per-op auth contract is the security property.
+
+#### Setup
+
+1. Enrol a biometric (fingerprint / face) or a device PIN in **Settings → Security**. The wizard refuses to proceed without one — Android's KeyStore requires `setUserAuthenticationRequired(true)` and the only way to satisfy it is a configured authenticator.
+2. **Tools → SSH Keys → Add Android hardware-bound key** (the row is visible only on Android — other platforms hide it).
+3. The wizard probes the device. If biometric is missing, the dialog renders disabled with "Enrol biometric or device PIN first" — open Settings and re-run.
+4. Type a label (the row's display name in the key manager).
+5. Pick an algorithm:
+   - **ECDSA P-256** — preferred default; eligible for StrongBox HSM on capable devices.
+   - **Ed25519** — modern, smaller signatures; Android 13+ only; never lands in StrongBox.
+   - **RSA-2048** — widest server compatibility; eligible for StrongBox.
+6. The **StrongBox HSM** toggle is enabled when the device has the `FEATURE_STRONGBOX_KEYSTORE` capability AND the chosen algorithm supports it (ECDSA P-256 / RSA-2048). Ed25519 disables the toggle with the matching reason. The toggle defaults to on.
+7. Tap **Generate**. Android creates the key inside the AndroidKeyStore (no biometric prompt at generate time — only at sign time). The wizard shows the `authorized_keys`-shaped public-key line with a Copy affordance, and the badge label tells you which tier the key actually landed at — "StrongBox HSM" or "TEE". The device may silently drop StrongBox if the algorithm subset doesn't fit (rare but possible after a firmware update); the label is always honest.
+8. Paste the public-key line into `~/.ssh/authorized_keys` on every server you want to reach.
+9. Reference the new row from a session's **Auth → Key from manager** drop-down. Every connect attempt fires the BiometricPrompt — that's the ceremony.
+
+#### Enrolment-change destruction
+
+The key is bound to the biometric enrolment in place at create time. Adding or removing a fingerprint / face — or enrolling a new one — permanently invalidates the on-chip key. The next connect attempt surfaces "Key destroyed: a new biometric was enrolled. Re-register the public key on your servers." The DB row is preserved so you can copy the public key off it (paste a fresh one to the server), but the row's hardware binding is gone — delete it and run the wizard again. This is the load-bearing security property that distinguishes hardware-bound keys from a software key sat behind a biometric gate: the on-chip private half cannot survive an enrolment change.
+
+#### Backup / sync
+
+There is none. The private key never leaves the AndroidKeyStore; the `.lfs` archive carries only the alias, which only matches on the original device. If the device is lost or wiped, re-generate the key on the replacement Android device and update `authorized_keys` on the server. The `android:allowBackup="false"` manifest entry blocks Android's auto-backup from copying anything across — by design.
+
+#### Platform support
+
+| Platform | Support |
+|---|---|
+| Android 13+ (Pixel 8 / Galaxy S24 / etc. with StrongBox) | Supported. StrongBox HSM available for ECDSA P-256 / RSA-2048; TEE for Ed25519. |
+| Android 9-12 with StrongBox | Supported. StrongBox available; Ed25519 not exposed (KeyMint v2 only). |
+| Android 6-8 (no StrongBox) | Supported. Wizard renders TEE-only — toggle disabled with "StrongBox HSM not available on this device". |
+| iOS / macOS / Windows / Linux | Hidden — use the Apple Secure Enclave / Windows Hello / TPM 2.0 wizard for that platform. |
 
 ---
 

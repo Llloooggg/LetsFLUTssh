@@ -447,6 +447,10 @@ mod tests {
                 tpm_provider: None,
                 tpm_pin_required: false,
                 cng_key_name: None,
+                keystore_alias: None,
+                keystore_strongbox: false,
+                keystore_user_auth_required: false,
+                keystore_platform: None,
             },
         )
         .unwrap();

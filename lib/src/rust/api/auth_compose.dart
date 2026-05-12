@@ -173,4 +173,15 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required String keyType,
     String? pinSecretId,
   }) = DbPreparedAuthRef_PubkeyTpm;
+
+  /// Android Hardware Keystore / StrongBox-bound hardware key.
+  /// `keystore_alias` is the AndroidKeyStore alias persisted at
+  /// create time; the connect path's `Session::connect_pubkey_keystore_owned`
+  /// reaches into the AndroidKeyStore via JNI on every sign. No
+  /// PIN slot — the BiometricPrompt fires at the OS layer.
+  const factory DbPreparedAuthRef.pubkeyKeystore({
+    required String publicOpenssh,
+    required String keystoreAlias,
+    required String keyType,
+  }) = DbPreparedAuthRef_PubkeyKeystore;
 }

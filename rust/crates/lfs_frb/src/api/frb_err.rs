@@ -179,6 +179,16 @@ pub mod kind {
     /// `unavailable:`, `handle in use:`, generic) to pick the right
     /// toast / route.
     pub const TPM: &str = "tpm";
+    /// Android Hardware Keystore / StrongBox SSH-signer failure
+    /// (biometric not enrolled, key destroyed by fresh enrolment via
+    /// `KeyPermanentlyInvalidatedException`, StrongBox refused via
+    /// `StrongBoxUnavailableException`, BiometricPrompt cancel,
+    /// per-op auth window expired through `UserNotAuthenticatedException`).
+    /// Detail carries the short reason; the Dart UI's wizard /
+    /// connect dialog branches on the leading discriminator
+    /// (`invalidated:`, `strongbox unavailable:`, `no biometric:`,
+    /// `cancelled:`, generic) to pick the right toast / remediation.
+    pub const KEYSTORE: &str = "keystore";
     /// Operation is structurally unavailable on this build target
     /// (e.g. the in-process ssh-agent endpoint on Android / iOS).
     /// UI renders the matching control disabled-with-reason rather
@@ -248,6 +258,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::Enclave(s) => wire(kind::ENCLAVE, s),
         CoreError::Hello(s) => wire(kind::HELLO, s),
         CoreError::Tpm(s) => wire(kind::TPM, s),
+        CoreError::Keystore(s) => wire(kind::KEYSTORE, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

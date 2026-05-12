@@ -61,6 +61,7 @@ void main() {
         SshAuthPubkeyEnclaveRef() => 'pubkey-enclave',
         SshAuthPubkeyHelloRef() => 'pubkey-hello',
         SshAuthPubkeyTpmRef() => 'pubkey-tpm',
+        SshAuthPubkeyKeystoreRef() => 'pubkey-keystore',
       };
       expect(describe(const SshAuthAgent()), 'agent');
       expect(describe(const SshAuthPasswordRef('x')), 'password');
@@ -105,6 +106,16 @@ void main() {
           ),
         ),
         'pubkey-tpm',
+      );
+      expect(
+        describe(
+          const SshAuthPubkeyKeystoreRef(
+            publicOpenssh: 'ecdsa-sha2-nistp256 AAAA...',
+            keystoreAlias: 'lfs-keystore-1234',
+            keyType: 'ecdsa-sha2-nistp256',
+          ),
+        ),
+        'pubkey-keystore',
       );
     });
   });

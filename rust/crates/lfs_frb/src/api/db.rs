@@ -198,6 +198,26 @@ pub struct DbSshKey {
     /// `letsflutssh-ssh-` prefix). `None` for non-Windows TPM rows
     /// and every non-TPM backend.
     pub cng_key_name: Option<String>,
+    /// Android Hardware Keystore alias (schema v13). UTF-8 string
+    /// the `KeyStore.getEntry(alias, null)` lookup re-binds to on
+    /// every sign. Only populated for `backend = 'keystore'` rows
+    /// on Android. `None` everywhere else.
+    pub keystore_alias: Option<String>,
+    /// `true` when the row landed in StrongBox HSM (rather than
+    /// TEE) at create time. `false` for TEE-only rows and every
+    /// non-Keystore backend. Drives the badge label split
+    /// ("StrongBox HSM" vs "TEE").
+    pub keystore_strongbox: bool,
+    /// `true` when the row requires biometric / device-unlock auth
+    /// on every sign — always `true` for the current Keystore
+    /// wizard. Reserved as a column so a future no-auth variant
+    /// lands without a schema bump.
+    pub keystore_user_auth_required: bool,
+    /// `Build.MODEL` + Android version captured at create time,
+    /// e.g. `"Pixel 8 (Android 14)"`. Surfaced read-only in the
+    /// badge popover so multi-device users can identify which
+    /// phone holds the key. `None` for non-Keystore rows.
+    pub keystore_platform: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -227,6 +247,10 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             tpm_provider: r.tpm_provider,
             tpm_pin_required: r.tpm_pin_required,
             cng_key_name: r.cng_key_name,
+            keystore_alias: r.keystore_alias,
+            keystore_strongbox: r.keystore_strongbox,
+            keystore_user_auth_required: r.keystore_user_auth_required,
+            keystore_platform: r.keystore_platform,
         }
     }
 }
@@ -258,6 +282,10 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             tpm_provider: r.tpm_provider,
             tpm_pin_required: r.tpm_pin_required,
             cng_key_name: r.cng_key_name,
+            keystore_alias: r.keystore_alias,
+            keystore_strongbox: r.keystore_strongbox,
+            keystore_user_auth_required: r.keystore_user_auth_required,
+            keystore_platform: r.keystore_platform,
         }
     }
 }
@@ -359,6 +387,20 @@ pub struct DbSshKeyMetadata {
     pub tpm_provider: Option<String>,
     pub tpm_pin_required: bool,
     pub cng_key_name: Option<String>,
+    /// Android Hardware Keystore ingredients (schema v13). Surfaced
+    /// for the `KeystoreBadge` info popover; the private key material
+    /// itself lives in the AndroidKeyStore TEE / StrongBox and never
+    /// reaches Dart. `keystore_alias` re-binds the key on every sign;
+    /// `keystore_strongbox` splits the badge label (`StrongBox HSM` vs
+    /// `TEE`); `keystore_user_auth_required` is `true` for every
+    /// current Keystore row; `keystore_platform` carries the
+    /// capture-time `Build.MODEL` + Android version so users on
+    /// multi-device deployments can identify which phone holds the
+    /// key.
+    pub keystore_alias: Option<String>,
+    pub keystore_strongbox: bool,
+    pub keystore_user_auth_required: bool,
+    pub keystore_platform: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
@@ -381,6 +423,10 @@ impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
             tpm_provider: m.tpm_provider,
             tpm_pin_required: m.tpm_pin_required,
             cng_key_name: m.cng_key_name,
+            keystore_alias: m.keystore_alias,
+            keystore_strongbox: m.keystore_strongbox,
+            keystore_user_auth_required: m.keystore_user_auth_required,
+            keystore_platform: m.keystore_platform,
         }
     }
 }
@@ -1760,6 +1806,10 @@ mod tests {
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

@@ -3229,4 +3229,66 @@ class SZh extends S {
   @override
   String get tpmSshSilentWarning =>
       '此 key 签名时不会弹 Hello / PIN — 你登录时任何能访问桌面的人都能使用它。';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (硬件绑定)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (硬件支持)';
+
+  @override
+  String get keystoreKeyGenerating => '正在生成硬件绑定密钥...';
+
+  @override
+  String get keystoreKeyAuthPrompt => '验证身份以使用 SSH 密钥';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      '密钥已销毁：注册了新的生物识别。请在服务器上重新注册公钥。';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable => '此设备不支持 StrongBox HSM';
+
+  @override
+  String get keystoreKeyUserAuthRequired => '每次签名都要求生物识别 / 设备解锁';
+
+  @override
+  String get keystoreKeyExportDisabled => '硬件绑定密钥不能导出';
+
+  @override
+  String get keystoreKeyDeleteWarning => '删除此密钥会从硬件存储中移除。在你注册新密钥之前，服务器都会拒绝它。';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled => '请先注册生物识别或设备 PIN';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox 兼容)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, 仅 TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (最广兼容)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM 不可用';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      '你的设备没有暴露 StrongBox HSM。改为创建一个 TEE 后端的密钥？仍然是 hardware-backed，只是没有 StrongBox 隔离。';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => '使用 TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => '取消';
 }

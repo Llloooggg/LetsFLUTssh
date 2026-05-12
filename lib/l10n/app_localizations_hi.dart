@@ -3346,4 +3346,73 @@ class SHi extends S {
   @override
   String get tpmSshSilentWarning =>
       'यह key Hello / PIN prompt के बिना sign करती है — जब तक आप logged in हैं, desktop access वाला कोई भी इसका उपयोग कर सकता है।';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating =>
+      'Hardware-bound key generate हो रही है...';
+
+  @override
+  String get keystoreKeyAuthPrompt =>
+      'SSH key use करने के लिए authenticate करें';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key destroy हो गई: नई biometric register हुई है। Server पर public key फिर से register करें।';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'इस device पर StrongBox HSM उपलब्ध नहीं';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'हर signature के लिए biometric / device unlock require करें';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Hardware-bound keys export नहीं की जा सकतीं';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'इस key को delete करने पर यह hardware store से हट जाएगी। जब तक आप नई register नहीं करते, server इसे reject करेंगे।';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'पहले biometric या device PIN enroll करें';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, सिर्फ TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM उपलब्ध नहीं';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'आपका डिवाइस StrongBox HSM expose नहीं करता। इसके बजाय TEE-backed key बनाएँ? यह अभी भी hardware-backed है, बस StrongBox isolation के बिना।';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE use करें';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'रद्द करें';
 }

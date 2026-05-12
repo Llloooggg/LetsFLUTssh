@@ -3351,4 +3351,69 @@ class STr extends S {
   @override
   String get tpmSshSilentWarning =>
       'Bu key Hello / PIN prompt\'u OLMADAN imzalar — sen logged in iken desktop\'a erişen herkes kullanabilir.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Hardware-bound key generate ediliyor...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'SSH key kullanmak için authenticate ol';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key destroy edildi: yeni biometric enroll edildi. Public key\'i sunucularda yeniden register et.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable => 'Bu cihazda StrongBox HSM yok';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Her signature için biometric / device unlock iste';
+
+  @override
+  String get keystoreKeyExportDisabled => 'Hardware-bound keys export edilemez';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Bu key\'i silmek hardware store\'dan da çıkarır. Yeni bir tane register edene kadar sunucular reject eder.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Önce biometric ya da device PIN enroll et';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM kullanılamıyor';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Cihazın StrongBox HSM \'i expose etmiyor. Onun yerine TEE destekli bir key oluşturulsun mu? Hâlâ hardware-backed, sadece StrongBox isolation yok.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE kullan';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'İptal';
 }

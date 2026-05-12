@@ -105,6 +105,16 @@ rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
         keyType: keyType,
         pinSecretId: pinSecretId,
       ),
+    SshAuthPubkeyKeystoreRef(
+      :final publicOpenssh,
+      :final keystoreAlias,
+      :final keyType,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyKeystore(
+        publicOpenssh: publicOpenssh,
+        keystoreAlias: keystoreAlias,
+        keyType: keyType,
+      ),
     SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
   };
 }

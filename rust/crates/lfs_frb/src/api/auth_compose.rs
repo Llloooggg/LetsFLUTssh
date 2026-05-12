@@ -121,6 +121,16 @@ pub enum DbPreparedAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Android Hardware Keystore / StrongBox-bound hardware key.
+    /// `keystore_alias` is the AndroidKeyStore alias persisted at
+    /// create time; the connect path's `Session::connect_pubkey_keystore_owned`
+    /// reaches into the AndroidKeyStore via JNI on every sign. No
+    /// PIN slot — the BiometricPrompt fires at the OS layer.
+    PubkeyKeystore {
+        public_openssh: String,
+        keystore_alias: String,
+        key_type: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -214,6 +224,15 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 cng_key_name,
                 key_type,
                 pin_secret_id,
+            },
+            auth_compose::PreparedAuthRef::PubkeyKeystore {
+                public_openssh,
+                keystore_alias,
+                key_type,
+            } => DbPreparedAuthRef::PubkeyKeystore {
+                public_openssh,
+                keystore_alias,
+                key_type,
             },
         };
         DbPreparedAuth {

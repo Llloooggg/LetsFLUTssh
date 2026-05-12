@@ -34,6 +34,7 @@ import 'api/keychain_marker.dart';
 import 'api/keychain_password_gate.dart';
 import 'api/keychain_password_gate_actor.dart';
 import 'api/keys.dart';
+import 'api/keystore_ssh.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/local_fs.dart';
 import 'api/log_sanitize.dart';
@@ -386,6 +387,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKeychainGateBlob dco_decode_box_autoadd_db_keychain_gate_blob(dynamic raw);
 
   @protected
+  DbKeystoreGenerateArgs dco_decode_box_autoadd_db_keystore_generate_args(
+    dynamic raw,
+  );
+
+  @protected
+  DbKeystoreImportResult dco_decode_box_autoadd_db_keystore_import_result(
+    dynamic raw,
+  );
+
+  @protected
   DbKnownHost dco_decode_box_autoadd_db_known_host(dynamic raw);
 
   @protected
@@ -674,6 +685,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKeychainWipeReport dco_decode_db_keychain_wipe_report(dynamic raw);
+
+  @protected
+  DbKeystoreAlgo dco_decode_db_keystore_algo(dynamic raw);
+
+  @protected
+  DbKeystoreGenerateArgs dco_decode_db_keystore_generate_args(dynamic raw);
+
+  @protected
+  DbKeystoreGenerateOutcome dco_decode_db_keystore_generate_outcome(
+    dynamic raw,
+  );
+
+  @protected
+  DbKeystoreImportResult dco_decode_db_keystore_import_result(dynamic raw);
+
+  @protected
+  DbKeystoreProbeResult dco_decode_db_keystore_probe_result(dynamic raw);
 
   @protected
   DbKnownHost dco_decode_db_known_host(dynamic raw);
@@ -1630,6 +1658,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbKeystoreGenerateArgs sse_decode_box_autoadd_db_keystore_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeystoreImportResult sse_decode_box_autoadd_db_keystore_import_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbKnownHost sse_decode_box_autoadd_db_known_host(
     SseDeserializer deserializer,
   );
@@ -2000,6 +2038,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKeychainWipeReport sse_decode_db_keychain_wipe_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeystoreAlgo sse_decode_db_keystore_algo(SseDeserializer deserializer);
+
+  @protected
+  DbKeystoreGenerateArgs sse_decode_db_keystore_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeystoreGenerateOutcome sse_decode_db_keystore_generate_outcome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeystoreImportResult sse_decode_db_keystore_import_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeystoreProbeResult sse_decode_db_keystore_probe_result(
     SseDeserializer deserializer,
   );
 
@@ -3222,6 +3283,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_keystore_generate_args(
+    DbKeystoreGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_keystore_import_result(
+    DbKeystoreImportResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_known_host(
     DbKnownHost self,
     SseSerializer serializer,
@@ -3698,6 +3771,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_keychain_wipe_report(
     DbKeychainWipeReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keystore_algo(
+    DbKeystoreAlgo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keystore_generate_args(
+    DbKeystoreGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keystore_generate_outcome(
+    DbKeystoreGenerateOutcome self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keystore_import_result(
+    DbKeystoreImportResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keystore_probe_result(
+    DbKeystoreProbeResult self,
     SseSerializer serializer,
   );
 

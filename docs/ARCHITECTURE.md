@@ -1700,6 +1700,73 @@ Ed25519 is not defined by the TPM 2.0 specification — the wizard refuses with 
 
 **Tests.** Unit tests in `rust/crates/lfs_os_security/src/linux/tpm_ssh.rs::tests` cover the algorithm round-trip via `from_key_type` / `key_type_tag`, the envelope `pack_envelope`/`unpack` round trip + truncation rejection, the `pad_left_to_32` padding contract for short / oversized r/s bytes, the `make_persistent` range guard for `0x81010001..0x8101FFFF`, and the wire-algorithm default selection. The Signer adapter has its own tests at `rust/crates/lfs_core/src/ssh/tpm_signer.rs::tests` (algorithm round-trip from key-type tags, error mapping, russh `Algorithm` contract). The agent dispatcher has a test at `rust/crates/lfs_core/src/ssh_agent/backends.rs::tests` (`BackendKind::Tpm` resolved from a `KeyBackend::Tpm` row). The integration test `rust/crates/lfs_os_security/tests/tpm_ssh_swtpm.rs` is `#[ignore]`-gated and drives end-to-end generate/sign/import against a `swtpm` socket; the doc-comment in that file carries the manual `swtpm_setup` / `swtpm socket` invocation. The Dart-side wizard tests live in `test/widgets/tpm_ssh_dialog_test.dart` — probe-disabled state, configure step rendering, Generate-button disabled without a label, badge info popover, silent-variant warning copy.
 
+#### Android Hardware Keystore / StrongBox SSH keys
+
+`lfs_os_security::android::keystore_signer` generates / signs / deletes SSH keys whose private half lives inside the Android Hardware Keystore — StrongBox HSM on devices that ship one (Pixel 3+, Samsung S20+, etc.) and the TEE (KeyMint v2 on API 33+, Keymaster on older) elsewhere. The chip refuses to export the private bytes regardless of tier; every signing operation routes through `Signature.initSign(privateKey) + BiometricPrompt.CryptoObject(signature) + Signature.sign()` per the auth requirement set at create time (`setUserAuthenticationRequired(true)` + `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)`).
+
+**Why a Kotlin shim.** `BiometricPrompt.AuthenticationCallback` is an abstract class with three abstract methods; subclassing it from Rust via `JNIEnv::register_native_methods` is supported by the `jni` crate but fragile across `androidx.biometric` minor versions (the alpha → 1.0 cutover shifted the `AuthenticationResult` constructor signature). A tiny Kotlin adapter (`LfsKeystoreSignCallback`) avoids the moving target — the JVM-side class binds once at compile time and the JNI surface is two `extern "system"` entry points (`nativeOnSigned` / `nativeOnFailed`) the Kotlin overrides invoke.
+
+```mermaid
+flowchart LR
+    UI[KeystoreSshDialog]
+    UI --> FRB[keystore_ssh_generate FRB]
+    FRB --> KOTLIN[KeystoreSshSigner.generate]
+    KOTLIN --> KSGEN[KeyPairGenerator AndroidKeyStore<br/>setUserAuthenticationRequired<br/>setIsStrongBoxBacked]
+    KSGEN --> KSCHIP[(StrongBox HSM or TEE)]
+    KSCHIP --> DB[ssh_keys row<br/>backend=keystore<br/>keystore_alias populated]
+    DB --> SIGN[connect_pubkey_keystore_owned + KeystoreSigner]
+    SIGN --> JNI[JNI: Signature.initSign<br/>BiometricPrompt.CryptoObject]
+    JNI --> PROMPT{BiometricPrompt}
+    PROMPT -- success --> KSSIGN[Signature.sign]
+    PROMPT -- cancel / lockout --> ERR[Error::Keystore]
+    KSSIGN --> WRAP[ssh::wire::ecdsa_der_to_ssh_mpint<br/>ed25519_to_ssh_blob<br/>rsa_pkcs1_v15_to_ssh_blob]
+    WRAP --> SSH[SSH userauth signature]
+```
+
+**Module layout.** Android native bridge: `rust/crates/lfs_os_security/src/android/keystore_signer.rs` (cfg-gated to `target_os = "android"`; mirrors the `biometric.rs` shape with a process-wide pending map keyed on a per-sign `u64`). Kotlin adapter: `android/app/src/main/kotlin/com/llloooggg/letsflutssh/KeystoreSshSigner.kt` (`generate` / `sign` / `delete` static methods called from JNI) + `LfsKeystoreSignCallback.kt` (callback adapter that fires `nativeOnSigned` / `nativeOnFailed`). Signer adapter: `rust/crates/lfs_core/src/ssh/keystore_signer.rs` (`russh::Signer` impl). FRB shim: `rust/crates/lfs_frb/src/api/keystore_ssh.rs`.
+
+**Algorithm matrix.**
+
+| `KeystoreAlgo` | JCA `KeyPairGenerator` | TEE (Android API) | StrongBox (Android API) | SSH wire-name |
+|---|---|---|---|---|
+| `EcdsaP256` | `EC` over `secp256r1`, `DIGEST_SHA256` | API 23+ | API 28+ | `ecdsa-sha2-nistp256` |
+| `Ed25519` | `Ed25519` | API 33+ (KeyMint v2) | **not guaranteed** | `ssh-ed25519` |
+| `Rsa2048` | `RSA` 2048 + `DIGEST_SHA256`, PKCS#1 v1.5 | API 18+ | API 28+ | `rsa-sha2-256` |
+| ~~RSA-3072 / 4096~~ | — | — | **StrongBoxUnavailableException** | — |
+| ~~ECDSA P-384 / P-521~~ | — | API 23+ | **not supported** | — |
+
+EC P-256 is the only uniformly StrongBox-eligible algorithm across the project's min-SDK. RSA-2048 carries the widest TEE compatibility; Ed25519 is TEE-only on Android 13+. The wizard refuses RSA-3072+ and EC P-384+ at the radio level — the StrongBox subset is silent-fail per AOSP `KeyMint`, and offering a weaker-than-TEE fallback would defeat the purpose.
+
+**StrongBox subsetting probe.** `PackageManager.hasSystemFeature(FEATURE_STRONGBOX_KEYSTORE)` reports the device-wide capability. Necessary but not sufficient — the actual `setIsStrongBoxBacked(true)` generate may still throw `StrongBoxUnavailableException` for the chosen algorithm / key size on a firmware update or a vendor-specific subset. The Kotlin layer catches the exception, retries once without the flag, and surfaces `actualStrongBox = false` in the result so the badge label stays honest. The `ssh_keys.keystore_strongbox` column reflects the actual outcome — not the user's toggle.
+
+**Authorisation model — per-op auth via BiometricPrompt CryptoObject.** Every signature must hop through a `BiometricPrompt.CryptoObject(signature)` round trip. The bare `Signature.initSign(privateKey)` call throws `UserNotAuthenticatedException` until the prompt authorises the signature object; on success, `result.cryptoObject.signature.update(data); .sign()` produces the bytes — the signature object inside `result.cryptoObject` is the authorised one. API 30+ uses `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)` for per-op auth (no time window); API 23-29 falls back to the deprecated `setUserAuthenticationValidityDurationSeconds(0)` which still resolves to per-op on every shipped device. The deprecated method is forwarded internally on API 30+ too.
+
+**Enrolment-change invalidation.** `setInvalidatedByBiometricEnrollment(true)` is set at create time: adding / removing / re-enrolling a fingerprint or face destroys the on-chip key. Catch `KeyPermanentlyInvalidatedException` on the next sign and surface `keystoreKeyInvalidatedByEnrollment` so the user re-generates + re-registers the public key on servers. Mirrors Apple's `biometryCurrentSet` ACL — the load-bearing security property that distinguishes hardware-bound keys from a software key sat behind a biometric gate.
+
+**`MainActivity` requirement.** `BiometricPrompt` hosts its UI inside a Fragment; a plain `FlutterActivity` host crashes. `MainActivity extends FlutterFragmentActivity` (`android/app/src/main/kotlin/com/llloooggg/letsflutssh/MainActivity.kt:13`) — already in place for the biometric-unlock vault path; the SSH signer reuses the same capture (`MAIN_ACTIVITY` `OnceLock<GlobalRef>` in `jni_bootstrap`).
+
+**`AndroidManifest.xml::allowBackup` invariant.** `android:allowBackup="false"` (set at line 51 of `android/app/src/main/AndroidManifest.xml`) forces a device transfer / cloud restore to land as a clean install — the AndroidKeyStore alias does not survive the round trip anyway (the chip on the new device is different), but the DB rows must not survive either, otherwise the user lands on a fresh phone with `backend = 'keystore'` rows whose private key is unreachable.
+
+**DB schema (v13).** `ssh_keys` carries four new columns alongside the existing FIDO2 / PKCS#11 / Enclave / Hello / TPM block: `keystore_alias TEXT NULL` (AndroidKeyStore alias the `KeyStore.getEntry(alias, null)` lookup re-binds to on every sign — minted under the `lfs-keystore-` prefix to stay separate from `FlutterSecureStorageKeyAlias_`), `keystore_strongbox INTEGER NOT NULL DEFAULT 0` (`1` when StrongBox actually accepted the request — drives the badge label split), `keystore_user_auth_required INTEGER NOT NULL DEFAULT 0` (`1` for every current Keystore row — the wizard always sets `setUserAuthenticationRequired(true)`; reserved for a future no-auth variant), `keystore_platform TEXT NULL` (capture-time `Build.MODEL` + Android version surfaced in the badge popover). The columns stay NULL / 0 for every non-Keystore row; the v12 → v13 migration arm in `db::bootstrap_schema` lands them via additive ALTERs.
+
+**Signing path.** The signer reads `ssh_keys.keystore_alias`, hands it to `lfs_os_security::android::keystore_signer::sign(alias, algo, data)`, and the JNI bridge fires the BiometricPrompt on the main thread. On `onAuthenticationSucceeded`, the Kotlin side runs `result.cryptoObject.signature.update(data); .sign()` and routes the bytes back through `nativeOnSigned`. The Rust caller wraps via `ssh::wire::ecdsa_der_to_ssh_mpint` (ECDSA P-256 — AndroidKeyStore returns DER `SEQUENCE { INTEGER r, INTEGER s }`), `ssh::wire::ed25519_to_ssh_blob` (Ed25519 — raw 64 bytes), or `ssh::wire::rsa_pkcs1_v15_to_ssh_blob` (RSA-2048 — raw 256-byte block). `KeyPermanentlyInvalidatedException` maps to `Error::Keystore("invalidated: ...")`; `UserNotAuthenticatedException` after BiometricPrompt cooldown maps to `Error::Keystore("user not authenticated: ...")`; BiometricPrompt `ERROR_NEGATIVE_BUTTON` / `ERROR_USER_CANCELED` map to `Error::Keystore("cancelled: ...")`; StrongBox flip-on-us maps to `Error::Keystore("strongbox unavailable: ...")` so the Dart connect dialog routes each path to a distinct toast.
+
+**Capability ladder rendering.**
+
+| State | Rung | Label |
+|---|---|---|
+| StrongBox available + algorithm compatible + biometric enrolled | 3 native impl | "Hardware-backed SSH key (StrongBox HSM)" |
+| TEE only / device-side StrongBox refusal | 3 native impl | "Hardware-backed SSH key (TEE)" — different label, never silently downgrade |
+| User toggled StrongBox + `StrongBoxUnavailableException` (silent retry) | 3 native impl | Result reports `actualStrongBox = false`; badge label flips to TEE so the user sees the actual binding |
+| Biometric not enrolled | 4 honestly hide | Wizard disabled with "Enrol biometric or device PIN first" |
+| Non-Android | 4 honestly hide | Toolbar entry hidden — `Platform.isAndroid` gate at the call site |
+
+**`.lfs` export semantics.** Keystore rows are intrinsically per-device — the AndroidKeyStore alias resolves only on the chip that minted the key. The archive-apply path on the receiving device drops the `keystore_*` columns and lands the row as `backend = 'software'` with an empty `private_key`, mirroring the FIDO2 / PKCS#11 / TPM / Enclave / Hello arms; the receiving user re-generates the key on their own device. The `keystoreKeyExportDisabled` copy surfaces inside the badge popover and the wizard's complete step.
+
+**Agent-endpoint reachability.** The in-process ssh-agent endpoint is `#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]` — Android has no surface to host a Unix-socket agent for system clients (`git`, `ssh`, OpenSSH on a desktop). The `BackendKind::Keystore` arm in `lfs_core::ssh_agent::backends::dispatch_sign_by_kind` surfaces `Error::Keystore("Android Hardware Keystore is reachable only on Android in-app sessions")` to keep the dispatcher's match exhaustive on desktop targets; in practice the listing path filters Keystore rows out before the dispatcher sees them.
+
+**Tests.** Unit tests in `rust/crates/lfs_core/src/ssh/keystore_signer.rs::tests` cover the algorithm round-trip via `from_key_type`, the error mapping, the russh `Algorithm` contract, and the wire-algorithm selection. The agent dispatcher has a `from_row_resolves_keystore_when_backend_is_keystore` test in `rust/crates/lfs_core/src/ssh_agent/backends.rs::tests` plus a `dispatch_keystore_on_desktop_surfaces_unsupported` async test that pins the desktop refusal contract. The v12 → v13 migration hop has its own bootstrap-roundtrip test in `rust/crates/lfs_core/src/db/mod.rs::tests::bootstrap_v12_to_v13_adds_keystore_columns_to_ssh_keys`. The Dart-side wizard test lives in `test/widgets/keystore_ssh_dialog_test.dart` — probe-disabled state, algorithm radio, StrongBox toggle disabled-with-reason on Ed25519, generate calls the FRB backend. End-to-end Keystore generate / sign + BiometricPrompt is the allow-listed "OS-specific capability" exception (no unit test on the bridge side; requires an emulator with biometric enrolled).
+
 #### In-process ssh-agent endpoint
 
 `lfs_core::ssh_agent` exposes our hardware-bound SSH keys (FIDO2 today; PKCS#11 / TPM 2.0 / Apple Secure Enclave / Windows NCrypt / Android Hardware Keystore as those backends land) to every SSH-protocol-speaking application on the same host — `git` in a terminal, OpenSSH `ssh.exe` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+, IDE plugins, CI runners. Without the endpoint the hardware-bound keys we import are reachable only from our own connect path; corporate workflows expect a key on a host to work everywhere on that host. The endpoint is the symmetric counterpart of `connect_default_agent` — that path consumes external agents, this one IS the agent for external clients.

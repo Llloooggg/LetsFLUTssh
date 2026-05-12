@@ -3346,4 +3346,71 @@ class SId extends S {
   @override
   String get tpmSshSilentWarning =>
       'Key ini sign TANPA prompt Hello / PIN — siapa saja yang mengakses desktop saat kamu logged in bisa memakainya.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Generating hardware-bound key...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'Authenticate untuk pakai SSH key';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key dihancurkan: biometric baru ter-enroll. Register ulang public key di server kamu.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM tidak tersedia di device ini';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Wajib biometric / device unlock setiap signature';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Hardware-bound keys tidak bisa di-export';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Menghapus key ini akan mengeluarkannya dari hardware store. Server akan menolak key ini sampai kamu register yang baru.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Enroll biometric atau device PIN dulu';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM tidak tersedia';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Device kamu tidak meng-expose StrongBox HSM. Buat key TEE-backed saja? Tetap hardware-backed, hanya tanpa isolation StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Pakai TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Batal';
 }

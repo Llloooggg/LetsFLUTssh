@@ -5876,6 +5876,126 @@ abstract class S {
   /// In en, this message translates to:
   /// **'This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you\'re logged in can use it.'**
   String get tpmSshSilentWarning;
+
+  /// No description provided for @keystoreWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Android Hardware Key'**
+  String get keystoreWizardTitle;
+
+  /// No description provided for @keystoreBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Android Keystore'**
+  String get keystoreBadge;
+
+  /// No description provided for @keystoreKeyAndroidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Android Keystore (hardware-bound)'**
+  String get keystoreKeyAndroidLabel;
+
+  /// No description provided for @keystoreKeyStrongBoxLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'StrongBox HSM'**
+  String get keystoreKeyStrongBoxLabel;
+
+  /// No description provided for @keystoreKeyTeeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TEE (hardware-backed)'**
+  String get keystoreKeyTeeLabel;
+
+  /// No description provided for @keystoreKeyGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating hardware-bound key...'**
+  String get keystoreKeyGenerating;
+
+  /// No description provided for @keystoreKeyAuthPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to use SSH key'**
+  String get keystoreKeyAuthPrompt;
+
+  /// No description provided for @keystoreKeyInvalidatedByEnrollment.
+  ///
+  /// In en, this message translates to:
+  /// **'Key destroyed: a new biometric was enrolled. Re-register the public key on your servers.'**
+  String get keystoreKeyInvalidatedByEnrollment;
+
+  /// No description provided for @keystoreKeyStrongBoxUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'StrongBox HSM not available on this device'**
+  String get keystoreKeyStrongBoxUnavailable;
+
+  /// No description provided for @keystoreKeyUserAuthRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Require biometric / device unlock for every signature'**
+  String get keystoreKeyUserAuthRequired;
+
+  /// No description provided for @keystoreKeyExportDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound keys cannot be exported'**
+  String get keystoreKeyExportDisabled;
+
+  /// No description provided for @keystoreKeyDeleteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting this key removes it from the hardware store. Servers will reject this key until you register a fresh one.'**
+  String get keystoreKeyDeleteWarning;
+
+  /// No description provided for @keystoreKeyBiometricNotEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrol biometric or device PIN first'**
+  String get keystoreKeyBiometricNotEnrolled;
+
+  /// No description provided for @keystoreAlgEcdsaP256.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA P-256 (StrongBox-eligible)'**
+  String get keystoreAlgEcdsaP256;
+
+  /// No description provided for @keystoreAlgEd25519.
+  ///
+  /// In en, this message translates to:
+  /// **'Ed25519 (Android 13+, TEE only)'**
+  String get keystoreAlgEd25519;
+
+  /// No description provided for @keystoreAlgRsa2048.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA-2048 (widest compatibility)'**
+  String get keystoreAlgRsa2048;
+
+  /// No description provided for @keystoreStrongBoxFallbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'StrongBox HSM unavailable'**
+  String get keystoreStrongBoxFallbackTitle;
+
+  /// No description provided for @keystoreStrongBoxFallbackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device doesn\'t expose the StrongBox HSM. Create a TEE-backed key instead? It\'s still hardware-backed, just without StrongBox isolation.'**
+  String get keystoreStrongBoxFallbackBody;
+
+  /// No description provided for @keystoreStrongBoxFallbackConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Use TEE'**
+  String get keystoreStrongBoxFallbackConfirm;
+
+  /// No description provided for @keystoreStrongBoxFallbackCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get keystoreStrongBoxFallbackCancel;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

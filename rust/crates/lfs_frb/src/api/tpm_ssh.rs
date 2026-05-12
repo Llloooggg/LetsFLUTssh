@@ -381,6 +381,10 @@ async fn persist_row(outcome: GenerateOutcome) -> Result<DbTpmSshImportResult, S
             tpm_provider: Some(columns.tpm_provider),
             tpm_pin_required: columns.tpm_pin_required,
             cng_key_name: columns.cng_key_name,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         };
         lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
     })

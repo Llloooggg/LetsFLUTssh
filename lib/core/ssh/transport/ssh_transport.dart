@@ -233,6 +233,31 @@ class SshAuthPubkeyTpmRef extends SshAuthMethod {
   });
 }
 
+/// Android Hardware Keystore / StrongBox-bound SSH key.
+/// `publicOpenssh` carries the captured `id_*.pub` body the Rust
+/// connect path re-parses to recover the SSH `Algorithm`;
+/// `keystoreAlias` is the AndroidKeyStore alias the
+/// `KeyStore.getEntry(alias, null)` lookup re-binds to on every
+/// sign; `keyType` drives the algorithm selection
+/// (`ecdsa-sha2-nistp256` / `ssh-ed25519` / `rsa-2048`).
+///
+/// No PIN slot — the BiometricPrompt fires at the OS layer inside
+/// `BiometricPrompt.CryptoObject(Signature)` per the auth
+/// requirement set at create time (`setUserAuthenticationRequired(true)`
+/// + `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)`).
+/// Keystore keys cannot leave the chip, so this method only works
+/// on the Android device that generated the key.
+class SshAuthPubkeyKeystoreRef extends SshAuthMethod {
+  final String publicOpenssh;
+  final String keystoreAlias;
+  final String keyType;
+  const SshAuthPubkeyKeystoreRef({
+    required this.publicOpenssh,
+    required this.keystoreAlias,
+    required this.keyType,
+  });
+}
+
 /// PTY-backed interactive shell channel.
 abstract class SshShellChannel {
   /// Stdin: write user keystrokes / pasted bytes.

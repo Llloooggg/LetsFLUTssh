@@ -717,7 +717,7 @@ extension BusConnectAuthRefPatterns on BusConnectAuthRef {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusConnectAuthRef_Password value)?  password,TResult Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( BusConnectAuthRef_PubkeySk value)?  pubkeySk,TResult Function( BusConnectAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult Function( BusConnectAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult Function( BusConnectAuthRef_PubkeyHello value)?  pubkeyHello,TResult Function( BusConnectAuthRef_PubkeyTpm value)?  pubkeyTpm,TResult Function( BusConnectAuthRef_Agent value)?  agent,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusConnectAuthRef_Password value)?  password,TResult Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( BusConnectAuthRef_PubkeySk value)?  pubkeySk,TResult Function( BusConnectAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult Function( BusConnectAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult Function( BusConnectAuthRef_PubkeyHello value)?  pubkeyHello,TResult Function( BusConnectAuthRef_PubkeyTpm value)?  pubkeyTpm,TResult Function( BusConnectAuthRef_PubkeyKeystore value)?  pubkeyKeystore,TResult Function( BusConnectAuthRef_Agent value)?  agent,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
@@ -728,7 +728,8 @@ return pubkeySk(_that);case BusConnectAuthRef_PubkeyPkcs11() when pubkeyPkcs11 !
 return pubkeyPkcs11(_that);case BusConnectAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that);case BusConnectAuthRef_PubkeyHello() when pubkeyHello != null:
 return pubkeyHello(_that);case BusConnectAuthRef_PubkeyTpm() when pubkeyTpm != null:
-return pubkeyTpm(_that);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyTpm(_that);case BusConnectAuthRef_PubkeyKeystore() when pubkeyKeystore != null:
+return pubkeyKeystore(_that);case BusConnectAuthRef_Agent() when agent != null:
 return agent(_that);case _:
   return orElse();
 
@@ -747,7 +748,7 @@ return agent(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusConnectAuthRef_Password value)  password,required TResult Function( BusConnectAuthRef_Pubkey value)  pubkey,required TResult Function( BusConnectAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( BusConnectAuthRef_PubkeySk value)  pubkeySk,required TResult Function( BusConnectAuthRef_PubkeyPkcs11 value)  pubkeyPkcs11,required TResult Function( BusConnectAuthRef_PubkeyEnclave value)  pubkeyEnclave,required TResult Function( BusConnectAuthRef_PubkeyHello value)  pubkeyHello,required TResult Function( BusConnectAuthRef_PubkeyTpm value)  pubkeyTpm,required TResult Function( BusConnectAuthRef_Agent value)  agent,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusConnectAuthRef_Password value)  password,required TResult Function( BusConnectAuthRef_Pubkey value)  pubkey,required TResult Function( BusConnectAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( BusConnectAuthRef_PubkeySk value)  pubkeySk,required TResult Function( BusConnectAuthRef_PubkeyPkcs11 value)  pubkeyPkcs11,required TResult Function( BusConnectAuthRef_PubkeyEnclave value)  pubkeyEnclave,required TResult Function( BusConnectAuthRef_PubkeyHello value)  pubkeyHello,required TResult Function( BusConnectAuthRef_PubkeyTpm value)  pubkeyTpm,required TResult Function( BusConnectAuthRef_PubkeyKeystore value)  pubkeyKeystore,required TResult Function( BusConnectAuthRef_Agent value)  agent,}){
 final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password():
@@ -758,7 +759,8 @@ return pubkeySk(_that);case BusConnectAuthRef_PubkeyPkcs11():
 return pubkeyPkcs11(_that);case BusConnectAuthRef_PubkeyEnclave():
 return pubkeyEnclave(_that);case BusConnectAuthRef_PubkeyHello():
 return pubkeyHello(_that);case BusConnectAuthRef_PubkeyTpm():
-return pubkeyTpm(_that);case BusConnectAuthRef_Agent():
+return pubkeyTpm(_that);case BusConnectAuthRef_PubkeyKeystore():
+return pubkeyKeystore(_that);case BusConnectAuthRef_Agent():
 return agent(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -773,7 +775,7 @@ return agent(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusConnectAuthRef_Password value)?  password,TResult? Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult? Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( BusConnectAuthRef_PubkeySk value)?  pubkeySk,TResult? Function( BusConnectAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult? Function( BusConnectAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult? Function( BusConnectAuthRef_PubkeyHello value)?  pubkeyHello,TResult? Function( BusConnectAuthRef_PubkeyTpm value)?  pubkeyTpm,TResult? Function( BusConnectAuthRef_Agent value)?  agent,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusConnectAuthRef_Password value)?  password,TResult? Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult? Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( BusConnectAuthRef_PubkeySk value)?  pubkeySk,TResult? Function( BusConnectAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult? Function( BusConnectAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult? Function( BusConnectAuthRef_PubkeyHello value)?  pubkeyHello,TResult? Function( BusConnectAuthRef_PubkeyTpm value)?  pubkeyTpm,TResult? Function( BusConnectAuthRef_PubkeyKeystore value)?  pubkeyKeystore,TResult? Function( BusConnectAuthRef_Agent value)?  agent,}){
 final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
@@ -784,7 +786,8 @@ return pubkeySk(_that);case BusConnectAuthRef_PubkeyPkcs11() when pubkeyPkcs11 !
 return pubkeyPkcs11(_that);case BusConnectAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that);case BusConnectAuthRef_PubkeyHello() when pubkeyHello != null:
 return pubkeyHello(_that);case BusConnectAuthRef_PubkeyTpm() when pubkeyTpm != null:
-return pubkeyTpm(_that);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyTpm(_that);case BusConnectAuthRef_PubkeyKeystore() when pubkeyKeystore != null:
+return pubkeyKeystore(_that);case BusConnectAuthRef_Agent() when agent != null:
 return agent(_that);case _:
   return null;
 
@@ -802,7 +805,7 @@ return agent(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)?  pubkeySk,TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,TResult Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)?  pubkeyTpm,TResult Function()?  agent,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)?  pubkeySk,TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,TResult Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)?  pubkeyTpm,TResult Function( String publicOpenssh,  String keystoreAlias,  String keyType)?  pubkeyKeystore,TResult Function()?  agent,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
 return password(_that.secretId);case BusConnectAuthRef_Pubkey() when pubkey != null:
@@ -812,7 +815,8 @@ return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.p
 return pubkeyPkcs11(_that.publicOpenssh,_that.modulePath,_that.tokenSerial,_that.ckaId,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that.publicOpenssh,_that.applicationTag);case BusConnectAuthRef_PubkeyHello() when pubkeyHello != null:
 return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case BusConnectAuthRef_PubkeyTpm() when pubkeyTpm != null:
-return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_PubkeyKeystore() when pubkeyKeystore != null:
+return pubkeyKeystore(_that.publicOpenssh,_that.keystoreAlias,_that.keyType);case BusConnectAuthRef_Agent() when agent != null:
 return agent();case _:
   return orElse();
 
@@ -831,7 +835,7 @@ return agent();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)  pubkeySk,required TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)  pubkeyPkcs11,required TResult Function( String publicOpenssh,  Uint8List applicationTag)  pubkeyEnclave,required TResult Function( String publicOpenssh,  String credentialName,  String keyType)  pubkeyHello,required TResult Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)  pubkeyTpm,required TResult Function()  agent,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)  pubkeySk,required TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)  pubkeyPkcs11,required TResult Function( String publicOpenssh,  Uint8List applicationTag)  pubkeyEnclave,required TResult Function( String publicOpenssh,  String credentialName,  String keyType)  pubkeyHello,required TResult Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)  pubkeyTpm,required TResult Function( String publicOpenssh,  String keystoreAlias,  String keyType)  pubkeyKeystore,required TResult Function()  agent,}) {final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password():
 return password(_that.secretId);case BusConnectAuthRef_Pubkey():
@@ -841,7 +845,8 @@ return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.p
 return pubkeyPkcs11(_that.publicOpenssh,_that.modulePath,_that.tokenSerial,_that.ckaId,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_PubkeyEnclave():
 return pubkeyEnclave(_that.publicOpenssh,_that.applicationTag);case BusConnectAuthRef_PubkeyHello():
 return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case BusConnectAuthRef_PubkeyTpm():
-return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_Agent():
+return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_PubkeyKeystore():
+return pubkeyKeystore(_that.publicOpenssh,_that.keystoreAlias,_that.keyType);case BusConnectAuthRef_Agent():
 return agent();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -856,7 +861,7 @@ return agent();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)?  pubkeySk,TResult? Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult? Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult? Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,TResult? Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)?  pubkeyTpm,TResult? Function()?  agent,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)?  pubkeySk,TResult? Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult? Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult? Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,TResult? Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)?  pubkeyTpm,TResult? Function( String publicOpenssh,  String keystoreAlias,  String keyType)?  pubkeyKeystore,TResult? Function()?  agent,}) {final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
 return password(_that.secretId);case BusConnectAuthRef_Pubkey() when pubkey != null:
@@ -866,7 +871,8 @@ return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.p
 return pubkeyPkcs11(_that.publicOpenssh,_that.modulePath,_that.tokenSerial,_that.ckaId,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that.publicOpenssh,_that.applicationTag);case BusConnectAuthRef_PubkeyHello() when pubkeyHello != null:
 return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case BusConnectAuthRef_PubkeyTpm() when pubkeyTpm != null:
-return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case BusConnectAuthRef_PubkeyKeystore() when pubkeyKeystore != null:
+return pubkeyKeystore(_that.publicOpenssh,_that.keystoreAlias,_that.keyType);case BusConnectAuthRef_Agent() when agent != null:
 return agent();case _:
   return null;
 
@@ -1435,6 +1441,76 @@ as Uint8List?,cngKeyName: freezed == cngKeyName ? _self.cngKeyName : cngKeyName 
 as String?,keyType: null == keyType ? _self.keyType : keyType // ignore: cast_nullable_to_non_nullable
 as String,pinSecretId: freezed == pinSecretId ? _self.pinSecretId : pinSecretId // ignore: cast_nullable_to_non_nullable
 as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusConnectAuthRef_PubkeyKeystore extends BusConnectAuthRef {
+  const BusConnectAuthRef_PubkeyKeystore({required this.publicOpenssh, required this.keystoreAlias, required this.keyType}): super._();
+  
+
+ final  String publicOpenssh;
+ final  String keystoreAlias;
+ final  String keyType;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusConnectAuthRef_PubkeyKeystoreCopyWith<BusConnectAuthRef_PubkeyKeystore> get copyWith => _$BusConnectAuthRef_PubkeyKeystoreCopyWithImpl<BusConnectAuthRef_PubkeyKeystore>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef_PubkeyKeystore&&(identical(other.publicOpenssh, publicOpenssh) || other.publicOpenssh == publicOpenssh)&&(identical(other.keystoreAlias, keystoreAlias) || other.keystoreAlias == keystoreAlias)&&(identical(other.keyType, keyType) || other.keyType == keyType));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,publicOpenssh,keystoreAlias,keyType);
+
+@override
+String toString() {
+  return 'BusConnectAuthRef.pubkeyKeystore(publicOpenssh: $publicOpenssh, keystoreAlias: $keystoreAlias, keyType: $keyType)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusConnectAuthRef_PubkeyKeystoreCopyWith<$Res> implements $BusConnectAuthRefCopyWith<$Res> {
+  factory $BusConnectAuthRef_PubkeyKeystoreCopyWith(BusConnectAuthRef_PubkeyKeystore value, $Res Function(BusConnectAuthRef_PubkeyKeystore) _then) = _$BusConnectAuthRef_PubkeyKeystoreCopyWithImpl;
+@useResult
+$Res call({
+ String publicOpenssh, String keystoreAlias, String keyType
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusConnectAuthRef_PubkeyKeystoreCopyWithImpl<$Res>
+    implements $BusConnectAuthRef_PubkeyKeystoreCopyWith<$Res> {
+  _$BusConnectAuthRef_PubkeyKeystoreCopyWithImpl(this._self, this._then);
+
+  final BusConnectAuthRef_PubkeyKeystore _self;
+  final $Res Function(BusConnectAuthRef_PubkeyKeystore) _then;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? publicOpenssh = null,Object? keystoreAlias = null,Object? keyType = null,}) {
+  return _then(BusConnectAuthRef_PubkeyKeystore(
+publicOpenssh: null == publicOpenssh ? _self.publicOpenssh : publicOpenssh // ignore: cast_nullable_to_non_nullable
+as String,keystoreAlias: null == keystoreAlias ? _self.keystoreAlias : keystoreAlias // ignore: cast_nullable_to_non_nullable
+as String,keyType: null == keyType ? _self.keyType : keyType // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

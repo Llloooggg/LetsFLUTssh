@@ -1813,5 +1813,25 @@
     }
   },
   "tpmSshBadge": "TPM 2.0",
-  "tpmSshSilentWarning": "This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you're logged in can use it."
+  "tpmSshSilentWarning": "This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you're logged in can use it.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Generating hardware-bound key...",
+  "keystoreKeyAuthPrompt": "Authenticate to use SSH key",
+  "keystoreKeyInvalidatedByEnrollment": "Key destroyed: a new biometric was enrolled. Re-register the public key on your servers.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM not available on this device",
+  "keystoreKeyUserAuthRequired": "Require biometric / device unlock for every signature",
+  "keystoreKeyExportDisabled": "Hardware-bound keys cannot be exported",
+  "keystoreKeyDeleteWarning": "Deleting this key removes it from the hardware store. Servers will reject this key until you register a fresh one.",
+  "keystoreKeyBiometricNotEnrolled": "Enrol biometric or device PIN first",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE only)",
+  "keystoreAlgRsa2048": "RSA-2048 (widest compatibility)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM unavailable",
+  "keystoreStrongBoxFallbackBody": "Your device doesn't expose the StrongBox HSM. Create a TEE-backed key instead? It's still hardware-backed, just without StrongBox isolation.",
+  "keystoreStrongBoxFallbackConfirm": "Use TEE",
+  "keystoreStrongBoxFallbackCancel": "Cancel"
 }

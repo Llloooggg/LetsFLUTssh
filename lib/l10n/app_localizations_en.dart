@@ -3382,4 +3382,71 @@ class SEn extends S {
   @override
   String get tpmSshSilentWarning =>
       'This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you\'re logged in can use it.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Generating hardware-bound key...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'Authenticate to use SSH key';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key destroyed: a new biometric was enrolled. Re-register the public key on your servers.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM not available on this device';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Require biometric / device unlock for every signature';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Hardware-bound keys cannot be exported';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Deleting this key removes it from the hardware store. Servers will reject this key until you register a fresh one.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Enrol biometric or device PIN first';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM unavailable';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Your device doesn\'t expose the StrongBox HSM. Create a TEE-backed key instead? It\'s still hardware-backed, just without StrongBox isolation.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Use TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Cancel';
 }

@@ -455,7 +455,22 @@ impl Db {
 /// prefix instead so `NCryptEnumKeys` can route by prefix). Every
 /// new column is NULL/0 on existing rows and populated only when
 /// `backend = 'tpm'`.
-pub const SCHEMA_VERSION: i32 = 12;
+/// v13 adds the Android Hardware Keystore / StrongBox column block
+/// on `ssh_keys`: `keystore_alias` (TEXT NULL — AndroidKeyStore
+/// alias the `KeyStore.getEntry(alias, null)` lookup re-binds to on
+/// every sign; minted under the `lfs-keystore-` prefix to stay
+/// separate from the wrapping-key namespace the secure-storage
+/// path already owns), `keystore_strongbox` (INTEGER NOT NULL
+/// DEFAULT 0 — `1` when `setIsStrongBoxBacked(true)` was accepted
+/// by the device, `0` for TEE-only rows), `keystore_user_auth_required`
+/// (INTEGER NOT NULL DEFAULT 0 — `1` when the row was minted with
+/// `setUserAuthenticationRequired(true)` so every sign must hop
+/// through `BiometricPrompt.CryptoObject`; `0` reserved for a
+/// future no-auth variant), `keystore_platform` (TEXT NULL —
+/// capture-time `Build.MODEL` + Android version string, surfaced
+/// read-only in the badge popover). Every new column is NULL/0 on
+/// existing rows and populated only when `backend = 'keystore'`.
+pub const SCHEMA_VERSION: i32 = 13;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -589,6 +604,15 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // `SCHEMA_SQL` and skip this arm.
         if (1..12).contains(&current) {
             add_ssh_keys_tpm_columns(conn)?;
+        }
+        // v1..v12 -> v13: stamp the Android Hardware Keystore /
+        // StrongBox column block on `ssh_keys`. Existing rows
+        // backfill to NULL / 0 / 0 / NULL — only
+        // `backend = 'keystore'` rows ever set them. Fresh installs
+        // (`current == 0`) get the columns from `SCHEMA_SQL` and
+        // skip this arm.
+        if (1..13).contains(&current) {
+            add_ssh_keys_keystore_columns(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -818,6 +842,33 @@ fn add_ssh_keys_tpm_columns(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys tpm cols: {e}")))
 }
 
+/// Issue the v12 -> v13 column block: the four Android Hardware
+/// Keystore / StrongBox ingredient columns on `ssh_keys`. Same shape
+/// contract as the older ALTER helpers: a one-shot batch gated by
+/// the version range inside `bootstrap_schema`, with SQLite's
+/// duplicate-column-name error reserved for the re-run case which
+/// the gate prevents. Fresh installs (`current == 0`) get the
+/// columns from `SCHEMA_SQL`.
+///
+/// `keystore_alias` carries the AndroidKeyStore alias the
+/// `KeyStore.getEntry(alias, null)` lookup re-binds to on every
+/// sign; `keystore_strongbox` flips to `1` when the row landed in
+/// StrongBox (so the badge can render "StrongBox HSM" vs "TEE");
+/// `keystore_user_auth_required` flips to `1` for keys minted with
+/// `setUserAuthenticationRequired(true)` (every Keystore row today);
+/// `keystore_platform` captures `Build.MODEL` + Android version so
+/// the badge popover can identify the source device.
+fn add_ssh_keys_keystore_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN keystore_alias TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN keystore_strongbox INTEGER NOT NULL DEFAULT 0; \
+             ALTER TABLE ssh_keys ADD COLUMN keystore_user_auth_required INTEGER NOT NULL DEFAULT 0; \
+             ALTER TABLE ssh_keys ADD COLUMN keystore_platform TEXT NULL;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys keystore cols: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -899,13 +950,31 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     tpm_handle INTEGER NULL,
     tpm_provider TEXT NULL,
     tpm_pin_required INTEGER NOT NULL DEFAULT 0,
-    cng_key_name TEXT NULL
+    cng_key_name TEXT NULL,
+    keystore_alias TEXT NULL,
+    keystore_strongbox INTEGER NOT NULL DEFAULT 0,
+    keystore_user_auth_required INTEGER NOT NULL DEFAULT 0,
+    keystore_platform TEXT NULL
 );
+-- Android Hardware Keystore / StrongBox ingredients (v13).
+-- Populated only when `backend = 'keystore'`. `keystore_alias` is
+-- the AndroidKeyStore alias the `KeyStore.getEntry(alias, null)`
+-- lookup re-binds to on every sign (`lfs-keystore-` prefix to stay
+-- separate from `FlutterSecureStorageKeyAlias_`).
+-- `keystore_strongbox` flips to 1 when `setIsStrongBoxBacked(true)`
+-- was accepted; 0 for TEE-only rows so the badge label split
+-- (StrongBox HSM vs TEE) is honest. `keystore_user_auth_required`
+-- is 1 for every Keystore row today (the wizard always sets
+-- `setUserAuthenticationRequired(true)`); reserved as a column so
+-- a future no-auth variant lands without a schema bump.
+-- `keystore_platform` carries Build.MODEL + Android version,
+-- surfaced read-only in the badge popover.
 -- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
 -- pkcs11 columns populated for backend = pkcs11 rows only.
 -- enclave_tag populated for backend = enclave rows only.
 -- hello_credential_name populated for backend = hello rows only.
 -- tpm_* / cng_key_name populated for backend = tpm rows only.
+-- keystore_* populated for backend = keystore rows only.
 -- See ARCHITECTURE.md schema docs for full notes.
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
@@ -1234,6 +1303,10 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
                  ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
                  ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
                  ",
             )
             .unwrap();
@@ -1306,6 +1379,10 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
                  ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
                  ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
                  ",
             )
             .unwrap();
@@ -1361,6 +1438,10 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
                  ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
                  ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
                  ",
             )
             .unwrap();
@@ -1432,6 +1513,10 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
                  ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
                  ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
                  ",
             )
             .unwrap();
@@ -1742,6 +1827,83 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v12 → v13 upgrade hop. A database stamped at v12 with the
+    /// pre-v13 ssh_keys shape (no `keystore_*` columns) must pick
+    /// the four columns up on bootstrap. Idempotent re-run is the
+    /// load-bearing invariant — the helper is gated behind a
+    /// `(1..13).contains(&current)` arm so the second bootstrap is
+    /// a no-op.
+    #[test]
+    fn bootstrap_v12_to_v13_adds_keystore_columns_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Strip the v13 columns to mimic a v12 install. DROP COLUMN
+        // is available on the SQLCipher 4.x build (sqlite3 >= 3.35.0).
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_alias;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_platform;")
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v13', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 12)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "keystore_alias",
+            "keystore_strongbox",
+            "keystore_user_auth_required",
+            "keystore_platform",
+        ] {
+            assert!(
+                seen.contains(col),
+                "ssh_keys.{col} missing after v12 -> v13 upgrade"
+            );
+        }
+
+        // Pre-existing non-keystore row keeps the schema defaults —
+        // NULL for the two string columns and 0 for the two boolean
+        // columns.
+        let strongbox: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT keystore_strongbox FROM ssh_keys WHERE id = 'pre-v13'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(strongbox, 0, "non-keystore row must keep 0 default");
+
+        // Idempotent re-run — second bootstrap is a no-op.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1780,6 +1942,10 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
                  ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
                  ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
                  ",
             )
             .unwrap();
@@ -1842,6 +2008,10 @@ mod tests {
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

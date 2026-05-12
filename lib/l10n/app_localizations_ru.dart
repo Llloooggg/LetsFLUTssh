@@ -3368,4 +3368,72 @@ class SRu extends S {
   @override
   String get tpmSshSilentWarning =>
       'Ключ подписывает БЕЗ запроса Hello / PIN — пока вы залогинены, любой с доступом к рабочему столу сможет им подписать.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (аппаратная привязка)';
+
+  @override
+  String get keystoreKeyGenerating => 'Генерируется аппаратный ключ...';
+
+  @override
+  String get keystoreKeyAuthPrompt =>
+      'Подтвердите личность для использования SSH-ключа';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Ключ уничтожен: добавлен новый биометрический шаблон. Зарегистрируйте новый публичный ключ на серверах.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM недоступен на этом устройстве';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Требовать биометрию / разблокировку устройства для каждой подписи';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Аппаратные ключи нельзя экспортировать';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Удаление ключа сотрёт его из аппаратного хранилища. Серверы будут отклонять этот ключ, пока вы не зарегистрируете новый.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Сначала настройте биометрию или PIN устройства';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (поддерживает StrongBox)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, только TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (максимальная совместимость)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM недоступен';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Устройство не отдаёт StrongBox HSM. Создать вместо этого ключ с привязкой к TEE? Аппаратная привязка останется, только без изоляции StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Использовать TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Отмена';
 }

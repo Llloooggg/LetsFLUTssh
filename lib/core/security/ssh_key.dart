@@ -292,6 +292,26 @@ class SshKeyMetadata {
   /// Linux TPM rows and every non-TPM backend.
   final String? cngKeyName;
 
+  /// Android Hardware Keystore alias for `backend = 'keystore'`
+  /// rows. The full alias renders inside the [KeystoreBadge] info
+  /// popover; the row label stays user-typed. `null` for every
+  /// non-Keystore backend.
+  final String? keystoreAlias;
+
+  /// `true` when the Keystore row's hardware key landed in StrongBox
+  /// HSM at create time, `false` for TEE-only rows. Drives the badge
+  /// label split (`StrongBox HSM` vs `TEE`).
+  final bool keystoreStrongBox;
+
+  /// `true` when every signature requires BiometricPrompt — the
+  /// only mode the current wizard mints. Reserved for a future
+  /// no-auth variant.
+  final bool keystoreUserAuthRequired;
+
+  /// Capture-time `Build.MODEL` + Android version (e.g.
+  /// `"Pixel 8 (Android 14)"`). Surfaced inside the badge popover.
+  final String? keystorePlatform;
+
   const SshKeyMetadata({
     required this.id,
     required this.label,
@@ -314,6 +334,10 @@ class SshKeyMetadata {
     this.tpmProvider,
     this.tpmPinRequired = false,
     this.cngKeyName,
+    this.keystoreAlias,
+    this.keystoreStrongBox = false,
+    this.keystoreUserAuthRequired = false,
+    this.keystorePlatform,
   });
 
   bool get hasCertificate => certFingerprint.isNotEmpty;
@@ -343,6 +367,11 @@ class SshKeyMetadata {
   /// SSH key (Linux ESAPI driver or Windows PCP silent variant).
   /// Drives the [TpmBadge] selection in the key-manager list.
   bool get isTpm => backend == 'tpm';
+
+  /// True when the row's `backend` discriminator names an Android
+  /// Hardware Keystore / StrongBox key. Drives the [KeystoreBadge]
+  /// selection in the key-manager list.
+  bool get isKeystore => backend == 'keystore';
 }
 
 /// Thrown when key store operations fail.

@@ -3334,4 +3334,72 @@ class SFa extends S {
   @override
   String get tpmSshSilentWarning =>
       'این کلید بدون درخواست Hello / PIN امضا می‌کند — هر کسی که در زمان ورود شما به دسکتاپ دسترسی دارد می‌تواند از آن استفاده کند.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (سخت‌افزاری)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (پشتیبانی سخت‌افزاری)';
+
+  @override
+  String get keystoreKeyGenerating => 'در حال ساخت کلید سخت‌افزاری...';
+
+  @override
+  String get keystoreKeyAuthPrompt =>
+      'برای استفاده از کلید SSH احراز هویت کنید';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'کلید نابود شد: بیومتریک جدیدی ثبت شده است. کلید عمومی را روی سرورها دوباره ثبت کنید.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM روی این دستگاه در دسترس نیست';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'برای هر امضا بیومتریک / باز کردن قفل دستگاه را الزامی کن';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'کلیدهای سخت‌افزاری قابل خروجی گرفتن نیستند';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'حذف این کلید آن را از مخزن سخت‌افزاری پاک می‌کند. سرورها این کلید را رد می‌کنند تا یک کلید جدید ثبت کنید.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'ابتدا بیومتریک یا PIN دستگاه را تنظیم کنید';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (سازگار با StrongBox)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+، فقط TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (بیشترین سازگاری)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM در دسترس نیست';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'دستگاه شما StrongBox HSM را در دسترس نمی‌گذارد. به‌جای آن یک کلید مبتنی بر TEE ساخته شود؟ همچنان hardware-backed است، فقط بدون ایزولاسیون StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'استفاده از TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'لغو';
 }

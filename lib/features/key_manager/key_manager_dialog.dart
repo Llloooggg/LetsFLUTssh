@@ -32,6 +32,7 @@ import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/enclave_ssh_dialog.dart';
 import '../../widgets/hello_ssh_dialog.dart';
+import '../../widgets/keystore_ssh_dialog.dart';
 import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/tpm_ssh_dialog.dart';
@@ -233,6 +234,18 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               onTap: _importTpmBlob,
             ),
         ],
+        // Android Hardware Keystore / StrongBox generate.
+        // Capability-ladder rung 3 on Android (native AndroidKeyStore
+        // JNI); rung 4 elsewhere — the underlying KeyStore provider
+        // exists only on Android and the toolbar entry stays hidden
+        // on every other platform.
+        if (Platform.isAndroid)
+          _ToolbarButton(
+            icon: Icons.security,
+            label: s.keystoreWizardTitle,
+            tooltip: s.keystoreWizardTitle,
+            onTap: _generateKeystoreKey,
+          ),
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -278,6 +291,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final isEnclave = entry.isEnclave;
     final isHello = entry.isHello;
     final isTpm = entry.isTpm;
+    final isKeystore = entry.isKeystore;
     final iconData = isFido2
         ? Icons.usb
         : (isPkcs11
@@ -286,7 +300,11 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
                     ? Icons.shield_outlined
                     : (isHello
                           ? Icons.shield_outlined
-                          : (isTpm ? Icons.memory : Icons.vpn_key))));
+                          : (isTpm
+                                ? Icons.memory
+                                : (isKeystore
+                                      ? Icons.security
+                                      : Icons.vpn_key)))));
     return AppDataRow(
       icon: iconData,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
@@ -338,6 +356,15 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               // popover. Linux rows do not have a Hello-prompt
               // analogue so the warning is Windows-specific.
               silent: entry.tpmProvider == 'cng-pcp',
+            ),
+          ),
+        if (isKeystore)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: KeystoreBadge(
+              label: s.keystoreBadge,
+              strongbox: entry.keystoreStrongBox,
+              platform: entry.keystorePlatform,
             ),
           ),
         if (expired)
@@ -950,6 +977,40 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     } catch (e) {
       AppLogger.instance.log(
         'tpm wizard failed: $e',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(s, e),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+    if (result == null || !mounted) return;
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
+    if (!mounted) return;
+    Toast.show(
+      context,
+      message: s.keyImported(result.label),
+      level: ToastLevel.success,
+    );
+  }
+
+  /// Opens [KeystoreSshDialog] which probes biometric / StrongBox
+  /// capability, mints a fresh AndroidKeyStore-bound SSH key, and
+  /// surfaces the `authorized_keys` line for paste. Android only —
+  /// the toolbar entry hides on every other platform.
+  Future<void> _generateKeystoreKey() async {
+    final s = S.of(context);
+    final KeystoreSshResult? result;
+    try {
+      result = await KeystoreSshDialog.show(context);
+    } catch (e) {
+      AppLogger.instance.log(
+        'keystore wizard failed: $e',
         name: 'KeyManager',
         error: e,
       );

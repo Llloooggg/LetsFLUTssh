@@ -152,6 +152,20 @@ pub enum PreparedAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Android Hardware Keystore / StrongBox SSH key resolved from
+    /// the manager. `keystore_alias` is the AndroidKeyStore alias
+    /// captured at create time and persisted on
+    /// `ssh_keys.keystore_alias`. `key_type` drives the SSH wire-name
+    /// selection (`ecdsa-sha2-nistp256` / `ssh-ed25519` / `rsa-2048`).
+    /// No PIN slot — the per-op authorisation hops through
+    /// `BiometricPrompt.CryptoObject` at the OS layer inside the
+    /// signer (`UserNotAuthenticatedException` on the bare
+    /// `Signature.initSign` triggers the prompt).
+    PubkeyKeystore {
+        public_openssh: String,
+        keystore_alias: String,
+        key_type: String,
+    },
 }
 
 /// Aggregated output. `auth` carries the ref the connect actor
@@ -283,6 +297,27 @@ pub fn prepare_auth(
                         cng_key_name: row.cng_key_name.clone(),
                         key_type: row.key_type.clone(),
                         pin_secret_id,
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
+            // Android Hardware Keystore sub-branch — `private_key` is
+            // empty by design (the AndroidKeyStore holds the key);
+            // every sign hops through
+            // `Session::connect_pubkey_keystore_owned` which fires
+            // `BiometricPrompt.CryptoObject` for the per-op auth.
+            // No Dart-side PIN staging — the OS handles its own
+            // biometric / device-unlock prompt inside the signer.
+            if row.backend == ssh_keys::KeyBackend::Keystore {
+                let keystore_alias = row
+                    .keystore_alias
+                    .clone()
+                    .ok_or_else(|| Error::Auth("keystore row missing keystore_alias".into()))?;
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::PubkeyKeystore {
+                        public_openssh: row.public_key.clone(),
+                        keystore_alias,
+                        key_type: row.key_type.clone(),
                     },
                     transient_secret_ids: transients,
                 });

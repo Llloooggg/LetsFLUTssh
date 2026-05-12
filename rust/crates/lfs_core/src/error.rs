@@ -187,6 +187,20 @@ pub enum Error {
     #[error("tpm-ssh: {0}")]
     Tpm(String),
 
+    /// Android Hardware Keystore / StrongBox SSH-signer failures
+    /// surfaced by `lfs_os_security::android::keystore_signer` — no
+    /// biometric enrolled, key invalidated by a fresh enrolment
+    /// (`KeyPermanentlyInvalidatedException`), StrongBox refused
+    /// (`StrongBoxUnavailableException`), per-op auth window expired
+    /// (`UserNotAuthenticatedException`) after a `BiometricPrompt`
+    /// dismissal, generic JNI failure. Carved out of `Io` /
+    /// `Platform` so the Dart connect / wizard dialog can route an
+    /// `invalidated:` reason ("re-register the public key on your
+    /// servers") differently from a `strongbox unavailable:`
+    /// fallback choice and a `cancelled:` retry.
+    #[error("keystore: {0}")]
+    Keystore(String),
+
     #[error("timeout")]
     Timeout,
 

@@ -196,6 +196,21 @@ pub enum ConnectAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Android Hardware Keystore / StrongBox-bound SSH key.
+    /// `keystore_alias` is the AndroidKeyStore alias persisted on
+    /// `ssh_keys.keystore_alias`; `key_type` drives the algorithm
+    /// bag (`ecdsa-sha2-nistp256` / `ssh-ed25519` / `rsa-2048`). No
+    /// PIN slot — `BiometricPrompt.CryptoObject` fires inside
+    /// `Session::connect_pubkey_keystore_owned` per the auth
+    /// requirement set at create time. Reaches
+    /// `Session::connect_pubkey_keystore_owned` on dispatch
+    /// (Android-only — desktop targets surface a typed
+    /// `Error::Unsupported`).
+    PubkeyKeystore {
+        public_openssh: String,
+        keystore_alias: String,
+        key_type: String,
+    },
     Agent,
 }
 
@@ -1121,6 +1136,27 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         }
         (ConnectAuthRef::PubkeyTpm { .. }, Some(_parent)) => Err(Error::Auth(
             "TPM 2.0 hardware key over ProxyJump is not supported yet".into(),
+        )),
+        (
+            ConnectAuthRef::PubkeyKeystore {
+                public_openssh,
+                keystore_alias,
+                key_type,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_keystore_owned(crate::ssh::ConnectPubkeyKeystoreOwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                keystore_alias,
+                key_type,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeyKeystore { .. }, Some(_parent)) => Err(Error::Auth(
+            "Android Hardware Keystore over ProxyJump is not supported yet".into(),
         )),
         (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
         (ConnectAuthRef::Agent, Some(parent)) => {

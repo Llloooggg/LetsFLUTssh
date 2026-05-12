@@ -1244,6 +1244,30 @@ class DbSshKey {
   /// and every non-TPM backend.
   final String? cngKeyName;
 
+  /// Android Hardware Keystore alias (schema v13). UTF-8 string
+  /// the `KeyStore.getEntry(alias, null)` lookup re-binds to on
+  /// every sign. Only populated for `backend = 'keystore'` rows
+  /// on Android. `None` everywhere else.
+  final String? keystoreAlias;
+
+  /// `true` when the row landed in StrongBox HSM (rather than
+  /// TEE) at create time. `false` for TEE-only rows and every
+  /// non-Keystore backend. Drives the badge label split
+  /// ("StrongBox HSM" vs "TEE").
+  final bool keystoreStrongbox;
+
+  /// `true` when the row requires biometric / device-unlock auth
+  /// on every sign — always `true` for the current Keystore
+  /// wizard. Reserved as a column so a future no-auth variant
+  /// lands without a schema bump.
+  final bool keystoreUserAuthRequired;
+
+  /// `Build.MODEL` + Android version captured at create time,
+  /// e.g. `"Pixel 8 (Android 14)"`. Surfaced read-only in the
+  /// badge popover so multi-device users can identify which
+  /// phone holds the key. `None` for non-Keystore rows.
+  final String? keystorePlatform;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1269,6 +1293,10 @@ class DbSshKey {
     this.tpmProvider,
     required this.tpmPinRequired,
     this.cngKeyName,
+    this.keystoreAlias,
+    required this.keystoreStrongbox,
+    required this.keystoreUserAuthRequired,
+    this.keystorePlatform,
   });
 
   @override
@@ -1296,7 +1324,11 @@ class DbSshKey {
       tpmHandle.hashCode ^
       tpmProvider.hashCode ^
       tpmPinRequired.hashCode ^
-      cngKeyName.hashCode;
+      cngKeyName.hashCode ^
+      keystoreAlias.hashCode ^
+      keystoreStrongbox.hashCode ^
+      keystoreUserAuthRequired.hashCode ^
+      keystorePlatform.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1326,7 +1358,11 @@ class DbSshKey {
           tpmHandle == other.tpmHandle &&
           tpmProvider == other.tpmProvider &&
           tpmPinRequired == other.tpmPinRequired &&
-          cngKeyName == other.cngKeyName;
+          cngKeyName == other.cngKeyName &&
+          keystoreAlias == other.keystoreAlias &&
+          keystoreStrongbox == other.keystoreStrongbox &&
+          keystoreUserAuthRequired == other.keystoreUserAuthRequired &&
+          keystorePlatform == other.keystorePlatform;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
@@ -1426,6 +1462,21 @@ class DbSshKeyMetadata {
   final bool tpmPinRequired;
   final String? cngKeyName;
 
+  /// Android Hardware Keystore ingredients (schema v13). Surfaced
+  /// for the `KeystoreBadge` info popover; the private key material
+  /// itself lives in the AndroidKeyStore TEE / StrongBox and never
+  /// reaches Dart. `keystore_alias` re-binds the key on every sign;
+  /// `keystore_strongbox` splits the badge label (`StrongBox HSM` vs
+  /// `TEE`); `keystore_user_auth_required` is `true` for every
+  /// current Keystore row; `keystore_platform` carries the
+  /// capture-time `Build.MODEL` + Android version so users on
+  /// multi-device deployments can identify which phone holds the
+  /// key.
+  final String? keystoreAlias;
+  final bool keystoreStrongbox;
+  final bool keystoreUserAuthRequired;
+  final String? keystorePlatform;
+
   const DbSshKeyMetadata({
     required this.id,
     required this.label,
@@ -1444,6 +1495,10 @@ class DbSshKeyMetadata {
     this.tpmProvider,
     required this.tpmPinRequired,
     this.cngKeyName,
+    this.keystoreAlias,
+    required this.keystoreStrongbox,
+    required this.keystoreUserAuthRequired,
+    this.keystorePlatform,
   });
 
   @override
@@ -1464,7 +1519,11 @@ class DbSshKeyMetadata {
       tpmHandle.hashCode ^
       tpmProvider.hashCode ^
       tpmPinRequired.hashCode ^
-      cngKeyName.hashCode;
+      cngKeyName.hashCode ^
+      keystoreAlias.hashCode ^
+      keystoreStrongbox.hashCode ^
+      keystoreUserAuthRequired.hashCode ^
+      keystorePlatform.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1487,7 +1546,11 @@ class DbSshKeyMetadata {
           tpmHandle == other.tpmHandle &&
           tpmProvider == other.tpmProvider &&
           tpmPinRequired == other.tpmPinRequired &&
-          cngKeyName == other.cngKeyName;
+          cngKeyName == other.cngKeyName &&
+          keystoreAlias == other.keystoreAlias &&
+          keystoreStrongbox == other.keystoreStrongbox &&
+          keystoreUserAuthRequired == other.keystoreUserAuthRequired &&
+          keystorePlatform == other.keystorePlatform;
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.

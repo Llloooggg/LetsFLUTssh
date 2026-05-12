@@ -3264,4 +3264,68 @@ class SJa extends S {
   @override
   String get tpmSshSilentWarning =>
       'このキーは Hello / PIN プロンプトなしで署名します — ログイン中にデスクトップへアクセスできる人なら誰でも使えてしまいます。';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (ハードウェアバインド)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (ハードウェアバックド)';
+
+  @override
+  String get keystoreKeyGenerating => 'ハードウェアバインドキーを生成中...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'SSH キーを使うため認証してください';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'キーが破棄されました: 新しい生体情報が登録されました。サーバーで公開鍵を再登録してください。';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'このデバイスでは StrongBox HSM を利用できません';
+
+  @override
+  String get keystoreKeyUserAuthRequired => '署名ごとに生体認証 / デバイスロック解除を要求';
+
+  @override
+  String get keystoreKeyExportDisabled => 'ハードウェアバインドキーはエクスポートできません';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'このキーを削除するとハードウェアストアから消えます。新しく登録するまでサーバーは拒否します。';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled => '先に生体認証またはデバイス PIN を登録してください';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox 対応)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE のみ)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (最大互換)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM が利用不可';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'このデバイスは StrongBox HSM を公開していません。代わりに TEE 裏付けのキーを作成しますか？ハードウェア裏付けは維持されますが、StrongBox の分離はありません。';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE を使う';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'キャンセル';
 }

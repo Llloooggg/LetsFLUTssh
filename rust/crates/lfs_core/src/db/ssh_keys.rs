@@ -126,6 +126,36 @@ pub struct SshKeyRow {
     /// keys when `NCryptEnumKeys` walks the provider. `None` for
     /// Linux TPM keys and every non-TPM backend.
     pub cng_key_name: Option<String>,
+    /// Android Hardware Keystore alias. UTF-8 string the
+    /// `KeyStore.getInstance("AndroidKeyStore").getEntry(alias, null)`
+    /// lookup rebinds to on every sign. Owned by the `lfs-keystore-`
+    /// prefix to keep our keys separate from the `FlutterSecureStorageKeyAlias_`
+    /// wrapping-key namespace `lfs_os_security::android::keystore`
+    /// already owns. `None` for every non-`keystore` backend; the
+    /// connect path refuses a `keystore` row whose `keystore_alias`
+    /// is `None` (DB corruption).
+    pub keystore_alias: Option<String>,
+    /// `true` when the key was minted with `setIsStrongBoxBacked(true)`
+    /// and the StrongBox HSM accepted the request. `false` for
+    /// TEE-backed keys and for every non-Keystore row. Surfaced in
+    /// the badge popover so the user can tell a StrongBox row from a
+    /// TEE one without re-probing.
+    pub keystore_strongbox: bool,
+    /// `true` when the key was minted with
+    /// `setUserAuthenticationRequired(true)`. Every sign hops through
+    /// `BiometricPrompt.CryptoObject(signature)`; without an
+    /// authenticated cipher object the `Signature.initSign` call
+    /// throws `UserNotAuthenticatedException`. `false` for empty-auth
+    /// rows (none today — the wizard always sets it true) and every
+    /// non-Keystore row.
+    pub keystore_user_auth_required: bool,
+    /// Free-form platform identifier captured at create time —
+    /// `android.os.Build.MODEL` + `Build.VERSION.RELEASE`. `None` on
+    /// rows minted before this column landed and for every
+    /// non-Keystore backend. Surfaced in the badge popover; the
+    /// connect path does NOT use it for routing (key resolution
+    /// goes via `keystore_alias` alone).
+    pub keystore_platform: Option<String>,
 }
 
 /// Backend discriminator on `ssh_keys.backend` (schema v9). Drives
@@ -264,6 +294,10 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         tpm_provider: row.get("tpm_provider")?,
         tpm_pin_required: row.get::<_, i64>("tpm_pin_required")? != 0,
         cng_key_name: row.get("cng_key_name")?,
+        keystore_alias: row.get("keystore_alias")?,
+        keystore_strongbox: row.get::<_, i64>("keystore_strongbox")? != 0,
+        keystore_user_auth_required: row.get::<_, i64>("keystore_user_auth_required")? != 0,
+        keystore_platform: row.get("keystore_platform")?,
     })
 }
 
@@ -276,7 +310,8 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                     hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
-                    tpm_pin_required, cng_key_name \
+                    tpm_pin_required, cng_key_name, keystore_alias, \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -299,7 +334,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                     hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
-                    tpm_pin_required, cng_key_name \
+                    tpm_pin_required, cng_key_name, keystore_alias, \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -320,8 +356,9 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
                                backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                                pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                                hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
-                               tpm_pin_required, cng_key_name) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24) \
+                               tpm_pin_required, cng_key_name, keystore_alias, \
+                               keystore_strongbox, keystore_user_auth_required, keystore_platform) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -346,6 +383,10 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            tpm_provider = excluded.tpm_provider, \
            tpm_pin_required = excluded.tpm_pin_required, \
            cng_key_name = excluded.cng_key_name, \
+           keystore_alias = excluded.keystore_alias, \
+           keystore_strongbox = excluded.keystore_strongbox, \
+           keystore_user_auth_required = excluded.keystore_user_auth_required, \
+           keystore_platform = excluded.keystore_platform, \
            deleted_at = NULL",
         params![
             row.id,
@@ -372,6 +413,10 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.tpm_provider,
             if row.tpm_pin_required { 1 } else { 0 },
             row.cng_key_name,
+            row.keystore_alias,
+            if row.keystore_strongbox { 1 } else { 0 },
+            if row.keystore_user_auth_required { 1 } else { 0 },
+            row.keystore_platform,
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -429,6 +474,23 @@ pub struct SshKeyMetadata {
     pub tpm_provider: Option<String>,
     pub tpm_pin_required: bool,
     pub cng_key_name: Option<String>,
+    /// Android Keystore alias for `backend = 'keystore'` rows. Surfaced
+    /// for the `KeystoreBadge` info popover (truncated for display).
+    /// `None` for every non-Keystore row.
+    pub keystore_alias: Option<String>,
+    /// `true` when the row's hardware key was minted with
+    /// `setIsStrongBoxBacked(true)`. Drives the badge label split
+    /// ("StrongBox HSM" vs "TEE").
+    pub keystore_strongbox: bool,
+    /// `true` when the row requires biometric / device-unlock auth
+    /// on every sign. Always `true` for current Keystore rows;
+    /// reserved for a future no-auth variant.
+    pub keystore_user_auth_required: bool,
+    /// Capture-time `Build.MODEL` + Android version (e.g.
+    /// `"Pixel 8 (Android 14)"`). Surfaced read-only in the badge
+    /// popover so users on multi-device deployments can identify
+    /// which phone holds the key.
+    pub keystore_platform: Option<String>,
 }
 
 pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetadata>, Error> {
@@ -440,7 +502,8 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                     hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
-                    tpm_pin_required, cng_key_name \
+                    tpm_pin_required, cng_key_name, keystore_alias, \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC \
              /* list_metadata */",
         )
@@ -470,6 +533,10 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                 tpm_provider: row.get("tpm_provider")?,
                 tpm_pin_required: row.get::<_, i64>("tpm_pin_required")? != 0,
                 cng_key_name: row.get("cng_key_name")?,
+                keystore_alias: row.get("keystore_alias")?,
+                keystore_strongbox: row.get::<_, i64>("keystore_strongbox")? != 0,
+                keystore_user_auth_required: row.get::<_, i64>("keystore_user_auth_required")? != 0,
+                keystore_platform: row.get("keystore_platform")?,
             })
         })
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata query: {e}")))?;
@@ -538,8 +605,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                                        backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                                        pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                                        hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
-                                       tpm_pin_required, cng_key_name) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24) \
+                                       tpm_pin_required, cng_key_name, keystore_alias, \
+                                       keystore_strongbox, keystore_user_auth_required, keystore_platform) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -564,6 +632,10 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    tpm_provider = excluded.tpm_provider, \
                    tpm_pin_required = excluded.tpm_pin_required, \
                    cng_key_name = excluded.cng_key_name, \
+                   keystore_alias = excluded.keystore_alias, \
+                   keystore_strongbox = excluded.keystore_strongbox, \
+                   keystore_user_auth_required = excluded.keystore_user_auth_required, \
+                   keystore_platform = excluded.keystore_platform, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -593,6 +665,14 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.tpm_provider,
                 if row.tpm_pin_required { 1 } else { 0 },
                 row.cng_key_name,
+                row.keystore_alias,
+                if row.keystore_strongbox { 1 } else { 0 },
+                if row.keystore_user_auth_required {
+                    1
+                } else {
+                    0
+                },
+                row.keystore_platform,
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -728,6 +808,10 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             tpm_provider: proposed.tpm_provider.clone(),
             tpm_pin_required: proposed.tpm_pin_required,
             cng_key_name: proposed.cng_key_name.clone(),
+            keystore_alias: proposed.keystore_alias.clone(),
+            keystore_strongbox: proposed.keystore_strongbox,
+            keystore_user_auth_required: proposed.keystore_user_auth_required,
+            keystore_platform: proposed.keystore_platform.clone(),
         },
     )?;
     tx.commit()
@@ -808,6 +892,10 @@ mod import_for_merge_tests {
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         }
     }
 
@@ -923,6 +1011,10 @@ mod tombstone_tests {
                     tpm_provider: None,
                     tpm_pin_required: false,
                     cng_key_name: None,
+                    keystore_alias: None,
+                    keystore_strongbox: false,
+                    keystore_user_auth_required: false,
+                    keystore_platform: None,
                 },
             )
         })
@@ -1022,6 +1114,10 @@ mod tombstone_tests {
             tpm_provider: None,
             tpm_pin_required: false,
             cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

@@ -3332,4 +3332,71 @@ class SVi extends S {
   @override
   String get tpmSshSilentWarning =>
       'Key này sign mà KHÔNG có prompt Hello / PIN — bất kỳ ai có quyền truy cập desktop khi bạn logged in đều có thể dùng.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Đang generate hardware-bound key...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'Authenticate để dùng SSH key';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key đã bị huỷ: enroll biometric mới. Đăng ký lại public key trên server.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM không có trên device này';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Yêu cầu biometric / device unlock cho mọi signature';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Không export được hardware-bound keys';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Xoá key này sẽ gỡ khỏi hardware store. Server sẽ reject key cho đến khi bạn register key mới.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Enroll biometric hoặc device PIN trước';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM không khả dụng';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Device của bạn không expose StrongBox HSM. Tạo key TEE-backed thay thế? Vẫn là hardware-backed, chỉ không có isolation của StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Dùng TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Huỷ';
 }

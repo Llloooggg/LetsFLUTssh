@@ -212,6 +212,8 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     // TPM-only columns stay at their schema defaults (NULL / 0).
     backend: 'software',
     tpmPinRequired: false,
+    keystoreStrongbox: false,
+    keystoreUserAuthRequired: false,
   );
 
   /// Project the `ssh_keys` row + optional `ssh_key_certificates`
@@ -269,6 +271,10 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
       tpmProvider: r.tpmProvider,
       tpmPinRequired: r.tpmPinRequired,
       cngKeyName: r.cngKeyName,
+      keystoreAlias: r.keystoreAlias,
+      keystoreStrongBox: r.keystoreStrongbox,
+      keystoreUserAuthRequired: r.keystoreUserAuthRequired,
+      keystorePlatform: r.keystorePlatform,
     );
   }
 

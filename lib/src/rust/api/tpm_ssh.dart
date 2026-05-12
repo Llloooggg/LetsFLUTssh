@@ -21,9 +21,9 @@ Future<DbTpmSshImportResult> tpmSshGenerate({
   required DbTpmSshGenerateArgs args,
 }) => RustLib.instance.api.crateApiTpmSshTpmSshGenerate(args: args);
 
-/// Import a wrapped TPM blob (`.tpm` file, TSS2 PRIVATE KEY format)
-/// + persist as an `ssh_keys` row. Linux only — Windows CNG owns
-/// its own keystore and there's no portable import shape.
+/// Import a wrapped TPM blob (`.tpm` file, TSS2 PRIVATE KEY format),
+/// then persist it as an `ssh_keys` row. Linux only — Windows CNG
+/// owns its own keystore and there's no portable import shape.
 Future<String> tpmSshImportBlob({
   required List<int> blob,
   required String label,

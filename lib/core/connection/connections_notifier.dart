@@ -860,6 +860,22 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           keyType: keyType,
           pinSecretId: pinSecretId,
         ),
+      // Android Hardware Keystore branch — `auth_compose::prepare_auth`
+      // routes this when the resolved manager-key row carries
+      // `backend = 'keystore'`. No PIN dialog: AndroidKeyStore
+      // fires its own BiometricPrompt inside
+      // `Signature.initSign` + `BiometricPrompt.CryptoObject` per
+      // the auth requirement set at create time.
+      rust_auth.DbPreparedAuthRef_PubkeyKeystore(
+        :final publicOpenssh,
+        :final keystoreAlias,
+        :final keyType,
+      ) =>
+        SshAuthPubkeyKeystoreRef(
+          publicOpenssh: publicOpenssh,
+          keystoreAlias: keystoreAlias,
+          keyType: keyType,
+        ),
     };
   }
 

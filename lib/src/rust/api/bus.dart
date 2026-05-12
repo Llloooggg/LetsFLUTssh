@@ -216,12 +216,11 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String keyType,
   }) = BusConnectAuthRef_PubkeyHello;
 
-  /// TPM 2.0-bound SSH key. Carries the captured `id_*.pub` body
-  /// + the provider discriminator (`"tss-esapi"` / `"cng-pcp"`) +
-  /// the matching storage ingredient (`blob` for Linux, `cng_key_name`
-  /// for Windows silent) + the `key_type` short tag + a
-  /// transient PIN secret id for PIN-bound rows (`None` for
-  /// empty-auth keys).
+  /// TPM 2.0-bound SSH key. Carries the captured `id_*.pub` body,
+  /// the provider discriminator (`"tss-esapi"` / `"cng-pcp"`), the
+  /// matching storage ingredient (`blob` for Linux, `cng_key_name`
+  /// for Windows silent), the `key_type` short tag, and a transient
+  /// PIN secret id for PIN-bound rows (`None` for empty-auth keys).
   const factory BusConnectAuthRef.pubkeyTpm({
     required String publicOpenssh,
     required String provider,
@@ -230,6 +229,17 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String keyType,
     String? pinSecretId,
   }) = BusConnectAuthRef_PubkeyTpm;
+
+  /// Android Hardware Keystore / StrongBox-bound SSH key. Carries
+  /// the captured `id_*.pub` body, the AndroidKeyStore alias, and
+  /// the `key_type` short tag that drives algorithm selection. No
+  /// PIN slot — the BiometricPrompt fires at the OS layer inside
+  /// the signer (`Session::connect_pubkey_keystore_owned`).
+  const factory BusConnectAuthRef.pubkeyKeystore({
+    required String publicOpenssh,
+    required String keystoreAlias,
+    required String keyType,
+  }) = BusConnectAuthRef_PubkeyKeystore;
   const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 

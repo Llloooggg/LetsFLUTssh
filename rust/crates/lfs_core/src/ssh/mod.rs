@@ -52,6 +52,16 @@ pub mod hello_signer;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub mod tpm_signer;
 
+// Android Hardware Keystore / StrongBox SSH Signer. The signer
+// struct + algorithm shape stay cross-target so unit tests cover
+// the algorithm round-trip + russh `Algorithm` mapping on every
+// host; the actual `sign_native` body cfg-gates to
+// `target_os = "android"` (other targets surface a typed
+// `Error::Keystore("…unavailable on this platform")`). The wizard's
+// toolbar entry hides on every non-Android platform — rung 4
+// honestly-hide per the capability ladder.
+pub mod keystore_signer;
+
 use sk_signer::FidoSigner;
 
 /// russh `Handler` impl for our client side. Carries an mpsc sender
@@ -736,6 +746,27 @@ pub struct ConnectPubkeyTpmOwnedArgs {
     /// was minted with `tpm_pin_required = true`. `None` for
     /// empty-auth keys.
     pub pin_secret_id: Option<String>,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_keystore_owned`].
+/// Android Hardware Keystore / StrongBox-bound keys never carry a
+/// PIN slot — `BiometricPrompt.CryptoObject` fires inside the signer
+/// at sign time per the user-auth requirement set at create time.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyKeystoreOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    /// Captured `id_*.pub` body the connect path re-parses to
+    /// recover the SSH `Algorithm`.
+    pub public_openssh: String,
+    /// AndroidKeyStore alias the `KeyStore.getEntry(alias, null)`
+    /// lookup re-binds to on every sign. Persisted on
+    /// `ssh_keys.keystore_alias`.
+    pub keystore_alias: String,
+    /// `ssh_keys.key_type` short tag — drives algorithm selection
+    /// (`ecdsa-sha2-nistp256` / `ssh-ed25519` / `rsa-2048`).
+    pub key_type: String,
 }
 
 /// Shareable across tasks — every method takes `&self` because
@@ -1568,6 +1599,63 @@ impl Session {
         Box::pin(async move {
             Err(Error::Unsupported(
                 "TPM 2.0 SSH keys are available on Linux + Windows only".into(),
+            ))
+        })
+    }
+
+    /// Connect + authenticate with an Android Hardware Keystore /
+    /// StrongBox-bound SSH key. The signer fires
+    /// `BiometricPrompt.CryptoObject` inside the per-message sign
+    /// hop per the auth requirement set at create time
+    /// (`setUserAuthenticationRequired(true)` +
+    /// `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)`).
+    /// Private key bytes live in the AndroidKeyStore (TEE or
+    /// StrongBox) and never leave the chip.
+    #[cfg(target_os = "android")]
+    pub fn connect_pubkey_keystore_owned(
+        args: ConnectPubkeyKeystoreOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let (mut handle, forward_rx) = open_handle_for_session(&args.host, args.port).await?;
+            let parsed_pub = ssh_key::PublicKey::from_openssh(args.public_openssh.trim())
+                .map_err(|e| Error::KeyParse(format!("keystore pubkey: {e}")))?;
+            let algo = crate::ssh::keystore_signer::KeystoreAlgo::from_key_type(&args.key_type)?;
+            let mut signer = crate::ssh::keystore_signer::KeystoreSigner {
+                keystore_alias: args.keystore_alias,
+                algo,
+                label: String::new(),
+            };
+            // RSA SSH userauth selects the hash algorithm at the
+            // outer russh layer via `Some(HashAlg::Sha256/Sha512)`;
+            // ECDSA / Ed25519 pass `None`. Default RSA-2048 to
+            // SHA-256 — AndroidKeyStore RSA keys are configured for
+            // `DIGEST_SHA256` only at create time.
+            let hash_alg = match algo {
+                crate::ssh::keystore_signer::KeystoreAlgo::Rsa2048 => Some(HashAlg::Sha256),
+                _ => None,
+            };
+            let auth_result = handle
+                .authenticate_publickey_with(&args.user, parsed_pub, hash_alg, &mut signer)
+                .await
+                .map_err(|e| Error::Auth(format!("{e}")))?;
+            if !matches!(auth_result, AuthResult::Success) {
+                return Err(Error::AuthFailed);
+            }
+            Ok(Session::from_handle(handle, forward_rx))
+        })
+    }
+
+    /// Non-Android platforms — surface a typed unsupported error so
+    /// the `ConnectAuthRef::PubkeyKeystore` dispatcher stays
+    /// cfg-clean. The AndroidKeyStore is intrinsically a per-device
+    /// surface; cross-device the key has no meaning.
+    #[cfg(not(target_os = "android"))]
+    pub fn connect_pubkey_keystore_owned(
+        _args: ConnectPubkeyKeystoreOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Err(Error::Unsupported(
+                "Android Hardware Keystore SSH keys are available on Android only".into(),
             ))
         })
     }
