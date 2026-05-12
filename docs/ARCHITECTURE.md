@@ -310,6 +310,7 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | `rust/crates/lfs_core/src/ssh/sk.rs` | `lfs_core::ssh::sk` | FIDO2 `sk-*` userauth glue — `FidoCredential` type, `sign_for_userauth`, `algorithm_from_key_type`, `extract_application_from_openssh_pub`. Bridges `lfs_core::fido2::get_assertion` (CTAP2 round trip) to the SSH `sk-*` signature trailer + outer wire string. |
 | `rust/crates/lfs_core/src/ssh/sk_signer.rs` | `lfs_core::ssh::sk_signer::FidoSigner` | `russh::Signer` adapter that routes per-message SSH userauth signatures through a FIDO2 hardware authenticator. Used by `Session::connect_pubkey_sk` + the proxy mirror. Private key material never reaches the heap — every signature attempt round-trips through `sk::sign_for_userauth`. |
 | `rust/crates/lfs_core/src/ssh/wire.rs` | `lfs_core::ssh::wire` | Shared SSH wire-format primitives (mpint encoding, ECDSA DER → SSH mpint, fixed-width raw `r\|\|s` → SSH mpint, RSA / Ed25519 signature wrappers, public-key blob encoders). Used today by `ssh::sk`; reserved for the PKCS#11 / TPM 2.0 / Secure Enclave / NCrypt / Hardware Keystore signers landing in subsequent commits. |
+| `rust/crates/lfs_core/src/ssh_agent/` | `lfs_core::ssh_agent` | In-process ssh-agent endpoint exposing hardware-bound keys to external SSH clients (`git`, `ssh`, IDE plugins) on the same host. `endpoint.rs` carries the `impl Session for Endpoint`; `backends.rs` dispatches by `BackendKind`; `transport.rs` binds the per-platform listener (UDS on Linux/macOS, named pipe on Windows); `per_key_confirm.rs` parks SIGN_REQUEST prompts and surfaces them via the `EventTopic::SshAgent` bus. Mobile builds resolve to the no-op `stub.rs`. See [In-process ssh-agent endpoint](#in-process-ssh-agent-endpoint) above. |
 
 #### SSH transport surface
 
@@ -1380,6 +1381,80 @@ Every hardware-bound signer (FIDO2 today, PKCS#11 / TPM 2.0 / Apple Secure Encla
 | `push_ssh_string(&mut Vec<u8>, payload)` | Append a length-prefixed SSH string | Composing inner strings inside the helpers above |
 
 The DER parser accepts only the strict shape OpenSSH itself parses (definite length, no trailing bytes, single-component length fields up to four bytes — anything wider would be structurally malformed for an EC signature component); malformed input returns `Error::Auth(...)` rather than panicking. The mpint encoder strips one redundant leading 0x00 byte when dropping it would not flip the sign and re-adds a leading 0x00 when the high bit of the first byte is set, mirroring RFC 4251 §5. Round-trip tests + a fuzz-style sweep covering random byte slices live in `rust/crates/lfs_core/src/ssh/wire.rs::tests`.
+
+#### In-process ssh-agent endpoint
+
+`lfs_core::ssh_agent` exposes our hardware-bound SSH keys (FIDO2 today; PKCS#11 / TPM 2.0 / Apple Secure Enclave / Windows NCrypt / Android Hardware Keystore as those backends land) to every SSH-protocol-speaking application on the same host — `git` in a terminal, OpenSSH `ssh.exe` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+, IDE plugins, CI runners. Without the endpoint the hardware-bound keys we import are reachable only from our own connect path; corporate workflows expect a key on a host to work everywhere on that host. The endpoint is the symmetric counterpart of `connect_default_agent` — that path consumes external agents, this one IS the agent for external clients.
+
+```mermaid
+flowchart LR
+    GIT[git push]
+    SSH[ssh / scp / sftp]
+    IDE[VS Code / JetBrains / PuTTY 0.78+]
+    GIT --> SOCK
+    SSH --> SOCK
+    IDE --> SOCK
+    SOCK[UDS / NamedPipe]
+    SOCK --> ENDPOINT[ssh_agent_lib::agent::listen]
+    ENDPOINT --> SESSION[Endpoint &nbsp; Session impl]
+    SESSION --> POLICY[per_key_confirm gate]
+    POLICY --> DISP[backends::dispatch_sign]
+    DISP --> FIDO[FidoSigner &nbsp; CTAP2 HID]
+    DISP -.future.-> P11[PKCS#11]
+    DISP -.future.-> TPM[TPM 2.0]
+    DISP -.future.-> SE[Secure Enclave]
+    DISP -.future.-> NCRYPT[Windows NCrypt]
+    DISP -.future.-> KS[Android Keystore]
+```
+
+**Module layout.** Files live under `rust/crates/lfs_core/src/ssh_agent/`:
+
+| File | Purpose |
+|---|---|
+| `mod.rs` | Cfg-gated re-exports + the desktop / mobile split. |
+| `endpoint.rs` | `Endpoint` struct + `impl Session`; `start_endpoint` / `stop` / `status` lifecycle; per-process `AgentHandle` parking lot. |
+| `backends.rs` | `BackendKind` discriminator + `dispatch_sign` / `dispatch_sign_by_kind`. One arm per Signer impl; today only `Fido2`. |
+| `transport.rs` | `bind_unix` (Linux/macOS) + `bind_windows` (named pipe) + per-platform cleanup helpers. |
+| `per_key_confirm.rs` | Parked-prompt registry + `enqueue` / `respond_to_request` / `cancel_request`. Fires bus events on `EventTopic::SshAgent`; the Dart `SshAgentPromptListener` mounts `AgentSignatureRequestDialog`. |
+| `stub.rs` | Mobile no-op stub. |
+
+**Crate.** `ssh-agent-lib = "0.5.2"` (wiktor-k/ssh-agent-lib, MIT/Apache-2.0). The trait surface we implement is [`ssh_agent_lib::agent::Session`]; the listener is `ssh_agent_lib::agent::listen` over a `ListeningSocket`. `ssh-key = "0.6"` is a separate crate identity from the russh-forked `internal-russh-forked-ssh-key` — both resolve side by side, the agent surface uses the canonical crates.io shape.
+
+**Transport.**
+
+| Platform | Path | Permissions |
+|---|---|---|
+| Linux / macOS | `${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` | Parent dir mode `0o700`. Drop guard unlinks the socket and removes the parent dir. |
+| Windows | `\\.\pipe\letsflutssh-agent.<pid>` | `ServerOptions::first_pipe_instance(true)` — default DACL grants only the current user SID + SYSTEM. |
+| Android / iOS | n/a | Mobile builds compile out the entire module; the FRB shim surfaces `Err(Unsupported)` so the Settings toggle renders disabled-with-reason. |
+
+The `<pid>` suffix keeps parallel instances from colliding on the same path (the single-instance lock runs in a separate layer; per-pid naming is the belt-and-braces).
+
+**Session methods.** The verbs we honour and the ones we refuse mirror the security posture:
+
+| Verb | Behaviour |
+|---|---|
+| `request_identities` | Lists every `ssh_keys` row with `BackendKind != Software` AND `agent_policy != Deny`. Software keys never appear — the endpoint MUST NOT expose plaintext PEM material. |
+| `sign(SignRequest)` | Resolves the row by matching the request's `KeyData` against `PublicKey::from_openssh(row.public_key)`. `Deny` policy short-circuits to failure; `Ask` policy parks the signer on a oneshot, fires `Event::SshAgentSignaturePrompt`, awaits the Dart-side verdict with a 60-second timeout. Hands the resulting bytes to `backends::dispatch_sign`. |
+| `add_identity` / `add_identity_constrained` / `remove_identity` / `remove_all_identities` / `add_smartcard_key` / `add_smartcard_key_constrained` / `remove_smartcard_key` | Refuse with the catch-all error arm. External clients MUST NOT push key material into our store. |
+| `lock(password)` / `unlock(password)` | Flips the per-connection `Endpoint::locked` flag. While locked, `request_identities` returns empty and `sign` refuses. The password parameter is accepted but not bound to anything — we have no recovery path from "wrong unlock string", so storing a comparable secret would be a footgun. |
+| `extension` | Accepts `session-bind@openssh.com` and `restrict-destination-v00@openssh.com` (parsed by ssh-agent-lib upstream; we accept the payload). Every other extension surfaces `ExtensionFailure` so external clients fall back to the unextended protocol. |
+
+**Per-key dispatch policy.** `ssh_keys.agent_policy` (TEXT NOT NULL DEFAULT `'ask'`, schema v8) drives the gate:
+
+- `'always'` — sign silently. The hardware backend's own touch / PIN prompt still fires when the credential carries the user-verification bit.
+- `'ask'` — default. Every SIGN_REQUEST surfaces a Flutter `AgentSignatureRequestDialog` (header: requesting process name + key label; buttons: Authorize once / Authorize and remember / Deny). Mirrors `ssh-add -c` semantics. The "remember" button promotes the row to `'always'` in `ssh_keys`.
+- `'deny'` — always refuse. The listing path also hides `Deny` rows entirely so the external client cannot enumerate which keys are policy-denied.
+
+**Peer-process resolution.** The dialog body renders the requesting process name when the OS can surface it cheaply: Linux `SO_PEERCRED` → `/proc/<pid>/comm`, Windows `GetNamedPipeClientProcessId` → `QueryFullProcessImageNameW`. macOS does not — BSD `getpeereid` returns uid/gid, never a pid — so the dialog renders the localized "An external SSH client" placeholder there. Today's build surfaces `None` on every platform; per-OS plumbing is a follow-up that drops in above the `ListeningSocket::accept` boundary without touching the Session clones.
+
+**Lifecycle.** `start_endpoint()` binds the listener, spawns a Tokio task running `listen`, parks an `AgentHandle` in a process-singleton `OnceLock<Mutex<Option<AgentHandle>>>`. `stop()` takes the handle out of the slot and drops it — the `Drop` impl aborts the listener task and runs the per-platform cleanup. Idempotent on both sides: a repeat `start_endpoint` returns the existing path, a repeat `stop` is a no-op. The Settings UI is the only authorised driver: the endpoint is off by default (security-first; the user opts in via the "Expose hardware-bound keys to system SSH clients" toggle in `Settings → External SSH client integration`).
+
+**Wire shape per signature.** The Session::sign response carries `Signature { algorithm, data }` — two fields, agent protocol wraps each in a `string(...)` prefix. `data` for `sk-ed25519` is `64-byte signature || u8 flags || u32 counter` (69 bytes total); for `sk-ecdsa-p256` it's `string mpint r || string mpint s || u8 flags || u32 counter`. The userauth-shape outer `string(algorithm) || string(sig_blob)` wrapping the userauth path uses is NOT applied here — the agent codec adds the prefixes itself. `ssh::sk::sign_sk_blob_only` is the lower-level helper that returns just the SK trailer; the userauth path keeps `sign_for_userauth` for its own composition.
+
+**Refusal contract.** Every refusal returns `AgentError::Other(message)` — `ssh_agent_lib` renders this as the wire-level `SSH_AGENT_FAILURE` byte on the server side, which is what the protocol draft specifies for `SSH2_AGENTC_ADD_IDENTITY` / `REMOVE_IDENTITY` / `REMOVE_ALL_IDENTITIES` rejections.
+
+**Tests.** Unit tests in `rust/crates/lfs_core/src/ssh_agent/{endpoint,backends,per_key_confirm,transport}.rs::tests` cover the lock/unlock state machine, extension accept/refuse arms, the policy promotion contract, the backend dispatcher's Software refusal, and the parked-prompt resolve / cancel paths. Integration tests in `rust/crates/lfs_core/tests/ssh_agent_endpoint_test.rs` spin up a real `UnixListener` under a tempdir and drive the wire via `ssh_agent_lib::client::Client` — wire-level lock, extension session-bind, extension unknown, remove-all refusal. A cross-client matrix entry (`ssh-add -l` against our live endpoint with `SSH_AUTH_SOCK` pointed at it) is `#[ignore]`-gated as an operator-runnable manual matrix.
 
 #### Cipher choice — SQLCipher 4.x (AES-256-CBC + HMAC-SHA512)
 
@@ -5084,6 +5159,27 @@ same column shape. Future bumps:
   EXISTS` in `SCHEMA_SQL`; no per-step `ALTER` is required.
   `SchemaVersions::CONFIG` is unchanged — S3 transport config
   lives in the DB, not in `config.json`.
+- **v7** — adds the FIDO2 hardware-key columns on `ssh_keys`:
+  `credential_id BLOB NULL` (opaque CTAP2 blob the device matches
+  against on every assertion), `application_string TEXT NULL` (SSH
+  `application` field, typically `ssh:`), and
+  `has_user_verification INTEGER NOT NULL DEFAULT 0` (PIN-required
+  flag captured at import). Software-key rows leave the three
+  columns NULL / NULL / 0; `sk-*` rows populate all three. The
+  `key_type` short tag distinguishes the two — see the FIDO2
+  subsection of §3 above for the connect path. Existing v6 installs
+  get the columns via `ALTER TABLE ssh_keys ADD COLUMN ...` gated
+  by `(1..7).contains(&current)` in `bootstrap_schema`.
+- **v8** — adds `agent_policy TEXT NOT NULL DEFAULT 'ask'` on
+  `ssh_keys`. Drives the per-key dispatch gate the in-process
+  ssh-agent endpoint (`lfs_core::ssh_agent`, see §3 above)
+  consults before signing a SIGN_REQUEST from an external SSH
+  client. Values: `'always'` (sign silently), `'ask'` (default;
+  route through `AgentSignatureRequestDialog`), `'deny'` (refuse
+  AND hide from `request_identities`). Existing v7 installs
+  backfill to `'ask'` via the additive `ALTER` gated by
+  `(1..8).contains(&current)`; fresh installs take the column from
+  the inline `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL`.
 
 ### Soft-delete contract (v3+)
 

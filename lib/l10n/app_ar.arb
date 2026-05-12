@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN غير صحيح",
   "hardwareKeyImport": "استيراد hardware key (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "تم إلغاء طلب hardware key"
+  "hardwareKeyPromptCancelled": "تم إلغاء طلب hardware key",
+  "agentEndpointSectionTitle": "تكامل مع عملاء SSH الخارجيين",
+  "agentEndpointToggleTitle": "كشف hardware-bound keys لعملاء SSH على النظام",
+  "agentEndpointToggleSubtitle": "يسمح لـ git و ssh وإضافات IDE على هذا الجهاز باستخدام مفاتيح FIDO2 / smart-card / TPM.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "نسخ أمر export",
+  "agentEndpointCopyPipeName": "نسخ اسم pipe",
+  "agentEndpointSignatureRequestTitle": "طلب توقيع",
+  "agentEndpointSignatureRequestBody": "{requester} يريد التوقيع باستخدام {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "عميل SSH خارجي",
+  "agentEndpointAuthorizeOnce": "اسمح مرة واحدة",
+  "agentEndpointAuthorizeAlways": "اسمح وتذكّر",
+  "agentEndpointDeny": "رفض",
+  "agentEndpointStatusRunning": "قيد التشغيل",
+  "agentEndpointStatusStopped": "متوقف",
+  "agentEndpointStatusUnsupported": "غير مدعوم على هذه المنصة",
+  "agentEndpointRefusedAddIdentity": "مرفوض: لا يمكن للعملاء الخارجيين إضافة keys.",
+  "agentEndpointStartFailed": "تعذّر تشغيل ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

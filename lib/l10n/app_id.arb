@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN salah",
   "hardwareKeyImport": "Import hardware key (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "Prompt hardware key dibatalkan"
+  "hardwareKeyPromptCancelled": "Prompt hardware key dibatalkan",
+  "agentEndpointSectionTitle": "Integrasi SSH client eksternal",
+  "agentEndpointToggleTitle": "Expose hardware-bound keys ke SSH client sistem",
+  "agentEndpointToggleSubtitle": "Mengizinkan git, ssh, dan IDE plugin di perangkat ini menggunakan FIDO2 / smart-card / TPM keys Anda.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Salin perintah export",
+  "agentEndpointCopyPipeName": "Salin nama pipe",
+  "agentEndpointSignatureRequestTitle": "Permintaan tanda tangan",
+  "agentEndpointSignatureRequestBody": "{requester} ingin menandatangani dengan {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "SSH client eksternal",
+  "agentEndpointAuthorizeOnce": "Izinkan sekali",
+  "agentEndpointAuthorizeAlways": "Izinkan dan ingat",
+  "agentEndpointDeny": "Tolak",
+  "agentEndpointStatusRunning": "Berjalan",
+  "agentEndpointStatusStopped": "Berhenti",
+  "agentEndpointStatusUnsupported": "Tidak didukung di platform ini",
+  "agentEndpointRefusedAddIdentity": "Ditolak: client eksternal tidak boleh menambahkan keys.",
+  "agentEndpointStartFailed": "Tidak dapat memulai ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

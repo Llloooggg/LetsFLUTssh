@@ -2932,4 +2932,66 @@ class SRu extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Запрос hardware key отменён';
+
+  @override
+  String get agentEndpointSectionTitle => 'Интеграция с внешними SSH-клиентами';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Открыть hardware-bound ключи системным SSH-клиентам';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Позволяет git, ssh, плагинам IDE на этом устройстве использовать ваши FIDO2 / smart-card / TPM ключи.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Скопировать export-команду';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Скопировать имя pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Запрос на подпись';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester запрашивает подпись ключом $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Внешний SSH-клиент';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Разрешить один раз';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Разрешить и запомнить';
+
+  @override
+  String get agentEndpointDeny => 'Отклонить';
+
+  @override
+  String get agentEndpointStatusRunning => 'Работает';
+
+  @override
+  String get agentEndpointStatusStopped => 'Остановлено';
+
+  @override
+  String get agentEndpointStatusUnsupported =>
+      'Не поддерживается на этой платформе';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Отказано: внешние клиенты не могут добавлять ключи.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Не удалось запустить ssh-agent endpoint: $detail';
+  }
 }

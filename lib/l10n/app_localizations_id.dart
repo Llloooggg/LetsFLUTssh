@@ -2913,4 +2913,65 @@ class SId extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Prompt hardware key dibatalkan';
+
+  @override
+  String get agentEndpointSectionTitle => 'Integrasi SSH client eksternal';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Expose hardware-bound keys ke SSH client sistem';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Mengizinkan git, ssh, dan IDE plugin di perangkat ini menggunakan FIDO2 / smart-card / TPM keys Anda.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Salin perintah export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Salin nama pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Permintaan tanda tangan';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester ingin menandatangani dengan $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'SSH client eksternal';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Izinkan sekali';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Izinkan dan ingat';
+
+  @override
+  String get agentEndpointDeny => 'Tolak';
+
+  @override
+  String get agentEndpointStatusRunning => 'Berjalan';
+
+  @override
+  String get agentEndpointStatusStopped => 'Berhenti';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Tidak didukung di platform ini';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Ditolak: client eksternal tidak boleh menambahkan keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Tidak dapat memulai ssh-agent endpoint: $detail';
+  }
 }

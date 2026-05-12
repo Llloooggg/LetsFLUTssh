@@ -86,6 +86,14 @@ class SshKeyEntry {
   /// in [HardwareKeyPromptDialog] on connect.
   final bool hasUserVerification;
 
+  /// Per-key dispatch policy for the in-process ssh-agent endpoint.
+  /// One of `'always'` (sign silently), `'ask'` (default; route
+  /// every SIGN_REQUEST through a Flutter confirmation dialog),
+  /// `'deny'` (always refuse). Mirrored verbatim from
+  /// `ssh_keys.agent_policy` on the Rust side; the Settings UI
+  /// rebinds this via [updateAgentPolicy] on KeyStore.
+  final String agentPolicy;
+
   const SshKeyEntry({
     required this.id,
     required this.label,
@@ -101,6 +109,7 @@ class SshKeyEntry {
     this.credentialId,
     this.applicationString,
     this.hasUserVerification = false,
+    this.agentPolicy = 'ask',
   });
 
   /// True when the row is a hardware-bound `sk-*` key. Drives the
@@ -117,6 +126,7 @@ class SshKeyEntry {
     Uint8List? credentialId,
     String? applicationString,
     bool? hasUserVerification,
+    String? agentPolicy,
   }) => SshKeyEntry(
     id: id,
     label: label ?? this.label,
@@ -132,6 +142,7 @@ class SshKeyEntry {
     credentialId: credentialId ?? this.credentialId,
     applicationString: applicationString ?? this.applicationString,
     hasUserVerification: hasUserVerification ?? this.hasUserVerification,
+    agentPolicy: agentPolicy ?? this.agentPolicy,
   );
 
   Map<String, dynamic> toJson() => {
@@ -152,6 +163,7 @@ class SshKeyEntry {
     if (credentialId != null) 'credential_id': credentialId!.toList(),
     if (applicationString != null) 'application_string': applicationString,
     if (hasUserVerification) 'has_user_verification': true,
+    if (agentPolicy != 'ask') 'agent_policy': agentPolicy,
   };
 
   factory SshKeyEntry.fromJson(Map<String, dynamic> json) {
@@ -193,6 +205,7 @@ class SshKeyEntry {
       credentialId: credentialId,
       applicationString: json['application_string'] as String?,
       hasUserVerification: json['has_user_verification'] as bool? ?? false,
+      agentPolicy: json['agent_policy'] as String? ?? 'ask',
     );
   }
 

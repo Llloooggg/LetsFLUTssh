@@ -63,6 +63,7 @@ pub mod sftp;
 pub mod sftp_models;
 pub mod snippet_template;
 pub mod ssh;
+pub mod ssh_agent;
 pub mod ssh_config;
 pub mod ssh_dir_scan;
 pub mod sync;

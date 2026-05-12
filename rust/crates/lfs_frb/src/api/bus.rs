@@ -28,6 +28,10 @@ pub enum BusTopic {
     /// folds every line into the same on-disk `letsflutssh.log`
     /// the Dart-side calls write through.
     CoreLog,
+    /// In-process ssh-agent endpoint — per-key confirmation
+    /// prompts when an external SSH client requests a signature
+    /// against a key whose `agent_policy = 'ask'`.
+    SshAgent,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -48,6 +52,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::SecurityPrompt => lfs_core::bus::EventTopic::SecurityPrompt,
             BusTopic::SecurityCapabilities => lfs_core::bus::EventTopic::SecurityCapabilities,
             BusTopic::CoreLog => lfs_core::bus::EventTopic::CoreLog,
+            BusTopic::SshAgent => lfs_core::bus::EventTopic::SshAgent,
         }
     }
 }
@@ -320,6 +325,24 @@ pub enum BusEvent {
         name: String,
         message: String,
     },
+
+    /// In-process ssh-agent endpoint parked a signer waiting on a
+    /// per-key confirmation prompt. Dart subscribes to
+    /// [`BusTopic::SshAgent`] and mounts an
+    /// `AgentSignatureRequestDialog`; the dialog dispatches the
+    /// user's verdict via
+    /// `ssh_agent_respond_to_signature_request(request_id, decision)`.
+    ///
+    /// `request_id` is the opaque correlation id; `key_id` /
+    /// `key_label` identify the stored row. `requester` carries the
+    /// best-effort process name (`None` on macOS where the BSD
+    /// socket layer does not expose a pid).
+    SshAgentSignaturePrompt {
+        request_id: String,
+        key_id: String,
+        key_label: String,
+        requester: Option<String>,
+    },
 }
 
 /// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
@@ -530,6 +553,17 @@ impl BusEvent {
                 },
                 name,
                 message,
+            },
+            lfs_core::bus::Event::SshAgentSignaturePrompt {
+                request_id,
+                key_id,
+                key_label,
+                requester,
+            } => BusEvent::SshAgentSignaturePrompt {
+                request_id,
+                key_id,
+                key_label,
+                requester,
             },
         }
     }

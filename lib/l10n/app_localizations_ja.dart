@@ -2839,4 +2839,64 @@ class SJa extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'ハードウェアキーのプロンプトをキャンセルしました';
+
+  @override
+  String get agentEndpointSectionTitle => '外部 SSH クライアント連携';
+
+  @override
+  String get agentEndpointToggleTitle => 'ハードウェアキーを SSH クライアントに公開する';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'この端末の git・ssh・IDE プラグインから FIDO2 / smart-card / TPM キーを利用できるようにします。';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export コマンドをコピー';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe 名をコピー';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => '署名リクエスト';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester が $keyLabel で署名しようとしています';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => '外部 SSH クライアント';
+
+  @override
+  String get agentEndpointAuthorizeOnce => '今回だけ許可';
+
+  @override
+  String get agentEndpointAuthorizeAlways => '許可して記憶する';
+
+  @override
+  String get agentEndpointDeny => '拒否';
+
+  @override
+  String get agentEndpointStatusRunning => '実行中';
+
+  @override
+  String get agentEndpointStatusStopped => '停止';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'このプラットフォームでは利用できません';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      '拒否: 外部クライアントから key を追加することはできません。';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent エンドポイントを開始できません: $detail';
+  }
 }

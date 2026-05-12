@@ -408,7 +408,14 @@ impl Db {
 /// at import) — so `sk-ssh-ed25519@openssh.com` and
 /// `sk-ecdsa-sha2-nistp256@openssh.com` keys persist alongside
 /// the plain-text PEM rows without needing a separate side table.
-pub const SCHEMA_VERSION: i32 = 7;
+/// v8 adds `agent_policy` on `ssh_keys` (TEXT, one of `'always'` /
+/// `'ask'` / `'deny'`, default `'ask'`) — the per-key dispatch
+/// policy the in-process ssh-agent endpoint (`lfs_core::ssh_agent`)
+/// consults before signing a request from an external SSH client.
+/// Default `'ask'` keeps the security-first posture: every
+/// SIGN_REQUEST routes through a confirmation dialog until the
+/// user explicitly promotes the row to `'always'` or `'deny'`.
+pub const SCHEMA_VERSION: i32 = 8;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -493,6 +500,15 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // contract a fresh install gets from `SCHEMA_SQL`.
         if (1..7).contains(&current) {
             add_ssh_keys_fido2_columns(conn)?;
+        }
+        // v1..v7 → v8: stamp the `agent_policy` column on `ssh_keys`.
+        // Existing rows backfill to `'ask'` so the ssh-agent endpoint
+        // surfaces a confirmation dialog on every sign request until
+        // the operator explicitly promotes a key to `'always'` /
+        // `'deny'`. Fresh installs (`current == 0`) take the column
+        // from `SCHEMA_SQL` and skip this arm.
+        if (1..8).contains(&current) {
+            add_ssh_keys_agent_policy_column(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -615,6 +631,19 @@ fn add_ssh_keys_fido2_columns(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys fido2 cols: {e}")))
 }
 
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN agent_policy TEXT NOT
+/// NULL DEFAULT 'ask'` on the v1..v7 -> v8 hop. Same shape contract
+/// as the older ALTER helpers above: a one-shot batch gated by
+/// the version range inside `bootstrap_schema`, with SQLite's
+/// duplicate-column-name error reserved for the re-run case which
+/// the gate prevents. Fresh installs (`current == 0`) get the
+/// column directly from `SCHEMA_SQL`.
+fn add_ssh_keys_agent_policy_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE ssh_keys ADD COLUMN agent_policy TEXT NOT NULL DEFAULT 'ask'")
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys.agent_policy: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -663,7 +692,8 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     -- gates the PIN prompt on connect.
     credential_id BLOB NULL,
     application_string TEXT NULL,
-    has_user_verification INTEGER NOT NULL DEFAULT 0
+    has_user_verification INTEGER NOT NULL DEFAULT 0,
+    agent_policy TEXT NOT NULL DEFAULT 'ask'
 );
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
@@ -969,14 +999,16 @@ mod tests {
         conn.inner()
             .execute_batch("ALTER TABLE sessions DROP COLUMN kind")
             .unwrap();
-        // Same reason for the v7 FIDO2 columns on `ssh_keys` — the
-        // v1..v6 → v7 arm replays on rewind. Drop here so the ALTER
-        // does not trip on a duplicate column.
+        // Same reason for the v7 FIDO2 columns + the v8 `agent_policy`
+        // column on `ssh_keys` — the v1..v6 -> v7 and v1..v7 -> v8
+        // arms replay on rewind. Drop here so the ALTERs do not trip
+        // on duplicate columns.
         conn.inner()
             .execute_batch(
                 "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
-                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 2).unwrap();
@@ -1033,7 +1065,8 @@ mod tests {
                  DROP TABLE IF EXISTS s3_session_details; \
                  ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
-                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 5).unwrap();
@@ -1073,7 +1106,8 @@ mod tests {
             .execute_batch(
                 "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
-                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 6).unwrap();
@@ -1107,6 +1141,64 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v7 -> v8 upgrade hop. A database stamped at v7 with the
+    /// pre-v8 `ssh_keys` shape (no `agent_policy` column) must pick
+    /// it up on bootstrap. Strip the column, rewind `user_version`,
+    /// re-bootstrap, confirm the column lands with the `'ask'`
+    /// default backfilled on every existing row, then re-run for
+    /// idempotency.
+    #[test]
+    fn bootstrap_v7_to_v8_adds_agent_policy_column_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Seed one row before the strip so the backfill is observable
+        // on a pre-existing record, not only on a row inserted after
+        // the migration.
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at) \
+                 VALUES ('pre-v8', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN agent_policy")
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 7).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_col = false;
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                if name == "agent_policy" {
+                    has_col = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(has_col, "ssh_keys.agent_policy missing after v7 -> v8");
+
+        // Backfill confirmed: the pre-existing row picks up the
+        // schema default `'ask'` on the additive ALTER.
+        let policy: String = conn
+            .inner()
+            .query_row(
+                "SELECT agent_policy FROM ssh_keys WHERE id = 'pre-v8'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(policy, "ask");
+
+        // Re-running bootstrap is a no-op once the stamp lands at v8.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1130,7 +1222,8 @@ mod tests {
                  DROP TABLE IF EXISTS s3_session_details; \
                  ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
-                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification;",
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 4).unwrap();
@@ -1178,6 +1271,7 @@ mod tests {
             credential_id: None,
             application_string: None,
             has_user_verification: false,
+            agent_policy: ssh_keys::AgentPolicy::Ask,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

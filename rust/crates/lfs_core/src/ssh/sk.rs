@@ -77,7 +77,14 @@ fn algorithm_wire_name(algorithm: &Algorithm) -> Result<&'static str, Error> {
 /// verbatim — Ed25519 is the 64-byte raw signature; ECDSA P-256 is
 /// the DER-encoded `SEQUENCE { r, s }` normalised here into the SSH
 /// `mpint(r) || mpint(s)` shape via [`crate::ssh::wire`].
-pub(crate) fn encode_sk_signature(
+///
+/// `pub` so the in-process ssh-agent endpoint (`crate::ssh_agent`)
+/// can reach the bare SK trailer without re-implementing the
+/// SHA-256 -> CTAP2 -> trailer dance: the agent protocol's
+/// `Signature` response shape wants the SK trailer directly, with
+/// the algorithm name as a sibling field rather than length-prefixed
+/// in-band.
+pub fn encode_sk_signature(
     algorithm: &Algorithm,
     raw_signature: &[u8],
     flags: u8,
@@ -132,6 +139,40 @@ pub(crate) fn encode_signature(
     wire::push_ssh_string(&mut buf, name.as_bytes());
     wire::push_ssh_string(&mut buf, sk_signature_blob);
     Ok(buf)
+}
+
+/// Build the SK signature trailer for `to_sign` without the
+/// outer `string(algorithm) || string(sig_blob)` wrapping that
+/// the userauth path needs. Used by the in-process ssh-agent
+/// endpoint — the agent wire response carries algorithm and
+/// data as two separate fields, so the userauth concatenation
+/// would double-wrap.
+///
+/// Returns `signature_blob || flags(u8) || counter(u32)` for
+/// `sk-ed25519` and `mpint(r) || mpint(s) || flags || counter`
+/// for `sk-ecdsa-p256`.
+pub async fn sign_sk_blob_only(
+    algorithm: &Algorithm,
+    credential: &FidoCredential,
+    to_sign: &[u8],
+) -> Result<Vec<u8>, Error> {
+    let _ = algorithm_wire_name(algorithm)?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(to_sign);
+    let challenge = hasher.finalize();
+
+    let assertion = fido2::get_assertion(
+        &credential.credential_id,
+        &credential.application,
+        challenge.as_slice(),
+        credential.pin.as_deref(),
+    )
+    .await?;
+
+    let flags = assertion.ssh_flags();
+    let counter = assertion.ssh_counter();
+    encode_sk_signature(algorithm, &assertion.signature, flags, counter)
 }
 
 /// Build the SSH-format signature for [`to_sign`] using the device

@@ -2985,4 +2985,66 @@ class SDe extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Hardware Key Abfrage abgebrochen';
+
+  @override
+  String get agentEndpointSectionTitle => 'Externe SSH-Client-Integration';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Hardware-bound Keys für SSH-Clients freigeben';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Erlaubt git, ssh, IDE-Plugins auf diesem Gerät, deine FIDO2 / Smart-Card / TPM Keys zu nutzen.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Export-Befehl kopieren';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Pipe-Name kopieren';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Signaturanfrage';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester möchte mit $keyLabel signieren';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Ein externer SSH-Client';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Einmal erlauben';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Erlauben und merken';
+
+  @override
+  String get agentEndpointDeny => 'Ablehnen';
+
+  @override
+  String get agentEndpointStatusRunning => 'Aktiv';
+
+  @override
+  String get agentEndpointStatusStopped => 'Gestoppt';
+
+  @override
+  String get agentEndpointStatusUnsupported =>
+      'Auf dieser Plattform nicht verfügbar';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Abgelehnt: externe Clients dürfen keine Keys hinzufügen.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'SSH-Agent-Endpoint konnte nicht gestartet werden: $detail';
+  }
 }

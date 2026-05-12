@@ -2900,4 +2900,65 @@ class SFa extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'درخواست hardware key لغو شد';
+
+  @override
+  String get agentEndpointSectionTitle => 'ادغام با کلاینت‌های SSH خارجی';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'ارائه hardware-bound keys به کلاینت‌های SSH سیستم';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'به git و ssh و افزونه‌های IDE روی این دستگاه اجازه می‌دهد از key های FIDO2 / smart-card / TPM شما استفاده کنند.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'کپی دستور export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'کپی نام pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'درخواست امضا';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester می‌خواهد با $keyLabel امضا کند';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'یک کلاینت SSH خارجی';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'یک‌بار اجازه بده';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'اجازه بده و به خاطر بسپار';
+
+  @override
+  String get agentEndpointDeny => 'رد کن';
+
+  @override
+  String get agentEndpointStatusRunning => 'در حال اجرا';
+
+  @override
+  String get agentEndpointStatusStopped => 'متوقف';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'در این پلتفرم پشتیبانی نمی‌شود';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'رد شد: کلاینت‌های خارجی نمی‌توانند key اضافه کنند.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'راه‌اندازی ssh-agent endpoint ممکن نشد: $detail';
+  }
 }

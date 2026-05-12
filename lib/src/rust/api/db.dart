@@ -1168,6 +1168,15 @@ class DbSshKey {
   /// on connect.
   final bool hasUserVerification;
 
+  /// Per-key dispatch policy for the in-process ssh-agent endpoint.
+  /// Wire values: `"always"` / `"ask"` / `"deny"`. Default `"ask"`
+  /// matches the schema default — the endpoint routes every
+  /// SIGN_REQUEST through a Flutter confirmation dialog until the
+  /// user promotes the row. Stays a String over the FRB boundary
+  /// so the Dart side doesn't need a generated enum mirror; the
+  /// `DbAgentPolicy` helpers below map Rust enum <-> String.
+  final String agentPolicy;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1179,6 +1188,7 @@ class DbSshKey {
     this.credentialId,
     this.applicationString,
     required this.hasUserVerification,
+    required this.agentPolicy,
   });
 
   @override
@@ -1192,7 +1202,8 @@ class DbSshKey {
       createdAtMs.hashCode ^
       credentialId.hashCode ^
       applicationString.hashCode ^
-      hasUserVerification.hashCode;
+      hasUserVerification.hashCode ^
+      agentPolicy.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1208,7 +1219,8 @@ class DbSshKey {
           createdAtMs == other.createdAtMs &&
           credentialId == other.credentialId &&
           applicationString == other.applicationString &&
-          hasUserVerification == other.hasUserVerification;
+          hasUserVerification == other.hasUserVerification &&
+          agentPolicy == other.agentPolicy;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].

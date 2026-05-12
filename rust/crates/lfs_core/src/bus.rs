@@ -98,6 +98,14 @@ pub enum EventTopic {
     /// failures inside catch-arms / panics caught by FRB would
     /// disappear silently.
     CoreLog,
+    /// In-process ssh-agent endpoint — per-key confirmation
+    /// requests + cancellation notices. The Dart Settings UI
+    /// subscribes here and mounts an `AgentSignatureRequestDialog`
+    /// per `SshAgentSignaturePrompt` event; the dialog calls back
+    /// through the FRB `ssh_agent_respond_to_signature_request`
+    /// surface with the user's decision. See
+    /// `lfs_core::ssh_agent::per_key_confirm`.
+    SshAgent,
 }
 
 impl EventTopic {
@@ -122,6 +130,7 @@ impl EventTopic {
         EventTopic::SecurityPrompt,
         EventTopic::SecurityCapabilities,
         EventTopic::CoreLog,
+        EventTopic::SshAgent,
     ];
 }
 
@@ -419,6 +428,29 @@ pub enum Event {
         name: String,
         message: String,
     },
+
+    /// In-process ssh-agent endpoint — a SIGN_REQUEST landed against
+    /// a key whose `agent_policy = 'ask'` and the endpoint parked
+    /// the signer waiting on a verdict from the Dart side. The
+    /// Settings UI subscribes to [`EventTopic::SshAgent`] and mounts
+    /// an `AgentSignatureRequestDialog` for each event; the dialog
+    /// dispatches the user's verdict via
+    /// `ssh_agent_respond_to_signature_request(request_id, decision)`.
+    ///
+    /// `request_id` is the opaque correlation id parked in
+    /// [`crate::ssh_agent::per_key_confirm`]; routing back through
+    /// the same id resolves the matching oneshot.
+    /// `key_id` / `key_label` identify the stored row so the dialog
+    /// can render the human-readable name. `requester` is the
+    /// best-effort process name behind the agent socket — `None`
+    /// on platforms that cannot resolve it cheaply (macOS), so the
+    /// dialog renders "Unknown" in that case.
+    SshAgentSignaturePrompt {
+        request_id: String,
+        key_id: String,
+        key_label: String,
+        requester: Option<String>,
+    },
 }
 
 /// Severity tag for [`Event::CoreLog`]. Mirrors the Dart
@@ -476,6 +508,7 @@ impl Event {
             Event::ConfigChanged { .. } => EventTopic::Config,
             Event::TierStateChanged { .. } => EventTopic::Tier,
             Event::CoreLog { .. } => EventTopic::CoreLog,
+            Event::SshAgentSignaturePrompt { .. } => EventTopic::SshAgent,
             Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KeychainProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,
@@ -616,6 +649,28 @@ impl EventBus {
             .get(&topic)
             .map(|s| s.receiver_count())
             .unwrap_or(0)
+    }
+
+    /// Helper for the ssh-agent endpoint — publishes a
+    /// [`Event::SshAgentSignaturePrompt`] without forcing the
+    /// caller to import the `Event` variant directly. Returns the
+    /// receiver count (`0` if nobody is listening — that case is
+    /// the no-Dart-UI integration-test path; the prompt times out
+    /// on the server side after [`crate::ssh_agent::per_key_confirm::PROMPT_TIMEOUT`]
+    /// and defaults to Deny).
+    pub fn publish_ssh_agent_prompt(
+        &self,
+        request_id: String,
+        key_id: String,
+        key_label: String,
+        requester: Option<String>,
+    ) -> usize {
+        self.publish(Event::SshAgentSignaturePrompt {
+            request_id,
+            key_id,
+            key_label,
+            requester,
+        })
     }
 }
 

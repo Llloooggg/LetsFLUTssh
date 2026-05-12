@@ -78,6 +78,13 @@ pub mod sftp;
 pub mod sftp_models;
 pub mod snippet_template;
 pub mod ssh;
+// In-process ssh-agent endpoint that exposes hardware-bound SSH
+// keys (FIDO2 today; future PKCS#11 / TPM / Secure Enclave / NCrypt /
+// Keystore) to external SSH-protocol-speaking applications on the
+// same host. Cfg-gated to desktop targets internally; the module
+// itself stays `pub` so the FRB adapter can name the surface
+// (`start_endpoint`, `stop`, `AgentStatus`).
+pub mod ssh_agent;
 pub mod ssh_config;
 pub mod ssh_dir_scan;
 // `storage` is the backend-agnostic byte-store abstraction

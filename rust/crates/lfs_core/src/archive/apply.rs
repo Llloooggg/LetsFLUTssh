@@ -625,6 +625,11 @@ fn apply_keys(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: 
                 .get("has_user_verification")
                 .and_then(|x| x.as_bool())
                 .unwrap_or(false),
+            // Archive imports default to `'ask'`. The exporting side's
+            // policy stays a per-device preference: importing a key
+            // onto a fresh host should not silently authorise the new
+            // host's ssh-agent endpoint to sign for it.
+            agent_policy: ssh_keys::AgentPolicy::Ask,
         };
         if row.id.is_empty() {
             result.errors.push("key row missing id".to_string());
@@ -840,6 +845,7 @@ mod tests {
                 credential_id: None,
                 application_string: None,
                 has_user_verification: false,
+                agent_policy: ssh_keys::AgentPolicy::Ask,
             },
         )
         .unwrap();
@@ -1017,6 +1023,7 @@ mod tests {
                 credential_id: None,
                 application_string: None,
                 has_user_verification: false,
+                agent_policy: ssh_keys::AgentPolicy::Ask,
             },
         )
         .unwrap();
@@ -1516,6 +1523,7 @@ mod tests {
                 credential_id: None,
                 application_string: None,
                 has_user_verification: false,
+                agent_policy: ssh_keys::AgentPolicy::Ask,
             },
         )
         .unwrap();

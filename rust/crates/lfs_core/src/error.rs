@@ -161,6 +161,15 @@ pub enum Error {
     /// trace verbatim instead of being clamped to `i32::MAX`.
     #[error("unsupported_archive_version: found={found}, supported={supported}")]
     ArchiveFutureVersion { found: i64, supported: i32 },
+
+    /// Operation is structurally unavailable on this build target — the
+    /// in-process ssh-agent endpoint on Android / iOS, or any future
+    /// capability the platform fundamentally cannot host. Frontend
+    /// renders the matching control disabled-with-reason instead of
+    /// attempting the call and surfacing a less-actionable downstream
+    /// error.
+    #[error("unsupported: {0}")]
+    Unsupported(String),
 }
 
 impl From<russh::Error> for Error {

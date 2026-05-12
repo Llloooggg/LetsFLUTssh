@@ -368,6 +368,12 @@ fn merge_keys(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOu
                 .get("has_user_verification")
                 .and_then(|x| x.as_bool())
                 .unwrap_or(false),
+            // Sync merges carry no `agent_policy` field across the wire
+            // today — the column is a per-device preference. Land
+            // `'ask'` on every incoming peer row so the receiving
+            // device routes new merges through the confirmation
+            // dialog until the operator opts in locally.
+            agent_policy: ssh_keys::AgentPolicy::Ask,
         };
         match ssh_keys::upsert(conn, &row) {
             Ok(_) => outcome.keys_merged += 1,
@@ -738,6 +744,7 @@ mod tests {
             credential_id: None,
             application_string: None,
             has_user_verification: false,
+            agent_policy: ssh_keys::AgentPolicy::Ask,
         };
         db.with_conn(|c| ssh_keys::upsert(c, &row)).unwrap();
         let peer = r#"[{

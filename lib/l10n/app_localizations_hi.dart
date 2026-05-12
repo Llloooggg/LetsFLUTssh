@@ -2911,4 +2911,66 @@ class SHi extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Hardware key prompt cancel कर दिया';
+
+  @override
+  String get agentEndpointSectionTitle => 'External SSH client integration';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Hardware-bound keys को system SSH clients के लिए expose करें';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'इस device पर git, ssh और IDE plugins को आपकी FIDO2 / smart-card / TPM keys use करने देता है.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export command copy करें';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe name copy करें';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Signature request';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester $keyLabel से sign करना चाहता है';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'एक external SSH client';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'एक बार authorize करें';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Authorize करें और याद रखें';
+
+  @override
+  String get agentEndpointDeny => 'Deny';
+
+  @override
+  String get agentEndpointStatusRunning => 'Running';
+
+  @override
+  String get agentEndpointStatusStopped => 'Stopped';
+
+  @override
+  String get agentEndpointStatusUnsupported =>
+      'इस platform पर supported नहीं है';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Refused: external clients keys add नहीं कर सकते.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent endpoint start नहीं हुआ: $detail';
+  }
 }

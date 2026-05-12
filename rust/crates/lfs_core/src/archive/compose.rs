@@ -934,6 +934,7 @@ mod tests {
                 credential_id: None,
                 application_string: None,
                 has_user_verification: false,
+                agent_policy: ssh_keys::AgentPolicy::Ask,
             },
         )
         .unwrap();

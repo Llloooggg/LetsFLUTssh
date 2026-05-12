@@ -2913,4 +2913,65 @@ class SAr extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'تم إلغاء طلب hardware key';
+
+  @override
+  String get agentEndpointSectionTitle => 'تكامل مع عملاء SSH الخارجيين';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'كشف hardware-bound keys لعملاء SSH على النظام';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'يسمح لـ git و ssh وإضافات IDE على هذا الجهاز باستخدام مفاتيح FIDO2 / smart-card / TPM.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'نسخ أمر export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'نسخ اسم pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'طلب توقيع';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester يريد التوقيع باستخدام $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'عميل SSH خارجي';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'اسمح مرة واحدة';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'اسمح وتذكّر';
+
+  @override
+  String get agentEndpointDeny => 'رفض';
+
+  @override
+  String get agentEndpointStatusRunning => 'قيد التشغيل';
+
+  @override
+  String get agentEndpointStatusStopped => 'متوقف';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'غير مدعوم على هذه المنصة';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'مرفوض: لا يمكن للعملاء الخارجيين إضافة keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'تعذّر تشغيل ssh-agent endpoint: $detail';
+  }
 }

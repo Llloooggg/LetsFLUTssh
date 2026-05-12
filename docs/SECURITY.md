@@ -545,6 +545,16 @@ PIN entry is per-connect, never cached: the `hardware_key_prompt_dialog` collect
 
 The connect path's `FidoSigner` (russh `auth::Signer` impl) SHA-256-hashes the SSH userauth signature input, sends it to the device as the WebAuthn `clientDataHash`, and embeds the resulting CTAP signature in the OpenSSH `sk-*` wire-format trailer (`flags || u32 counter` for sk-ed25519; `mpint r || mpint s || flags || u32 counter` for sk-ecdsa-p256). The counter increments per assertion — replay across the wire is detectable by any SSH server that tracks it.
 
+## In-process ssh-agent endpoint
+
+`Settings → External SSH client integration` exposes the app's hardware-bound keys to other SSH-protocol-speaking applications on the same host (`git`, OpenSSH `ssh`, IDE plugins). The endpoint is off by default; the user opts in explicitly. When running it binds a Unix domain socket at `${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` (Linux / macOS) with parent-directory mode `0o700`, or a Windows named pipe at `\\.\pipe\letsflutssh-agent.<pid>` whose default DACL grants only the current user SID + SYSTEM.
+
+Security posture: the endpoint refuses every `ADD_IDENTITY` / `ADD_IDENTITY_CONSTRAINED` / `REMOVE_IDENTITY` / `REMOVE_ALL_IDENTITIES` / `ADD_SMARTCARD_KEY` / `REMOVE_SMARTCARD_KEY` request with `SSH_AGENT_FAILURE` — external clients cannot push key material in. Software keys (plain-text PEM rows) are never published through the agent's `request_identities`; only hardware-bound rows whose `agent_policy != 'deny'` appear. Every SIGN_REQUEST routes through a confirmation dialog when the key's `agent_policy` is `'ask'` (the default); `'always'` skips the dialog, `'deny'` refuses outright AND hides the key from listing. Touch / PIN prompts the hardware backend itself requires still fire on top.
+
+Per-key dispatch policy is stored on `ssh_keys.agent_policy` (schema v8) and never crosses the wire to peer devices on a sync merge — incoming sync rows always land at `'ask'` so authorising a key on one host does not auto-authorise it on another.
+
+Mobile builds compile out the entire module — Android and iOS app sandboxes deny the cross-process IPC the agent protocol depends on, and there is no `ssh` / `git` shell on those platforms to consume the socket.
+
 ## Known limits
 
 - The running unlocked app must hold the decrypted DB key in process

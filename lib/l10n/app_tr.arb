@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN hatalı",
   "hardwareKeyImport": "Hardware key import et (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "Hardware key prompt iptal edildi"
+  "hardwareKeyPromptCancelled": "Hardware key prompt iptal edildi",
+  "agentEndpointSectionTitle": "Harici SSH client entegrasyonu",
+  "agentEndpointToggleTitle": "Hardware-bound keys'i sistem SSH client'larına aç",
+  "agentEndpointToggleSubtitle": "Bu cihazdaki git, ssh ve IDE plugin'lerinin FIDO2 / smart-card / TPM keys'lerinizi kullanmasına izin verir.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "export komutunu kopyala",
+  "agentEndpointCopyPipeName": "pipe adını kopyala",
+  "agentEndpointSignatureRequestTitle": "İmza isteği",
+  "agentEndpointSignatureRequestBody": "{requester}, {keyLabel} ile imzalamak istiyor",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "Harici bir SSH client",
+  "agentEndpointAuthorizeOnce": "Bir kez yetkilendir",
+  "agentEndpointAuthorizeAlways": "Yetkilendir ve hatırla",
+  "agentEndpointDeny": "Reddet",
+  "agentEndpointStatusRunning": "Çalışıyor",
+  "agentEndpointStatusStopped": "Durdu",
+  "agentEndpointStatusUnsupported": "Bu platformda desteklenmiyor",
+  "agentEndpointRefusedAddIdentity": "Reddedildi: harici client'lar key ekleyemez.",
+  "agentEndpointStartFailed": "ssh-agent endpoint başlatılamadı: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

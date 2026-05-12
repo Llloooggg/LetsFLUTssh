@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN गलत है",
   "hardwareKeyImport": "Hardware key import करें (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "Hardware key prompt cancel कर दिया"
+  "hardwareKeyPromptCancelled": "Hardware key prompt cancel कर दिया",
+  "agentEndpointSectionTitle": "External SSH client integration",
+  "agentEndpointToggleTitle": "Hardware-bound keys को system SSH clients के लिए expose करें",
+  "agentEndpointToggleSubtitle": "इस device पर git, ssh और IDE plugins को आपकी FIDO2 / smart-card / TPM keys use करने देता है.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "export command copy करें",
+  "agentEndpointCopyPipeName": "pipe name copy करें",
+  "agentEndpointSignatureRequestTitle": "Signature request",
+  "agentEndpointSignatureRequestBody": "{requester} {keyLabel} से sign करना चाहता है",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "एक external SSH client",
+  "agentEndpointAuthorizeOnce": "एक बार authorize करें",
+  "agentEndpointAuthorizeAlways": "Authorize करें और याद रखें",
+  "agentEndpointDeny": "Deny",
+  "agentEndpointStatusRunning": "Running",
+  "agentEndpointStatusStopped": "Stopped",
+  "agentEndpointStatusUnsupported": "इस platform पर supported नहीं है",
+  "agentEndpointRefusedAddIdentity": "Refused: external clients keys add नहीं कर सकते.",
+  "agentEndpointStartFailed": "ssh-agent endpoint start नहीं हुआ: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

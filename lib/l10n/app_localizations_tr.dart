@@ -2915,4 +2915,65 @@ class STr extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Hardware key prompt iptal edildi';
+
+  @override
+  String get agentEndpointSectionTitle => 'Harici SSH client entegrasyonu';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Hardware-bound keys\'i sistem SSH client\'larına aç';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Bu cihazdaki git, ssh ve IDE plugin\'lerinin FIDO2 / smart-card / TPM keys\'lerinizi kullanmasına izin verir.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export komutunu kopyala';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe adını kopyala';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'İmza isteği';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester, $keyLabel ile imzalamak istiyor';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Harici bir SSH client';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Bir kez yetkilendir';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Yetkilendir ve hatırla';
+
+  @override
+  String get agentEndpointDeny => 'Reddet';
+
+  @override
+  String get agentEndpointStatusRunning => 'Çalışıyor';
+
+  @override
+  String get agentEndpointStatusStopped => 'Durdu';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Bu platformda desteklenmiyor';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Reddedildi: harici client\'lar key ekleyemez.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent endpoint başlatılamadı: $detail';
+  }
 }

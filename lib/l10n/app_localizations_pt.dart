@@ -2980,4 +2980,66 @@ class SPt extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Prompt do hardware key cancelado';
+
+  @override
+  String get agentEndpointSectionTitle =>
+      'Integração com clientes SSH externos';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Expor hardware keys aos clientes SSH do sistema';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Permite que git, ssh e plugins de IDE neste dispositivo usem suas keys FIDO2 / smart-card / TPM.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Copiar comando export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Copiar nome do pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Solicitação de assinatura';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester quer assinar com $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Um cliente SSH externo';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Autorizar uma vez';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Autorizar e lembrar';
+
+  @override
+  String get agentEndpointDeny => 'Recusar';
+
+  @override
+  String get agentEndpointStatusRunning => 'Em execução';
+
+  @override
+  String get agentEndpointStatusStopped => 'Parado';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Indisponível nesta plataforma';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Recusado: clientes externos não podem adicionar keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Não foi possível iniciar o ssh-agent endpoint: $detail';
+  }
 }

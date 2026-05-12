@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN اشتباه است",
   "hardwareKeyImport": "import کردن hardware key (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "درخواست hardware key لغو شد"
+  "hardwareKeyPromptCancelled": "درخواست hardware key لغو شد",
+  "agentEndpointSectionTitle": "ادغام با کلاینت‌های SSH خارجی",
+  "agentEndpointToggleTitle": "ارائه hardware-bound keys به کلاینت‌های SSH سیستم",
+  "agentEndpointToggleSubtitle": "به git و ssh و افزونه‌های IDE روی این دستگاه اجازه می‌دهد از key های FIDO2 / smart-card / TPM شما استفاده کنند.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "کپی دستور export",
+  "agentEndpointCopyPipeName": "کپی نام pipe",
+  "agentEndpointSignatureRequestTitle": "درخواست امضا",
+  "agentEndpointSignatureRequestBody": "{requester} می‌خواهد با {keyLabel} امضا کند",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "یک کلاینت SSH خارجی",
+  "agentEndpointAuthorizeOnce": "یک‌بار اجازه بده",
+  "agentEndpointAuthorizeAlways": "اجازه بده و به خاطر بسپار",
+  "agentEndpointDeny": "رد کن",
+  "agentEndpointStatusRunning": "در حال اجرا",
+  "agentEndpointStatusStopped": "متوقف",
+  "agentEndpointStatusUnsupported": "در این پلتفرم پشتیبانی نمی‌شود",
+  "agentEndpointRefusedAddIdentity": "رد شد: کلاینت‌های خارجی نمی‌توانند key اضافه کنند.",
+  "agentEndpointStartFailed": "راه‌اندازی ssh-agent endpoint ممکن نشد: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

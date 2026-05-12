@@ -92,6 +92,7 @@ Future<void> _populateDb({
         isGenerated: false,
         createdAtMs: DateTime(2025).millisecondsSinceEpoch,
         hasUserVerification: false,
+        agentPolicy: 'ask',
       ),
     );
   }

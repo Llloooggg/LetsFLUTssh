@@ -227,6 +227,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // can read back. Non-functional until per-tier handlers wire
     // production unlock through the actor.
     TierStateObserver.start();
+    // In-process ssh-agent endpoint per-key SIGN_REQUEST listener.
+    // Subscribes to the SshAgent bus topic; surfaces an
+    // AgentSignatureRequestDialog and routes the user's verdict
+    // back to the parked signer through
+    // `ssh_agent_respond_to_signature_request`. The endpoint itself
+    // is off by default — the user opts in through Settings; the
+    // listener stays armed regardless so a started endpoint can
+    // surface prompts the instant it accepts a connection.
+    SshAgentPromptListener.start();
     // Activate the bus → foreground-service bridge. The provider's
     // body wires `ref.listen` against the active-count stream; the
     // act of reading it once installs the listener for the process

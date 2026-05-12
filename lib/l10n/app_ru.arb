@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "Неверный PIN",
   "hardwareKeyImport": "Импорт hardware key (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "Запрос hardware key отменён"
+  "hardwareKeyPromptCancelled": "Запрос hardware key отменён",
+  "agentEndpointSectionTitle": "Интеграция с внешними SSH-клиентами",
+  "agentEndpointToggleTitle": "Открыть hardware-bound ключи системным SSH-клиентам",
+  "agentEndpointToggleSubtitle": "Позволяет git, ssh, плагинам IDE на этом устройстве использовать ваши FIDO2 / smart-card / TPM ключи.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Скопировать export-команду",
+  "agentEndpointCopyPipeName": "Скопировать имя pipe",
+  "agentEndpointSignatureRequestTitle": "Запрос на подпись",
+  "agentEndpointSignatureRequestBody": "{requester} запрашивает подпись ключом {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "Внешний SSH-клиент",
+  "agentEndpointAuthorizeOnce": "Разрешить один раз",
+  "agentEndpointAuthorizeAlways": "Разрешить и запомнить",
+  "agentEndpointDeny": "Отклонить",
+  "agentEndpointStatusRunning": "Работает",
+  "agentEndpointStatusStopped": "Остановлено",
+  "agentEndpointStatusUnsupported": "Не поддерживается на этой платформе",
+  "agentEndpointRefusedAddIdentity": "Отказано: внешние клиенты не могут добавлять ключи.",
+  "agentEndpointStartFailed": "Не удалось запустить ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

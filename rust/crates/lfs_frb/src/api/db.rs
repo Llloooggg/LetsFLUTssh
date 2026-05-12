@@ -136,6 +136,14 @@ pub struct DbSshKey {
     /// User-verification bit captured at import. Drives the PIN prompt
     /// on connect.
     pub has_user_verification: bool,
+    /// Per-key dispatch policy for the in-process ssh-agent endpoint.
+    /// Wire values: `"always"` / `"ask"` / `"deny"`. Default `"ask"`
+    /// matches the schema default — the endpoint routes every
+    /// SIGN_REQUEST through a Flutter confirmation dialog until the
+    /// user promotes the row. Stays a String over the FRB boundary
+    /// so the Dart side doesn't need a generated enum mirror; the
+    /// `DbAgentPolicy` helpers below map Rust enum <-> String.
+    pub agent_policy: String,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -151,6 +159,7 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             credential_id: r.credential_id,
             application_string: r.application_string,
             has_user_verification: r.has_user_verification,
+            agent_policy: r.agent_policy.as_db_str().to_string(),
         }
     }
 }
@@ -168,6 +177,7 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             credential_id: r.credential_id,
             application_string: r.application_string,
             has_user_verification: r.has_user_verification,
+            agent_policy: lfs_core::db::ssh_keys::AgentPolicy::from_db(&r.agent_policy),
         }
     }
 }
@@ -1618,6 +1628,7 @@ mod tests {
             credential_id: None,
             application_string: None,
             has_user_verification: false,
+            agent_policy: "ask".into(),
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

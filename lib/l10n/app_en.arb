@@ -1609,5 +1609,34 @@
   "errSkWrongPin": "Incorrect PIN",
   "hardwareKeyImport": "Import hardware key (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "Hardware key prompt cancelled"
+  "hardwareKeyPromptCancelled": "Hardware key prompt cancelled",
+  "agentEndpointSectionTitle": "External SSH client integration",
+  "agentEndpointToggleTitle": "Expose hardware-bound keys to system SSH clients",
+  "agentEndpointToggleSubtitle": "Allows git, ssh, IDE plugins on this device to use your FIDO2 / smart-card / TPM keys.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Copy export command",
+  "agentEndpointCopyPipeName": "Copy pipe name",
+  "agentEndpointSignatureRequestTitle": "Signature request",
+  "agentEndpointSignatureRequestBody": "{requester} wants to sign with {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "An external SSH client",
+  "agentEndpointAuthorizeOnce": "Authorize once",
+  "agentEndpointAuthorizeAlways": "Authorize and remember",
+  "agentEndpointDeny": "Deny",
+  "agentEndpointStatusRunning": "Running",
+  "agentEndpointStatusStopped": "Stopped",
+  "agentEndpointStatusUnsupported": "Not supported on this platform",
+  "agentEndpointRefusedAddIdentity": "Refused: external clients cannot add keys.",
+  "agentEndpointStartFailed": "Could not start the SSH agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

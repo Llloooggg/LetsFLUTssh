@@ -2814,4 +2814,63 @@ class SZh extends S {
 
   @override
   String get hardwareKeyPromptCancelled => '已取消硬件密钥提示';
+
+  @override
+  String get agentEndpointSectionTitle => '外部 SSH 客户端集成';
+
+  @override
+  String get agentEndpointToggleTitle => '向系统 SSH 客户端公开硬件绑定密钥';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      '允许此设备上的 git、ssh、IDE 插件使用您的 FIDO2 / smart-card / TPM 密钥。';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => '复制 export 命令';
+
+  @override
+  String get agentEndpointCopyPipeName => '复制 pipe 名称';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => '签名请求';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester 想要使用 $keyLabel 签名';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => '外部 SSH 客户端';
+
+  @override
+  String get agentEndpointAuthorizeOnce => '仅本次授权';
+
+  @override
+  String get agentEndpointAuthorizeAlways => '授权并记住';
+
+  @override
+  String get agentEndpointDeny => '拒绝';
+
+  @override
+  String get agentEndpointStatusRunning => '运行中';
+
+  @override
+  String get agentEndpointStatusStopped => '已停止';
+
+  @override
+  String get agentEndpointStatusUnsupported => '此平台不支持';
+
+  @override
+  String get agentEndpointRefusedAddIdentity => '拒绝：外部客户端不能添加 key。';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return '无法启动 ssh-agent endpoint：$detail';
+  }
 }

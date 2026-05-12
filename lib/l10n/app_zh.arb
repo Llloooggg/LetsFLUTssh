@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN 错误",
   "hardwareKeyImport": "导入硬件密钥 (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "已取消硬件密钥提示"
+  "hardwareKeyPromptCancelled": "已取消硬件密钥提示",
+  "agentEndpointSectionTitle": "外部 SSH 客户端集成",
+  "agentEndpointToggleTitle": "向系统 SSH 客户端公开硬件绑定密钥",
+  "agentEndpointToggleSubtitle": "允许此设备上的 git、ssh、IDE 插件使用您的 FIDO2 / smart-card / TPM 密钥。",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "复制 export 命令",
+  "agentEndpointCopyPipeName": "复制 pipe 名称",
+  "agentEndpointSignatureRequestTitle": "签名请求",
+  "agentEndpointSignatureRequestBody": "{requester} 想要使用 {keyLabel} 签名",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "外部 SSH 客户端",
+  "agentEndpointAuthorizeOnce": "仅本次授权",
+  "agentEndpointAuthorizeAlways": "授权并记住",
+  "agentEndpointDeny": "拒绝",
+  "agentEndpointStatusRunning": "运行中",
+  "agentEndpointStatusStopped": "已停止",
+  "agentEndpointStatusUnsupported": "此平台不支持",
+  "agentEndpointRefusedAddIdentity": "拒绝：外部客户端不能添加 key。",
+  "agentEndpointStartFailed": "无法启动 ssh-agent endpoint：{detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

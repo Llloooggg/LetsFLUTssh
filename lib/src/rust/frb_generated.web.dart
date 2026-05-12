@@ -61,6 +61,7 @@ import 'api/sftp.dart';
 import 'api/sftp_models.dart';
 import 'api/snippet_template.dart';
 import 'api/ssh.dart';
+import 'api/ssh_agent.dart';
 import 'api/ssh_config.dart';
 import 'api/ssh_dir_scan.dart';
 import 'api/sync.dart';
@@ -333,6 +334,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusProgressStep dco_decode_box_autoadd_bus_progress_step(dynamic raw);
 
   @protected
+  DbAgentDecision dco_decode_box_autoadd_db_agent_decision(dynamic raw);
+
+  @protected
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw);
 
   @protected
@@ -519,6 +523,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusTopic dco_decode_bus_topic(dynamic raw);
+
+  @protected
+  DbAgentDecision dco_decode_db_agent_decision(dynamic raw);
+
+  @protected
+  DbAgentStatus dco_decode_db_agent_status(dynamic raw);
 
   @protected
   DbAppConfig dco_decode_db_app_config(dynamic raw);
@@ -1444,6 +1454,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbAgentDecision sse_decode_box_autoadd_db_agent_decision(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbAppConfig sse_decode_box_autoadd_db_app_config(
     SseDeserializer deserializer,
   );
@@ -1688,6 +1703,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusTopic sse_decode_bus_topic(SseDeserializer deserializer);
+
+  @protected
+  DbAgentDecision sse_decode_db_agent_decision(SseDeserializer deserializer);
+
+  @protected
+  DbAgentStatus sse_decode_db_agent_status(SseDeserializer deserializer);
 
   @protected
   DbAppConfig sse_decode_db_app_config(SseDeserializer deserializer);
@@ -2861,6 +2882,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_agent_decision(
+    DbAgentDecision self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_app_config(
     DbAppConfig self,
     SseSerializer serializer,
@@ -3168,6 +3195,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bus_topic(BusTopic self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_agent_decision(
+    DbAgentDecision self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_agent_status(DbAgentStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_app_config(DbAppConfig self, SseSerializer serializer);

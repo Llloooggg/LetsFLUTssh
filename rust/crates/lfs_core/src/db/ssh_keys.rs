@@ -38,9 +38,61 @@ pub struct SshKeyRow {
     /// connect path prompts the user for a PIN; when `false` the
     /// device accepts a touch-only assertion.
     pub has_user_verification: bool,
+    /// Per-key dispatch policy for the in-process ssh-agent endpoint
+    /// (`lfs_core::ssh_agent`). One of [`AgentPolicy::Always`] /
+    /// [`AgentPolicy::Ask`] / [`AgentPolicy::Deny`]. Default `Ask`
+    /// keeps the security-first posture: every SIGN_REQUEST from
+    /// an external SSH client (`git`, `ssh`, IDE plugin) on the
+    /// same host routes through a Flutter confirmation dialog
+    /// until the user explicitly promotes the row.
+    pub agent_policy: AgentPolicy,
+}
+
+/// Per-key dispatch policy for the in-process ssh-agent endpoint.
+/// Persisted as TEXT on `ssh_keys.agent_policy` so the DB layer
+/// can keep the column declarative (`CHECK` not enforced today,
+/// but the Rust round-trip is the single writer and clamps the
+/// shape).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentPolicy {
+    /// Sign silently. Skip the Flutter confirmation dialog. The
+    /// hardware backend's own touch / PIN prompt still fires when
+    /// the credential carries the user-verification bit.
+    Always,
+    /// Route every SIGN_REQUEST through a Flutter confirmation
+    /// dialog. Default for newly imported keys.
+    Ask,
+    /// Refuse SIGN_REQUEST with `SSH_AGENT_FAILURE`. The
+    /// `request_identities` listing still includes the row so the
+    /// external client sees the key exists but signing is barred.
+    Deny,
+}
+
+impl AgentPolicy {
+    /// Parse the TEXT column value. Unknown values fall back to
+    /// `Ask` so a future schema additions / corrupted DB stays
+    /// safe-by-default rather than promoting an unknown row to
+    /// silent-sign.
+    pub fn from_db(s: &str) -> Self {
+        match s {
+            "always" => Self::Always,
+            "deny" => Self::Deny,
+            _ => Self::Ask,
+        }
+    }
+
+    /// Serialize for the TEXT column.
+    pub fn as_db_str(self) -> &'static str {
+        match self {
+            Self::Always => "always",
+            Self::Ask => "ask",
+            Self::Deny => "deny",
+        }
+    }
 }
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
+    let agent_policy_raw: String = row.get("agent_policy")?;
     Ok(SshKeyRow {
         id: row.get("id")?,
         label: row.get("label")?,
@@ -53,6 +105,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         credential_id: row.get("credential_id")?,
         application_string: row.get("application_string")?,
         has_user_verification: row.get::<_, i64>("has_user_verification")? != 0,
+        agent_policy: AgentPolicy::from_db(&agent_policy_raw),
     })
 }
 
@@ -61,7 +114,7 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
         .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
-                    credential_id, application_string, has_user_verification \
+                    credential_id, application_string, has_user_verification, agent_policy \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -80,7 +133,7 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
         .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
-                    credential_id, application_string, has_user_verification \
+                    credential_id, application_string, has_user_verification, agent_policy \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -97,8 +150,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
 pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Error> {
     conn.raw().execute(
         "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
-                               credential_id, application_string, has_user_verification) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
+                               credential_id, application_string, has_user_verification, agent_policy) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -109,6 +162,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            credential_id = excluded.credential_id, \
            application_string = excluded.application_string, \
            has_user_verification = excluded.has_user_verification, \
+           agent_policy = excluded.agent_policy, \
            deleted_at = NULL",
         params![
             row.id,
@@ -121,6 +175,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.credential_id,
             row.application_string,
             if row.has_user_verification { 1 } else { 0 },
+            row.agent_policy.as_db_str(),
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -158,7 +213,7 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
         .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
-                    credential_id, application_string, has_user_verification \
+                    credential_id, application_string, has_user_verification, agent_policy \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata prepare: {e}")))?;
@@ -239,8 +294,8 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
         let mut stmt = tx
             .prepare_cached(
                 "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
-                                       credential_id, application_string, has_user_verification) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
+                                       credential_id, application_string, has_user_verification, agent_policy) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -251,6 +306,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    credential_id = excluded.credential_id, \
                    application_string = excluded.application_string, \
                    has_user_verification = excluded.has_user_verification, \
+                   agent_policy = excluded.agent_policy, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -266,6 +322,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.credential_id,
                 row.application_string,
                 if row.has_user_verification { 1 } else { 0 },
+                row.agent_policy.as_db_str(),
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -387,6 +444,7 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             credential_id: proposed.credential_id.clone(),
             application_string: proposed.application_string.clone(),
             has_user_verification: proposed.has_user_verification,
+            agent_policy: proposed.agent_policy,
         },
     )?;
     tx.commit()
@@ -453,6 +511,7 @@ mod import_for_merge_tests {
             credential_id: None,
             application_string: None,
             has_user_verification: false,
+            agent_policy: AgentPolicy::Ask,
         }
     }
 
@@ -554,6 +613,7 @@ mod tombstone_tests {
                     credential_id: None,
                     application_string: None,
                     has_user_verification: false,
+                    agent_policy: AgentPolicy::Ask,
                 },
             )
         })
@@ -639,6 +699,7 @@ mod tombstone_tests {
             credential_id: None,
             application_string: None,
             has_user_verification: false,
+            agent_policy: AgentPolicy::Ask,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

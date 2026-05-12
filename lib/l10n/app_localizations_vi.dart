@@ -2899,4 +2899,65 @@ class SVi extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Đã hủy prompt hardware key';
+
+  @override
+  String get agentEndpointSectionTitle => 'Tích hợp với SSH client bên ngoài';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Cho phép SSH client hệ thống dùng hardware-bound keys';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Cho phép git, ssh và IDE plugin trên thiết bị này dùng key FIDO2 / smart-card / TPM của bạn.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Sao chép lệnh export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Sao chép tên pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Yêu cầu ký';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester muốn ký bằng $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Một SSH client bên ngoài';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Cho phép một lần';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Cho phép và ghi nhớ';
+
+  @override
+  String get agentEndpointDeny => 'Từ chối';
+
+  @override
+  String get agentEndpointStatusRunning => 'Đang chạy';
+
+  @override
+  String get agentEndpointStatusStopped => 'Đã dừng';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Không hỗ trợ trên nền tảng này';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Đã từ chối: client bên ngoài không thể thêm key.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Không khởi động được ssh-agent endpoint: $detail';
+  }
 }

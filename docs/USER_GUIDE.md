@@ -557,6 +557,69 @@ Centralised key store so a single key can be referenced from many sessions.
 
 ---
 
+## 10b. Using hardware-bound keys outside the app
+
+LetsFLUTssh can act as an ssh-agent on the same host so `git`, OpenSSH `ssh` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+ and other SSH-protocol-speaking tools can use the FIDO2 (and future PKCS#11 / TPM / Secure Enclave / Hello / Keystore) keys you import here.
+
+The endpoint is off by default for safety — flip it on under **Settings → External SSH client integration** when you want to reach your hardware keys from outside the app. Every signature request still routes through a confirmation dialog ("Authorize once" / "Authorize and remember" / "Deny") unless you explicitly promote the key's policy.
+
+### Linux / macOS — Unix domain socket
+
+Enable the toggle, copy the path the section shows (`/run/user/<uid>/letsflutssh-agent.<pid>/agent.sock`), and point your shell at it:
+
+```bash
+# bash / zsh
+export SSH_AUTH_SOCK="$(/path/that/Settings/copied)"
+
+# fish
+set -x SSH_AUTH_SOCK /path/that/Settings/copied
+```
+
+`ssh-add -l` should now list your imported hardware-bound keys. `git push`, `scp`, IDE SSH plugins all pick up the same `SSH_AUTH_SOCK` automatically.
+
+The endpoint stops when the app exits — restart picks a fresh `<pid>` suffix, so update `SSH_AUTH_SOCK` after every restart (or wrap it in a shell function that re-reads the running app's path on every shell login).
+
+### Windows — OpenSSH named pipe
+
+Enable the toggle and copy the pipe name (`\\.\pipe\letsflutssh-agent.<pid>`). Then in `%USERPROFILE%\.ssh\config`:
+
+```
+Host *
+    IdentityAgent \\.\pipe\letsflutssh-agent.<pid>
+```
+
+PowerShell session-wide alternative:
+
+```powershell
+$env:SSH_AUTH_SOCK = "\\.\pipe\letsflutssh-agent.<pid>"
+```
+
+PuTTY 0.78+ reads `IdentityAgent` straight from the pipe name. Older PuTTY versions speak Pageant — see the [Pageant interop](#pageant-interop) note below.
+
+### Mobile (Android / iOS)
+
+Not available — neither platform exposes an SSH client that reads a host-local agent socket. The Settings row is disabled with a "Not supported on this platform" label.
+
+### Per-key dispatch policy
+
+Every imported hardware key starts at policy `Ask` — every signature request from an external client surfaces a confirmation dialog naming the requesting process (best-effort; macOS displays "An external SSH client" because the BSD socket layer does not surface peer pids) and the key label. From the dialog:
+
+- **Authorize once** — sign this one request only. The next request prompts again.
+- **Authorize and remember** — sign this request AND flip the key's policy to `Always` so future requests skip the dialog. The hardware backend's own touch / PIN prompt still fires when the credential carries the user-verification bit.
+- **Deny** — refuse this request. Policy stays at `Ask`.
+
+To pre-set or change a policy without waiting for a prompt: Tools → SSH Keys → pick a key → policy dropdown (`Always` / `Ask` / `Deny`). `Deny` also hides the key from `request_identities`, so external clients can't even see that the key exists.
+
+### Refused operations
+
+The endpoint never accepts key material from external clients — `ssh-add <file>` / `ssh-add -d` / `ssh-add -D` all fail with `SSH_AGENT_FAILURE`. Keys flow only one way: through the in-app import flow (Tools → SSH Keys → Import).
+
+### Pageant interop
+
+PuTTY 0.78+ supports OpenSSH named pipes natively (see the Windows section above). For older PuTTY versions that only speak Pageant's `WM_COPYDATA` protocol, our app does NOT stand up a Pageant-compatible endpoint — the protocol's window-message channel has known injection vectors (see WithSecure Labs' Pageant analysis). Upgrade PuTTY to 0.78 or later, or use `wsl-ssh-pageant` to bridge our named pipe into a Pageant shim.
+
+---
+
 ## 11. Tags
 
 Color-coded labels for sessions and folders.

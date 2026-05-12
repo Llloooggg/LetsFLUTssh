@@ -263,6 +263,31 @@ httpdate = "1"
 # Gated behind the `fido2` Cargo feature on `lfs_core` so non-
 # desktop builds (iOS / Android pre-Phase-2) skip the dep entirely.
 ctap-hid-fido2 = { version = "3", default-features = false, features = ["ring"] }
+# Pure-Rust SSH agent protocol stack. Backs `lfs_core::ssh_agent` —
+# the in-process endpoint that exposes our hardware-bound keys to
+# external SSH-protocol-speaking clients (`git`, `ssh`, IDE plugins)
+# on the same host. We implement `ssh_agent_lib::agent::Session` and
+# hand it to `ssh_agent_lib::agent::listen` over a `UnixListener`
+# (Linux/macOS) or `NamedPipeListener` (Windows). cfg-gated to
+# desktop targets — mobile builds (Android/iOS) skip the dep
+# entirely because no SSH client on those platforms expects to
+# discover a host-local agent socket. Default feature set already
+# pulls the `agent` umbrella (futures + log + tokio + async-trait +
+# codec + service-binding) which is what the listener needs.
+ssh-agent-lib = "0.5.2"
+# `ssh-key` 0.6 (RustCrypto crate, not the russh fork). ssh-agent-lib
+# uses `KeyData` / `Signature` from this crate; we re-parse the
+# OpenSSH public-key bytes stored in `ssh_keys.public_key` through
+# `ssh_key::PublicKey::from_openssh` so the agent can publish the
+# `Identity { pubkey, comment }` shape the protocol wire-codes.
+# The russh fork (`internal-russh-forked-ssh-key`) is a separate
+# crate identity — Cargo resolves both side by side. cfg-gated to
+# desktop targets alongside `ssh-agent-lib`.
+ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ecdsa", "ed25519", "rsa"] }
+# async-trait — ssh-agent-lib re-exports this and our `impl Session`
+# block needs the proc-macro attribute. Pinning at the workspace
+# level keeps it pinned to the same major ssh-agent-lib resolves.
+async-trait = "0.1"
 
 [profile.release]
 # Bundle-size-tightened profile. Flags:

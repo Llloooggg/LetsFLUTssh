@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN が違います",
   "hardwareKeyImport": "ハードウェアキーをインポート (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "ハードウェアキーのプロンプトをキャンセルしました"
+  "hardwareKeyPromptCancelled": "ハードウェアキーのプロンプトをキャンセルしました",
+  "agentEndpointSectionTitle": "外部 SSH クライアント連携",
+  "agentEndpointToggleTitle": "ハードウェアキーを SSH クライアントに公開する",
+  "agentEndpointToggleSubtitle": "この端末の git・ssh・IDE プラグインから FIDO2 / smart-card / TPM キーを利用できるようにします。",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "export コマンドをコピー",
+  "agentEndpointCopyPipeName": "pipe 名をコピー",
+  "agentEndpointSignatureRequestTitle": "署名リクエスト",
+  "agentEndpointSignatureRequestBody": "{requester} が {keyLabel} で署名しようとしています",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "外部 SSH クライアント",
+  "agentEndpointAuthorizeOnce": "今回だけ許可",
+  "agentEndpointAuthorizeAlways": "許可して記憶する",
+  "agentEndpointDeny": "拒否",
+  "agentEndpointStatusRunning": "実行中",
+  "agentEndpointStatusStopped": "停止",
+  "agentEndpointStatusUnsupported": "このプラットフォームでは利用できません",
+  "agentEndpointRefusedAddIdentity": "拒否: 外部クライアントから key を追加することはできません。",
+  "agentEndpointStartFailed": "ssh-agent エンドポイントを開始できません: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

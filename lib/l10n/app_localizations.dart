@@ -5120,6 +5120,114 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Hardware key prompt cancelled'**
   String get hardwareKeyPromptCancelled;
+
+  /// No description provided for @agentEndpointSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'External SSH client integration'**
+  String get agentEndpointSectionTitle;
+
+  /// No description provided for @agentEndpointToggleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Expose hardware-bound keys to system SSH clients'**
+  String get agentEndpointToggleTitle;
+
+  /// No description provided for @agentEndpointToggleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allows git, ssh, IDE plugins on this device to use your FIDO2 / smart-card / TPM keys.'**
+  String get agentEndpointToggleSubtitle;
+
+  /// No description provided for @agentEndpointPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH_AUTH_SOCK'**
+  String get agentEndpointPathLabel;
+
+  /// No description provided for @agentEndpointPathLabelWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenSSH named pipe'**
+  String get agentEndpointPathLabelWindows;
+
+  /// No description provided for @agentEndpointCopyEnvVar.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy export command'**
+  String get agentEndpointCopyEnvVar;
+
+  /// No description provided for @agentEndpointCopyPipeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy pipe name'**
+  String get agentEndpointCopyPipeName;
+
+  /// No description provided for @agentEndpointSignatureRequestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature request'**
+  String get agentEndpointSignatureRequestTitle;
+
+  /// No description provided for @agentEndpointSignatureRequestBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{requester} wants to sign with {keyLabel}'**
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel);
+
+  /// No description provided for @agentEndpointRequesterUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'An external SSH client'**
+  String get agentEndpointRequesterUnknown;
+
+  /// No description provided for @agentEndpointAuthorizeOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorize once'**
+  String get agentEndpointAuthorizeOnce;
+
+  /// No description provided for @agentEndpointAuthorizeAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorize and remember'**
+  String get agentEndpointAuthorizeAlways;
+
+  /// No description provided for @agentEndpointDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get agentEndpointDeny;
+
+  /// No description provided for @agentEndpointStatusRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get agentEndpointStatusRunning;
+
+  /// No description provided for @agentEndpointStatusStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get agentEndpointStatusStopped;
+
+  /// No description provided for @agentEndpointStatusUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Not supported on this platform'**
+  String get agentEndpointStatusUnsupported;
+
+  /// No description provided for @agentEndpointRefusedAddIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused: external clients cannot add keys.'**
+  String get agentEndpointRefusedAddIdentity;
+
+  /// No description provided for @agentEndpointStartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start the SSH agent endpoint: {detail}'**
+  String agentEndpointStartFailed(String detail);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

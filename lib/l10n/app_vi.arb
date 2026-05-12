@@ -1009,5 +1009,34 @@
   "errSkWrongPin": "PIN không đúng",
   "hardwareKeyImport": "Import hardware key (sk-*)",
   "hardwareKeyBadge": "Hardware-bound (FIDO2)",
-  "hardwareKeyPromptCancelled": "Đã hủy prompt hardware key"
+  "hardwareKeyPromptCancelled": "Đã hủy prompt hardware key",
+  "agentEndpointSectionTitle": "Tích hợp với SSH client bên ngoài",
+  "agentEndpointToggleTitle": "Cho phép SSH client hệ thống dùng hardware-bound keys",
+  "agentEndpointToggleSubtitle": "Cho phép git, ssh và IDE plugin trên thiết bị này dùng key FIDO2 / smart-card / TPM của bạn.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Sao chép lệnh export",
+  "agentEndpointCopyPipeName": "Sao chép tên pipe",
+  "agentEndpointSignatureRequestTitle": "Yêu cầu ký",
+  "agentEndpointSignatureRequestBody": "{requester} muốn ký bằng {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "Một SSH client bên ngoài",
+  "agentEndpointAuthorizeOnce": "Cho phép một lần",
+  "agentEndpointAuthorizeAlways": "Cho phép và ghi nhớ",
+  "agentEndpointDeny": "Từ chối",
+  "agentEndpointStatusRunning": "Đang chạy",
+  "agentEndpointStatusStopped": "Đã dừng",
+  "agentEndpointStatusUnsupported": "Không hỗ trợ trên nền tảng này",
+  "agentEndpointRefusedAddIdentity": "Đã từ chối: client bên ngoài không thể thêm key.",
+  "agentEndpointStartFailed": "Không khởi động được ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  }
 }

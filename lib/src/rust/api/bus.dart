@@ -457,6 +457,24 @@ sealed class BusEvent with _$BusEvent {
     required String name,
     required String message,
   }) = BusEvent_CoreLog;
+
+  /// In-process ssh-agent endpoint parked a signer waiting on a
+  /// per-key confirmation prompt. Dart subscribes to
+  /// [`BusTopic::SshAgent`] and mounts an
+  /// `AgentSignatureRequestDialog`; the dialog dispatches the
+  /// user's verdict via
+  /// `ssh_agent_respond_to_signature_request(request_id, decision)`.
+  ///
+  /// `request_id` is the opaque correlation id; `key_id` /
+  /// `key_label` identify the stored row. `requester` carries the
+  /// best-effort process name (`None` on macOS where the BSD
+  /// socket layer does not expose a pid).
+  const factory BusEvent.sshAgentSignaturePrompt({
+    required String requestId,
+    required String keyId,
+    required String keyLabel,
+    String? requester,
+  }) = BusEvent_SshAgentSignaturePrompt;
 }
 
 /// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
@@ -520,4 +538,9 @@ enum BusTopic {
   /// folds every line into the same on-disk `letsflutssh.log`
   /// the Dart-side calls write through.
   coreLog,
+
+  /// In-process ssh-agent endpoint — per-key confirmation
+  /// prompts when an external SSH client requests a signature
+  /// against a key whose `agent_policy = 'ask'`.
+  sshAgent,
 }

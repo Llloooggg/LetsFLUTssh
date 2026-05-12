@@ -98,6 +98,19 @@ serde = { workspace = true }
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
+# In-process SSH agent endpoint (`lfs_core::ssh_agent`). Cfg-gated
+# to the three desktop targets where a host-local agent socket
+# makes sense; mobile builds skip these deps entirely so the
+# `ssh_agent` module compiles to its no-op stub there. `ssh-agent-lib`
+# pulls the wire codec + listener primitives; `ssh-key` is its
+# `KeyData`/`Signature` surface (separate crate identity from the
+# russh fork — both resolve side by side). `async-trait` macro the
+# `impl Session for Endpoint` block needs.
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
+ssh-agent-lib = { workspace = true }
+ssh-key = { workspace = true }
+async-trait = { workspace = true }
+
 
 [features]
 # Direct CTAP2 over USB HID for hardware-bound SSH keys.

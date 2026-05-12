@@ -147,6 +147,11 @@ pub mod kind {
     /// branches on the leading discriminator (`wrong pin:`,
     /// `timeout:`, generic) to pick the right toast.
     pub const FIDO2: &str = "fido2";
+    /// Operation is structurally unavailable on this build target
+    /// (e.g. the in-process ssh-agent endpoint on Android / iOS).
+    /// UI renders the matching control disabled-with-reason rather
+    /// than retrying.
+    pub const UNSUPPORTED: &str = "unsupported";
 }
 
 /// Compose a JSON envelope with the given kind + detail. Use
@@ -213,6 +218,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
             kind::ARCHIVE_FUTURE_VERSION,
             &format!("found={found},supported={supported}"),
         ),
+        CoreError::Unsupported(s) => wire(kind::UNSUPPORTED, s),
     }
 }
 

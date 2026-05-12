@@ -2836,4 +2836,64 @@ class SKo extends S {
 
   @override
   String get hardwareKeyPromptCancelled => '하드웨어 키 프롬프트를 취소했습니다';
+
+  @override
+  String get agentEndpointSectionTitle => '외부 SSH 클라이언트 연동';
+
+  @override
+  String get agentEndpointToggleTitle => '하드웨어 키를 시스템 SSH 클라이언트에 노출';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      '이 기기의 git, ssh, IDE 플러그인에서 FIDO2 / smart-card / TPM 키를 사용할 수 있게 합니다.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export 명령 복사';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe 이름 복사';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => '서명 요청';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester가 $keyLabel로 서명하려고 합니다';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => '외부 SSH 클라이언트';
+
+  @override
+  String get agentEndpointAuthorizeOnce => '한 번 허용';
+
+  @override
+  String get agentEndpointAuthorizeAlways => '허용하고 기억';
+
+  @override
+  String get agentEndpointDeny => '거부';
+
+  @override
+  String get agentEndpointStatusRunning => '실행 중';
+
+  @override
+  String get agentEndpointStatusStopped => '중지됨';
+
+  @override
+  String get agentEndpointStatusUnsupported => '이 플랫폼에서는 사용할 수 없음';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      '거부됨: 외부 클라이언트는 key를 추가할 수 없습니다.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent endpoint를 시작할 수 없습니다: $detail';
+  }
 }

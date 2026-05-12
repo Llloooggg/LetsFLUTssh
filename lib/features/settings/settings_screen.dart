@@ -24,6 +24,7 @@ import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
+import '../../src/rust/api/ssh_agent.dart' as rust_ssh_agent;
 import '../../src/rust/api/sync.dart' as rust_sync;
 import '../../core/security/active_dbkey.dart';
 import '../../core/security/biometric_auth.dart';
@@ -92,6 +93,7 @@ part 'settings_sections_security.dart';
 part 'settings_sections_security_apply.dart';
 part 'settings_sections_security_biometric.dart';
 part 'settings_sections_security_macos.dart';
+part 'settings_sections_ssh_agent.dart';
 part 'settings_sections_sync.dart';
 part 'settings_sections_updates.dart';
 part 'settings_widgets.dart';
@@ -154,6 +156,11 @@ List<_Section> _buildSections(BuildContext context) => [
     builder: _SecuritySection.new,
   ),
   _Section(
+    title: S.of(context).agentEndpointSectionTitle,
+    icon: Icons.dns,
+    builder: _SshAgentSection.new,
+  ),
+  _Section(
     title: S.of(context).data,
     icon: Icons.storage,
     builder: _DataSection.new,
@@ -206,6 +213,11 @@ List<_Section> _buildDesktopSections(BuildContext context) => [
     title: S.of(context).security,
     icon: Icons.security,
     builder: _SecuritySection.new,
+  ),
+  _Section(
+    title: S.of(context).agentEndpointSectionTitle,
+    icon: Icons.dns,
+    builder: _SshAgentSection.new,
   ),
   _Section(
     title: S.of(context).data,

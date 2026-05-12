@@ -2948,4 +2948,65 @@ class SEn extends S {
 
   @override
   String get hardwareKeyPromptCancelled => 'Hardware key prompt cancelled';
+
+  @override
+  String get agentEndpointSectionTitle => 'External SSH client integration';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Expose hardware-bound keys to system SSH clients';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Allows git, ssh, IDE plugins on this device to use your FIDO2 / smart-card / TPM keys.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Copy export command';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Copy pipe name';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Signature request';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester wants to sign with $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'An external SSH client';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Authorize once';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Authorize and remember';
+
+  @override
+  String get agentEndpointDeny => 'Deny';
+
+  @override
+  String get agentEndpointStatusRunning => 'Running';
+
+  @override
+  String get agentEndpointStatusStopped => 'Stopped';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Not supported on this platform';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Refused: external clients cannot add keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Could not start the SSH agent endpoint: $detail';
+  }
 }
