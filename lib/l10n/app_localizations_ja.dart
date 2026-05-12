@@ -3184,4 +3184,84 @@ class SJa extends S {
   @override
   String get helloConfigureFirst =>
       'まず 設定 -> サインイン オプション で Windows Hello を有効化してください。';
+
+  @override
+  String get tpmSshTitle => 'TPM-backed SSH キーを生成';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (推奨)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => 'この TPM ファームウェアではサポートされていない算法。';
+
+  @override
+  String get tpmSshPinProtect => 'PIN で保護する';
+
+  @override
+  String get tpmSshPinLockoutWarning => 'PIN を何度も間違えると TPM がキーをロックします。';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN が一致しません。';
+
+  @override
+  String get tpmSshStorageBlob => 'ラップしたキーをアプリデータに保存';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM メモリスロットに保持';
+
+  @override
+  String get tpmSshStorageHandleHelp => '署名が速くなります。TPM の永続スロットを 1 つ消費します。';
+
+  @override
+  String get tpmSshLabel => 'キーラベル';
+
+  @override
+  String get tpmSshImportTitle => 'TPM 保護の SSH キーをインポート';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 キーファイル (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label の TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN が違います。';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM はロックアウトのクールダウン中です。$duration 待ってから再試行してください。';
+  }
+
+  @override
+  String get tpmSshGenerating => 'TPM でキーを生成中...';
+
+  @override
+  String get tpmSshSigning => 'TPM で署名中...';
+
+  @override
+  String get tpmSshUnavailable => 'このデバイスで TPM が検出されません。';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM はファームウェアで無効化されています。';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'アプリが TPM にアクセスできません。ユーザーを `tss` グループに追加してください。';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return '永続スロット $handle はすでに使用中です。';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'このキーは Hello / PIN プロンプトなしで署名します — ログイン中にデスクトップへアクセスできる人なら誰でも使えてしまいます。';
 }

@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, 지문, 얼굴 중 하나로 Windows Hello가 SSH 챌린지에 서명합니다.",
   "helloSoftwareGatedWarning": "이 기기에는 TPM이 없습니다. 키는 사용자 저장소에 들어가지만 서명마다 Windows Hello가 게이트 역할을 합니다.",
   "helloP384NotSupported": "TPM 펌웨어가 P-384를 지원하지 않습니다. P-256 또는 RSA-2048을 선택하세요.",
-  "helloConfigureFirst": "먼저 설정 -> 로그인 옵션에서 Windows Hello를 구성하세요."
+  "helloConfigureFirst": "먼저 설정 -> 로그인 옵션에서 Windows Hello를 구성하세요.",
+  "tpmSshTitle": "TPM 기반 SSH 키 생성",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (권장)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "이 TPM 펌웨어에서 지원하지 않는 알고리즘.",
+  "tpmSshPinProtect": "PIN으로 보호",
+  "tpmSshPinLockoutWarning": "PIN을 반복해서 틀리면 TPM이 키를 잠급니다.",
+  "tpmSshPinMismatch": "PIN이 일치하지 않습니다.",
+  "tpmSshStorageBlob": "래핑된 키를 앱 데이터에 저장",
+  "tpmSshStorageHandle": "TPM 메모리 슬롯에 영구 저장",
+  "tpmSshStorageHandleHelp": "서명이 더 빨라집니다. TPM의 영구 슬롯 하나를 소비합니다.",
+  "tpmSshLabel": "키 레이블",
+  "tpmSshImportTitle": "TPM 보호 SSH 키 가져오기",
+  "tpmSshImportFormat": "TPM 2.0 키 파일 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label}의 TPM PIN",
+  "tpmSshPinIncorrect": "PIN이 올바르지 않습니다.",
+  "tpmSshPinLockedCooldown": "TPM이 락아웃 쿨다운 중입니다. {duration} 기다린 후 다시 시도하세요.",
+  "tpmSshGenerating": "TPM에서 키 생성 중...",
+  "tpmSshSigning": "TPM으로 서명 중...",
+  "tpmSshUnavailable": "이 장치에서 TPM이 감지되지 않았습니다.",
+  "tpmSshUnavailableFwDisabled": "TPM이 펌웨어에서 비활성화되어 있습니다.",
+  "tpmSshUnavailableNoPermission": "앱이 TPM에 접근할 수 없습니다. 사용자를 `tss` 그룹에 추가하세요.",
+  "tpmSshHandleInUse": "영구 슬롯 {handle}이 이미 사용 중입니다.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "이 키는 Hello / PIN 프롬프트 없이 서명합니다 — 로그인 중에 데스크톱에 접근할 수 있는 사람은 누구나 사용할 수 있습니다.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

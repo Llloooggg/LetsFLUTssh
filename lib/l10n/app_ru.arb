@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, отпечаток или лицо — Windows Hello подпишет SSH-запрос.",
   "helloSoftwareGatedWarning": "На устройстве нет TPM. Ключ ляжет в пользовательское хранилище; Windows Hello всё равно прогоняет каждую подпись.",
   "helloP384NotSupported": "Прошивка TPM не поддерживает P-384. Выберите P-256 или RSA-2048.",
-  "helloConfigureFirst": "Сначала настройте Windows Hello: Параметры -> Варианты входа."
+  "helloConfigureFirst": "Сначала настройте Windows Hello: Параметры -> Варианты входа.",
+  "tpmSshTitle": "Создать SSH-ключ через TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (рекомендуется)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Прошивка TPM не поддерживает этот algorithm.",
+  "tpmSshPinProtect": "Защитить PIN",
+  "tpmSshPinLockoutWarning": "После нескольких неверных PIN TPM блокирует ключ.",
+  "tpmSshPinMismatch": "PIN не совпадают.",
+  "tpmSshStorageBlob": "Хранить wrapped-ключ в данных приложения",
+  "tpmSshStorageHandle": "Положить в слот памяти TPM",
+  "tpmSshStorageHandleHelp": "Подпись быстрее. Занимает один из persistent-слотов TPM.",
+  "tpmSshLabel": "Метка ключа",
+  "tpmSshImportTitle": "Импортировать SSH-ключ под TPM",
+  "tpmSshImportFormat": "Файл TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN для {label}",
+  "tpmSshPinIncorrect": "PIN неверный.",
+  "tpmSshPinLockedCooldown": "TPM в lockout-кулдауне. Подождите {duration} и повторите.",
+  "tpmSshGenerating": "Создаём ключ в TPM...",
+  "tpmSshSigning": "Подписываем через TPM...",
+  "tpmSshUnavailable": "TPM на устройстве не найден.",
+  "tpmSshUnavailableFwDisabled": "TPM выключен в прошивке.",
+  "tpmSshUnavailableNoPermission": "Приложение не может обратиться к TPM. Добавьте пользователя в группу `tss`.",
+  "tpmSshHandleInUse": "Слот {handle} уже занят.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Ключ подписывает БЕЗ запроса Hello / PIN — пока вы залогинены, любой с доступом к рабочему столу сможет им подписать.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -277,6 +277,90 @@ There is none. The private key never leaves the TPM (or PCP software KSP); the `
 | Windows < 10 1607 | Hidden — Microsoft Platform Crypto Provider is unreachable. |
 | macOS / Linux / Android / iOS | Hidden — provider doesn't exist on these platforms. |
 
+### Hardware key (TPM 2.0)
+
+On Linux and Windows, LetsFLUTssh can generate SSH keys whose private half lives inside a TPM 2.0 chip. The chip refuses to export the private bytes; every connect-time signature routes through the TPM driver — `TPM2_Sign` on Linux via the `tss-esapi` library, `NCryptSignHash` on Windows via the Microsoft Platform Crypto Provider. The TPM SSH wizard is **not** the same as the Windows Hello wizard above — the two paths use the **opposite** UI-policy default:
+
+- **Hello SSH keys** (above) fire a PIN / fingerprint / face prompt on **every** signature.
+- **TPM SSH keys** (this section) sign **unattended** on Windows (silent variant — no prompt) and rely on a per-key PIN on Linux. Intended for headless service-account contexts where a Hello prompt is impossible (cron jobs, CI runners, deploy scripts).
+
+Pick the wizard that matches your security ceremony:
+- Need a prompt on every sign? Use the Windows Hello wizard.
+- Need unattended signing under a TPM-bound key the chip will never export? Use the TPM 2.0 wizard.
+
+#### Algorithms
+
+| Algorithm | When to pick it |
+|---|---|
+| ECDSA P-256 (`ecdsa-sha2-nistp256`) | Default. Widest TPM support, smallest signature. |
+| RSA-2048 (`rsa-sha2-256` / `rsa-sha2-512`) | Older OpenSSH servers that don't speak ECDSA. Generation takes 2-10 s on a typical fTPM. |
+| Ed25519 | **Refused** — Ed25519 is not in the TPM 2.0 specification. The wizard surfaces the localized "Algorithm not supported by this TPM firmware" reason. |
+
+#### Setup — Linux
+
+1. Verify your hardware has a TPM 2.0 chip. Most consumer laptops since 2016 ship one (Microsoft Pluton, Intel PTT, AMD fTPM, or a discrete Infineon / Nuvoton chip).
+2. Install the TSS2 stack:
+   - **Ubuntu / Debian**: `sudo apt install tpm2-tools libtss2-dev`
+   - **Fedora / RHEL**: `sudo dnf install tpm2-tools tpm2-tss-devel`
+   - **Arch / Manjaro**: `sudo pacman -S tpm2-tools tpm2-tss`
+3. Add your user to the `tss` group so the app can reach `/dev/tpmrm0`:
+   ```
+   sudo usermod -a -G tss $USER
+   newgrp tss
+   ```
+   The `newgrp` step picks up the new group membership in the current shell without a logout/login cycle.
+4. Verify the chip responds: `tpm2_getrandom 8` should print 8 random bytes.
+5. Open **Tools → SSH Keys → Generate TPM-backed SSH key**.
+
+#### Setup — Windows
+
+1. The TPM 2.0 path uses the same Microsoft Platform Crypto Provider as the Windows Hello wizard. No extra install — the provider ships with Windows 10 1607+.
+2. Verify TPM is enabled in firmware: open **tpm.msc**; the "TPM Manufacturer Information" pane should show a vendor + version (2.0). If it's missing, enable "TPM" / "fTPM" / "PTT" in your firmware setup (BIOS/UEFI).
+3. Open **Tools → SSH Keys → Generate TPM-backed SSH key**.
+
+#### Generating a key
+
+1. **Tools → SSH Keys → Generate TPM-backed SSH key** (the row is visible on Linux + Windows; macOS hides it because the Apple Secure Enclave path covers the same security niche, and mobile platforms have no compatible TPM surface).
+2. The wizard probes the chip. Disabled-with-reason routes:
+   - **Linux** "No TPM detected on this device" — chip is missing or fTPM is disabled in firmware.
+   - **Linux** "App cannot access the TPM. Add user to the `tss` group" — the device node exists but the app cannot open it.
+   - **Windows** "No TPM detected on this device" — the Microsoft Platform Crypto Provider is unreachable (Server Core minimal, GPO-blocked PCP, or pre-1607).
+3. Pick a label and an algorithm (P-256 default; RSA-2048 fallback).
+4. **Linux only** — choose a PIN policy:
+   - **No PIN** (default for headless service accounts) — the key is bound to the OS install; any process that can reach `/dev/tpmrm0` and load the blob can sign.
+   - **Protect with PIN** — the wizard adds two PIN fields. Every sign asks for the PIN. **TPM lockout is hardware-wide** — wrong PIN 4 times locks the entire chip including BitLocker / disk-unlock for a cooldown window (typically 10 minutes on the first lockout, scaling up). The wizard surfaces this warning aggressively.
+5. **Linux only** — choose a storage policy:
+   - **Store wrapped key in app data** (default) — `TPM2_Create` output is wrapped per TCG draft `draft-bottomley-tpm2-keys-asn1` and stored in the app's data dir. Portable across reinstalls.
+   - **Persist in TPM memory slot** — the key sits in TPM RAM. Faster signing but consumes one of the chip's persistent slots (typical fTPM ships ~7 free handles).
+6. **Windows only** — there is no PIN or storage radio. The silent variant signs unattended and the CNG keystore is the only storage. The wizard surfaces the silent-warning copy in orange — anyone with desktop access while you're logged in can use the key.
+7. Tap **Generate**. On success the wizard shows the `authorized_keys`-shaped public-key line with a Copy affordance.
+8. Add that line to `~/.ssh/authorized_keys` on the server.
+9. Reference the new row from a session's **Auth → Key from manager** drop-down.
+
+#### Cross-tool blob compat (Linux)
+
+The Linux blob storage mode uses the TCG draft `draft-bottomley-tpm2-keys-asn1` "TSS2 PRIVATE KEY" PEM format. It's the same shape `ssh-tpm-agent` and `openssl-tpm2-engine` write. You can:
+- **Import** an existing `.tpm` file via **Tools → SSH Keys → Import TPM-protected SSH key**.
+- **Export** an existing LetsFLUTssh-minted blob to another TSS2 PRIVATE KEY consumer by copying the underlying `<appSupportDir>/ssh_tpm_keys/<key_id>.tpm` file (advanced users only — the file is part of LetsFLUTssh's internal layout).
+
+Blobs carrying a **PCR policy** (key bound to specific firmware / boot-loader / kernel measurements) reject at import in v1 with a "PCR-binding not supported" reason — the policy session machinery is on the roadmap for v2.
+
+#### Recovery from device loss
+
+The TPM bonds keys to the chip. If the device is lost, wiped, or the TPM is cleared (BIOS reset / `tpm2_clear`), every TPM-bound SSH key on it is gone — regenerate on the replacement and update `authorized_keys`.
+
+#### Platform availability
+
+| Platform | Status |
+|---|---|
+| Linux with TPM 2.0 + `tss` group | Supported. Wizard enabled. |
+| Linux without TPM | Hidden with "No TPM detected on this device". |
+| Linux with TPM but no `tss` group membership | Disabled with `usermod -a -G tss $USER` snippet. |
+| Windows 10 1607+ with TPM 2.0 | Supported — silent variant (no Hello prompt). |
+| Windows without PCP / Server Core minimal | Hidden with "No TPM detected on this device". |
+| macOS / iOS | Hidden — use the Secure Enclave wizard instead. |
+| Android | Hidden — use the Hardware Keystore path (Android-specific) when it lands. |
+
 ---
 
 ## 4. Terminal

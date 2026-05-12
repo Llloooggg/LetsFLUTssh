@@ -3263,4 +3263,87 @@ class SHi extends S {
   @override
   String get helloConfigureFirst =>
       'पहले Windows Hello को Settings -> Sign-in options में सेट करें.';
+
+  @override
+  String get tpmSshTitle => 'TPM-समर्थित SSH key बनाएं';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (अनुशंसित)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'इस TPM फ़र्मवेयर पर यह algorithm समर्थित नहीं है।';
+
+  @override
+  String get tpmSshPinProtect => 'PIN से सुरक्षित करें';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'गलत PIN बार-बार डालने पर TPM key को लॉक कर देता है।';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN मेल नहीं खा रहे।';
+
+  @override
+  String get tpmSshStorageBlob => 'wrapped key को app data में स्टोर करें';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM memory slot में रखें';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'तेज़ signing. TPM के persistent slots में से एक का उपयोग करता है।';
+
+  @override
+  String get tpmSshLabel => 'Key label';
+
+  @override
+  String get tpmSshImportTitle => 'TPM-protected SSH key import करें';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label के लिए TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN गलत है।';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM lockout cooldown में है। $duration रुकें और दोबारा प्रयास करें।';
+  }
+
+  @override
+  String get tpmSshGenerating => 'TPM में key बना रहे हैं...';
+
+  @override
+  String get tpmSshSigning => 'TPM से sign कर रहे हैं...';
+
+  @override
+  String get tpmSshUnavailable => 'इस device पर TPM नहीं मिला।';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM firmware में disabled है।';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'App TPM तक नहीं पहुंच सकता। user को `tss` group में जोड़ें।';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Persistent slot $handle पहले से उपयोग में है।';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'यह key Hello / PIN prompt के बिना sign करती है — जब तक आप logged in हैं, desktop access वाला कोई भी इसका उपयोग कर सकता है।';
 }

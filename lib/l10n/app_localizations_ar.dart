@@ -3264,4 +3264,87 @@ class SAr extends S {
   @override
   String get helloConfigureFirst =>
       'اضبط Windows Hello أولًا من الإعدادات -> خيارات تسجيل الدخول.';
+
+  @override
+  String get tpmSshTitle => 'إنشاء مفتاح SSH عبر TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (موصى به)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'خوارزمية غير مدعومة من البرنامج الثابت لـ TPM.';
+
+  @override
+  String get tpmSshPinProtect => 'حماية برمز PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'يقفل TPM المفتاح بعد محاولات PIN خاطئة متكررة.';
+
+  @override
+  String get tpmSshPinMismatch => 'رمزا PIN غير متطابقين.';
+
+  @override
+  String get tpmSshStorageBlob => 'حفظ المفتاح المغلف في بيانات التطبيق';
+
+  @override
+  String get tpmSshStorageHandle => 'حفظ في فتحة ذاكرة TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'توقيع أسرع. يستهلك إحدى الفتحات الدائمة في TPM.';
+
+  @override
+  String get tpmSshLabel => 'اسم المفتاح';
+
+  @override
+  String get tpmSshImportTitle => 'استيراد مفتاح SSH محمي بـ TPM';
+
+  @override
+  String get tpmSshImportFormat => 'ملف مفتاح TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'رمز TPM PIN لـ $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'رمز PIN غير صحيح.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM في فترة انتظار القفل. انتظر $duration وأعد المحاولة.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'جارٍ إنشاء المفتاح في TPM...';
+
+  @override
+  String get tpmSshSigning => 'جارٍ التوقيع باستخدام TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'لم يتم اكتشاف TPM على هذا الجهاز.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM معطل في البرنامج الثابت.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'لا يمكن للتطبيق الوصول إلى TPM. أضف المستخدم إلى مجموعة `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'الفتحة الدائمة $handle مستخدمة بالفعل.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'يوقع هذا المفتاح دون مطالبة Hello / PIN — أي شخص لديه وصول إلى سطح المكتب أثناء تسجيل دخولك يمكنه استخدامه.';
 }

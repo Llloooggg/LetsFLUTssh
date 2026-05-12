@@ -3180,4 +3180,84 @@ class SKo extends S {
 
   @override
   String get helloConfigureFirst => '먼저 설정 -> 로그인 옵션에서 Windows Hello를 구성하세요.';
+
+  @override
+  String get tpmSshTitle => 'TPM 기반 SSH 키 생성';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (권장)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => '이 TPM 펌웨어에서 지원하지 않는 알고리즘.';
+
+  @override
+  String get tpmSshPinProtect => 'PIN으로 보호';
+
+  @override
+  String get tpmSshPinLockoutWarning => 'PIN을 반복해서 틀리면 TPM이 키를 잠급니다.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN이 일치하지 않습니다.';
+
+  @override
+  String get tpmSshStorageBlob => '래핑된 키를 앱 데이터에 저장';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM 메모리 슬롯에 영구 저장';
+
+  @override
+  String get tpmSshStorageHandleHelp => '서명이 더 빨라집니다. TPM의 영구 슬롯 하나를 소비합니다.';
+
+  @override
+  String get tpmSshLabel => '키 레이블';
+
+  @override
+  String get tpmSshImportTitle => 'TPM 보호 SSH 키 가져오기';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 키 파일 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label의 TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN이 올바르지 않습니다.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM이 락아웃 쿨다운 중입니다. $duration 기다린 후 다시 시도하세요.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'TPM에서 키 생성 중...';
+
+  @override
+  String get tpmSshSigning => 'TPM으로 서명 중...';
+
+  @override
+  String get tpmSshUnavailable => '이 장치에서 TPM이 감지되지 않았습니다.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM이 펌웨어에서 비활성화되어 있습니다.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      '앱이 TPM에 접근할 수 없습니다. 사용자를 `tss` 그룹에 추가하세요.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return '영구 슬롯 $handle이 이미 사용 중입니다.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      '이 키는 Hello / PIN 프롬프트 없이 서명합니다 — 로그인 중에 데스크톱에 접근할 수 있는 사람은 누구나 사용할 수 있습니다.';
 }

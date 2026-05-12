@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN、指纹或人脸 — Windows Hello 会为此 SSH challenge 签名。",
   "helloSoftwareGatedWarning": "此设备没有 TPM。密钥会落在用户存储中,但每次签名仍由 Windows Hello 守门。",
   "helloP384NotSupported": "TPM 固件不支持 P-384。请选择 P-256 或 RSA-2048。",
-  "helloConfigureFirst": "请先在 设置 -> 登录选项 中配置 Windows Hello。"
+  "helloConfigureFirst": "请先在 设置 -> 登录选项 中配置 Windows Hello。",
+  "tpmSshTitle": "生成 TPM 绑定 SSH key",
+  "tpmSshAlgEcdsa": "ECDSA P-256（推荐）",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "本 TPM 固件不支持此算法。",
+  "tpmSshPinProtect": "使用 PIN 保护",
+  "tpmSshPinLockoutWarning": "PIN 多次错误后 TPM 会锁定此 key。",
+  "tpmSshPinMismatch": "PIN 不一致。",
+  "tpmSshStorageBlob": "在应用数据中保存 wrapped key",
+  "tpmSshStorageHandle": "保留在 TPM 内存槽中",
+  "tpmSshStorageHandleHelp": "签名更快。占用 TPM 的一个持久 slot。",
+  "tpmSshLabel": "Key 标签",
+  "tpmSshImportTitle": "导入 TPM 保护的 SSH key",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} 的 TPM PIN",
+  "tpmSshPinIncorrect": "PIN 错误。",
+  "tpmSshPinLockedCooldown": "TPM 处于 lockout 冷却。等 {duration} 后重试。",
+  "tpmSshGenerating": "正在 TPM 中生成 key...",
+  "tpmSshSigning": "正在用 TPM 签名...",
+  "tpmSshUnavailable": "本设备未检测到 TPM。",
+  "tpmSshUnavailableFwDisabled": "TPM 在固件中已禁用。",
+  "tpmSshUnavailableNoPermission": "应用无法访问 TPM。把用户加入 `tss` 组。",
+  "tpmSshHandleInUse": "持久 slot {handle} 已被占用。",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "此 key 签名时不会弹 Hello / PIN — 你登录时任何能访问桌面的人都能使用它。",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

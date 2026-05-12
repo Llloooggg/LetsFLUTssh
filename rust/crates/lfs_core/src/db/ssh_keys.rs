@@ -91,6 +91,41 @@ pub struct SshKeyRow {
     /// connect path refuses a `hello` row whose
     /// `hello_credential_name` is `None` (DB corruption).
     pub hello_credential_name: Option<String>,
+    /// TPM 2.0 wrapped-blob bytes for the Linux blob-storage path.
+    /// The bytes are a TSS2 PRIVATE KEY ASN.1 envelope per TCG draft
+    /// `draft-bottomley-tpm2-keys-asn1` so the file round-trips with
+    /// `ssh-tpm-agent` / `openssl-tpm2-engine`. `None` for the
+    /// persistent-handle path (the chip holds the key, no on-disk
+    /// blob needed) and for every non-TPM backend. The connect path
+    /// requires either `tpm_blob.is_some()` OR `tpm_handle.is_some()`
+    /// on a `KeyBackend::Tpm` row; the schema does not enforce the
+    /// XOR but the Rust round-trip is the single writer and clamps
+    /// the shape at import.
+    pub tpm_blob: Option<Vec<u8>>,
+    /// Persistent NV handle in the `0x81010001..0x8101FFFF` range
+    /// when the key was promoted to TPM RAM, `None` for blob mode.
+    /// `i64` on the wire (rusqlite has no native u32) so the value
+    /// must round-trip through `u32::try_from` at the boundary —
+    /// the column never holds a negative value but the SQL TYPE
+    /// is INTEGER.
+    pub tpm_handle: Option<u32>,
+    /// One of `"tss-esapi"` (Linux ESAPI driver) / `"cng-pcp"`
+    /// (Windows PCP silent variant). `None` for every non-TPM row.
+    /// The discriminator lets the connect path pick the right
+    /// platform module without re-probing.
+    pub tpm_provider: Option<String>,
+    /// `true` when the key was minted with a `TPM2B_AUTH` value and
+    /// requires a per-sign PIN. `false` for headless-server keys
+    /// minted with empty auth. Drives the PIN prompt routing on
+    /// connect.
+    pub tpm_pin_required: bool,
+    /// CNG persistent-key name for the Windows PCP silent TPM
+    /// variant (no UI policy property set; key signs without firing
+    /// a Hello prompt). Uses the `letsflutssh-tpm-<userhash>-<uuid>`
+    /// prefix to distinguish from Hello-gated `letsflutssh-ssh-…`
+    /// keys when `NCryptEnumKeys` walks the provider. `None` for
+    /// Linux TPM keys and every non-TPM backend.
+    pub cng_key_name: Option<String>,
 }
 
 /// Backend discriminator on `ssh_keys.backend` (schema v9). Drives
@@ -217,6 +252,18 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         pkcs11_object_label: row.get("pkcs11_object_label")?,
         enclave_tag: row.get("enclave_tag")?,
         hello_credential_name: row.get("hello_credential_name")?,
+        tpm_blob: row.get("tpm_blob")?,
+        // SQLite carries INTEGER as i64; clamp to u32 at the
+        // boundary so the schema's persistent-handle range
+        // (`0x81010001..0x8101FFFF`) round-trips. Out-of-range
+        // values stored by a hypothetical future writer would land
+        // as None rather than wrap.
+        tpm_handle: row
+            .get::<_, Option<i64>>("tpm_handle")?
+            .and_then(|v| u32::try_from(v).ok()),
+        tpm_provider: row.get("tpm_provider")?,
+        tpm_pin_required: row.get::<_, i64>("tpm_pin_required")? != 0,
+        cng_key_name: row.get("cng_key_name")?,
     })
 }
 
@@ -228,7 +275,8 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
-                    hello_credential_name \
+                    hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
+                    tpm_pin_required, cng_key_name \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -250,7 +298,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
-                    hello_credential_name \
+                    hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
+                    tpm_pin_required, cng_key_name \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -270,8 +319,9 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
                                credential_id, application_string, has_user_verification, agent_policy, \
                                backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                                pkcs11_object_id, pkcs11_object_label, enclave_tag, \
-                               hello_credential_name) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19) \
+                               hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
+                               tpm_pin_required, cng_key_name) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -291,6 +341,11 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            pkcs11_object_label = excluded.pkcs11_object_label, \
            enclave_tag = excluded.enclave_tag, \
            hello_credential_name = excluded.hello_credential_name, \
+           tpm_blob = excluded.tpm_blob, \
+           tpm_handle = excluded.tpm_handle, \
+           tpm_provider = excluded.tpm_provider, \
+           tpm_pin_required = excluded.tpm_pin_required, \
+           cng_key_name = excluded.cng_key_name, \
            deleted_at = NULL",
         params![
             row.id,
@@ -312,6 +367,11 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.pkcs11_object_label,
             row.enclave_tag,
             row.hello_credential_name,
+            row.tpm_blob,
+            row.tpm_handle.map(|h| h as i64),
+            row.tpm_provider,
+            if row.tpm_pin_required { 1 } else { 0 },
+            row.cng_key_name,
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -360,6 +420,15 @@ pub struct SshKeyMetadata {
     /// `None` for non-`hello` rows; surfaced so the key-manager UI
     /// can render the row badge's info popover with the CNG name.
     pub hello_credential_name: Option<String>,
+    /// TPM 2.0 row ingredients exposed for the badge popover (the
+    /// PEM-wrapped blob bytes themselves stay Rust-side — only the
+    /// discriminator + lookup ingredients cross). `tpm_handle`
+    /// `None` = on-disk wrapped blob; `Some(handle)` = persistent
+    /// NV slot. `tpm_provider` is `"tss-esapi"` / `"cng-pcp"`.
+    pub tpm_handle: Option<u32>,
+    pub tpm_provider: Option<String>,
+    pub tpm_pin_required: bool,
+    pub cng_key_name: Option<String>,
 }
 
 pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetadata>, Error> {
@@ -370,7 +439,8 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
-                    hello_credential_name \
+                    hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
+                    tpm_pin_required, cng_key_name \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC \
              /* list_metadata */",
         )
@@ -394,6 +464,12 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                 pkcs11_token_serial: row.get("pkcs11_token_serial")?,
                 pkcs11_object_label: row.get("pkcs11_object_label")?,
                 hello_credential_name: row.get("hello_credential_name")?,
+                tpm_handle: row
+                    .get::<_, Option<i64>>("tpm_handle")?
+                    .and_then(|v| u32::try_from(v).ok()),
+                tpm_provider: row.get("tpm_provider")?,
+                tpm_pin_required: row.get::<_, i64>("tpm_pin_required")? != 0,
+                cng_key_name: row.get("cng_key_name")?,
             })
         })
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata query: {e}")))?;
@@ -461,8 +537,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                                        credential_id, application_string, has_user_verification, agent_policy, \
                                        backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
                                        pkcs11_object_id, pkcs11_object_label, enclave_tag, \
-                                       hello_credential_name) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19) \
+                                       hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
+                                       tpm_pin_required, cng_key_name) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -482,6 +559,11 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    pkcs11_object_label = excluded.pkcs11_object_label, \
                    enclave_tag = excluded.enclave_tag, \
                    hello_credential_name = excluded.hello_credential_name, \
+                   tpm_blob = excluded.tpm_blob, \
+                   tpm_handle = excluded.tpm_handle, \
+                   tpm_provider = excluded.tpm_provider, \
+                   tpm_pin_required = excluded.tpm_pin_required, \
+                   cng_key_name = excluded.cng_key_name, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -506,6 +588,11 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.pkcs11_object_label,
                 row.enclave_tag,
                 row.hello_credential_name,
+                row.tpm_blob,
+                row.tpm_handle.map(|h| h as i64),
+                row.tpm_provider,
+                if row.tpm_pin_required { 1 } else { 0 },
+                row.cng_key_name,
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -636,6 +723,11 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             pkcs11_object_label: proposed.pkcs11_object_label.clone(),
             enclave_tag: proposed.enclave_tag.clone(),
             hello_credential_name: proposed.hello_credential_name.clone(),
+            tpm_blob: proposed.tpm_blob.clone(),
+            tpm_handle: proposed.tpm_handle,
+            tpm_provider: proposed.tpm_provider.clone(),
+            tpm_pin_required: proposed.tpm_pin_required,
+            cng_key_name: proposed.cng_key_name.clone(),
         },
     )?;
     tx.commit()
@@ -711,6 +803,11 @@ mod import_for_merge_tests {
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         }
     }
 
@@ -821,6 +918,11 @@ mod tombstone_tests {
                     pkcs11_object_label: None,
                     enclave_tag: None,
                     hello_credential_name: None,
+                    tpm_blob: None,
+                    tpm_handle: None,
+                    tpm_provider: None,
+                    tpm_pin_required: false,
+                    cng_key_name: None,
                 },
             )
         })
@@ -915,6 +1017,11 @@ mod tombstone_tests {
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

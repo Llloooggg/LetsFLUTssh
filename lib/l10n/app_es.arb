@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, huella o cara: Windows Hello firma este desafío SSH.",
   "helloSoftwareGatedWarning": "Este dispositivo no tiene TPM. La clave queda en almacenamiento de usuario; Windows Hello sigue exigiendo cada firma.",
   "helloP384NotSupported": "El firmware del TPM no soporta P-384. Elige P-256 o RSA-2048.",
-  "helloConfigureFirst": "Configura primero Windows Hello en Configuración -> Opciones de inicio de sesión."
+  "helloConfigureFirst": "Configura primero Windows Hello en Configuración -> Opciones de inicio de sesión.",
+  "tpmSshTitle": "Generar clave SSH adosada a TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (recomendado)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algoritmo no soportado por el firmware del TPM.",
+  "tpmSshPinProtect": "Proteger con PIN",
+  "tpmSshPinLockoutWarning": "TPM bloquea la clave tras varios PIN incorrectos.",
+  "tpmSshPinMismatch": "Los PIN no coinciden.",
+  "tpmSshStorageBlob": "Guardar clave envuelta en datos de la app",
+  "tpmSshStorageHandle": "Persistir en slot de memoria TPM",
+  "tpmSshStorageHandleHelp": "Firmas más rápidas. Consume uno de los slots persistentes del TPM.",
+  "tpmSshLabel": "Etiqueta de la clave",
+  "tpmSshImportTitle": "Importar clave SSH protegida por TPM",
+  "tpmSshImportFormat": "Archivo TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "PIN del TPM para {label}",
+  "tpmSshPinIncorrect": "PIN incorrecto.",
+  "tpmSshPinLockedCooldown": "TPM en cooldown de lockout. Espera {duration} y reintenta.",
+  "tpmSshGenerating": "Generando clave en el TPM...",
+  "tpmSshSigning": "Firmando con TPM...",
+  "tpmSshUnavailable": "No se detectó TPM en este dispositivo.",
+  "tpmSshUnavailableFwDisabled": "TPM deshabilitado en el firmware.",
+  "tpmSshUnavailableNoPermission": "La app no puede acceder al TPM. Añade el usuario al grupo `tss`.",
+  "tpmSshHandleInUse": "El slot persistente {handle} ya está en uso.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Esta clave firma SIN prompt de Hello / PIN — cualquiera con acceso al escritorio mientras estás logueado puede usarla.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

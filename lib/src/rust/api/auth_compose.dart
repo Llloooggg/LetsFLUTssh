@@ -159,4 +159,18 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required String credentialName,
     required String keyType,
   }) = DbPreparedAuthRef_PubkeyHello;
+
+  /// TPM 2.0-bound hardware key. `provider` discriminates the
+  /// Linux ESAPI driver (`"tss-esapi"` + `blob` populated) from
+  /// the Windows PCP silent variant (`"cng-pcp"` + `cng_key_name`
+  /// populated); `pin_secret_id` carries the staged transient PIN
+  /// for PIN-bound rows, `None` for empty-auth keys.
+  const factory DbPreparedAuthRef.pubkeyTpm({
+    required String publicOpenssh,
+    required String provider,
+    Uint8List? blob,
+    String? cngKeyName,
+    required String keyType,
+    String? pinSecretId,
+  }) = DbPreparedAuthRef_PubkeyTpm;
 }

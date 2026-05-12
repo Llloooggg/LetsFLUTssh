@@ -71,6 +71,7 @@ import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
 import 'api/tier_unlock_orchestrator.dart';
 import 'api/tpm.dart';
+import 'api/tpm_ssh.dart';
 import 'api/transfer.dart';
 import 'api/transfer_conflict.dart';
 import 'api/update_http.dart';
@@ -143,7 +144,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1767097684;
+  int get rustContentHash => -1614852003;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -2278,6 +2279,28 @@ abstract class RustLibApi extends BaseApi {
     String? device,
     BigInt? timeoutMs,
   });
+
+  Future<void> crateApiTpmSshTpmSshDelete({required String keyId});
+
+  Future<void> crateApiTpmSshTpmSshEvict({required String keyId});
+
+  Future<DbTpmSshImportResult> crateApiTpmSshTpmSshGenerate({
+    required DbTpmSshGenerateArgs args,
+  });
+
+  Future<String> crateApiTpmSshTpmSshImportBlob({
+    required List<int> blob,
+    required String label,
+  });
+
+  Future<List<DbTpmKeyMeta>> crateApiTpmSshTpmSshList();
+
+  Future<void> crateApiTpmSshTpmSshMakePersistent({
+    required String keyId,
+    required int handle,
+  });
+
+  Future<DbTpmSshProbeResult> crateApiTpmSshTpmSshProbe();
 
   Future<Uint8List> crateApiTpmTpmUnseal({
     required List<int> blob,
@@ -20457,6 +20480,216 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiTpmSshTpmSshDelete({required String keyId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(keyId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 542,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshDeleteConstMeta,
+        argValues: [keyId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshDeleteConstMeta =>
+      const TaskConstMeta(debugName: "tpm_ssh_delete", argNames: ["keyId"]);
+
+  @override
+  Future<void> crateApiTpmSshTpmSshEvict({required String keyId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(keyId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 543,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshEvictConstMeta,
+        argValues: [keyId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshEvictConstMeta =>
+      const TaskConstMeta(debugName: "tpm_ssh_evict", argNames: ["keyId"]);
+
+  @override
+  Future<DbTpmSshImportResult> crateApiTpmSshTpmSshGenerate({
+    required DbTpmSshGenerateArgs args,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_db_tpm_ssh_generate_args(args, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 544,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_tpm_ssh_import_result,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshGenerateConstMeta,
+        argValues: [args],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshGenerateConstMeta =>
+      const TaskConstMeta(debugName: "tpm_ssh_generate", argNames: ["args"]);
+
+  @override
+  Future<String> crateApiTpmSshTpmSshImportBlob({
+    required List<int> blob,
+    required String label,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(blob, serializer);
+          sse_encode_String(label, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 545,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshImportBlobConstMeta,
+        argValues: [blob, label],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshImportBlobConstMeta =>
+      const TaskConstMeta(
+        debugName: "tpm_ssh_import_blob",
+        argNames: ["blob", "label"],
+      );
+
+  @override
+  Future<List<DbTpmKeyMeta>> crateApiTpmSshTpmSshList() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 546,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_db_tpm_key_meta,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshListConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshListConstMeta =>
+      const TaskConstMeta(debugName: "tpm_ssh_list", argNames: []);
+
+  @override
+  Future<void> crateApiTpmSshTpmSshMakePersistent({
+    required String keyId,
+    required int handle,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(keyId, serializer);
+          sse_encode_u_32(handle, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 547,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshMakePersistentConstMeta,
+        argValues: [keyId, handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshMakePersistentConstMeta =>
+      const TaskConstMeta(
+        debugName: "tpm_ssh_make_persistent",
+        argNames: ["keyId", "handle"],
+      );
+
+  @override
+  Future<DbTpmSshProbeResult> crateApiTpmSshTpmSshProbe() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 548,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_tpm_ssh_probe_result,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTpmSshTpmSshProbeConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTpmSshTpmSshProbeConstMeta =>
+      const TaskConstMeta(debugName: "tpm_ssh_probe", argNames: []);
+
+  @override
   Future<Uint8List> crateApiTpmTpmUnseal({
     required List<int> blob,
     required List<int> authValue,
@@ -20476,7 +20709,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 542,
+            funcId: 549,
             port: port_,
           );
         },
@@ -20506,7 +20739,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 543,
+            funcId: 550,
             port: port_,
           );
         },
@@ -20533,7 +20766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 544,
+            funcId: 551,
             port: port_,
           );
         },
@@ -20563,7 +20796,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 545,
+            funcId: 552,
           )!;
         },
         codec: SseCodec(
@@ -20595,7 +20828,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 546,
+            funcId: 553,
           )!;
         },
         codec: SseCodec(
@@ -20625,7 +20858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 547,
+            funcId: 554,
           )!;
         },
         codec: SseCodec(
@@ -20657,7 +20890,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 548,
+            funcId: 555,
           )!;
         },
         codec: SseCodec(
@@ -20695,7 +20928,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 549,
+            funcId: 556,
           )!;
         },
         codec: SseCodec(
@@ -20727,7 +20960,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 550,
+            funcId: 557,
             port: port_,
           );
         },
@@ -20755,7 +20988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 551,
+            funcId: 558,
             port: port_,
           );
         },
@@ -20798,7 +21031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 552,
+            funcId: 559,
             port: port_,
           );
         },
@@ -20835,7 +21068,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 553,
+            funcId: 560,
             port: port_,
           );
         },
@@ -20863,7 +21096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 554,
+            funcId: 561,
           )!;
         },
         codec: SseCodec(
@@ -20897,7 +21130,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 555,
+            funcId: 562,
           )!;
         },
         codec: SseCodec(
@@ -20931,7 +21164,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 556,
+            funcId: 563,
           )!;
         },
         codec: SseCodec(
@@ -20967,7 +21200,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 557,
+            funcId: 564,
             port: port_,
           );
         },
@@ -21004,7 +21237,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 558,
+            funcId: 565,
             port: port_,
           );
         },
@@ -21035,7 +21268,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 559,
+            funcId: 566,
             port: port_,
           );
         },
@@ -21067,7 +21300,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 560,
+            funcId: 567,
             port: port_,
           );
         },
@@ -21102,7 +21335,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 561,
+            funcId: 568,
           )!;
         },
         codec: SseCodec(
@@ -21136,7 +21369,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 562,
+            funcId: 569,
             port: port_,
           );
         },
@@ -21173,7 +21406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 563,
+            funcId: 570,
             port: port_,
           );
         },
@@ -21205,7 +21438,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 564,
+            funcId: 571,
             port: port_,
           );
         },
@@ -21235,7 +21468,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 565,
+            funcId: 572,
           )!;
         },
         codec: SseCodec(
@@ -21269,7 +21502,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 566,
+            funcId: 573,
           )!;
         },
         codec: SseCodec(
@@ -21301,7 +21534,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 567,
+            funcId: 574,
           )!;
         },
         codec: SseCodec(
@@ -21335,7 +21568,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 568,
+            funcId: 575,
           )!;
         },
         codec: SseCodec(
@@ -21376,7 +21609,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 569,
+            funcId: 576,
             port: port_,
           );
         },
@@ -21419,7 +21652,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 570,
+            funcId: 577,
           )!;
         },
         codec: SseCodec(
@@ -21446,7 +21679,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 571,
+            funcId: 578,
           )!;
         },
         codec: SseCodec(
@@ -21476,7 +21709,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 572,
+            funcId: 579,
           )!;
         },
         codec: SseCodec(
@@ -21504,7 +21737,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 573,
+            funcId: 580,
           )!;
         },
         codec: SseCodec(
@@ -21533,7 +21766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 574,
+            funcId: 581,
             port: port_,
           );
         },
@@ -21563,7 +21796,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 575,
+            funcId: 582,
             port: port_,
           );
         },
@@ -22253,6 +22486,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbTpmSshGenerateArgs dco_decode_box_autoadd_db_tpm_ssh_generate_args(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_db_tpm_ssh_generate_args(raw);
+  }
+
+  @protected
   DbUnlockFailureReason dco_decode_box_autoadd_db_unlock_failure_reason(
     dynamic raw,
   ) {
@@ -22401,6 +22642,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           keyType: dco_decode_String(raw[3]),
         );
       case 7:
+        return BusConnectAuthRef_PubkeyTpm(
+          publicOpenssh: dco_decode_String(raw[1]),
+          provider: dco_decode_String(raw[2]),
+          blob: dco_decode_opt_list_prim_u_8_strict(raw[3]),
+          cngKeyName: dco_decode_opt_String(raw[4]),
+          keyType: dco_decode_String(raw[5]),
+          pinSecretId: dco_decode_opt_String(raw[6]),
+        );
+      case 8:
         return BusConnectAuthRef_Agent();
       default:
         throw Exception("unreachable");
@@ -23577,6 +23827,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           credentialName: dco_decode_String(raw[2]),
           keyType: dco_decode_String(raw[3]),
         );
+      case 7:
+        return DbPreparedAuthRef_PubkeyTpm(
+          publicOpenssh: dco_decode_String(raw[1]),
+          provider: dco_decode_String(raw[2]),
+          blob: dco_decode_opt_list_prim_u_8_strict(raw[3]),
+          cngKeyName: dco_decode_opt_String(raw[4]),
+          keyType: dco_decode_String(raw[5]),
+          pinSecretId: dco_decode_opt_String(raw[6]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -24095,8 +24354,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbSshKey dco_decode_db_ssh_key(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 19)
-      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
+    if (arr.length != 24)
+      throw Exception('unexpected arr length: expect 24 but see ${arr.length}');
     return DbSshKey(
       id: dco_decode_String(arr[0]),
       label: dco_decode_String(arr[1]),
@@ -24117,6 +24376,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pkcs11ObjectLabel: dco_decode_opt_String(arr[16]),
       enclaveTag: dco_decode_opt_list_prim_u_8_strict(arr[17]),
       helloCredentialName: dco_decode_opt_String(arr[18]),
+      tpmBlob: dco_decode_opt_list_prim_u_8_strict(arr[19]),
+      tpmHandle: dco_decode_opt_box_autoadd_u_32(arr[20]),
+      tpmProvider: dco_decode_opt_String(arr[21]),
+      tpmPinRequired: dco_decode_bool(arr[22]),
+      cngKeyName: dco_decode_opt_String(arr[23]),
     );
   }
 
@@ -24141,8 +24405,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbSshKeyMetadata dco_decode_db_ssh_key_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
     return DbSshKeyMetadata(
       id: dco_decode_String(arr[0]),
       label: dco_decode_String(arr[1]),
@@ -24157,6 +24421,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pkcs11TokenSerial: dco_decode_opt_String(arr[10]),
       pkcs11ObjectLabel: dco_decode_opt_String(arr[11]),
       helloCredentialName: dco_decode_opt_String(arr[12]),
+      tpmHandle: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      tpmProvider: dco_decode_opt_String(arr[14]),
+      tpmPinRequired: dco_decode_bool(arr[15]),
+      cngKeyName: dco_decode_opt_String(arr[16]),
     );
   }
 
@@ -24429,9 +24697,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbTpmKeyMeta dco_decode_db_tpm_key_meta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return DbTpmKeyMeta(
+      keyId: dco_decode_String(arr[0]),
+      label: dco_decode_String(arr[1]),
+      algo: dco_decode_db_tpm_ssh_algorithm(arr[2]),
+      provider: dco_decode_String(arr[3]),
+      persistentHandle: dco_decode_opt_box_autoadd_u_32(arr[4]),
+      pinRequired: dco_decode_bool(arr[5]),
+    );
+  }
+
+  @protected
   DbTpmProbeResult dco_decode_db_tpm_probe_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DbTpmProbeResult.values[raw as int];
+  }
+
+  @protected
+  DbTpmSshAlgorithm dco_decode_db_tpm_ssh_algorithm(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbTpmSshAlgorithm.values[raw as int];
+  }
+
+  @protected
+  DbTpmSshGenerateArgs dco_decode_db_tpm_ssh_generate_args(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return DbTpmSshGenerateArgs(
+      label: dco_decode_String(arr[0]),
+      algo: dco_decode_db_tpm_ssh_algorithm(arr[1]),
+      pin: dco_decode_opt_String(arr[2]),
+      storage: dco_decode_db_tpm_ssh_storage_mode(arr[3]),
+      persistentHandle: dco_decode_opt_box_autoadd_u_32(arr[4]),
+      silentTpm: dco_decode_bool(arr[5]),
+    );
+  }
+
+  @protected
+  DbTpmSshImportResult dco_decode_db_tpm_ssh_import_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DbTpmSshImportResult(
+      keyId: dco_decode_String(arr[0]),
+      label: dco_decode_String(arr[1]),
+      authorizedKeysLine: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  DbTpmSshProbeResult dco_decode_db_tpm_ssh_probe_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbTpmSshProbeResult.values[raw as int];
+  }
+
+  @protected
+  DbTpmSshStorageMode dco_decode_db_tpm_ssh_storage_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbTpmSshStorageMode.values[raw as int];
   }
 
   @protected
@@ -24936,6 +25267,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_db_threat_row).toList();
+  }
+
+  @protected
+  List<DbTpmKeyMeta> dco_decode_list_db_tpm_key_meta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_db_tpm_key_meta).toList();
   }
 
   @protected
@@ -26182,6 +26519,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbTpmSshGenerateArgs sse_decode_box_autoadd_db_tpm_ssh_generate_args(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_db_tpm_ssh_generate_args(deserializer));
+  }
+
+  @protected
   DbUnlockFailureReason sse_decode_box_autoadd_db_unlock_failure_reason(
     SseDeserializer deserializer,
   ) {
@@ -26370,6 +26715,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           keyType: var_keyType,
         );
       case 7:
+        var var_publicOpenssh = sse_decode_String(deserializer);
+        var var_provider = sse_decode_String(deserializer);
+        var var_blob = sse_decode_opt_list_prim_u_8_strict(deserializer);
+        var var_cngKeyName = sse_decode_opt_String(deserializer);
+        var var_keyType = sse_decode_String(deserializer);
+        var var_pinSecretId = sse_decode_opt_String(deserializer);
+        return BusConnectAuthRef_PubkeyTpm(
+          publicOpenssh: var_publicOpenssh,
+          provider: var_provider,
+          blob: var_blob,
+          cngKeyName: var_cngKeyName,
+          keyType: var_keyType,
+          pinSecretId: var_pinSecretId,
+        );
+      case 8:
         return BusConnectAuthRef_Agent();
       default:
         throw UnimplementedError('');
@@ -27758,6 +28118,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           credentialName: var_credentialName,
           keyType: var_keyType,
         );
+      case 7:
+        var var_publicOpenssh = sse_decode_String(deserializer);
+        var var_provider = sse_decode_String(deserializer);
+        var var_blob = sse_decode_opt_list_prim_u_8_strict(deserializer);
+        var var_cngKeyName = sse_decode_opt_String(deserializer);
+        var var_keyType = sse_decode_String(deserializer);
+        var var_pinSecretId = sse_decode_opt_String(deserializer);
+        return DbPreparedAuthRef_PubkeyTpm(
+          publicOpenssh: var_publicOpenssh,
+          provider: var_provider,
+          blob: var_blob,
+          cngKeyName: var_cngKeyName,
+          keyType: var_keyType,
+          pinSecretId: var_pinSecretId,
+        );
       default:
         throw UnimplementedError('');
     }
@@ -28433,6 +28808,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pkcs11ObjectLabel = sse_decode_opt_String(deserializer);
     var var_enclaveTag = sse_decode_opt_list_prim_u_8_strict(deserializer);
     var var_helloCredentialName = sse_decode_opt_String(deserializer);
+    var var_tpmBlob = sse_decode_opt_list_prim_u_8_strict(deserializer);
+    var var_tpmHandle = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_tpmProvider = sse_decode_opt_String(deserializer);
+    var var_tpmPinRequired = sse_decode_bool(deserializer);
+    var var_cngKeyName = sse_decode_opt_String(deserializer);
     return DbSshKey(
       id: var_id,
       label: var_label,
@@ -28453,6 +28833,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pkcs11ObjectLabel: var_pkcs11ObjectLabel,
       enclaveTag: var_enclaveTag,
       helloCredentialName: var_helloCredentialName,
+      tpmBlob: var_tpmBlob,
+      tpmHandle: var_tpmHandle,
+      tpmProvider: var_tpmProvider,
+      tpmPinRequired: var_tpmPinRequired,
+      cngKeyName: var_cngKeyName,
     );
   }
 
@@ -28497,6 +28882,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pkcs11TokenSerial = sse_decode_opt_String(deserializer);
     var var_pkcs11ObjectLabel = sse_decode_opt_String(deserializer);
     var var_helloCredentialName = sse_decode_opt_String(deserializer);
+    var var_tpmHandle = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_tpmProvider = sse_decode_opt_String(deserializer);
+    var var_tpmPinRequired = sse_decode_bool(deserializer);
+    var var_cngKeyName = sse_decode_opt_String(deserializer);
     return DbSshKeyMetadata(
       id: var_id,
       label: var_label,
@@ -28511,6 +28900,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pkcs11TokenSerial: var_pkcs11TokenSerial,
       pkcs11ObjectLabel: var_pkcs11ObjectLabel,
       helloCredentialName: var_helloCredentialName,
+      tpmHandle: var_tpmHandle,
+      tpmProvider: var_tpmProvider,
+      tpmPinRequired: var_tpmPinRequired,
+      cngKeyName: var_cngKeyName,
     );
   }
 
@@ -28837,12 +29230,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbTpmKeyMeta sse_decode_db_tpm_key_meta(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_keyId = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_algo = sse_decode_db_tpm_ssh_algorithm(deserializer);
+    var var_provider = sse_decode_String(deserializer);
+    var var_persistentHandle = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_pinRequired = sse_decode_bool(deserializer);
+    return DbTpmKeyMeta(
+      keyId: var_keyId,
+      label: var_label,
+      algo: var_algo,
+      provider: var_provider,
+      persistentHandle: var_persistentHandle,
+      pinRequired: var_pinRequired,
+    );
+  }
+
+  @protected
   DbTpmProbeResult sse_decode_db_tpm_probe_result(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return DbTpmProbeResult.values[inner];
+  }
+
+  @protected
+  DbTpmSshAlgorithm sse_decode_db_tpm_ssh_algorithm(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DbTpmSshAlgorithm.values[inner];
+  }
+
+  @protected
+  DbTpmSshGenerateArgs sse_decode_db_tpm_ssh_generate_args(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_label = sse_decode_String(deserializer);
+    var var_algo = sse_decode_db_tpm_ssh_algorithm(deserializer);
+    var var_pin = sse_decode_opt_String(deserializer);
+    var var_storage = sse_decode_db_tpm_ssh_storage_mode(deserializer);
+    var var_persistentHandle = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_silentTpm = sse_decode_bool(deserializer);
+    return DbTpmSshGenerateArgs(
+      label: var_label,
+      algo: var_algo,
+      pin: var_pin,
+      storage: var_storage,
+      persistentHandle: var_persistentHandle,
+      silentTpm: var_silentTpm,
+    );
+  }
+
+  @protected
+  DbTpmSshImportResult sse_decode_db_tpm_ssh_import_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_keyId = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_authorizedKeysLine = sse_decode_String(deserializer);
+    return DbTpmSshImportResult(
+      keyId: var_keyId,
+      label: var_label,
+      authorizedKeysLine: var_authorizedKeysLine,
+    );
+  }
+
+  @protected
+  DbTpmSshProbeResult sse_decode_db_tpm_ssh_probe_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DbTpmSshProbeResult.values[inner];
+  }
+
+  @protected
+  DbTpmSshStorageMode sse_decode_db_tpm_ssh_storage_mode(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DbTpmSshStorageMode.values[inner];
   }
 
   @protected
@@ -29668,6 +30143,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DbThreatRow>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_threat_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DbTpmKeyMeta> sse_decode_list_db_tpm_key_meta(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbTpmKeyMeta>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_db_tpm_key_meta(deserializer));
     }
     return ans_;
   }
@@ -31294,6 +31783,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_db_tpm_ssh_generate_args(
+    DbTpmSshGenerateArgs self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_tpm_ssh_generate_args(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_db_unlock_failure_reason(
     DbUnlockFailureReason self,
     SseSerializer serializer,
@@ -31477,8 +31975,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(publicOpenssh, serializer);
         sse_encode_String(credentialName, serializer);
         sse_encode_String(keyType, serializer);
-      case BusConnectAuthRef_Agent():
+      case BusConnectAuthRef_PubkeyTpm(
+        publicOpenssh: final publicOpenssh,
+        provider: final provider,
+        blob: final blob,
+        cngKeyName: final cngKeyName,
+        keyType: final keyType,
+        pinSecretId: final pinSecretId,
+      ):
         sse_encode_i_32(7, serializer);
+        sse_encode_String(publicOpenssh, serializer);
+        sse_encode_String(provider, serializer);
+        sse_encode_opt_list_prim_u_8_strict(blob, serializer);
+        sse_encode_opt_String(cngKeyName, serializer);
+        sse_encode_String(keyType, serializer);
+        sse_encode_opt_String(pinSecretId, serializer);
+      case BusConnectAuthRef_Agent():
+        sse_encode_i_32(8, serializer);
     }
   }
 
@@ -32650,6 +33163,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(publicOpenssh, serializer);
         sse_encode_String(credentialName, serializer);
         sse_encode_String(keyType, serializer);
+      case DbPreparedAuthRef_PubkeyTpm(
+        publicOpenssh: final publicOpenssh,
+        provider: final provider,
+        blob: final blob,
+        cngKeyName: final cngKeyName,
+        keyType: final keyType,
+        pinSecretId: final pinSecretId,
+      ):
+        sse_encode_i_32(7, serializer);
+        sse_encode_String(publicOpenssh, serializer);
+        sse_encode_String(provider, serializer);
+        sse_encode_opt_list_prim_u_8_strict(blob, serializer);
+        sse_encode_opt_String(cngKeyName, serializer);
+        sse_encode_String(keyType, serializer);
+        sse_encode_opt_String(pinSecretId, serializer);
     }
   }
 
@@ -33121,6 +33649,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.pkcs11ObjectLabel, serializer);
     sse_encode_opt_list_prim_u_8_strict(self.enclaveTag, serializer);
     sse_encode_opt_String(self.helloCredentialName, serializer);
+    sse_encode_opt_list_prim_u_8_strict(self.tpmBlob, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.tpmHandle, serializer);
+    sse_encode_opt_String(self.tpmProvider, serializer);
+    sse_encode_bool(self.tpmPinRequired, serializer);
+    sse_encode_opt_String(self.cngKeyName, serializer);
   }
 
   @protected
@@ -33157,6 +33690,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.pkcs11TokenSerial, serializer);
     sse_encode_opt_String(self.pkcs11ObjectLabel, serializer);
     sse_encode_opt_String(self.helloCredentialName, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.tpmHandle, serializer);
+    sse_encode_opt_String(self.tpmProvider, serializer);
+    sse_encode_bool(self.tpmPinRequired, serializer);
+    sse_encode_opt_String(self.cngKeyName, serializer);
   }
 
   @protected
@@ -33383,8 +33920,71 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_tpm_key_meta(DbTpmKeyMeta self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.keyId, serializer);
+    sse_encode_String(self.label, serializer);
+    sse_encode_db_tpm_ssh_algorithm(self.algo, serializer);
+    sse_encode_String(self.provider, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.persistentHandle, serializer);
+    sse_encode_bool(self.pinRequired, serializer);
+  }
+
+  @protected
   void sse_encode_db_tpm_probe_result(
     DbTpmProbeResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_tpm_ssh_algorithm(
+    DbTpmSshAlgorithm self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_tpm_ssh_generate_args(
+    DbTpmSshGenerateArgs self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.label, serializer);
+    sse_encode_db_tpm_ssh_algorithm(self.algo, serializer);
+    sse_encode_opt_String(self.pin, serializer);
+    sse_encode_db_tpm_ssh_storage_mode(self.storage, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.persistentHandle, serializer);
+    sse_encode_bool(self.silentTpm, serializer);
+  }
+
+  @protected
+  void sse_encode_db_tpm_ssh_import_result(
+    DbTpmSshImportResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.keyId, serializer);
+    sse_encode_String(self.label, serializer);
+    sse_encode_String(self.authorizedKeysLine, serializer);
+  }
+
+  @protected
+  void sse_encode_db_tpm_ssh_probe_result(
+    DbTpmSshProbeResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_tpm_ssh_storage_mode(
+    DbTpmSshStorageMode self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -34092,6 +34692,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_db_threat_row(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_db_tpm_key_meta(
+    List<DbTpmKeyMeta> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_db_tpm_key_meta(item, serializer);
     }
   }
 

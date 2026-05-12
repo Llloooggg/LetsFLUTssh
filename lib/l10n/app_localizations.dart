@@ -5732,6 +5732,150 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Configure Windows Hello first in Settings -> Sign-in options.'**
   String get helloConfigureFirst;
+
+  /// No description provided for @tpmSshTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate TPM-backed SSH key'**
+  String get tpmSshTitle;
+
+  /// No description provided for @tpmSshAlgEcdsa.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA P-256 (recommended)'**
+  String get tpmSshAlgEcdsa;
+
+  /// No description provided for @tpmSshAlgRsa.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA-2048'**
+  String get tpmSshAlgRsa;
+
+  /// No description provided for @tpmSshAlgUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Algorithm not supported by this TPM firmware.'**
+  String get tpmSshAlgUnsupported;
+
+  /// No description provided for @tpmSshPinProtect.
+  ///
+  /// In en, this message translates to:
+  /// **'Protect with PIN'**
+  String get tpmSshPinProtect;
+
+  /// No description provided for @tpmSshPinLockoutWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM locks the key after repeated wrong PINs.'**
+  String get tpmSshPinLockoutWarning;
+
+  /// No description provided for @tpmSshPinMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs do not match.'**
+  String get tpmSshPinMismatch;
+
+  /// No description provided for @tpmSshStorageBlob.
+  ///
+  /// In en, this message translates to:
+  /// **'Store wrapped key in app data'**
+  String get tpmSshStorageBlob;
+
+  /// No description provided for @tpmSshStorageHandle.
+  ///
+  /// In en, this message translates to:
+  /// **'Persist in TPM memory slot'**
+  String get tpmSshStorageHandle;
+
+  /// No description provided for @tpmSshStorageHandleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster signing. Consumes one of the TPM\'s persistent slots.'**
+  String get tpmSshStorageHandleHelp;
+
+  /// No description provided for @tpmSshLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Key label'**
+  String get tpmSshLabel;
+
+  /// No description provided for @tpmSshImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import TPM-protected SSH key'**
+  String get tpmSshImportTitle;
+
+  /// No description provided for @tpmSshImportFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)'**
+  String get tpmSshImportFormat;
+
+  /// No description provided for @tpmSshPinPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM PIN for {label}'**
+  String tpmSshPinPrompt(String label);
+
+  /// No description provided for @tpmSshPinIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN incorrect.'**
+  String get tpmSshPinIncorrect;
+
+  /// No description provided for @tpmSshPinLockedCooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM is in lockout cooldown. Wait {duration} and retry.'**
+  String tpmSshPinLockedCooldown(String duration);
+
+  /// No description provided for @tpmSshGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating key in TPM...'**
+  String get tpmSshGenerating;
+
+  /// No description provided for @tpmSshSigning.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing with TPM...'**
+  String get tpmSshSigning;
+
+  /// No description provided for @tpmSshUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM detected on this device.'**
+  String get tpmSshUnavailable;
+
+  /// No description provided for @tpmSshUnavailableFwDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM is disabled in firmware.'**
+  String get tpmSshUnavailableFwDisabled;
+
+  /// No description provided for @tpmSshUnavailableNoPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'App cannot access the TPM. Add user to the `tss` group.'**
+  String get tpmSshUnavailableNoPermission;
+
+  /// No description provided for @tpmSshHandleInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Persistent slot {handle} is already in use.'**
+  String tpmSshHandleInUse(String handle);
+
+  /// No description provided for @tpmSshBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM 2.0'**
+  String get tpmSshBadge;
+
+  /// No description provided for @tpmSshSilentWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you\'re logged in can use it.'**
+  String get tpmSshSilentWarning;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

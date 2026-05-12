@@ -108,6 +108,19 @@ pub enum DbPreparedAuthRef {
         credential_name: String,
         key_type: String,
     },
+    /// TPM 2.0-bound hardware key. `provider` discriminates the
+    /// Linux ESAPI driver (`"tss-esapi"` + `blob` populated) from
+    /// the Windows PCP silent variant (`"cng-pcp"` + `cng_key_name`
+    /// populated); `pin_secret_id` carries the staged transient PIN
+    /// for PIN-bound rows, `None` for empty-auth keys.
+    PubkeyTpm {
+        public_openssh: String,
+        provider: String,
+        blob: Option<Vec<u8>>,
+        cng_key_name: Option<String>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +199,21 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 public_openssh,
                 credential_name,
                 key_type,
+            },
+            auth_compose::PreparedAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            } => DbPreparedAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
             },
         };
         DbPreparedAuth {

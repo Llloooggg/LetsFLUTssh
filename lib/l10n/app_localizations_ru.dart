@@ -3285,4 +3285,87 @@ class SRu extends S {
   @override
   String get helloConfigureFirst =>
       'Сначала настройте Windows Hello: Параметры -> Варианты входа.';
+
+  @override
+  String get tpmSshTitle => 'Создать SSH-ключ через TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (рекомендуется)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Прошивка TPM не поддерживает этот algorithm.';
+
+  @override
+  String get tpmSshPinProtect => 'Защитить PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'После нескольких неверных PIN TPM блокирует ключ.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN не совпадают.';
+
+  @override
+  String get tpmSshStorageBlob => 'Хранить wrapped-ключ в данных приложения';
+
+  @override
+  String get tpmSshStorageHandle => 'Положить в слот памяти TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Подпись быстрее. Занимает один из persistent-слотов TPM.';
+
+  @override
+  String get tpmSshLabel => 'Метка ключа';
+
+  @override
+  String get tpmSshImportTitle => 'Импортировать SSH-ключ под TPM';
+
+  @override
+  String get tpmSshImportFormat => 'Файл TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN для $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN неверный.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM в lockout-кулдауне. Подождите $duration и повторите.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Создаём ключ в TPM...';
+
+  @override
+  String get tpmSshSigning => 'Подписываем через TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'TPM на устройстве не найден.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM выключен в прошивке.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'Приложение не может обратиться к TPM. Добавьте пользователя в группу `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Слот $handle уже занят.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Ключ подписывает БЕЗ запроса Hello / PIN — пока вы залогинены, любой с доступом к рабочему столу сможет им подписать.';
 }

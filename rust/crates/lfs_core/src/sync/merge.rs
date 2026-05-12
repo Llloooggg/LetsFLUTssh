@@ -388,6 +388,11 @@ fn merge_keys(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOu
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         };
         match ssh_keys::upsert(conn, &row) {
             Ok(_) => outcome.keys_merged += 1,
@@ -767,6 +772,11 @@ mod tests {
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         };
         db.with_conn(|c| ssh_keys::upsert(c, &row)).unwrap();
         let peer = r#"[{

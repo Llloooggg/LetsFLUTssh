@@ -3263,4 +3263,87 @@ class SId extends S {
   @override
   String get helloConfigureFirst =>
       'Setup Windows Hello dulu di Settings -> Sign-in options.';
+
+  @override
+  String get tpmSshTitle => 'Buat kunci SSH berbasis TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (direkomendasikan)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Algorithm tidak didukung firmware TPM ini.';
+
+  @override
+  String get tpmSshPinProtect => 'Lindungi dengan PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'TPM mengunci key setelah beberapa kali PIN salah.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN tidak cocok.';
+
+  @override
+  String get tpmSshStorageBlob => 'Simpan wrapped key di data aplikasi';
+
+  @override
+  String get tpmSshStorageHandle => 'Simpan di slot memori TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Signing lebih cepat. Memakai salah satu slot persistent TPM.';
+
+  @override
+  String get tpmSshLabel => 'Label key';
+
+  @override
+  String get tpmSshImportTitle => 'Import SSH key terlindung TPM';
+
+  @override
+  String get tpmSshImportFormat => 'File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN untuk $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN salah.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM dalam lockout cooldown. Tunggu $duration dan coba lagi.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Membuat key di TPM...';
+
+  @override
+  String get tpmSshSigning => 'Signing dengan TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'TPM tidak terdeteksi di perangkat ini.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM dinonaktifkan di firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'Aplikasi tidak bisa mengakses TPM. Tambahkan user ke grup `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Slot persistent $handle sudah dipakai.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Key ini sign TANPA prompt Hello / PIN — siapa saja yang mengakses desktop saat kamu logged in bisa memakainya.';
 }

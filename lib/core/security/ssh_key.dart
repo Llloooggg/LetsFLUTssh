@@ -273,6 +273,25 @@ class SshKeyMetadata {
   /// the row maps to.
   final String? helloCredentialName;
 
+  /// Persistent NV handle for TPM 2.0 rows that opted into the
+  /// "Persist in TPM memory slot" storage mode at generate time;
+  /// `null` for blob-mode TPM keys and every non-TPM row. The badge
+  /// info popover renders the value as `0x81010001`.
+  final int? tpmHandle;
+
+  /// TPM provider discriminator for `backend = 'tpm'` rows. One of
+  /// `"tss-esapi"` (Linux ESAPI driver) / `"cng-pcp"` (Windows PCP
+  /// silent variant). `null` for every non-TPM row.
+  final String? tpmProvider;
+
+  /// `true` when the TPM-bound key requires a PIN on every sign.
+  /// Drives the badge popover copy + the connect-flow prompt.
+  final bool tpmPinRequired;
+
+  /// Windows PCP-silent TPM CNG persistent-key name. `null` for
+  /// Linux TPM rows and every non-TPM backend.
+  final String? cngKeyName;
+
   const SshKeyMetadata({
     required this.id,
     required this.label,
@@ -291,6 +310,10 @@ class SshKeyMetadata {
     this.pkcs11TokenSerial,
     this.pkcs11ObjectLabel,
     this.helloCredentialName,
+    this.tpmHandle,
+    this.tpmProvider,
+    this.tpmPinRequired = false,
+    this.cngKeyName,
   });
 
   bool get hasCertificate => certFingerprint.isNotEmpty;
@@ -315,6 +338,11 @@ class SshKeyMetadata {
   /// Hello (NCrypt) key. Drives the key-manager badge + info popover
   /// + the "device-bound" warning the key cannot leave this PC.
   bool get isHello => backend == 'hello';
+
+  /// True when the row's `backend` discriminator names a TPM 2.0
+  /// SSH key (Linux ESAPI driver or Windows PCP silent variant).
+  /// Drives the [TpmBadge] selection in the key-manager list.
+  bool get isTpm => backend == 'tpm';
 }
 
 /// Thrown when key store operations fail.

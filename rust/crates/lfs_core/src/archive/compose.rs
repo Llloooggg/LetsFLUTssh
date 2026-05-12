@@ -943,6 +943,11 @@ mod tests {
                 pkcs11_object_label: None,
                 enclave_tag: None,
                 hello_credential_name: None,
+                tpm_blob: None,
+                tpm_handle: None,
+                tpm_provider: None,
+                tpm_pin_required: false,
+                cng_key_name: None,
             },
         )
         .unwrap();

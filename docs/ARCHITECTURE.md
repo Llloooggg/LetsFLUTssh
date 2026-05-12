@@ -1622,6 +1622,84 @@ The flags fire the Hello prompt on every sign — every SSH userauth, every git 
 
 **Tests.** Unit tests in `rust/crates/lfs_os_security/src/windows/ncrypt_ssh.rs::tests` cover the algorithm round-trip via `from_key_type` / `key_type_tag`, the credential-name mint shape, the `NCryptKeyName.pszAlgid` mapping, the unavailable-reason renderer, and the public-key blob parsers for ECDSA + RSA. The probe round-trip is `#[ignore]`-gated; a self-hosted Windows runner with `--ignored` exercises it. The Signer adapter has its own tests at `rust/crates/lfs_core/src/ssh/hello_signer.rs::tests` (algorithm round-trip, error mapping, russh-algorithm contract). The Dart-side wizard tests live in `test/widgets/hello_ssh_dialog_test.dart` — five cases covering probe-disabled state, hello-not-configured reason rendering, software-KSP honest-label warning, happy-path generate, and the generate-failure recovery.
 
+#### TPM 2.0 SSH keys — Linux ESAPI + Windows PCP silent variant
+
+`lfs_os_security::linux::tpm_ssh` generates / signs / lists / imports / deletes SSH keys whose private half lives inside a TPM 2.0 chip on Linux via direct `tss-esapi` (libtss2-esys) FFI; the Windows side reuses `lfs_os_security::windows::ncrypt_ssh` (the same NCrypt + Microsoft Platform Crypto Provider stack as Hello) but takes the **opposite UI-policy default** — `NCRYPT_UI_POLICY_PROPERTY` is left absent so signs run unattended. The chip refuses to export the private bytes in both paths; on Linux every signing operation routes through `TPM2_Sign` after a fresh `TPM2_Load`, and on Windows `NCryptSignHash` runs against a persisted CNG key without firing any OS-level prompt.
+
+**Why two paths.** Linux has no `KeyCredentialManager`-equivalent — the TPM is reached directly via the TSS2 stack (`tpm2-tools` subprocess or `tss-esapi` library). Windows has a working CNG / PCP path that the Hello-gated wizard already uses; the TPM SSH wizard piggybacks on it but flips the UI-policy bit. Apple platforms route to the Secure Enclave wizard instead (no exposed TPM 2.0 interface on macOS / iOS). Android / iOS hide the toolbar entry.
+
+```mermaid
+flowchart LR
+    UI[TpmSshDialog]
+    UI -- Linux --> FRBL[tpm_ssh_generate FRB]
+    UI -- Windows --> FRBW[tpm_ssh_generate FRB]
+    FRBL --> ESAPI[tss-esapi::CreatePrimary + Create]
+    ESAPI --> BLOB[TPM2B_PUBLIC + TPM2B_PRIVATE<br/>TCG draft-bottomley-tpm2-keys-asn1]
+    BLOB --> DBL[ssh_keys row<br/>backend=tpm tpm_provider=tss-esapi<br/>tpm_blob populated]
+    FRBW --> NCSILENT[NCryptCreatePersistedKey<br/>MS_PLATFORM_KEY_STORAGE_PROVIDER<br/>no UI_POLICY set]
+    NCSILENT --> CNGKEY[(TPM 2.0 via PCP)]
+    CNGKEY --> DBW[ssh_keys row<br/>backend=tpm tpm_provider=cng-pcp<br/>cng_key_name populated]
+    DBL --> SIGNL[connect_pubkey_tpm_owned + TpmSigner]
+    DBW --> SIGNW[connect_pubkey_tpm_owned + TpmSigner]
+    SIGNL --> TPM2[TPM2_Sign<br/>raw r||s or PKCS#1 v1.5]
+    SIGNW --> NCSIGN[NCryptSignHash<br/>unattended - no prompt]
+    TPM2 --> WRAP[ssh::wire::ecdsa_raw_concat / rsa_pkcs1_v15]
+    NCSIGN --> WRAP
+    WRAP --> SSH[SSH userauth signature]
+```
+
+**Module layout.** Linux native driver: `rust/crates/lfs_os_security/src/linux/tpm_ssh.rs` (cfg-gated to `target_os = "linux"`; reuses `tpm_native::build_primary_template` so the parent handle is byte-identical to the T2 hardware-vault seal path). Windows silent path: extends `rust/crates/lfs_os_security/src/windows/ncrypt_ssh.rs` with `create_silent` / `sign_for_ssh_silent` / `list_silent` / `delete_silent` plus the `TpmSilentKeyHandle` type and the `letsflutssh-tpm-<user-hash>-<uuid>` CNG-name prefix that distinguishes silent TPM keys from Hello-gated ones when `NCryptEnumKeys` walks the provider. macOS stub: `rust/crates/lfs_os_security/src/macos/tpm_ssh.rs` (returns `TpmSshError::Unavailable`). Signer adapter: `rust/crates/lfs_core/src/ssh/tpm_signer.rs` (`russh::Signer` impl wrapping the FFI surface; carries the `TpmProvider` discriminator so the single signer routes both backends). FRB shim: `rust/crates/lfs_frb/src/api/tpm_ssh.rs`.
+
+**Algorithm exclusivity.**
+
+| `TpmSshAlgorithm` | Linux TPM template | Windows NCrypt algorithm | SSH wire-name | Output shape |
+|---|---|---|---|---|
+| `EcdsaP256` | `TPMI_ALG_ECDSA` over `TPMI_ECC_NIST_P256` | `NCRYPT_ECDSA_P256_ALGORITHM` | `ecdsa-sha2-nistp256` | Raw `r \|\| s`, 32+32 bytes |
+| `Rsa2048` | `TPMI_ALG_RSASSA`, `RsaKeyBits::Rsa2048` | `NCRYPT_RSA_ALGORITHM` (length 2048) | `rsa-sha2-256` / `rsa-sha2-512` (PKCS#1 v1.5, NOT PSS) | 256-byte raw signature block |
+| ~~Ed25519~~ | **REFUSED** — not in TPM 2.0 spec | **REFUSED** — same | n/a | n/a |
+
+Ed25519 is not defined by the TPM 2.0 specification — the wizard refuses with the localized `tpmSshAlgUnsupported` copy rather than silently substituting a different curve.
+
+**Storage model (Linux).** Two modes set at generate time:
+
+1. **On-disk wrapped blob** (default; `TpmSshStorage::Blob`). `TPM2_Create` returns `(public, private)` blobs; we pack them with the `[u32 BE pub_len][pub][u32 BE priv_len][priv]` envelope (same shape the seal-path uses) and store the bytes on `ssh_keys.tpm_blob`. The on-disk file format wrapping that envelope is the TCG draft [`draft-bottomley-tpm2-keys-asn1`](https://datatracker.ietf.org/doc/draft-bottomley-tpm2-keys-asn1/) "TSS2 PRIVATE KEY" PEM — byte-compatible with `ssh-tpm-agent` and `openssl-tpm2-engine` for cross-tool import. Every sign re-issues `TPM2_Load` (~5-20 ms on a typical fTPM) and tears the transient handle down on completion. Portable across reinstalls — the OS reset doesn't touch the user-data dir.
+2. **Persistent NV handle** (power-user opt-in; `TpmSshStorage::PersistentHandle(handle)`). After the blob mints, the wizard's "Persist in TPM memory slot" radio fires `TPM2_EvictControl` on a user-chosen handle in the `0x81010001..0x8101FFFF` range. The chip holds the key in TPM RAM; subsequent signs skip the load step (~2-5 ms total) but consume one of the handful of persistent slots (typical fTPM ships ~7 free handles). `tpm2_clear` / BIOS reset wipes them. v1 marks the actual `make_persistent` step as `#[ignore]`-gated pending a real-device verification pass on the `tss-esapi` 7.5 → 7.7 minor bump (the `evict_control` surface diverges across the minor); the wizard exposes the radio but the FRB call surfaces the typed "requires real-device verification" reason until v2 lands.
+
+**Storage model (Windows).** The silent-TPM variant lives in CNG's PCP keystore at `%LOCALAPPDATA%\Microsoft\Crypto\PCPKSP\<user-sid>\` — NCrypt owns the path and the SSH driver never touches the filesystem directly. The CNG name format `letsflutssh-tpm-<user-hash>-<uuid>` lands in `ssh_keys.cng_key_name`; `NCryptOpenKey` re-binds to it on every sign.
+
+**Authorization model.**
+
+- **PIN-bound (Linux)** — `TPM2B_AUTH` set on the sensitive area at create time. Every `TPM2_Sign` rebinds the auth value via `tr_set_auth`; the TPM's own dictionary-attack lockout fires after 4 wrong PINs (typical Microsoft fTPM policy) and locks the **entire chip** including BitLocker / disk-unlock for a cooldown window. The wizard surfaces `tpmSshPinLockoutWarning` aggressively at every PIN entry surface — TPM lockout is the largest user-facing footgun in this whole path.
+- **No-PIN (Linux)** — `TPM2B_AUTH` empty. Convenient for headless service-account keys where no human is present to type a PIN; the key is bound to the OS install (any process that can reach `/dev/tpmrm0` and load the blob can sign).
+- **Silent (Windows PCP)** — same security contract as Linux no-PIN: any process running as the logged-in user can sign without a prompt. The wizard surfaces `tpmSshSilentWarning` in red so the user understands the trade-off before opting in. This is the load-bearing contrast with Hello-gated keys, which fire a PIN/fingerprint/face prompt on every sign.
+- **PCR-binding** — deferred to v2. The UX cost (key breaks after every BIOS update) outweighs the threat-model win for an SSH key. See [Appendix B](#appendix-b---forward-commitments).
+
+**Probe + capability ladder.**
+
+| Platform | Probe result | Rung | UI |
+|---|---|---|---|
+| Linux with `/dev/tpmrm0` + user in `tss` group | `Available` | 3 native impl | Wizard enabled |
+| Linux no TPM | `DeviceNodeMissing` | 4 honestly hide | "No TPM detected on this device" |
+| Linux TPM present but user not in `tss` group | `NoPermission` | 4 honestly hide | "Add user to the `tss` group" + per-distro `usermod -a -G tss $USER` snippet in `USER_GUIDE.md` |
+| Linux `tpm2-tools` missing (subprocess fallback) | `BinaryMissing` | 5 optional OS dep | Per-distro install snippet in `USER_GUIDE.md` |
+| Windows 10 1607+ with TPM | `Available` (reuses Hello probe) | 3 native impl | Wizard enabled |
+| Windows without PCP / Server Core minimal | `ProviderUnavailable` | 4 honestly hide | "No TPM detected on this device" |
+| macOS / iOS / Android | `Unsupported` | 4 honestly hide | Toolbar entry hidden — `isApplePlatform` / `isMobilePlatform` gate at the call site routes users to the Secure Enclave wizard on Apple |
+
+**DB schema (v12).** `ssh_keys` carries five new columns alongside the existing FIDO2 / PKCS#11 / Enclave / Hello block: `tpm_blob BLOB NULL` (TSS2 PRIVATE KEY ASN.1 bytes — Linux blob mode), `tpm_handle INTEGER NULL` (persistent NV handle — Linux), `tpm_provider TEXT NULL` (one of `'tss-esapi'` / `'cng-pcp'` — drives the connect dispatcher's signer selection), `tpm_pin_required INTEGER NOT NULL DEFAULT 0` (gates the per-sign PIN prompt), `cng_key_name TEXT NULL` (Windows PCP silent variant's `NCryptOpenKey` name). The columns stay NULL / 0 for every non-TPM row; the v11 → v12 migration arm in `db::bootstrap_schema` lands them via additive ALTERs.
+
+**Signing path.** Linux: the signer reads `ssh_keys.tpm_blob`, calls `tpm_ssh::import_blob` to recover the `TpmSshKey`, then `tpm_ssh::sign(cfg, key, auth_value, data)` — the auth value comes from the SecretStore entry under `tpm.pin.<key_id>` for PIN-bound rows, `None` for empty-auth. The TPM driver returns `TpmSshSignature::{EcdsaP256RawConcat, Rsa2048}` (raw bytes); the `lfs_core` caller wraps via `ssh::wire::ecdsa_raw_concat_to_ssh_mpint` / `ssh::wire::rsa_pkcs1_v15_to_ssh_blob` and prefixes the SSH userauth `signature` body. Windows: the signer reads `ssh_keys.cng_key_name`, builds a `TpmSilentKeyHandle`, calls `ncrypt_ssh::sign_for_ssh_silent` (no `set_ui_policy` call ever fires on this row), and wraps the same way. `TPM_RC_BAD_AUTH` / `TPM_RC_LOCKOUT` on the Linux path map to `Error::Tpm("pin incorrect: ...")` / `Error::Tpm("lockout: ...")` so the Dart connect dialog routes a wrong-PIN retry distinctly from a cooldown banner.
+
+**Cross-tool blob compat.** The TSS2 PRIVATE KEY ASN.1 envelope this module emits is byte-shape-compatible with `ssh-tpm-agent` / `openssl-tpm2-engine`. Imports are best-effort one-way: a `.tpm` file produced by `tpm2_create -i` + the matching `tpm2_marshall` round-trips through `tpm_ssh::import_blob`, but blobs carrying a **PCR policy** reject at import in v1 with a typed `Error::Crypto("policy = pcr-binding-not-supported")` reason — the TPM-side policy session machinery needs more UX than v1 affords. Wired in [Appendix B](#appendix-b---forward-commitments).
+
+**`.lfs` export semantics.** Linux TPM rows in **blob mode** include the wrapped blob in the archive; the importing device's connect path drops the bytes into `ssh_keys.tpm_blob` and can sign as long as the same chip primary key derives identically (which holds because the [`tpm_native::build_primary_template`](https://github.com/parallaxsecond/rust-tss-esapi) template matches the `tpm2 createprimary -C o` default byte-for-byte). Cross-device portability **does not work** for persistent-handle Linux rows (the chip on the new device is different) or for Windows PCP rows (CNG keys are chip + user-SID bound). The wizard's device-bound warning surfaces the constraint at create time.
+
+**`tss-esapi` pin.** The crate is pinned at the workspace level. Minor bumps change how `Tss2_MU_*` marshals certain envelopes; the SSH path uses a different template from the T2 seal envelope, but the pin still applies — re-verify a generate/sign round trip on a real TPM before any bump. The `tpm_ssh_swtpm.rs` integration test (`#[ignore]`-gated; runs against a `swtpm` socket on self-hosted CI) covers the marshalling end-to-end.
+
+**Error envelope.** `Error::Tpm(String)` carves the TPM SSH path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::TPM` discriminator lets the Dart UI route `pin incorrect:` to the retry dialog, `lockout:` to the cooldown banner, `unavailable:` to the wizard's disabled state with the matching localized reason (no TPM / firmware disabled / `tss` group missing), `handle in use:` to the persistent-slot retry, and the catch-all to the generic TPM error toast.
+
+**Tests.** Unit tests in `rust/crates/lfs_os_security/src/linux/tpm_ssh.rs::tests` cover the algorithm round-trip via `from_key_type` / `key_type_tag`, the envelope `pack_envelope`/`unpack` round trip + truncation rejection, the `pad_left_to_32` padding contract for short / oversized r/s bytes, the `make_persistent` range guard for `0x81010001..0x8101FFFF`, and the wire-algorithm default selection. The Signer adapter has its own tests at `rust/crates/lfs_core/src/ssh/tpm_signer.rs::tests` (algorithm round-trip from key-type tags, error mapping, russh `Algorithm` contract). The agent dispatcher has a test at `rust/crates/lfs_core/src/ssh_agent/backends.rs::tests` (`BackendKind::Tpm` resolved from a `KeyBackend::Tpm` row). The integration test `rust/crates/lfs_os_security/tests/tpm_ssh_swtpm.rs` is `#[ignore]`-gated and drives end-to-end generate/sign/import against a `swtpm` socket; the doc-comment in that file carries the manual `swtpm_setup` / `swtpm socket` invocation. The Dart-side wizard tests live in `test/widgets/tpm_ssh_dialog_test.dart` — probe-disabled state, configure step rendering, Generate-button disabled without a label, badge info popover, silent-variant warning copy.
+
 #### In-process ssh-agent endpoint
 
 `lfs_core::ssh_agent` exposes our hardware-bound SSH keys (FIDO2 today; PKCS#11 / TPM 2.0 / Apple Secure Enclave / Windows NCrypt / Android Hardware Keystore as those backends land) to every SSH-protocol-speaking application on the same host — `git` in a terminal, OpenSSH `ssh.exe` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+, IDE plugins, CI runners. Without the endpoint the hardware-bound keys we import are reachable only from our own connect path; corporate workflows expect a key on a host to work everywhere on that host. The endpoint is the symmetric counterpart of `connect_default_agent` — that path consumes external agents, this one IS the agent for external clients.
@@ -1643,7 +1721,7 @@ flowchart LR
     DISP --> P11[Pkcs11Signer &nbsp; Cryptoki]
     DISP --> SE[Secure Enclave]
     DISP --> NCRYPT[Windows NCrypt + Hello]
-    DISP -.future.-> TPM[TPM 2.0]
+    DISP --> TPM[TPM 2.0 Linux ESAPI + Windows PCP silent]
     DISP -.future.-> KS[Android Keystore]
 ```
 

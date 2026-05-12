@@ -45,6 +45,13 @@ pub mod enclave_signer;
 #[cfg(target_os = "windows")]
 pub mod hello_signer;
 
+// TPM 2.0 SSH Signer — Linux (`tss-esapi`) + Windows
+// (Microsoft Platform Crypto Provider, silent variant). Cfg-gated
+// to those targets; macOS/iOS routes the wizard at the Apple
+// Secure Enclave path instead (rung 4 — honestly hide on Apple).
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+pub mod tpm_signer;
+
 use sk_signer::FidoSigner;
 
 /// russh `Handler` impl for our client side. Carries an mpsc sender
@@ -691,6 +698,44 @@ pub struct ConnectPubkeyHelloOwnedArgs {
     /// `ssh_keys.key_type` short tag — drives algorithm selection
     /// (`ecdsa-sha2-nistp256` / `ecdsa-sha2-nistp384` / `rsa-2048`).
     pub key_type: String,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_tpm_owned`].
+/// TPM 2.0-bound keys carry an optional PIN — empty-auth keys
+/// (headless service accounts) leave `pin_secret_id = None`;
+/// PIN-bound keys point at a transient SecretStore entry the Dart
+/// caller seeded before the dispatch.
+///
+/// `provider` is one of `"tss-esapi"` (Linux ESAPI driver) /
+/// `"cng-pcp"` (Windows PCP silent variant). The connect path
+/// branches on the discriminator to pick the matching native
+/// signer. `blob` carries the Linux wrapped-blob bytes (for
+/// `tss-esapi`); `cng_key_name` carries the Windows persistent-key
+/// name (for `cng-pcp`).
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyTpmOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    /// Captured `id_*.pub` body the connect path re-parses to
+    /// recover the SSH `Algorithm`.
+    pub public_openssh: String,
+    /// `"tss-esapi"` / `"cng-pcp"` discriminator from
+    /// `ssh_keys.tpm_provider`.
+    pub provider: String,
+    /// Linux wrapped-blob bytes (TSS2 PRIVATE KEY envelope) when
+    /// `provider == "tss-esapi"`; `None` for Windows rows.
+    pub blob: Option<Vec<u8>>,
+    /// Windows CNG persistent-key name when `provider == "cng-pcp"`;
+    /// `None` for Linux rows.
+    pub cng_key_name: Option<String>,
+    /// `ssh_keys.key_type` short tag — `ecdsa-sha2-nistp256` /
+    /// `rsa-2048` (Ed25519 not in TPM 2.0 spec).
+    pub key_type: String,
+    /// Transient SecretStore id holding the PIN bytes when the row
+    /// was minted with `tpm_pin_required = true`. `None` for
+    /// empty-auth keys.
+    pub pin_secret_id: Option<String>,
 }
 
 /// Shareable across tasks — every method takes `&self` because
@@ -1439,6 +1484,90 @@ impl Session {
         Box::pin(async move {
             Err(Error::Unsupported(
                 "Windows Hello SSH keys are available on Windows only".into(),
+            ))
+        })
+    }
+
+    /// Connect + authenticate with a TPM 2.0-bound SSH key.
+    ///
+    /// `provider` discriminates between the Linux ESAPI driver
+    /// (`"tss-esapi"`, signs via `tss-esapi`-issued `TPM2_Sign`)
+    /// and the Windows PCP silent variant (`"cng-pcp"`, signs via
+    /// `NCryptSignHash` without firing any OS-level prompt). The
+    /// signer routes through [`crate::ssh::tpm_signer::TpmSigner`].
+    ///
+    /// Private key bytes live in the TPM (Linux) or under the
+    /// PCP-managed keystore (Windows); the host never sees them.
+    /// PIN-bound keys read their PIN from the SecretStore entry
+    /// staged by the Dart caller before dispatch.
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    pub fn connect_pubkey_tpm_owned(
+        args: ConnectPubkeyTpmOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let (mut handle, forward_rx) = open_handle_for_session(&args.host, args.port).await?;
+            let parsed_pub = ssh_key::PublicKey::from_openssh(args.public_openssh.trim())
+                .map_err(|e| Error::KeyParse(format!("tpm pubkey: {e}")))?;
+            let algo = crate::ssh::tpm_signer::TpmAlgo::from_key_type(&args.key_type)?;
+            let provider = match args.provider.as_str() {
+                "tss-esapi" => {
+                    let blob = args
+                        .blob
+                        .ok_or_else(|| Error::Auth("tss-esapi TPM row missing blob".into()))?;
+                    crate::ssh::tpm_signer::TpmProvider::TssEsapiBlob(blob)
+                }
+                "cng-pcp" => {
+                    let name = args.cng_key_name.ok_or_else(|| {
+                        Error::Auth("cng-pcp TPM row missing cng_key_name".into())
+                    })?;
+                    crate::ssh::tpm_signer::TpmProvider::CngPcpSilent(name)
+                }
+                other => {
+                    return Err(Error::Auth(format!("unknown TPM provider {other:?}")));
+                }
+            };
+            // PIN resolution: lift the bytes out of the SecretStore
+            // once and hand them to the signer; the store entry is
+            // a transient id the caller drops after the dial settles.
+            // `SecretStore::get` returns the bytes wrapped in
+            // `Zeroizing<Vec<u8>>`; unwrap to a plain Vec so the
+            // signer holds a single owner.
+            let pin = match args.pin_secret_id {
+                Some(id) => crate::app::instance().secrets.get(&id).map(|z| z.to_vec()),
+                None => None,
+            };
+            let mut signer = crate::ssh::tpm_signer::TpmSigner {
+                provider,
+                algo,
+                pin,
+                label: String::new(),
+            };
+            let hash_alg = match algo {
+                crate::ssh::tpm_signer::TpmAlgo::Rsa2048 => Some(HashAlg::Sha256),
+                _ => None,
+            };
+            let auth_result = handle
+                .authenticate_publickey_with(&args.user, parsed_pub, hash_alg, &mut signer)
+                .await
+                .map_err(|e| Error::Auth(format!("{e}")))?;
+            if !matches!(auth_result, AuthResult::Success) {
+                return Err(Error::AuthFailed);
+            }
+            Ok(Session::from_handle(handle, forward_rx))
+        })
+    }
+
+    /// Non-{linux,windows} platforms — surface a typed unsupported
+    /// error so the `ConnectAuthRef::PubkeyTpm` dispatcher stays
+    /// cfg-clean. Apple platforms route the wizard at the Secure
+    /// Enclave path instead.
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    pub fn connect_pubkey_tpm_owned(
+        _args: ConnectPubkeyTpmOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Err(Error::Unsupported(
+                "TPM 2.0 SSH keys are available on Linux + Windows only".into(),
             ))
         })
     }

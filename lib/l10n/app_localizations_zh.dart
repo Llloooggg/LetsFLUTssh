@@ -3150,4 +3150,83 @@ class SZh extends S {
 
   @override
   String get helloConfigureFirst => '请先在 设置 -> 登录选项 中配置 Windows Hello。';
+
+  @override
+  String get tpmSshTitle => '生成 TPM 绑定 SSH key';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256（推荐）';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => '本 TPM 固件不支持此算法。';
+
+  @override
+  String get tpmSshPinProtect => '使用 PIN 保护';
+
+  @override
+  String get tpmSshPinLockoutWarning => 'PIN 多次错误后 TPM 会锁定此 key。';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN 不一致。';
+
+  @override
+  String get tpmSshStorageBlob => '在应用数据中保存 wrapped key';
+
+  @override
+  String get tpmSshStorageHandle => '保留在 TPM 内存槽中';
+
+  @override
+  String get tpmSshStorageHandleHelp => '签名更快。占用 TPM 的一个持久 slot。';
+
+  @override
+  String get tpmSshLabel => 'Key 标签';
+
+  @override
+  String get tpmSshImportTitle => '导入 TPM 保护的 SSH key';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label 的 TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN 错误。';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM 处于 lockout 冷却。等 $duration 后重试。';
+  }
+
+  @override
+  String get tpmSshGenerating => '正在 TPM 中生成 key...';
+
+  @override
+  String get tpmSshSigning => '正在用 TPM 签名...';
+
+  @override
+  String get tpmSshUnavailable => '本设备未检测到 TPM。';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM 在固件中已禁用。';
+
+  @override
+  String get tpmSshUnavailableNoPermission => '应用无法访问 TPM。把用户加入 `tss` 组。';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return '持久 slot $handle 已被占用。';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      '此 key 签名时不会弹 Hello / PIN — 你登录时任何能访问桌面的人都能使用它。';
 }

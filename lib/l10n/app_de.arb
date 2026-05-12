@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, Fingerabdruck oder Gesicht — Windows Hello signiert die SSH-Challenge.",
   "helloSoftwareGatedWarning": "Kein TPM auf diesem Gerät. Der Schlüssel landet im User-Storage; Windows Hello bleibt das Gate für jede Signatur.",
   "helloP384NotSupported": "Die TPM-Firmware unterstützt kein P-384. Wähle P-256 oder RSA-2048.",
-  "helloConfigureFirst": "Richte zuerst Windows Hello ein: Einstellungen -> Anmeldeoptionen."
+  "helloConfigureFirst": "Richte zuerst Windows Hello ein: Einstellungen -> Anmeldeoptionen.",
+  "tpmSshTitle": "TPM-gestützten SSH-Schlüssel erzeugen",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (empfohlen)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithmus von dieser TPM-Firmware nicht unterstützt.",
+  "tpmSshPinProtect": "Mit PIN schützen",
+  "tpmSshPinLockoutWarning": "Nach mehreren falschen PIN-Eingaben sperrt das TPM den Schlüssel.",
+  "tpmSshPinMismatch": "PINs stimmen nicht überein.",
+  "tpmSshStorageBlob": "Verpackten Schlüssel in App-Daten speichern",
+  "tpmSshStorageHandle": "Im TPM-Speicherslot ablegen",
+  "tpmSshStorageHandleHelp": "Schnelleres Signieren. Belegt einen der permanenten TPM-Slots.",
+  "tpmSshLabel": "Schlüssel-Label",
+  "tpmSshImportTitle": "TPM-geschützten SSH-Schlüssel importieren",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM-PIN für {label}",
+  "tpmSshPinIncorrect": "PIN falsch.",
+  "tpmSshPinLockedCooldown": "TPM ist in der Lockout-Cooldown. {duration} warten und erneut versuchen.",
+  "tpmSshGenerating": "Schlüssel wird im TPM erzeugt...",
+  "tpmSshSigning": "Signiere mit TPM...",
+  "tpmSshUnavailable": "Kein TPM auf diesem Gerät gefunden.",
+  "tpmSshUnavailableFwDisabled": "TPM ist in der Firmware deaktiviert.",
+  "tpmSshUnavailableNoPermission": "App hat keinen Zugriff auf das TPM. Benutzer zur Gruppe `tss` hinzufügen.",
+  "tpmSshHandleInUse": "Permanenter Slot {handle} ist bereits belegt.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Dieser Schlüssel signiert OHNE Hello-/PIN-Prompt — jeder mit Desktop-Zugriff während du angemeldet bist kann ihn nutzen.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

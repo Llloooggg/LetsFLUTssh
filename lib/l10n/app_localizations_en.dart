@@ -3299,4 +3299,87 @@ class SEn extends S {
   @override
   String get helloConfigureFirst =>
       'Configure Windows Hello first in Settings -> Sign-in options.';
+
+  @override
+  String get tpmSshTitle => 'Generate TPM-backed SSH key';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (recommended)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Algorithm not supported by this TPM firmware.';
+
+  @override
+  String get tpmSshPinProtect => 'Protect with PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'TPM locks the key after repeated wrong PINs.';
+
+  @override
+  String get tpmSshPinMismatch => 'PINs do not match.';
+
+  @override
+  String get tpmSshStorageBlob => 'Store wrapped key in app data';
+
+  @override
+  String get tpmSshStorageHandle => 'Persist in TPM memory slot';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Faster signing. Consumes one of the TPM\'s persistent slots.';
+
+  @override
+  String get tpmSshLabel => 'Key label';
+
+  @override
+  String get tpmSshImportTitle => 'Import TPM-protected SSH key';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN for $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN incorrect.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM is in lockout cooldown. Wait $duration and retry.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Generating key in TPM...';
+
+  @override
+  String get tpmSshSigning => 'Signing with TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'No TPM detected on this device.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM is disabled in firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'App cannot access the TPM. Add user to the `tss` group.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Persistent slot $handle is already in use.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you\'re logged in can use it.';
 }

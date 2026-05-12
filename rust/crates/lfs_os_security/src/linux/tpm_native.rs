@@ -179,7 +179,7 @@ fn open_context(device: &str) -> Result<Context, tss_esapi::Error> {
 /// guidance. Constructed field-for-field so the marshalled
 /// `TPMT_PUBLIC` bytes (and therefore the TPM's primary-key
 /// derivation) are byte-identical to what tpm2-tools produces.
-fn build_primary_template() -> Result<Public, tss_esapi::Error> {
+pub(super) fn build_primary_template() -> Result<Public, tss_esapi::Error> {
     let object_attributes = ObjectAttributesBuilder::new()
         .with_fixed_tpm(true)
         .with_fixed_parent(true)

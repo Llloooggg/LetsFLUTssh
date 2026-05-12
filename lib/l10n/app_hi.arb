@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, फिंगरप्रिंट या face — Windows Hello इस SSH challenge को sign करेगा.",
   "helloSoftwareGatedWarning": "इस device में TPM नहीं है. Key user storage में रहेगी; Windows Hello हर signature पर gate रहेगा.",
   "helloP384NotSupported": "TPM firmware P-384 support नहीं करता. P-256 या RSA-2048 चुनें.",
-  "helloConfigureFirst": "पहले Windows Hello को Settings -> Sign-in options में सेट करें."
+  "helloConfigureFirst": "पहले Windows Hello को Settings -> Sign-in options में सेट करें.",
+  "tpmSshTitle": "TPM-समर्थित SSH key बनाएं",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (अनुशंसित)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "इस TPM फ़र्मवेयर पर यह algorithm समर्थित नहीं है।",
+  "tpmSshPinProtect": "PIN से सुरक्षित करें",
+  "tpmSshPinLockoutWarning": "गलत PIN बार-बार डालने पर TPM key को लॉक कर देता है।",
+  "tpmSshPinMismatch": "PIN मेल नहीं खा रहे।",
+  "tpmSshStorageBlob": "wrapped key को app data में स्टोर करें",
+  "tpmSshStorageHandle": "TPM memory slot में रखें",
+  "tpmSshStorageHandleHelp": "तेज़ signing. TPM के persistent slots में से एक का उपयोग करता है।",
+  "tpmSshLabel": "Key label",
+  "tpmSshImportTitle": "TPM-protected SSH key import करें",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} के लिए TPM PIN",
+  "tpmSshPinIncorrect": "PIN गलत है।",
+  "tpmSshPinLockedCooldown": "TPM lockout cooldown में है। {duration} रुकें और दोबारा प्रयास करें।",
+  "tpmSshGenerating": "TPM में key बना रहे हैं...",
+  "tpmSshSigning": "TPM से sign कर रहे हैं...",
+  "tpmSshUnavailable": "इस device पर TPM नहीं मिला।",
+  "tpmSshUnavailableFwDisabled": "TPM firmware में disabled है।",
+  "tpmSshUnavailableNoPermission": "App TPM तक नहीं पहुंच सकता। user को `tss` group में जोड़ें।",
+  "tpmSshHandleInUse": "Persistent slot {handle} पहले से उपयोग में है।",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "यह key Hello / PIN prompt के बिना sign करती है — जब तक आप logged in हैं, desktop access वाला कोई भी इसका उपयोग कर सकता है।",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

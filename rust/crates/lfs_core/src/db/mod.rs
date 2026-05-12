@@ -436,7 +436,26 @@ impl Db {
 /// needs to re-bind the on-TPM private key at sign time. Only
 /// populated for `backend = 'hello'` rows; NULL for every other
 /// backend.
-pub const SCHEMA_VERSION: i32 = 11;
+/// v12 adds the TPM 2.0 SSH column block on `ssh_keys`:
+/// `tpm_blob` (BLOB NULL — TSS2 PRIVATE KEY ASN.1 bytes per the
+/// TCG draft `draft-bottomley-tpm2-keys-asn1`; stored for the Linux
+/// on-disk-wrapped-blob storage mode and left NULL when the user
+/// opts into a persistent NV handle), `tpm_handle` (INTEGER NULL —
+/// persistent NV handle in the `0x81010001..0x8101FFFF` range when
+/// the key was loaded into TPM RAM, NULL when the key is blob-only),
+/// `tpm_provider` (TEXT NULL — `'tss-esapi'` for the Linux ESAPI
+/// driver / `'cng-pcp'` for the Windows PCP silent variant; lets
+/// the connect path route to the matching backend without re-probing
+/// the host), `tpm_pin_required` (INTEGER NOT NULL DEFAULT 0 —
+/// `1` when the key was minted with a `TPM2B_AUTH` value and the
+/// user types per sign), `cng_key_name` (TEXT NULL — CNG
+/// persistent-key name for the Windows silent TPM variant; the
+/// name is distinct from the Hello-gated `hello_credential_name`
+/// path's `letsflutssh-ssh-…` prefix and uses the `letsflutssh-tpm-…`
+/// prefix instead so `NCryptEnumKeys` can route by prefix). Every
+/// new column is NULL/0 on existing rows and populated only when
+/// `backend = 'tpm'`.
+pub const SCHEMA_VERSION: i32 = 12;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -562,6 +581,14 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // this arm.
         if (1..11).contains(&current) {
             add_ssh_keys_hello_credential_name_column(conn)?;
+        }
+        // v1..v11 -> v12: stamp the TPM 2.0 SSH column block on
+        // `ssh_keys`. Existing rows backfill to NULL / NULL / NULL /
+        // 0 / NULL — only `backend = 'tpm'` rows ever set them.
+        // Fresh installs (`current == 0`) get the columns from
+        // `SCHEMA_SQL` and skip this arm.
+        if (1..12).contains(&current) {
+            add_ssh_keys_tpm_columns(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -761,6 +788,36 @@ fn add_ssh_keys_hello_credential_name_column(conn: &Connection) -> Result<(), Er
         })
 }
 
+/// Issue the v11 -> v12 column block: the five TPM 2.0 SSH ingredient
+/// columns on `ssh_keys`. Same shape contract as the older ALTER
+/// helpers: a one-shot batch gated by the version range inside
+/// `bootstrap_schema`, with SQLite's duplicate-column-name error
+/// reserved for the re-run case which the gate prevents. Fresh
+/// installs (`current == 0`) get the columns from `SCHEMA_SQL`.
+///
+/// `tpm_blob` carries the TSS2 PRIVATE KEY ASN.1 bytes (TCG draft
+/// `draft-bottomley-tpm2-keys-asn1`) for the Linux blob-storage
+/// path; `tpm_handle` carries the persistent NV handle when the
+/// user opts into the TPM-memory-slot storage policy; `tpm_provider`
+/// is one of `'tss-esapi'` / `'cng-pcp'` so the connect dispatcher
+/// can pick the right backend without re-probing; `tpm_pin_required`
+/// gates the per-sign PIN prompt; `cng_key_name` is the Windows
+/// PCP-silent variant's CNG name (separate from the Hello-gated
+/// `hello_credential_name` column because the two surfaces use
+/// different prefixes and the discriminator must be unambiguous
+/// when `NCryptEnumKeys` walks the provider).
+fn add_ssh_keys_tpm_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN tpm_blob BLOB NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN tpm_handle INTEGER NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN tpm_provider TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN tpm_pin_required INTEGER NOT NULL DEFAULT 0; \
+             ALTER TABLE ssh_keys ADD COLUMN cng_key_name TEXT NULL;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys tpm cols: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -825,12 +882,30 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     -- the `NCryptOpenKey(provider, &hKey, name, …)` lookup re-binds
     -- to on every sign. NULL for every non-`hello` row; populated
     -- only when `backend = 'hello'`.
-    hello_credential_name TEXT NULL
+    hello_credential_name TEXT NULL,
+    -- TPM 2.0 SSH ingredient columns (v12). Populated only when
+    -- `backend = 'tpm'`. `tpm_blob` carries the TSS2 PRIVATE KEY
+    -- ASN.1 bytes per TCG draft `draft-bottomley-tpm2-keys-asn1`
+    -- (Linux blob-storage mode); `tpm_handle` is the persistent NV
+    -- handle in `0x81010001..0x8101FFFF` when the key was loaded
+    -- into TPM RAM; `tpm_provider` is one of `'tss-esapi'`
+    -- (Linux ESAPI) / `'cng-pcp'` (Windows PCP silent variant);
+    -- `tpm_pin_required` flips the per-sign PIN prompt on;
+    -- `cng_key_name` is the Windows PCP-silent variant's CNG
+    -- persistent-key name (uses the `letsflutssh-tpm-` prefix to
+    -- distinguish from Hello-gated `letsflutssh-ssh-` keys when
+    -- `NCryptEnumKeys` walks the provider).
+    tpm_blob BLOB NULL,
+    tpm_handle INTEGER NULL,
+    tpm_provider TEXT NULL,
+    tpm_pin_required INTEGER NOT NULL DEFAULT 0,
+    cng_key_name TEXT NULL
 );
 -- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
 -- pkcs11 columns populated for backend = pkcs11 rows only.
 -- enclave_tag populated for backend = enclave rows only.
 -- hello_credential_name populated for backend = hello rows only.
+-- tpm_* / cng_key_name populated for backend = tpm rows only.
 -- See ARCHITECTURE.md schema docs for full notes.
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
@@ -1154,6 +1229,11 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
                  ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
                  ",
             )
             .unwrap();
@@ -1221,6 +1301,11 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
                  ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
                  ",
             )
             .unwrap();
@@ -1271,6 +1356,11 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
                  ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
                  ",
             )
             .unwrap();
@@ -1337,6 +1427,11 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
                  ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
                  ",
             )
             .unwrap();
@@ -1558,6 +1653,95 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v11 -> v12 upgrade hop. A database stamped at v11 with the
+    /// pre-v12 `ssh_keys` shape (no TPM columns) must pick up
+    /// `tpm_blob`, `tpm_handle`, `tpm_provider`, `tpm_pin_required`,
+    /// and `cng_key_name` on bootstrap. Same shape as the v10 -> v11
+    /// hop above: explicit pre-v12 CREATE TABLE, stamp v11, re-bootstrap,
+    /// verify columns land + a seeded non-TPM row keeps NULL / 0
+    /// defaults, idempotent re-run.
+    #[test]
+    fn bootstrap_v11_to_v12_adds_tpm_columns_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch(
+                "CREATE TABLE ssh_keys ( \
+                    id TEXT PRIMARY KEY, \
+                    label TEXT NOT NULL, \
+                    private_key TEXT NOT NULL, \
+                    public_key TEXT NOT NULL, \
+                    key_type TEXT NOT NULL, \
+                    is_generated INTEGER NOT NULL DEFAULT 1, \
+                    created_at INTEGER NOT NULL, \
+                    deleted_at INTEGER NULL, \
+                    credential_id BLOB NULL, \
+                    application_string TEXT NULL, \
+                    has_user_verification INTEGER NOT NULL DEFAULT 0, \
+                    agent_policy TEXT NOT NULL DEFAULT 'ask', \
+                    backend TEXT NOT NULL DEFAULT 'software', \
+                    pkcs11_uri TEXT NULL, \
+                    pkcs11_module_path TEXT NULL, \
+                    pkcs11_token_serial TEXT NULL, \
+                    pkcs11_object_id BLOB NULL, \
+                    pkcs11_object_label TEXT NULL, \
+                    enclave_tag BLOB NULL, \
+                    hello_credential_name TEXT NULL \
+                 );",
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v12', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 11)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "tpm_blob",
+            "tpm_handle",
+            "tpm_provider",
+            "tpm_pin_required",
+            "cng_key_name",
+        ] {
+            assert!(
+                seen.contains(col),
+                "ssh_keys.{col} missing after v11 -> v12 upgrade"
+            );
+        }
+
+        // Pre-existing software row keeps the schema defaults — NULL
+        // for the four nullable columns and 0 for `tpm_pin_required`.
+        let pin_required: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT tpm_pin_required FROM ssh_keys WHERE id = 'pre-v12'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pin_required, 0, "non-tpm row must keep 0 default");
+
+        // Idempotent re-run.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1591,6 +1775,11 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
                  ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
                  ",
             )
             .unwrap();
@@ -1648,6 +1837,11 @@ mod tests {
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

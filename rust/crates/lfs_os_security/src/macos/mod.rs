@@ -17,3 +17,4 @@
 
 pub mod code_signing;
 pub mod installer;
+pub mod tpm_ssh;

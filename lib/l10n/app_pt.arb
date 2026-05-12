@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, impressão digital ou rosto — o Windows Hello assina este desafio SSH.",
   "helloSoftwareGatedWarning": "Este dispositivo não tem TPM. A chave fica no armazenamento de usuário; o Windows Hello ainda exige cada assinatura.",
   "helloP384NotSupported": "O firmware do TPM não suporta P-384. Escolha P-256 ou RSA-2048.",
-  "helloConfigureFirst": "Configure o Windows Hello primeiro em Configurações -> Opções de entrada."
+  "helloConfigureFirst": "Configure o Windows Hello primeiro em Configurações -> Opções de entrada.",
+  "tpmSshTitle": "Gerar chave SSH adossada ao TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (recomendado)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithm não suportado pelo firmware deste TPM.",
+  "tpmSshPinProtect": "Proteger com PIN",
+  "tpmSshPinLockoutWarning": "TPM trava a chave após várias tentativas de PIN erradas.",
+  "tpmSshPinMismatch": "Os PINs não conferem.",
+  "tpmSshStorageBlob": "Armazenar chave envelopada nos dados do app",
+  "tpmSshStorageHandle": "Persistir em slot de memória do TPM",
+  "tpmSshStorageHandleHelp": "Assinatura mais rápida. Consome um dos slots persistentes do TPM.",
+  "tpmSshLabel": "Rótulo da chave",
+  "tpmSshImportTitle": "Importar chave SSH protegida por TPM",
+  "tpmSshImportFormat": "Arquivo TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "PIN do TPM para {label}",
+  "tpmSshPinIncorrect": "PIN incorreto.",
+  "tpmSshPinLockedCooldown": "TPM em cooldown de lockout. Aguarde {duration} e tente de novo.",
+  "tpmSshGenerating": "Gerando chave no TPM...",
+  "tpmSshSigning": "Assinando com TPM...",
+  "tpmSshUnavailable": "Nenhum TPM detectado neste dispositivo.",
+  "tpmSshUnavailableFwDisabled": "TPM desativado no firmware.",
+  "tpmSshUnavailableNoPermission": "O app não consegue acessar o TPM. Adicione o usuário ao grupo `tss`.",
+  "tpmSshHandleInUse": "O slot persistente {handle} já está em uso.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Esta chave assina SEM prompt de Hello / PIN — qualquer pessoa com acesso ao desktop enquanto você está logado pode usá-la.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -34,6 +34,7 @@ import '../../widgets/enclave_ssh_dialog.dart';
 import '../../widgets/hello_ssh_dialog.dart';
 import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/tpm_ssh_dialog.dart';
 
 /// Embeddable SSH key manager — toolbar + list with CRUD.
 ///
@@ -213,6 +214,25 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
             tooltip: s.helloWizardTitle,
             onTap: _generateHelloKey,
           ),
+        // TPM 2.0 SSH generate — Linux (`tss-esapi` driver) and
+        // Windows (PCP silent variant, no UI policy). Apple
+        // platforms route to the Secure Enclave wizard instead;
+        // mobile platforms hide the entry (rung 4).
+        if (Platform.isLinux || isWindowsPlatform) ...[
+          _ToolbarButton(
+            icon: Icons.memory,
+            label: s.tpmSshTitle,
+            tooltip: s.tpmSshTitle,
+            onTap: _generateTpmKey,
+          ),
+          if (Platform.isLinux)
+            _ToolbarButton(
+              icon: Icons.file_download_outlined,
+              label: s.tpmSshImportTitle,
+              tooltip: s.tpmSshImportTitle,
+              onTap: _importTpmBlob,
+            ),
+        ],
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -257,13 +277,16 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final isPkcs11 = entry.isPkcs11;
     final isEnclave = entry.isEnclave;
     final isHello = entry.isHello;
+    final isTpm = entry.isTpm;
     final iconData = isFido2
         ? Icons.usb
         : (isPkcs11
               ? Icons.memory
               : (isEnclave
                     ? Icons.shield_outlined
-                    : (isHello ? Icons.shield_outlined : Icons.vpn_key)));
+                    : (isHello
+                          ? Icons.shield_outlined
+                          : (isTpm ? Icons.memory : Icons.vpn_key))));
     return AppDataRow(
       icon: iconData,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
@@ -300,6 +323,21 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
             child: HelloBadge(
               label: s.helloBadge,
               credentialName: entry.helloCredentialName,
+            ),
+          ),
+        if (isTpm)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: TpmBadge(
+              label: s.tpmSshBadge,
+              provider: entry.tpmProvider,
+              persistentHandle: entry.tpmHandle,
+              pinRequired: entry.tpmPinRequired,
+              // Windows-side TPM rows route through the PCP silent
+              // path — surface the silent-warning copy in the badge
+              // popover. Linux rows do not have a Hello-prompt
+              // analogue so the warning is Windows-specific.
+              silent: entry.tpmProvider == 'cng-pcp',
             ),
           ),
         if (expired)
@@ -896,6 +934,72 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       message: s.keyImported(result.label),
       level: ToastLevel.success,
     );
+  }
+
+  /// TPM 2.0 (Linux ESAPI / Windows PCP silent) key generation.
+  /// Opens [TpmSshDialog] which probes the chip, captures the
+  /// algorithm + storage radio + optional PIN, fires
+  /// `tpmSshGenerate`, and surfaces the `authorized_keys`-shaped
+  /// public-key line. The row lands Rust-side inside the generate
+  /// call; we only refresh the listing.
+  Future<void> _generateTpmKey() async {
+    final s = S.of(context);
+    final TpmSshResult? result;
+    try {
+      result = await TpmSshDialog.show(context);
+    } catch (e) {
+      AppLogger.instance.log(
+        'tpm wizard failed: $e',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(s, e),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+    if (result == null || !mounted) return;
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
+    if (!mounted) return;
+    Toast.show(
+      context,
+      message: s.keyImported(result.label),
+      level: ToastLevel.success,
+    );
+  }
+
+  /// Import a wrapped `.tpm` file. Linux only — Windows CNG owns
+  /// its own keystore and has no portable import shape.
+  Future<void> _importTpmBlob() async {
+    final s = S.of(context);
+    try {
+      final id = await const TpmImportHelper().pickAndImport(context);
+      if (id == null || !mounted) return;
+      ref.invalidate(sshKeysProvider);
+      await _loadKeys();
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: s.keyImported(id),
+        level: ToastLevel.success,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'tpm import failed: $e',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(s, e),
+        level: ToastLevel.error,
+      );
+    }
   }
 
   Future<void> _persistImportedKey(String label, String pem) async {

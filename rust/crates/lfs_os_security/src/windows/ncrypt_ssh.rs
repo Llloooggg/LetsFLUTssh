@@ -83,11 +83,27 @@ use windows::Win32::Security::Cryptography::{
     NCRYPT_UI_POLICY_PROPERTY, NCRYPT_UI_PROTECT_KEY_FLAG,
 };
 
-/// CNG persistent-key name prefix. Every SSH-bound NCrypt key we mint
-/// starts with this string; `list` filters on the prefix when walking
-/// `NCryptEnumKeys` so we don't surface keys minted by other apps
-/// against the same provider.
+/// CNG persistent-key name prefix for **Hello-gated** SSH keys (UI
+/// policy ON; every sign fires a Hello prompt). Every SSH-bound
+/// NCrypt key the [`create`] path mints starts with this string;
+/// [`list`] filters on the prefix when walking `NCryptEnumKeys` so
+/// we don't surface keys minted by other apps against the same
+/// provider.
 const CNG_NAME_PREFIX: &str = "letsflutssh-ssh-";
+
+/// CNG persistent-key name prefix for **silent TPM** keys (UI policy
+/// absent; signs run unattended via the Microsoft Platform Crypto
+/// Provider). Distinct from [`CNG_NAME_PREFIX`] so a single
+/// `NCryptEnumKeys` walk can route by prefix when listing — Hello-
+/// gated keys route to the Hello dispatcher, silent TPM keys to
+/// the TPM dispatcher. Per Microsoft's NCrypt documentation and
+/// the `nCryptAgent` reference impl, an NCrypt key minted under
+/// `MS_PLATFORM_KEY_STORAGE_PROVIDER` without
+/// `NCRYPT_UI_PROTECT_KEY_FLAG` set on `NCRYPT_UI_POLICY_PROPERTY`
+/// runs unattended (no Hello / PIN prompt). Verified against:
+///   - <https://learn.microsoft.com/en-us/windows/win32/api/ncrypt/nf-ncrypt-ncryptcreatepersistedkey>
+///   - <https://github.com/unreality/nCryptAgent> (sign path)
+const CNG_NAME_PREFIX_TPM: &str = "letsflutssh-tpm-";
 
 /// `NCRYPT_IMPL_TYPE_PROPERTY` text constant — `windows-rs 0.62`
 /// doesn't re-export it under the `Win32_Security_Cryptography`
@@ -574,6 +590,211 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
         let _ = unsafe { NCryptFreeBuffer(enum_state) };
     }
     Ok(out)
+}
+
+/// Handle for the **silent TPM** variant — same TPM-bound key
+/// material under the Microsoft Platform Crypto Provider, but with
+/// `NCRYPT_UI_POLICY_PROPERTY` left at the provider default so
+/// `NCryptSignHash` runs unattended. The two handle types stay
+/// distinct so the connect / agent dispatcher cannot accidentally
+/// route a silent key through the Hello-prompt path or vice versa.
+#[derive(Debug, Clone)]
+pub struct TpmSilentKeyHandle {
+    pub credential_name: String,
+    pub algo: SshKeyAlgo,
+    pub label: String,
+}
+
+/// Mint a fresh **silent TPM**-bound key under [`SshKeyAlgo`]. Same
+/// CNG flow as [`create`] but **without** the
+/// `NCRYPT_UI_POLICY_PROPERTY` set — the resulting key signs without
+/// firing any OS-level prompt. Intended for headless service-account
+/// contexts where typing a Hello PIN per sign is impossible. Returns
+/// the handle the caller persists in `ssh_keys.cng_key_name`.
+///
+/// The Dart wizard labels the row "TPM 2.0 (silent)" so users
+/// understand the security contract differs from Hello-gated keys —
+/// anyone with desktop access to the logged-in user can sign.
+pub fn create_silent(label: &str, algo: SshKeyAlgo) -> Result<TpmSilentKeyHandle, Error> {
+    let provider_raw = open_provider()?;
+    let provider = OwnedProvider(provider_raw);
+    let name = mint_credential_name_tpm();
+    let name_w = to_wide_z(&name);
+    let mut key = NCRYPT_KEY_HANDLE::default();
+    unsafe {
+        NCryptCreatePersistedKey(
+            provider.handle(),
+            &mut key,
+            algo.ncrypt_algorithm(),
+            PCWSTR(name_w.as_ptr()),
+            CERT_KEY_SPEC(0),
+            NCRYPT_FLAGS(0),
+        )
+    }
+    .map_err(|e| {
+        if matches!(algo, SshKeyAlgo::EcdsaP384) && is_unsupported_alg(&e) {
+            Error::P384NotSupported
+        } else {
+            fmt_win("NCryptCreatePersistedKey", e)
+        }
+    })?;
+    let owned_key = OwnedKey(key);
+    if matches!(algo, SshKeyAlgo::Rsa2048) {
+        set_rsa_length(owned_key.handle())?;
+    }
+    // No `set_ui_policy` call — that is the load-bearing difference
+    // from [`create`]. With the UI policy property absent, the
+    // provider runs in its default "unattended" mode and
+    // `NCryptSignHash` does not prompt the user.
+    unsafe { NCryptFinalizeKey(owned_key.handle(), NCRYPT_FLAGS(0)) }
+        .map_err(|e| fmt_win("NCryptFinalizeKey(silent)", e))?;
+    Ok(TpmSilentKeyHandle {
+        credential_name: name,
+        algo,
+        label: label.to_string(),
+    })
+}
+
+/// Public-key material for a silent TPM-bound key. Same shape as
+/// [`public_key_material`] but typed against [`TpmSilentKeyHandle`]
+/// so the call sites don't accidentally cross handle variants.
+pub fn public_key_material_silent(handle: &TpmSilentKeyHandle) -> Result<HelloPublicKey, Error> {
+    let provider_raw = open_provider()?;
+    let provider = OwnedProvider(provider_raw);
+    let key = open_existing_key(provider.handle(), &handle.credential_name)?;
+    match handle.algo {
+        SshKeyAlgo::EcdsaP256 => {
+            let blob = export_blob(key.handle(), BCRYPT_ECCPUBLIC_BLOB)?;
+            let uncompressed = parse_ecdsa_uncompressed(&blob, SshKeyAlgo::EcdsaP256)?;
+            Ok(HelloPublicKey::EcdsaP256 {
+                uncompressed_65: uncompressed,
+            })
+        }
+        SshKeyAlgo::EcdsaP384 => {
+            let blob = export_blob(key.handle(), BCRYPT_ECCPUBLIC_BLOB)?;
+            let uncompressed = parse_ecdsa_uncompressed(&blob, SshKeyAlgo::EcdsaP384)?;
+            Ok(HelloPublicKey::EcdsaP384 {
+                uncompressed_97: uncompressed,
+            })
+        }
+        SshKeyAlgo::Rsa2048 => {
+            let blob = export_blob(key.handle(), BCRYPT_RSAPUBLIC_BLOB)?;
+            let (exponent, modulus) = parse_rsa_magnitudes(&blob)?;
+            Ok(HelloPublicKey::Rsa2048 { exponent, modulus })
+        }
+    }
+}
+
+/// Sign `data` for SSH userauth via a silent TPM-bound key.
+/// Behaviour matches [`sign_for_ssh`] except that `NCryptSignHash`
+/// runs unattended — no Hello prompt fires.
+pub fn sign_for_ssh_silent(
+    handle: &TpmSilentKeyHandle,
+    data: &[u8],
+    algorithm: &str,
+) -> Result<HelloSignature, Error> {
+    let provider_raw = open_provider()?;
+    let provider = OwnedProvider(provider_raw);
+    let key = open_existing_key(provider.handle(), &handle.credential_name)?;
+    match handle.algo {
+        SshKeyAlgo::EcdsaP256 => {
+            let hashed = sha256(data);
+            let raw = sign_hash_ecdsa(key.handle(), &hashed)?;
+            Ok(HelloSignature::EcdsaRaw(raw))
+        }
+        SshKeyAlgo::EcdsaP384 => {
+            let hashed = sha384(data);
+            let raw = sign_hash_ecdsa(key.handle(), &hashed)?;
+            Ok(HelloSignature::EcdsaRaw(raw))
+        }
+        SshKeyAlgo::Rsa2048 => {
+            let (pad_alg, hashed) = match algorithm {
+                "rsa-sha2-256" => (BCRYPT_SHA256_ALGORITHM, sha256(data)),
+                "rsa-sha2-512" => (BCRYPT_SHA512_ALGORITHM, sha512(data)),
+                other => {
+                    return Err(Error::Backend(format!(
+                        "rsa-pkcs1v15 silent-tpm sign expected rsa-sha2-256/512, got {other}"
+                    )))
+                }
+            };
+            let sig = sign_hash_rsa_pkcs1(key.handle(), &hashed, pad_alg)?;
+            Ok(HelloSignature::RsaPkcs1V15(sig))
+        }
+    }
+}
+
+/// Enumerate persisted silent-TPM keys (`letsflutssh-tpm-` prefix).
+/// Mirrors [`list`] but filters by the TPM prefix instead.
+pub fn list_silent() -> Result<Vec<TpmSilentKeyHandle>, Error> {
+    let provider_raw = open_provider()?;
+    let provider = OwnedProvider(provider_raw);
+    let mut enum_state: *mut c_void = std::ptr::null_mut();
+    let mut out = Vec::new();
+    loop {
+        let mut key_name_ptr: *mut windows::Win32::Security::Cryptography::NCryptKeyName =
+            std::ptr::null_mut();
+        let result = unsafe {
+            NCryptEnumKeys(
+                provider.handle(),
+                PCWSTR::null(),
+                &mut key_name_ptr,
+                &mut enum_state,
+                NCRYPT_FLAGS(0),
+            )
+        };
+        if result.is_err() {
+            let code = win_error_code(&result.unwrap_err());
+            if code == 0x8009_002A {
+                break;
+            } else {
+                return Err(Error::Backend(format!("NCryptEnumKeys: 0x{code:08x}")));
+            }
+        }
+        if key_name_ptr.is_null() {
+            break;
+        }
+        let entry = unsafe { &*key_name_ptr };
+        let name = unsafe { pwstr_to_string(entry.pszName) };
+        let alg_name = unsafe { pwstr_to_string(entry.pszAlgid) };
+        if name.starts_with(CNG_NAME_PREFIX_TPM) {
+            if let Some(algo) = algo_from_alg_name(&alg_name) {
+                out.push(TpmSilentKeyHandle {
+                    credential_name: name,
+                    algo,
+                    label: String::new(),
+                });
+            }
+        }
+        let _ = unsafe { NCryptFreeBuffer(key_name_ptr as *mut c_void) };
+    }
+    if !enum_state.is_null() {
+        let _ = unsafe { NCryptFreeBuffer(enum_state) };
+    }
+    Ok(out)
+}
+
+/// Drop the silent TPM-bound CNG key matched by
+/// `handle.credential_name`. Missing key returns `Ok(())` (mirrors
+/// [`delete`]).
+pub fn delete_silent(handle: &TpmSilentKeyHandle) -> Result<(), Error> {
+    let provider_raw = open_provider()?;
+    let provider = OwnedProvider(provider_raw);
+    let key = match open_existing_key(provider.handle(), &handle.credential_name) {
+        Ok(k) => k,
+        Err(Error::KeyNotFound) => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    let raw = key.into_raw();
+    unsafe { NCryptDeleteKey(raw, 0) }.map_err(|e| fmt_win("NCryptDeleteKey(silent)", e))
+}
+
+fn mint_credential_name_tpm() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 8];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let suffix: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    let user_hash = user_hash_prefix();
+    format!("{CNG_NAME_PREFIX_TPM}{user_hash}-{suffix}")
 }
 
 /// Drop the on-TPM key matched by `handle.credential_name`. Missing

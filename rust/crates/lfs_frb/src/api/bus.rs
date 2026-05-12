@@ -629,6 +629,19 @@ pub enum BusConnectAuthRef {
         credential_name: String,
         key_type: String,
     },
+    /// TPM 2.0-bound SSH key. Carries the captured `id_*.pub` body,
+    /// the provider discriminator (`"tss-esapi"` / `"cng-pcp"`), the
+    /// matching storage ingredient (`blob` for Linux, `cng_key_name`
+    /// for Windows silent), the `key_type` short tag, and a transient
+    /// PIN secret id for PIN-bound rows (`None` for empty-auth keys).
+    PubkeyTpm {
+        public_openssh: String,
+        provider: String,
+        blob: Option<Vec<u8>>,
+        cng_key_name: Option<String>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
     Agent,
 }
 
@@ -695,6 +708,21 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
                 public_openssh,
                 credential_name,
                 key_type,
+            },
+            BusConnectAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            } => lfs_core::connection::ConnectAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
             },
             BusConnectAuthRef::Agent => lfs_core::connection::ConnectAuthRef::Agent,
         }

@@ -94,6 +94,7 @@ Future<void> _populateDb({
         hasUserVerification: false,
         agentPolicy: 'ask',
         backend: 'software',
+        tpmPinRequired: false,
       ),
     );
   }

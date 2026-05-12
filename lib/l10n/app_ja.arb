@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN・指紋・顔のいずれかで Windows Hello が SSH チャレンジに署名します。",
   "helloSoftwareGatedWarning": "この端末には TPM がありません。鍵はユーザー領域に置かれますが、署名のたびに Windows Hello を通します。",
   "helloP384NotSupported": "TPM ファームウェアが P-384 をサポートしていません。P-256 か RSA-2048 を選択してください。",
-  "helloConfigureFirst": "まず 設定 -> サインイン オプション で Windows Hello を有効化してください。"
+  "helloConfigureFirst": "まず 設定 -> サインイン オプション で Windows Hello を有効化してください。",
+  "tpmSshTitle": "TPM-backed SSH キーを生成",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (推奨)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "この TPM ファームウェアではサポートされていない算法。",
+  "tpmSshPinProtect": "PIN で保護する",
+  "tpmSshPinLockoutWarning": "PIN を何度も間違えると TPM がキーをロックします。",
+  "tpmSshPinMismatch": "PIN が一致しません。",
+  "tpmSshStorageBlob": "ラップしたキーをアプリデータに保存",
+  "tpmSshStorageHandle": "TPM メモリスロットに保持",
+  "tpmSshStorageHandleHelp": "署名が速くなります。TPM の永続スロットを 1 つ消費します。",
+  "tpmSshLabel": "キーラベル",
+  "tpmSshImportTitle": "TPM 保護の SSH キーをインポート",
+  "tpmSshImportFormat": "TPM 2.0 キーファイル (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} の TPM PIN",
+  "tpmSshPinIncorrect": "PIN が違います。",
+  "tpmSshPinLockedCooldown": "TPM はロックアウトのクールダウン中です。{duration} 待ってから再試行してください。",
+  "tpmSshGenerating": "TPM でキーを生成中...",
+  "tpmSshSigning": "TPM で署名中...",
+  "tpmSshUnavailable": "このデバイスで TPM が検出されません。",
+  "tpmSshUnavailableFwDisabled": "TPM はファームウェアで無効化されています。",
+  "tpmSshUnavailableNoPermission": "アプリが TPM にアクセスできません。ユーザーを `tss` グループに追加してください。",
+  "tpmSshHandleInUse": "永続スロット {handle} はすでに使用中です。",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "このキーは Hello / PIN プロンプトなしで署名します — ログイン中にデスクトップへアクセスできる人なら誰でも使えてしまいます。",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

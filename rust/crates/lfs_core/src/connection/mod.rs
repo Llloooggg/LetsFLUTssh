@@ -180,6 +180,22 @@ pub enum ConnectAuthRef {
         credential_name: String,
         key_type: String,
     },
+    /// TPM 2.0-bound SSH key resolved from the manager. `provider`
+    /// is one of `"tss-esapi"` (Linux ESAPI driver — `blob`
+    /// carries the wrapped TSS2 PRIVATE KEY bytes) or `"cng-pcp"`
+    /// (Windows PCP silent variant — `cng_key_name` carries the
+    /// NCrypt persistent-key name). `pin_secret_id` points at a
+    /// staged transient PIN for PIN-bound keys; `None` for empty-
+    /// auth (headless service-account) keys. Reaches
+    /// `Session::connect_pubkey_tpm_owned` on dispatch.
+    PubkeyTpm {
+        public_openssh: String,
+        provider: String,
+        blob: Option<Vec<u8>>,
+        cng_key_name: Option<String>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
     Agent,
 }
 
@@ -1078,6 +1094,33 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         }
         (ConnectAuthRef::PubkeyHello { .. }, Some(_parent)) => Err(Error::Auth(
             "Windows Hello hardware key over ProxyJump is not supported yet".into(),
+        )),
+        (
+            ConnectAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_tpm_owned(crate::ssh::ConnectPubkeyTpmOwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeyTpm { .. }, Some(_parent)) => Err(Error::Auth(
+            "TPM 2.0 hardware key over ProxyJump is not supported yet".into(),
         )),
         (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
         (ConnectAuthRef::Agent, Some(parent)) => {

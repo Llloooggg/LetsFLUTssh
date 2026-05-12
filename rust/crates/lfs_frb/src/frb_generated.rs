@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1767097684;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1614852003;
 
 // Section: executor
 
@@ -20534,6 +20534,262 @@ fn wire__crate__api__tpm__tpm_seal_impl(
         },
     )
 }
+fn wire__crate__api__tpm_ssh__tpm_ssh_delete_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_delete",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_key_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::tpm_ssh::tpm_ssh_delete(api_key_id).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tpm_ssh__tpm_ssh_evict_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_evict",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_key_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::tpm_ssh::tpm_ssh_evict(api_key_id).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tpm_ssh__tpm_ssh_generate_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_generate",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_args =
+                <crate::api::tpm_ssh::DbTpmSshGenerateArgs>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::tpm_ssh::tpm_ssh_generate(api_args).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tpm_ssh__tpm_ssh_import_blob_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_import_blob",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_blob = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_label = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::tpm_ssh::tpm_ssh_import_blob(api_blob, api_label).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tpm_ssh__tpm_ssh_list_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_list",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::tpm_ssh::tpm_ssh_list().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tpm_ssh__tpm_ssh_make_persistent_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_make_persistent",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_key_id = <String>::sse_decode(&mut deserializer);
+            let api_handle = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::tpm_ssh::tpm_ssh_make_persistent(api_key_id, api_handle)
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tpm_ssh__tpm_ssh_probe_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tpm_ssh_probe",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::tpm_ssh::tpm_ssh_probe().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__tpm__tpm_unseal_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -22217,6 +22473,22 @@ impl SseDecode for crate::api::bus::BusConnectAuthRef {
                 };
             }
             7 => {
+                let mut var_publicOpenssh = <String>::sse_decode(deserializer);
+                let mut var_provider = <String>::sse_decode(deserializer);
+                let mut var_blob = <Option<Vec<u8>>>::sse_decode(deserializer);
+                let mut var_cngKeyName = <Option<String>>::sse_decode(deserializer);
+                let mut var_keyType = <String>::sse_decode(deserializer);
+                let mut var_pinSecretId = <Option<String>>::sse_decode(deserializer);
+                return crate::api::bus::BusConnectAuthRef::PubkeyTpm {
+                    public_openssh: var_publicOpenssh,
+                    provider: var_provider,
+                    blob: var_blob,
+                    cng_key_name: var_cngKeyName,
+                    key_type: var_keyType,
+                    pin_secret_id: var_pinSecretId,
+                };
+            }
+            8 => {
                 return crate::api::bus::BusConnectAuthRef::Agent;
             }
             _ => {
@@ -23845,6 +24117,22 @@ impl SseDecode for crate::api::auth_compose::DbPreparedAuthRef {
                     key_type: var_keyType,
                 };
             }
+            7 => {
+                let mut var_publicOpenssh = <String>::sse_decode(deserializer);
+                let mut var_provider = <String>::sse_decode(deserializer);
+                let mut var_blob = <Option<Vec<u8>>>::sse_decode(deserializer);
+                let mut var_cngKeyName = <Option<String>>::sse_decode(deserializer);
+                let mut var_keyType = <String>::sse_decode(deserializer);
+                let mut var_pinSecretId = <Option<String>>::sse_decode(deserializer);
+                return crate::api::auth_compose::DbPreparedAuthRef::PubkeyTpm {
+                    public_openssh: var_publicOpenssh,
+                    provider: var_provider,
+                    blob: var_blob,
+                    cng_key_name: var_cngKeyName,
+                    key_type: var_keyType,
+                    pin_secret_id: var_pinSecretId,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -24535,6 +24823,11 @@ impl SseDecode for crate::api::db::DbSshKey {
         let mut var_pkcs11ObjectLabel = <Option<String>>::sse_decode(deserializer);
         let mut var_enclaveTag = <Option<Vec<u8>>>::sse_decode(deserializer);
         let mut var_helloCredentialName = <Option<String>>::sse_decode(deserializer);
+        let mut var_tpmBlob = <Option<Vec<u8>>>::sse_decode(deserializer);
+        let mut var_tpmHandle = <Option<u32>>::sse_decode(deserializer);
+        let mut var_tpmProvider = <Option<String>>::sse_decode(deserializer);
+        let mut var_tpmPinRequired = <bool>::sse_decode(deserializer);
+        let mut var_cngKeyName = <Option<String>>::sse_decode(deserializer);
         return crate::api::db::DbSshKey {
             id: var_id,
             label: var_label,
@@ -24555,6 +24848,11 @@ impl SseDecode for crate::api::db::DbSshKey {
             pkcs11_object_label: var_pkcs11ObjectLabel,
             enclave_tag: var_enclaveTag,
             hello_credential_name: var_helloCredentialName,
+            tpm_blob: var_tpmBlob,
+            tpm_handle: var_tpmHandle,
+            tpm_provider: var_tpmProvider,
+            tpm_pin_required: var_tpmPinRequired,
+            cng_key_name: var_cngKeyName,
         };
     }
 }
@@ -24597,6 +24895,10 @@ impl SseDecode for crate::api::db::DbSshKeyMetadata {
         let mut var_pkcs11TokenSerial = <Option<String>>::sse_decode(deserializer);
         let mut var_pkcs11ObjectLabel = <Option<String>>::sse_decode(deserializer);
         let mut var_helloCredentialName = <Option<String>>::sse_decode(deserializer);
+        let mut var_tpmHandle = <Option<u32>>::sse_decode(deserializer);
+        let mut var_tpmProvider = <Option<String>>::sse_decode(deserializer);
+        let mut var_tpmPinRequired = <bool>::sse_decode(deserializer);
+        let mut var_cngKeyName = <Option<String>>::sse_decode(deserializer);
         return crate::api::db::DbSshKeyMetadata {
             id: var_id,
             label: var_label,
@@ -24611,6 +24913,10 @@ impl SseDecode for crate::api::db::DbSshKeyMetadata {
             pkcs11_token_serial: var_pkcs11TokenSerial,
             pkcs11_object_label: var_pkcs11ObjectLabel,
             hello_credential_name: var_helloCredentialName,
+            tpm_handle: var_tpmHandle,
+            tpm_provider: var_tpmProvider,
+            tpm_pin_required: var_tpmPinRequired,
+            cng_key_name: var_cngKeyName,
         };
     }
 }
@@ -24970,6 +25276,26 @@ impl SseDecode for crate::api::tier_machine::DbTierState {
     }
 }
 
+impl SseDecode for crate::api::tpm_ssh::DbTpmKeyMeta {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_keyId = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_algo = <crate::api::tpm_ssh::DbTpmSshAlgorithm>::sse_decode(deserializer);
+        let mut var_provider = <String>::sse_decode(deserializer);
+        let mut var_persistentHandle = <Option<u32>>::sse_decode(deserializer);
+        let mut var_pinRequired = <bool>::sse_decode(deserializer);
+        return crate::api::tpm_ssh::DbTpmKeyMeta {
+            key_id: var_keyId,
+            label: var_label,
+            algo: var_algo,
+            provider: var_provider,
+            persistent_handle: var_persistentHandle,
+            pin_required: var_pinRequired,
+        };
+    }
+}
+
 impl SseDecode for crate::api::tpm::DbTpmProbeResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -24981,6 +25307,80 @@ impl SseDecode for crate::api::tpm::DbTpmProbeResult {
             3 => crate::api::tpm::DbTpmProbeResult::ProbeFailed,
             4 => crate::api::tpm::DbTpmProbeResult::NotLinux,
             _ => unreachable!("Invalid variant for DbTpmProbeResult: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tpm_ssh::DbTpmSshAlgorithm {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tpm_ssh::DbTpmSshAlgorithm::EcdsaP256,
+            1 => crate::api::tpm_ssh::DbTpmSshAlgorithm::Rsa2048,
+            _ => unreachable!("Invalid variant for DbTpmSshAlgorithm: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tpm_ssh::DbTpmSshGenerateArgs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_algo = <crate::api::tpm_ssh::DbTpmSshAlgorithm>::sse_decode(deserializer);
+        let mut var_pin = <Option<String>>::sse_decode(deserializer);
+        let mut var_storage = <crate::api::tpm_ssh::DbTpmSshStorageMode>::sse_decode(deserializer);
+        let mut var_persistentHandle = <Option<u32>>::sse_decode(deserializer);
+        let mut var_silentTpm = <bool>::sse_decode(deserializer);
+        return crate::api::tpm_ssh::DbTpmSshGenerateArgs {
+            label: var_label,
+            algo: var_algo,
+            pin: var_pin,
+            storage: var_storage,
+            persistent_handle: var_persistentHandle,
+            silent_tpm: var_silentTpm,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tpm_ssh::DbTpmSshImportResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_keyId = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_authorizedKeysLine = <String>::sse_decode(deserializer);
+        return crate::api::tpm_ssh::DbTpmSshImportResult {
+            key_id: var_keyId,
+            label: var_label,
+            authorized_keys_line: var_authorizedKeysLine,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tpm_ssh::DbTpmSshProbeResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tpm_ssh::DbTpmSshProbeResult::Available,
+            1 => crate::api::tpm_ssh::DbTpmSshProbeResult::DeviceNodeMissing,
+            2 => crate::api::tpm_ssh::DbTpmSshProbeResult::NoPermission,
+            3 => crate::api::tpm_ssh::DbTpmSshProbeResult::BinaryMissing,
+            4 => crate::api::tpm_ssh::DbTpmSshProbeResult::ProbeFailed,
+            5 => crate::api::tpm_ssh::DbTpmSshProbeResult::Unsupported,
+            _ => unreachable!("Invalid variant for DbTpmSshProbeResult: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tpm_ssh::DbTpmSshStorageMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tpm_ssh::DbTpmSshStorageMode::Blob,
+            1 => crate::api::tpm_ssh::DbTpmSshStorageMode::PersistentHandle,
+            _ => unreachable!("Invalid variant for DbTpmSshStorageMode: {}", inner),
         };
     }
 }
@@ -25826,6 +26226,20 @@ impl SseDecode for Vec<crate::api::threat_eval::DbThreatRow> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::threat_eval::DbThreatRow>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tpm_ssh::DbTpmKeyMeta> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tpm_ssh::DbTpmKeyMeta>::sse_decode(
                 deserializer,
             ));
         }
@@ -26909,23 +27323,30 @@ fn pde_ffi_dispatcher_primary_impl(
 537 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_impl(port, ptr, rust_vec_len, data_len),
 540 => wire__crate__api__tpm__tpm_probe_impl(port, ptr, rust_vec_len, data_len),
 541 => wire__crate__api__tpm__tpm_seal_impl(port, ptr, rust_vec_len, data_len),
-542 => wire__crate__api__tpm__tpm_unseal_impl(port, ptr, rust_vec_len, data_len),
-543 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-544 => wire__crate__api__transfer__transfer_clear_history_impl(port, ptr, rust_vec_len, data_len),
-550 => wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len),
-551 => wire__crate__api__transfer__transfer_drop_terminal_impl(port, ptr, rust_vec_len, data_len),
-552 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
-553 => wire__crate__api__transfer__transfer_snapshot_all_impl(port, ptr, rust_vec_len, data_len),
-557 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-558 => wire__crate__api__update_http__update_check_from_body_impl(port, ptr, rust_vec_len, data_len),
-559 => wire__crate__api__update_http__update_cleanup_file_impl(port, ptr, rust_vec_len, data_len),
-560 => wire__crate__api__update_http__update_cleanup_stale_downloads_impl(port, ptr, rust_vec_len, data_len),
-562 => wire__crate__api__update_http__update_download_to_file_impl(port, ptr, rust_vec_len, data_len),
-563 => wire__crate__api__update_http__update_download_with_verification_impl(port, ptr, rust_vec_len, data_len),
-564 => wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len),
-569 => wire__crate__api__webdav__webdav_connect_impl(port, ptr, rust_vec_len, data_len),
-574 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(port, ptr, rust_vec_len, data_len),
-575 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+542 => wire__crate__api__tpm_ssh__tpm_ssh_delete_impl(port, ptr, rust_vec_len, data_len),
+543 => wire__crate__api__tpm_ssh__tpm_ssh_evict_impl(port, ptr, rust_vec_len, data_len),
+544 => wire__crate__api__tpm_ssh__tpm_ssh_generate_impl(port, ptr, rust_vec_len, data_len),
+545 => wire__crate__api__tpm_ssh__tpm_ssh_import_blob_impl(port, ptr, rust_vec_len, data_len),
+546 => wire__crate__api__tpm_ssh__tpm_ssh_list_impl(port, ptr, rust_vec_len, data_len),
+547 => wire__crate__api__tpm_ssh__tpm_ssh_make_persistent_impl(port, ptr, rust_vec_len, data_len),
+548 => wire__crate__api__tpm_ssh__tpm_ssh_probe_impl(port, ptr, rust_vec_len, data_len),
+549 => wire__crate__api__tpm__tpm_unseal_impl(port, ptr, rust_vec_len, data_len),
+550 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+551 => wire__crate__api__transfer__transfer_clear_history_impl(port, ptr, rust_vec_len, data_len),
+557 => wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len),
+558 => wire__crate__api__transfer__transfer_drop_terminal_impl(port, ptr, rust_vec_len, data_len),
+559 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
+560 => wire__crate__api__transfer__transfer_snapshot_all_impl(port, ptr, rust_vec_len, data_len),
+564 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+565 => wire__crate__api__update_http__update_check_from_body_impl(port, ptr, rust_vec_len, data_len),
+566 => wire__crate__api__update_http__update_cleanup_file_impl(port, ptr, rust_vec_len, data_len),
+567 => wire__crate__api__update_http__update_cleanup_stale_downloads_impl(port, ptr, rust_vec_len, data_len),
+569 => wire__crate__api__update_http__update_download_to_file_impl(port, ptr, rust_vec_len, data_len),
+570 => wire__crate__api__update_http__update_download_with_verification_impl(port, ptr, rust_vec_len, data_len),
+571 => wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len),
+576 => wire__crate__api__webdav__webdav_connect_impl(port, ptr, rust_vec_len, data_len),
+581 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(port, ptr, rust_vec_len, data_len),
+582 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -27159,23 +27580,23 @@ fn pde_ffi_dispatcher_sync_impl(
 536 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_with_password_cancel_impl(ptr, rust_vec_len, data_len),
 538 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_cancel_impl(ptr, rust_vec_len, data_len),
 539 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_plaintext_impl(ptr, rust_vec_len, data_len),
-545 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
-546 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
-547 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
-548 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
-549 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
-554 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-555 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
-556 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-561 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-565 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-566 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-567 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-568 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-570 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-571 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-572 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
-573 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
+552 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
+553 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
+554 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
+555 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
+556 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
+561 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+562 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
+563 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+568 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+572 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+573 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+574 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+575 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+577 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+578 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+579 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+580 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -27454,7 +27875,24 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusConnectAuthRef {
                 key_type.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::bus::BusConnectAuthRef::Agent => [7.into_dart()].into_dart(),
+            crate::api::bus::BusConnectAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            } => [
+                7.into_dart(),
+                public_openssh.into_into_dart().into_dart(),
+                provider.into_into_dart().into_dart(),
+                blob.into_into_dart().into_dart(),
+                cng_key_name.into_into_dart().into_dart(),
+                key_type.into_into_dart().into_dart(),
+                pin_secret_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusConnectAuthRef::Agent => [8.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -29519,6 +29957,23 @@ impl flutter_rust_bridge::IntoDart for crate::api::auth_compose::DbPreparedAuthR
                 key_type.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::auth_compose::DbPreparedAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            } => [
+                7.into_dart(),
+                public_openssh.into_into_dart().into_dart(),
+                provider.into_into_dart().into_dart(),
+                blob.into_into_dart().into_dart(),
+                cng_key_name.into_into_dart().into_dart(),
+                key_type.into_into_dart().into_dart(),
+                pin_secret_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -30367,6 +30822,11 @@ impl flutter_rust_bridge::IntoDart for crate::api::db::DbSshKey {
             self.pkcs11_object_label.into_into_dart().into_dart(),
             self.enclave_tag.into_into_dart().into_dart(),
             self.hello_credential_name.into_into_dart().into_dart(),
+            self.tpm_blob.into_into_dart().into_dart(),
+            self.tpm_handle.into_into_dart().into_dart(),
+            self.tpm_provider.into_into_dart().into_dart(),
+            self.tpm_pin_required.into_into_dart().into_dart(),
+            self.cng_key_name.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -30420,6 +30880,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::db::DbSshKeyMetadata {
             self.pkcs11_token_serial.into_into_dart().into_dart(),
             self.pkcs11_object_label.into_into_dart().into_dart(),
             self.hello_credential_name.into_into_dart().into_dart(),
+            self.tpm_handle.into_into_dart().into_dart(),
+            self.tpm_provider.into_into_dart().into_dart(),
+            self.tpm_pin_required.into_into_dart().into_dart(),
+            self.cng_key_name.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -30879,6 +31343,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tier_machine::DbTierState>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tpm_ssh::DbTpmKeyMeta {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.key_id.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.algo.into_into_dart().into_dart(),
+            self.provider.into_into_dart().into_dart(),
+            self.persistent_handle.into_into_dart().into_dart(),
+            self.pin_required.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tpm_ssh::DbTpmKeyMeta
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm_ssh::DbTpmKeyMeta>
+    for crate::api::tpm_ssh::DbTpmKeyMeta
+{
+    fn into_into_dart(self) -> crate::api::tpm_ssh::DbTpmKeyMeta {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::tpm::DbTpmProbeResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -30899,6 +31388,120 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm::DbTpmProbeResult>
     for crate::api::tpm::DbTpmProbeResult
 {
     fn into_into_dart(self) -> crate::api::tpm::DbTpmProbeResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tpm_ssh::DbTpmSshAlgorithm {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::EcdsaP256 => 0.into_dart(),
+            Self::Rsa2048 => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tpm_ssh::DbTpmSshAlgorithm
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm_ssh::DbTpmSshAlgorithm>
+    for crate::api::tpm_ssh::DbTpmSshAlgorithm
+{
+    fn into_into_dart(self) -> crate::api::tpm_ssh::DbTpmSshAlgorithm {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tpm_ssh::DbTpmSshGenerateArgs {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.label.into_into_dart().into_dart(),
+            self.algo.into_into_dart().into_dart(),
+            self.pin.into_into_dart().into_dart(),
+            self.storage.into_into_dart().into_dart(),
+            self.persistent_handle.into_into_dart().into_dart(),
+            self.silent_tpm.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tpm_ssh::DbTpmSshGenerateArgs
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm_ssh::DbTpmSshGenerateArgs>
+    for crate::api::tpm_ssh::DbTpmSshGenerateArgs
+{
+    fn into_into_dart(self) -> crate::api::tpm_ssh::DbTpmSshGenerateArgs {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tpm_ssh::DbTpmSshImportResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.key_id.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.authorized_keys_line.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tpm_ssh::DbTpmSshImportResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm_ssh::DbTpmSshImportResult>
+    for crate::api::tpm_ssh::DbTpmSshImportResult
+{
+    fn into_into_dart(self) -> crate::api::tpm_ssh::DbTpmSshImportResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tpm_ssh::DbTpmSshProbeResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Available => 0.into_dart(),
+            Self::DeviceNodeMissing => 1.into_dart(),
+            Self::NoPermission => 2.into_dart(),
+            Self::BinaryMissing => 3.into_dart(),
+            Self::ProbeFailed => 4.into_dart(),
+            Self::Unsupported => 5.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tpm_ssh::DbTpmSshProbeResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm_ssh::DbTpmSshProbeResult>
+    for crate::api::tpm_ssh::DbTpmSshProbeResult
+{
+    fn into_into_dart(self) -> crate::api::tpm_ssh::DbTpmSshProbeResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tpm_ssh::DbTpmSshStorageMode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Blob => 0.into_dart(),
+            Self::PersistentHandle => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tpm_ssh::DbTpmSshStorageMode
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tpm_ssh::DbTpmSshStorageMode>
+    for crate::api::tpm_ssh::DbTpmSshStorageMode
+{
+    fn into_into_dart(self) -> crate::api::tpm_ssh::DbTpmSshStorageMode {
         self
     }
 }
@@ -31840,8 +32443,24 @@ impl SseEncode for crate::api::bus::BusConnectAuthRef {
                 <String>::sse_encode(credential_name, serializer);
                 <String>::sse_encode(key_type, serializer);
             }
-            crate::api::bus::BusConnectAuthRef::Agent => {
+            crate::api::bus::BusConnectAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            } => {
                 <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(public_openssh, serializer);
+                <String>::sse_encode(provider, serializer);
+                <Option<Vec<u8>>>::sse_encode(blob, serializer);
+                <Option<String>>::sse_encode(cng_key_name, serializer);
+                <String>::sse_encode(key_type, serializer);
+                <Option<String>>::sse_encode(pin_secret_id, serializer);
+            }
+            crate::api::bus::BusConnectAuthRef::Agent => {
+                <i32>::sse_encode(8, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -33131,6 +33750,22 @@ impl SseEncode for crate::api::auth_compose::DbPreparedAuthRef {
                 <String>::sse_encode(credential_name, serializer);
                 <String>::sse_encode(key_type, serializer);
             }
+            crate::api::auth_compose::DbPreparedAuthRef::PubkeyTpm {
+                public_openssh,
+                provider,
+                blob,
+                cng_key_name,
+                key_type,
+                pin_secret_id,
+            } => {
+                <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(public_openssh, serializer);
+                <String>::sse_encode(provider, serializer);
+                <Option<Vec<u8>>>::sse_encode(blob, serializer);
+                <Option<String>>::sse_encode(cng_key_name, serializer);
+                <String>::sse_encode(key_type, serializer);
+                <Option<String>>::sse_encode(pin_secret_id, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -33581,6 +34216,11 @@ impl SseEncode for crate::api::db::DbSshKey {
         <Option<String>>::sse_encode(self.pkcs11_object_label, serializer);
         <Option<Vec<u8>>>::sse_encode(self.enclave_tag, serializer);
         <Option<String>>::sse_encode(self.hello_credential_name, serializer);
+        <Option<Vec<u8>>>::sse_encode(self.tpm_blob, serializer);
+        <Option<u32>>::sse_encode(self.tpm_handle, serializer);
+        <Option<String>>::sse_encode(self.tpm_provider, serializer);
+        <bool>::sse_encode(self.tpm_pin_required, serializer);
+        <Option<String>>::sse_encode(self.cng_key_name, serializer);
     }
 }
 
@@ -33613,6 +34253,10 @@ impl SseEncode for crate::api::db::DbSshKeyMetadata {
         <Option<String>>::sse_encode(self.pkcs11_token_serial, serializer);
         <Option<String>>::sse_encode(self.pkcs11_object_label, serializer);
         <Option<String>>::sse_encode(self.hello_credential_name, serializer);
+        <Option<u32>>::sse_encode(self.tpm_handle, serializer);
+        <Option<String>>::sse_encode(self.tpm_provider, serializer);
+        <bool>::sse_encode(self.tpm_pin_required, serializer);
+        <Option<String>>::sse_encode(self.cng_key_name, serializer);
     }
 }
 
@@ -33866,6 +34510,18 @@ impl SseEncode for crate::api::tier_machine::DbTierState {
     }
 }
 
+impl SseEncode for crate::api::tpm_ssh::DbTpmKeyMeta {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.key_id, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <crate::api::tpm_ssh::DbTpmSshAlgorithm>::sse_encode(self.algo, serializer);
+        <String>::sse_encode(self.provider, serializer);
+        <Option<u32>>::sse_encode(self.persistent_handle, serializer);
+        <bool>::sse_encode(self.pin_required, serializer);
+    }
+}
+
 impl SseEncode for crate::api::tpm::DbTpmProbeResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -33876,6 +34532,79 @@ impl SseEncode for crate::api::tpm::DbTpmProbeResult {
                 crate::api::tpm::DbTpmProbeResult::BinaryMissing => 2,
                 crate::api::tpm::DbTpmProbeResult::ProbeFailed => 3,
                 crate::api::tpm::DbTpmProbeResult::NotLinux => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tpm_ssh::DbTpmSshAlgorithm {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tpm_ssh::DbTpmSshAlgorithm::EcdsaP256 => 0,
+                crate::api::tpm_ssh::DbTpmSshAlgorithm::Rsa2048 => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tpm_ssh::DbTpmSshGenerateArgs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.label, serializer);
+        <crate::api::tpm_ssh::DbTpmSshAlgorithm>::sse_encode(self.algo, serializer);
+        <Option<String>>::sse_encode(self.pin, serializer);
+        <crate::api::tpm_ssh::DbTpmSshStorageMode>::sse_encode(self.storage, serializer);
+        <Option<u32>>::sse_encode(self.persistent_handle, serializer);
+        <bool>::sse_encode(self.silent_tpm, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tpm_ssh::DbTpmSshImportResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.key_id, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.authorized_keys_line, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tpm_ssh::DbTpmSshProbeResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tpm_ssh::DbTpmSshProbeResult::Available => 0,
+                crate::api::tpm_ssh::DbTpmSshProbeResult::DeviceNodeMissing => 1,
+                crate::api::tpm_ssh::DbTpmSshProbeResult::NoPermission => 2,
+                crate::api::tpm_ssh::DbTpmSshProbeResult::BinaryMissing => 3,
+                crate::api::tpm_ssh::DbTpmSshProbeResult::ProbeFailed => 4,
+                crate::api::tpm_ssh::DbTpmSshProbeResult::Unsupported => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tpm_ssh::DbTpmSshStorageMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tpm_ssh::DbTpmSshStorageMode::Blob => 0,
+                crate::api::tpm_ssh::DbTpmSshStorageMode::PersistentHandle => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -34534,6 +35263,16 @@ impl SseEncode for Vec<crate::api::threat_eval::DbThreatRow> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::threat_eval::DbThreatRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tpm_ssh::DbTpmKeyMeta> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tpm_ssh::DbTpmKeyMeta>::sse_encode(item, serializer);
         }
     }
 }

@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN، اثر انگشت یا چهره — Windows Hello این چالش SSH را امضا می‌کند.",
   "helloSoftwareGatedWarning": "این دستگاه TPM ندارد. کلید در فضای کاربر می‌ماند؛ هر امضا را همچنان Windows Hello کنترل می‌کند.",
   "helloP384NotSupported": "فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کن.",
-  "helloConfigureFirst": "ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن."
+  "helloConfigureFirst": "ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن.",
+  "tpmSshTitle": "ساخت کلید SSH متصل به TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (پیشنهادی)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "این الگوریتم در فریمور TPM پشتیبانی نمی‌شود.",
+  "tpmSshPinProtect": "محافظت با PIN",
+  "tpmSshPinLockoutWarning": "TPM پس از چند PIN اشتباه کلید را قفل می‌کند.",
+  "tpmSshPinMismatch": "PINها یکسان نیستند.",
+  "tpmSshStorageBlob": "ذخیره کلید بسته‌بندی‌شده در داده‌های برنامه",
+  "tpmSshStorageHandle": "نگهداری در اسلات حافظهٔ TPM",
+  "tpmSshStorageHandleHelp": "امضای سریع‌تر. یکی از اسلات‌های دائمی TPM را اشغال می‌کند.",
+  "tpmSshLabel": "برچسب کلید",
+  "tpmSshImportTitle": "وارد کردن کلید SSH محافظت‌شده با TPM",
+  "tpmSshImportFormat": "فایل TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "PIN مربوط به TPM برای {label}",
+  "tpmSshPinIncorrect": "PIN نادرست است.",
+  "tpmSshPinLockedCooldown": "TPM در دورهٔ خنک‌کاری قفل است. {duration} صبر کنید و دوباره امتحان کنید.",
+  "tpmSshGenerating": "در حال ساخت کلید در TPM...",
+  "tpmSshSigning": "در حال امضا با TPM...",
+  "tpmSshUnavailable": "TPM روی این دستگاه یافت نشد.",
+  "tpmSshUnavailableFwDisabled": "TPM در فریمور غیرفعال است.",
+  "tpmSshUnavailableNoPermission": "برنامه به TPM دسترسی ندارد. کاربر را به گروه `tss` اضافه کنید.",
+  "tpmSshHandleInUse": "اسلات دائمی {handle} قبلاً در حال استفاده است.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "این کلید بدون درخواست Hello / PIN امضا می‌کند — هر کسی که در زمان ورود شما به دسکتاپ دسترسی دارد می‌تواند از آن استفاده کند.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

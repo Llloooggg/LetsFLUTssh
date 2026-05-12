@@ -175,6 +175,18 @@ pub enum Error {
     #[error("hello: {0}")]
     Hello(String),
 
+    /// TPM 2.0 SSH-signer failures surfaced by
+    /// `lfs_os_security::linux::tpm_ssh` (Linux ESAPI) and
+    /// `lfs_os_security::windows::ncrypt_ssh` silent-variant path
+    /// (Windows PCP without UI policy). Covers no-TPM detection,
+    /// PIN rejected, dictionary-attack lockout, malformed cross-tool
+    /// `.tpm` blob, persistent-slot in use, missing `tss` group
+    /// membership on the Linux device node. Carved out of `Io` /
+    /// `Platform` so the connect path can route a `wrong PIN` retry
+    /// distinctly from a hardware-wide lockout cooldown.
+    #[error("tpm-ssh: {0}")]
+    Tpm(String),
+
     #[error("timeout")]
     Timeout,
 

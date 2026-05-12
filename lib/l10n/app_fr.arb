@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, empreinte ou visage — Windows Hello signe ce challenge SSH.",
   "helloSoftwareGatedWarning": "Pas de TPM sur cet appareil. La clé reste en stockage utilisateur ; Windows Hello reste obligatoire à chaque signature.",
   "helloP384NotSupported": "Le firmware TPM ne gère pas P-384. Choisis P-256 ou RSA-2048.",
-  "helloConfigureFirst": "Configure d'abord Windows Hello dans Paramètres -> Options de connexion."
+  "helloConfigureFirst": "Configure d'abord Windows Hello dans Paramètres -> Options de connexion.",
+  "tpmSshTitle": "Générer une clé SSH adossée au TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (recommandé)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithme non pris en charge par le firmware TPM.",
+  "tpmSshPinProtect": "Protéger avec un PIN",
+  "tpmSshPinLockoutWarning": "Le TPM verrouille la clé après plusieurs PIN erronés.",
+  "tpmSshPinMismatch": "Les PIN ne correspondent pas.",
+  "tpmSshStorageBlob": "Stocker la clé encapsulée dans les données de l'app",
+  "tpmSshStorageHandle": "Persister dans un slot de mémoire TPM",
+  "tpmSshStorageHandleHelp": "Signature plus rapide. Consomme un slot persistant du TPM.",
+  "tpmSshLabel": "Libellé de la clé",
+  "tpmSshImportTitle": "Importer une clé SSH protégée par TPM",
+  "tpmSshImportFormat": "Fichier TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "PIN TPM pour {label}",
+  "tpmSshPinIncorrect": "PIN incorrect.",
+  "tpmSshPinLockedCooldown": "TPM en cooldown de lockout. Attendre {duration} et réessayer.",
+  "tpmSshGenerating": "Génération de la clé dans le TPM...",
+  "tpmSshSigning": "Signature avec TPM...",
+  "tpmSshUnavailable": "Aucun TPM détecté sur cet appareil.",
+  "tpmSshUnavailableFwDisabled": "TPM désactivé dans le firmware.",
+  "tpmSshUnavailableNoPermission": "L'app ne peut pas accéder au TPM. Ajoute l'utilisateur au groupe `tss`.",
+  "tpmSshHandleInUse": "Le slot persistant {handle} est déjà utilisé.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Cette clé signe SANS prompt Hello / PIN — toute personne ayant accès au bureau pendant que tu es connecté peut l'utiliser.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

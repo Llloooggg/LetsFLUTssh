@@ -55,7 +55,7 @@ extension DbPreparedAuthRefPatterns on DbPreparedAuthRef {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DbPreparedAuthRef_Password value)?  password,TResult Function( DbPreparedAuthRef_Pubkey value)?  pubkey,TResult Function( DbPreparedAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( DbPreparedAuthRef_PubkeySk value)?  pubkeySk,TResult Function( DbPreparedAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult Function( DbPreparedAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult Function( DbPreparedAuthRef_PubkeyHello value)?  pubkeyHello,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DbPreparedAuthRef_Password value)?  password,TResult Function( DbPreparedAuthRef_Pubkey value)?  pubkey,TResult Function( DbPreparedAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( DbPreparedAuthRef_PubkeySk value)?  pubkeySk,TResult Function( DbPreparedAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult Function( DbPreparedAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult Function( DbPreparedAuthRef_PubkeyHello value)?  pubkeyHello,TResult Function( DbPreparedAuthRef_PubkeyTpm value)?  pubkeyTpm,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
@@ -65,7 +65,8 @@ return pubkeyCert(_that);case DbPreparedAuthRef_PubkeySk() when pubkeySk != null
 return pubkeySk(_that);case DbPreparedAuthRef_PubkeyPkcs11() when pubkeyPkcs11 != null:
 return pubkeyPkcs11(_that);case DbPreparedAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that);case DbPreparedAuthRef_PubkeyHello() when pubkeyHello != null:
-return pubkeyHello(_that);case _:
+return pubkeyHello(_that);case DbPreparedAuthRef_PubkeyTpm() when pubkeyTpm != null:
+return pubkeyTpm(_that);case _:
   return orElse();
 
 }
@@ -83,7 +84,7 @@ return pubkeyHello(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DbPreparedAuthRef_Password value)  password,required TResult Function( DbPreparedAuthRef_Pubkey value)  pubkey,required TResult Function( DbPreparedAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( DbPreparedAuthRef_PubkeySk value)  pubkeySk,required TResult Function( DbPreparedAuthRef_PubkeyPkcs11 value)  pubkeyPkcs11,required TResult Function( DbPreparedAuthRef_PubkeyEnclave value)  pubkeyEnclave,required TResult Function( DbPreparedAuthRef_PubkeyHello value)  pubkeyHello,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DbPreparedAuthRef_Password value)  password,required TResult Function( DbPreparedAuthRef_Pubkey value)  pubkey,required TResult Function( DbPreparedAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( DbPreparedAuthRef_PubkeySk value)  pubkeySk,required TResult Function( DbPreparedAuthRef_PubkeyPkcs11 value)  pubkeyPkcs11,required TResult Function( DbPreparedAuthRef_PubkeyEnclave value)  pubkeyEnclave,required TResult Function( DbPreparedAuthRef_PubkeyHello value)  pubkeyHello,required TResult Function( DbPreparedAuthRef_PubkeyTpm value)  pubkeyTpm,}){
 final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password():
@@ -93,7 +94,8 @@ return pubkeyCert(_that);case DbPreparedAuthRef_PubkeySk():
 return pubkeySk(_that);case DbPreparedAuthRef_PubkeyPkcs11():
 return pubkeyPkcs11(_that);case DbPreparedAuthRef_PubkeyEnclave():
 return pubkeyEnclave(_that);case DbPreparedAuthRef_PubkeyHello():
-return pubkeyHello(_that);}
+return pubkeyHello(_that);case DbPreparedAuthRef_PubkeyTpm():
+return pubkeyTpm(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -107,7 +109,7 @@ return pubkeyHello(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DbPreparedAuthRef_Password value)?  password,TResult? Function( DbPreparedAuthRef_Pubkey value)?  pubkey,TResult? Function( DbPreparedAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( DbPreparedAuthRef_PubkeySk value)?  pubkeySk,TResult? Function( DbPreparedAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult? Function( DbPreparedAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult? Function( DbPreparedAuthRef_PubkeyHello value)?  pubkeyHello,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DbPreparedAuthRef_Password value)?  password,TResult? Function( DbPreparedAuthRef_Pubkey value)?  pubkey,TResult? Function( DbPreparedAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( DbPreparedAuthRef_PubkeySk value)?  pubkeySk,TResult? Function( DbPreparedAuthRef_PubkeyPkcs11 value)?  pubkeyPkcs11,TResult? Function( DbPreparedAuthRef_PubkeyEnclave value)?  pubkeyEnclave,TResult? Function( DbPreparedAuthRef_PubkeyHello value)?  pubkeyHello,TResult? Function( DbPreparedAuthRef_PubkeyTpm value)?  pubkeyTpm,}){
 final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
@@ -117,7 +119,8 @@ return pubkeyCert(_that);case DbPreparedAuthRef_PubkeySk() when pubkeySk != null
 return pubkeySk(_that);case DbPreparedAuthRef_PubkeyPkcs11() when pubkeyPkcs11 != null:
 return pubkeyPkcs11(_that);case DbPreparedAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that);case DbPreparedAuthRef_PubkeyHello() when pubkeyHello != null:
-return pubkeyHello(_that);case _:
+return pubkeyHello(_that);case DbPreparedAuthRef_PubkeyTpm() when pubkeyTpm != null:
+return pubkeyTpm(_that);case _:
   return null;
 
 }
@@ -134,7 +137,7 @@ return pubkeyHello(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  bool hasUserVerification,  String? pinSecretId)?  pubkeySk,TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  bool hasUserVerification,  String? pinSecretId)?  pubkeySk,TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,TResult Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)?  pubkeyTpm,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
 return password(_that.secretId);case DbPreparedAuthRef_Pubkey() when pubkey != null:
@@ -143,7 +146,8 @@ return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId)
 return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.hasUserVerification,_that.pinSecretId);case DbPreparedAuthRef_PubkeyPkcs11() when pubkeyPkcs11 != null:
 return pubkeyPkcs11(_that.publicOpenssh,_that.modulePath,_that.tokenSerial,_that.ckaId,_that.keyType,_that.pinSecretId);case DbPreparedAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that.publicOpenssh,_that.applicationTag);case DbPreparedAuthRef_PubkeyHello() when pubkeyHello != null:
-return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case _:
+return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case DbPreparedAuthRef_PubkeyTpm() when pubkeyTpm != null:
+return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case _:
   return orElse();
 
 }
@@ -161,7 +165,7 @@ return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case 
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  bool hasUserVerification,  String? pinSecretId)  pubkeySk,required TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)  pubkeyPkcs11,required TResult Function( String publicOpenssh,  Uint8List applicationTag)  pubkeyEnclave,required TResult Function( String publicOpenssh,  String credentialName,  String keyType)  pubkeyHello,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  bool hasUserVerification,  String? pinSecretId)  pubkeySk,required TResult Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)  pubkeyPkcs11,required TResult Function( String publicOpenssh,  Uint8List applicationTag)  pubkeyEnclave,required TResult Function( String publicOpenssh,  String credentialName,  String keyType)  pubkeyHello,required TResult Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)  pubkeyTpm,}) {final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password():
 return password(_that.secretId);case DbPreparedAuthRef_Pubkey():
@@ -170,7 +174,8 @@ return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId)
 return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.hasUserVerification,_that.pinSecretId);case DbPreparedAuthRef_PubkeyPkcs11():
 return pubkeyPkcs11(_that.publicOpenssh,_that.modulePath,_that.tokenSerial,_that.ckaId,_that.keyType,_that.pinSecretId);case DbPreparedAuthRef_PubkeyEnclave():
 return pubkeyEnclave(_that.publicOpenssh,_that.applicationTag);case DbPreparedAuthRef_PubkeyHello():
-return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);}
+return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case DbPreparedAuthRef_PubkeyTpm():
+return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -184,7 +189,7 @@ return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function( String publicOpenssh,  Uint8List credentialId,  String application,  bool hasUserVerification,  String? pinSecretId)?  pubkeySk,TResult? Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult? Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult? Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function( String publicOpenssh,  Uint8List credentialId,  String application,  bool hasUserVerification,  String? pinSecretId)?  pubkeySk,TResult? Function( String publicOpenssh,  String modulePath,  String tokenSerial,  Uint8List ckaId,  String keyType,  String? pinSecretId)?  pubkeyPkcs11,TResult? Function( String publicOpenssh,  Uint8List applicationTag)?  pubkeyEnclave,TResult? Function( String publicOpenssh,  String credentialName,  String keyType)?  pubkeyHello,TResult? Function( String publicOpenssh,  String provider,  Uint8List? blob,  String? cngKeyName,  String keyType,  String? pinSecretId)?  pubkeyTpm,}) {final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
 return password(_that.secretId);case DbPreparedAuthRef_Pubkey() when pubkey != null:
@@ -193,7 +198,8 @@ return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId)
 return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.hasUserVerification,_that.pinSecretId);case DbPreparedAuthRef_PubkeyPkcs11() when pubkeyPkcs11 != null:
 return pubkeyPkcs11(_that.publicOpenssh,_that.modulePath,_that.tokenSerial,_that.ckaId,_that.keyType,_that.pinSecretId);case DbPreparedAuthRef_PubkeyEnclave() when pubkeyEnclave != null:
 return pubkeyEnclave(_that.publicOpenssh,_that.applicationTag);case DbPreparedAuthRef_PubkeyHello() when pubkeyHello != null:
-return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case _:
+return pubkeyHello(_that.publicOpenssh,_that.credentialName,_that.keyType);case DbPreparedAuthRef_PubkeyTpm() when pubkeyTpm != null:
+return pubkeyTpm(_that.publicOpenssh,_that.provider,_that.blob,_that.cngKeyName,_that.keyType,_that.pinSecretId);case _:
   return null;
 
 }
@@ -687,6 +693,82 @@ publicOpenssh: null == publicOpenssh ? _self.publicOpenssh : publicOpenssh // ig
 as String,credentialName: null == credentialName ? _self.credentialName : credentialName // ignore: cast_nullable_to_non_nullable
 as String,keyType: null == keyType ? _self.keyType : keyType // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class DbPreparedAuthRef_PubkeyTpm extends DbPreparedAuthRef {
+  const DbPreparedAuthRef_PubkeyTpm({required this.publicOpenssh, required this.provider, this.blob, this.cngKeyName, required this.keyType, this.pinSecretId}): super._();
+  
+
+ final  String publicOpenssh;
+ final  String provider;
+ final  Uint8List? blob;
+ final  String? cngKeyName;
+ final  String keyType;
+ final  String? pinSecretId;
+
+/// Create a copy of DbPreparedAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$DbPreparedAuthRef_PubkeyTpmCopyWith<DbPreparedAuthRef_PubkeyTpm> get copyWith => _$DbPreparedAuthRef_PubkeyTpmCopyWithImpl<DbPreparedAuthRef_PubkeyTpm>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbPreparedAuthRef_PubkeyTpm&&(identical(other.publicOpenssh, publicOpenssh) || other.publicOpenssh == publicOpenssh)&&(identical(other.provider, provider) || other.provider == provider)&&const DeepCollectionEquality().equals(other.blob, blob)&&(identical(other.cngKeyName, cngKeyName) || other.cngKeyName == cngKeyName)&&(identical(other.keyType, keyType) || other.keyType == keyType)&&(identical(other.pinSecretId, pinSecretId) || other.pinSecretId == pinSecretId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,publicOpenssh,provider,const DeepCollectionEquality().hash(blob),cngKeyName,keyType,pinSecretId);
+
+@override
+String toString() {
+  return 'DbPreparedAuthRef.pubkeyTpm(publicOpenssh: $publicOpenssh, provider: $provider, blob: $blob, cngKeyName: $cngKeyName, keyType: $keyType, pinSecretId: $pinSecretId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $DbPreparedAuthRef_PubkeyTpmCopyWith<$Res> implements $DbPreparedAuthRefCopyWith<$Res> {
+  factory $DbPreparedAuthRef_PubkeyTpmCopyWith(DbPreparedAuthRef_PubkeyTpm value, $Res Function(DbPreparedAuthRef_PubkeyTpm) _then) = _$DbPreparedAuthRef_PubkeyTpmCopyWithImpl;
+@useResult
+$Res call({
+ String publicOpenssh, String provider, Uint8List? blob, String? cngKeyName, String keyType, String? pinSecretId
+});
+
+
+
+
+}
+/// @nodoc
+class _$DbPreparedAuthRef_PubkeyTpmCopyWithImpl<$Res>
+    implements $DbPreparedAuthRef_PubkeyTpmCopyWith<$Res> {
+  _$DbPreparedAuthRef_PubkeyTpmCopyWithImpl(this._self, this._then);
+
+  final DbPreparedAuthRef_PubkeyTpm _self;
+  final $Res Function(DbPreparedAuthRef_PubkeyTpm) _then;
+
+/// Create a copy of DbPreparedAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? publicOpenssh = null,Object? provider = null,Object? blob = freezed,Object? cngKeyName = freezed,Object? keyType = null,Object? pinSecretId = freezed,}) {
+  return _then(DbPreparedAuthRef_PubkeyTpm(
+publicOpenssh: null == publicOpenssh ? _self.publicOpenssh : publicOpenssh // ignore: cast_nullable_to_non_nullable
+as String,provider: null == provider ? _self.provider : provider // ignore: cast_nullable_to_non_nullable
+as String,blob: freezed == blob ? _self.blob : blob // ignore: cast_nullable_to_non_nullable
+as Uint8List?,cngKeyName: freezed == cngKeyName ? _self.cngKeyName : cngKeyName // ignore: cast_nullable_to_non_nullable
+as String?,keyType: null == keyType ? _self.keyType : keyType // ignore: cast_nullable_to_non_nullable
+as String,pinSecretId: freezed == pinSecretId ? _self.pinSecretId : pinSecretId // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

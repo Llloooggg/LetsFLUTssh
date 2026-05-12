@@ -837,6 +837,29 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           credentialName: credentialName,
           keyType: keyType,
         ),
+      // TPM 2.0 branch — `auth_compose::prepare_auth` routes this
+      // when the resolved manager-key row carries
+      // `backend = 'tpm'`. Linux PIN-bound keys ride a transient
+      // SecretStore entry the Rust composer seeded under
+      // `tpm.pin.<key_id>`; empty-auth rows leave `pinSecretId`
+      // null. Windows silent rows sign unattended; this Dart arm
+      // never collects a PIN.
+      rust_auth.DbPreparedAuthRef_PubkeyTpm(
+        :final publicOpenssh,
+        :final provider,
+        :final blob,
+        :final cngKeyName,
+        :final keyType,
+        :final pinSecretId,
+      ) =>
+        SshAuthPubkeyTpmRef(
+          publicOpenssh: publicOpenssh,
+          provider: provider,
+          blob: blob,
+          cngKeyName: cngKeyName,
+          keyType: keyType,
+          pinSecretId: pinSecretId,
+        ),
     };
   }
 

@@ -71,6 +71,7 @@ import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
 import 'api/tier_unlock_orchestrator.dart';
 import 'api/tpm.dart';
+import 'api/tpm_ssh.dart';
 import 'api/transfer.dart';
 import 'api/transfer_conflict.dart';
 import 'api/update_http.dart';
@@ -471,6 +472,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTierState dco_decode_box_autoadd_db_tier_state(dynamic raw);
+
+  @protected
+  DbTpmSshGenerateArgs dco_decode_box_autoadd_db_tpm_ssh_generate_args(
+    dynamic raw,
+  );
 
   @protected
   DbUnlockFailureReason dco_decode_box_autoadd_db_unlock_failure_reason(
@@ -902,7 +908,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTierState dco_decode_db_tier_state(dynamic raw);
 
   @protected
+  DbTpmKeyMeta dco_decode_db_tpm_key_meta(dynamic raw);
+
+  @protected
   DbTpmProbeResult dco_decode_db_tpm_probe_result(dynamic raw);
+
+  @protected
+  DbTpmSshAlgorithm dco_decode_db_tpm_ssh_algorithm(dynamic raw);
+
+  @protected
+  DbTpmSshGenerateArgs dco_decode_db_tpm_ssh_generate_args(dynamic raw);
+
+  @protected
+  DbTpmSshImportResult dco_decode_db_tpm_ssh_import_result(dynamic raw);
+
+  @protected
+  DbTpmSshProbeResult dco_decode_db_tpm_ssh_probe_result(dynamic raw);
+
+  @protected
+  DbTpmSshStorageMode dco_decode_db_tpm_ssh_storage_mode(dynamic raw);
 
   @protected
   DbTransferKind dco_decode_db_transfer_kind(dynamic raw);
@@ -1102,6 +1126,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw);
+
+  @protected
+  List<DbTpmKeyMeta> dco_decode_list_db_tpm_key_meta(dynamic raw);
 
   @protected
   List<DbTransferSnapshot> dco_decode_list_db_transfer_snapshot(dynamic raw);
@@ -1721,6 +1748,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbTpmSshGenerateArgs sse_decode_box_autoadd_db_tpm_ssh_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbUnlockFailureReason sse_decode_box_autoadd_db_unlock_failure_reason(
     SseDeserializer deserializer,
   );
@@ -2288,7 +2320,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTierState sse_decode_db_tier_state(SseDeserializer deserializer);
 
   @protected
+  DbTpmKeyMeta sse_decode_db_tpm_key_meta(SseDeserializer deserializer);
+
+  @protected
   DbTpmProbeResult sse_decode_db_tpm_probe_result(SseDeserializer deserializer);
+
+  @protected
+  DbTpmSshAlgorithm sse_decode_db_tpm_ssh_algorithm(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTpmSshGenerateArgs sse_decode_db_tpm_ssh_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTpmSshImportResult sse_decode_db_tpm_ssh_import_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTpmSshProbeResult sse_decode_db_tpm_ssh_probe_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTpmSshStorageMode sse_decode_db_tpm_ssh_storage_mode(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer);
@@ -2554,6 +2614,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbThreatRow> sse_decode_list_db_threat_row(SseDeserializer deserializer);
+
+  @protected
+  List<DbTpmKeyMeta> sse_decode_list_db_tpm_key_meta(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbTransferSnapshot> sse_decode_list_db_transfer_snapshot(
@@ -3308,6 +3373,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_tpm_ssh_generate_args(
+    DbTpmSshGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_unlock_failure_reason(
     DbUnlockFailureReason self,
     SseSerializer serializer,
@@ -4040,8 +4111,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_tier_state(DbTierState self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_tpm_key_meta(DbTpmKeyMeta self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_tpm_probe_result(
     DbTpmProbeResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_tpm_ssh_algorithm(
+    DbTpmSshAlgorithm self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_tpm_ssh_generate_args(
+    DbTpmSshGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_tpm_ssh_import_result(
+    DbTpmSshImportResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_tpm_ssh_probe_result(
+    DbTpmSshProbeResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_tpm_ssh_storage_mode(
+    DbTpmSshStorageMode self,
     SseSerializer serializer,
   );
 
@@ -4378,6 +4482,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_threat_row(
     List<DbThreatRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_tpm_key_meta(
+    List<DbTpmKeyMeta> self,
     SseSerializer serializer,
   );
 

@@ -1217,6 +1217,33 @@ class DbSshKey {
   /// Only populated for `backend = 'hello'` rows on Windows.
   final String? helloCredentialName;
 
+  /// TPM 2.0 wrapped-blob bytes (schema v12). TSS2 PRIVATE KEY
+  /// ASN.1 envelope per TCG draft `draft-bottomley-tpm2-keys-asn1`
+  /// for the Linux blob-storage path. `None` for the persistent-
+  /// handle mode and every non-TPM backend.
+  final Uint8List? tpmBlob;
+
+  /// Persistent NV handle (`0x81010001..0x8101FFFF`) when the key
+  /// was promoted to TPM RAM; `None` for blob mode and non-TPM
+  /// rows. The Dart side renders the value as `0x81010001` in
+  /// the badge popover.
+  final int? tpmHandle;
+
+  /// `"tss-esapi"` (Linux) / `"cng-pcp"` (Windows silent variant)
+  /// — discriminator the connect path uses to pick the platform
+  /// module. `None` for non-TPM backends.
+  final String? tpmProvider;
+
+  /// `true` when the key was minted with a `TPM2B_AUTH` value and
+  /// requires a PIN on every sign.
+  final bool tpmPinRequired;
+
+  /// Windows PCP-silent TPM CNG persistent-key name. Uses the
+  /// `letsflutssh-tpm-` prefix (distinct from the Hello-gated
+  /// `letsflutssh-ssh-` prefix). `None` for non-Windows TPM rows
+  /// and every non-TPM backend.
+  final String? cngKeyName;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1237,6 +1264,11 @@ class DbSshKey {
     this.pkcs11ObjectLabel,
     this.enclaveTag,
     this.helloCredentialName,
+    this.tpmBlob,
+    this.tpmHandle,
+    this.tpmProvider,
+    required this.tpmPinRequired,
+    this.cngKeyName,
   });
 
   @override
@@ -1259,7 +1291,12 @@ class DbSshKey {
       pkcs11ObjectId.hashCode ^
       pkcs11ObjectLabel.hashCode ^
       enclaveTag.hashCode ^
-      helloCredentialName.hashCode;
+      helloCredentialName.hashCode ^
+      tpmBlob.hashCode ^
+      tpmHandle.hashCode ^
+      tpmProvider.hashCode ^
+      tpmPinRequired.hashCode ^
+      cngKeyName.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1284,7 +1321,12 @@ class DbSshKey {
           pkcs11ObjectId == other.pkcs11ObjectId &&
           pkcs11ObjectLabel == other.pkcs11ObjectLabel &&
           enclaveTag == other.enclaveTag &&
-          helloCredentialName == other.helloCredentialName;
+          helloCredentialName == other.helloCredentialName &&
+          tpmBlob == other.tpmBlob &&
+          tpmHandle == other.tpmHandle &&
+          tpmProvider == other.tpmProvider &&
+          tpmPinRequired == other.tpmPinRequired &&
+          cngKeyName == other.cngKeyName;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
@@ -1369,6 +1411,21 @@ class DbSshKeyMetadata {
   /// `None` for non-`hello` rows.
   final String? helloCredentialName;
 
+  /// TPM 2.0 storage mode discriminator + ingredients (schema v12).
+  /// `tpm_handle` is `Some(...)` for the persistent-NV-handle mode
+  /// (key sits in TPM RAM) and `None` for the on-disk wrapped-blob
+  /// mode; the wizard / badge popover renders the value as
+  /// `0x81010001` style hex. `tpm_provider` distinguishes the
+  /// Linux ESAPI driver from the Windows PCP silent variant.
+  /// `tpm_pin_required` flips the badge popover into "type a PIN
+  /// per sign" copy. `cng_key_name` is the Windows-side
+  /// `NCryptOpenKey` name. None of these columns leak the private
+  /// key material — that lives on-chip.
+  final int? tpmHandle;
+  final String? tpmProvider;
+  final bool tpmPinRequired;
+  final String? cngKeyName;
+
   const DbSshKeyMetadata({
     required this.id,
     required this.label,
@@ -1383,6 +1440,10 @@ class DbSshKeyMetadata {
     this.pkcs11TokenSerial,
     this.pkcs11ObjectLabel,
     this.helloCredentialName,
+    this.tpmHandle,
+    this.tpmProvider,
+    required this.tpmPinRequired,
+    this.cngKeyName,
   });
 
   @override
@@ -1399,7 +1460,11 @@ class DbSshKeyMetadata {
       pkcs11ModulePath.hashCode ^
       pkcs11TokenSerial.hashCode ^
       pkcs11ObjectLabel.hashCode ^
-      helloCredentialName.hashCode;
+      helloCredentialName.hashCode ^
+      tpmHandle.hashCode ^
+      tpmProvider.hashCode ^
+      tpmPinRequired.hashCode ^
+      cngKeyName.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1418,7 +1483,11 @@ class DbSshKeyMetadata {
           pkcs11ModulePath == other.pkcs11ModulePath &&
           pkcs11TokenSerial == other.pkcs11TokenSerial &&
           pkcs11ObjectLabel == other.pkcs11ObjectLabel &&
-          helloCredentialName == other.helloCredentialName;
+          helloCredentialName == other.helloCredentialName &&
+          tpmHandle == other.tpmHandle &&
+          tpmProvider == other.tpmProvider &&
+          tpmPinRequired == other.tpmPinRequired &&
+          cngKeyName == other.cngKeyName;
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.

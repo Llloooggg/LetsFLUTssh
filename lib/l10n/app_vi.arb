@@ -1205,5 +1205,50 @@
   "helloPromptDescription": "PIN, vân tay hoặc khuôn mặt — Windows Hello ký challenge SSH này.",
   "helloSoftwareGatedWarning": "Thiết bị này không có TPM. Khóa nằm trong user storage; Windows Hello vẫn gate mọi chữ ký.",
   "helloP384NotSupported": "Firmware TPM không hỗ trợ P-384. Chọn P-256 hoặc RSA-2048.",
-  "helloConfigureFirst": "Cấu hình Windows Hello trước tại Settings -> Sign-in options."
+  "helloConfigureFirst": "Cấu hình Windows Hello trước tại Settings -> Sign-in options.",
+  "tpmSshTitle": "Tạo SSH key gắn TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (khuyến nghị)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Firmware TPM không hỗ trợ algorithm này.",
+  "tpmSshPinProtect": "Bảo vệ bằng PIN",
+  "tpmSshPinLockoutWarning": "Nhiều lần nhập sai PIN sẽ khiến TPM khóa key.",
+  "tpmSshPinMismatch": "PIN không khớp.",
+  "tpmSshStorageBlob": "Lưu wrapped key trong app data",
+  "tpmSshStorageHandle": "Lưu trong slot memory TPM",
+  "tpmSshStorageHandleHelp": "Signing nhanh hơn. Dùng một trong các persistent slot của TPM.",
+  "tpmSshLabel": "Nhãn key",
+  "tpmSshImportTitle": "Nhập SSH key được bảo vệ TPM",
+  "tpmSshImportFormat": "File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN cho {label}",
+  "tpmSshPinIncorrect": "PIN không đúng.",
+  "tpmSshPinLockedCooldown": "TPM đang trong lockout cooldown. Chờ {duration} rồi thử lại.",
+  "tpmSshGenerating": "Đang tạo key trong TPM...",
+  "tpmSshSigning": "Signing bằng TPM...",
+  "tpmSshUnavailable": "Không phát hiện TPM trên thiết bị này.",
+  "tpmSshUnavailableFwDisabled": "TPM bị tắt trong firmware.",
+  "tpmSshUnavailableNoPermission": "App không thể truy cập TPM. Thêm user vào group `tss`.",
+  "tpmSshHandleInUse": "Persistent slot {handle} đã được dùng.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Key này sign mà KHÔNG có prompt Hello / PIN — bất kỳ ai có quyền truy cập desktop khi bạn logged in đều có thể dùng.",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  }
 }

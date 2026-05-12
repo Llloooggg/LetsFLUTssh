@@ -3250,4 +3250,86 @@ class SVi extends S {
   @override
   String get helloConfigureFirst =>
       'Cấu hình Windows Hello trước tại Settings -> Sign-in options.';
+
+  @override
+  String get tpmSshTitle => 'Tạo SSH key gắn TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (khuyến nghị)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => 'Firmware TPM không hỗ trợ algorithm này.';
+
+  @override
+  String get tpmSshPinProtect => 'Bảo vệ bằng PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'Nhiều lần nhập sai PIN sẽ khiến TPM khóa key.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN không khớp.';
+
+  @override
+  String get tpmSshStorageBlob => 'Lưu wrapped key trong app data';
+
+  @override
+  String get tpmSshStorageHandle => 'Lưu trong slot memory TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Signing nhanh hơn. Dùng một trong các persistent slot của TPM.';
+
+  @override
+  String get tpmSshLabel => 'Nhãn key';
+
+  @override
+  String get tpmSshImportTitle => 'Nhập SSH key được bảo vệ TPM';
+
+  @override
+  String get tpmSshImportFormat => 'File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN cho $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN không đúng.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM đang trong lockout cooldown. Chờ $duration rồi thử lại.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Đang tạo key trong TPM...';
+
+  @override
+  String get tpmSshSigning => 'Signing bằng TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'Không phát hiện TPM trên thiết bị này.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM bị tắt trong firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'App không thể truy cập TPM. Thêm user vào group `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Persistent slot $handle đã được dùng.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Key này sign mà KHÔNG có prompt Hello / PIN — bất kỳ ai có quyền truy cập desktop khi bạn logged in đều có thể dùng.';
 }

@@ -168,6 +168,17 @@ pub mod kind {
     /// `cancelled`, `tpm p384 unsupported`, generic) to pick the right
     /// toast.
     pub const HELLO: &str = "hello";
+    /// TPM 2.0 SSH-signer failure (no TPM detected, fTPM disabled in
+    /// firmware, app cannot access `/dev/tpmrm0` because the user is
+    /// not in the `tss` group, PIN rejected, dictionary-attack
+    /// lockout cooldown, persistent slot already in use, malformed
+    /// cross-tool `.tpm` blob — `ssh-tpm-agent` / `openssl-tpm2-engine`
+    /// files with PCR policy reject at import). Detail carries the
+    /// short reason; the Dart UI's wizard / connect dialog branches
+    /// on the leading discriminator (`pin incorrect:`, `lockout:`,
+    /// `unavailable:`, `handle in use:`, generic) to pick the right
+    /// toast / route.
+    pub const TPM: &str = "tpm";
     /// Operation is structurally unavailable on this build target
     /// (e.g. the in-process ssh-agent endpoint on Android / iOS).
     /// UI renders the matching control disabled-with-reason rather
@@ -236,6 +247,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::Pkcs11(s) => wire(kind::PKCS11, s),
         CoreError::Enclave(s) => wire(kind::ENCLAVE, s),
         CoreError::Hello(s) => wire(kind::HELLO, s),
+        CoreError::Tpm(s) => wire(kind::TPM, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

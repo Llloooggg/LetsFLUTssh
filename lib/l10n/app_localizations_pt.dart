@@ -3332,4 +3332,87 @@ class SPt extends S {
   @override
   String get helloConfigureFirst =>
       'Configure o Windows Hello primeiro em Configurações -> Opções de entrada.';
+
+  @override
+  String get tpmSshTitle => 'Gerar chave SSH adossada ao TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (recomendado)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Algorithm não suportado pelo firmware deste TPM.';
+
+  @override
+  String get tpmSshPinProtect => 'Proteger com PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'TPM trava a chave após várias tentativas de PIN erradas.';
+
+  @override
+  String get tpmSshPinMismatch => 'Os PINs não conferem.';
+
+  @override
+  String get tpmSshStorageBlob => 'Armazenar chave envelopada nos dados do app';
+
+  @override
+  String get tpmSshStorageHandle => 'Persistir em slot de memória do TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Assinatura mais rápida. Consome um dos slots persistentes do TPM.';
+
+  @override
+  String get tpmSshLabel => 'Rótulo da chave';
+
+  @override
+  String get tpmSshImportTitle => 'Importar chave SSH protegida por TPM';
+
+  @override
+  String get tpmSshImportFormat => 'Arquivo TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'PIN do TPM para $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN incorreto.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM em cooldown de lockout. Aguarde $duration e tente de novo.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Gerando chave no TPM...';
+
+  @override
+  String get tpmSshSigning => 'Assinando com TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'Nenhum TPM detectado neste dispositivo.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM desativado no firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'O app não consegue acessar o TPM. Adicione o usuário ao grupo `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'O slot persistente $handle já está em uso.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Esta chave assina SEM prompt de Hello / PIN — qualquer pessoa com acesso ao desktop enquanto você está logado pode usá-la.';
 }

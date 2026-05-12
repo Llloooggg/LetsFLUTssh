@@ -202,6 +202,37 @@ class SshAuthPubkeyHelloRef extends SshAuthMethod {
   });
 }
 
+/// TPM 2.0-bound SSH key. `publicOpenssh` carries the captured
+/// `id_*.pub` body the Rust connect path re-parses. `provider` is
+/// the discriminator (`"tss-esapi"` for Linux ESAPI / `"cng-pcp"`
+/// for Windows PCP silent variant); the matching storage ingredient
+/// (`blob` on Linux, `cngKeyName` on Windows) carries the lookup
+/// surface the signer hands to the platform driver. `pinSecretId`
+/// points at a transient SecretStore entry the Dart connect-prepare
+/// path seeded for PIN-bound rows; `null` for empty-auth keys.
+///
+/// Linux PIN-bound keys prompt for a PIN on every sign. Windows
+/// silent-TPM keys sign WITHOUT firing any OS-level prompt — anyone
+/// with desktop access while the user is logged in can use them.
+/// TPM keys cannot leave the chip, so this method only works on the
+/// host that generated the key.
+class SshAuthPubkeyTpmRef extends SshAuthMethod {
+  final String publicOpenssh;
+  final String provider;
+  final Uint8List? blob;
+  final String? cngKeyName;
+  final String keyType;
+  final String? pinSecretId;
+  const SshAuthPubkeyTpmRef({
+    required this.publicOpenssh,
+    required this.provider,
+    this.blob,
+    this.cngKeyName,
+    required this.keyType,
+    this.pinSecretId,
+  });
+}
+
 /// PTY-backed interactive shell channel.
 abstract class SshShellChannel {
   /// Stdin: write user keystrokes / pasted bytes.

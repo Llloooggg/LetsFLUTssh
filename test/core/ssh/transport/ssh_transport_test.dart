@@ -60,6 +60,7 @@ void main() {
         SshAuthPubkeyPkcs11Ref() => 'pubkey-pkcs11',
         SshAuthPubkeyEnclaveRef() => 'pubkey-enclave',
         SshAuthPubkeyHelloRef() => 'pubkey-hello',
+        SshAuthPubkeyTpmRef() => 'pubkey-tpm',
       };
       expect(describe(const SshAuthAgent()), 'agent');
       expect(describe(const SshAuthPasswordRef('x')), 'password');
@@ -94,6 +95,16 @@ void main() {
           ),
         ),
         'pubkey-hello',
+      );
+      expect(
+        describe(
+          const SshAuthPubkeyTpmRef(
+            publicOpenssh: 'ecdsa-sha2-nistp256 AAAA...',
+            provider: 'tss-esapi',
+            keyType: 'ecdsa-sha2-nistp256',
+          ),
+        ),
+        'pubkey-tpm',
       );
     });
   });

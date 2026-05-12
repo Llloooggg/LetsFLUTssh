@@ -176,6 +176,28 @@ pub struct DbSshKey {
     /// string the `NCryptOpenKey` lookup re-binds to on every sign.
     /// Only populated for `backend = 'hello'` rows on Windows.
     pub hello_credential_name: Option<String>,
+    /// TPM 2.0 wrapped-blob bytes (schema v12). TSS2 PRIVATE KEY
+    /// ASN.1 envelope per TCG draft `draft-bottomley-tpm2-keys-asn1`
+    /// for the Linux blob-storage path. `None` for the persistent-
+    /// handle mode and every non-TPM backend.
+    pub tpm_blob: Option<Vec<u8>>,
+    /// Persistent NV handle (`0x81010001..0x8101FFFF`) when the key
+    /// was promoted to TPM RAM; `None` for blob mode and non-TPM
+    /// rows. The Dart side renders the value as `0x81010001` in
+    /// the badge popover.
+    pub tpm_handle: Option<u32>,
+    /// `"tss-esapi"` (Linux) / `"cng-pcp"` (Windows silent variant)
+    /// — discriminator the connect path uses to pick the platform
+    /// module. `None` for non-TPM backends.
+    pub tpm_provider: Option<String>,
+    /// `true` when the key was minted with a `TPM2B_AUTH` value and
+    /// requires a PIN on every sign.
+    pub tpm_pin_required: bool,
+    /// Windows PCP-silent TPM CNG persistent-key name. Uses the
+    /// `letsflutssh-tpm-` prefix (distinct from the Hello-gated
+    /// `letsflutssh-ssh-` prefix). `None` for non-Windows TPM rows
+    /// and every non-TPM backend.
+    pub cng_key_name: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -200,6 +222,11 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             pkcs11_object_label: r.pkcs11_object_label,
             enclave_tag: r.enclave_tag,
             hello_credential_name: r.hello_credential_name,
+            tpm_blob: r.tpm_blob,
+            tpm_handle: r.tpm_handle,
+            tpm_provider: r.tpm_provider,
+            tpm_pin_required: r.tpm_pin_required,
+            cng_key_name: r.cng_key_name,
         }
     }
 }
@@ -226,6 +253,11 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             pkcs11_object_label: r.pkcs11_object_label,
             enclave_tag: r.enclave_tag,
             hello_credential_name: r.hello_credential_name,
+            tpm_blob: r.tpm_blob,
+            tpm_handle: r.tpm_handle,
+            tpm_provider: r.tpm_provider,
+            tpm_pin_required: r.tpm_pin_required,
+            cng_key_name: r.cng_key_name,
         }
     }
 }
@@ -313,6 +345,20 @@ pub struct DbSshKeyMetadata {
     /// Windows Hello CNG persistent-key name captured at import.
     /// `None` for non-`hello` rows.
     pub hello_credential_name: Option<String>,
+    /// TPM 2.0 storage mode discriminator + ingredients (schema v12).
+    /// `tpm_handle` is `Some(...)` for the persistent-NV-handle mode
+    /// (key sits in TPM RAM) and `None` for the on-disk wrapped-blob
+    /// mode; the wizard / badge popover renders the value as
+    /// `0x81010001` style hex. `tpm_provider` distinguishes the
+    /// Linux ESAPI driver from the Windows PCP silent variant.
+    /// `tpm_pin_required` flips the badge popover into "type a PIN
+    /// per sign" copy. `cng_key_name` is the Windows-side
+    /// `NCryptOpenKey` name. None of these columns leak the private
+    /// key material — that lives on-chip.
+    pub tpm_handle: Option<u32>,
+    pub tpm_provider: Option<String>,
+    pub tpm_pin_required: bool,
+    pub cng_key_name: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
@@ -331,6 +377,10 @@ impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
             pkcs11_token_serial: m.pkcs11_token_serial,
             pkcs11_object_label: m.pkcs11_object_label,
             hello_credential_name: m.hello_credential_name,
+            tpm_handle: m.tpm_handle,
+            tpm_provider: m.tpm_provider,
+            tpm_pin_required: m.tpm_pin_required,
+            cng_key_name: m.cng_key_name,
         }
     }
 }
@@ -1705,6 +1755,11 @@ mod tests {
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

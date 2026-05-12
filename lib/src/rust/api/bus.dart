@@ -215,6 +215,21 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String credentialName,
     required String keyType,
   }) = BusConnectAuthRef_PubkeyHello;
+
+  /// TPM 2.0-bound SSH key. Carries the captured `id_*.pub` body
+  /// + the provider discriminator (`"tss-esapi"` / `"cng-pcp"`) +
+  /// the matching storage ingredient (`blob` for Linux, `cng_key_name`
+  /// for Windows silent) + the `key_type` short tag + a
+  /// transient PIN secret id for PIN-bound rows (`None` for
+  /// empty-auth keys).
+  const factory BusConnectAuthRef.pubkeyTpm({
+    required String publicOpenssh,
+    required String provider,
+    Uint8List? blob,
+    String? cngKeyName,
+    required String keyType,
+    String? pinSecretId,
+  }) = BusConnectAuthRef_PubkeyTpm;
   const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 

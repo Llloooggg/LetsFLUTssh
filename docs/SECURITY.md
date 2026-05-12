@@ -571,6 +571,25 @@ TPM-tier classification is honest in the UI. Probe inspects `NCRYPT_IMPL_TYPE_PR
 
 `.lfs` archive export of Hello-bound keys carries the row + the CNG name only; the importing device's connect path tries `NCryptOpenKey` and surfaces `Error::KeyNotFound` when the name isn't registered in the destination user's CNG namespace. Cross-device portability is impossible by provider design.
 
+## TPM 2.0 SSH keys
+
+Two paths, opposite UI-policy defaults from the Hello path above:
+
+- **Linux** uses `tss-esapi` (libtss2-esys) directly. `TPM2_Create` produces a wrapped `(public, private)` blob pair that we wrap in the TCG draft `draft-bottomley-tpm2-keys-asn1` "TSS2 PRIVATE KEY" envelope for cross-tool compat (`ssh-tpm-agent` / `openssl-tpm2-engine` consume the same shape). Every sign re-issues `TPM2_Load` + `TPM2_Sign` and tears the transient handle down — the private bytes never leave the chip. PIN-bound keys carry a `TPM2B_AUTH` value; the TPM's dictionary-attack lockout fires after 4 wrong PINs and locks the **entire chip** (BitLocker / disk-unlock included) for a cooldown window.
+- **Windows** reuses the Microsoft Platform Crypto Provider via `lfs_os_security::windows::ncrypt_ssh::create_silent`, but **without** setting `NCRYPT_UI_POLICY_PROPERTY` — the resulting key signs unattended. This is the deliberate opposite of the Hello-gated SSH path; the wizard surfaces the silent-warning copy in red so the user understands the trade-off before opting in. CNG-name prefix `letsflutssh-tpm-` distinguishes silent TPM keys from Hello-gated `letsflutssh-ssh-` keys when `NCryptEnumKeys` walks the provider.
+
+What we persist on `ssh_keys` (schema v12): `tpm_provider` discriminator (`'tss-esapi'` / `'cng-pcp'`), `tpm_blob` (Linux TSS2 PRIVATE KEY ASN.1 bytes — the private half is TPM-encrypted; without the chip's storage primary it's an opaque envelope), `tpm_handle` (Linux persistent NV handle), `tpm_pin_required` (Linux PIN flag), `cng_key_name` (Windows CNG name). None of these grants signing capability on a different device — `TPM2_Load` re-derives the parent under the chip's storage primary, which differs across TPMs; `NCryptOpenKey` is bound to the user's CNG namespace on the host that created the key.
+
+**Threat model footguns** users need to understand:
+
+- **TPM lockout is hardware-wide.** Wrong PIN 4 times on a PIN-bound TPM SSH key locks the **entire TPM** — including BitLocker / LUKS unlock and any other TPM-bound credential — for the cooldown window. Wizard copy surfaces this aggressively at every PIN entry surface.
+- **Persistent slots are scarce.** Typical fTPM ships ~7 free persistent handles. The wizard defaults to blob mode for this reason.
+- **TPM clear wipes everything.** `tpm2_clear` (or a BIOS reset) re-derives the storage primary; every blob signed under the old primary is unrecoverable. Treat the chip clear as equivalent to losing the SSH key.
+- **Silent variant is desktop-access-equivalent.** Windows TPM (silent) SSH keys sign without any prompt. Anyone with access to the desktop while the user is logged in can sign. This is intentional — the variant is for headless service accounts where a prompt is impossible — but it's a strictly weaker contract than Hello-gated keys. The badge popover surfaces the warning so the user knows what they get.
+- **Cross-tool blob import is restricted.** `.tpm` files carrying a PCR policy reject at import in v1 with a typed reason — the PCR-binding UX is a v2 commitment (see Appendix B in `ARCHITECTURE.md`).
+
+`.lfs` archive export semantics: Linux blob-mode rows ship the wrapped bytes + row metadata; the importing chip can sign only if its storage primary derives byte-identically (the storage-primary template matches `tpm2 createprimary -C o` defaults, which is the documented contract). Persistent-handle Linux rows and every Windows TPM row are not portable — the chip / CNG namespace differs.
+
 ## In-process ssh-agent endpoint
 
 `Settings → External SSH client integration` exposes the app's hardware-bound keys to other SSH-protocol-speaking applications on the same host (`git`, OpenSSH `ssh`, IDE plugins). The endpoint is off by default; the user opts in explicitly. When running it binds a Unix domain socket at `${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` (Linux / macOS) with parent-directory mode `0o700`, or a Windows named pipe at `\\.\pipe\letsflutssh-agent.<pid>` whose default DACL grants only the current user SID + SYSTEM.

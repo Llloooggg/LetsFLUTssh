@@ -3268,4 +3268,87 @@ class STr extends S {
   @override
   String get helloConfigureFirst =>
       'Önce Windows Hello\'yu Ayarlar -> Oturum açma seçeneklerinde kur.';
+
+  @override
+  String get tpmSshTitle => 'TPM-backed SSH key oluştur';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (önerilen)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Bu TPM firmware bu algorithm\'i desteklemiyor.';
+
+  @override
+  String get tpmSshPinProtect => 'PIN ile koru';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'Yanlış PIN denemeleri sonrası TPM key\'i kilitler.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN\'ler eşleşmiyor.';
+
+  @override
+  String get tpmSshStorageBlob => 'Wrapped key\'i app data\'da sakla';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM memory slot\'unda tut';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Daha hızlı signing. TPM\'in persistent slot\'larından birini tüketir.';
+
+  @override
+  String get tpmSshLabel => 'Key etiketi';
+
+  @override
+  String get tpmSshImportTitle => 'TPM korumalı SSH key import et';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label için TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN hatalı.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM lockout cooldown\'da. $duration bekle ve tekrar dene.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Key TPM\'de oluşturuluyor...';
+
+  @override
+  String get tpmSshSigning => 'TPM ile signing...';
+
+  @override
+  String get tpmSshUnavailable => 'Bu cihazda TPM bulunamadı.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM firmware\'de devre dışı.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'Uygulama TPM\'e erişemiyor. Kullanıcıyı `tss` grubuna ekle.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Persistent slot $handle zaten kullanımda.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Bu key Hello / PIN prompt\'u OLMADAN imzalar — sen logged in iken desktop\'a erişen herkes kullanabilir.';
 }

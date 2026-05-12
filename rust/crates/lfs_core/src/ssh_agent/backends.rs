@@ -72,6 +72,14 @@ pub enum BackendKind {
     Pkcs11,
     Enclave,
     Hello,
+    /// TPM 2.0 — Linux `tss-esapi` driver (blob mode or persistent
+    /// NV handle) and the Windows Microsoft Platform Crypto Provider
+    /// **silent** variant (no UI policy set, signs unattended). The
+    /// Hello-gated NCrypt path is a separate backend
+    /// ([`BackendKind::Hello`]) because the user-visible security
+    /// contract differs — Hello rows fire a PIN/fingerprint/face
+    /// prompt on every sign; silent TPM rows do not.
+    Tpm,
 }
 
 impl BackendKind {
@@ -79,11 +87,11 @@ impl BackendKind {
     /// row. Reads the typed `backend` column; pre-v9 software-only
     /// rows surface as `Software`, FIDO2 rows surface as `Fido2`,
     /// PKCS#11 rows surface as `Pkcs11`, Apple Secure Enclave rows
-    /// surface as `Enclave`. Reserved backends (TPM, Hello,
-    /// Keystore) fall through to `Software` until their Signer
-    /// lands — the listing path filters those out before the
-    /// dispatcher sees them, so the fallback never fires in
-    /// practice.
+    /// surface as `Enclave`, Hello rows as `Hello`, TPM rows as
+    /// `Tpm`. Reserved `Keystore` (Android Hardware Keystore) still
+    /// falls through to `Software` until its Signer lands; the
+    /// listing path filters those out before the dispatcher sees
+    /// them, so the fallback never fires in practice.
     pub fn from_row(row: &SshKeyRow) -> Self {
         use crate::db::ssh_keys::KeyBackend;
         match row.backend {
@@ -91,6 +99,7 @@ impl BackendKind {
             KeyBackend::Pkcs11 => Self::Pkcs11,
             KeyBackend::Enclave => Self::Enclave,
             KeyBackend::Hello => Self::Hello,
+            KeyBackend::Tpm => Self::Tpm,
             _ => Self::Software,
         }
     }
@@ -134,6 +143,179 @@ pub async fn dispatch_sign_by_kind(
         BackendKind::Pkcs11 => pkcs11_sign(row, data, flags).await,
         BackendKind::Enclave => enclave_sign(row, data).await,
         BackendKind::Hello => hello_sign(row, data, flags).await,
+        BackendKind::Tpm => tpm_sign(row, data, flags).await,
+    }
+}
+
+/// TPM 2.0 dispatcher. Routes to the Linux ESAPI driver (`tss-esapi`)
+/// for `tpm_provider = "tss-esapi"` rows and to the Windows PCP
+/// silent-variant driver for `tpm_provider = "cng-pcp"` rows. The
+/// agent endpoint never collects a PIN at SIGN_REQUEST time — there
+/// is no protocol surface for it; PIN-bound TPM keys reach into the
+/// SecretStore for an entry under `tpm.pin.<key_id>` that the
+/// user-facing UI seeded earlier (typically during the connect
+/// flow). Absent that entry on a PIN-bound row, the dispatcher
+/// refuses with a typed `Tpm` error so the external client surfaces
+/// a clear "no PIN cached" failure rather than hanging on a wrong-
+/// auth lockout.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+async fn tpm_sign(row: &SshKeyRow, data: &[u8], flags: u32) -> Result<SignOutput, BackendError> {
+    let provider = row
+        .tpm_provider
+        .clone()
+        .ok_or_else(|| BackendError::Signer(Error::Tpm("row missing tpm_provider".into())))?;
+    let key_type = row.key_type.clone();
+    // Inputs captured for the spawn_blocking closure. The `cng_name`
+    // arm is Windows-only — the cfg-attribute-on-binding form
+    // (`#[cfg(target_os = "windows")] let cng_name = ...`) avoids
+    // the unused-variable warning on Linux while keeping the
+    // dispatcher branch reachable.
+    let key_id = row.id.clone();
+    let pin_required = row.tpm_pin_required;
+    let blob = row.tpm_blob.clone();
+    #[cfg(target_os = "windows")]
+    let cng_name = row.cng_key_name.clone();
+    let data = data.to_vec();
+    let algorithm = ssh_algorithm_for_tpm(&key_type, flags);
+
+    tokio::task::spawn_blocking(move || -> Result<SignOutput, BackendError> {
+        let raw = match provider.as_str() {
+            #[cfg(target_os = "linux")]
+            "tss-esapi" => tpm_sign_tss_esapi(&key_id, &key_type, pin_required, blob, &data)?,
+            #[cfg(target_os = "windows")]
+            "cng-pcp" => tpm_sign_cng_silent(&key_type, cng_name, &data, &algorithm)?,
+            other => {
+                return Err(BackendError::Signer(Error::Tpm(format!(
+                    "unknown tpm_provider {other:?}"
+                ))));
+            }
+        };
+        Ok(SignOutput {
+            algorithm: algorithm.clone(),
+            signature: raw,
+        })
+    })
+    .await
+    .map_err(|e| BackendError::Signer(Error::Tpm(format!("spawn_blocking: {e}"))))?
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+async fn tpm_sign(_row: &SshKeyRow, _data: &[u8], _flags: u32) -> Result<SignOutput, BackendError> {
+    Err(BackendError::Signer(Error::Tpm(
+        "TPM 2.0 SSH keys unavailable on this platform".into(),
+    )))
+}
+
+/// Linux ESAPI sign-by-blob — reuses
+/// [`lfs_os_security::linux::tpm_ssh::sign`]. The agent dispatcher
+/// path runs in `spawn_blocking` (the call up here is the inner
+/// closure), so the synchronous TPM round trip doesn't stall the
+/// Tokio worker pool.
+#[cfg(target_os = "linux")]
+fn tpm_sign_tss_esapi(
+    key_id: &str,
+    key_type: &str,
+    pin_required: bool,
+    blob: Option<Vec<u8>>,
+    data: &[u8],
+) -> Result<Vec<u8>, BackendError> {
+    use lfs_os_security::linux::tpm_ssh::{self, TpmSshAlgorithm};
+    let blob = blob
+        .ok_or_else(|| BackendError::Signer(Error::Tpm("tss-esapi row missing tpm_blob".into())))?;
+    let key = tpm_ssh::import_blob(&blob)
+        .map_err(|e| BackendError::Signer(Error::Tpm(format!("import_blob: {e}"))))?;
+    // Force the row's algorithm onto the key — the import path
+    // recovers it from the public-key shape; if the row was tagged
+    // differently surface the mismatch loudly rather than signing
+    // under an unexpected algorithm.
+    let row_algo = TpmSshAlgorithm::from_key_type(key_type)
+        .map_err(|e| BackendError::Signer(Error::Tpm(format!("key_type: {e}"))))?;
+    if key.algorithm != row_algo {
+        return Err(BackendError::Signer(Error::Tpm(format!(
+            "blob algorithm {:?} does not match row key_type {key_type}",
+            key.algorithm
+        ))));
+    }
+    let auth: Option<Vec<u8>> = if pin_required {
+        let pin_id = format!("tpm.pin.{key_id}");
+        match crate::app::instance().secrets.get(&pin_id) {
+            Some(z) => Some(z.to_vec()),
+            None => {
+                return Err(BackendError::Signer(Error::Tpm(
+                    "tpm pin required but not cached".into(),
+                )));
+            }
+        }
+    } else {
+        None
+    };
+    let cfg = lfs_os_security::linux::tpm::TpmConfig::default();
+    let sig = tpm_ssh::sign(&cfg, &key, auth.as_deref(), data)
+        .map_err(|e| BackendError::Signer(Error::Tpm(e.to_string())))?;
+    let wire = match sig {
+        tpm_ssh::TpmSshSignature::EcdsaP256RawConcat(bytes) => {
+            crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes).map_err(BackendError::Signer)?
+        }
+        tpm_ssh::TpmSshSignature::Rsa2048(bytes) => {
+            crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes)
+        }
+    };
+    Ok(wire)
+}
+
+/// Windows PCP silent-variant sign — reuses
+/// [`lfs_os_security::windows::ncrypt_ssh::sign_for_ssh_silent`].
+/// `NCryptSignHash` runs unattended per the absence of
+/// `NCRYPT_UI_POLICY_PROPERTY` at create time.
+#[cfg(target_os = "windows")]
+fn tpm_sign_cng_silent(
+    key_type: &str,
+    cng_name: Option<String>,
+    data: &[u8],
+    algorithm: &str,
+) -> Result<Vec<u8>, BackendError> {
+    use lfs_os_security::windows::ncrypt_ssh::{
+        self, HelloSignature, SshKeyAlgo, TpmSilentKeyHandle,
+    };
+    let credential_name = cng_name.ok_or_else(|| {
+        BackendError::Signer(Error::Tpm("cng-pcp row missing cng_key_name".into()))
+    })?;
+    let algo = SshKeyAlgo::from_key_type(key_type)
+        .map_err(|e| BackendError::Signer(Error::Tpm(format!("key_type: {e}"))))?;
+    let handle = TpmSilentKeyHandle {
+        credential_name,
+        algo,
+        label: String::new(),
+    };
+    let raw = ncrypt_ssh::sign_for_ssh_silent(&handle, data, algorithm)
+        .map_err(|e| BackendError::Signer(Error::Tpm(e.to_string())))?;
+    let wire = match raw {
+        HelloSignature::EcdsaRaw(bytes) => {
+            crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes).map_err(BackendError::Signer)?
+        }
+        HelloSignature::RsaPkcs1V15(bytes) => crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes),
+    };
+    Ok(wire)
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn ssh_algorithm_for_tpm(key_type: &str, flags: u32) -> String {
+    match key_type {
+        "rsa" | "ssh-rsa" | "rsa-2048" => {
+            // SSH agent draft §3.6.1: flag 0x02 picks SHA-256, 0x04
+            // picks SHA-512. Default to SHA-256 for the TPM path —
+            // TPM-bound RSA-2048 keys are typically deployed against
+            // older OpenSSH servers and SHA-256 has the widest
+            // server-side acceptance. The agent dispatcher can
+            // promote to SHA-512 when the server flags request it.
+            if flags & 0x04 != 0 {
+                "rsa-sha2-512".into()
+            } else {
+                "rsa-sha2-256".into()
+            }
+        }
+        "ecdsa-p256" | "ecdsa-sha2-nistp256" => "ecdsa-sha2-nistp256".into(),
+        other => other.to_string(),
     }
 }
 
@@ -500,6 +682,11 @@ mod tests {
             pkcs11_object_label: None,
             enclave_tag: None,
             hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
         }
     }
 

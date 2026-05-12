@@ -3251,4 +3251,87 @@ class SFa extends S {
   @override
   String get helloConfigureFirst =>
       'ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن.';
+
+  @override
+  String get tpmSshTitle => 'ساخت کلید SSH متصل به TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (پیشنهادی)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'این الگوریتم در فریمور TPM پشتیبانی نمی‌شود.';
+
+  @override
+  String get tpmSshPinProtect => 'محافظت با PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'TPM پس از چند PIN اشتباه کلید را قفل می‌کند.';
+
+  @override
+  String get tpmSshPinMismatch => 'PINها یکسان نیستند.';
+
+  @override
+  String get tpmSshStorageBlob => 'ذخیره کلید بسته‌بندی‌شده در داده‌های برنامه';
+
+  @override
+  String get tpmSshStorageHandle => 'نگهداری در اسلات حافظهٔ TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'امضای سریع‌تر. یکی از اسلات‌های دائمی TPM را اشغال می‌کند.';
+
+  @override
+  String get tpmSshLabel => 'برچسب کلید';
+
+  @override
+  String get tpmSshImportTitle => 'وارد کردن کلید SSH محافظت‌شده با TPM';
+
+  @override
+  String get tpmSshImportFormat => 'فایل TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'PIN مربوط به TPM برای $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN نادرست است.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM در دورهٔ خنک‌کاری قفل است. $duration صبر کنید و دوباره امتحان کنید.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'در حال ساخت کلید در TPM...';
+
+  @override
+  String get tpmSshSigning => 'در حال امضا با TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'TPM روی این دستگاه یافت نشد.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM در فریمور غیرفعال است.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'برنامه به TPM دسترسی ندارد. کاربر را به گروه `tss` اضافه کنید.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'اسلات دائمی $handle قبلاً در حال استفاده است.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'این کلید بدون درخواست Hello / PIN امضا می‌کند — هر کسی که در زمان ورود شما به دسکتاپ دسترسی دارد می‌تواند از آن استفاده کند.';
 }

@@ -140,6 +140,18 @@ pub enum PreparedAuthRef {
         credential_name: String,
         key_type: String,
     },
+    /// TPM 2.0-bound SSH key resolved from the manager. Carries
+    /// the provider discriminator + the matching storage ingredient
+    /// (`blob` for `tss-esapi`, `cng_key_name` for `cng-pcp`) +
+    /// the per-sign PIN-secret id for PIN-bound keys.
+    PubkeyTpm {
+        public_openssh: String,
+        provider: String,
+        blob: Option<Vec<u8>>,
+        cng_key_name: Option<String>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
 }
 
 /// Aggregated output. `auth` carries the ref the connect actor
@@ -237,6 +249,40 @@ pub fn prepare_auth(
                         public_openssh: row.public_key.clone(),
                         credential_name,
                         key_type: row.key_type.clone(),
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
+            // TPM 2.0 sub-branch — `private_key` is empty by design;
+            // the connect path reaches the wrapped blob bytes
+            // (`tss-esapi`) or CNG name (`cng-pcp`) via the
+            // PreparedAuthRef and signs through
+            // `Session::connect_pubkey_tpm_owned`. PIN-bound rows
+            // stage the PIN under `tpm.pin.<key_id>` so the signer
+            // resolves it without crossing FRB on every sign.
+            if row.backend == ssh_keys::KeyBackend::Tpm {
+                let provider = row
+                    .tpm_provider
+                    .clone()
+                    .ok_or_else(|| Error::Auth("tpm row missing tpm_provider".into()))?;
+                let pin_secret_id = if row.tpm_pin_required && !input.pin.is_empty() {
+                    let id = format!("tpm.pin.{}", input.key_id);
+                    crate::app::instance()
+                        .secrets
+                        .put(&id, input.pin.as_bytes());
+                    transients.push(id.clone());
+                    Some(id)
+                } else {
+                    None
+                };
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::PubkeyTpm {
+                        public_openssh: row.public_key.clone(),
+                        provider,
+                        blob: row.tpm_blob.clone(),
+                        cng_key_name: row.cng_key_name.clone(),
+                        key_type: row.key_type.clone(),
+                        pin_secret_id,
                     },
                     transient_secret_ids: transients,
                 });

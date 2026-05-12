@@ -1774,5 +1774,44 @@
   "helloPromptDescription": "Use your PIN, fingerprint, or face to sign this SSH challenge.",
   "helloSoftwareGatedWarning": "Your device has no TPM. The key lives in user-space storage; Windows Hello still gates every signature.",
   "helloP384NotSupported": "TPM firmware does not support P-384. Choose P-256 or RSA-2048.",
-  "helloConfigureFirst": "Configure Windows Hello first in Settings -> Sign-in options."
+  "helloConfigureFirst": "Configure Windows Hello first in Settings -> Sign-in options.",
+  "tpmSshTitle": "Generate TPM-backed SSH key",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (recommended)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithm not supported by this TPM firmware.",
+  "tpmSshPinProtect": "Protect with PIN",
+  "tpmSshPinLockoutWarning": "TPM locks the key after repeated wrong PINs.",
+  "tpmSshPinMismatch": "PINs do not match.",
+  "tpmSshStorageBlob": "Store wrapped key in app data",
+  "tpmSshStorageHandle": "Persist in TPM memory slot",
+  "tpmSshStorageHandleHelp": "Faster signing. Consumes one of the TPM's persistent slots.",
+  "tpmSshLabel": "Key label",
+  "tpmSshImportTitle": "Import TPM-protected SSH key",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN for {label}",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "tpmSshPinIncorrect": "PIN incorrect.",
+  "tpmSshPinLockedCooldown": "TPM is in lockout cooldown. Wait {duration} and retry.",
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "tpmSshGenerating": "Generating key in TPM...",
+  "tpmSshSigning": "Signing with TPM...",
+  "tpmSshUnavailable": "No TPM detected on this device.",
+  "tpmSshUnavailableFwDisabled": "TPM is disabled in firmware.",
+  "tpmSshUnavailableNoPermission": "App cannot access the TPM. Add user to the `tss` group.",
+  "tpmSshHandleInUse": "Persistent slot {handle} is already in use.",
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": { "type": "String" }
+    }
+  },
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you're logged in can use it."
 }
