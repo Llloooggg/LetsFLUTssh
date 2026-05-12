@@ -369,6 +369,14 @@ rust-test: ## Run Rust tests (unit + integration + doc), --locked enforces Cargo
 	cd $(RUST_DIR) && cargo test --workspace --locked
 	cd $(RUST_DIR) && cargo test --workspace --doc --locked
 
+# Opt-in: PKCS#11 integration tests against a real SoftHSM v2 install.
+# Requires `softhsm2` on PATH + a provisioned per-user tokenstore;
+# see docs/CONTRIBUTING.md → "Optional hardware-backed integration
+# tests". Outside the default rust-test umbrella because SoftHSM is
+# not bundled with the project.
+rust-test-pkcs11: ## Run #[ignore]-gated PKCS#11 tests against a local SoftHSM v2 (opt-in)
+	cd $(RUST_DIR) && cargo test -p lfs_os_security --test pkcs11_softhsm_test -- --ignored --nocapture
+
 rust-build: ## Build Rust workspace (release, host), --locked enforces Cargo.lock parity
 	cd $(RUST_DIR) && cargo build --release --workspace --locked
 

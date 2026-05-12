@@ -189,6 +189,41 @@ The Android target works on any host (Linux, macOS, Windows) — rustup ships a 
 
 You do **not** need to run these locally on every commit — they are intentionally outside the `make rust-lint` umbrella so `make check` stays fast. CI's `rust-cross-check` job runs them on the native runner for each target on every PR that touches `rust/**`, gating the merge on a clean cross-target lint.
 
+**Optional hardware-backed integration tests.**
+
+A handful of Rust integration tests reach real OS-level cryptographic services (SoftHSM v2 for PKCS#11, `swtpm` for the Linux TPM 2.0 SSH path, BiometricPrompt for Android Hardware Keystore, etc.). They are all `#[ignore]`-gated so the default `make rust-test` does not require any of these dependencies — only the hardware-bound modules' own unit-test slices run by default.
+
+When you want to exercise the full PKCS#11 round-trip against a real Cryptoki implementation, install SoftHSM v2 once per machine:
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install -y softhsm2
+
+# macOS
+brew install softhsm
+```
+
+Then provision a per-user tokenstore so the integration test never touches `/var/lib/softhsm/` (system-wide state owned by the `softhsm` group):
+
+```bash
+mkdir -p ~/.softhsm/tokens
+cat > ~/.softhsm/softhsm2.conf <<'EOF'
+directories.tokendir = ~/.softhsm/tokens
+objectstore.backend = file
+log.level = ERROR
+EOF
+SOFTHSM2_CONF=~/.softhsm/softhsm2.conf \
+  softhsm2-util --init-token --slot 0 --label "Test Token" --pin 1234 --so-pin 4321
+```
+
+Run the gated tests via the dedicated Makefile target:
+
+```bash
+SOFTHSM2_CONF=~/.softhsm/softhsm2.conf make rust-test-pkcs11
+```
+
+The target re-runs only the SoftHSM-gated tests; it never touches `make rust-test`'s default surface, so a missing SoftHSM never blocks the umbrella suite.
+
 ## Development
 
 Top-level umbrella targets run both Dart and Rust. Per-language
