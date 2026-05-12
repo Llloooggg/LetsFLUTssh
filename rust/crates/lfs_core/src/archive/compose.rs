@@ -942,6 +942,7 @@ mod tests {
                 pkcs11_object_id: None,
                 pkcs11_object_label: None,
                 enclave_tag: None,
+                hello_credential_name: None,
             },
         )
         .unwrap();

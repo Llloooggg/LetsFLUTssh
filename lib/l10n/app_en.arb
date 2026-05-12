@@ -1766,5 +1766,13 @@
   "sshKeyAuthorizedKeysHint": "Add this line to ~/.ssh/authorized_keys on the server.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "Key label",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH key",
+  "helloWizardLabelHint": "Key label",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Authenticate with Windows Hello",
+  "helloPromptDescription": "Use your PIN, fingerprint, or face to sign this SSH challenge.",
+  "helloSoftwareGatedWarning": "Your device has no TPM. The key lives in user-space storage; Windows Hello still gates every signature.",
+  "helloP384NotSupported": "TPM firmware does not support P-384. Choose P-256 or RSA-2048.",
+  "helloConfigureFirst": "Configure Windows Hello first in Settings -> Sign-in options."
 }

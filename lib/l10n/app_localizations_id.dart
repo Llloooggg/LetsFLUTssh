@@ -3235,4 +3235,32 @@ class SId extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Kunci SSH Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Label kunci';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Autentikasi via Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, sidik jari, atau wajah — Windows Hello menandatangani SSH challenge ini.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Device ini tidak punya TPM. Kunci masuk ke user storage; Windows Hello tetap gate setiap tanda tangan.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Firmware TPM tidak mendukung P-384. Pilih P-256 atau RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Setup Windows Hello dulu di Settings -> Sign-in options.';
 }

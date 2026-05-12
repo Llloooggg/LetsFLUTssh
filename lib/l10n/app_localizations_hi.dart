@@ -3235,4 +3235,32 @@ class SHi extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH key';
+
+  @override
+  String get helloWizardLabelHint => 'Key label';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello से authenticate करें';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, फिंगरप्रिंट या face — Windows Hello इस SSH challenge को sign करेगा.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'इस device में TPM नहीं है. Key user storage में रहेगी; Windows Hello हर signature पर gate रहेगा.';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM firmware P-384 support नहीं करता. P-256 या RSA-2048 चुनें.';
+
+  @override
+  String get helloConfigureFirst =>
+      'पहले Windows Hello को Settings -> Sign-in options में सेट करें.';
 }

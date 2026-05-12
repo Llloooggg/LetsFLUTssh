@@ -294,6 +294,7 @@ pub async fn pkcs11_import_key(args: DbPkcs11ImportArgs) -> Result<String, Strin
             pkcs11_object_id: Some(args.cka_id),
             pkcs11_object_label: Some(args.cka_label),
             enclave_tag: None,
+            hello_credential_name: None,
         };
         lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
     })

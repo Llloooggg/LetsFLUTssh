@@ -38,6 +38,12 @@ bool? debugIsMacosOverride;
 @visibleForTesting
 bool? debugIsAppleOverride;
 
+/// Override for testing — when non-null, [isWindowsPlatform] returns this
+/// value. Drives the Windows Hello (NCrypt) key-manager toolbar action
+/// that would otherwise skip the branch on a Linux CI host.
+@visibleForTesting
+bool? debugIsWindowsOverride;
+
 /// Drop the FRB-cached results so the next read re-queries the
 /// native lib. Used by the test harness when toggling FRB load
 /// state mid-suite; callers in production never need this.
@@ -48,6 +54,7 @@ void debugResetPlatformCache() {
   _isDesktopCached = null;
   _isMacosCached = null;
   _isAppleCached = null;
+  _isWindowsCached = null;
 }
 
 /// True on Android or iOS.
@@ -98,6 +105,16 @@ bool get isApplePlatform =>
     debugIsAppleOverride ??
     (_isAppleCached ??= Platform.isMacOS || Platform.isIOS);
 bool? _isAppleCached;
+
+/// True on Windows. Drives the Windows Hello (NCrypt) key-manager
+/// toolbar action's visibility (the underlying
+/// `lfs_os_security::windows::ncrypt_ssh` driver compiles only on
+/// `target_os = "windows"`; the toolbar action stays hidden on every
+/// other platform per the capability ladder's rung-4 "honestly hide"
+/// rule).
+bool get isWindowsPlatform =>
+    debugIsWindowsOverride ?? (_isWindowsCached ??= Platform.isWindows);
+bool? _isWindowsCached;
 
 /// Try the FRB call; on `StateError` (RustLib not initialised in
 /// flutter_test contexts) fall back to the Dart `Platform.isXyz`

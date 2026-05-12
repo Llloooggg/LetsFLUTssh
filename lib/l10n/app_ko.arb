@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "이 라인을 서버의 ~/.ssh/authorized_keys에 추가하세요.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH 키",
   "sshKeyEnclaveWizardLabelHint": "키 이름",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH 키",
+  "helloWizardLabelHint": "키 라벨",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello로 인증",
+  "helloPromptDescription": "PIN, 지문, 얼굴 중 하나로 Windows Hello가 SSH 챌린지에 서명합니다.",
+  "helloSoftwareGatedWarning": "이 기기에는 TPM이 없습니다. 키는 사용자 저장소에 들어가지만 서명마다 Windows Hello가 게이트 역할을 합니다.",
+  "helloP384NotSupported": "TPM 펌웨어가 P-384를 지원하지 않습니다. P-256 또는 RSA-2048을 선택하세요.",
+  "helloConfigureFirst": "먼저 설정 -> 로그인 옵션에서 Windows Hello를 구성하세요."
 }

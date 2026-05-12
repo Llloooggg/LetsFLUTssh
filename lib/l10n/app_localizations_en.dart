@@ -3271,4 +3271,32 @@ class SEn extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH key';
+
+  @override
+  String get helloWizardLabelHint => 'Key label';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Authenticate with Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'Use your PIN, fingerprint, or face to sign this SSH challenge.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Your device has no TPM. The key lives in user-space storage; Windows Hello still gates every signature.';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM firmware does not support P-384. Choose P-256 or RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Configure Windows Hello first in Settings -> Sign-in options.';
 }

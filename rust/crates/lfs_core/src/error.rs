@@ -163,6 +163,18 @@ pub enum Error {
     #[error("enclave: {0}")]
     Enclave(String),
 
+    /// Windows Hello / NCrypt failures surfaced by
+    /// `lfs_os_security::windows::ncrypt_ssh` — Hello not configured,
+    /// no TPM (software-KSP fallback selected at create time and
+    /// later disallowed by policy), PCP provider open failed, user
+    /// dismissed the Hello prompt, P-384 unsupported by the host TPM
+    /// firmware. Carved out of `Io` / `Platform` so the connect path's
+    /// Hello prompt dialog can route a `cancelled` reason ("authenticate
+    /// again") differently from a hardware-absent reason ("re-import
+    /// on this PC").
+    #[error("hello: {0}")]
+    Hello(String),
+
     #[error("timeout")]
     Timeout,
 

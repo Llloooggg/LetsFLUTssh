@@ -39,6 +39,12 @@ pub mod pkcs11_signer;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod enclave_signer;
 
+// Windows Hello / NCrypt SSH Signer. Cfg-gated to Windows —
+// the underlying `lfs_os_security::windows::ncrypt_ssh` driver
+// only compiles there.
+#[cfg(target_os = "windows")]
+pub mod hello_signer;
+
 use sk_signer::FidoSigner;
 
 /// russh `Handler` impl for our client side. Carries an mpsc sender
@@ -664,6 +670,27 @@ pub struct ConnectPubkeyEnclaveOwnedArgs {
     /// passes them verbatim to `SecItemCopyMatching` on every
     /// signature.
     pub application_tag: Vec<u8>,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_hello_owned`].
+/// Hello-bound keys carry no PIN — Windows surfaces its own PIN /
+/// fingerprint / face prompt inside `NCryptSignHash` per the UI
+/// policy set at create time.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyHelloOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    /// Captured `id_*.pub` body the connect path re-parses to
+    /// recover the SSH `Algorithm`.
+    pub public_openssh: String,
+    /// CNG persistent-key name captured at create time. Persisted
+    /// in `ssh_keys.hello_credential_name`; the signer passes it
+    /// to `NCryptOpenKey` on every signature.
+    pub credential_name: String,
+    /// `ssh_keys.key_type` short tag — drives algorithm selection
+    /// (`ecdsa-sha2-nistp256` / `ecdsa-sha2-nistp384` / `rsa-2048`).
+    pub key_type: String,
 }
 
 /// Shareable across tasks — every method takes `&self` because
@@ -1362,6 +1389,56 @@ impl Session {
         Box::pin(async move {
             Err(Error::Unsupported(
                 "Apple Secure Enclave keys are available on macOS / iOS only".into(),
+            ))
+        })
+    }
+
+    /// Connect + authenticate with a Windows Hello (NCrypt) SSH key.
+    /// Hello fires its PIN / fingerprint / face prompt inside the
+    /// `NCryptSignHash` round trip per the UI policy chosen at
+    /// create time. Private key bytes live in the TPM (or PCP
+    /// software KSP fallback) and never leave.
+    #[cfg(target_os = "windows")]
+    pub fn connect_pubkey_hello_owned(
+        args: ConnectPubkeyHelloOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let (mut handle, forward_rx) = open_handle_for_session(&args.host, args.port).await?;
+            let parsed_pub = ssh_key::PublicKey::from_openssh(args.public_openssh.trim())
+                .map_err(|e| Error::KeyParse(format!("hello pubkey: {e}")))?;
+            let algo = crate::ssh::hello_signer::HelloAlgo::from_key_type(&args.key_type)?;
+            let mut signer = crate::ssh::hello_signer::HelloSigner {
+                credential_name: args.credential_name,
+                algo,
+                label: String::new(),
+            };
+            // RSA SSH userauth selects the hash algorithm at the
+            // outer russh layer via `Some(HashAlg::Sha256/Sha512)`;
+            // ECDSA passes `None`. We default RSA-2048 to SHA-512.
+            let hash_alg = match algo {
+                crate::ssh::hello_signer::HelloAlgo::Rsa2048 => Some(HashAlg::Sha512),
+                _ => None,
+            };
+            let auth_result = handle
+                .authenticate_publickey_with(&args.user, parsed_pub, hash_alg, &mut signer)
+                .await
+                .map_err(|e| Error::Auth(format!("{e}")))?;
+            if !matches!(auth_result, AuthResult::Success) {
+                return Err(Error::AuthFailed);
+            }
+            Ok(Session::from_handle(handle, forward_rx))
+        })
+    }
+
+    /// Non-Windows platforms — surface a typed unsupported error so
+    /// the `ConnectAuthRef::PubkeyHello` dispatcher stays cfg-clean.
+    #[cfg(not(target_os = "windows"))]
+    pub fn connect_pubkey_hello_owned(
+        _args: ConnectPubkeyHelloOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Err(Error::Unsupported(
+                "Windows Hello SSH keys are available on Windows only".into(),
             ))
         })
     }

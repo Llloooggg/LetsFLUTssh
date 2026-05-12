@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "इस लाइन को सर्वर पर ~/.ssh/authorized_keys में जोड़ें।",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "Key का नाम",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH key",
+  "helloWizardLabelHint": "Key label",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello से authenticate करें",
+  "helloPromptDescription": "PIN, फिंगरप्रिंट या face — Windows Hello इस SSH challenge को sign करेगा.",
+  "helloSoftwareGatedWarning": "इस device में TPM नहीं है. Key user storage में रहेगी; Windows Hello हर signature पर gate रहेगा.",
+  "helloP384NotSupported": "TPM firmware P-384 support नहीं करता. P-256 या RSA-2048 चुनें.",
+  "helloConfigureFirst": "पहले Windows Hello को Settings -> Sign-in options में सेट करें."
 }

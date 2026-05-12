@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "Thêm dòng này vào ~/.ssh/authorized_keys trên server.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "Tên key",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Khóa SSH Windows Hello",
+  "helloWizardLabelHint": "Nhãn khóa",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Xác thực bằng Windows Hello",
+  "helloPromptDescription": "PIN, vân tay hoặc khuôn mặt — Windows Hello ký challenge SSH này.",
+  "helloSoftwareGatedWarning": "Thiết bị này không có TPM. Khóa nằm trong user storage; Windows Hello vẫn gate mọi chữ ký.",
+  "helloP384NotSupported": "Firmware TPM không hỗ trợ P-384. Chọn P-256 hoặc RSA-2048.",
+  "helloConfigureFirst": "Cấu hình Windows Hello trước tại Settings -> Sign-in options."
 }

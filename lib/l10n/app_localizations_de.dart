@@ -3315,4 +3315,32 @@ class SDe extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows-Hello-SSH-Schlüssel';
+
+  @override
+  String get helloWizardLabelHint => 'Schlüsselbezeichnung';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Mit Windows Hello bestätigen';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, Fingerabdruck oder Gesicht — Windows Hello signiert die SSH-Challenge.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Kein TPM auf diesem Gerät. Der Schlüssel landet im User-Storage; Windows Hello bleibt das Gate für jede Signatur.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Die TPM-Firmware unterstützt kein P-384. Wähle P-256 oder RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Richte zuerst Windows Hello ein: Einstellungen -> Anmeldeoptionen.';
 }

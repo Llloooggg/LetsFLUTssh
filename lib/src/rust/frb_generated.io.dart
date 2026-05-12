@@ -25,6 +25,7 @@ import 'api/format.dart';
 import 'api/forward.dart';
 import 'api/fprintd.dart';
 import 'api/hardware_tier_vault.dart';
+import 'api/hello.dart';
 import 'api/host_info.dart';
 import 'api/keychain_marker.dart';
 import 'api/keychain_password_gate.dart';
@@ -368,6 +369,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder dco_decode_box_autoadd_db_folder(dynamic raw);
 
   @protected
+  DbHelloGenerateArgs dco_decode_box_autoadd_db_hello_generate_args(
+    dynamic raw,
+  );
+
+  @protected
   DbImportPreview dco_decode_box_autoadd_db_import_preview(dynamic raw);
 
   @protected
@@ -618,6 +624,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbHardwareTierLinuxBlob dco_decode_db_hardware_tier_linux_blob(dynamic raw);
+
+  @protected
+  DbHelloAlgo dco_decode_db_hello_algo(dynamic raw);
+
+  @protected
+  DbHelloGenerateArgs dco_decode_db_hello_generate_args(dynamic raw);
+
+  @protected
+  DbHelloImportResult dco_decode_db_hello_import_result(dynamic raw);
+
+  @protected
+  DbHelloOrphan dco_decode_db_hello_orphan(dynamic raw);
+
+  @protected
+  DbHelloProbeResult dco_decode_db_hello_probe_result(dynamic raw);
+
+  @protected
+  DbHelloTpmTier dco_decode_db_hello_tpm_tier(dynamic raw);
 
   @protected
   DbImportMode dco_decode_db_import_mode(dynamic raw);
@@ -947,6 +971,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbHardeningStep> dco_decode_list_db_hardening_step(dynamic raw);
+
+  @protected
+  List<DbHelloOrphan> dco_decode_list_db_hello_orphan(dynamic raw);
 
   @protected
   List<DbKeychainKeyWipe> dco_decode_list_db_keychain_key_wipe(dynamic raw);
@@ -1554,6 +1581,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder sse_decode_box_autoadd_db_folder(SseDeserializer deserializer);
 
   @protected
+  DbHelloGenerateArgs sse_decode_box_autoadd_db_hello_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbImportPreview sse_decode_box_autoadd_db_import_preview(
     SseDeserializer deserializer,
   );
@@ -1878,6 +1910,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbHardwareTierLinuxBlob sse_decode_db_hardware_tier_linux_blob(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbHelloAlgo sse_decode_db_hello_algo(SseDeserializer deserializer);
+
+  @protected
+  DbHelloGenerateArgs sse_decode_db_hello_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbHelloImportResult sse_decode_db_hello_import_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbHelloOrphan sse_decode_db_hello_orphan(SseDeserializer deserializer);
+
+  @protected
+  DbHelloProbeResult sse_decode_db_hello_probe_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbHelloTpmTier sse_decode_db_hello_tpm_tier(SseDeserializer deserializer);
 
   @protected
   DbImportMode sse_decode_db_import_mode(SseDeserializer deserializer);
@@ -2319,6 +2375,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbHardeningStep> sse_decode_list_db_hardening_step(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbHelloOrphan> sse_decode_list_db_hello_orphan(
     SseDeserializer deserializer,
   );
 
@@ -3070,6 +3131,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_hello_generate_args(
+    DbHelloGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_import_preview(
     DbImportPreview self,
     SseSerializer serializer,
@@ -3486,6 +3553,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_hardware_tier_linux_blob(
     DbHardwareTierLinuxBlob self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_hello_algo(DbHelloAlgo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_hello_generate_args(
+    DbHelloGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_hello_import_result(
+    DbHelloImportResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_hello_orphan(DbHelloOrphan self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_hello_probe_result(
+    DbHelloProbeResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_hello_tpm_tier(
+    DbHelloTpmTier self,
     SseSerializer serializer,
   );
 
@@ -4056,6 +4153,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_hardening_step(
     List<DbHardeningStep> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_hello_orphan(
+    List<DbHelloOrphan> self,
     SseSerializer serializer,
   );
 

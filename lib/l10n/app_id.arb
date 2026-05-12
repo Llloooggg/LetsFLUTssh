@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "Tambahkan baris ini ke ~/.ssh/authorized_keys di server.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "Nama key",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Kunci SSH Windows Hello",
+  "helloWizardLabelHint": "Label kunci",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Autentikasi via Windows Hello",
+  "helloPromptDescription": "PIN, sidik jari, atau wajah — Windows Hello menandatangani SSH challenge ini.",
+  "helloSoftwareGatedWarning": "Device ini tidak punya TPM. Kunci masuk ke user storage; Windows Hello tetap gate setiap tanda tangan.",
+  "helloP384NotSupported": "Firmware TPM tidak mendukung P-384. Pilih P-256 atau RSA-2048.",
+  "helloConfigureFirst": "Setup Windows Hello dulu di Settings -> Sign-in options."
 }

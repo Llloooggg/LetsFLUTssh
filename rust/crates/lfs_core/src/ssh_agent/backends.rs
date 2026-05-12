@@ -71,6 +71,7 @@ pub enum BackendKind {
     Fido2,
     Pkcs11,
     Enclave,
+    Hello,
 }
 
 impl BackendKind {
@@ -89,6 +90,7 @@ impl BackendKind {
             KeyBackend::Fido2 => Self::Fido2,
             KeyBackend::Pkcs11 => Self::Pkcs11,
             KeyBackend::Enclave => Self::Enclave,
+            KeyBackend::Hello => Self::Hello,
             _ => Self::Software,
         }
     }
@@ -131,6 +133,7 @@ pub async fn dispatch_sign_by_kind(
         BackendKind::Fido2 => fido2_sign(row, data).await,
         BackendKind::Pkcs11 => pkcs11_sign(row, data, flags).await,
         BackendKind::Enclave => enclave_sign(row, data).await,
+        BackendKind::Hello => hello_sign(row, data, flags).await,
     }
 }
 
@@ -181,6 +184,95 @@ async fn enclave_sign(_row: &SshKeyRow, _data: &[u8]) -> Result<SignOutput, Back
     Err(BackendError::Signer(Error::Enclave(
         "Apple Secure Enclave unavailable on this platform".into(),
     )))
+}
+
+/// Windows Hello dispatcher. Resolves the row's CNG persistent-key
+/// name, asks `lfs_os_security::windows::ncrypt_ssh` to sign the
+/// userauth buffer, then composes the SSH wire body.
+///
+/// The Hello prompt (PIN / fingerprint / face) fires inside the
+/// `NCryptSignHash` call per the `NCRYPT_UI_POLICY_PROPERTY` set at
+/// create time. The agent endpoint never collects a PIN — there is
+/// no protocol surface for it, and Hello has no concept of a
+/// pre-staged credential. Cancellation by the user surfaces as a
+/// typed `Hello` error.
+#[cfg(target_os = "windows")]
+async fn hello_sign(row: &SshKeyRow, data: &[u8], flags: u32) -> Result<SignOutput, BackendError> {
+    let credential_name = row.hello_credential_name.clone().ok_or_else(|| {
+        BackendError::Signer(Error::Hello("row missing hello_credential_name".into()))
+    })?;
+    let key_type = row.key_type.clone();
+    let data = data.to_vec();
+    tokio::task::spawn_blocking(move || -> Result<SignOutput, BackendError> {
+        use lfs_os_security::windows::ncrypt_ssh;
+        let algo = ncrypt_ssh::SshKeyAlgo::from_key_type(&key_type).map_err(|e| {
+            BackendError::Signer(Error::Hello(format!("unknown key_type {key_type}: {e}")))
+        })?;
+        let handle = ncrypt_ssh::HelloKeyHandle {
+            credential_name: credential_name.clone(),
+            algo,
+            label: String::new(),
+        };
+        let algorithm = ssh_algorithm_for_hello(&key_type, flags);
+        let raw = ncrypt_ssh::sign_for_ssh(&handle, &data, &algorithm)
+            .map_err(|e| BackendError::Signer(Error::Hello(e.to_string())))?;
+        // Wrap the NCrypt raw output via the shared SSH wire helpers
+        // — the `lfs_os_security` crate stays free of `lfs_core` deps
+        // (audit invariant), so the wrap happens here instead.
+        let signature = match raw {
+            ncrypt_ssh::HelloSignature::EcdsaRaw(bytes) => {
+                crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes)
+                    .map_err(BackendError::Signer)?
+            }
+            ncrypt_ssh::HelloSignature::RsaPkcs1V15(bytes) => {
+                crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes)
+            }
+        };
+        Ok(SignOutput {
+            algorithm,
+            signature,
+        })
+    })
+    .await
+    .map_err(|e| BackendError::Signer(Error::Hello(format!("spawn_blocking: {e}"))))?
+}
+
+/// Non-Windows stub — Hello rows are filtered out of the listing
+/// surface on every other platform, so this arm fires only on
+/// impossible cfg combinations.
+#[cfg(not(target_os = "windows"))]
+async fn hello_sign(
+    _row: &SshKeyRow,
+    _data: &[u8],
+    _flags: u32,
+) -> Result<SignOutput, BackendError> {
+    Err(BackendError::Signer(Error::Hello(
+        "Windows Hello unavailable on this platform".into(),
+    )))
+}
+
+/// SSH wire-name selection for Hello-bound keys. RSA flags follow the
+/// agent-protocol §3.6.1 bitfield (0x02 = SHA-256, 0x04 = SHA-512);
+/// ECDSA curves map verbatim. Default RSA hash is SHA-512 because
+/// stronger-by-default beats backwards compatibility with the
+/// SHA-1-era `ssh-rsa` wire-name (which the NCrypt SSH path refuses
+/// to emit at all).
+#[cfg(target_os = "windows")]
+fn ssh_algorithm_for_hello(key_type: &str, flags: u32) -> String {
+    match key_type {
+        "rsa" | "ssh-rsa" | "rsa-2048" => {
+            if flags & 0x02 != 0 {
+                "rsa-sha2-256".into()
+            } else if flags & 0x04 != 0 {
+                "rsa-sha2-512".into()
+            } else {
+                "rsa-sha2-512".into()
+            }
+        }
+        "ecdsa-p256" | "ecdsa-sha2-nistp256" => "ecdsa-sha2-nistp256".into(),
+        "ecdsa-p384" | "ecdsa-sha2-nistp384" => "ecdsa-sha2-nistp384".into(),
+        other => other.to_string(),
+    }
 }
 
 /// PKCS#11 dispatcher. Resolves the row's module path, token serial,
@@ -407,6 +499,7 @@ mod tests {
             pkcs11_object_id: None,
             pkcs11_object_label: None,
             enclave_tag: None,
+            hello_credential_name: None,
         }
     }
 
@@ -430,6 +523,17 @@ mod tests {
     fn from_row_resolves_fido2_when_credential_present() {
         let row = row_fido2_no_creds();
         assert_eq!(BackendKind::from_row(&row), BackendKind::Fido2);
+    }
+
+    #[test]
+    fn from_row_resolves_hello_when_backend_is_hello() {
+        let row = SshKeyRow {
+            backend: crate::db::ssh_keys::KeyBackend::Hello,
+            key_type: "ecdsa-sha2-nistp256".into(),
+            hello_credential_name: Some("letsflutssh-ssh-abc-1234".into()),
+            ..row_software()
+        };
+        assert_eq!(BackendKind::from_row(&row), BackendKind::Hello);
     }
 
     #[tokio::test]

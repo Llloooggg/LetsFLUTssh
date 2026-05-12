@@ -3222,4 +3222,32 @@ class SVi extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Khóa SSH Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Nhãn khóa';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Xác thực bằng Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, vân tay hoặc khuôn mặt — Windows Hello ký challenge SSH này.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Thiết bị này không có TPM. Khóa nằm trong user storage; Windows Hello vẫn gate mọi chữ ký.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Firmware TPM không hỗ trợ P-384. Chọn P-256 hoặc RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Cấu hình Windows Hello trước tại Settings -> Sign-in options.';
 }

@@ -3153,4 +3153,31 @@ class SKo extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH 키';
+
+  @override
+  String get helloWizardLabelHint => '키 라벨';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello로 인증';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, 지문, 얼굴 중 하나로 Windows Hello가 SSH 챌린지에 서명합니다.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      '이 기기에는 TPM이 없습니다. 키는 사용자 저장소에 들어가지만 서명마다 Windows Hello가 게이트 역할을 합니다.';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM 펌웨어가 P-384를 지원하지 않습니다. P-256 또는 RSA-2048을 선택하세요.';
+
+  @override
+  String get helloConfigureFirst => '먼저 설정 -> 로그인 옵션에서 Windows Hello를 구성하세요.';
 }

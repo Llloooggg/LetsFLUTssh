@@ -822,6 +822,21 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           publicOpenssh: publicOpenssh,
           applicationTag: applicationTag,
         ),
+      // Windows Hello branch — `auth_compose::prepare_auth` routes
+      // this when the resolved manager-key row carries
+      // `backend = 'hello'`. No PIN dialog: Windows fires the Hello
+      // prompt (PIN / fingerprint / face) inside `NCryptSignHash`
+      // per the UI policy set at create time.
+      rust_auth.DbPreparedAuthRef_PubkeyHello(
+        :final publicOpenssh,
+        :final credentialName,
+        :final keyType,
+      ) =>
+        SshAuthPubkeyHelloRef(
+          publicOpenssh: publicOpenssh,
+          credentialName: credentialName,
+          keyType: keyType,
+        ),
     };
   }
 

@@ -3304,4 +3304,32 @@ class SPt extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Chave SSH do Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Etiqueta da chave';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Autenticar com o Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, impressão digital ou rosto — o Windows Hello assina este desafio SSH.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Este dispositivo não tem TPM. A chave fica no armazenamento de usuário; o Windows Hello ainda exige cada assinatura.';
+
+  @override
+  String get helloP384NotSupported =>
+      'O firmware do TPM não suporta P-384. Escolha P-256 ou RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Configure o Windows Hello primeiro em Configurações -> Opções de entrada.';
 }

@@ -5684,6 +5684,54 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Secure Enclave'**
   String get sshKeyEnclaveBadge;
+
+  /// No description provided for @helloWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello SSH key'**
+  String get helloWizardTitle;
+
+  /// No description provided for @helloWizardLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Key label'**
+  String get helloWizardLabelHint;
+
+  /// No description provided for @helloBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello'**
+  String get helloBadge;
+
+  /// No description provided for @helloPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate with Windows Hello'**
+  String get helloPromptTitle;
+
+  /// No description provided for @helloPromptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your PIN, fingerprint, or face to sign this SSH challenge.'**
+  String get helloPromptDescription;
+
+  /// No description provided for @helloSoftwareGatedWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device has no TPM. The key lives in user-space storage; Windows Hello still gates every signature.'**
+  String get helloSoftwareGatedWarning;
+
+  /// No description provided for @helloP384NotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM firmware does not support P-384. Choose P-256 or RSA-2048.'**
+  String get helloP384NotSupported;
+
+  /// No description provided for @helloConfigureFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Windows Hello first in Settings -> Sign-in options.'**
+  String get helloConfigureFirst;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

@@ -262,6 +262,7 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
       pkcs11ModulePath: r.pkcs11ModulePath,
       pkcs11TokenSerial: r.pkcs11TokenSerial,
       pkcs11ObjectLabel: r.pkcs11ObjectLabel,
+      helloCredentialName: r.helloCredentialName,
     );
   }
 

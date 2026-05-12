@@ -267,6 +267,12 @@ class SshKeyMetadata {
   /// key object. Distinct from the row's user-typed [label].
   final String? pkcs11ObjectLabel;
 
+  /// Windows Hello CNG persistent-key name captured at import.
+  /// `null` for non-`hello` rows; surfaced inside the
+  /// [HelloBadge] info popover so the user can see which CNG name
+  /// the row maps to.
+  final String? helloCredentialName;
+
   const SshKeyMetadata({
     required this.id,
     required this.label,
@@ -284,6 +290,7 @@ class SshKeyMetadata {
     this.pkcs11ModulePath,
     this.pkcs11TokenSerial,
     this.pkcs11ObjectLabel,
+    this.helloCredentialName,
   });
 
   bool get hasCertificate => certFingerprint.isNotEmpty;
@@ -303,6 +310,11 @@ class SshKeyMetadata {
   /// + the "device-bound" warning the key cannot leave this Mac /
   /// iPhone.
   bool get isEnclave => backend == 'enclave';
+
+  /// True when the row's `backend` discriminator names a Windows
+  /// Hello (NCrypt) key. Drives the key-manager badge + info popover
+  /// + the "device-bound" warning the key cannot leave this PC.
+  bool get isHello => backend == 'hello';
 }
 
 /// Thrown when key store operations fail.

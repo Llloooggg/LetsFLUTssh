@@ -84,6 +84,13 @@ pub struct SshKeyRow {
     /// every non-enclave backend; the connect path refuses an
     /// `enclave` row whose `enclave_tag` is `None` (DB corruption).
     pub enclave_tag: Option<Vec<u8>>,
+    /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+    /// persistent-key name. UTF-8 string the
+    /// `NCryptOpenKey(provider, &hKey, name, …)` lookup re-binds to
+    /// on every sign. `None` for every non-`hello` backend; the
+    /// connect path refuses a `hello` row whose
+    /// `hello_credential_name` is `None` (DB corruption).
+    pub hello_credential_name: Option<String>,
 }
 
 /// Backend discriminator on `ssh_keys.backend` (schema v9). Drives
@@ -209,6 +216,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         pkcs11_object_id: row.get("pkcs11_object_id")?,
         pkcs11_object_label: row.get("pkcs11_object_label")?,
         enclave_tag: row.get("enclave_tag")?,
+        hello_credential_name: row.get("hello_credential_name")?,
     })
 }
 
@@ -219,7 +227,8 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                    pkcs11_object_id, pkcs11_object_label, enclave_tag \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag, \
+                    hello_credential_name \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -240,7 +249,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                    pkcs11_object_id, pkcs11_object_label, enclave_tag \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag, \
+                    hello_credential_name \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -259,8 +269,9 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
         "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
                                credential_id, application_string, has_user_verification, agent_policy, \
                                backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                               pkcs11_object_id, pkcs11_object_label, enclave_tag) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18) \
+                               pkcs11_object_id, pkcs11_object_label, enclave_tag, \
+                               hello_credential_name) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -279,6 +290,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            pkcs11_object_id = excluded.pkcs11_object_id, \
            pkcs11_object_label = excluded.pkcs11_object_label, \
            enclave_tag = excluded.enclave_tag, \
+           hello_credential_name = excluded.hello_credential_name, \
            deleted_at = NULL",
         params![
             row.id,
@@ -299,6 +311,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.pkcs11_object_id,
             row.pkcs11_object_label,
             row.enclave_tag,
+            row.hello_credential_name,
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -343,6 +356,10 @@ pub struct SshKeyMetadata {
     /// PKCS#11 object label (`CKA_LABEL`). Distinct from the row's
     /// `label` (user-typed), which may diverge from the on-token name.
     pub pkcs11_object_label: Option<String>,
+    /// Windows Hello CNG persistent-key name captured at import.
+    /// `None` for non-`hello` rows; surfaced so the key-manager UI
+    /// can render the row badge's info popover with the CNG name.
+    pub hello_credential_name: Option<String>,
 }
 
 pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetadata>, Error> {
@@ -352,7 +369,8 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                    pkcs11_object_id, pkcs11_object_label, enclave_tag \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag, \
+                    hello_credential_name \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC \
              /* list_metadata */",
         )
@@ -375,6 +393,7 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                 pkcs11_module_path: row.get("pkcs11_module_path")?,
                 pkcs11_token_serial: row.get("pkcs11_token_serial")?,
                 pkcs11_object_label: row.get("pkcs11_object_label")?,
+                hello_credential_name: row.get("hello_credential_name")?,
             })
         })
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata query: {e}")))?;
@@ -441,8 +460,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
                                        credential_id, application_string, has_user_verification, agent_policy, \
                                        backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                                       pkcs11_object_id, pkcs11_object_label, enclave_tag) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18) \
+                                       pkcs11_object_id, pkcs11_object_label, enclave_tag, \
+                                       hello_credential_name) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -461,6 +481,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    pkcs11_object_id = excluded.pkcs11_object_id, \
                    pkcs11_object_label = excluded.pkcs11_object_label, \
                    enclave_tag = excluded.enclave_tag, \
+                   hello_credential_name = excluded.hello_credential_name, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -484,6 +505,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.pkcs11_object_id,
                 row.pkcs11_object_label,
                 row.enclave_tag,
+                row.hello_credential_name,
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -613,6 +635,7 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             pkcs11_object_id: proposed.pkcs11_object_id.clone(),
             pkcs11_object_label: proposed.pkcs11_object_label.clone(),
             enclave_tag: proposed.enclave_tag.clone(),
+            hello_credential_name: proposed.hello_credential_name.clone(),
         },
     )?;
     tx.commit()
@@ -687,6 +710,7 @@ mod import_for_merge_tests {
             pkcs11_object_id: None,
             pkcs11_object_label: None,
             enclave_tag: None,
+            hello_credential_name: None,
         }
     }
 
@@ -796,6 +820,7 @@ mod tombstone_tests {
                     pkcs11_object_id: None,
                     pkcs11_object_label: None,
                     enclave_tag: None,
+                    hello_credential_name: None,
                 },
             )
         })
@@ -889,6 +914,7 @@ mod tombstone_tests {
             pkcs11_object_id: None,
             pkcs11_object_label: None,
             enclave_tag: None,
+            hello_credential_name: None,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

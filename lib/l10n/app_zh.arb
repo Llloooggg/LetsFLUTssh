@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "将此行添加到服务器的 ~/.ssh/authorized_keys。",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "Key 名称",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH 密钥",
+  "helloWizardLabelHint": "密钥标签",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "通过 Windows Hello 验证",
+  "helloPromptDescription": "PIN、指纹或人脸 — Windows Hello 会为此 SSH challenge 签名。",
+  "helloSoftwareGatedWarning": "此设备没有 TPM。密钥会落在用户存储中,但每次签名仍由 Windows Hello 守门。",
+  "helloP384NotSupported": "TPM 固件不支持 P-384。请选择 P-256 或 RSA-2048。",
+  "helloConfigureFirst": "请先在 设置 -> 登录选项 中配置 Windows Hello。"
 }

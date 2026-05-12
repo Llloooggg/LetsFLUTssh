@@ -160,6 +160,14 @@ pub mod kind {
     /// leading discriminator (`code-signing required`, `cancelled`,
     /// `key not found`, generic) to pick the right toast.
     pub const ENCLAVE: &str = "enclave";
+    /// Windows Hello / NCrypt failure (Hello not configured, no TPM,
+    /// Microsoft Platform Crypto Provider open refused, user dismissed
+    /// the Hello prompt, P-384 unsupported by host TPM firmware). Detail
+    /// carries the short reason; the Dart UI's wizard / connect dialog
+    /// branches on the leading discriminator (`hello not configured`,
+    /// `cancelled`, `tpm p384 unsupported`, generic) to pick the right
+    /// toast.
+    pub const HELLO: &str = "hello";
     /// Operation is structurally unavailable on this build target
     /// (e.g. the in-process ssh-agent endpoint on Android / iOS).
     /// UI renders the matching control disabled-with-reason rather
@@ -227,6 +235,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::Fido2(s) => wire(kind::FIDO2, s),
         CoreError::Pkcs11(s) => wire(kind::PKCS11, s),
         CoreError::Enclave(s) => wire(kind::ENCLAVE, s),
+        CoreError::Hello(s) => wire(kind::HELLO, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

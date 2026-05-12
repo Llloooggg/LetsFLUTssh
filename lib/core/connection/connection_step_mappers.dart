@@ -79,6 +79,16 @@ rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
         publicOpenssh: publicOpenssh,
         applicationTag: applicationTag,
       ),
+    SshAuthPubkeyHelloRef(
+      :final publicOpenssh,
+      :final credentialName,
+      :final keyType,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyHello(
+        publicOpenssh: publicOpenssh,
+        credentialName: credentialName,
+        keyType: keyType,
+      ),
     SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
   };
 }

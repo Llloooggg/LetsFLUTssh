@@ -3223,4 +3223,32 @@ class SFa extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'کلید SSH از Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'برچسب کلید';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'احراز هویت با Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN، اثر انگشت یا چهره — Windows Hello این چالش SSH را امضا می‌کند.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'این دستگاه TPM ندارد. کلید در فضای کاربر می‌ماند؛ هر امضا را همچنان Windows Hello کنترل می‌کند.';
+
+  @override
+  String get helloP384NotSupported =>
+      'فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کن.';
+
+  @override
+  String get helloConfigureFirst =>
+      'ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن.';
 }

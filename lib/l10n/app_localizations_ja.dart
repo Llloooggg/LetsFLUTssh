@@ -3156,4 +3156,32 @@ class SJa extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH キー';
+
+  @override
+  String get helloWizardLabelHint => 'キーのラベル';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello で認証';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN・指紋・顔のいずれかで Windows Hello が SSH チャレンジに署名します。';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'この端末には TPM がありません。鍵はユーザー領域に置かれますが、署名のたびに Windows Hello を通します。';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM ファームウェアが P-384 をサポートしていません。P-256 か RSA-2048 を選択してください。';
+
+  @override
+  String get helloConfigureFirst =>
+      'まず 設定 -> サインイン オプション で Windows Hello を有効化してください。';
 }

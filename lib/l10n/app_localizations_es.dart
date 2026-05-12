@@ -3318,4 +3318,32 @@ class SEs extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Clave SSH de Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Etiqueta de la clave';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Confirma con Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, huella o cara: Windows Hello firma este desafío SSH.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Este dispositivo no tiene TPM. La clave queda en almacenamiento de usuario; Windows Hello sigue exigiendo cada firma.';
+
+  @override
+  String get helloP384NotSupported =>
+      'El firmware del TPM no soporta P-384. Elige P-256 o RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Configura primero Windows Hello en Configuración -> Opciones de inicio de sesión.';
 }

@@ -168,6 +168,18 @@ pub enum ConnectAuthRef {
         public_openssh: String,
         application_tag: Vec<u8>,
     },
+    /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+    /// SSH key resolved from the manager. `credential_name` is the
+    /// CNG persistent-key name persisted on
+    /// `ssh_keys.hello_credential_name`; `key_type` selects the
+    /// algorithm bag (`ecdsa-sha2-nistp256` / `ecdsa-sha2-nistp384` /
+    /// `rsa-2048`). Reaches `Session::connect_pubkey_hello_owned` on
+    /// dispatch.
+    PubkeyHello {
+        public_openssh: String,
+        credential_name: String,
+        key_type: String,
+    },
     Agent,
 }
 
@@ -1045,6 +1057,27 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         }
         (ConnectAuthRef::PubkeyEnclave { .. }, Some(_parent)) => Err(Error::Auth(
             "Apple Secure Enclave hardware key over ProxyJump is not supported yet".into(),
+        )),
+        (
+            ConnectAuthRef::PubkeyHello {
+                public_openssh,
+                credential_name,
+                key_type,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_hello_owned(crate::ssh::ConnectPubkeyHelloOwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                credential_name,
+                key_type,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeyHello { .. }, Some(_parent)) => Err(Error::Auth(
+            "Windows Hello hardware key over ProxyJump is not supported yet".into(),
         )),
         (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
         (ConnectAuthRef::Agent, Some(parent)) => {

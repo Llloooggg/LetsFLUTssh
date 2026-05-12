@@ -3257,4 +3257,32 @@ class SRu extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'SSH-ключ Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Метка ключа';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Подтвердите через Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, отпечаток или лицо — Windows Hello подпишет SSH-запрос.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'На устройстве нет TPM. Ключ ляжет в пользовательское хранилище; Windows Hello всё равно прогоняет каждую подпись.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Прошивка TPM не поддерживает P-384. Выберите P-256 или RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Сначала настройте Windows Hello: Параметры -> Варианты входа.';
 }

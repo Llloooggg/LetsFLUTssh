@@ -126,6 +126,20 @@ pub enum PreparedAuthRef {
         public_openssh: String,
         application_tag: Vec<u8>,
     },
+    /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+    /// SSH key resolved from the manager. `credential_name` is the
+    /// CNG persistent-key name captured at create time and persisted
+    /// on `ssh_keys.hello_credential_name`. `key_type` drives the
+    /// SSH wire-name selection (`ecdsa-sha2-nistp256` /
+    /// `ecdsa-sha2-nistp384` / `rsa-2048`). No PIN slot — the Hello
+    /// prompt (PIN / fingerprint / face) fires at the OS layer
+    /// inside `NCryptSignHash` per the UI policy chosen at create
+    /// time.
+    PubkeyHello {
+        public_openssh: String,
+        credential_name: String,
+        key_type: String,
+    },
 }
 
 /// Aggregated output. `auth` carries the ref the connect actor
@@ -204,6 +218,25 @@ pub fn prepare_auth(
                     auth: PreparedAuthRef::PubkeyEnclave {
                         public_openssh: row.public_key.clone(),
                         application_tag,
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
+            // Windows Hello sub-branch — same shape as the Enclave
+            // arm above: row's `private_key` column is empty by
+            // design (TPM-bound) and the Hello prompt fires inside
+            // `NCryptSignHash` at the OS layer, no Dart-side PIN
+            // pre-staging.
+            if row.backend == ssh_keys::KeyBackend::Hello {
+                let credential_name = row
+                    .hello_credential_name
+                    .clone()
+                    .ok_or_else(|| Error::Auth("hello row missing hello_credential_name".into()))?;
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::PubkeyHello {
+                        public_openssh: row.public_key.clone(),
+                        credential_name,
+                        key_type: row.key_type.clone(),
                     },
                     transient_secret_ids: transients,
                 });
@@ -818,6 +851,112 @@ mod tests {
             };
             assert!(pin_secret_id.is_none());
             assert!(r.transient_secret_ids.is_empty());
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    fn insert_hello_key(
+        conn: &impl crate::db::DbAccess,
+        id: &str,
+        public_openssh: &str,
+        credential_name: &str,
+        key_type: &str,
+    ) {
+        conn.raw()
+            .execute(
+                "INSERT INTO ssh_keys (\
+                id, label, private_key, public_key, key_type, created_at, \
+                backend, hello_credential_name\
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                rusqlite::params![
+                    id,
+                    "hello-label",
+                    "",
+                    public_openssh,
+                    key_type,
+                    0_i64,
+                    "hello",
+                    credential_name,
+                ],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn manager_key_with_hello_backend_routes_to_pubkey_hello_variant() {
+        // Hello-bound row — composer short-circuits ahead of the
+        // every software / sk / pkcs11 / enclave branch. No PIN
+        // surface — Windows fires the Hello prompt at the OS layer
+        // inside `NCryptSignHash`.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_hello_key(
+                c,
+                "hk1",
+                "ecdsa-sha2-nistp256 AAAA...",
+                "letsflutssh-ssh-abcdef-1234",
+                "ecdsa-sha2-nistp256",
+            );
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "hk1".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeyHello {
+                public_openssh,
+                credential_name,
+                key_type,
+            } = r.auth
+            else {
+                panic!("expected PubkeyHello");
+            };
+            assert_eq!(public_openssh, "ecdsa-sha2-nistp256 AAAA...");
+            assert_eq!(credential_name, "letsflutssh-ssh-abcdef-1234");
+            assert_eq!(key_type, "ecdsa-sha2-nistp256");
+            assert!(r.transient_secret_ids.is_empty());
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn hello_row_without_credential_name_surfaces_typed_auth_error() {
+        // Defensive arm — DB corruption case where a `backend='hello'`
+        // row landed without the CNG persistent-key name. The
+        // composer must refuse rather than route the connect path
+        // at an empty `NCryptOpenKey` lookup.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            c.raw()
+                .execute(
+                    "INSERT INTO ssh_keys (\
+                    id, label, private_key, public_key, key_type, created_at, \
+                    backend\
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    rusqlite::params![
+                        "hk2",
+                        "lab",
+                        "",
+                        "PUB",
+                        "ecdsa-sha2-nistp256",
+                        0_i64,
+                        "hello"
+                    ],
+                )
+                .unwrap();
+            let err = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "hk2".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap_err();
+            assert!(matches!(err, Error::Auth(_)));
             Ok::<(), Error>(())
         })
         .unwrap();

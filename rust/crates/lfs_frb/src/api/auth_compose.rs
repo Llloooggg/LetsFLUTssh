@@ -98,6 +98,16 @@ pub enum DbPreparedAuthRef {
         public_openssh: String,
         application_tag: Vec<u8>,
     },
+    /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+    /// hardware key. `credential_name` is the CNG persistent-key
+    /// name captured at create time; no PIN slot — Hello fires at
+    /// the OS layer inside `NCryptSignHash` per the UI policy chosen
+    /// when the key landed.
+    PubkeyHello {
+        public_openssh: String,
+        credential_name: String,
+        key_type: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -167,6 +177,15 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
             } => DbPreparedAuthRef::PubkeyEnclave {
                 public_openssh,
                 application_tag,
+            },
+            auth_compose::PreparedAuthRef::PubkeyHello {
+                public_openssh,
+                credential_name,
+                key_type,
+            } => DbPreparedAuthRef::PubkeyHello {
+                public_openssh,
+                credential_name,
+                key_type,
             },
         };
         DbPreparedAuth {

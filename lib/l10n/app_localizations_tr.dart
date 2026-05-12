@@ -3240,4 +3240,32 @@ class STr extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH anahtarı';
+
+  @override
+  String get helloWizardLabelHint => 'Anahtar etiketi';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello ile doğrula';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, parmak izi veya yüz — Windows Hello bu SSH challenge\'ını imzalar.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Bu cihazda TPM yok. Anahtar kullanıcı alanına düşer; Windows Hello yine her imzayı gate eder.';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM firmware P-384 desteklemiyor. P-256 veya RSA-2048 seç.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Önce Windows Hello\'yu Ayarlar -> Oturum açma seçeneklerinde kur.';
 }

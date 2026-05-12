@@ -1410,7 +1410,7 @@ sequenceDiagram
   Note over Dart,Tok: on connect: russh Signer drives C_Sign per challenge
 ```
 
-Persistence: `db::ssh_keys` carries an explicit `backend` discriminator from schema v9 onwards (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name) and — from schema v10 — the Apple Secure Enclave `enclave_tag` blob (the opaque `kSecAttrApplicationTag` bytes the Keychain matches on; only populated for `backend = 'enclave'` rows). The v8 -> v9 migration arm UPDATEs every pre-existing `credential_id IS NOT NULL` row to `backend = 'fido2'` so the dispatcher's typed switch never falls through to a software arm for a hardware-bound key. The v9 -> v10 hop is additive (one `ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL`); existing rows backfill to NULL.
+Persistence: `db::ssh_keys` carries an explicit `backend` discriminator from schema v9 onwards (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name), the Apple Secure Enclave `enclave_tag` blob (schema v10 — the opaque `kSecAttrApplicationTag` bytes the Keychain matches on; only populated for `backend = 'enclave'` rows), and the Windows Hello `hello_credential_name` string (schema v11 — the CNG persistent-key name the `NCryptOpenKey` lookup re-binds to; only populated for `backend = 'hello'` rows). The v8 -> v9 migration arm UPDATEs every pre-existing `credential_id IS NOT NULL` row to `backend = 'fido2'` so the dispatcher's typed switch never falls through to a software arm for a hardware-bound key. The v9 -> v10 hop is additive (one `ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL`); the v10 -> v11 hop is additive in the same shape (`ALTER TABLE ssh_keys ADD COLUMN hello_credential_name TEXT NULL`); existing rows backfill to NULL on both hops.
 
 Mechanism → SSH algorithm table:
 
@@ -1541,6 +1541,87 @@ Both shapes pin to `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` so the key nev
 
 **Tests.** Unit tests in `rust/crates/lfs_os_security/src/apple_se_ssh.rs::tests` cover the application-tag mint shape, the unavailable-reason renderer, and the auth-policy flag mapping. Integration tests for the actual `SecKeyCreateRandomKey` round-trip are gated with `#[ignore]` so CI without an Apple machine can compile-check. The Signer adapter has its own tests under `rust/crates/lfs_core/src/ssh/enclave_signer.rs::tests` (algorithm-string contract, error round-trip). The Dart-side wizard tests live in `test/widgets/enclave_ssh_dialog_test.dart` — four cases covering probe-disabled state, code-sign reason rendering, happy-path generate, and the generate-failure recovery.
 
+#### Windows Hello SSH keys — NCrypt / Microsoft Platform Crypto Provider
+
+`lfs_os_security::windows::ncrypt_ssh` generates / signs / lists / deletes SSH keys whose private half lives in the Windows TPM (or, on TPM-less hosts, the Microsoft Platform Crypto Provider's software KSP fallback). The chip refuses to export the private bytes; every signing operation routes through `NCryptSignHash`, and Windows surfaces the Hello prompt — PIN, fingerprint, or face — at the FFI boundary per the `NCRYPT_UI_POLICY_PROPERTY` set at create time.
+
+**Why NOT KeyCredentialManager.** `Windows.Security.Credentials.KeyCredentialManager.RequestSignAsync` produces **RSA-2048 PSS-SHA256**. SSH `rsa-sha2-256` / `rsa-sha2-512` (RFC 8332) requires **PKCS#1 v1.5** — PSS bytes cannot be re-encoded into v1.5; the padding scheme is different at the bit level. KCM is wire-incompatible with SSH userauth, full stop. The only Windows path that emits an SSH-compatible signature is NCrypt + PCP with `BCRYPT_PAD_PKCS1` (RSA) or no padding (ECDSA). The working reference is [`nCryptAgent`](https://github.com/unreality/nCryptAgent). This is the load-bearing reason the SSH-key path takes the opposite default from the T2 hardware vault: the vault deliberately omits UI policy (silent unwrap), the SSH path forces UI policy ON (Hello prompt at every sign — that's the security ceremony).
+
+```mermaid
+flowchart LR
+    UI[HelloSshDialog]
+    UI --> FRB[hello_ssh_generate FRB]
+    FRB --> NCCREATE[NCryptCreatePersistedKey<br/>MS_PLATFORM_KEY_STORAGE_PROVIDER]
+    NCCREATE --> UIPOL[NCryptSetProperty<br/>UI_PROTECT_KEY + UI_FORCE_HIGH_PROTECTION]
+    UIPOL --> FINALIZE[NCryptFinalizeKey<br/>fires Hello configure prompt if needed]
+    FINALIZE --> TPM[(TPM 2.0 or PCP software KSP)]
+    TPM --> EXPORT[NCryptExportKey<br/>ECCPUBLIC / RSAPUBLIC]
+    EXPORT --> WIRE[encode_public_ecdsa_p256/384/rsa]
+    WIRE --> DB[ssh_keys row backend='hello'<br/>+ hello_credential_name]
+    DB --> SIGN[Connect / agent dispatch]
+    SIGN --> NCSIGN[NCryptSignHash<br/>Hello prompt PIN / fingerprint / face]
+    NCSIGN -- ECDSA raw r,s --> ECDSAWIRE[ecdsa_raw_concat_to_ssh_mpint]
+    NCSIGN -- RSA PKCS#1 v1.5 --> RSAWIRE[rsa_pkcs1_v15_to_ssh_blob]
+    ECDSAWIRE --> SSH[ssh-agent / userauth signature]
+    RSAWIRE --> SSH
+```
+
+**Module layout.** The native driver lives at `rust/crates/lfs_os_security/src/windows/ncrypt_ssh.rs` (cfg-gated to `target_os = "windows"`). The Signer adapter lives at `rust/crates/lfs_core/src/ssh/hello_signer.rs` (mirrors the PKCS#11 / FIDO2 / Enclave shape — `russh::Signer` impl wrapping the FFI surface). The FRB shim lives at `rust/crates/lfs_frb/src/api/hello.rs`. The driver crate stays free of `lfs_core` deps (audit invariant: `lfs_core` depends on `lfs_os_security`, never the reverse), so it returns raw bytes via `HelloSignature` / `HelloPublicKey` and the caller in `lfs_core` wraps them via the shared `lfs_core::ssh::wire` helpers.
+
+**CNG provider + persistent key naming.** Every SSH-bound key is minted under `MS_PLATFORM_KEY_STORAGE_PROVIDER`. The provider prefers TPM 2.0 when present; on hosts without a TPM it transparently falls back to a software KSP. CNG name format: `letsflutssh-ssh-<user-hash>-<uuid>` — the user-hash prefix (first 4 bytes of `SHA-256(USERNAME)`) protects shared-workstation installs from collisions across user profiles. The name persists in `ssh_keys.hello_credential_name` (TEXT NULL, schema v11); `NCryptOpenKey` re-binds to the same persistent key on every connect / agent dispatch.
+
+**Algorithm matrix.**
+
+| `SshKeyAlgo` | NCrypt algorithm | SSH wire-name | Output shape |
+|---|---|---|---|
+| `EcdsaP256` | `NCRYPT_ECDSA_P256_ALGORITHM` | `ecdsa-sha2-nistp256` | Fixed-width raw `r \|\| s`, 64 bytes |
+| `EcdsaP384` | `NCRYPT_ECDSA_P384_ALGORITHM` | `ecdsa-sha2-nistp384` | Fixed-width raw `r \|\| s`, 96 bytes |
+| `Rsa2048` | `NCRYPT_RSA_ALGORITHM` (length 2048) | `rsa-sha2-256` / `rsa-sha2-512` (PKCS#1 v1.5, NOT PSS) | 256-byte raw signature block |
+
+P-384 is TPM-firmware-dependent — the create call surfaces `Error::P384NotSupported` when the host TPM refuses the algorithm (`NTE_NOT_SUPPORTED = 0x80090029`). The wizard exposes all three options; the FRB call routes the user at the localized "TPM firmware does not support P-384" reason when the create attempt fails.
+
+**UI policy contract.** `NCRYPT_UI_POLICY` lands via `NCryptSetProperty` **before** `NCryptFinalizeKey`:
+
+```c
+NCRYPT_UI_POLICY {
+    dwVersion = 1
+    dwFlags   = NCRYPT_UI_PROTECT_KEY_FLAG | NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG
+}
+```
+
+The flags fire the Hello prompt on every sign — every SSH userauth, every git operation, every `SIGN_REQUEST` from an external client through the in-process ssh-agent endpoint. The strings (`pszCreationTitle` / `pszFriendlyName` / `pszDescription`) stay null today; the OS picks up its default "Authenticate to allow this app to sign data" copy. Localising via Dart would require a round-trip on every sign — out of scope.
+
+**Probe + tier classification.** `probe_availability` cycles a throw-away ECDSA P-256 key under a `letsflutssh-probe-<random>` name with UI policy ON, then deletes it. Inspects `NCRYPT_IMPL_TYPE_PROPERTY` on the probe key to distinguish hardware (TPM 2.0) from the software KSP fallback. Returns:
+
+| `TpmTier` | `NCRYPT_IMPL_TYPE_PROPERTY` bit | UI label |
+|---|---|---|
+| `Hardware` | `NCRYPT_IMPL_HARDWARE_FLAG (0x1)` set | Plain "Windows Hello" |
+| `SoftwareKsp` | flag clear | Plain "Windows Hello" + the localized "Software-gated" suffix |
+
+`NTE_USER_CANCELLED` on the probe finalise step maps to `UnavailableReason::HelloNotConfigured` — the OS surfaces the configure-Hello dialog and the user dismissed it, so the wizard re-routes at the "Configure Windows Hello first" reason.
+
+**Capability ladder rendering.**
+
+| Platform | Probe | Rung | UI |
+|---|---|---|---|
+| Windows 10 1607+ with TPM + Hello | `Ok(TpmTier::Hardware)` | 3 native | "Windows Hello" enabled |
+| Windows 10 1607+ without TPM + Hello | `Ok(TpmTier::SoftwareKsp)` | 6 weaker path with honest label | "Windows Hello (Software-gated)" — NEVER labelled as plain "Windows Hello" |
+| Windows + Hello not configured | `Err(HelloNotConfigured)` | 4 honestly hide | Wizard disabled with "Configure Windows Hello first in Settings -> Sign-in options" |
+| Windows < 10 1607 | `Err(ProviderUnavailable)` | 4 honestly hide | Wizard disabled with the provider-open HRESULT |
+| Linux / macOS / Android / iOS | n/a | 4 honestly hide | Key-manager toolbar action hidden — `isWindowsPlatform` gate at the call site |
+
+**Signing.** ECDSA path passes `padInfo = NULL`, `dwFlags = 0`; the call returns fixed-width raw `r || s` (64 bytes for P-256, 96 for P-384). RSA path passes `BCRYPT_PKCS1_PADDING_INFO { pszAlgId = BCRYPT_SHA256_ALGORITHM / BCRYPT_SHA512_ALGORITHM }` with `dwFlags = BCRYPT_PAD_PKCS1` (NEVER PSS — see "Why NOT KeyCredentialManager" above); returns the 256-byte raw signature block. The driver crate hands those bytes back as `HelloSignature::{EcdsaRaw, RsaPkcs1V15}`; the `lfs_core` caller wraps via `ssh::wire::ecdsa_raw_concat_to_ssh_mpint` / `ssh::wire::rsa_pkcs1_v15_to_ssh_blob` and prefixes the SSH userauth `signature` body (`string(algorithm) || string(sig_blob)`). `NTE_USER_CANCELLED` on the sign maps to `Error::Cancelled` so the UI can route a "cancelled" reason distinct from a hardware failure.
+
+**Lifecycle.** Per-user keys persist under `%APPDATA%\Microsoft\Crypto\PCPKSP\<user-sid>\`. NCrypt manages this — no file path is exposed. `list()` walks `NCryptEnumKeys` with the `letsflutssh-ssh-` prefix filter and returns the matching handles (algorithm recovered from `NCryptKeyName.pszAlgid`). `delete()` is a plain `NCryptDeleteKey`. The Drop impls on `OwnedProvider` / `OwnedKey` release CNG handles on every path; `NCryptEnumKeys` allocates the key-name struct + strings, so each iteration frees via `NCryptFreeBuffer` to avoid leaking.
+
+**Opposite-default from the T2 hardware vault.** The vault path (`windows::hardware_vault`) deliberately omits `NCRYPT_UI_POLICY_PROPERTY` — its primary RSA-OAEP wrap runs silently so the master-password unlock doesn't fire a redundant second Hello prompt. The SSH-key path takes the opposite default — every sign fires Hello. The two paths use distinct persistent-key names (`letsflutssh_hardware_vault_v1` vs `letsflutssh-ssh-<user-hash>-<uuid>`) so they coexist on the same install without confusion. Both pin `NCRYPT_EXPORT_POLICY_PROPERTY` to 0 implicitly: the TPM-backed PCP refuses export by hardware design; the software-KSP fallback defaults to exportable, but UI policy ON gates every operation including `NCryptExportKey` of the private half, so a parallel attacker process gets gated through the same Hello prompt the legitimate sign uses.
+
+**`.lfs` export semantics.** Hello-bound keys' private half is non-exportable by chip / KSP design. Today's `.lfs` archive shape includes the row with `backend = 'hello'` + the `hello_credential_name` string; the importing device's connect path tries `NCryptOpenKey` and surfaces `Error::KeyNotFound` when the CNG name isn't registered. Cross-device portability is impossible; the wizard's "device-bound" warning surfaces the constraint at create time.
+
+**Error envelope.** `Error::Hello(String)` carves the Hello path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::HELLO` discriminator lets the Dart UI route `cancelled` to a "authenticate again" hint, `hello not configured` to the configure-first dialog, `TPM firmware does not support P-384` to the algorithm-fallback toast, and the catch-all to the generic Hello error toast.
+
+**Tests.** Unit tests in `rust/crates/lfs_os_security/src/windows/ncrypt_ssh.rs::tests` cover the algorithm round-trip via `from_key_type` / `key_type_tag`, the credential-name mint shape, the `NCryptKeyName.pszAlgid` mapping, the unavailable-reason renderer, and the public-key blob parsers for ECDSA + RSA. The probe round-trip is `#[ignore]`-gated; a self-hosted Windows runner with `--ignored` exercises it. The Signer adapter has its own tests at `rust/crates/lfs_core/src/ssh/hello_signer.rs::tests` (algorithm round-trip, error mapping, russh-algorithm contract). The Dart-side wizard tests live in `test/widgets/hello_ssh_dialog_test.dart` — five cases covering probe-disabled state, hello-not-configured reason rendering, software-KSP honest-label warning, happy-path generate, and the generate-failure recovery.
+
 #### In-process ssh-agent endpoint
 
 `lfs_core::ssh_agent` exposes our hardware-bound SSH keys (FIDO2 today; PKCS#11 / TPM 2.0 / Apple Secure Enclave / Windows NCrypt / Android Hardware Keystore as those backends land) to every SSH-protocol-speaking application on the same host — `git` in a terminal, OpenSSH `ssh.exe` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+, IDE plugins, CI runners. Without the endpoint the hardware-bound keys we import are reachable only from our own connect path; corporate workflows expect a key on a host to work everywhere on that host. The endpoint is the symmetric counterpart of `connect_default_agent` — that path consumes external agents, this one IS the agent for external clients.
@@ -1560,9 +1641,9 @@ flowchart LR
     POLICY --> DISP[backends::dispatch_sign]
     DISP --> FIDO[FidoSigner &nbsp; CTAP2 HID]
     DISP --> P11[Pkcs11Signer &nbsp; Cryptoki]
+    DISP --> SE[Secure Enclave]
+    DISP --> NCRYPT[Windows NCrypt + Hello]
     DISP -.future.-> TPM[TPM 2.0]
-    DISP -.future.-> SE[Secure Enclave]
-    DISP -.future.-> NCRYPT[Windows NCrypt]
     DISP -.future.-> KS[Android Keystore]
 ```
 

@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "Bu satırı sunucudaki ~/.ssh/authorized_keys dosyasına ekleyin.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "Key adı",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH anahtarı",
+  "helloWizardLabelHint": "Anahtar etiketi",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello ile doğrula",
+  "helloPromptDescription": "PIN, parmak izi veya yüz — Windows Hello bu SSH challenge'ını imzalar.",
+  "helloSoftwareGatedWarning": "Bu cihazda TPM yok. Anahtar kullanıcı alanına düşer; Windows Hello yine her imzayı gate eder.",
+  "helloP384NotSupported": "TPM firmware P-384 desteklemiyor. P-256 veya RSA-2048 seç.",
+  "helloConfigureFirst": "Önce Windows Hello'yu Ayarlar -> Oturum açma seçeneklerinde kur."
 }

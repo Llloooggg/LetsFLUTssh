@@ -430,7 +430,13 @@ impl Db {
 /// `SecItemCopyMatching` lookup needs to resolve the on-chip
 /// private key at sign time. Only populated for `backend = 'enclave'`
 /// rows; the column stays NULL for every other backend.
-pub const SCHEMA_VERSION: i32 = 10;
+/// v11 adds `hello_credential_name` (TEXT NULL) on `ssh_keys` for
+/// Windows Hello (NCrypt / Microsoft Platform Crypto Provider) rows —
+/// carries the CNG persistent-key name the `NCryptOpenKey` lookup
+/// needs to re-bind the on-TPM private key at sign time. Only
+/// populated for `backend = 'hello'` rows; NULL for every other
+/// backend.
+pub const SCHEMA_VERSION: i32 = 11;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -546,6 +552,16 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // skip this arm.
         if (1..10).contains(&current) {
             add_ssh_keys_enclave_tag_column(conn)?;
+        }
+        // v1..v10 -> v11: stamp the Windows Hello (NCrypt) CNG
+        // persistent-key-name column on `ssh_keys`. Existing rows
+        // backfill to NULL — the column carries the UTF-8 key name
+        // the `NCryptOpenKey` lookup re-binds to on every sign, and
+        // only `backend = 'hello'` rows ever set it. Fresh installs
+        // (`current == 0`) get the column from `SCHEMA_SQL` and skip
+        // this arm.
+        if (1..11).contains(&current) {
+            add_ssh_keys_hello_credential_name_column(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -723,6 +739,28 @@ fn add_ssh_keys_enclave_tag_column(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys.enclave_tag: {e}")))
 }
 
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN hello_credential_name TEXT
+/// NULL` on the v10 -> v11 hop. Same shape contract as the older
+/// ALTER helpers: a one-shot batch gated by the version range inside
+/// `bootstrap_schema`, with SQLite's duplicate-column-name error
+/// reserved for the re-run case which the gate prevents. Fresh
+/// installs (`current == 0`) get the column from `SCHEMA_SQL`.
+///
+/// `hello_credential_name` is the CNG persistent-key name the
+/// `NCryptOpenKey(provider, &hKey, name, …)` lookup re-binds to on
+/// every Hello-gated sign. Stored as TEXT because the name is the
+/// UTF-8 string we mint at create time (`letsflutssh-ssh-<userhash>-<uuid>`);
+/// the column stays NULL for every non-`hello` backend.
+fn add_ssh_keys_hello_credential_name_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE ssh_keys ADD COLUMN hello_credential_name TEXT NULL")
+        .map_err(|e| {
+            Error::Db(format!(
+                "bootstrap schema: add ssh_keys.hello_credential_name: {e}"
+            ))
+        })
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -782,12 +820,18 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     -- Apple Secure Enclave application-tag (v10). Opaque bytes the
     -- `kSecAttrApplicationTag` lookup matches on. NULL for every
     -- non-enclave row; populated only when `backend = 'enclave'`.
-    enclave_tag BLOB NULL
-    -- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
-    -- pkcs11 columns populated for backend = pkcs11 rows only.
-    -- enclave_tag populated for backend = enclave rows only.
-    -- See ARCHITECTURE.md schema docs for full notes.
+    enclave_tag BLOB NULL,
+    -- Windows Hello / NCrypt persistent-key name (v11). UTF-8 string
+    -- the `NCryptOpenKey(provider, &hKey, name, …)` lookup re-binds
+    -- to on every sign. NULL for every non-`hello` row; populated
+    -- only when `backend = 'hello'`.
+    hello_credential_name TEXT NULL
 );
+-- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
+-- pkcs11 columns populated for backend = pkcs11 rows only.
+-- enclave_tag populated for backend = enclave rows only.
+-- hello_credential_name populated for backend = hello rows only.
+-- See ARCHITECTURE.md schema docs for full notes.
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
 -- key (ssh_keys.id is TEXT, not INTEGER) and doubles as the PK so
@@ -1109,6 +1153,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
                  ",
             )
             .unwrap();
@@ -1175,6 +1220,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
                  ",
             )
             .unwrap();
@@ -1224,6 +1270,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
                  ",
             )
             .unwrap();
@@ -1289,6 +1336,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
                  ",
             )
             .unwrap();
@@ -1428,6 +1476,88 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v10 -> v11 upgrade hop. A database stamped at v10 with the
+    /// pre-v11 `ssh_keys` shape (no `hello_credential_name` column)
+    /// must pick it up on bootstrap. We build the v10 shape via a
+    /// raw `CREATE TABLE` instead of bootstrap-then-strip — `ALTER
+    /// TABLE DROP COLUMN` re-parses the on-disk CREATE-TABLE text
+    /// and the v11 column-block ends with a multi-line comment that
+    /// the SQLite parser trips on when the trailing column is
+    /// dropped. The v8 -> v9 test uses the same approach for the
+    /// same reason.
+    #[test]
+    fn bootstrap_v10_to_v11_adds_hello_credential_name_column_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch(
+                "CREATE TABLE ssh_keys ( \
+                    id TEXT PRIMARY KEY, \
+                    label TEXT NOT NULL, \
+                    private_key TEXT NOT NULL, \
+                    public_key TEXT NOT NULL, \
+                    key_type TEXT NOT NULL, \
+                    is_generated INTEGER NOT NULL DEFAULT 1, \
+                    created_at INTEGER NOT NULL, \
+                    deleted_at INTEGER NULL, \
+                    credential_id BLOB NULL, \
+                    application_string TEXT NULL, \
+                    has_user_verification INTEGER NOT NULL DEFAULT 0, \
+                    agent_policy TEXT NOT NULL DEFAULT 'ask', \
+                    backend TEXT NOT NULL DEFAULT 'software', \
+                    pkcs11_uri TEXT NULL, \
+                    pkcs11_module_path TEXT NULL, \
+                    pkcs11_token_serial TEXT NULL, \
+                    pkcs11_object_id BLOB NULL, \
+                    pkcs11_object_label TEXT NULL, \
+                    enclave_tag BLOB NULL \
+                 );",
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v11', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 10)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_col = false;
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                if name == "hello_credential_name" {
+                    has_col = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            has_col,
+            "ssh_keys.hello_credential_name missing after v10 -> v11"
+        );
+
+        let pre: Option<String> = conn
+            .inner()
+            .query_row(
+                "SELECT hello_credential_name FROM ssh_keys WHERE id = 'pre-v11'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(pre.is_none(), "non-hello row must keep NULL after v11 hop");
+
+        // Idempotent re-run.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1460,6 +1590,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
                  ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
                  ",
             )
             .unwrap();
@@ -1516,6 +1647,7 @@ mod tests {
             pkcs11_object_id: None,
             pkcs11_object_label: None,
             enclave_tag: None,
+            hello_credential_name: None,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

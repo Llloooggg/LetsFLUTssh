@@ -3331,4 +3331,32 @@ class SFr extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Clé SSH Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Libellé de la clé';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Authentifier avec Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, empreinte ou visage — Windows Hello signe ce challenge SSH.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Pas de TPM sur cet appareil. La clé reste en stockage utilisateur ; Windows Hello reste obligatoire à chaque signature.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Le firmware TPM ne gère pas P-384. Choisis P-256 ou RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Configure d\'abord Windows Hello dans Paramètres -> Options de connexion.';
 }

@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "Добавьте эту строку в ~/.ssh/authorized_keys на сервере.",
   "sshKeyEnclaveWizardTitle": "SSH-ключ в Secure Enclave",
   "sshKeyEnclaveWizardLabelHint": "Название ключа",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "SSH-ключ Windows Hello",
+  "helloWizardLabelHint": "Метка ключа",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Подтвердите через Windows Hello",
+  "helloPromptDescription": "PIN, отпечаток или лицо — Windows Hello подпишет SSH-запрос.",
+  "helloSoftwareGatedWarning": "На устройстве нет TPM. Ключ ляжет в пользовательское хранилище; Windows Hello всё равно прогоняет каждую подпись.",
+  "helloP384NotSupported": "Прошивка TPM не поддерживает P-384. Выберите P-256 или RSA-2048.",
+  "helloConfigureFirst": "Сначала настройте Windows Hello: Параметры -> Варианты входа."
 }

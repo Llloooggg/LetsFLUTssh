@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "أضف هذا السطر إلى ~/.ssh/authorized_keys على الخادم.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "اسم الـ key",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "مفتاح SSH عبر Windows Hello",
+  "helloWizardLabelHint": "تسمية المفتاح",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "المصادقة عبر Windows Hello",
+  "helloPromptDescription": "PIN أو بصمة أو وجه — يوقّع Windows Hello تحدّي SSH.",
+  "helloSoftwareGatedWarning": "لا يوجد TPM في هذا الجهاز. يبقى المفتاح في تخزين المستخدم؛ Windows Hello لا يزال يطالب بالتوقيع في كل مرة.",
+  "helloP384NotSupported": "برنامج TPM الثابت لا يدعم P-384. اختر P-256 أو RSA-2048.",
+  "helloConfigureFirst": "اضبط Windows Hello أولًا من الإعدادات -> خيارات تسجيل الدخول."
 }

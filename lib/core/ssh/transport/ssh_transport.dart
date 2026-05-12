@@ -178,6 +178,30 @@ class SshAuthPubkeyEnclaveRef extends SshAuthMethod {
   });
 }
 
+/// Windows Hello (NCrypt / Microsoft Platform Crypto Provider) SSH
+/// key. `publicOpenssh` carries the captured `id_*.pub` body the
+/// Rust connect path re-parses; `credentialName` is the CNG
+/// persistent-key name `NCryptOpenKey` re-binds to on every sign;
+/// `keyType` drives the algorithm selection
+/// (`ecdsa-sha2-nistp256` / `ecdsa-sha2-nistp384` / `rsa-2048`).
+///
+/// No PIN slot: the Hello prompt (PIN / fingerprint / face) fires
+/// at the OS layer inside `NCryptSignHash` per the UI policy
+/// chosen at create time. Hello keys are device-bound — the TPM
+/// (or PCP software KSP fallback) refuses to export the private
+/// bytes, so this method only works on the PC that generated the
+/// key.
+class SshAuthPubkeyHelloRef extends SshAuthMethod {
+  final String publicOpenssh;
+  final String credentialName;
+  final String keyType;
+  const SshAuthPubkeyHelloRef({
+    required this.publicOpenssh,
+    required this.credentialName,
+    required this.keyType,
+  });
+}
+
 /// PTY-backed interactive shell channel.
 abstract class SshShellChannel {
   /// Stdin: write user keystrokes / pasted bytes.

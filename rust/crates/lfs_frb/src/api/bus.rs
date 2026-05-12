@@ -617,6 +617,18 @@ pub enum BusConnectAuthRef {
         public_openssh: String,
         application_tag: Vec<u8>,
     },
+    /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+    /// hardware key. Carries the captured `id_*.pub` body + the
+    /// CNG persistent-key name `NCryptOpenKey` re-binds to + the
+    /// `key_type` short tag that drives algorithm selection. No
+    /// PIN slot — the Hello prompt (PIN / fingerprint / face)
+    /// fires inside `NCryptSignHash` per the UI policy chosen at
+    /// create time.
+    PubkeyHello {
+        public_openssh: String,
+        credential_name: String,
+        key_type: String,
+    },
     Agent,
 }
 
@@ -674,6 +686,15 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
             } => lfs_core::connection::ConnectAuthRef::PubkeyEnclave {
                 public_openssh,
                 application_tag,
+            },
+            BusConnectAuthRef::PubkeyHello {
+                public_openssh,
+                credential_name,
+                key_type,
+            } => lfs_core::connection::ConnectAuthRef::PubkeyHello {
+                public_openssh,
+                credential_name,
+                key_type,
             },
             BusConnectAuthRef::Agent => lfs_core::connection::ConnectAuthRef::Agent,
         }

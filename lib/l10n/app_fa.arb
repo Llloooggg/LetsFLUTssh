@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "این خط را به ~/.ssh/authorized_keys روی سرور اضافه کنید.",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
   "sshKeyEnclaveWizardLabelHint": "نام key",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "کلید SSH از Windows Hello",
+  "helloWizardLabelHint": "برچسب کلید",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "احراز هویت با Windows Hello",
+  "helloPromptDescription": "PIN، اثر انگشت یا چهره — Windows Hello این چالش SSH را امضا می‌کند.",
+  "helloSoftwareGatedWarning": "این دستگاه TPM ندارد. کلید در فضای کاربر می‌ماند؛ هر امضا را همچنان Windows Hello کنترل می‌کند.",
+  "helloP384NotSupported": "فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کن.",
+  "helloConfigureFirst": "ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن."
 }

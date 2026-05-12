@@ -1212,6 +1212,11 @@ class DbSshKey {
   /// for `backend = 'enclave'` rows on macOS / iOS.
   final Uint8List? enclaveTag;
 
+  /// Windows Hello CNG persistent-key name (schema v11). UTF-8
+  /// string the `NCryptOpenKey` lookup re-binds to on every sign.
+  /// Only populated for `backend = 'hello'` rows on Windows.
+  final String? helloCredentialName;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1231,6 +1236,7 @@ class DbSshKey {
     this.pkcs11ObjectId,
     this.pkcs11ObjectLabel,
     this.enclaveTag,
+    this.helloCredentialName,
   });
 
   @override
@@ -1252,7 +1258,8 @@ class DbSshKey {
       pkcs11TokenSerial.hashCode ^
       pkcs11ObjectId.hashCode ^
       pkcs11ObjectLabel.hashCode ^
-      enclaveTag.hashCode;
+      enclaveTag.hashCode ^
+      helloCredentialName.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1276,7 +1283,8 @@ class DbSshKey {
           pkcs11TokenSerial == other.pkcs11TokenSerial &&
           pkcs11ObjectId == other.pkcs11ObjectId &&
           pkcs11ObjectLabel == other.pkcs11ObjectLabel &&
-          enclaveTag == other.enclaveTag;
+          enclaveTag == other.enclaveTag &&
+          helloCredentialName == other.helloCredentialName;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
@@ -1357,6 +1365,10 @@ class DbSshKeyMetadata {
   /// PKCS#11 object label (`CKA_LABEL`).
   final String? pkcs11ObjectLabel;
 
+  /// Windows Hello CNG persistent-key name captured at import.
+  /// `None` for non-`hello` rows.
+  final String? helloCredentialName;
+
   const DbSshKeyMetadata({
     required this.id,
     required this.label,
@@ -1370,6 +1382,7 @@ class DbSshKeyMetadata {
     this.pkcs11ModulePath,
     this.pkcs11TokenSerial,
     this.pkcs11ObjectLabel,
+    this.helloCredentialName,
   });
 
   @override
@@ -1385,7 +1398,8 @@ class DbSshKeyMetadata {
       backend.hashCode ^
       pkcs11ModulePath.hashCode ^
       pkcs11TokenSerial.hashCode ^
-      pkcs11ObjectLabel.hashCode;
+      pkcs11ObjectLabel.hashCode ^
+      helloCredentialName.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1403,7 +1417,8 @@ class DbSshKeyMetadata {
           backend == other.backend &&
           pkcs11ModulePath == other.pkcs11ModulePath &&
           pkcs11TokenSerial == other.pkcs11TokenSerial &&
-          pkcs11ObjectLabel == other.pkcs11ObjectLabel;
+          pkcs11ObjectLabel == other.pkcs11ObjectLabel &&
+          helloCredentialName == other.helloCredentialName;
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.

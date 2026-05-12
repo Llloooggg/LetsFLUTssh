@@ -3124,4 +3124,30 @@ class SZh extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH 密钥';
+
+  @override
+  String get helloWizardLabelHint => '密钥标签';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => '通过 Windows Hello 验证';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN、指纹或人脸 — Windows Hello 会为此 SSH challenge 签名。';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      '此设备没有 TPM。密钥会落在用户存储中,但每次签名仍由 Windows Hello 守门。';
+
+  @override
+  String get helloP384NotSupported => 'TPM 固件不支持 P-384。请选择 P-256 或 RSA-2048。';
+
+  @override
+  String get helloConfigureFirst => '请先在 设置 -> 登录选项 中配置 Windows Hello。';
 }

@@ -557,6 +557,20 @@ Auth policy at create time picks between `kSecAccessControlBiometryCurrentSet` (
 
 Code-signing requirement: unsigned / ad-hoc bundles surface `errSecMissingEntitlement` (`-34018`) on the first `SecKeyCreateRandomKey` call. The wizard probe step classifies this separately so the UI can route the user at the `codesign -s -` remediation in USER_GUIDE.md. Distributed releases are signed and work out of the box.
 
+## Windows Hello SSH keys
+
+On Windows 10 1607+ with Hello configured, SSH keys can be generated directly under the Microsoft Platform Crypto Provider — TPM 2.0 on hardware-capable hosts, the PCP software KSP fallback otherwise. The provider refuses to export the private bytes; every connect-time signature routes through `NCryptSignHash`, and Windows surfaces the Hello prompt (PIN / fingerprint / face) at the FFI boundary per the `NCRYPT_UI_POLICY_PROPERTY` set at key creation. At-rest theft of the laptop yields nothing the attacker can replay — the chip refuses to sign without a fresh Hello unlock, and the wrapped key material is bound to the user's CNG namespace such that another Windows install cannot deserialise it.
+
+We deliberately avoid `KeyCredentialManager.RequestSignAsync` even though it has a friendlier surface. KCM produces RSA-PSS signatures; SSH `rsa-sha2-256` / `rsa-sha2-512` requires PKCS#1 v1.5; the two padding schemes are not re-encodable into each other. The only Windows path that emits SSH-compatible signatures is NCrypt + PCP with explicit `BCRYPT_PAD_PKCS1` (RSA) or no padding (ECDSA).
+
+What we persist alongside the SSH key row: the CNG persistent-key name (`letsflutssh-ssh-<user-hash>-<uuid>`) and the OpenSSH public-key body. None of these grants signing capability — `NCryptOpenKey` matches the name against the user's CNG namespace on every sign call, and the Hello prompt gates the operation regardless. An attacker reading the on-disk SQLCipher DB obtains the name but cannot redirect CNG to sign for them without unlocking Hello.
+
+UI policy at create time pins `NCRYPT_UI_PROTECT_KEY_FLAG | NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`. The "force high protection" flag requires Hello to be configured at the OS level — finalize fails with `NTE_USER_CANCELLED` when it isn't (the OS surfaces the configure-Hello dialog and the user dismissed it). This is the deliberate opposite default from the T2 hardware-vault path, which omits UI policy because it is the *vault* the primary master-password unlock already gated against. The SSH path takes the prompt every time because the Hello ceremony *is* the SSH authentication factor.
+
+TPM-tier classification is honest in the UI. Probe inspects `NCRYPT_IMPL_TYPE_PROPERTY` on a throw-away key and labels the wizard accordingly: "Windows Hello" for `NCRYPT_IMPL_HARDWARE_FLAG` set (TPM 2.0 backing), "Windows Hello (Software-gated)" for the software KSP fallback. The weaker path is *never* labelled as plain "Windows Hello" — per the capability ladder's rung-6 honest-label rule, the user always knows which tier the key landed at.
+
+`.lfs` archive export of Hello-bound keys carries the row + the CNG name only; the importing device's connect path tries `NCryptOpenKey` and surfaces `Error::KeyNotFound` when the name isn't registered in the destination user's CNG namespace. Cross-device portability is impossible by provider design.
+
 ## In-process ssh-agent endpoint
 
 `Settings → External SSH client integration` exposes the app's hardware-bound keys to other SSH-protocol-speaking applications on the same host (`git`, OpenSSH `ssh`, IDE plugins). The endpoint is off by default; the user opts in explicitly. When running it binds a Unix domain socket at `${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` (Linux / macOS) with parent-directory mode `0o700`, or a Windows named pipe at `\\.\pipe\letsflutssh-agent.<pid>` whose default DACL grants only the current user SID + SYSTEM.

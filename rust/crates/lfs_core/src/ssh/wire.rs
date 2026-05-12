@@ -159,6 +159,32 @@ pub fn encode_public_ecdsa_p256(uncompressed_65: &[u8]) -> Result<Vec<u8>, Error
     Ok(out)
 }
 
+/// Wrap an uncompressed ECDSA-P384 public point (`0x04 || X(48) ||
+/// Y(48)`) into the SSH `ecdsa-sha2-nistp384` public-key blob:
+///
+/// ```text
+/// string "ecdsa-sha2-nistp384"
+/// string "nistp384"
+/// string Q (uncompressed point — 0x04 || X || Y)
+/// ```
+///
+/// Rejects inputs that are not 97 bytes or whose leading byte is not
+/// `0x04`.
+pub fn encode_public_ecdsa_p384(uncompressed_97: &[u8]) -> Result<Vec<u8>, Error> {
+    if uncompressed_97.len() != 97 || uncompressed_97[0] != 0x04 {
+        return Err(Error::Auth(format!(
+            "ssh wire: ecdsa-p384 public point must be 97 bytes starting with 0x04, got len {} first 0x{:02x}",
+            uncompressed_97.len(),
+            uncompressed_97.first().copied().unwrap_or(0)
+        )));
+    }
+    let mut out = Vec::with_capacity(128);
+    push_ssh_string(&mut out, b"ecdsa-sha2-nistp384");
+    push_ssh_string(&mut out, b"nistp384");
+    push_ssh_string(&mut out, uncompressed_97);
+    Ok(out)
+}
+
 /// Wrap a 32-byte raw Ed25519 public key into the SSH `ssh-ed25519`
 /// public-key blob:
 ///
@@ -445,6 +471,31 @@ mod tests {
         assert_eq!(&out[35..39], &[0, 0, 0, 65]);
         assert_eq!(out[39], 0x04);
         assert_eq!(out.len(), 4 + 19 + 4 + 8 + 4 + 65);
+    }
+
+    #[test]
+    fn ecdsa_p384_public_blob_matches_ssh_keygen_shape() {
+        let mut point = vec![0x04u8];
+        point.extend(std::iter::repeat_n(0xAA, 48)); // X
+        point.extend(std::iter::repeat_n(0xBB, 48)); // Y
+        let out = encode_public_ecdsa_p384(&point).unwrap();
+        // string "ecdsa-sha2-nistp384"
+        assert_eq!(&out[..4], &[0, 0, 0, 19]);
+        assert_eq!(&out[4..23], b"ecdsa-sha2-nistp384");
+        // string "nistp384"
+        assert_eq!(&out[23..27], &[0, 0, 0, 8]);
+        assert_eq!(&out[27..35], b"nistp384");
+        // string Q (97 bytes)
+        assert_eq!(&out[35..39], &[0, 0, 0, 97]);
+        assert_eq!(out[39], 0x04);
+        assert_eq!(out.len(), 4 + 19 + 4 + 8 + 4 + 97);
+    }
+
+    #[test]
+    fn ecdsa_p384_public_blob_rejects_wrong_point_format() {
+        let bad = vec![0x02u8; 97];
+        let err = encode_public_ecdsa_p384(&bad).unwrap_err();
+        assert!(matches!(err, Error::Auth(_)));
     }
 
     #[test]

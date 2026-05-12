@@ -202,6 +202,19 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String publicOpenssh,
     required Uint8List applicationTag,
   }) = BusConnectAuthRef_PubkeyEnclave;
+
+  /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+  /// hardware key. Carries the captured `id_*.pub` body + the
+  /// CNG persistent-key name `NCryptOpenKey` re-binds to + the
+  /// `key_type` short tag that drives algorithm selection. No
+  /// PIN slot — the Hello prompt (PIN / fingerprint / face)
+  /// fires inside `NCryptSignHash` per the UI policy chosen at
+  /// create time.
+  const factory BusConnectAuthRef.pubkeyHello({
+    required String publicOpenssh,
+    required String credentialName,
+    required String keyType,
+  }) = BusConnectAuthRef_PubkeyHello;
   const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 

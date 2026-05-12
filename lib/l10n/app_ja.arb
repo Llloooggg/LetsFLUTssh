@@ -1197,5 +1197,13 @@
   "sshKeyAuthorizedKeysHint": "この行をサーバーの ~/.ssh/authorized_keys に追加してください。",
   "sshKeyEnclaveWizardTitle": "Secure Enclave SSH キー",
   "sshKeyEnclaveWizardLabelHint": "キー名",
-  "sshKeyEnclaveBadge": "Secure Enclave"
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH キー",
+  "helloWizardLabelHint": "キーのラベル",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello で認証",
+  "helloPromptDescription": "PIN・指紋・顔のいずれかで Windows Hello が SSH チャレンジに署名します。",
+  "helloSoftwareGatedWarning": "この端末には TPM がありません。鍵はユーザー領域に置かれますが、署名のたびに Windows Hello を通します。",
+  "helloP384NotSupported": "TPM ファームウェアが P-384 をサポートしていません。P-256 か RSA-2048 を選択してください。",
+  "helloConfigureFirst": "まず 設定 -> サインイン オプション で Windows Hello を有効化してください。"
 }

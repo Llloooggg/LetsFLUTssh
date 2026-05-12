@@ -30,6 +30,7 @@ pub mod format;
 pub mod forward;
 pub mod fprintd;
 pub mod hardware_tier_vault;
+pub mod hello;
 pub mod host_info;
 pub mod keychain_marker;
 pub mod keychain_password_gate;

@@ -239,6 +239,44 @@ Re-launch the app and re-run the wizard. The `-s -` signature is ad-hoc (no Appl
 | Intel Macs without a T2 chip | Hidden — no Secure Enclave silicon. |
 | Linux / Windows / Android | Hidden — chip doesn't exist on these platforms. |
 
+### Hardware key (Windows Hello)
+
+On Windows 10 1607+ with Windows Hello configured, LetsFLUTssh can generate SSH keys whose private half lives in the TPM (or, on hosts without a TPM, in the Microsoft Platform Crypto Provider's software KSP fallback). The chip refuses to export the private bytes; every connect-time signature routes through `NCryptSignHash`, and Windows fires the Hello prompt — PIN, fingerprint, or face — at the call boundary.
+
+- **Algorithms.** ECDSA P-256 (`ecdsa-sha2-nistp256`, preferred default), ECDSA P-384 (`ecdsa-sha2-nistp384`, TPM-firmware-dependent), and RSA-2048 PKCS#1 v1.5 (`rsa-sha2-256` / `rsa-sha2-512`, for older OpenSSH servers).
+- **Device-bound.** Hello-bound keys cannot be exported or copied to another PC — the key works only on the Windows install that generated it.
+- **Not `KeyCredentialManager`.** The wizard uses NCrypt + the Microsoft Platform Crypto Provider directly. The higher-level `KeyCredentialManager.RequestSignAsync` API produces RSA-PSS signatures that are not compatible with the SSH wire protocol — the SSH ecosystem requires PKCS#1 v1.5, which only the NCrypt path emits.
+
+#### Generating a key
+
+1. **Tools → SSH Keys → Windows Hello SSH key** (the row is visible only on Windows — macOS / Linux / Android hide it).
+2. The wizard probes the Microsoft Platform Crypto Provider. On hosts without Windows Hello configured the probe surfaces "Configure Windows Hello first in Settings -> Sign-in options" — open the Settings app, set up a PIN as the minimum baseline, and re-run the wizard.
+3. Pick a label and an algorithm:
+   - **ECDSA P-256** — preferred default; smallest signature, widest TPM support.
+   - **ECDSA P-384** — optional; older Infineon TPM firmware may refuse this algorithm. The wizard surfaces "TPM firmware does not support P-384" when create fails on this branch — pick P-256 or RSA-2048 instead.
+   - **RSA-2048** — fallback for older OpenSSH servers that don't speak ECDSA.
+4. Tap **Generate**. Windows fires the Hello prompt (PIN / fingerprint / face); on success the wizard shows the `authorized_keys`-shaped public-key line with a Copy affordance.
+5. Add that line to `~/.ssh/authorized_keys` on the server.
+6. Reference the new row from a session's **Auth → Key from manager** drop-down. Every connect attempt fires the Hello prompt — there is no caching layer like the Apple Secure Enclave's LAContext window. Hello is the ceremony.
+
+#### TPM vs Software-gated
+
+The wizard surfaces a "Software-gated" warning when the host has no TPM. The key still lands in the Microsoft Platform Crypto Provider, but the private bytes live in user-mode software rather than on-chip silicon. The Hello prompt still gates every signature, but the cryptographic strength reduces from "TPM-bound key" to "Hello-gated software key". The badge in the key manager carries the localized "Software-gated" suffix so you can tell at a glance which tier the key landed at.
+
+#### Recovery from device loss
+
+There is none. The private key never leaves the TPM (or PCP software KSP); the `.lfs` archive carries only the CNG persistent-key name, which only matches on the original PC. If the device is lost or wiped, re-generate the key on the replacement PC and update `authorized_keys` on the server. Hello-bound keys are deliberately device-bound — that's the security property that makes them stronger than software-only SSH keys.
+
+#### Platform availability
+
+| Platform | Status |
+|---|---|
+| Windows 10 1607+ with TPM 2.0 + Hello | Supported. Wizard surfaces "Windows Hello" enabled. |
+| Windows 10 1607+ without TPM + Hello | Supported with the "Software-gated" honest-label warning — keys live in user-mode storage, Hello still gates every signature. |
+| Windows + Hello not configured | Hidden in the wizard with the "Configure Windows Hello first" reason. |
+| Windows < 10 1607 | Hidden — Microsoft Platform Crypto Provider is unreachable. |
+| macOS / Linux / Android / iOS | Hidden — provider doesn't exist on these platforms. |
+
 ---
 
 ## 4. Terminal

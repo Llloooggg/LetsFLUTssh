@@ -172,6 +172,10 @@ pub struct DbSshKey {
     /// `SecItemCopyMatching` lookup matches on it. Only populated
     /// for `backend = 'enclave'` rows on macOS / iOS.
     pub enclave_tag: Option<Vec<u8>>,
+    /// Windows Hello CNG persistent-key name (schema v11). UTF-8
+    /// string the `NCryptOpenKey` lookup re-binds to on every sign.
+    /// Only populated for `backend = 'hello'` rows on Windows.
+    pub hello_credential_name: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -195,6 +199,7 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             pkcs11_object_id: r.pkcs11_object_id,
             pkcs11_object_label: r.pkcs11_object_label,
             enclave_tag: r.enclave_tag,
+            hello_credential_name: r.hello_credential_name,
         }
     }
 }
@@ -220,6 +225,7 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             pkcs11_object_id: r.pkcs11_object_id,
             pkcs11_object_label: r.pkcs11_object_label,
             enclave_tag: r.enclave_tag,
+            hello_credential_name: r.hello_credential_name,
         }
     }
 }
@@ -304,6 +310,9 @@ pub struct DbSshKeyMetadata {
     pub pkcs11_token_serial: Option<String>,
     /// PKCS#11 object label (`CKA_LABEL`).
     pub pkcs11_object_label: Option<String>,
+    /// Windows Hello CNG persistent-key name captured at import.
+    /// `None` for non-`hello` rows.
+    pub hello_credential_name: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
@@ -321,6 +330,7 @@ impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
             pkcs11_module_path: m.pkcs11_module_path,
             pkcs11_token_serial: m.pkcs11_token_serial,
             pkcs11_object_label: m.pkcs11_object_label,
+            hello_credential_name: m.hello_credential_name,
         }
     }
 }
@@ -1694,6 +1704,7 @@ mod tests {
             pkcs11_object_id: None,
             pkcs11_object_label: None,
             enclave_tag: None,
+            hello_credential_name: None,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

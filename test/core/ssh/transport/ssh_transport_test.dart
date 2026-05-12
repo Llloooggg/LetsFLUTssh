@@ -59,6 +59,7 @@ void main() {
         SshAuthPubkeySkRef() => 'pubkey-sk',
         SshAuthPubkeyPkcs11Ref() => 'pubkey-pkcs11',
         SshAuthPubkeyEnclaveRef() => 'pubkey-enclave',
+        SshAuthPubkeyHelloRef() => 'pubkey-hello',
       };
       expect(describe(const SshAuthAgent()), 'agent');
       expect(describe(const SshAuthPasswordRef('x')), 'password');
@@ -83,6 +84,16 @@ void main() {
           ),
         ),
         'pubkey-enclave',
+      );
+      expect(
+        describe(
+          const SshAuthPubkeyHelloRef(
+            publicOpenssh: 'ecdsa-sha2-nistp256 AAAA...',
+            credentialName: 'letsflutssh-ssh-abc-1234',
+            keyType: 'ecdsa-sha2-nistp256',
+          ),
+        ),
+        'pubkey-hello',
       );
     });
   });

@@ -3236,4 +3236,32 @@ class SAr extends S {
 
   @override
   String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'مفتاح SSH عبر Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'تسمية المفتاح';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'المصادقة عبر Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN أو بصمة أو وجه — يوقّع Windows Hello تحدّي SSH.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'لا يوجد TPM في هذا الجهاز. يبقى المفتاح في تخزين المستخدم؛ Windows Hello لا يزال يطالب بالتوقيع في كل مرة.';
+
+  @override
+  String get helloP384NotSupported =>
+      'برنامج TPM الثابت لا يدعم P-384. اختر P-256 أو RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'اضبط Windows Hello أولًا من الإعدادات -> خيارات تسجيل الدخول.';
 }

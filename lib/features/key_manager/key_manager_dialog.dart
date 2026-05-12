@@ -31,6 +31,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/enclave_ssh_dialog.dart';
+import '../../widgets/hello_ssh_dialog.dart';
 import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/toast.dart';
 
@@ -198,6 +199,20 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
             tooltip: s.sshKeyAddHardwareBound,
             onTap: _generateEnclaveKey,
           ),
+        // Windows Hello (NCrypt / PCP) generate. Capability-ladder
+        // rung 3 on Windows (native `NCryptCreatePersistedKey` against
+        // the Microsoft Platform Crypto Provider); rung 4 elsewhere
+        // (toolbar action hidden — the underlying provider only
+        // exists on Windows). On hosts without Hello configured the
+        // wizard probe step routes the user at the "configure first"
+        // reason.
+        if (isWindowsPlatform)
+          _ToolbarButton(
+            icon: Icons.shield_outlined,
+            label: s.helloWizardTitle,
+            tooltip: s.helloWizardTitle,
+            onTap: _generateHelloKey,
+          ),
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -241,11 +256,14 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         entry.keyType.startsWith('sk-ecdsa-sha2-');
     final isPkcs11 = entry.isPkcs11;
     final isEnclave = entry.isEnclave;
+    final isHello = entry.isHello;
     final iconData = isFido2
         ? Icons.usb
         : (isPkcs11
               ? Icons.memory
-              : (isEnclave ? Icons.shield_outlined : Icons.vpn_key));
+              : (isEnclave
+                    ? Icons.shield_outlined
+                    : (isHello ? Icons.shield_outlined : Icons.vpn_key)));
     return AppDataRow(
       icon: iconData,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
@@ -275,6 +293,14 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.xs),
             child: EnclaveBadge(label: s.sshKeyEnclaveBadge),
+          ),
+        if (isHello)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: HelloBadge(
+              label: s.helloBadge,
+              credentialName: entry.helloCredentialName,
+            ),
           ),
         if (expired)
           Padding(
@@ -814,6 +840,42 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     } catch (e) {
       AppLogger.instance.log(
         'enclave wizard failed: $e',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(s, e),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+    if (result == null || !mounted) return;
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
+    if (!mounted) return;
+    Toast.show(
+      context,
+      message: s.keyImported(result.label),
+      level: ToastLevel.success,
+    );
+  }
+
+  /// Windows Hello (NCrypt / PCP) key generation. Opens the wizard
+  /// dialog ([HelloSshDialog]) which probes the provider, captures
+  /// the algorithm radio choice, fires `helloSshGenerate`, and
+  /// surfaces the authorized_keys-shaped public-key line. The row
+  /// lands Rust-side inside the generate call; we only refresh the
+  /// listing and surface the success toast.
+  Future<void> _generateHelloKey() async {
+    final s = S.of(context);
+    final HelloSshResult? result;
+    try {
+      result = await HelloSshDialog.show(context);
+    } catch (e) {
+      AppLogger.instance.log(
+        'hello wizard failed: $e',
         name: 'KeyManager',
         error: e,
       );

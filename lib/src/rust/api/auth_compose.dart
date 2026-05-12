@@ -148,4 +148,15 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required String publicOpenssh,
     required Uint8List applicationTag,
   }) = DbPreparedAuthRef_PubkeyEnclave;
+
+  /// Windows Hello (NCrypt / Microsoft Platform Crypto Provider)
+  /// hardware key. `credential_name` is the CNG persistent-key
+  /// name captured at create time; no PIN slot — Hello fires at
+  /// the OS layer inside `NCryptSignHash` per the UI policy chosen
+  /// when the key landed.
+  const factory DbPreparedAuthRef.pubkeyHello({
+    required String publicOpenssh,
+    required String credentialName,
+    required String keyType,
+  }) = DbPreparedAuthRef_PubkeyHello;
 }

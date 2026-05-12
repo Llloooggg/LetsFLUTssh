@@ -8,3 +8,4 @@
 //! `lfs_os_security::hardware_tier_vault::*` surface.
 
 pub mod hardware_vault;
+pub mod ncrypt_ssh;
