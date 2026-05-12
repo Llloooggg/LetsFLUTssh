@@ -43,9 +43,10 @@
 
 use std::fmt;
 // `Path` is used only by the Apple-side file-name helpers below;
-// cfg-gate so Android (which has its own `crate::android::hardware_vault`
-// path resolution) doesn't fail with an unused-import warning.
-#[cfg(not(target_os = "android"))]
+// cfg-gate to Apple targets so non-Apple builds don't fail with an
+// unused-import warning. Windows + Android each own their path
+// resolution in their own modules.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 use std::path::Path;
 
 /// Classified outcome of [`probe_detail`]. Mirrors the Dart
@@ -358,23 +359,26 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.ct_eq(b).into()
 }
 
-// Apple-side filenames. On Android the parallel constants live
-// in `crate::android::hardware_vault` (different files) so these
-// helpers stay cfg-gated to non-Android desktops + iOS. Exposed
-// `pub` so `lfs_core::security::wipe`'s coverage tests can
-// cross-reference the canonical filename without copy-pasting a
-// string literal that drifts.
+// Apple-side filenames. Other platforms own their constants in
+// their own modules (`crate::windows::hardware_vault`,
+// `crate::android::hardware_vault`). Exposed `pub` so
+// `lfs_core::security::wipe`'s coverage tests can cross-reference
+// the canonical filename without copy-pasting a string literal
+// that drifts. Constants stay visible on non-Apple desktops so
+// the wipe-coverage test can compile-check them; the path helpers
+// below are Apple-only to keep dead-code linting happy on
+// Windows / Linux.
 #[cfg(not(target_os = "android"))]
 pub const VAULT_FILE_NAME: &str = "hardware_vault_apple.bin";
 #[cfg(not(target_os = "android"))]
 pub const BIO_PASSWORD_FILE_NAME: &str = "hardware_vault_password_overlay_apple.bin";
 
-#[cfg(not(target_os = "android"))]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 fn vault_file_path(support_dir: &str) -> std::path::PathBuf {
     Path::new(support_dir).join(VAULT_FILE_NAME)
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 fn bio_password_file_path(support_dir: &str) -> std::path::PathBuf {
     Path::new(support_dir).join(BIO_PASSWORD_FILE_NAME)
 }
@@ -385,27 +389,65 @@ fn bio_password_file_path(support_dir: &str) -> std::path::PathBuf {
 /// "show unlock dialog" vs "first-launch wizard"; the salt
 /// companion file is checked Dart-side because the Dart layer owns
 /// the salt's lifecycle (it's the per-install random seed).
+///
+/// Each platform owns its own primary-vault filename (Apple's
+/// `hardware_vault_apple.bin`, Windows's `hardware_vault.bin`,
+/// Android's `hardware_vault_android.bin`) so this probe dispatches
+/// per-target to avoid cross-platform false positives.
 pub fn is_stored(support_dir: &str) -> bool {
     #[cfg(target_os = "android")]
     {
         crate::android::hardware_vault::is_stored(support_dir)
     }
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "windows")]
+    {
+        crate::windows::hardware_vault::is_stored(support_dir)
+    }
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         vault_file_path(support_dir).exists()
+    }
+    #[cfg(not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android",
+        target_os = "windows"
+    )))]
+    {
+        let _ = support_dir;
+        false
     }
 }
 
 /// True when the biometric-overlay password file exists. Same
-/// existence-check semantics as [`is_stored`].
+/// existence-check semantics as [`is_stored`]. Each platform owns
+/// its own overlay filename (Apple's lives under
+/// `hardware_vault_password_overlay_apple.bin`; Windows under
+/// `hardware_vault_password_overlay_windows.bin`; Android under
+/// `hardware_vault_android_bio.bin`) so the existence probe
+/// dispatches per-target to avoid cross-platform false positives.
 pub fn is_biometric_password_stored(support_dir: &str) -> bool {
     #[cfg(target_os = "android")]
     {
         crate::android::hardware_vault::is_biometric_password_stored(support_dir)
     }
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "windows")]
+    {
+        crate::windows::hardware_vault::is_biometric_password_stored(support_dir)
+    }
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         bio_password_file_path(support_dir).exists()
+    }
+    #[cfg(not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android",
+        target_os = "windows"
+    )))]
+    {
+        let _ = support_dir;
+        false
     }
 }
 
@@ -1596,8 +1638,15 @@ mod tests {
     }
 
     // ─── is_stored / is_biometric_password_stored on real FS ───────
+    //
+    // Apple-host coverage — the dispatcher routes Windows / Android to
+    // their own modules whose tests live alongside the per-platform
+    // backend. Pinning these checks under `cfg(target_os = "macos")`
+    // keeps the assertion against the canonical Apple filename
+    // constants stable; the Windows + Android backends carry equivalent
+    // existence-probe tests in their own modules.
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     #[test]
     fn is_stored_returns_false_for_missing_file_and_true_after_create() {
         let tmp = tempfile::tempdir().expect("tmp dir");
@@ -1607,7 +1656,7 @@ mod tests {
         assert!(is_stored(&support));
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     #[test]
     fn is_biometric_password_stored_distinguishes_overlay_file() {
         let tmp = tempfile::tempdir().expect("tmp dir");

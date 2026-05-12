@@ -561,5 +561,20 @@ mod tests {
                 "Android bio-vault filename const drifted from MANAGED_FILES"
             );
         }
+
+        // And for the Windows primary + biometric overlay files.
+        #[cfg(target_os = "windows")]
+        {
+            assert_eq!(
+                lfs_os_security::windows::hardware_vault::VAULT_FILE,
+                "hardware_vault.bin",
+                "Windows vault filename const drifted from MANAGED_FILES"
+            );
+            assert_eq!(
+                lfs_os_security::windows::hardware_vault::BIO_PASSWORD_FILE,
+                "hardware_vault_password_overlay_windows.bin",
+                "Windows bio-overlay filename const drifted from MANAGED_FILES"
+            );
+        }
     }
 }

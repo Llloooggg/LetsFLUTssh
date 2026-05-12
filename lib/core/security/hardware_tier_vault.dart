@@ -279,6 +279,35 @@ class HardwareTierVault {
     }
   }
 
+  /// True when a platform-bound biometric overlay (sealed master
+  /// password) is on disk for the Hardware tier. The overlay is a
+  /// shortcut that releases the typed password from an
+  /// OS-biometric-gated slot; absent overlay means the user has to
+  /// type the password every time.
+  ///
+  /// Apple (Secure Enclave + `kSecAccessControlBiometryCurrentSet`),
+  /// Android (Hardware Keystore + biometric-bound wrap key alias
+  /// `lfs.hardware_tier_vault.l3.bio`), and Windows
+  /// (NCrypt persistent key `letsflutssh_hardware_vault_bio_v1`
+  /// gated by `NCRYPT_UI_PROTECT_KEY_FLAG`) all support the overlay.
+  /// Linux returns false until the matching TPM-sealed overlay file
+  /// lands.
+  Future<bool> isBiometricPasswordStored() async {
+    if (!_usesRust) return false;
+    try {
+      final dir = await getApplicationSupportDirectory();
+      return await rust_vault.hardwareTierVaultIsBiometricPasswordStored(
+        supportDir: dir.path,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'HardwareTierVault.isBiometricPasswordStored failed: $e',
+        name: 'HardwareTierVault',
+      );
+      return false;
+    }
+  }
+
   /// Drop the sealed blob. Called on tier switch away from T2 and
   /// on PIN change (before a new [store]).
   Future<void> clear() async {
