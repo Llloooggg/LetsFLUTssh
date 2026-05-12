@@ -108,4 +108,15 @@ dependencies {
     // HardwareVaultPlugin compiles against.
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.fragment:fragment-ktx:1.6.2")
+
+    // System FIDO2 / passkey broker: androidx.credentials drives the
+    // platform security-key dialog (USB-host / NFC / BLE / StrongBox
+    // passkey). The `play-services-auth` companion lights the
+    // Credential Manager runtime up on devices where Play Services
+    // backs the API; on GMS-less ROMs the system-level CM runtime
+    // ships in-platform from API 34+, and the runtime probe in
+    // `Fido2Broker.isAvailable()` honestly reports `false` on
+    // earlier OS-less-GMS builds.
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
 }

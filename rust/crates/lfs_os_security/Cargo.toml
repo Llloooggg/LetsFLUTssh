@@ -84,6 +84,13 @@ windows = { version = "0.62", features = [
     "Win32_System_RemoteDesktop",
     "Win32_Security_Cryptography",
     "Win32_UI_WindowsAndMessaging",
+    # `WebAuthN*` symbols for the system FIDO2 broker
+    # (`fido2_broker::windows`). The OS dialog the broker fires
+    # covers USB + NFC + BLE + the platform Hello authenticator
+    # without admin permission. Windows 10 1903+ ships
+    # `webauthn.dll` in-box; older revisions are filtered out by
+    # the runtime `WebAuthNGetApiVersionNumber()` probe.
+    "Win32_Networking_WindowsWebServices",
 ] }
 libloading = { workspace = true }
 # `IAsyncOperation` + `AsyncStatus` live in `windows-future` (a

@@ -92,3 +92,77 @@ pub async fn fido2_get_assertion(
         .map(DbSkAssertion::from)
         .map_err(|e| frb_err::from_core(&e))
 }
+
+/// Per-OS view of which FIDO2 transport the dispatcher will pick on
+/// the next assertion call. Drives the Settings security section's
+/// "Prefer direct USB HID over system dialog" tile — the subtitle
+/// names the broker label honestly when broker is selected, and the
+/// toggle stays disabled when only one path exists.
+#[derive(Debug, Clone)]
+pub struct DbFido2Transport {
+    /// One of `"broker"`, `"direct-hid"`, `"none"`. Mirrors
+    /// [`lfs_core::fido2::brokers::Transport`]; serialised as a
+    /// short tag so the Dart layer doesn't need a typed enum mirror.
+    pub kind: String,
+    /// True when the OS-managed broker (WebAuthn.dll /
+    /// ASAuthorization / Credential Manager) is reachable.
+    pub broker_available: bool,
+    /// True when the direct CTAP2 HID path is reachable.
+    pub direct_hid_available: bool,
+    /// Current "prefer direct HID" override state — same value the
+    /// Settings tile renders.
+    pub prefer_direct_hid: bool,
+}
+
+/// Snapshot the dispatcher state. Sync because the underlying probe
+/// is two atomic loads + a `WebAuthNGetApiVersionNumber()` (or
+/// equivalent) call; the Settings tile reads it on every rebuild.
+#[flutter_rust_bridge::frb(sync)]
+#[must_use]
+pub fn fido2_transport_snapshot() -> DbFido2Transport {
+    let prefer_direct = lfs_core::fido2::brokers::prefer_direct_hid();
+    let broker = lfs_os_security::fido2_broker::is_available().is_ok();
+    // The HID probe is cheap on Linux / Windows where the dep is
+    // present; on every other target it's a const `false`. We re-
+    // implement the cfg-gated branch from `lfs_core::fido2::brokers`
+    // here to avoid exposing a private helper.
+    let direct_hid = lfs_core::fido2::is_available_direct_hid();
+    let availability = lfs_core::fido2::brokers::Availability {
+        broker,
+        direct_hid,
+        prefer_direct_hid: prefer_direct,
+        os: lfs_core::fido2::brokers::Os::current(),
+    };
+    let kind = match lfs_core::fido2::brokers::select_transport(availability) {
+        lfs_core::fido2::brokers::Transport::Broker => "broker",
+        lfs_core::fido2::brokers::Transport::DirectHid => "direct-hid",
+        lfs_core::fido2::brokers::Transport::None => "none",
+    };
+    DbFido2Transport {
+        kind: kind.to_string(),
+        broker_available: broker,
+        direct_hid_available: direct_hid,
+        prefer_direct_hid: prefer_direct,
+    }
+}
+
+/// Flip the process-wide "Prefer direct USB HID over system dialog"
+/// toggle. The Dart Settings page calls this on every change; the
+/// Rust side mirrors the value into `AppConfig.fido2_prefer_direct_hid`
+/// and persists `config.json` separately. The atomic + the persisted
+/// field stay in sync via the bootstrap call from
+/// [`fido2_apply_prefer_direct_hid_from_config`].
+#[flutter_rust_bridge::frb(sync)]
+pub fn fido2_set_prefer_direct_hid(prefer: bool) {
+    lfs_core::fido2::brokers::set_prefer_direct_hid(prefer);
+}
+
+/// Hand the persisted `AppConfig.fido2_prefer_direct_hid` value into
+/// the process-wide atomic at startup. Called from the cold-start
+/// orchestrator after the config has been loaded and decoded — keeps
+/// the dispatcher's view consistent with on-disk state across the
+/// first FIDO2 assertion attempt.
+#[flutter_rust_bridge::frb(sync)]
+pub fn fido2_apply_prefer_direct_hid_from_config(prefer: bool) {
+    lfs_core::fido2::brokers::set_prefer_direct_hid(prefer);
+}

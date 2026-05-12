@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "Device của bạn không expose StrongBox HSM. Tạo key TEE-backed thay thế? Vẫn là hardware-backed, chỉ không có isolation của StrongBox.",
   "keystoreStrongBoxFallbackConfirm": "Dùng TEE",
   "keystoreStrongBoxFallbackCancel": "Huỷ",
+  "fido2BrokerSectionTitle": "Hardware security key",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "Dialog security key của hệ thống",
+  "fido2BrokerIosLabel": "Security key hệ thống (USB / NFC)",
+  "fido2BrokerAndroidLabel": "Security key hệ thống (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID trực tiếp (CTAP2)",
+  "fido2BrokerTransportNone": "Không khả dụng trên platform này",
+  "fido2BrokerCurrentTransportLabel": "Transport hiện tại",
+  "fido2BrokerPreferDirectHidTitle": "Ưu tiên USB HID trực tiếp thay vì dialog hệ thống",
+  "fido2BrokerPreferDirectHidSubtitle": "Nâng cao: bỏ qua {brokerLabel} trên các platform mà cả hai đường đều chạy. HID trực tiếp hỗ trợ nhiều tính năng authenticator hơn nhưng cần permission grant theo từng app.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "Thiết bị này chỉ có {transport}; toggle bị vô hiệu.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

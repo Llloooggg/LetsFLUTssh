@@ -278,10 +278,19 @@ class BehaviorConfig {
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
 
+  /// "Prefer direct USB HID over system dialog" toggle from the
+  /// Settings security section. Off by default. On Windows / macOS
+  /// the dispatcher in `lfs_core::fido2::brokers` skips the OS
+  /// security-key dialog and uses the direct CTAP2 HID transport
+  /// when this is on. Linux ignores it (no broker exists there);
+  /// iOS / Android ignore it (only the broker path works there).
+  final bool fido2PreferDirectHid;
+
   const BehaviorConfig({
     this.logLevel,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
+    this.fido2PreferDirectHid = false,
   });
 
   static const defaults = BehaviorConfig();
@@ -293,6 +302,7 @@ class BehaviorConfig {
     Object? logLevel = _unset,
     bool? checkUpdatesOnStart,
     Object? skippedVersion = _unset,
+    bool? fido2PreferDirectHid,
   }) => BehaviorConfig(
     logLevel: identical(logLevel, _unset)
         ? this.logLevel
@@ -301,6 +311,7 @@ class BehaviorConfig {
     skippedVersion: identical(skippedVersion, _unset)
         ? this.skippedVersion
         : skippedVersion as String?,
+    fido2PreferDirectHid: fido2PreferDirectHid ?? this.fido2PreferDirectHid,
   );
 
   @override
@@ -309,16 +320,22 @@ class BehaviorConfig {
       other is BehaviorConfig &&
           logLevel == other.logLevel &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion;
+          skippedVersion == other.skippedVersion &&
+          fido2PreferDirectHid == other.fido2PreferDirectHid;
 
   @override
-  int get hashCode =>
-      Object.hash(logLevel, checkUpdatesOnStart, skippedVersion);
+  int get hashCode => Object.hash(
+    logLevel,
+    checkUpdatesOnStart,
+    skippedVersion,
+    fido2PreferDirectHid,
+  );
 
   Map<String, dynamic> toJson() => {
     if (logLevel != null) 'log_level': logLevelToJson(logLevel),
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
+    'fido2_prefer_direct_hid': fido2PreferDirectHid,
   };
 
   factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
@@ -328,6 +345,8 @@ class BehaviorConfig {
       checkUpdatesOnStart:
           json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
+      fido2PreferDirectHid:
+          json['fido2_prefer_direct_hid'] as bool? ?? d.fido2PreferDirectHid,
     );
   }
 }

@@ -3415,4 +3415,42 @@ class SHi extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'रद्द करें';
+
+  @override
+  String get fido2BrokerSectionTitle => 'हार्डवेयर सिक्योरिटी keys';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'सिस्टम security key डायलॉग';
+
+  @override
+  String get fido2BrokerIosLabel => 'सिस्टम security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'सिस्टम security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'डायरेक्ट USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'इस प्लेटफ़ॉर्म पर उपलब्ध नहीं';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'मौजूदा transport';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'सिस्टम डायलॉग की जगह डायरेक्ट USB HID को प्राथमिकता दें';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'एडवांस्ड: जिन प्लेटफ़ॉर्म पर दोनों paths काम करते हैं वहाँ $brokerLabel को बायपास करें। डायरेक्ट HID authenticator के ज़्यादा फ़ीचर देता है पर हर app के लिए permission grant ज़रूरी होती है।';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'इस डिवाइस पर सिर्फ़ $transport उपलब्ध है; toggle disabled है।';
+  }
 }

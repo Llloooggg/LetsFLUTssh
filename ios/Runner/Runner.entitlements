@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  System FIDO2 / passkey broker entitlement. Required by
+	  ASAuthorizationSecurityKeyPublicKeyCredentialProvider so the
+	  OS security-key dialog can fire for `sk-*` SSH userauth
+	  signatures (lfs_os_security::fido2_broker::apple). iOS 15.5+.
+	  Covers USB CTAP2 + NFC transparently; no CoreNFC entitlement
+	  required — the OS handles the NFC ISO7816 dance internally.
+
+	  This file must be referenced from the Xcode target's "Code
+	  Signing Entitlements" build setting under
+	  `ios/Runner.xcodeproj`; reading it from disk is not enough.
+	-->
+	<key>com.apple.developer.web-browser.public-key-credential</key>
+	<true/>
+</dict>
+</plist>

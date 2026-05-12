@@ -3416,4 +3416,42 @@ class STr extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'İptal';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Donanım security key';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Sistem security key diyaloğu';
+
+  @override
+  String get fido2BrokerIosLabel => 'Sistem security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'Sistem security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'Doğrudan USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Bu platformda kullanılamıyor';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Geçerli transport';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Sistem diyaloğu yerine doğrudan USB HID tercih edilsin';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'İleri seviye: her iki yolun da çalıştığı platformlarda $brokerLabel bypass edilir. Doğrudan HID daha fazla authenticator özelliği sunar ama app bazında permission grant gerektirir.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Bu cihazda yalnızca $transport mevcut; toggle devre dışı.';
+  }
 }

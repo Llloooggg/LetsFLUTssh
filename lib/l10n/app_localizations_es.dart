@@ -3496,4 +3496,43 @@ class SEs extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Cancelar';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Llaves de seguridad por hardware';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Diálogo del sistema para security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key del sistema (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Security key del sistema (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID directo (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'No disponible en esta plataforma';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Transporte actual';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Preferir USB HID directo en lugar del diálogo del sistema';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Avanzado: saltarse $brokerLabel en plataformas donde ambos caminos funcionan. HID directo expone más features del authenticator pero requiere permisos por app.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Solo $transport está disponible en este dispositivo; el switch está deshabilitado.';
+  }
 }

@@ -801,6 +801,17 @@ void main() {
         expect(config.sanitized().skippedVersion, isNull);
       });
 
+      test('fido2PreferDirectHid round-trips through toJson/fromJson', () {
+        const cfg = BehaviorConfig(fido2PreferDirectHid: true);
+        final restored = BehaviorConfig.fromJson(cfg.toJson());
+        expect(restored.fido2PreferDirectHid, isTrue);
+      });
+
+      test('fido2PreferDirectHid defaults to false on empty JSON', () {
+        final restored = BehaviorConfig.fromJson(const {});
+        expect(restored.fido2PreferDirectHid, isFalse);
+      });
+
       test('preserves valid values', () {
         const config = AppConfig(
           transferWorkers: 4,

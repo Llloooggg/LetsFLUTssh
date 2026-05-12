@@ -5996,6 +5996,72 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get keystoreStrongBoxFallbackCancel;
+
+  /// No description provided for @fido2BrokerSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware security keys'**
+  String get fido2BrokerSectionTitle;
+
+  /// No description provided for @fido2BrokerWindowsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello / security key'**
+  String get fido2BrokerWindowsLabel;
+
+  /// No description provided for @fido2BrokerMacosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System security key dialog'**
+  String get fido2BrokerMacosLabel;
+
+  /// No description provided for @fido2BrokerIosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System security key (USB / NFC)'**
+  String get fido2BrokerIosLabel;
+
+  /// No description provided for @fido2BrokerAndroidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System security key (USB / NFC / BLE)'**
+  String get fido2BrokerAndroidLabel;
+
+  /// No description provided for @fido2BrokerTransportDirectHid.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct USB HID (CTAP2)'**
+  String get fido2BrokerTransportDirectHid;
+
+  /// No description provided for @fido2BrokerTransportNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on this platform'**
+  String get fido2BrokerTransportNone;
+
+  /// No description provided for @fido2BrokerCurrentTransportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current transport'**
+  String get fido2BrokerCurrentTransportLabel;
+
+  /// No description provided for @fido2BrokerPreferDirectHidTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prefer direct USB HID over system dialog'**
+  String get fido2BrokerPreferDirectHidTitle;
+
+  /// No description provided for @fido2BrokerPreferDirectHidSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced: bypass the {brokerLabel} on platforms where both paths work. Direct HID supports more authenticator features but requires per-app permission grants.'**
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel);
+
+  /// No description provided for @fido2BrokerSinglePathSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {transport} is available on this device; the toggle is disabled.'**
+  String fido2BrokerSinglePathSubtitle(String transport);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

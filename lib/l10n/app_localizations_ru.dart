@@ -3436,4 +3436,43 @@ class SRu extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Отмена';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Аппаратные ключи безопасности';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Системный диалог security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'Системный security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Системный security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'Прямой USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Недоступно на этой платформе';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Текущий транспорт';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Использовать прямой USB HID вместо системного диалога';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Для продвинутых пользователей: обойти $brokerLabel там, где работают оба пути. Прямой HID поддерживает больше возможностей аутентификатора, но требует разрешений на доступ к устройству.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'На этом устройстве доступен только $transport; переключатель отключён.';
+  }
 }

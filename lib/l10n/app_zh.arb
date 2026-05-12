@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "你的设备没有暴露 StrongBox HSM。改为创建一个 TEE 后端的密钥？仍然是 hardware-backed，只是没有 StrongBox 隔离。",
   "keystoreStrongBoxFallbackConfirm": "使用 TEE",
   "keystoreStrongBoxFallbackCancel": "取消",
+  "fido2BrokerSectionTitle": "硬件安全密钥",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "系统 security key 对话框",
+  "fido2BrokerIosLabel": "系统 security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "系统 security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "直接 USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "此平台不可用",
+  "fido2BrokerCurrentTransportLabel": "当前传输",
+  "fido2BrokerPreferDirectHidTitle": "优先使用直接 USB HID 而非系统对话框",
+  "fido2BrokerPreferDirectHidSubtitle": "高级：在两种路径都可用的平台上绕过 {brokerLabel}。直接 HID 支持更多 authenticator 特性，但需要按应用授予权限。",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "此设备仅支持 {transport}；开关已禁用。",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

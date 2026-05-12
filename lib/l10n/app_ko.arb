@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "이 기기는 StrongBox HSM 을 노출하지 않습니다. 대신 TEE 기반 키를 만들까요? 여전히 hardware-backed 이며 StrongBox isolation 만 빠집니다.",
   "keystoreStrongBoxFallbackConfirm": "TEE 사용",
   "keystoreStrongBoxFallbackCancel": "취소",
+  "fido2BrokerSectionTitle": "하드웨어 security key",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "시스템 security key 다이얼로그",
+  "fido2BrokerIosLabel": "시스템 security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "시스템 security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "직접 USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "이 플랫폼에서 사용할 수 없음",
+  "fido2BrokerCurrentTransportLabel": "현재 전송",
+  "fido2BrokerPreferDirectHidTitle": "시스템 다이얼로그보다 직접 USB HID 우선",
+  "fido2BrokerPreferDirectHidSubtitle": "고급: 두 경로가 모두 동작하는 플랫폼에서 {brokerLabel}을 우회합니다. 직접 HID는 더 많은 authenticator 기능을 지원하지만 앱별 권한 부여가 필요합니다.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "이 기기에서는 {transport}만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

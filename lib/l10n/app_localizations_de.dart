@@ -3496,4 +3496,42 @@ class SDe extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Abbrechen';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Hardware-Security-Keys';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / Security Key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'System-Security-Key-Dialog';
+
+  @override
+  String get fido2BrokerIosLabel => 'System-Security-Key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'System-Security-Key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'Direktes USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Auf dieser Plattform nicht verfügbar';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Aktueller Transport';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Direktes USB HID dem System-Dialog vorziehen';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Fortgeschritten: $brokerLabel auf Plattformen umgehen, wo beide Pfade funktionieren. Direktes HID unterstützt mehr Authenticator-Features, benötigt aber je App eine Berechtigung.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Auf diesem Gerät ist nur $transport verfügbar; der Schalter ist deaktiviert.';
+  }
 }

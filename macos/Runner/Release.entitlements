@@ -20,6 +20,17 @@
 	<key>com.apple.security.network.server</key>
 	<true/>
 	<!--
+	  System FIDO2 / passkey broker entitlement. Required by
+	  ASAuthorizationSecurityKeyPublicKeyCredentialProvider so the
+	  OS security-key dialog can fire for `sk-*` SSH userauth
+	  signatures (lfs_os_security::fido2_broker::apple). macOS 12+.
+	  Release builds signed outside the Apple Developer Program drop
+	  this entitlement on the floor and fall back to direct HID via
+	  the dispatcher in `lfs_core::fido2::brokers`.
+	-->
+	<key>com.apple.developer.web-browser.public-key-credential</key>
+	<true/>
+	<!--
 	  Apple Secure Enclave SSH keys (lfs_os_security::apple_se_ssh)
 	  bind their private half under a per-key kSecAttrApplicationTag
 	  in the user keychain. With `app-sandbox = false` above, no

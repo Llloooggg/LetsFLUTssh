@@ -628,6 +628,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFido2Device dco_decode_db_fido_2_device(dynamic raw);
 
   @protected
+  DbFido2Transport dco_decode_db_fido_2_transport(dynamic raw);
+
+  @protected
   DbFileSortKey dco_decode_db_file_sort_key(dynamic raw);
 
   @protected
@@ -1961,6 +1964,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbFido2Device sse_decode_db_fido_2_device(SseDeserializer deserializer);
+
+  @protected
+  DbFido2Transport sse_decode_db_fido_2_transport(SseDeserializer deserializer);
 
   @protected
   DbFileSortKey sse_decode_db_file_sort_key(SseDeserializer deserializer);
@@ -3670,6 +3676,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_fido_2_device(
     DbFido2Device self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_fido_2_transport(
+    DbFido2Transport self,
     SseSerializer serializer,
   );
 

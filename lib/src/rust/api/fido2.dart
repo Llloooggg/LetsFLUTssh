@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// True when the host has a usable HID FIDO2 backend reachable.
 /// Sync because the probe is a single `get_fidokey_devices()` call
@@ -43,6 +43,31 @@ Future<DbSkAssertion> fido2GetAssertion({
   pin: pin,
 );
 
+/// Snapshot the dispatcher state. Sync because the underlying probe
+/// is two atomic loads + a `WebAuthNGetApiVersionNumber()` (or
+/// equivalent) call; the Settings tile reads it on every rebuild.
+DbFido2Transport fido2TransportSnapshot() =>
+    RustLib.instance.api.crateApiFido2Fido2TransportSnapshot();
+
+/// Flip the process-wide "Prefer direct USB HID over system dialog"
+/// toggle. The Dart Settings page calls this on every change; the
+/// Rust side mirrors the value into `AppConfig.fido2_prefer_direct_hid`
+/// and persists `config.json` separately. The atomic + the persisted
+/// field stay in sync via the bootstrap call from
+/// [`fido2_apply_prefer_direct_hid_from_config`].
+void fido2SetPreferDirectHid({required bool prefer}) =>
+    RustLib.instance.api.crateApiFido2Fido2SetPreferDirectHid(prefer: prefer);
+
+/// Hand the persisted `AppConfig.fido2_prefer_direct_hid` value into
+/// the process-wide atomic at startup. Called from the cold-start
+/// orchestrator after the config has been loaded and decoded — keeps
+/// the dispatcher's view consistent with on-disk state across the
+/// first FIDO2 assertion attempt.
+void fido2ApplyPreferDirectHidFromConfig({required bool prefer}) => RustLib
+    .instance
+    .api
+    .crateApiFido2Fido2ApplyPreferDirectHidFromConfig(prefer: prefer);
+
 /// FRB mirror of [`lfs_core::fido2::DeviceInfo`]. Mirrored — not
 /// re-exported — so the codegen-emitted Dart class lives under
 /// `lib/src/rust/api/fido2.dart` instead of cross-importing the
@@ -76,6 +101,53 @@ class DbFido2Device {
           vendorId == other.vendorId &&
           productId == other.productId &&
           productString == other.productString;
+}
+
+/// Per-OS view of which FIDO2 transport the dispatcher will pick on
+/// the next assertion call. Drives the Settings security section's
+/// "Prefer direct USB HID over system dialog" tile — the subtitle
+/// names the broker label honestly when broker is selected, and the
+/// toggle stays disabled when only one path exists.
+class DbFido2Transport {
+  /// One of `"broker"`, `"direct-hid"`, `"none"`. Mirrors
+  /// [`lfs_core::fido2::brokers::Transport`]; serialised as a
+  /// short tag so the Dart layer doesn't need a typed enum mirror.
+  final String kind;
+
+  /// True when the OS-managed broker (WebAuthn.dll /
+  /// ASAuthorization / Credential Manager) is reachable.
+  final bool brokerAvailable;
+
+  /// True when the direct CTAP2 HID path is reachable.
+  final bool directHidAvailable;
+
+  /// Current "prefer direct HID" override state — same value the
+  /// Settings tile renders.
+  final bool preferDirectHid;
+
+  const DbFido2Transport({
+    required this.kind,
+    required this.brokerAvailable,
+    required this.directHidAvailable,
+    required this.preferDirectHid,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      brokerAvailable.hashCode ^
+      directHidAvailable.hashCode ^
+      preferDirectHid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbFido2Transport &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          brokerAvailable == other.brokerAvailable &&
+          directHidAvailable == other.directHidAvailable &&
+          preferDirectHid == other.preferDirectHid;
 }
 
 /// FRB mirror of [`lfs_core::fido2::SkAssertion`].

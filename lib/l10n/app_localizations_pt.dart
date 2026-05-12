@@ -3482,4 +3482,43 @@ class SPt extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Cancelar';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Chaves de segurança em hardware';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Diálogo do sistema de security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key do sistema (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Security key do sistema (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID direto (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Indisponível nesta plataforma';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Transporte atual';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Preferir USB HID direto ao diálogo do sistema';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Avançado: ignorar o $brokerLabel em plataformas onde os dois caminhos funcionam. O HID direto expõe mais features do authenticator mas exige permissão por app.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Apenas $transport está disponível neste dispositivo; o toggle está desativado.';
+  }
 }

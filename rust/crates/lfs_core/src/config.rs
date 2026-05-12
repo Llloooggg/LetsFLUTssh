@@ -345,6 +345,15 @@ pub struct BehaviorConfig {
     pub log_level: Option<LogLevel>,
     pub check_updates_on_start: bool,
     pub skipped_version: Option<String>,
+    /// True when the user has opted into "Prefer direct USB HID over
+    /// system dialog" for FIDO2 / `sk-*` keys (Settings → Security
+    /// section). Off by default. On Windows / macOS the dispatcher
+    /// in [`crate::fido2::brokers`] uses this flag to bypass the OS
+    /// security-key dialog and run the direct CTAP2 HID transport
+    /// (`ctap-hid-fido2`). Linux ignores it — the broker doesn't
+    /// exist there; iOS / Android ignore it — only the broker path
+    /// works there.
+    pub fido2_prefer_direct_hid: bool,
 }
 
 impl Default for BehaviorConfig {
@@ -353,6 +362,7 @@ impl Default for BehaviorConfig {
             log_level: None,
             check_updates_on_start: true,
             skipped_version: None,
+            fido2_prefer_direct_hid: false,
         }
     }
 }
@@ -370,6 +380,14 @@ impl BehaviorConfig {
         if let Some(ref v) = self.skipped_version {
             m.insert("skipped_version".into(), json!(v));
         }
+        // Always stamped — round-trip through serde_json::Value
+        // collapses a missing field to `false` on read, but stamping
+        // unconditionally keeps the wire shape stable for Dart-side
+        // diff tests that compare the serialized blob.
+        m.insert(
+            "fido2_prefer_direct_hid".into(),
+            json!(self.fido2_prefer_direct_hid),
+        );
         m
     }
 
@@ -389,6 +407,10 @@ impl BehaviorConfig {
                 .get("skipped_version")
                 .and_then(|v| v.as_str())
                 .map(String::from),
+            fido2_prefer_direct_hid: json
+                .get("fido2_prefer_direct_hid")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(d.fido2_prefer_direct_hid),
         }
     }
 }
@@ -1055,11 +1077,37 @@ mod tests {
                 log_level: Some(level),
                 check_updates_on_start: true,
                 skipped_version: None,
+                fido2_prefer_direct_hid: false,
             };
             let json = b.to_json_object();
             let parsed = BehaviorConfig::from_json_object(&json);
             assert_eq!(parsed.log_level, Some(level));
         }
+    }
+
+    #[test]
+    fn behavior_fido2_prefer_direct_hid_round_trips() {
+        let b = BehaviorConfig {
+            log_level: None,
+            check_updates_on_start: true,
+            skipped_version: None,
+            fido2_prefer_direct_hid: true,
+        };
+        let json = b.to_json_object();
+        assert_eq!(
+            json.get("fido2_prefer_direct_hid")
+                .and_then(|v| v.as_bool()),
+            Some(true),
+        );
+        let parsed = BehaviorConfig::from_json_object(&json);
+        assert!(parsed.fido2_prefer_direct_hid);
+    }
+
+    #[test]
+    fn behavior_fido2_prefer_direct_hid_defaults_off_when_missing() {
+        let json = serde_json::Map::new();
+        let parsed = BehaviorConfig::from_json_object(&json);
+        assert!(!parsed.fido2_prefer_direct_hid);
     }
 
     #[test]

@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "このデバイスは StrongBox HSM を公開していません。代わりに TEE 裏付けのキーを作成しますか？ハードウェア裏付けは維持されますが、StrongBox の分離はありません。",
   "keystoreStrongBoxFallbackConfirm": "TEE を使う",
   "keystoreStrongBoxFallbackCancel": "キャンセル",
+  "fido2BrokerSectionTitle": "ハードウェアセキュリティキー",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "システムの security key ダイアログ",
+  "fido2BrokerIosLabel": "システム security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "システム security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "直接 USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "このプラットフォームでは利用不可",
+  "fido2BrokerCurrentTransportLabel": "現在のトランスポート",
+  "fido2BrokerPreferDirectHidTitle": "システムダイアログより直接 USB HID を優先",
+  "fido2BrokerPreferDirectHidSubtitle": "上級者向け：両方のパスが動作するプラットフォームで {brokerLabel} を回避します。直接 HID は authenticator の機能をより多く扱えますが、アプリごとの権限付与が必要です。",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "このデバイスでは {transport} のみ利用可能です。トグルは無効化されています。",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

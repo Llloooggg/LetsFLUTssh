@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "دستگاه شما StrongBox HSM را در دسترس نمی‌گذارد. به‌جای آن یک کلید مبتنی بر TEE ساخته شود؟ همچنان hardware-backed است، فقط بدون ایزولاسیون StrongBox.",
   "keystoreStrongBoxFallbackConfirm": "استفاده از TEE",
   "keystoreStrongBoxFallbackCancel": "لغو",
+  "fido2BrokerSectionTitle": "کلیدهای امنیتی سخت‌افزاری",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "دیالوگ سیستمی security key",
+  "fido2BrokerIosLabel": "security key سیستم (USB / NFC)",
+  "fido2BrokerAndroidLabel": "security key سیستم (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID مستقیم (CTAP2)",
+  "fido2BrokerTransportNone": "در این پلتفرم در دسترس نیست",
+  "fido2BrokerCurrentTransportLabel": "ترنسپورت فعلی",
+  "fido2BrokerPreferDirectHidTitle": "USB HID مستقیم به دیالوگ سیستم ترجیح داده شود",
+  "fido2BrokerPreferDirectHidSubtitle": "پیشرفته: عبور از {brokerLabel} روی پلتفرم‌هایی که هر دو مسیر کار می‌کنند. HID مستقیم ویژگی‌های بیشتری از authenticator را در دسترس می‌گذارد ولی برای هر اپ نیاز به مجوز دارد.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "فقط {transport} روی این دستگاه در دسترس است؛ کلید غیرفعال است.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

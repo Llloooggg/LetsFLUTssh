@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "جهازك لا يعرض StrongBox HSM. هل تريد إنشاء مفتاح مدعوم بـ TEE بدلاً منه؟ سيظل مرتبطًا بالعتاد، فقط بدون عزل StrongBox.",
   "keystoreStrongBoxFallbackConfirm": "استخدم TEE",
   "keystoreStrongBoxFallbackCancel": "إلغاء",
+  "fido2BrokerSectionTitle": "مفاتيح الأمان العتادية",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "حوار النظام لـ security key",
+  "fido2BrokerIosLabel": "security key النظام (USB / NFC)",
+  "fido2BrokerAndroidLabel": "security key النظام (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID مباشر (CTAP2)",
+  "fido2BrokerTransportNone": "غير متاح على هذه المنصة",
+  "fido2BrokerCurrentTransportLabel": "النقل الحالي",
+  "fido2BrokerPreferDirectHidTitle": "تفضيل USB HID المباشر على حوار النظام",
+  "fido2BrokerPreferDirectHidSubtitle": "متقدم: تجاوز {brokerLabel} على المنصات التي يعمل فيها المساران. الـ HID المباشر يدعم ميزات authenticator أكثر لكن يحتاج صلاحيات لكل تطبيق.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "فقط {transport} متاح على هذا الجهاز؛ التبديل معطّل.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

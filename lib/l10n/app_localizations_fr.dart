@@ -3511,4 +3511,43 @@ class SFr extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Annuler';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Clés de sécurité matérielles';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Dialogue système de security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key système (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Security key système (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID direct (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Indisponible sur cette plateforme';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Transport actuel';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Préférer l\'USB HID direct au dialogue système';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Avancé : contourner $brokerLabel sur les plateformes où les deux chemins fonctionnent. Le HID direct expose plus de features de l\'authenticator mais demande une autorisation par app.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Seul $transport est disponible sur cet appareil ; le toggle est désactivé.';
+  }
 }

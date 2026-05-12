@@ -3413,4 +3413,42 @@ class SId extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Batal';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Hardware security keys';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Dialog security key sistem';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key sistem (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'Security key sistem (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID langsung (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Tidak tersedia di platform ini';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Transport saat ini';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Pilih USB HID langsung daripada dialog sistem';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Lanjutan: lewati $brokerLabel di platform yang mendukung kedua jalur. HID langsung mendukung lebih banyak fitur authenticator tapi butuh izin per-app.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Hanya $transport yang tersedia di device ini; toggle dinonaktifkan.';
+  }
 }

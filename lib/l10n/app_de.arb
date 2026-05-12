@@ -1250,6 +1250,27 @@
   "keystoreStrongBoxFallbackBody": "Dein Gerät stellt das StrongBox HSM nicht bereit. Stattdessen einen TEE-gestützten Schlüssel anlegen? Bleibt hardware-backed, nur ohne StrongBox-Isolation.",
   "keystoreStrongBoxFallbackConfirm": "TEE verwenden",
   "keystoreStrongBoxFallbackCancel": "Abbrechen",
+  "fido2BrokerSectionTitle": "Hardware-Security-Keys",
+  "fido2BrokerWindowsLabel": "Windows Hello / Security Key",
+  "fido2BrokerMacosLabel": "System-Security-Key-Dialog",
+  "fido2BrokerIosLabel": "System-Security-Key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "System-Security-Key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "Direktes USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "Auf dieser Plattform nicht verfügbar",
+  "fido2BrokerCurrentTransportLabel": "Aktueller Transport",
+  "fido2BrokerPreferDirectHidTitle": "Direktes USB HID dem System-Dialog vorziehen",
+  "fido2BrokerPreferDirectHidSubtitle": "Fortgeschritten: {brokerLabel} auf Plattformen umgehen, wo beide Pfade funktionieren. Direktes HID unterstützt mehr Authenticator-Features, benötigt aber je App eine Berechtigung.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "Auf diesem Gerät ist nur {transport} verfügbar; der Schalter ist deaktiviert.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
   "@tpmSshPinPrompt": {
     "placeholders": {
       "label": {

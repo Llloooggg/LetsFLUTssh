@@ -3328,4 +3328,41 @@ class SJa extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'キャンセル';
+
+  @override
+  String get fido2BrokerSectionTitle => 'ハードウェアセキュリティキー';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'システムの security key ダイアログ';
+
+  @override
+  String get fido2BrokerIosLabel => 'システム security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'システム security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => '直接 USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'このプラットフォームでは利用不可';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => '現在のトランスポート';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle => 'システムダイアログより直接 USB HID を優先';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return '上級者向け：両方のパスが動作するプラットフォームで $brokerLabel を回避します。直接 HID は authenticator の機能をより多く扱えますが、アプリごとの権限付与が必要です。';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'このデバイスでは $transport のみ利用可能です。トグルは無効化されています。';
+  }
 }

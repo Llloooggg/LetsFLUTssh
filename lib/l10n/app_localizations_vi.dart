@@ -3399,4 +3399,43 @@ class SVi extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Huỷ';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Hardware security key';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Dialog security key của hệ thống';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key hệ thống (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Security key hệ thống (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID trực tiếp (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Không khả dụng trên platform này';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Transport hiện tại';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Ưu tiên USB HID trực tiếp thay vì dialog hệ thống';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Nâng cao: bỏ qua $brokerLabel trên các platform mà cả hai đường đều chạy. HID trực tiếp hỗ trợ nhiều tính năng authenticator hơn nhưng cần permission grant theo từng app.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Thiết bị này chỉ có $transport; toggle bị vô hiệu.';
+  }
 }

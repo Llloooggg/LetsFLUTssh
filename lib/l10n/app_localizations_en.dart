@@ -3449,4 +3449,42 @@ class SEn extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'Cancel';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Hardware security keys';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'System security key dialog';
+
+  @override
+  String get fido2BrokerIosLabel => 'System security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'System security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'Direct USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Not available on this platform';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'Current transport';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Prefer direct USB HID over system dialog';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Advanced: bypass the $brokerLabel on platforms where both paths work. Direct HID supports more authenticator features but requires per-app permission grants.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Only $transport is available on this device; the toggle is disabled.';
+  }
 }

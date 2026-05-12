@@ -376,6 +376,13 @@ mod tests {
 pub mod backup_exclusion;
 pub mod biometric_auth;
 
+// OS-managed FIDO2 broker (Windows WebAuthn.dll, Apple
+// AuthenticationServices, Android Credential Manager). Linux
+// has no broker primitive — the module compiles to a no-op
+// stub there and the dispatcher in `lfs_core::fido2::brokers`
+// falls back to the direct HID transport.
+pub mod fido2_broker;
+
 // Cross-platform helpers used by per-OS modules. Lives outside
 // any `cfg(target_os = "...")` gate so the unit tests inside it
 // run in `rust-ci` (which only fires `cargo test` on Linux);

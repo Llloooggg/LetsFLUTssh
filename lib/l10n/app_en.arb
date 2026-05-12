@@ -1833,5 +1833,26 @@
   "keystoreStrongBoxFallbackTitle": "StrongBox HSM unavailable",
   "keystoreStrongBoxFallbackBody": "Your device doesn't expose the StrongBox HSM. Create a TEE-backed key instead? It's still hardware-backed, just without StrongBox isolation.",
   "keystoreStrongBoxFallbackConfirm": "Use TEE",
-  "keystoreStrongBoxFallbackCancel": "Cancel"
+  "keystoreStrongBoxFallbackCancel": "Cancel",
+  "fido2BrokerSectionTitle": "Hardware security keys",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "System security key dialog",
+  "fido2BrokerIosLabel": "System security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "System security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "Direct USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "Not available on this platform",
+  "fido2BrokerCurrentTransportLabel": "Current transport",
+  "fido2BrokerPreferDirectHidTitle": "Prefer direct USB HID over system dialog",
+  "fido2BrokerPreferDirectHidSubtitle": "Advanced: bypass the {brokerLabel} on platforms where both paths work. Direct HID supports more authenticator features but requires per-app permission grants.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "fido2BrokerSinglePathSubtitle": "Only {transport} is available on this device; the toggle is disabled.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  }
 }

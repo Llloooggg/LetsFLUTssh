@@ -121,7 +121,10 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 ### Hardware key (FIDO2 `sk-*`)
 
-OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openssh.com` keys whose private half lives on a hardware authenticator (YubiKey, SoloKey, Titan, Feitian, Nitrokey, Trezor). The app talks to the device directly over USB HID — no `ssh-agent` required.
+OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openssh.com` keys whose private half lives on a hardware authenticator (YubiKey, SoloKey, Titan, Feitian, Nitrokey, Trezor, or the platform Hello / StrongBox passkey). The app speaks to the device through one of two transports depending on the platform:
+
+- **OS security-key dialog** — the system's built-in flow. Windows shows the Windows Hello / security-key prompt; macOS shows the system security-key dialog; iOS shows the system NFC + USB dialog; Android shows the Credential Manager picker. Handles USB / NFC / BLE transparently and works without admin permission grants.
+- **Direct USB HID** — the in-process CTAP2 transport. Linux uses it exclusively (no broker exists); Windows / macOS keep it as a fallback when the OS dialog is not available, and as an opt-in path for advanced users via Settings.
 
 1. Generate the key with `ssh-keygen` on the host where you want to install the `authorized_keys` entry:
    - `ssh-keygen -t ed25519-sk -O resident -O application=ssh: -f ~/.ssh/id_ed25519_sk`
@@ -129,19 +132,26 @@ OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openss
 2. Copy the matching `~/.ssh/id_ed25519_sk.pub` to the server's `~/.ssh/authorized_keys`.
 3. In the app: **Tools → SSH Keys → Import hardware key (sk-*)**. Pick the private file (`id_ed25519_sk`, not `.pub`). The row shows the "Hardware-bound (FIDO2)" badge once imported.
 4. Reference the key from a session's **Auth → Key from manager** drop-down.
-5. On connect: if the credential was created with `verify-required` the app shows a "Tap your hardware key" dialog asking for the PIN first; touch-only credentials skip the dialog. Then the device LED starts blinking — tap the metal contact to authorise the signature. The app routes every userauth signature through the device via CTAP2 over USB HID for the lifetime of the connect handshake; `ssh-agent` is not involved.
+5. On connect:
+   - **Windows** — the standard Windows Hello / security-key prompt opens. Tap the metal contact when the device asks; type the PIN when prompted; the OS handles everything.
+   - **macOS** — the system security-key dialog opens. Same flow: tap, PIN if required.
+   - **iOS** — the system dialog asks to "Use security key" and surfaces a USB + NFC chooser; hold the key flat against the back of the device for NFC, or plug it in for USB.
+   - **Android** — the Credential Manager picker fires; pick the key, tap, enter the PIN if required. Works for USB-host, NFC, BLE, and the on-device StrongBox passkey.
+   - **Linux** (and Windows / macOS when the toggle below is on) — the app shows its own "Tap your hardware key" dialog if the credential was generated with `verify-required` (collects the PIN first); touch-only credentials skip the dialog. Then the device LED starts blinking — tap the metal contact.
 
-The signing path is in-process: every userauth challenge SHA-256-hashes the SSH packet, asks the device for an assertion against the credential id captured at import, and assembles the `sk-*` signature trailer (Ed25519: raw 64 bytes + flags + counter; ECDSA-P256: SSH mpints for r/s + flags + counter). Private key material never leaves the authenticator.
+The signing path is in-process even when the OS dialog drives the UX: every userauth challenge SHA-256-hashes the SSH packet, asks the device for an assertion against the credential id captured at import, and assembles the `sk-*` signature trailer. Private key material never leaves the authenticator; `ssh-agent` is not involved.
+
+**Settings → Hardware security keys → "Prefer direct USB HID over system dialog"** lets advanced users bypass the OS dialog on Windows and macOS, falling through to the in-app CTAP2 path. Off by default. On Linux the toggle is disabled (no broker exists); on iOS and Android it is disabled (no HID fallback exists). Direct HID exposes more authenticator features (hmac-secret, large-blob, credBlob — none of which SSH consumes today) but requires per-app permission grants (`udev` rules on Linux, HID class access on Windows).
 
 **Platform availability**
 
-| Platform | Path | Status |
+| Platform | Default transport | Notes |
 |---|---|---|
-| Linux | Direct USB HID via `hidraw` | Supported; install `70-letsflutssh-fido.rules` (see below) |
-| Windows 10+ | Direct USB HID | Supported |
-| macOS | Direct USB HID | Disabled at runtime — requires Apple Developer Program entitlement on a signed build |
-| iOS | NFC | Disabled — future follow-up |
-| Android | USB host | Disabled — future follow-up |
+| Linux | Direct USB HID via `hidraw` | Install `70-letsflutssh-fido.rules` (see below) |
+| Windows 10 1903+ | OS security-key dialog (WebAuthn) | Direct HID fallback available; opt-in via Settings |
+| macOS 12+ | OS security-key dialog (ASAuthorization) | Direct HID fallback available; opt-in via Settings. Self-signed dev builds without the Apple Developer Program entitlement skip the dialog and use direct HID |
+| iOS 15.5+ | OS security-key dialog (USB + NFC) | Broker only; no HID fallback exists |
+| Android | Credential Manager (USB / NFC / BLE / StrongBox passkey) | Broker only; no HID fallback exists |
 
 **Linux: install the udev rules**
 

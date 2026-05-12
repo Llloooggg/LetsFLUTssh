@@ -3291,4 +3291,41 @@ class SZh extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => '取消';
+
+  @override
+  String get fido2BrokerSectionTitle => '硬件安全密钥';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => '系统 security key 对话框';
+
+  @override
+  String get fido2BrokerIosLabel => '系统 security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => '系统 security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => '直接 USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => '此平台不可用';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => '当前传输';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle => '优先使用直接 USB HID 而非系统对话框';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return '高级：在两种路径都可用的平台上绕过 $brokerLabel。直接 HID 支持更多 authenticator 特性，但需要按应用授予权限。';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return '此设备仅支持 $transport；开关已禁用。';
+  }
 }

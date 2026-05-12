@@ -21,6 +21,7 @@ import 'security_tier_switcher.dart';
 import '../../widgets/shortcut_registry.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/fido2.dart' as rust_fido2;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
@@ -87,6 +88,7 @@ import 'export_import.dart';
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
 part 'settings_sections_data.dart';
+part 'settings_sections_fido2_broker.dart';
 part 'settings_sections_data_export_import.dart';
 part 'settings_sections_preferences.dart';
 part 'settings_sections_security.dart';
@@ -161,6 +163,11 @@ List<_Section> _buildSections(BuildContext context) => [
     builder: _SshAgentSection.new,
   ),
   _Section(
+    title: S.of(context).fido2BrokerSectionTitle,
+    icon: Icons.usb,
+    builder: _Fido2BrokerSection.new,
+  ),
+  _Section(
     title: S.of(context).data,
     icon: Icons.storage,
     builder: _DataSection.new,
@@ -218,6 +225,11 @@ List<_Section> _buildDesktopSections(BuildContext context) => [
     title: S.of(context).agentEndpointSectionTitle,
     icon: Icons.dns,
     builder: _SshAgentSection.new,
+  ),
+  _Section(
+    title: S.of(context).fido2BrokerSectionTitle,
+    icon: Icons.usb,
+    builder: _Fido2BrokerSection.new,
   ),
   _Section(
     title: S.of(context).data,

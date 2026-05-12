@@ -3402,4 +3402,42 @@ class SFa extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'لغو';
+
+  @override
+  String get fido2BrokerSectionTitle => 'کلیدهای امنیتی سخت‌افزاری';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'دیالوگ سیستمی security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'security key سیستم (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'security key سیستم (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID مستقیم (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'در این پلتفرم در دسترس نیست';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'ترنسپورت فعلی';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'USB HID مستقیم به دیالوگ سیستم ترجیح داده شود';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'پیشرفته: عبور از $brokerLabel روی پلتفرم‌هایی که هر دو مسیر کار می‌کنند. HID مستقیم ویژگی‌های بیشتری از authenticator را در دسترس می‌گذارد ولی برای هر اپ نیاز به مجوز دارد.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'فقط $transport روی این دستگاه در دسترس است؛ کلید غیرفعال است.';
+  }
 }

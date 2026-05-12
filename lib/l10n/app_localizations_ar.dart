@@ -3414,4 +3414,42 @@ class SAr extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => 'إلغاء';
+
+  @override
+  String get fido2BrokerSectionTitle => 'مفاتيح الأمان العتادية';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'حوار النظام لـ security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'security key النظام (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'security key النظام (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID مباشر (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'غير متاح على هذه المنصة';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => 'النقل الحالي';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'تفضيل USB HID المباشر على حوار النظام';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'متقدم: تجاوز $brokerLabel على المنصات التي يعمل فيها المساران. الـ HID المباشر يدعم ميزات authenticator أكثر لكن يحتاج صلاحيات لكل تطبيق.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'فقط $transport متاح على هذا الجهاز؛ التبديل معطّل.';
+  }
 }

@@ -3324,4 +3324,41 @@ class SKo extends S {
 
   @override
   String get keystoreStrongBoxFallbackCancel => '취소';
+
+  @override
+  String get fido2BrokerSectionTitle => '하드웨어 security key';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => '시스템 security key 다이얼로그';
+
+  @override
+  String get fido2BrokerIosLabel => '시스템 security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => '시스템 security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => '직접 USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => '이 플랫폼에서 사용할 수 없음';
+
+  @override
+  String get fido2BrokerCurrentTransportLabel => '현재 전송';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle => '시스템 다이얼로그보다 직접 USB HID 우선';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return '고급: 두 경로가 모두 동작하는 플랫폼에서 $brokerLabel을 우회합니다. 직접 HID는 더 많은 authenticator 기능을 지원하지만 앱별 권한 부여가 필요합니다.';
+  }
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return '이 기기에서는 $transport만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.';
+  }
 }
