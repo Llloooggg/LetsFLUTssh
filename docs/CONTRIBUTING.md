@@ -224,6 +224,53 @@ SOFTHSM2_CONF=~/.softhsm/softhsm2.conf make rust-test-pkcs11
 
 The target re-runs only the SoftHSM-gated tests; it never touches `make rust-test`'s default surface, so a missing SoftHSM never blocks the umbrella suite.
 
+**Building with an Apple Developer Program account (macOS / iOS).**
+
+Two app surfaces ship Apple-only entitlements that the OS activates only when the bundle is signed by a member of the Apple Developer Program:
+
+| Surface | Source files | Entitlement | What unlocks |
+|---|---|---|---|
+| Secure Enclave SSH keys (T-5) | `lfs_os_security::apple_se_ssh` | `keychain-access-groups = $(TeamIdentifierPrefix)com.poddeo3.letsflutssh` (only required once `app-sandbox` flips to `true`; today the macOS bundle runs unsandboxed and reaches the user-default keychain without the entitlement) | `SecKeyCreateRandomKey(kSecAttrTokenIDSecureEnclave, …)` stops returning `errSecMissingEntitlement (-34018)` on a sandboxed build |
+| System FIDO2 broker (T-8) | `lfs_os_security::fido2_broker::apple` + `macos/Runner/SecurityKeyBroker.swift` + `ios/Runner/SecurityKeyBroker.swift` | `com.apple.developer.web-browser.public-key-credential = true` | `ASAuthorizationSecurityKeyPublicKeyCredentialProvider` fires the system security-key dialog for `sk-*` SSH userauth |
+
+Self-build users without a paid Developer Program account fall back gracefully:
+
+- macOS Secure Enclave: the `codesign -s - --identifier com.poddeo3.letsflutssh --entitlements macos/Runner/Release.entitlements ...` snippet in `docs/USER_GUIDE.md` ad-hoc-signs the bundle. Ad-hoc with a stable identifier clears `-34018` in practice; the keychain bind works for the running install but cannot move to another Mac.
+- macOS FIDO2 broker: the entitlement is ignored on ad-hoc-signed builds; the dispatcher in `lfs_core::fido2::brokers` automatically falls through to direct USB HID (`ctap-hid-fido2`) — the broker label hides itself in `Settings → Hardware security keys` and the direct-HID path becomes the only one.
+- iOS Secure Enclave + FIDO2 broker: both paths require a real signed build. Ad-hoc / personal-team builds give the entitlement but the App Store / TestFlight install gate is what activates it.
+
+**Build steps when you have an Apple Developer Program membership:**
+
+1. Add your Apple ID under Xcode → Settings → Accounts. Pull "Manage Certificates…" → "+" → "Apple Distribution".
+2. In Xcode, open `macos/Runner.xcodeproj` (or `ios/Runner.xcodeproj`). Select the `Runner` target → Signing & Capabilities tab:
+   - Team: pick your Developer Program team (the `$(TeamIdentifierPrefix)` placeholder in `Release.entitlements` resolves automatically).
+   - Provisioning Profile: leave on "Automatically manage signing".
+   - Capabilities: add **Apple WebAuthn** (this surfaces the `com.apple.developer.web-browser.public-key-credential` entitlement). On macOS also confirm **App Sandbox** is OFF and **Hardened Runtime** is ON for Release; the `Release.entitlements` file already lists `com.apple.security.network.client/server` so SSH local / remote port forwards keep working after Hardened Runtime activates.
+3. Replace the `com.poddeo3.letsflutssh` bundle identifier with one you own (`com.<your-domain>.letsflutssh`) in:
+   - `macos/Runner.xcodeproj/project.pbxproj` (`PRODUCT_BUNDLE_IDENTIFIER`)
+   - `ios/Runner.xcodeproj/project.pbxproj` (same key)
+   - `macos/Runner/Release.entitlements` (the inline `$(TeamIdentifierPrefix)com.poddeo3.letsflutssh` comment block)
+   - any matching references in `lfs_os_security::apple_se_ssh` (today the `letsflutssh.ssh.<uuid>` `kSecAttrApplicationTag` prefix is opaque — no rename needed).
+4. Build:
+   ```bash
+   # macOS
+   flutter build macos --release
+   open build/macos/Build/Products/Release/
+
+   # iOS — runs through Xcode's signing pipeline
+   flutter build ipa --release
+   # then Xcode → Window → Organizer → Distribute App
+   ```
+5. Verify the entitlement actually attached:
+   ```bash
+   codesign -d --entitlements - build/macos/Build/Products/Release/LetsFLUTssh.app
+   # Look for `com.apple.developer.web-browser.public-key-credential` in the output.
+   ```
+
+If your CI signs the build outside Xcode, the `xcodebuild -exportArchive` step picks up the team ID from your `ExportOptions.plist` — set `signingStyle = automatic` + `teamID = <your team ID>` and the entitlements file is wired automatically.
+
+> The two Swift glue files (`macos/Runner/SecurityKeyBroker.swift` + `ios/Runner/SecurityKeyBroker.swift`) ship in the repo and need to be added to the Xcode target's "Compile Sources" build phase once per fork. Newer Xcode versions auto-detect Swift files under `Runner/`; older versions need the manual drag-and-drop. The repo's `scripts/setup-xcode-broker.sh` automates this for both targets — run once after cloning if Xcode hasn't already picked the files up.
+
 ## Development
 
 Top-level umbrella targets run both Dart and Rust. Per-language
