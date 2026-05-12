@@ -62,6 +62,7 @@ pub const MANAGED_FILES: &[&str] = &[
     "hardware_vault_android_bio.bin",
     "hardware_vault_password_overlay_android.bin",
     "hardware_vault_password_overlay_apple.bin",
+    "hardware_vault_password_overlay_linux.bin",
     "hardware_vault_password_overlay_windows.bin",
     // Password gate
     "security_pass_hash.bin",
@@ -126,6 +127,7 @@ pub const ORPHAN_PROBE_FILES: &[&str] = &[
     "hardware_vault_android_bio.bin",
     "hardware_vault_password_overlay_android.bin",
     "hardware_vault_password_overlay_apple.bin",
+    "hardware_vault_password_overlay_linux.bin",
     "hardware_vault_password_overlay_windows.bin",
     "security_pass_hash.bin",
     "hardware_vault.bin",
@@ -510,6 +512,10 @@ mod tests {
             // lfs_os_security::android::hardware_vault — Android path
             "hardware_vault_android.bin",
             "hardware_vault_android_bio.bin",
+            // lfs_core::security::hardware_tier_vault::linux — Linux
+            // biometric-overlay envelope (TPM2-sealed under the
+            // fprintd enrolment hash).
+            "hardware_vault_password_overlay_linux.bin",
             // Pre-port / cross-platform overlays kept managed so
             // upgrade-from-old-install wipes still land cleanly.
             "hardware_vault_password_overlay_android.bin",
@@ -574,6 +580,20 @@ mod tests {
                 lfs_os_security::windows::hardware_vault::BIO_PASSWORD_FILE,
                 "hardware_vault_password_overlay_windows.bin",
                 "Windows bio-overlay filename const drifted from MANAGED_FILES"
+            );
+        }
+
+        // Linux biometric-overlay file — the const lives in
+        // `lfs_core::security::hardware_tier_vault::linux` because
+        // the orchestrator depends on the in-crate fprintd
+        // module. A rename without a matching MANAGED_FILES update
+        // would leave an orphan file untouched by every wipe.
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(
+                crate::security::hardware_tier_vault::linux::BIO_PASSWORD_FILE,
+                "hardware_vault_password_overlay_linux.bin",
+                "Linux bio-overlay filename const drifted from MANAGED_FILES"
             );
         }
     }

@@ -986,7 +986,8 @@ The biometric overlay is the OS-managed slot that holds the Hardware-tier passwo
 
 - **Apple (macOS / iOS)** — Secure Enclave overlay key with `kSecAccessControlBiometryCurrentSet`.
 - **Android** — AndroidKeyStore alias `lfs.hardware_tier_vault.l3.bio` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)`.
-- **Windows / Linux** — coming in a follow-up release; the password path covers T2 today and the overlay UI surface is disabled with an honest "not available on this platform yet" tooltip.
+- **Windows** — NCrypt persistent key `letsflutssh_hardware_vault_bio_v1` on the Microsoft Platform Crypto Provider with `NCRYPT_UI_PROTECT_KEY_FLAG | NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`; every unwrap fires the Windows Hello prompt. Re-enrolling Hello (new fingerprint / face / PIN reset) invalidates only the overlay — the primary password vault keeps working.
+- **Linux** — TPM2-sealed `hardware_vault_password_overlay_linux.bin` keyed by your fprintd enrolment hash (SHA-256 of your sorted enrolled-finger names). Requires `fprintd` running with at least one enrolled finger; the README install snippet covers per-distro install + first enrol. Re-enrolling (adding / dropping a finger) flips the hash so the TPM unseal fails, and you fall back to typing the password. The primary `hardware_vault.bin` is unaffected — only the shortcut goes away.
 
 ### Switching tiers
 

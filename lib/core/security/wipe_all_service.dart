@@ -234,15 +234,18 @@ class WipeAllService {
     }
   }
 
-  /// Drop the biometric overlay (key + file) via the same Rust
-  /// dispatch — Apple SE / Android Keystore / Windows CNG. Linux
-  /// has no biometric overlay path (TPM2 owns the entire envelope)
-  /// so the dispatch returns Unavailable and the call is a no-op.
+  /// Drop the biometric overlay (key + file) via the unified Rust
+  /// dispatch — Apple SE / Android Keystore / Windows CNG / Linux
+  /// TPM2-sealed-under-fprintd-hash. Linux's overlay file is
+  /// `hardware_vault_password_overlay_linux.bin`; the orchestrator
+  /// lives one crate up in `lfs_core` because it depends on the
+  /// in-crate fprintd D-Bus walk.
   Future<bool> _clearNativeBiometricOverlay() async {
     if (!Platform.isMacOS &&
         !Platform.isIOS &&
         !Platform.isAndroid &&
-        !Platform.isWindows) {
+        !Platform.isWindows &&
+        !Platform.isLinux) {
       return false;
     }
     try {

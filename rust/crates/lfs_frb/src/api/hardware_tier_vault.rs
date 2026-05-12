@@ -14,6 +14,7 @@
 //! sees both `lfs_core` and `lfs_os_security`).
 
 use lfs_core::security::hardware_tier_vault as vault;
+#[cfg(not(target_os = "linux"))]
 use lfs_os_security::hardware_tier_vault::HardwareVaultError;
 
 /// Map a typed [`HardwareVaultError`] to the matching FRB envelope
@@ -24,6 +25,7 @@ use lfs_os_security::hardware_tier_vault::HardwareVaultError;
 /// recoverable backend error (wrong PIN, missing file, TPM revoked).
 /// Now `Corrupt` routes to `kind=vault_corrupt` and the Dart side
 /// gates the reset cascade on that discriminator only.
+#[cfg(not(target_os = "linux"))]
 fn map_hw_vault_error(err: HardwareVaultError) -> String {
     use crate::api::frb_err::{kind, wire};
     let detail = err.to_string();
@@ -48,7 +50,8 @@ fn map_linux_vault_error(err: vault::linux::LinuxVaultError) -> String {
     let detail = err.to_string();
     let kind_str = match err {
         vault::linux::LinuxVaultError::Corrupt(_) => kind::VAULT_CORRUPT,
-        vault::linux::LinuxVaultError::TpmUnavailable(_) => kind::VAULT_PLATFORM_UNSUPPORTED,
+        vault::linux::LinuxVaultError::TpmUnavailable(_)
+        | vault::linux::LinuxVaultError::FprintdUnavailable => kind::VAULT_PLATFORM_UNSUPPORTED,
         vault::linux::LinuxVaultError::Backend(_) | vault::linux::LinuxVaultError::Io(_) => {
             kind::VAULT
         }
@@ -194,7 +197,16 @@ pub async fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
 
 pub async fn hardware_tier_vault_is_biometric_password_stored(support_dir: String) -> bool {
     tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::is_biometric_password_stored(&support_dir)
+        #[cfg(target_os = "linux")]
+        {
+            lfs_core::security::hardware_tier_vault::linux::is_biometric_password_stored(
+                &support_dir,
+            )
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            lfs_os_security::hardware_tier_vault::is_biometric_password_stored(&support_dir)
+        }
     })
     .await
     .unwrap_or(false)
@@ -403,34 +415,66 @@ pub async fn hardware_tier_vault_store_biometric_password(
     support_dir: String,
     password_bytes: Vec<u8>,
 ) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::store_biometric_password(
+    #[cfg(target_os = "linux")]
+    {
+        // Linux overlay is async — the fprintd D-Bus probe + TPM2
+        // seal both happen inside the orchestrator (the seal half
+        // already `spawn_blocking`s itself).
+        lfs_core::security::hardware_tier_vault::linux::store_biometric_password(
             &support_dir,
             &password_bytes,
         )
-        .map_err(map_hw_vault_error)
-    })
-    .await
-    .map_err(|e| format!("hw_vault store_bio_pw join: {e}"))?
+        .await
+        .map_err(map_linux_vault_error)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        tokio::task::spawn_blocking(move || {
+            lfs_os_security::hardware_tier_vault::store_biometric_password(
+                &support_dir,
+                &password_bytes,
+            )
+            .map_err(map_hw_vault_error)
+        })
+        .await
+        .map_err(|e| format!("hw_vault store_bio_pw join: {e}"))?
+    }
 }
 
 pub async fn hardware_tier_vault_read_biometric_password(
     support_dir: String,
 ) -> Result<Option<Vec<u8>>, String> {
-    tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::read_biometric_password(&support_dir)
-            .map_err(map_hw_vault_error)
-    })
-    .await
-    .map_err(|e| format!("hw_vault read_bio_pw join: {e}"))?
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::read_biometric_password(&support_dir)
+            .await
+            .map_err(map_linux_vault_error)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        tokio::task::spawn_blocking(move || {
+            lfs_os_security::hardware_tier_vault::read_biometric_password(&support_dir)
+                .map_err(map_hw_vault_error)
+        })
+        .await
+        .map_err(|e| format!("hw_vault read_bio_pw join: {e}"))?
+    }
 }
 
 pub async fn hardware_tier_vault_clear_biometric_password(
     support_dir: String,
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::clear_biometric_password(&support_dir)
-            .map_err(map_hw_vault_error)
+        #[cfg(target_os = "linux")]
+        {
+            lfs_core::security::hardware_tier_vault::linux::clear_biometric_password(&support_dir)
+                .map_err(map_linux_vault_error)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            lfs_os_security::hardware_tier_vault::clear_biometric_password(&support_dir)
+                .map_err(map_hw_vault_error)
+        }
     })
     .await
     .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?

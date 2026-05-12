@@ -280,6 +280,11 @@ pub mod linux {
         /// `tpm2-tools` not reachable, `/dev/tpmrm0` missing, or the
         /// TPM rejected the seal call.
         TpmUnavailable(String),
+        /// fprintd D-Bus service is not registered, has no default
+        /// reader, or no fingers are enrolled. Only the
+        /// biometric-overlay path surfaces this — the primary vault
+        /// does not consult fprintd.
+        FprintdUnavailable,
         /// `tpm2_create` / `tpm2_unseal` ran but returned an error.
         Backend(String),
         /// File-IO surface — read / write / atomic-rename failed.
@@ -293,6 +298,9 @@ pub mod linux {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
                 Self::TpmUnavailable(s) => write!(f, "tpm unavailable: {s}"),
+                Self::FprintdUnavailable => {
+                    write!(f, "fprintd unavailable / no enrolled fingers")
+                }
                 Self::Backend(s) => write!(f, "tpm backend: {s}"),
                 Self::Io(s) => write!(f, "io: {s}"),
                 Self::Corrupt(s) => write!(f, "corrupt: {s}"),
@@ -430,6 +438,181 @@ pub mod linux {
             Err(e) => Err(LinuxVaultError::Io(format!("remove: {e}"))),
         }
     }
+
+    // ── biometric password overlay ──────────────────────────────
+    //
+    // The overlay seals the user's typed master password under
+    // TPM2 with the fprintd enrolment hash as the auth value. It
+    // is intentionally separate from the primary vault so any
+    // change to the biometric enrolment (a new finger enrolled,
+    // an old finger dropped) flips the hash and the overlay
+    // unseal fails; the primary vault keeps working under the
+    // typed password, so the user only loses the biometric
+    // shortcut, not their data.
+    //
+    // The auth value is derived in
+    // `lfs_core::platform::linux::fprintd::get_enrolment_hash` —
+    // SHA-256 of the sorted-`:`-joined enrolled-finger list, the
+    // exact shape `biometric_key_vault::linux` already uses for
+    // its TPM-sealed DB key (mirrors Apple's
+    // `kSecAccessControlBiometryCurrentSet` invalidation
+    // semantics). Re-enrolment flips the hash, the TPM rejects
+    // the unseal, and the file is treated as "overlay revoked".
+
+    /// Filename inside `support_dir` carrying the overlay blob.
+    /// Matches the wipe-registry entry in
+    /// `lfs_core::security::wipe::MANAGED_FILES`.
+    pub const BIO_PASSWORD_FILE: &str = "hardware_vault_password_overlay_linux.bin";
+
+    fn bio_password_path(support_dir: &str) -> PathBuf {
+        Path::new(support_dir).join(BIO_PASSWORD_FILE)
+    }
+
+    /// True when `support_dir/hardware_vault_password_overlay_linux.bin`
+    /// exists. Pure path-stat; does not invoke the TPM or fprintd.
+    /// The unseal may still fail (fprintd unenrolled, TPM cleared);
+    /// `read_biometric_password` surfaces that as `Ok(None)`.
+    #[must_use]
+    pub fn is_biometric_password_stored(support_dir: &str) -> bool {
+        bio_password_path(support_dir).exists()
+    }
+
+    /// Seal `password_bytes` under TPM2 keyed by the current fprintd
+    /// enrolment hash, then write the length-prefixed envelope to
+    /// `support_dir/hardware_vault_password_overlay_linux.bin`.
+    /// Requires `tpm2-tools` + `/dev/tpmrm0` available AND fprintd
+    /// reachable with at least one enrolled finger; either missing
+    /// surfaces as `Err(TpmUnavailable)` / `Err(FprintdUnavailable)`
+    /// so the caller can route the user to the README install
+    /// snippet rather than silently writing a half-formed vault.
+    pub async fn store_biometric_password(
+        support_dir: &str,
+        password_bytes: &[u8],
+    ) -> Result<(), LinuxVaultError> {
+        if !is_available() {
+            return Err(LinuxVaultError::TpmUnavailable("tpm probe failed".into()));
+        }
+        let Some(auth_hash) = crate::platform::linux::fprintd::get_enrolment_hash().await else {
+            return Err(LinuxVaultError::FprintdUnavailable);
+        };
+        let password_owned = password_bytes.to_vec();
+        let support_dir_owned = support_dir.to_string();
+        tokio::task::spawn_blocking(move || -> Result<(), LinuxVaultError> {
+            let sealed = lfs_os_security::linux::tpm::seal(
+                &lfs_os_security::linux::tpm::TpmConfig::default(),
+                &password_owned,
+                &auth_hash,
+            )
+            .map_err(|e| LinuxVaultError::Backend(e.to_string()))?;
+            let mut body = Vec::with_capacity(4 + sealed.len());
+            let sealed_len = u32::try_from(sealed.len()).map_err(|_| {
+                LinuxVaultError::Backend(format!(
+                    "overlay sealed length exceeds u32: {}",
+                    sealed.len()
+                ))
+            })?;
+            body.extend_from_slice(&sealed_len.to_be_bytes());
+            body.extend_from_slice(&sealed);
+            let blob = lfs_os_security::hardware_tier_vault::prepend_envelope_header(
+                lfs_os_security::hardware_tier_vault::HW_VAULT_PLATFORM_LINUX,
+                &body,
+            );
+            let path = bio_password_path(&support_dir_owned);
+            if let Some(parent) = path.parent() {
+                crate::path::create_dir_all_secure(parent)
+                    .map_err(|e| LinuxVaultError::Io(format!("mkdirp: {e}")))?;
+            }
+            write_bytes_atomic(&path, &blob)
+                .map_err(|e| LinuxVaultError::Io(format!("write overlay: {e}")))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| LinuxVaultError::Io(format!("overlay blocking task: {e}")))??;
+        Ok(())
+    }
+
+    /// Read + unseal the overlay envelope. Returns:
+    /// * `Ok(Some(bytes))` — fprintd matched the sealed enrolment
+    ///   hash and the TPM yielded the original password bytes.
+    /// * `Ok(None)` — overlay file missing, fprintd has no enrolled
+    ///   fingers, or the TPM rejected the unseal (re-enrolment
+    ///   forced auth-value mismatch). Caller routes to the typed
+    ///   password dialog — the primary vault is unaffected.
+    /// * `Err(_)` — TPM unreachable or on-disk envelope malformed.
+    pub async fn read_biometric_password(
+        support_dir: &str,
+    ) -> Result<Option<Vec<u8>>, LinuxVaultError> {
+        let path = bio_password_path(support_dir);
+        if !path.exists() {
+            return Ok(None);
+        }
+        if !is_available() {
+            return Err(LinuxVaultError::TpmUnavailable("tpm probe failed".into()));
+        }
+        let Some(auth_hash) = crate::platform::linux::fprintd::get_enrolment_hash().await else {
+            return Ok(None);
+        };
+        let path_owned = path.clone();
+        let unsealed =
+            tokio::task::spawn_blocking(move || -> Result<Option<Vec<u8>>, LinuxVaultError> {
+                let raw = std::fs::read(&path_owned)
+                    .map_err(|e| LinuxVaultError::Io(format!("read overlay: {e}")))?;
+                let body = lfs_os_security::hardware_tier_vault::parse_envelope_header(
+                    &raw,
+                    lfs_os_security::hardware_tier_vault::HW_VAULT_PLATFORM_LINUX,
+                )
+                .map_err(|_| LinuxVaultError::Corrupt("overlay header mismatch".into()))?;
+                let sealed = parse_bio_overlay_body(body)?;
+                match lfs_os_security::linux::tpm::unseal(
+                    &lfs_os_security::linux::tpm::TpmConfig::default(),
+                    sealed,
+                    &auth_hash,
+                ) {
+                    Ok(plain) => Ok(Some(plain)),
+                    // Wrong auth (re-enrolment changed the hash) or
+                    // TPM-key invalidation surfaces as a generic
+                    // backend error from `tpm2-tools`; map to
+                    // `Ok(None)` so the unlock UI routes back to the
+                    // typed password path.
+                    Err(_) => Ok(None),
+                }
+            })
+            .await
+            .map_err(|e| LinuxVaultError::Io(format!("overlay blocking task: {e}")))??;
+        Ok(unsealed)
+    }
+
+    /// Drop the overlay envelope. Missing-file is `Ok(())`; the
+    /// TPM has no persistent key for this path so there is no
+    /// hardware-side state to revoke separately — re-enrolling
+    /// fingerprints already invalidates the auth value, and a
+    /// fresh `store_biometric_password` overwrites the file.
+    pub fn clear_biometric_password(support_dir: &str) -> Result<(), LinuxVaultError> {
+        let path = bio_password_path(support_dir);
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(LinuxVaultError::Io(format!("remove overlay: {e}"))),
+        }
+    }
+
+    /// Parse the single length-prefixed sealed frame inside the
+    /// overlay envelope body. Same `checked_add` discipline as the
+    /// Windows `parse_bio_envelope` so a hostile length prefix
+    /// cannot wrap the size calculation.
+    fn parse_bio_overlay_body(raw: &[u8]) -> Result<&[u8], LinuxVaultError> {
+        if raw.len() < 4 {
+            return Err(LinuxVaultError::Corrupt("overlay: truncated".into()));
+        }
+        let sealed_len = u32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]) as usize;
+        let sealed_end = 4usize
+            .checked_add(sealed_len)
+            .ok_or_else(|| LinuxVaultError::Corrupt("overlay: sealed_len overflow".into()))?;
+        if raw.len() < sealed_end {
+            return Err(LinuxVaultError::Corrupt("overlay: truncated sealed".into()));
+        }
+        Ok(&raw[4..sealed_end])
+    }
 }
 
 #[cfg(test)]
@@ -540,5 +723,100 @@ mod tests {
         // pre-existence — a missing target is treated as success.
         let dir = tempfile::TempDir::new().unwrap();
         clear_v6_v7_password_set_marker(dir.path()).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_overlay_is_stored_returns_false_for_fresh_dir() {
+        // A fresh support_dir has no overlay file; the probe must
+        // not panic on a missing path and reports `false`.
+        let dir = tempfile::TempDir::new().unwrap();
+        assert!(!super::linux::is_biometric_password_stored(
+            dir.path().to_str().unwrap()
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_overlay_clear_on_missing_file_is_ok() {
+        // The wizard / tier-reset cascade calls clear without
+        // branching on pre-existence — missing target = success.
+        let dir = tempfile::TempDir::new().unwrap();
+        super::linux::clear_biometric_password(dir.path().to_str().unwrap()).expect("clear noop");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn linux_overlay_store_errors_when_tpm_unavailable() {
+        use lfs_os_security::linux::tpm::{probe, TpmConfig, TpmProbeResult};
+        // Skip on hosts that actually have a working TPM — those
+        // exercise the success path through the per-platform
+        // validation matrix instead.
+        if matches!(probe(&TpmConfig::default()), TpmProbeResult::Available) {
+            return;
+        }
+        let dir = tempfile::TempDir::new().unwrap();
+        let result =
+            super::linux::store_biometric_password(dir.path().to_str().unwrap(), b"hunter2").await;
+        assert!(matches!(
+            result,
+            Err(super::linux::LinuxVaultError::TpmUnavailable(_))
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn linux_overlay_read_returns_none_when_file_absent() {
+        // No overlay file → caller falls back to the typed password
+        // path. Does not consult the TPM or fprintd.
+        let dir = tempfile::TempDir::new().unwrap();
+        let result = super::linux::read_biometric_password(dir.path().to_str().unwrap()).await;
+        assert!(matches!(result, Ok(None)));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_overlay_file_name_matches_wipe_registry() {
+        // The wipe-registry tripwire (`every_known_artefact_is_in_managed_files`)
+        // cross-references this constant. A rename here without a
+        // matching MANAGED_FILES entry would leave an orphan file
+        // behind on every wipe.
+        assert_eq!(
+            super::linux::BIO_PASSWORD_FILE,
+            "hardware_vault_password_overlay_linux.bin"
+        );
+    }
+
+    /// fprintd hash determinism — same enrolment state must yield
+    /// the same auth value byte-for-byte across processes. Without
+    /// this invariant the seal at install time and the unseal at
+    /// unlock time would derive different keys and the user would
+    /// be locked out of the overlay on the very next launch. The
+    /// formula lives in `lfs_core::platform::linux::fprintd::get_enrolment_hash`
+    /// (SHA-256 of sorted-`:`-joined finger names); we re-derive it
+    /// here without consulting fprintd so the test is hermetic.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn fprintd_hash_formula_is_deterministic() {
+        use sha2::{Digest, Sha256};
+        fn derive(fingers: &[&str]) -> [u8; 32] {
+            let mut sorted: Vec<String> = fingers.iter().map(|s| (*s).to_string()).collect();
+            sorted.sort();
+            let joined = sorted.join(":");
+            let mut hasher = Sha256::new();
+            hasher.update(joined.as_bytes());
+            let digest = hasher.finalize();
+            let mut out = [0u8; 32];
+            out.copy_from_slice(&digest);
+            out
+        }
+        let a = derive(&["right-index", "left-thumb"]);
+        let b = derive(&["left-thumb", "right-index"]);
+        assert_eq!(a, b, "sort order must not affect the hash");
+        let c = derive(&["right-index"]);
+        assert_ne!(
+            a, c,
+            "dropping an enrolled finger must flip the hash so the overlay invalidates"
+        );
     }
 }

@@ -287,11 +287,16 @@ class HardwareTierVault {
   ///
   /// Apple (Secure Enclave + `kSecAccessControlBiometryCurrentSet`),
   /// Android (Hardware Keystore + biometric-bound wrap key alias
-  /// `lfs.hardware_tier_vault.l3.bio`), and Windows
-  /// (NCrypt persistent key `letsflutssh_hardware_vault_bio_v1`
-  /// gated by `NCRYPT_UI_PROTECT_KEY_FLAG`) all support the overlay.
-  /// Linux returns false until the matching TPM-sealed overlay file
-  /// lands.
+  /// `lfs.hardware_tier_vault.l3.bio`), Windows (NCrypt persistent
+  /// key `letsflutssh_hardware_vault_bio_v1` gated by
+  /// `NCRYPT_UI_PROTECT_KEY_FLAG`), and Linux (TPM2-sealed
+  /// `hardware_vault_password_overlay_linux.bin` keyed by the
+  /// fprintd enrolment hash) all support the overlay. The Linux
+  /// arm needs `fprintd` running with at least one enrolled finger;
+  /// a missing daemon surfaces as the `vaultPlatformUnsupported`
+  /// FRB envelope on store / read, and `isBiometricPasswordStored`
+  /// reports the file's presence regardless so wipe can still clean
+  /// it up.
   Future<bool> isBiometricPasswordStored() async {
     if (!_usesRust) return false;
     try {

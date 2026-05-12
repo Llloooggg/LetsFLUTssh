@@ -189,7 +189,7 @@ works, the biometric shortcut is unavailable).
 | macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs | `kSecAccessControlBiometryCurrentSet` ACL on the overlay key | same as iOS — shared Apple-cfg Rust path |
 | Android | AES-256-GCM wrap key in AndroidKeyStore (TEE / StrongBox), wrapped value bytes in 0600 file under `getFilesDir()` | StrongBox-backed AES-256-GCM key with password-HMAC frame envelope, falls back to TEE on `StrongBoxUnavailableException` | `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` alias `lfs.hardware_tier_vault.l3.bio` | `lfs_os_security::android::keystore` + `android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`, no Kotlin shim) |
 | Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 | Hello-gated NCrypt persistent key `letsflutssh_hardware_vault_bio_v1` with `NCRYPT_UI_PROTECT_KEY_FLAG \| NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`, separate from the primary so enrolment changes invalidate only the overlay | `lfs_os_security::secure_key_storage::windows` (`extern "system"` to `CredReadW` / `CredWriteW`); hardware vault → `lfs_os_security::windows::hardware_vault` (direct `windows` crate FFI to NCrypt) |
-| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in | — (fprintd-gated separate TPM blob planned; the password path covers T2 today) | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` (subprocess + native dual backend, byte-compatible envelope) |
+| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in | TPM2-sealed `hardware_vault_password_overlay_linux.bin` keyed by the `fprintd` enrolment hash (SHA-256 of sorted enrolled-finger names); re-enrolment flips the hash so the overlay invalidates while the primary password vault keeps working. Requires `fprintd` (capability-ladder rung 5 — optional OS dep with graceful degradation; the install snippet lives in the main README) | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` (subprocess + native dual backend, byte-compatible envelope); `lfs_core::security::hardware_tier_vault::linux` (overlay orchestrator over fprintd + TPM2 seal) |
 
 **Linux notes.** T1 on Linux is the weakest default across the
 matrix because `libsecret` does not integrate with TPM. Users who
@@ -203,6 +203,22 @@ directly to `/dev/tpm0` through the TSS2 ABI — no per-operation
 `fork()` + temp-file plumbing — and produces byte-identical sealed
 envelopes to the subprocess path so the two paths interoperate
 seamlessly.
+
+**Linux T2 biometric overlay.** The Hardware tier's biometric
+shortcut on Linux is a second TPM2-sealed envelope
+(`hardware_vault_password_overlay_linux.bin`) keyed by the fprintd
+enrolment hash, orchestrated by
+[`lfs_core::security::hardware_tier_vault::linux`](
+../rust/crates/lfs_core/src/security/hardware_tier_vault.rs). It is
+intentionally separate from the primary `hardware_vault.bin` so a
+new fingerprint enrolled / an old one dropped flips the hash, the
+overlay's TPM unseal fails, and the user only loses the shortcut —
+the primary password path keeps unsealing under the typed password.
+The overlay requires `fprintd` (capability-ladder rung 5 — optional
+OS dep with graceful degradation): when the daemon is unreachable
+the Settings toggle disables with a localised reason and the
+README install snippet covers the per-distro `apt` / `dnf` /
+`pacman` / `zypper` commands.
 
 **Android notes.** The AndroidKeyStore wrap key is generated via
 direct JNI to `java.security.KeyStore` (no Kotlin business-logic
