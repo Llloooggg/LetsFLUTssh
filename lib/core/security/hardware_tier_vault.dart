@@ -71,7 +71,7 @@ class HardwareTierVault {
   /// is a Rust subprocess).
   Future<bool> isAvailable() async {
     if (_usesRust) {
-      return rust_vault.hardwareTierVaultIsAvailable();
+      return await rust_vault.hardwareTierVaultIsAvailable();
     }
     return false;
   }
@@ -89,7 +89,7 @@ class HardwareTierVault {
   /// method.
   Future<String> probeDetail() async {
     if (_usesRust) {
-      return rust_vault.hardwareTierVaultProbeDetail();
+      return await rust_vault.hardwareTierVaultProbeDetail();
     }
     return 'unknown';
   }
@@ -106,7 +106,9 @@ class HardwareTierVault {
           // `hardware_vault.bin` — single-file presence is the
           // whole contract.
           final dir = await getApplicationSupportDirectory();
-          return rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
+          return await rust_vault.hardwareTierVaultIsStored(
+            supportDir: dir.path,
+          );
         }
         // Apple / Android / Windows keep the wrapped key inside the
         // platform vault; the salt rides next to it on disk under
@@ -117,7 +119,7 @@ class HardwareTierVault {
           supportDir: dir.path,
         );
         if (salt == null) return false;
-        return rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
+        return await rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
       }
       return false;
     } catch (e) {

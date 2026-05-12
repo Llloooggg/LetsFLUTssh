@@ -10091,15 +10091,16 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_encode_linux_blob_
     )
 }
 fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_available_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "hardware_tier_vault_is_available",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -10112,38 +10113,47 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_available_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(
-                    crate::api::hardware_tier_vault::hardware_tier_vault_is_available(),
-                )?;
-                Ok(output_ok)
-            })())
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::hardware_tier_vault::hardware_tier_vault_is_available()
+                                .await,
+                        )?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
 fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_biometric_password_stored_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_is_biometric_password_stored", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || { 
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_is_biometric_password_stored", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end();
-                transform_result_sse::<_, ()>((move || {
-                     let output_ok = Result::<_,()>::Ok(crate::api::hardware_tier_vault::hardware_tier_vault_is_biometric_password_stored(api_support_dir))?;   Ok(output_ok)
-                })()) })
+            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, ()>((move || async move {
+                         let output_ok = Result::<_,()>::Ok(crate::api::hardware_tier_vault::hardware_tier_vault_is_biometric_password_stored(api_support_dir).await)?;   Ok(output_ok)
+                    })().await)
+                } })
 }
 fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_stored_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "hardware_tier_vault_is_stored",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -10157,25 +10167,34 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_stored_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(
-                    crate::api::hardware_tier_vault::hardware_tier_vault_is_stored(api_support_dir),
-                )?;
-                Ok(output_ok)
-            })())
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::hardware_tier_vault::hardware_tier_vault_is_stored(
+                                api_support_dir,
+                            )
+                            .await,
+                        )?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
 fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_probe_detail_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "hardware_tier_vault_probe_detail",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -10188,12 +10207,18 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_probe_detail_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(
-                    crate::api::hardware_tier_vault::hardware_tier_vault_probe_detail(),
-                )?;
-                Ok(output_ok)
-            })())
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::hardware_tier_vault::hardware_tier_vault_probe_detail()
+                                .await,
+                        )?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
@@ -27622,6 +27647,10 @@ fn pde_ffi_dispatcher_primary_impl(
 241 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_clear_impl(port, ptr, rust_vec_len, data_len),
 242 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_clear_biometric_password_impl(port, ptr, rust_vec_len, data_len),
 244 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_delete_salt_impl(port, ptr, rust_vec_len, data_len),
+246 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_available_impl(port, ptr, rust_vec_len, data_len),
+247 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_biometric_password_stored_impl(port, ptr, rust_vec_len, data_len),
+248 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_stored_impl(port, ptr, rust_vec_len, data_len),
+249 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_probe_detail_impl(port, ptr, rust_vec_len, data_len),
 250 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_provision_salt_impl(port, ptr, rust_vec_len, data_len),
 251 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_impl(port, ptr, rust_vec_len, data_len),
 252 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_biometric_password_impl(port, ptr, rust_vec_len, data_len),
@@ -27871,10 +27900,6 @@ fn pde_ffi_dispatcher_sync_impl(
 236 => wire__crate__api__format__format_timestamp_minute_impl(ptr, rust_vec_len, data_len),
 243 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_decode_linux_blob_impl(ptr, rust_vec_len, data_len),
 245 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_encode_linux_blob_impl(ptr, rust_vec_len, data_len),
-246 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_available_impl(ptr, rust_vec_len, data_len),
-247 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_biometric_password_stored_impl(ptr, rust_vec_len, data_len),
-248 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_stored_impl(ptr, rust_vec_len, data_len),
-249 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_probe_detail_impl(ptr, rust_vec_len, data_len),
 253 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_blob_salt_impl(ptr, rust_vec_len, data_len),
 256 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_resolve_auth_value_impl(ptr, rust_vec_len, data_len),
 260 => wire__crate__api__capabilities_orchestrator__hardware_vault_probe_prompt_cancel_impl(ptr, rust_vec_len, data_len),

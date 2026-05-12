@@ -1094,17 +1094,18 @@ abstract class RustLibApi extends BaseApi {
     required List<int> sealed,
   });
 
-  bool crateApiHardwareTierVaultHardwareTierVaultIsAvailable();
+  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsAvailable();
 
-  bool crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
+  Future<bool>
+  crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
     required String supportDir,
   });
 
-  bool crateApiHardwareTierVaultHardwareTierVaultIsStored({
+  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsStored({
     required String supportDir,
   });
 
-  String crateApiHardwareTierVaultHardwareTierVaultProbeDetail();
+  Future<String> crateApiHardwareTierVaultHardwareTierVaultProbeDetail();
 
   Future<Uint8List> crateApiHardwareTierVaultHardwareTierVaultProvisionSalt({
     required String supportDir,
@@ -10551,16 +10552,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  bool crateApiHardwareTierVaultHardwareTierVaultIsAvailable() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsAvailable() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(
+          pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
             funcId: 246,
-          )!;
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -10582,19 +10584,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  bool crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
+  Future<bool>
+  crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
     required String supportDir,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(supportDir, serializer);
-          return pdeCallFfi(
+          pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
             funcId: 247,
-          )!;
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -10616,19 +10620,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  bool crateApiHardwareTierVaultHardwareTierVaultIsStored({
+  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsStored({
     required String supportDir,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(supportDir, serializer);
-          return pdeCallFfi(
+          pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
             funcId: 248,
-          )!;
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -10649,16 +10654,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  String crateApiHardwareTierVaultHardwareTierVaultProbeDetail() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<String> crateApiHardwareTierVaultHardwareTierVaultProbeDetail() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(
+          pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
             funcId: 249,
-          )!;
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,

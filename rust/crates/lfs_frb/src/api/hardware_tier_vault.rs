@@ -119,55 +119,79 @@ pub fn hardware_tier_vault_resolve_auth_value(
     vault::resolve_auth_value(intent, &salt).map(|z| z.to_vec())
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn hardware_tier_vault_is_available() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        lfs_core::security::hardware_tier_vault::linux::is_available()
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        lfs_os_security::hardware_tier_vault::is_available()
-    }
-}
+// The four probe endpoints below run as plain async FRB calls and
+// route through `tokio::task::spawn_blocking`. The inner per-platform
+// implementations are synchronous and may block: Windows wakes the
+// TBS / TPM driver inside `NCryptOpenStorageProvider`, which can
+// stall hundreds of milliseconds to several seconds on the cold-path;
+// Apple Secure Enclave / Android Keystore probes are similarly
+// blocking objc2 / JNI calls; Linux shells out to `tpm2-tools`.
+// Marking these `#[frb(sync)]` would run them on the Dart UI isolate
+// and freeze the UI for the same duration — so they intentionally
+// stay async, mirroring the existing `store` / `read` / `clear`
+// shims.
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn hardware_tier_vault_probe_detail() -> String {
-    #[cfg(target_os = "linux")]
-    {
-        if lfs_core::security::hardware_tier_vault::linux::is_available() {
-            "available".to_string()
-        } else {
-            // Cause discovery (no `tpm2-tools` / no `/dev/tpmrm0` /
-            // probe rejected) ships through the existing Settings
-            // probe-detail strings; we collapse to a generic
-            // unavailable until a richer classifier lands.
-            "unknown".to_string()
+pub async fn hardware_tier_vault_is_available() -> bool {
+    tokio::task::spawn_blocking(|| {
+        #[cfg(target_os = "linux")]
+        {
+            lfs_core::security::hardware_tier_vault::linux::is_available()
         }
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        lfs_os_security::hardware_tier_vault::probe_detail()
-            .wire_name()
-            .to_string()
-    }
+        #[cfg(not(target_os = "linux"))]
+        {
+            lfs_os_security::hardware_tier_vault::is_available()
+        }
+    })
+    .await
+    .unwrap_or(false)
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        lfs_core::security::hardware_tier_vault::linux::is_stored(&support_dir)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        lfs_os_security::hardware_tier_vault::is_stored(&support_dir)
-    }
+pub async fn hardware_tier_vault_probe_detail() -> String {
+    tokio::task::spawn_blocking(|| {
+        #[cfg(target_os = "linux")]
+        {
+            if lfs_core::security::hardware_tier_vault::linux::is_available() {
+                "available".to_string()
+            } else {
+                // Cause discovery (no `tpm2-tools` / no `/dev/tpmrm0` /
+                // probe rejected) ships through the existing Settings
+                // probe-detail strings; we collapse to a generic
+                // unavailable until a richer classifier lands.
+                "unknown".to_string()
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            lfs_os_security::hardware_tier_vault::probe_detail()
+                .wire_name()
+                .to_string()
+        }
+    })
+    .await
+    .unwrap_or_else(|_| "unknown".to_string())
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn hardware_tier_vault_is_biometric_password_stored(support_dir: String) -> bool {
-    lfs_os_security::hardware_tier_vault::is_biometric_password_stored(&support_dir)
+pub async fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
+    tokio::task::spawn_blocking(move || {
+        #[cfg(target_os = "linux")]
+        {
+            lfs_core::security::hardware_tier_vault::linux::is_stored(&support_dir)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            lfs_os_security::hardware_tier_vault::is_stored(&support_dir)
+        }
+    })
+    .await
+    .unwrap_or(false)
+}
+
+pub async fn hardware_tier_vault_is_biometric_password_stored(support_dir: String) -> bool {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::is_biometric_password_stored(&support_dir)
+    })
+    .await
+    .unwrap_or(false)
 }
 
 /// Store the wrapped DB key under the platform's hardware-tier

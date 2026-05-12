@@ -57,22 +57,23 @@ Uint8List? hardwareTierVaultResolveAuthValue({
       fprintdHash: fprintdHash,
     );
 
-bool hardwareTierVaultIsAvailable() => RustLib.instance.api
+Future<bool> hardwareTierVaultIsAvailable() => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultIsAvailable();
 
-String hardwareTierVaultProbeDetail() => RustLib.instance.api
+Future<String> hardwareTierVaultProbeDetail() => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultProbeDetail();
 
-bool hardwareTierVaultIsStored({required String supportDir}) => RustLib
+Future<bool> hardwareTierVaultIsStored({required String supportDir}) => RustLib
     .instance
     .api
     .crateApiHardwareTierVaultHardwareTierVaultIsStored(supportDir: supportDir);
 
-bool hardwareTierVaultIsBiometricPasswordStored({required String supportDir}) =>
-    RustLib.instance.api
-        .crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored(
-          supportDir: supportDir,
-        );
+Future<bool> hardwareTierVaultIsBiometricPasswordStored({
+  required String supportDir,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored(
+      supportDir: supportDir,
+    );
 
 /// Store the wrapped DB key under the platform's hardware-tier
 /// vault. `salt` is required for the Linux TPM2 path (gets
