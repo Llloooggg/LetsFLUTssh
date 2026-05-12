@@ -478,19 +478,25 @@ fn import_native_linux(blob: &[u8], label: &str) -> Result<GenerateOutcome, Stri
 }
 
 /// Promote a wrapped-blob TPM key to a persistent NV handle. Linux
-/// only. v1 returns the typed
-/// `Error::Tpm("...libtss2 7.5 requires a real-device verification pass...")`
-/// — the persistent-handle path is the wizard's stretch goal pending
-/// the v2 tss-esapi minor bump verification.
+/// only.
+///
+/// Path: read the `ssh_keys` row → rebuild a `TpmSshKey` from the
+/// stored `tpm_blob` → call `tpm_ssh::make_persistent(handle)` →
+/// write `tpm_handle = handle` back to the DB row. The chip-side
+/// blob keeps living in `tpm_blob` so sync replay can re-stage the
+/// same persistent slot on a fresh device that happens to have the
+/// slot free.
+///
+/// `TPM_RC_NV_DEFINED` against the slot surfaces as
+/// `Error::Crypto("handle in use: ...")`; the FRB envelope routes
+/// the leading `handle in use:` discriminator to the localized
+/// `tpmSshHandleInUse` toast.
 pub async fn tpm_ssh_make_persistent(key_id: String, handle: u32) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
-        let _ = handle;
-        let _ = key_id;
-        Err(frb_err::wire(
-            frb_err::kind::TPM,
-            "persistent-handle promotion requires a real-device verification pass",
-        ))
+        tokio::task::spawn_blocking(move || make_persistent_native_linux(key_id, handle))
+            .await
+            .map_err(|e| frb_err::wire(frb_err::kind::TPM, &format!("spawn_blocking: {e}")))?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -502,14 +508,93 @@ pub async fn tpm_ssh_make_persistent(key_id: String, handle: u32) -> Result<(), 
     }
 }
 
-/// Evict a persistent NV handle back to TPM RAM. Linux only;
-/// shares the v1 caveat with [`tpm_ssh_make_persistent`].
+/// Evict a persistent NV handle back to TPM RAM, freeing the slot.
+/// Linux only.
+///
+/// Path: read the `ssh_keys` row → call `tpm_ssh::evict(key)` to
+/// fire `TPM2_EvictControl` against the persistent slot → clear
+/// `tpm_handle` on the DB row. Refuses with
+/// `Error::Crypto("key not persistent")` if the row carries no
+/// `tpm_handle` — the FRB layer would otherwise open the chip
+/// just to discover there was nothing to evict.
 pub async fn tpm_ssh_evict(key_id: String) -> Result<(), String> {
-    let _ = key_id;
-    Err(frb_err::wire(
-        frb_err::kind::TPM,
-        "persistent-handle eviction requires a real-device verification pass",
-    ))
+    #[cfg(target_os = "linux")]
+    {
+        tokio::task::spawn_blocking(move || evict_native_linux(key_id))
+            .await
+            .map_err(|e| frb_err::wire(frb_err::kind::TPM, &format!("spawn_blocking: {e}")))?
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = key_id;
+        Err(frb_err::wire(
+            frb_err::kind::UNSUPPORTED,
+            "Persistent NV handles are Linux-only",
+        ))
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn make_persistent_native_linux(key_id: String, handle: u32) -> Result<(), String> {
+    use lfs_os_security::linux::tpm::TpmConfig;
+    use lfs_os_security::linux::tpm_ssh;
+    let db = crate::api::db::require_db()?;
+    let row = db
+        .with_conn(|c| lfs_core::db::ssh_keys::get(c, &key_id))
+        .map_err(|e| crate::api::frb_err::from_core(&e))?
+        .ok_or_else(|| frb_err::wire(frb_err::kind::TPM, "tpm-ssh: key not found"))?;
+    let blob = row
+        .tpm_blob
+        .as_ref()
+        .ok_or_else(|| frb_err::wire(frb_err::kind::TPM, "tpm-ssh: key has no wrapped blob"))?;
+    let mut key = tpm_ssh::import_blob(blob)
+        .map_err(|e| frb_err::wire(frb_err::kind::TPM, &e.to_string()))?;
+    let cfg = TpmConfig::default();
+    tpm_ssh::make_persistent(&cfg, &mut key, handle)
+        .map_err(|e| frb_err::wire(frb_err::kind::TPM, &e.to_string()))?;
+
+    let mut updated = row;
+    updated.tpm_handle = Some(handle);
+    db.with_conn(|c| lfs_core::db::ssh_keys::upsert(c, &updated))
+        .map_err(|e| crate::api::frb_err::from_core(&e))
+}
+
+#[cfg(target_os = "linux")]
+fn evict_native_linux(key_id: String) -> Result<(), String> {
+    use lfs_os_security::linux::tpm::TpmConfig;
+    use lfs_os_security::linux::tpm_ssh::{
+        self, TpmSshAlgorithm, TpmSshKey, TpmSshPublicKey, TpmSshStorage,
+    };
+    let db = crate::api::db::require_db()?;
+    let row = db
+        .with_conn(|c| lfs_core::db::ssh_keys::get(c, &key_id))
+        .map_err(|e| crate::api::frb_err::from_core(&e))?
+        .ok_or_else(|| frb_err::wire(frb_err::kind::TPM, "tpm-ssh: key not found"))?;
+    let handle = row
+        .tpm_handle
+        .ok_or_else(|| frb_err::wire(frb_err::kind::TPM, "key not persistent"))?;
+    // The `evict` driver call only reads `storage` (for the
+    // pre-condition + handle u32) and `algorithm` (unused).
+    // Synthesise a minimal `TpmSshKey` rather than re-importing the
+    // blob — the chip-side evict only needs the handle u32, and
+    // the row may carry no usable blob if the promotion stripped
+    // it before sync replay.
+    let alg = TpmSshAlgorithm::from_key_type(&row.key_type).unwrap_or(TpmSshAlgorithm::EcdsaP256);
+    let placeholder = TpmSshKey {
+        algorithm: alg,
+        storage: TpmSshStorage::PersistentHandle(handle),
+        public: TpmSshPublicKey::EcdsaP256 {
+            uncompressed_65: Vec::new(),
+        },
+    };
+    let cfg = TpmConfig::default();
+    tpm_ssh::evict(&cfg, &placeholder)
+        .map_err(|e| frb_err::wire(frb_err::kind::TPM, &e.to_string()))?;
+
+    let mut updated = row;
+    updated.tpm_handle = None;
+    db.with_conn(|c| lfs_core::db::ssh_keys::upsert(c, &updated))
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Enumerate TPM-bound `ssh_keys` rows for the key-manager listing.

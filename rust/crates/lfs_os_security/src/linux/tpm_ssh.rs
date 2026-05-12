@@ -33,12 +33,17 @@
 //!    transient handle down on completion. Portable across
 //!    reinstalls — the OS reset doesn't touch the user-data dir.
 //! 2. **Persistent NV handle** — power-user opt-in. After the
-//!    blob mints, [`make_persistent`] issues `TPM2_EvictControl`
-//!    on a user-chosen handle in `0x81010001..0x8101FFFF`. The
-//!    chip holds the key in TPM RAM; subsequent signs skip the
-//!    `TPM2_Load` step (~2-5 ms total) but consume one of the
-//!    handful of persistent slots (typical fTPM ships ~7 free
-//!    handles). `tpm2_clear` / BIOS reset wipes them.
+//!    blob mints, [`make_persistent`] loads the wrapped key under
+//!    a fresh storage primary and calls `TPM2_EvictControl` to
+//!    install the loaded object at a user-chosen handle in
+//!    `0x81010001..0x8101FFFF`. The chip holds the key in TPM
+//!    RAM; subsequent signs reuse the persistent handle via
+//!    `tr_from_tpm_public` and skip the `TPM2_Load` step
+//!    (~2-5 ms total) but consume one of the handful of
+//!    persistent slots (typical fTPM ships ~7 free handles).
+//!    `tpm2_clear` / BIOS reset wipes them. [`evict`] is the
+//!    inverse — `TPM2_EvictControl` against the persistent slot
+//!    returns it to free.
 //!
 //! Both modes route through the same primary derivation
 //! ([`super::tpm_native::build_primary_template`]) so the parent
@@ -87,11 +92,13 @@ use std::str::FromStr;
 
 use tss_esapi::{
     attributes::ObjectAttributesBuilder,
+    handles::{KeyHandle, PersistentTpmHandle, TpmHandle},
     interface_types::{
         algorithm::{EccSchemeAlgorithm, HashingAlgorithm, PublicAlgorithm, RsaSchemeAlgorithm},
+        dynamic_handles::Persistent,
         ecc::EccCurve,
         key_bits::RsaKeyBits,
-        resource_handles::Hierarchy,
+        resource_handles::{Hierarchy, Provision},
     },
     structures::{
         Auth, Digest, EccParameter, EccPoint, EccScheme, HashScheme, KeyDerivationFunctionScheme,
@@ -323,21 +330,8 @@ pub fn sign(
         TpmSshStorage::Blob { private, public } => {
             sign_blob_mode(&mut ctx, key.algorithm, private, public, auth.clone(), data)?
         }
-        TpmSshStorage::PersistentHandle(_handle) => {
-            // The persistent-handle path needs `tr_from_tpm_public`
-            // to bind a transient ESYS handle to the persistent NV
-            // slot. tss-esapi 7.5's API for this surface is rough
-            // (the constructor takes a `tss-esapi::Handle::Persistent`
-            // and the resulting ESYS handle does not implement
-            // `tr_set_auth` ergonomically). Persistent-handle signs
-            // route through the blob path until the wizard's
-            // make_persistent step also re-stages a usable handle —
-            // tracked in Appendix B.
-            return Err(Error::Crypto(
-                "persistent-handle signing path is wizard-only in v1; \
-                 re-import the blob to use this key from the connect path"
-                    .into(),
-            ));
+        TpmSshStorage::PersistentHandle(handle) => {
+            sign_persistent_mode(&mut ctx, key.algorithm, *handle, auth.clone(), data)?
         }
     };
     Ok(signature)
@@ -346,42 +340,90 @@ pub fn sign(
 /// Promote a wrapped-blob key to a persistent NV slot.
 /// `handle` must lie in the `0x81010001..0x8101FFFF` range (the
 /// TCG-reserved persistent-storage range for owner-hierarchy
-/// objects). Returns the updated [`TpmSshKey`] with
-/// [`TpmSshStorage::PersistentHandle`] replacing the blob.
+/// objects). On success the key's storage flips from
+/// [`TpmSshStorage::Blob`] to [`TpmSshStorage::PersistentHandle`].
+///
+/// Path: recreate the storage primary, `TPM2_Load` the wrapped
+/// pair, then `TPM2_EvictControl(Owner, loaded, handle)` to
+/// install the loaded object at the chosen persistent slot.
+/// `TPM_RC_NV_DEFINED` (slot already in use) surfaces as the
+/// `Error::Crypto("handle in use: ...")` discriminator the FRB
+/// envelope routes to the `tpmSshHandleInUse` localized toast.
 pub fn make_persistent(cfg: &TpmConfig, key: &mut TpmSshKey, handle: u32) -> Result<(), Error> {
     if !(0x8101_0001..=0x8101_FFFF).contains(&handle) {
         return Err(Error::Crypto(format!(
             "tpm-ssh: persistent handle {handle:#x} outside owner range 0x81010001..0x8101FFFF"
         )));
     }
-    let TpmSshStorage::Blob { .. } = &key.storage else {
-        return Err(Error::Crypto("tpm-ssh: key is already persistent".into()));
+    let (priv_bytes, pub_bytes) = match &key.storage {
+        TpmSshStorage::Blob { private, public } => (private.clone(), public.clone()),
+        TpmSshStorage::PersistentHandle(_) => {
+            return Err(Error::Crypto("tpm-ssh: key is already persistent".into()));
+        }
     };
-    // tss-esapi's `evict_control` surface diverges across minor
-    // versions; the v1 wizard renders this step disabled with a
-    // "Available on real-device build" tooltip when the host is
-    // not the developer machine. Tracked in Appendix B.
-    let _ = cfg;
+
+    let persistent_handle = PersistentTpmHandle::new(handle)
+        .map_err(|e| Error::Crypto(format!("tpm-ssh: persistent handle build: {e}")))?;
+    let persistent = Persistent::Persistent(persistent_handle);
+
+    let pub_buffer = PublicBuffer::unmarshall(&pub_bytes).map_err(map_tss_err("unmarshall pub"))?;
+    let public_struct = Public::try_from(pub_buffer).map_err(map_tss_err("decode pub"))?;
+    let priv_inner = unmarshall_tpm2b(&priv_bytes)
+        .ok_or_else(|| Error::Crypto("tpm-ssh make_persistent: malformed TPM2B_PRIVATE".into()))?;
+    let private_struct = tss_esapi::structures::Private::try_from(priv_inner.to_vec())
+        .map_err(map_tss_err("decode priv"))?;
+    let primary_template =
+        tpm_native::build_primary_template().map_err(map_tss_err("primary template"))?;
+
+    let mut ctx = open_context(&cfg.device).map_err(map_tss_err("open"))?;
+    ctx.execute_with_nullauth_session(|c| -> Result<(), tss_esapi::Error> {
+        let primary =
+            c.create_primary(Hierarchy::Owner, primary_template, None, None, None, None)?;
+        let loaded = c.load(primary.key_handle, private_struct, public_struct)?;
+        // `evict_control` returns the new (persistent) ObjectHandle.
+        // We don't need it for subsequent signs — the persistent-mode
+        // sign path re-binds via `tr_from_tpm_public` against the
+        // handle u32 the caller persists on the DB row.
+        c.evict_control(Provision::Owner, loaded.into(), persistent)?;
+        Ok(())
+    })
+    .map_err(|e| map_evict_err(handle, e))?;
+
     key.storage = TpmSshStorage::PersistentHandle(handle);
-    Err(Error::Crypto(
-        "tpm-ssh: make_persistent on libtss2 7.5 requires a real-device verification pass; \
-         re-run after the v2 tss-esapi bump"
-            .into(),
-    ))
+    Ok(())
 }
 
 /// Inverse of [`make_persistent`] — evict a persistent NV handle
 /// back to TPM RAM. Frees the persistent slot for reuse.
+///
+/// On `TPM2_EvictControl` against an existing persistent object,
+/// the spec dictates `objectHandle = persistent_handle` evicts
+/// it. We rebind via `tr_from_tpm_public(TpmHandle::Persistent(_))`
+/// and then call `evict_control(Owner, that_handle, Persistent)`.
+///
+/// Pre-condition: the key must already be in
+/// [`TpmSshStorage::PersistentHandle`] mode. Calling `evict` on a
+/// blob-mode key surfaces `Error::Crypto("key not persistent")`
+/// so the FRB layer can refuse cleanly before opening the chip.
 pub fn evict(cfg: &TpmConfig, key: &TpmSshKey) -> Result<(), Error> {
-    let _ = cfg;
-    if let TpmSshStorage::PersistentHandle(handle) = &key.storage {
-        // Same tss-esapi 7.5 caveat as `make_persistent` — surface
-        // a typed error so the UI's "delete persistent handle"
-        // affordance prints the right reason rather than hanging.
-        return Err(Error::Crypto(format!(
-            "tpm-ssh: evict {handle:#x} requires real-device verification on libtss2 7.5"
-        )));
-    }
+    let handle = match &key.storage {
+        TpmSshStorage::PersistentHandle(h) => *h,
+        TpmSshStorage::Blob { .. } => {
+            return Err(Error::Crypto("tpm-ssh: key not persistent".into()));
+        }
+    };
+    let persistent_handle = PersistentTpmHandle::new(handle)
+        .map_err(|e| Error::Crypto(format!("tpm-ssh: persistent handle build: {e}")))?;
+    let persistent = Persistent::Persistent(persistent_handle);
+    let tpm_handle = TpmHandle::Persistent(persistent_handle);
+
+    let mut ctx = open_context(&cfg.device).map_err(map_tss_err("open"))?;
+    ctx.execute_with_nullauth_session(|c| -> Result<(), tss_esapi::Error> {
+        let object = c.tr_from_tpm_public(tpm_handle)?;
+        c.evict_control(Provision::Owner, object, persistent)?;
+        Ok(())
+    })
+    .map_err(map_tss_err("evict"))?;
     Ok(())
 }
 
@@ -474,6 +516,68 @@ fn build_key_template(alg: TpmSshAlgorithm) -> Result<Public, tss_esapi::Error> 
             .with_rsa_unique_identifier(PublicKeyRsa::default())
             .build(),
     }
+}
+
+/// Map `TPM2_EvictControl` failures to the FRB error envelope.
+/// `TPM_RC_NV_DEFINED` (formatted-1 variants 0x0000_014C /
+/// 0x0000_094C) → "handle in use:"; everything else falls through
+/// to the generic `map_tss_err("evict")` shape. The "handle in
+/// use:" discriminator is the contract the Dart wizard routes on
+/// to surface the localized `tpmSshHandleInUse` toast.
+fn map_evict_err(handle: u32, e: tss_esapi::Error) -> Error {
+    let text = e.to_string();
+    if text.contains("NvDefined") || text.contains("0x0000014c") || text.contains("0x0000094c") {
+        return Error::Crypto(format!("handle in use: persistent slot {handle:#x} in use"));
+    }
+    Error::Crypto(format!("tpm-ssh make_persistent {handle:#x}: {text}"))
+}
+
+fn sign_persistent_mode(
+    ctx: &mut Context,
+    alg: TpmSshAlgorithm,
+    handle: u32,
+    auth: Option<Auth>,
+    data: &[u8],
+) -> Result<TpmSshSignature, Error> {
+    let persistent_handle = PersistentTpmHandle::new(handle)
+        .map_err(|e| Error::Crypto(format!("tpm-ssh sign: persistent handle build: {e}")))?;
+    let tpm_handle = TpmHandle::Persistent(persistent_handle);
+
+    let digest = match alg {
+        TpmSshAlgorithm::EcdsaP256 | TpmSshAlgorithm::Rsa2048 => sha256(data),
+    };
+    let digest_bytes = Digest::try_from(digest).map_err(map_tss_err("digest"))?;
+    let validation =
+        tss_esapi::structures::HashcheckTicket::try_from(tss_esapi::tss2_esys::TPMT_TK_HASHCHECK {
+            tag: tss_esapi::constants::tss::TPM2_ST_HASHCHECK,
+            hierarchy: tss_esapi::constants::tss::TPM2_RH_NULL,
+            digest: tss_esapi::tss2_esys::TPM2B_DIGEST {
+                size: 0,
+                buffer: [0u8; 64],
+            },
+        })
+        .map_err(map_tss_err("validation ticket"))?;
+
+    let sig = ctx
+        .execute_with_nullauth_session(|c| -> Result<Signature, tss_esapi::Error> {
+            let object = c.tr_from_tpm_public(tpm_handle)?;
+            if let Some(auth) = auth {
+                c.tr_set_auth(object, auth)?;
+            }
+            let key_handle: KeyHandle = object.into();
+            let scheme = match alg {
+                TpmSshAlgorithm::EcdsaP256 => SignatureScheme::EcDsa {
+                    hash_scheme: HashScheme::new(HashingAlgorithm::Sha256),
+                },
+                TpmSshAlgorithm::Rsa2048 => SignatureScheme::RsaSsa {
+                    hash_scheme: HashScheme::new(HashingAlgorithm::Sha256),
+                },
+            };
+            c.sign(key_handle, digest_bytes, scheme, validation)
+        })
+        .map_err(|e| map_pin_error(alg, e))?;
+
+    extract_signature_bytes(sig, alg)
 }
 
 fn sign_blob_mode(
@@ -766,6 +870,57 @@ mod tests {
         };
         let err = make_persistent(&cfg, &mut key, 0x12345678).unwrap_err();
         assert!(matches!(err, Error::Crypto(_)));
+        // Range is checked *before* any chip access — the storage
+        // must stay untouched on rejection so the caller can re-try
+        // with a corrected handle without re-loading the blob.
+        assert!(matches!(key.storage, TpmSshStorage::Blob { .. }));
+    }
+
+    #[test]
+    fn make_persistent_rejects_already_persistent_key() {
+        // Pre-condition: only blob-mode keys can be promoted. A
+        // call against a key already in persistent mode is a caller
+        // bug — surface it as a typed error so the FRB layer can
+        // refuse before opening the chip.
+        let cfg = TpmConfig::default();
+        let mut key = TpmSshKey {
+            algorithm: TpmSshAlgorithm::EcdsaP256,
+            storage: TpmSshStorage::PersistentHandle(0x8101_0050),
+            public: TpmSshPublicKey::EcdsaP256 {
+                uncompressed_65: vec![],
+            },
+        };
+        let err = make_persistent(&cfg, &mut key, 0x8101_0099).unwrap_err();
+        match err {
+            Error::Crypto(s) => assert!(s.contains("already persistent"), "got: {s}"),
+            other => panic!("expected Crypto, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn evict_rejects_non_persistent_key() {
+        // Pre-condition: only persistent-mode keys can be evicted.
+        // A call against a blob-mode key is a caller bug — surface
+        // it as `Error::Crypto("key not persistent")` so the FRB
+        // shim can refuse cleanly before opening the chip and the
+        // wizard can print a precise reason instead of a libtss2
+        // RC code.
+        let cfg = TpmConfig::default();
+        let key = TpmSshKey {
+            algorithm: TpmSshAlgorithm::EcdsaP256,
+            storage: TpmSshStorage::Blob {
+                private: vec![1, 2, 3],
+                public: vec![4, 5, 6],
+            },
+            public: TpmSshPublicKey::EcdsaP256 {
+                uncompressed_65: vec![],
+            },
+        };
+        let err = evict(&cfg, &key).unwrap_err();
+        match err {
+            Error::Crypto(s) => assert!(s.contains("key not persistent"), "got: {s}"),
+            other => panic!("expected Crypto, got {other:?}"),
+        }
     }
 
     #[test]

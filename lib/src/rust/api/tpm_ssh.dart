@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `generate_native_linux`, `import_native_linux`, `now_unix_ms`, `persist_row`, `probe_native_linux`
+// These functions are ignored because they are not marked as `pub`: `evict_native_linux`, `generate_native_linux`, `import_native_linux`, `make_persistent_native_linux`, `now_unix_ms`, `persist_row`, `probe_native_linux`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackendColumns`, `GenerateOutcome`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
@@ -33,10 +33,19 @@ Future<String> tpmSshImportBlob({
 );
 
 /// Promote a wrapped-blob TPM key to a persistent NV handle. Linux
-/// only. v1 returns the typed
-/// `Error::Tpm("...libtss2 7.5 requires a real-device verification pass...")`
-/// — the persistent-handle path is the wizard's stretch goal pending
-/// the v2 tss-esapi minor bump verification.
+/// only.
+///
+/// Path: read the `ssh_keys` row → rebuild a `TpmSshKey` from the
+/// stored `tpm_blob` → call `tpm_ssh::make_persistent(handle)` →
+/// write `tpm_handle = handle` back to the DB row. The chip-side
+/// blob keeps living in `tpm_blob` so sync replay can re-stage the
+/// same persistent slot on a fresh device that happens to have the
+/// slot free.
+///
+/// `TPM_RC_NV_DEFINED` against the slot surfaces as
+/// `Error::Crypto("handle in use: ...")`; the FRB envelope routes
+/// the leading `handle in use:` discriminator to the localized
+/// `tpmSshHandleInUse` toast.
 Future<void> tpmSshMakePersistent({
   required String keyId,
   required int handle,
@@ -45,8 +54,15 @@ Future<void> tpmSshMakePersistent({
   handle: handle,
 );
 
-/// Evict a persistent NV handle back to TPM RAM. Linux only;
-/// shares the v1 caveat with [`tpm_ssh_make_persistent`].
+/// Evict a persistent NV handle back to TPM RAM, freeing the slot.
+/// Linux only.
+///
+/// Path: read the `ssh_keys` row → call `tpm_ssh::evict(key)` to
+/// fire `TPM2_EvictControl` against the persistent slot → clear
+/// `tpm_handle` on the DB row. Refuses with
+/// `Error::Crypto("key not persistent")` if the row carries no
+/// `tpm_handle` — the FRB layer would otherwise open the chip
+/// just to discover there was nothing to evict.
 Future<void> tpmSshEvict({required String keyId}) =>
     RustLib.instance.api.crateApiTpmSshTpmSshEvict(keyId: keyId);
 

@@ -109,3 +109,58 @@ fn swtpm_blob_import_round_trips_through_serialization() {
     // `TPM2B_PUBLIC` cleanly.
     assert_eq!(reimported.public, key.public);
 }
+
+#[test]
+#[ignore]
+fn swtpm_persistent_handle_round_trip_promotes_and_evicts() {
+    // Sequence: generate (blob) → make_persistent(slot) →
+    // sign-from-persistent → evict → second make_persistent on the
+    // same slot succeeds (proving the eviction freed the slot).
+    let cfg = swtpm_cfg();
+    let slot: u32 = 0x8101_00A0;
+    let mut key = tpm_ssh::generate(&cfg, TpmSshAlgorithm::EcdsaP256, None).expect("generate");
+    // Cosmetic guard: ensure we start in blob mode.
+    assert!(matches!(key.storage, TpmSshStorage::Blob { .. }));
+    tpm_ssh::make_persistent(&cfg, &mut key, slot).expect("make_persistent");
+    assert!(matches!(key.storage, TpmSshStorage::PersistentHandle(h) if h == slot));
+    // The persistent-mode sign path reaches the slot via
+    // `tr_from_tpm_public` — confirms the chip-side install
+    // actually staged a usable key.
+    let sig = tpm_ssh::sign(&cfg, &key, None, b"swtpm-persistent-challenge")
+        .expect("sign from persistent");
+    match sig {
+        TpmSshSignature::EcdsaP256RawConcat(bytes) => assert_eq!(bytes.len(), 64),
+        other => panic!("unexpected signature variant: {other:?}"),
+    }
+    tpm_ssh::evict(&cfg, &key).expect("evict");
+    // Re-promote the same slot — `TPM_RC_NV_DEFINED` would surface
+    // if eviction failed to free it.
+    let mut key2 = tpm_ssh::generate(&cfg, TpmSshAlgorithm::EcdsaP256, None).expect("generate2");
+    tpm_ssh::make_persistent(&cfg, &mut key2, slot).expect("re-promote slot");
+    // Cleanup so the test is idempotent against the swtpm state dir.
+    tpm_ssh::evict(&cfg, &key2).expect("cleanup evict");
+}
+
+#[test]
+#[ignore]
+fn swtpm_make_persistent_on_occupied_slot_returns_handle_in_use() {
+    // Promote one key onto a slot, then attempt to promote a
+    // second key onto the same slot — must surface the typed
+    // `handle in use:` discriminator the Dart routing layer
+    // matches on.
+    let cfg = swtpm_cfg();
+    let slot: u32 = 0x8101_00A1;
+    let mut first =
+        tpm_ssh::generate(&cfg, TpmSshAlgorithm::EcdsaP256, None).expect("first generate");
+    tpm_ssh::make_persistent(&cfg, &mut first, slot).expect("first make_persistent");
+    let mut second =
+        tpm_ssh::generate(&cfg, TpmSshAlgorithm::EcdsaP256, None).expect("second generate");
+    let err = tpm_ssh::make_persistent(&cfg, &mut second, slot)
+        .expect_err("second make_persistent must fail on occupied slot");
+    assert!(
+        err.to_string().contains("handle in use"),
+        "expected 'handle in use:' discriminator, got: {err}"
+    );
+    // Cleanup.
+    tpm_ssh::evict(&cfg, &first).expect("cleanup evict");
+}
