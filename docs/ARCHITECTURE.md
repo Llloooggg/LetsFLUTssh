@@ -1024,7 +1024,7 @@ All app data lives in one SQLite database (`letsflutssh.db`) opened by `lfs_core
 |---|---|---|---|---|
 | **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
 | **T1** | Keychain | OS keychain on Apple/Linux/Windows (Keychain / libsecret / Credential Manager); Android uses an AES-256-GCM frame whose wrap key lives in AndroidKeyStore (TEE / StrongBox-backed when available), with the wrapped value bytes persisted as a 0600 file under `<filesDir>/lfs_secure_storage/<alias>.bin` | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
-| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Password (optional, via modifier) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
+| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (mandatory; Apple + Android were always password-gated, Linux + Windows now match) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
 | **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only inside `lfs_core::secrets::SecretStore` (`Zeroizing<Vec<u8>>`) during the unlocked window |
 
 See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
@@ -1039,7 +1039,16 @@ bypasses the OS keychain layer).
 - `password` — when true, the user typed a secret that acts as the
   primary auth gate for the tier. Stored as HMAC-split on disk +
   keychain; compared in constant time before the KEK provider is
-  touched. Paranoid always implies `password == true` by design.
+  touched. Paranoid and Hardware always imply `password == true` by
+  design — Apple + Android were always password-gated on T2, and the
+  Linux + Windows arms now match. `SecurityTierModifiers::is_valid_for_tier`
+  rejects `(tier=Hardware, password=false)` outright; the v6 → v7
+  `ConfigArtefact` migration stamps the flag on for every Hardware
+  install whose v6 config carried `password=false` (and writes a
+  sibling `.hardware_v7_password_set_pending` marker so the next
+  bootstrap routes through the Tier-C password-set wizard before
+  the regular unlock path runs — the wrapped key on disk still
+  carries the pre-flip empty-PIN-HMAC seal).
 - `biometric` — when true, the user opted into the biometric
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected
@@ -2271,10 +2280,9 @@ controller short-circuits the rest of startup whenever
 `_runMigrations` returns `false`, because the failure handler has
 already taken over. The registered artefacts are `config.json`,
 `credentials.kdf`, `security_pass_hash.bin`, and
-`hardware_vault_salt.bin`. The `config.json` chain spans v1→v5
-(four migrations, latest stamps the default
-`recordings_storage_cap_bytes` field for the recorder LRU eviction
-sweep); the other three sit at v1 with no
+`hardware_vault_salt.bin`. The `config.json` chain spans v1→v7
+(six migrations, latest flips the Hardware tier to always carry
+the `password` modifier); the other three sit at v1 with no
 migrations yet (presence + version probe). On a current-version
 install the runner walks every registered artefact and the report
 is always `noOp == true`, so the app proceeds into
@@ -3283,6 +3291,16 @@ id pointers do.
 
 #### Schema versions
 
+- `SchemaVersions::CONFIG = 7` flips the Hardware (T2) tier to
+  always carry `security_modifiers.password=true`. The v6 → v7
+  migration (`ConfigV6ToV7`) stamps the flag on for every stored
+  config whose `security_tier == "hardware"` and writes a sibling
+  `.hardware_v7_password_set_pending` marker when the pre-flip
+  modifier was `password=false` — the bootstrap then routes the
+  Tier-C password-set wizard ahead of the regular unlock path
+  (the wrapped key on disk still carries the pre-flip empty-PIN-
+  HMAC seal until the wizard re-seals it against the user's typed
+  password).
 - `SchemaVersions::CONFIG = 6` adds the `sync_*` family of
   fields to `config.json`. The v5 → v6 migration
   (`ConfigV5ToV6`) stamps the canonical defaults from

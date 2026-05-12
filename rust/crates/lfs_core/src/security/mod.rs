@@ -135,8 +135,27 @@ pub struct SecurityTierModifiers {
 impl SecurityTierModifiers {
     /// True when the modifier bag satisfies the biometric →
     /// password invariant.
+    ///
+    /// Tier-aware variant lives in [`SecurityTierModifiers::is_valid_for_tier`];
+    /// the unparameterised check here covers only the tier-independent
+    /// invariants (biometric needs password). Callers that know the
+    /// tier should prefer the tier-aware variant — the Hardware tier
+    /// adds a "password is mandatory" rule on top.
     pub fn is_valid(self) -> bool {
         if self.biometric && !self.password {
+            return false;
+        }
+        true
+    }
+
+    /// True when the modifier bag is valid for the given tier.
+    /// Hardware always requires the password modifier; the other
+    /// tiers fall back to the tier-independent [`is_valid`] check.
+    pub fn is_valid_for_tier(self, tier: SecurityTier) -> bool {
+        if !self.is_valid() {
+            return false;
+        }
+        if tier == SecurityTier::Hardware && !self.password {
             return false;
         }
         true
@@ -222,16 +241,18 @@ impl SecurityConfig {
     }
 
     /// True when the config has any user-typed secret on the unlock
-    /// path. Paranoid is mandatory-password by definition; for
-    /// Keychain / Hardware the answer depends on the modifier
-    /// (`Keychain` + `password = true` is the bank-style T1+pw,
-    /// previously a dedicated `KeychainWithPassword` tier).
+    /// path. Paranoid and Hardware are mandatory-password by
+    /// definition (Hardware uses the password as a modifier gate on
+    /// top of the hardware-bound vault; biometric is an optional
+    /// shortcut that releases the password from an OS-managed slot,
+    /// never a replacement). Keychain flips on the explicit
+    /// password modifier (the bank-style T1+pw shape).
     pub fn has_user_secret(&self) -> bool {
-        if self.tier == SecurityTier::Paranoid {
-            return true;
+        match self.tier {
+            SecurityTier::Paranoid | SecurityTier::Hardware => true,
+            SecurityTier::Keychain => self.modifiers.password,
+            SecurityTier::Plaintext => false,
         }
-        matches!(self.tier, SecurityTier::Keychain | SecurityTier::Hardware)
-            && self.modifiers.password
     }
 
     pub fn to_json_value(&self) -> serde_json::Value {
@@ -290,12 +311,18 @@ pub enum WizardTier {
 
 /// Output of [`map_wizard_choice`] — a tier-machine-ready
 /// configuration plus the typed secret routed into whichever of
-/// `master_password` / `short_password` / `pin` the legacy
+/// `master_password` / `short_password` / `pin` the
 /// `_applyTierChange` cascade expects for the chosen tier.
 ///
-/// Only one of `master_password` / `short_password` / `pin` is ever
-/// `Some(_)` per call — the wizard never returns a configuration
-/// that asks two of those slots to coexist.
+/// For every tier except Hardware exactly one of
+/// `master_password` / `short_password` / `pin` carries the typed
+/// secret. Hardware temporarily duplicates the typed secret into
+/// **both** `master_password` and `pin` — the canonical slot is
+/// `master_password` (the password is the primary gate), `pin`
+/// stays populated as a back-compat hand-off for the Dart wizard
+/// that still reads the `pin` slot. The Dart UI flip that retires
+/// the duplicate route is the immediate follow-up and removes the
+/// `pin` half here at the same time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappedSetupChoice {
     pub tier: SecurityTier,
@@ -320,8 +347,20 @@ pub fn map_wizard_choice(
     biometric: bool,
     typed_secret: Option<String>,
 ) -> MappedSetupChoice {
+    // Hardware always carries the password modifier — the typed
+    // secret is the primary unlock gate and `is_valid_for_tier`
+    // rejects the (Hardware, password=false) combination. The
+    // wizard upstream still surfaces a checkbox today; the
+    // upcoming Dart wizard flip force-pins the flag for the
+    // Hardware row. Pinning Rust-side keeps the
+    // `SecurityConfig` shape invariant even if a stale caller
+    // sends `password=false`.
+    let effective_password = match chosen {
+        WizardTier::Hardware => true,
+        _ => password,
+    };
     let modifiers = SecurityTierModifiers {
-        password,
+        password: effective_password,
         biometric,
     };
     match chosen {
@@ -353,8 +392,14 @@ pub fn map_wizard_choice(
         WizardTier::Hardware => MappedSetupChoice {
             tier: SecurityTier::Hardware,
             modifiers,
-            master_password: None,
+            // Canonical slot — the password is the primary unlock
+            // gate for Hardware.
+            master_password: typed_secret.clone(),
             short_password: None,
+            // Back-compat duplicate consumed by the existing Dart
+            // wizard wiring (`SecuritySetupResult.pinSecretId` →
+            // `_applyHardwareTier(pin: …)`). The Dart UI flip
+            // retires this half and drops the duplicate here.
             pin: typed_secret,
         },
         WizardTier::Paranoid => MappedSetupChoice {
@@ -420,6 +465,40 @@ mod tests {
             biometric: true,
         };
         assert!(!bad_biometric.is_valid());
+    }
+
+    #[test]
+    fn modifiers_is_valid_for_tier_hardware_requires_password() {
+        // The Hardware tier rejects `password=false` outright;
+        // biometric is an optional shortcut, never a replacement.
+        let no_pw = SecurityTierModifiers {
+            password: false,
+            biometric: false,
+        };
+        assert!(!no_pw.is_valid_for_tier(SecurityTier::Hardware));
+        // Same bag is valid on every non-Hardware tier.
+        assert!(no_pw.is_valid_for_tier(SecurityTier::Plaintext));
+        assert!(no_pw.is_valid_for_tier(SecurityTier::Keychain));
+        // Paranoid does not branch through this predicate (it has
+        // its own mandatory-password property), but the helper
+        // still accepts it for symmetry.
+        assert!(no_pw.is_valid_for_tier(SecurityTier::Paranoid));
+
+        let with_pw = SecurityTierModifiers {
+            password: true,
+            biometric: false,
+        };
+        assert!(with_pw.is_valid_for_tier(SecurityTier::Hardware));
+
+        // Biometric without password is still invalid for every
+        // tier — the cross-cutting biometric → password rule
+        // composes with the Hardware-specific rule.
+        let bad = SecurityTierModifiers {
+            password: false,
+            biometric: true,
+        };
+        assert!(!bad.is_valid_for_tier(SecurityTier::Hardware));
+        assert!(!bad.is_valid_for_tier(SecurityTier::Keychain));
     }
 
     #[test]
@@ -535,6 +614,13 @@ mod tests {
                 false,
                 true,
             ),
+            // Hardware always reports `has_user_secret == true`
+            // regardless of the password modifier value on disk —
+            // T2 is mandatory-password by design (the password
+            // is the primary gate, biometric is the optional
+            // shortcut). A stored `password=false` on a Hardware
+            // config is treated as drift in the model and migrated
+            // by `ConfigV6ToV7` before the runtime ever reads it.
             (
                 SecurityTier::Hardware,
                 false,
@@ -542,7 +628,7 @@ mod tests {
                 false,
                 false,
                 true,
-                false,
+                true,
             ),
             (
                 SecurityTier::Hardware,
@@ -627,13 +713,36 @@ mod tests {
     }
 
     #[test]
-    fn map_wizard_choice_hardware_routes_secret_into_pin_slot() {
-        let r = map_wizard_choice(WizardTier::Hardware, false, true, Some("123456".into()));
+    fn map_wizard_choice_hardware_routes_secret_into_master_password_slot() {
+        // Canonical slot for the Hardware tier is `master_password`
+        // — the typed secret is the primary unlock gate, not a
+        // separate PIN. The `pin` slot duplicates the same string
+        // as a back-compat hand-off for the Dart wizard wiring
+        // that still reads `pinSecretId`; the imminent Dart UI
+        // flip drops the duplicate.
+        let r = map_wizard_choice(WizardTier::Hardware, true, true, Some("hunter2".into()));
         assert_eq!(r.tier, SecurityTier::Hardware);
-        assert_eq!(r.pin, Some("123456".into()));
+        assert_eq!(r.master_password.as_deref(), Some("hunter2"));
+        assert_eq!(r.pin.as_deref(), Some("hunter2"));
         assert_eq!(r.short_password, None);
-        assert_eq!(r.master_password, None);
+        assert!(r.modifiers.password);
         assert!(r.modifiers.biometric);
+    }
+
+    #[test]
+    fn map_wizard_choice_hardware_force_pins_password_modifier_on() {
+        // A stale caller that asked for Hardware with the
+        // password modifier off still lands on a config that
+        // carries `password=true` — the tier-level "always
+        // password-gated" rule overrides the wizard input. The
+        // typed secret rides into both `master_password` (canonical)
+        // and `pin` (back-compat) so existing call sites keep
+        // resolving the value while the Dart UI flip lands.
+        let r = map_wizard_choice(WizardTier::Hardware, false, false, Some("pw".into()));
+        assert_eq!(r.tier, SecurityTier::Hardware);
+        assert!(r.modifiers.password);
+        assert_eq!(r.master_password.as_deref(), Some("pw"));
+        assert_eq!(r.pin.as_deref(), Some("pw"));
     }
 
     #[test]

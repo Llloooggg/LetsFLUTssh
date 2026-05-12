@@ -46,15 +46,17 @@ void main() {
   group('HardwareTierVault.resolveAuthValue', () {
     final salt = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
 
-    test('password+biometric false → empty Uint8List (isolation-only)', () {
-      final auth = HardwareTierVault.resolveAuthValue(
-        password: false,
-        biometric: false,
-        salt: salt,
-      );
-      expect(auth, isNotNull);
-      expect(auth, isEmpty);
-    });
+    test(
+      'password+biometric false → null (Hardware tier always password-gated)',
+      () {
+        final auth = HardwareTierVault.resolveAuthValue(
+          password: false,
+          biometric: false,
+          salt: salt,
+        );
+        expect(auth, isNull);
+      },
+    );
 
     test('password=true without typedPassword → null', () {
       expect(

@@ -32,16 +32,17 @@ DbHardwareTierLinuxBlob hardwareTierVaultDecodeLinuxBlob({
     .crateApiHardwareTierVaultHardwareTierVaultDecodeLinuxBlob(blob: blob);
 
 /// Resolve the hardware-tier vault auth value for the
-/// (password, biometric) modifier combo. Returns `None` when the
-/// chosen modifier has no payload (`password=true` without
-/// `typed_password`, `biometric=true` without `fprintd_hash`, or
-/// either with empty bytes); the empty `Vec` case (passwordless
-/// isolation) surfaces as `Some([])`.
+/// (password, biometric) modifier combo. Returns `None` when
+/// the chosen modifier has no payload — `password=true` without
+/// `typed_password`, `biometric=true` without `fprintd_hash`,
+/// either with empty bytes, **or** `password=false &&
+/// biometric=false` (the Hardware tier is always password-gated;
+/// a "no-secret" call is a misuse).
 ///
 /// FRB layer keeps the boolean wire shape (Dart side already
 /// computes `(password, biometric)` from the security profile)
-/// and constructs the `AuthIntent` enum here so the core resolver
-/// can no longer be foot-gunned by a forgotten flag.
+/// and constructs the `AuthIntent` enum here so the core
+/// resolver can no longer be foot-gunned by a forgotten flag.
 Uint8List? hardwareTierVaultResolveAuthValue({
   required bool password,
   required bool biometric,

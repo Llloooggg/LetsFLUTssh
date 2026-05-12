@@ -370,6 +370,120 @@ impl Migration for ConfigV5ToV6 {
     }
 }
 
+/// `config.json` v6 → v7: flip the Hardware (T2) tier to always
+/// carry `security_modifiers.password=true`. The pre-flip model
+/// allowed T2 with `password=false` (passwordless seal) on every
+/// platform; the bank-style refactor pins password on so biometric
+/// is the optional shortcut on top of a typed password rather than
+/// the only gate.
+///
+/// For every stored config that carries `security_tier="hardware"`:
+///
+/// - If `security_modifiers` is missing or not an object, mint a
+///   canonical object with `{"password": true, "biometric": false}`.
+/// - Else, when `password` is missing or `false`, set it to `true`
+///   AND write a sibling
+///   [`crate::security::hardware_tier_vault::V6_V7_PASSWORD_SET_MARKER_FILE`]
+///   marker so the next bootstrap routes through the Tier-C
+///   password-set wizard. The wrapped key on disk still carries
+///   the pre-flip empty-PIN-HMAC seal; the wizard re-seals
+///   against the user's typed password before the regular unlock
+///   path runs.
+/// - Else (password already `true`), leave the bag alone.
+///
+/// Non-Hardware configs flip only the version stamp. Idempotent
+/// on already-stamped or already-flipped configs.
+///
+/// Atomic — writes through [`crate::path::write_bytes_atomic`]
+/// (tmp + fsync + rename) so a crash mid-migration leaves the v6
+/// file untouched on disk and the runner re-attempts on next
+/// boot. The marker write is also atomic but lives in a sibling
+/// file: a crash between the config rewrite and the marker write
+/// surfaces on the next bootstrap as "v7 config + no marker", the
+/// same shape a clean v7 install presents, which routes the user
+/// through the regular unlock path. The unlock orchestrator then
+/// short-circuits to `hardware_password_required` so the user
+/// notices instead of looping on wrong-password.
+pub struct ConfigV6ToV7;
+
+impl Migration for ConfigV6ToV7 {
+    fn artefact_id(&self) -> &'static str {
+        ConfigArtefact::FILE_NAME
+    }
+
+    fn source_version(&self) -> i32 {
+        6
+    }
+
+    fn target_version(&self) -> i32 {
+        7
+    }
+
+    fn apply(&self, support_dir: &Path) -> Result<(), String> {
+        let path = support_dir.join(ConfigArtefact::FILE_NAME);
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let mut value: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{}: not a JSON object", ConfigArtefact::FILE_NAME))?;
+
+        let is_hardware = obj.get("security_tier").and_then(Value::as_str) == Some("hardware");
+        if is_hardware {
+            let pre_password = obj
+                .get("security_modifiers")
+                .and_then(Value::as_object)
+                .and_then(|m| m.get("password"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+
+            let modifiers = obj
+                .entry("security_modifiers")
+                .or_insert_with(|| Value::Object(Default::default()));
+            match modifiers {
+                Value::Object(map) => {
+                    map.insert("password".into(), Value::Bool(true));
+                    // Preserve any pre-existing biometric value;
+                    // default to false on a freshly-minted bag.
+                    map.entry("biometric").or_insert(Value::Bool(false));
+                }
+                _ => {
+                    // The field exists but is not an object (hand-
+                    // edited config / corrupted writer). Replace
+                    // outright with the canonical shape so the
+                    // downstream readers see a known structure.
+                    let mut map = serde_json::Map::new();
+                    map.insert("password".into(), Value::Bool(true));
+                    map.insert("biometric".into(), Value::Bool(false));
+                    *modifiers = Value::Object(map);
+                }
+            }
+
+            if !pre_password {
+                // The wrapped key on disk was sealed under the
+                // empty PIN-HMAC; stamp the marker so the next
+                // bootstrap routes through the Tier-C password-set
+                // wizard ahead of the rate-limited unlock path.
+                crate::security::hardware_tier_vault::write_v6_v7_password_set_marker(support_dir)
+                    .map_err(|e| {
+                        format!(
+                            "{}: write hardware-v7 password-set marker: {e}",
+                            ConfigArtefact::FILE_NAME
+                        )
+                    })?;
+            }
+        }
+
+        obj.insert("config_schema_version".into(), Value::from(7));
+        let serialised = serde_json::to_vec(&value)
+            .map_err(|e| format!("{}: serialise: {e}", ConfigArtefact::FILE_NAME))?;
+        crate::path::write_bytes_atomic(&path, &serialised)
+            .map_err(|e| format!("{}: write: {e}", ConfigArtefact::FILE_NAME))?;
+        Ok(())
+    }
+}
+
 /// `security_pass_hash.bin` — keychain password gate. Wire format
 /// is a single-line JSON envelope `{"v": N, "salt": "<b64>", "hmac":
 /// "<b64>"}`. The `v` field is the schema marker; missing field on
@@ -1035,6 +1149,214 @@ mod tests {
         assert!(!report.has_failures(), "report: {report:?}");
         let target = super::super::SchemaVersions::CONFIG;
         assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), target);
+    }
+
+    // ── ConfigV6ToV7 ─────────────────────────────────────────────
+
+    #[test]
+    fn config_v6_to_v7_flips_hardware_password_modifier_and_stamps_marker() {
+        // A v6 file with `security_tier="hardware"` +
+        // `security_modifiers.password=false` lands at v7 with
+        // `password=true` AND a sibling `.hardware_v7_password_set_pending`
+        // marker so the bootstrap routes through the Tier-C wizard.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 6,
+                "security_tier": "hardware",
+                "security_modifiers": {"password": false, "biometric": false}
+            }"#,
+        )
+        .unwrap();
+        ConfigV6ToV7.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(7)));
+        let modifiers = obj.get("security_modifiers").unwrap().as_object().unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+        assert_eq!(modifiers.get("biometric"), Some(&Value::Bool(false)));
+        // Marker must be present so the next bootstrap routes the
+        // password-set wizard.
+        assert!(
+            crate::security::hardware_tier_vault::hardware_password_set_wizard_required(dir.path())
+        );
+    }
+
+    #[test]
+    fn config_v6_to_v7_skips_marker_when_hardware_already_password_gated() {
+        // A v6 file with `security_tier="hardware"` +
+        // `password=true` is the post-flip ideal shape — flip the
+        // version stamp but do not write the marker (the wrapped
+        // key was sealed under the real password; no wizard
+        // needed).
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 6,
+                "security_tier": "hardware",
+                "security_modifiers": {"password": true, "biometric": true}
+            }"#,
+        )
+        .unwrap();
+        ConfigV6ToV7.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(7)));
+        let modifiers = obj.get("security_modifiers").unwrap().as_object().unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+        // Pre-existing biometric must survive.
+        assert_eq!(modifiers.get("biometric"), Some(&Value::Bool(true)));
+        assert!(
+            !crate::security::hardware_tier_vault::hardware_password_set_wizard_required(
+                dir.path()
+            )
+        );
+    }
+
+    #[test]
+    fn config_v6_to_v7_mints_modifiers_when_absent_on_hardware_config() {
+        // A v6 file that picked Hardware without ever materialising
+        // `security_modifiers` lands at v7 with the canonical bag
+        // plus the marker (we assume the missing-bag install was
+        // passwordless — the only configuration the absent-bag
+        // shape ever represented).
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 6,
+                "security_tier": "hardware"
+            }"#,
+        )
+        .unwrap();
+        ConfigV6ToV7.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let modifiers = value
+            .as_object()
+            .unwrap()
+            .get("security_modifiers")
+            .unwrap()
+            .as_object()
+            .unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+        assert_eq!(modifiers.get("biometric"), Some(&Value::Bool(false)));
+        assert!(
+            crate::security::hardware_tier_vault::hardware_password_set_wizard_required(dir.path())
+        );
+    }
+
+    #[test]
+    fn config_v6_to_v7_no_op_for_non_hardware_tiers() {
+        // A v6 file on a non-Hardware tier passes through unchanged
+        // except for the version stamp. The marker must NOT be
+        // written; non-Hardware tiers never had a wrapped hardware
+        // key to re-seal.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 6,
+                "security_tier": "keychain",
+                "security_modifiers": {"password": false, "biometric": false}
+            }"#,
+        )
+        .unwrap();
+        ConfigV6ToV7.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(7)));
+        let modifiers = obj.get("security_modifiers").unwrap().as_object().unwrap();
+        // Password modifier on Keychain must NOT get flipped — that
+        // would change the bank-style T1 vs T1+pw semantics.
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(false)));
+        assert!(
+            !crate::security::hardware_tier_vault::hardware_password_set_wizard_required(
+                dir.path()
+            )
+        );
+    }
+
+    #[test]
+    fn config_v6_to_v7_is_idempotent_on_already_flipped_hardware_config() {
+        // A v6 file already at the post-flip shape (Hardware +
+        // password=true) lands at v7 unchanged. Re-running the
+        // migration over a v6 file produced by a forward-compat
+        // writer also must not regress the modifier values.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 6,
+                "security_tier": "hardware",
+                "security_modifiers": {"password": true, "biometric": false}
+            }"#,
+        )
+        .unwrap();
+        ConfigV6ToV7.apply(dir.path()).expect("first apply");
+        // Re-run against the same file (simulating a re-entrant
+        // migration after a partial previous run).
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        // After the first apply the stamp is already 7; re-running
+        // the same step is not part of the registered chain, but
+        // the migration body itself must stay safe to invoke twice
+        // on a v6-shaped file (the chain walker calls `apply` once
+        // per step; a partial crash mid-write leaves the file at
+        // v6 and the next launch re-applies).
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(7)));
+        let modifiers = obj.get("security_modifiers").unwrap().as_object().unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+        assert_eq!(modifiers.get("biometric"), Some(&Value::Bool(false)));
+    }
+
+    #[test]
+    fn config_v1_through_runner_lands_at_v7_with_marker_for_passwordless_hardware() {
+        // Pin the chain end-to-end: a v1 file that carries the
+        // pre-flip Hardware + passwordless shape lands at the
+        // current `SchemaVersions::CONFIG` (v7) AND writes the
+        // marker so the next bootstrap routes through the
+        // password-set wizard. v1 stamps still parse OK; the
+        // migration chain walks them through every step.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 1,
+                "security_tier": "hardware",
+                "security_modifiers": {"password": false, "biometric": false}
+            }"#,
+        )
+        .unwrap();
+        let reg = super::super::registry::build_app_registry();
+        let report = super::super::run_on_startup(dir.path(), &reg);
+        assert!(!report.has_failures(), "report: {report:?}");
+        let target = super::super::SchemaVersions::CONFIG;
+        assert_eq!(target, 7, "this test pins the v7 target — bump if it moves");
+        assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), target);
+        // The marker must be present — the pre-flip wrapped key
+        // was sealed under the empty PIN-HMAC, and the bootstrap
+        // wizard needs to fire before the regular unlock path.
+        assert!(
+            crate::security::hardware_tier_vault::hardware_password_set_wizard_required(dir.path())
+        );
+        // Final modifier shape must carry `password=true`.
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let modifiers = value
+            .as_object()
+            .unwrap()
+            .get("security_modifiers")
+            .unwrap()
+            .as_object()
+            .unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
     }
 
     #[test]

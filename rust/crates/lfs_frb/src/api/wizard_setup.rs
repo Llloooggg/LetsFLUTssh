@@ -123,13 +123,32 @@ mod tests {
     }
 
     #[test]
-    fn hardware_lands_typed_secret_in_pin_slot() {
+    fn hardware_lands_typed_secret_in_master_password_slot() {
+        // Hardware is always password-gated — the typed secret is
+        // the primary unlock gate. The Rust mapper lands it in
+        // `master_password` (canonical) and duplicates into `pin`
+        // as a back-compat hand-off for the Dart wizard wiring
+        // that still reads `pinSecretId`; the imminent Dart UI
+        // flip retires the duplicate.
         let mapped =
             security_map_wizard_choice("hardware".into(), true, false, Some("4321".into()))
                 .expect("hardware");
-        assert!(mapped.master_password.is_none());
+        assert_eq!(mapped.master_password.as_deref(), Some("4321"));
         assert!(mapped.short_password.is_none());
         assert_eq!(mapped.pin.as_deref(), Some("4321"));
+        assert!(mapped.password);
+    }
+
+    #[test]
+    fn hardware_force_pins_password_modifier_on_via_frb_shim() {
+        // The shim must propagate the Hardware-tier "always
+        // password-gated" rule the core mapper enforces. A stale
+        // caller passing `password=false` for Hardware lands on a
+        // configuration that still carries `password=true`.
+        let mapped =
+            security_map_wizard_choice("hardware".into(), false, false, Some("4321".into()))
+                .expect("hardware");
+        assert!(mapped.password);
     }
 
     #[test]

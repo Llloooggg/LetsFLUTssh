@@ -20,15 +20,17 @@ void main() {
       Uint8List.fromList(Hmac(sha256, salt).convert(message).bytes);
 
   group('HardwareTierVault.resolveAuthValue', () {
-    test('no password + no biometric → empty auth (isolation only)', () {
-      final out = HardwareTierVault.resolveAuthValue(
-        password: false,
-        biometric: false,
-        salt: salt,
-      );
-      expect(out, isNotNull);
-      expect(out, isEmpty);
-    });
+    test(
+      'no password + no biometric → null (Hardware tier always password-gated)',
+      () {
+        final out = HardwareTierVault.resolveAuthValue(
+          password: false,
+          biometric: false,
+          salt: salt,
+        );
+        expect(out, isNull);
+      },
+    );
 
     test('password only → HMAC(typedPassword, salt)', () {
       const pw = 'hunter2';

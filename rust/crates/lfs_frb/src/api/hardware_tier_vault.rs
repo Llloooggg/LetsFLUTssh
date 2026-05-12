@@ -87,16 +87,17 @@ pub fn hardware_tier_vault_decode_linux_blob(
 }
 
 /// Resolve the hardware-tier vault auth value for the
-/// (password, biometric) modifier combo. Returns `None` when the
-/// chosen modifier has no payload (`password=true` without
-/// `typed_password`, `biometric=true` without `fprintd_hash`, or
-/// either with empty bytes); the empty `Vec` case (passwordless
-/// isolation) surfaces as `Some([])`.
+/// (password, biometric) modifier combo. Returns `None` when
+/// the chosen modifier has no payload — `password=true` without
+/// `typed_password`, `biometric=true` without `fprintd_hash`,
+/// either with empty bytes, **or** `password=false &&
+/// biometric=false` (the Hardware tier is always password-gated;
+/// a "no-secret" call is a misuse).
 ///
 /// FRB layer keeps the boolean wire shape (Dart side already
 /// computes `(password, biometric)` from the security profile)
-/// and constructs the `AuthIntent` enum here so the core resolver
-/// can no longer be foot-gunned by a forgotten flag.
+/// and constructs the `AuthIntent` enum here so the core
+/// resolver can no longer be foot-gunned by a forgotten flag.
 #[flutter_rust_bridge::frb(sync)]
 pub fn hardware_tier_vault_resolve_auth_value(
     password: bool,
@@ -110,7 +111,12 @@ pub fn hardware_tier_vault_resolve_auth_value(
     } else if password {
         vault::AuthIntent::Password(typed_password.as_deref()?)
     } else {
-        vault::AuthIntent::Passwordless
+        // Hardware tier is always password-gated — no passwordless
+        // arm. Routes "no secret" callers through the "modifier
+        // resolution failed" branch (None) so the unlock path can
+        // surface the password dialog rather than sealing under
+        // an empty auth-value.
+        return None;
     };
     // FRB wire shape demands `Vec<u8>`; `Zeroizing` derefs and we
     // copy the inner bytes across — the `Zeroizing` wrapper still
@@ -460,12 +466,15 @@ mod tests {
     }
 
     #[test]
-    fn resolve_auth_value_passwordless_returns_some_empty_for_passwordless_intent() {
+    fn resolve_auth_value_password_off_and_biometric_off_returns_none() {
         let salt = vec![0xAB; 16];
-        // password=false + biometric=false → Passwordless intent.
-        // The documented contract is "Some payload", not None.
+        // The Hardware tier is always password-gated — a caller
+        // that asks for "no secret" is a misuse and the shim
+        // surfaces None so the unlock path routes through the
+        // password dialog rather than sealing under an empty
+        // auth-value.
         let res = hardware_tier_vault_resolve_auth_value(false, false, salt, None, None);
-        assert!(res.is_some());
+        assert!(res.is_none());
     }
 
     #[test]

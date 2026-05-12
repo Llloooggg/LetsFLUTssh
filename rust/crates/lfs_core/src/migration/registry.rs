@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use super::artefacts::{
     ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, ConfigV4ToV5, ConfigV5ToV6,
-    HwSaltArtefact, KdfArtefact, PassGateArtefact,
+    ConfigV6ToV7, HwSaltArtefact, KdfArtefact, PassGateArtefact,
 };
 use super::{Artefact, Migration};
 
@@ -81,6 +81,13 @@ pub fn build_app_registry() -> Registry {
     // canonical `SyncConfig::default` so the WebDAV sync
     // orchestrator sees the same shape every read produces.
     reg.migrations.push(Box::new(ConfigV5ToV6));
+    // v6 → v7: flip the Hardware (T2) tier to always carry
+    // `security_modifiers.password=true`. Pre-flip Hardware
+    // installs with `password=false` also get a sibling
+    // `.hardware_v7_password_set_pending` marker so the next
+    // bootstrap routes the Tier-C password-set wizard ahead of
+    // the regular unlock path.
+    reg.migrations.push(Box::new(ConfigV6ToV7));
     reg
 }
 
@@ -193,6 +200,21 @@ mod tests {
                     && m.target_version() == 6),
             "ConfigV5ToV6 must be registered so v5 installs migrate \
              to v6 on the next launch (stamp default sync settings)",
+        );
+    }
+
+    #[test]
+    fn config_v6_to_v7_migration_registered() {
+        let reg = build_app_registry();
+        assert!(
+            reg.migrations
+                .iter()
+                .any(|m| m.artefact_id() == "config.json"
+                    && m.source_version() == 6
+                    && m.target_version() == 7),
+            "ConfigV6ToV7 must be registered so v6 installs migrate \
+             to v7 on the next launch (flip Hardware tier to always \
+             carry the password modifier + stamp password-set marker)",
         );
     }
 }

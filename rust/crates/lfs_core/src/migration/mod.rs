@@ -11,10 +11,11 @@
 //!
 //! Registered artefacts: `config.json`, `credentials.kdf`,
 //! `security_pass_hash.bin`, `hardware_vault_salt.bin`. The
-//! `config.json` chain currently spans v1→v4; the other three sit
-//! at v1 with no migrations registered yet (presence + version
-//! probe only). Future format bumps ship a [`Migration`] impl and
-//! bump the matching [`SchemaVersions`] constant.
+//! `config.json` chain currently spans v1→v7; the other three
+//! sit at v1 with no migrations registered yet (presence +
+//! version probe only). Future format bumps ship a
+//! [`Migration`] impl and bump the matching [`SchemaVersions`]
+//! constant.
 //!
 //! The `HW_VAULT_*`, `ARCHIVE`, `QR_PAYLOAD` slots stay outside
 //! the registry by design — see
@@ -52,7 +53,20 @@ impl SchemaVersions {
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
     ///
-    /// v6 (current): stamps the `sync_*` family of fields at the
+    /// v7 (current): flips the Hardware (T2) tier to always
+    /// carry `security_modifiers.password=true`. The pre-flip
+    /// model treated the password as an optional modifier on T2;
+    /// the bank-style refactor pins it on so biometric is the
+    /// optional shortcut on top of a typed password instead of
+    /// the only gate. v6 → v7 stamps `password=true` for every
+    /// stored config that carries `security_tier="hardware"` and
+    /// writes a sibling
+    /// `.hardware_v7_password_set_pending` marker when the
+    /// pre-flip modifier was `password=false` — the next
+    /// bootstrap routes through the Tier-C password-set wizard
+    /// before the regular unlock path runs.
+    ///
+    /// v6: stamps the `sync_*` family of fields at the
     /// top level so the WebDAV sync orchestrator
     /// (`crate::sync`) has a place to persist endpoint config +
     /// last-push state alongside the rest of `AppConfig`. v5
@@ -89,7 +103,7 @@ impl SchemaVersions {
     /// value — either an object or `null`. v1→v2 ensures the field
     /// exists (as `null` if absent) so post-migration reads can
     /// distinguish "never probed" from "probed-but-empty".
-    pub const CONFIG: i32 = 6;
+    pub const CONFIG: i32 = 7;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked
