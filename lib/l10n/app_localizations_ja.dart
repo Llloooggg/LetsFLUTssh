@@ -3060,4 +3060,100 @@ class SJa extends S {
 
   @override
   String get pkcs11WizardNext => '次へ';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'ハードウェアキーを追加';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'プライベートキーはデバイスのセキュアハードウェアにあり、エクスポートできません。';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'このキーはこの Mac でのみ使用できます。';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos => 'このキーはこの iPhone でのみ使用できます。';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'このキーはこの PC でのみ使用できます。';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Touch ID / Face ID を要求';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback => 'デバイスパスコードを fallback として許可';
+
+  @override
+  String get sshKeyHelloPinRequired => 'Windows Hello を要求 (PIN、指紋、または顔)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'ハードウェアキーが利用できません';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Secure Enclave を使うにはアプリが code-signed である必要があります。';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'この PC では Windows Hello が設定されていません。';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM が検出されません — software-backed のみ。';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => '生成';
+
+  @override
+  String get sshKeyGenerateInProgress => 'セキュアハードウェアでキーを生成中...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing が必要 — USER_GUIDE.md → Hardware-bound keys を参照。';
+
+  @override
+  String get sshKeySignInProgress => 'セキュアハードウェアで署名中...';
+
+  @override
+  String get sshKeyPublicCopy => 'パブリックキーをコピー';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'この行をサーバーの ~/.ssh/authorized_keys に追加してください。';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH キー';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'キー名';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

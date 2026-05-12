@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "タグ",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} が {keyLabel} で署名しようとしています",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "外部 SSH クライアント",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "ssh-agent エンドポイントを開始できません: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "スマートカード / トークン キーを追加",
   "pkcs11ModuleLabel": "PKCS#11 モジュール",
   "pkcs11ModuleAutoDetected": "自動検出",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "トークン: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "シリアル: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "トークンへのログインが必要です。",
   "pkcs11PinPrompt": "{token} の PIN",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "トークンの PIN パッドで確認してください。",
   "pkcs11PinIncorrect": "PIN が違います。残り {remaining} 回。",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "トークンの PIN がロックされています。PUK で解除してください。",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "トークン \"{label}\" が挿入されていません。",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "保存されたトークンが見つかりません。再接続してください。",
   "pkcs11SignFailed": "署名に失敗しました: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "このプラットフォームではスマートカード / PKCS#11 トークンは利用できません。",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "モジュール: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "トークンのシリアル: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "オブジェクト: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "PKCS#11 モジュールを選択",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "鍵をインポート",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "モジュールの読み込みに失敗しました。",
   "pkcs11PinPadHint": "(デバイスの PIN パッド)",
   "pkcs11WizardBack": "戻る",
-  "pkcs11WizardNext": "次へ"
+  "pkcs11WizardNext": "次へ",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "ハードウェアキーを追加",
+  "sshKeyHardwareBoundExplainer": "プライベートキーはデバイスのセキュアハードウェアにあり、エクスポートできません。",
+  "sshKeyEnclaveDeviceBound": "このキーはこの Mac でのみ使用できます。",
+  "sshKeyEnclaveDeviceBoundIos": "このキーはこの iPhone でのみ使用できます。",
+  "sshKeyHelloDeviceBound": "このキーはこの PC でのみ使用できます。",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID を要求",
+  "sshKeyEnclavePasscodeFallback": "デバイスパスコードを fallback として許可",
+  "sshKeyHelloPinRequired": "Windows Hello を要求 (PIN、指紋、または顔)",
+  "sshKeyHardwareUnavailableTitle": "ハードウェアキーが利用できません",
+  "sshKeyHardwareUnavailableSe": "Secure Enclave を使うにはアプリが code-signed である必要があります。",
+  "sshKeyHardwareUnavailableHello": "この PC では Windows Hello が設定されていません。",
+  "sshKeyHardwareUnavailableTpm": "TPM が検出されません — software-backed のみ。",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "生成",
+  "sshKeyGenerateInProgress": "セキュアハードウェアでキーを生成中...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing が必要 — USER_GUIDE.md → Hardware-bound keys を参照。",
+  "sshKeySignInProgress": "セキュアハードウェアで署名中...",
+  "sshKeyPublicCopy": "パブリックキーをコピー",
+  "sshKeyAuthorizedKeysHint": "この行をサーバーの ~/.ssh/authorized_keys に追加してください。",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH キー",
+  "sshKeyEnclaveWizardLabelHint": "キー名",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

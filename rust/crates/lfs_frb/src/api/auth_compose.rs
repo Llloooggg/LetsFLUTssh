@@ -90,6 +90,14 @@ pub enum DbPreparedAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Apple Secure Enclave hardware key. `application_tag` is the
+    /// opaque `kSecAttrApplicationTag` bytes captured at create
+    /// time; no PIN slot — the OS handles its own biometric /
+    /// passcode prompt inside `SecKeyCreateSignature`.
+    PubkeyEnclave {
+        public_openssh: String,
+        application_tag: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +160,13 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 cka_id,
                 key_type,
                 pin_secret_id,
+            },
+            auth_compose::PreparedAuthRef::PubkeyEnclave {
+                public_openssh,
+                application_tag,
+            } => DbPreparedAuthRef::PubkeyEnclave {
+                public_openssh,
+                application_tag,
             },
         };
         DbPreparedAuth {

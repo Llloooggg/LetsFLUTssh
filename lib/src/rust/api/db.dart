@@ -1206,6 +1206,12 @@ class DbSshKey {
   /// renders alongside the key-manager row.
   final String? pkcs11ObjectLabel;
 
+  /// Apple Secure Enclave application-tag bytes (schema v10).
+  /// Opaque blob captured at create time; the
+  /// `SecItemCopyMatching` lookup matches on it. Only populated
+  /// for `backend = 'enclave'` rows on macOS / iOS.
+  final Uint8List? enclaveTag;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1224,6 +1230,7 @@ class DbSshKey {
     this.pkcs11TokenSerial,
     this.pkcs11ObjectId,
     this.pkcs11ObjectLabel,
+    this.enclaveTag,
   });
 
   @override
@@ -1244,7 +1251,8 @@ class DbSshKey {
       pkcs11ModulePath.hashCode ^
       pkcs11TokenSerial.hashCode ^
       pkcs11ObjectId.hashCode ^
-      pkcs11ObjectLabel.hashCode;
+      pkcs11ObjectLabel.hashCode ^
+      enclaveTag.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1267,7 +1275,8 @@ class DbSshKey {
           pkcs11ModulePath == other.pkcs11ModulePath &&
           pkcs11TokenSerial == other.pkcs11TokenSerial &&
           pkcs11ObjectId == other.pkcs11ObjectId &&
-          pkcs11ObjectLabel == other.pkcs11ObjectLabel;
+          pkcs11ObjectLabel == other.pkcs11ObjectLabel &&
+          enclaveTag == other.enclaveTag;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].

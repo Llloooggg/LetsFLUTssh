@@ -139,4 +139,13 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required String keyType,
     String? pinSecretId,
   }) = DbPreparedAuthRef_PubkeyPkcs11;
+
+  /// Apple Secure Enclave hardware key. `application_tag` is the
+  /// opaque `kSecAttrApplicationTag` bytes captured at create
+  /// time; no PIN slot — the OS handles its own biometric /
+  /// passcode prompt inside `SecKeyCreateSignature`.
+  const factory DbPreparedAuthRef.pubkeyEnclave({
+    required String publicOpenssh,
+    required Uint8List applicationTag,
+  }) = DbPreparedAuthRef_PubkeyEnclave;
 }

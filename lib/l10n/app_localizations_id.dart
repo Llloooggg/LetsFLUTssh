@@ -3136,4 +3136,103 @@ class SId extends S {
 
   @override
   String get pkcs11WizardNext => 'Lanjut';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Tambah hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key tersimpan di secure hardware perangkat dan tidak bisa diexport.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'Key ini hanya berfungsi di Mac ini.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Key ini hanya berfungsi di iPhone ini.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'Key ini hanya berfungsi di PC ini.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Wajibkan Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Izinkan passcode perangkat sebagai fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Wajibkan Windows Hello (PIN, sidik jari, atau wajah)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key tidak tersedia';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Aplikasi harus code-signed untuk pakai Secure Enclave.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello belum disetup di PC ini.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM tidak terdeteksi — hanya software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Generate';
+
+  @override
+  String get sshKeyGenerateInProgress => 'Membuat key di secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing diperlukan — lihat USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Menandatangani via secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'Copy public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Tambahkan baris ini ke ~/.ssh/authorized_keys di server.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Nama key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Etiketler",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester}, {keyLabel} ile imzalamak istiyor",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "Harici bir SSH client",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "ssh-agent endpoint başlatılamadı: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Smart card / token anahtarı ekle",
   "pkcs11ModuleLabel": "PKCS#11 modülü",
   "pkcs11ModuleAutoDetected": "Otomatik algılandı",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Seri: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "Token login gerektiriyor.",
   "pkcs11PinPrompt": "{token} için PIN",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Token'ın PIN-pad'inde onayla.",
   "pkcs11PinIncorrect": "PIN yanlış. {remaining} deneme kaldı.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "Token PIN kilitli. PUK ile aç.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "Token \"{label}\" takılı değil.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Kaydedilmiş token bulunamadı. Yeniden tak ve dene.",
   "pkcs11SignFailed": "Signing başarısız: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smart card / PKCS#11 token'lar bu platformda yok.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Module: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Token serial: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Object: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "PKCS#11 module seç",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Key'i import et",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Module yüklenemedi.",
   "pkcs11PinPadHint": "(Cihaz üzerinde PIN pad)",
   "pkcs11WizardBack": "Geri",
-  "pkcs11WizardNext": "İleri"
+  "pkcs11WizardNext": "İleri",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Hardware anahtarı ekle",
+  "sshKeyHardwareBoundExplainer": "Private key cihazın secure hardware bileşeninde yaşıyor ve dışa aktarılamaz.",
+  "sshKeyEnclaveDeviceBound": "Bu key yalnızca bu Mac üzerinde çalışır.",
+  "sshKeyEnclaveDeviceBoundIos": "Bu key yalnızca bu iPhone üzerinde çalışır.",
+  "sshKeyHelloDeviceBound": "Bu key yalnızca bu PC üzerinde çalışır.",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID zorunlu olsun",
+  "sshKeyEnclavePasscodeFallback": "Cihaz passcode'unu fallback olarak kabul et",
+  "sshKeyHelloPinRequired": "Windows Hello zorunlu olsun (PIN, parmak izi veya yüz)",
+  "sshKeyHardwareUnavailableTitle": "Hardware key kullanılamıyor",
+  "sshKeyHardwareUnavailableSe": "Secure Enclave için uygulamanın code-signed olması gerekir.",
+  "sshKeyHardwareUnavailableHello": "Bu PC'de Windows Hello yapılandırılmamış.",
+  "sshKeyHardwareUnavailableTpm": "TPM algılanmadı — yalnızca software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Oluştur",
+  "sshKeyGenerateInProgress": "Key secure hardware içinde oluşturuluyor...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing gerekli — USER_GUIDE.md → Hardware-bound keys bölümüne bakın.",
+  "sshKeySignInProgress": "Secure hardware ile imzalanıyor...",
+  "sshKeyPublicCopy": "Public key'i kopyala",
+  "sshKeyAuthorizedKeysHint": "Bu satırı sunucudaki ~/.ssh/authorized_keys dosyasına ekleyin.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Key adı",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

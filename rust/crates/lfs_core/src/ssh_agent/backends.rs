@@ -70,22 +70,25 @@ pub enum BackendKind {
     Software,
     Fido2,
     Pkcs11,
+    Enclave,
 }
 
 impl BackendKind {
     /// Resolve the backend discriminator from a stored `ssh_keys`
     /// row. Reads the typed `backend` column; pre-v9 software-only
     /// rows surface as `Software`, FIDO2 rows surface as `Fido2`,
-    /// PKCS#11 rows surface as `Pkcs11`. Reserved backends (TPM,
-    /// Enclave, Hello, Keystore) fall through to `Software` until
-    /// their Signer lands — the listing path filters those out
-    /// before the dispatcher sees them, so the fallback never
-    /// fires in practice.
+    /// PKCS#11 rows surface as `Pkcs11`, Apple Secure Enclave rows
+    /// surface as `Enclave`. Reserved backends (TPM, Hello,
+    /// Keystore) fall through to `Software` until their Signer
+    /// lands — the listing path filters those out before the
+    /// dispatcher sees them, so the fallback never fires in
+    /// practice.
     pub fn from_row(row: &SshKeyRow) -> Self {
         use crate::db::ssh_keys::KeyBackend;
         match row.backend {
             KeyBackend::Fido2 => Self::Fido2,
             KeyBackend::Pkcs11 => Self::Pkcs11,
+            KeyBackend::Enclave => Self::Enclave,
             _ => Self::Software,
         }
     }
@@ -127,7 +130,57 @@ pub async fn dispatch_sign_by_kind(
         BackendKind::Software => Err(BackendError::SoftwareKeyRefused),
         BackendKind::Fido2 => fido2_sign(row, data).await,
         BackendKind::Pkcs11 => pkcs11_sign(row, data, flags).await,
+        BackendKind::Enclave => enclave_sign(row, data).await,
     }
+}
+
+/// Apple Secure Enclave dispatcher. Resolves the row's
+/// application-tag bytes, asks `lfs_os_security::apple_se_ssh` to
+/// sign the userauth buffer, then composes the SSH wire body.
+///
+/// No PIN handling at the agent boundary — the OS surfaces its
+/// own biometric / passcode prompt inside
+/// `SecKeyCreateSignature` per the access-control flags chosen
+/// at create time. Idle/cached LAContext reuse is wired at the
+/// FRB worker boundary (one context per agent session); this
+/// dispatcher passes `None` so the OS uses its own per-call
+/// prompt unless a previous sign within the cache window
+/// authorized the chip.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+async fn enclave_sign(row: &SshKeyRow, data: &[u8]) -> Result<SignOutput, BackendError> {
+    let application_tag = row
+        .enclave_tag
+        .clone()
+        .ok_or_else(|| BackendError::Signer(Error::Enclave("row missing enclave_tag".into())))?;
+    let data = data.to_vec();
+    tokio::task::spawn_blocking(move || -> Result<SignOutput, BackendError> {
+        use lfs_os_security::apple_se_ssh;
+        let handle = apple_se_ssh::EnclaveKeyHandle {
+            application_tag,
+            label: String::new(),
+        };
+        let der = apple_se_ssh::sign(&handle, &data, None)
+            .map_err(|e| BackendError::Signer(Error::Enclave(e.to_string())))?;
+        let sig_blob =
+            crate::ssh::wire::ecdsa_der_to_ssh_mpint(&der).map_err(BackendError::Signer)?;
+        Ok(SignOutput {
+            algorithm: "ecdsa-sha2-nistp256".into(),
+            signature: sig_blob,
+        })
+    })
+    .await
+    .map_err(|e| BackendError::Signer(Error::Enclave(format!("spawn_blocking: {e}"))))?
+}
+
+/// Non-Apple stub — SE keys are macOS / iOS only. The listing
+/// path filters `backend = 'enclave'` rows out on every other
+/// target so this branch is reached only on impossible cfg
+/// combinations.
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+async fn enclave_sign(_row: &SshKeyRow, _data: &[u8]) -> Result<SignOutput, BackendError> {
+    Err(BackendError::Signer(Error::Enclave(
+        "Apple Secure Enclave unavailable on this platform".into(),
+    )))
 }
 
 /// PKCS#11 dispatcher. Resolves the row's module path, token serial,
@@ -353,6 +406,7 @@ mod tests {
             pkcs11_token_serial: None,
             pkcs11_object_id: None,
             pkcs11_object_label: None,
+            enclave_tag: None,
         }
     }
 

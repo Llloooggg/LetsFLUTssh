@@ -3031,4 +3031,97 @@ class SZh extends S {
 
   @override
   String get pkcs11WizardNext => '下一步';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => '添加 hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key 存储在设备的 secure hardware 中，无法导出。';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => '此 key 只在这台 Mac 上有效。';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos => '此 key 只在这台 iPhone 上有效。';
+
+  @override
+  String get sshKeyHelloDeviceBound => '此 key 只在这台 PC 上有效。';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => '要求 Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback => '允许设备 passcode 作为 fallback';
+
+  @override
+  String get sshKeyHelloPinRequired => '要求 Windows Hello（PIN、指纹或人脸）';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key 不可用';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      '应用必须 code-signed 才能使用 Secure Enclave。';
+
+  @override
+  String get sshKeyHardwareUnavailableHello => '此 PC 未配置 Windows Hello。';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm => '未检测到 TPM — 仅 software-backed。';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => '生成';
+
+  @override
+  String get sshKeyGenerateInProgress => '正在 secure hardware 中生成 key...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      '需要 code-signing — 参见 USER_GUIDE.md → Hardware-bound keys。';
+
+  @override
+  String get sshKeySignInProgress => '正在使用 secure hardware 签名...';
+
+  @override
+  String get sshKeyPublicCopy => '复制 public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint => '将此行添加到服务器的 ~/.ssh/authorized_keys。';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Key 名称';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

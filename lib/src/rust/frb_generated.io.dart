@@ -18,6 +18,7 @@ import 'api/credential_prompt.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/deeplink.dart';
+import 'api/enclave.dart';
 import 'api/fido2.dart';
 import 'api/folder_path.dart';
 import 'api/format.dart';
@@ -356,6 +357,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbDownloadedAsset dco_decode_box_autoadd_db_downloaded_asset(dynamic raw);
 
   @protected
+  DbEnclaveGenerateArgs dco_decode_box_autoadd_db_enclave_generate_args(
+    dynamic raw,
+  );
+
+  @protected
   DbExportInput dco_decode_box_autoadd_db_export_input(dynamic raw);
 
   @protected
@@ -570,6 +576,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbDownloadedAsset dco_decode_db_downloaded_asset(dynamic raw);
+
+  @protected
+  DbEnclaveAuthPolicy dco_decode_db_enclave_auth_policy(dynamic raw);
+
+  @protected
+  DbEnclaveAvailability dco_decode_db_enclave_availability(dynamic raw);
+
+  @protected
+  DbEnclaveGenerateArgs dco_decode_db_enclave_generate_args(dynamic raw);
+
+  @protected
+  DbEnclaveImportResult dco_decode_db_enclave_import_result(dynamic raw);
+
+  @protected
+  DbEnclaveOrphan dco_decode_db_enclave_orphan(dynamic raw);
 
   @protected
   DbEvictionOutcome dco_decode_db_eviction_outcome(dynamic raw);
@@ -911,6 +932,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
+
+  @protected
+  List<DbEnclaveOrphan> dco_decode_list_db_enclave_orphan(dynamic raw);
 
   @protected
   List<DbFido2Device> dco_decode_list_db_fido_2_device(dynamic raw);
@@ -1517,6 +1541,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbEnclaveGenerateArgs sse_decode_box_autoadd_db_enclave_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbExportInput sse_decode_box_autoadd_db_export_input(
     SseDeserializer deserializer,
   );
@@ -1793,6 +1822,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbDownloadedAsset sse_decode_db_downloaded_asset(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbEnclaveAuthPolicy sse_decode_db_enclave_auth_policy(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbEnclaveAvailability sse_decode_db_enclave_availability(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbEnclaveGenerateArgs sse_decode_db_enclave_generate_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbEnclaveImportResult sse_decode_db_enclave_import_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbEnclaveOrphan sse_decode_db_enclave_orphan(SseDeserializer deserializer);
 
   @protected
   DbEvictionOutcome sse_decode_db_eviction_outcome(
@@ -2244,6 +2296,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbChangelogRelease> sse_decode_list_db_changelog_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbEnclaveOrphan> sse_decode_list_db_enclave_orphan(
     SseDeserializer deserializer,
   );
 
@@ -2995,6 +3052,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_enclave_generate_args(
+    DbEnclaveGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_export_input(
     DbExportInput self,
     SseSerializer serializer,
@@ -3345,6 +3408,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_downloaded_asset(
     DbDownloadedAsset self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_enclave_auth_policy(
+    DbEnclaveAuthPolicy self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_enclave_availability(
+    DbEnclaveAvailability self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_enclave_generate_args(
+    DbEnclaveGenerateArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_enclave_import_result(
+    DbEnclaveImportResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_enclave_orphan(
+    DbEnclaveOrphan self,
     SseSerializer serializer,
   );
 
@@ -3936,6 +4029,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_changelog_release(
     List<DbChangelogRelease> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_enclave_orphan(
+    List<DbEnclaveOrphan> self,
     SseSerializer serializer,
   );
 

@@ -608,6 +608,15 @@ pub enum BusConnectAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Apple Secure Enclave hardware key. Carries the captured
+    /// `id_*.pub` body + the opaque `kSecAttrApplicationTag`
+    /// bytes the Keychain matches on. No PIN slot — the OS fires
+    /// its biometric / passcode prompt inside
+    /// `SecKeyCreateSignature`.
+    PubkeyEnclave {
+        public_openssh: String,
+        application_tag: Vec<u8>,
+    },
     Agent,
 }
 
@@ -658,6 +667,13 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
                 cka_id,
                 key_type,
                 pin_secret_id,
+            },
+            BusConnectAuthRef::PubkeyEnclave {
+                public_openssh,
+                application_tag,
+            } => lfs_core::connection::ConnectAuthRef::PubkeyEnclave {
+                public_openssh,
+                application_tag,
             },
             BusConnectAuthRef::Agent => lfs_core::connection::ConnectAuthRef::Agent,
         }

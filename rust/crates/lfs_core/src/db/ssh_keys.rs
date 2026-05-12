@@ -77,6 +77,13 @@ pub struct SshKeyRow {
     /// `CKA_LABEL` of the private-key object (human-readable, the
     /// import wizard captures it for the key-manager row label).
     pub pkcs11_object_label: Option<String>,
+    /// Apple Secure Enclave `kSecAttrApplicationTag` bytes. The
+    /// `SecItemCopyMatching` lookup on every sign / list / delete
+    /// matches on this opaque blob; we generate it at create time
+    /// (UUID-suffixed UTF-8 prefix) and persist verbatim. `None` for
+    /// every non-enclave backend; the connect path refuses an
+    /// `enclave` row whose `enclave_tag` is `None` (DB corruption).
+    pub enclave_tag: Option<Vec<u8>>,
 }
 
 /// Backend discriminator on `ssh_keys.backend` (schema v9). Drives
@@ -201,6 +208,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         pkcs11_token_serial: row.get("pkcs11_token_serial")?,
         pkcs11_object_id: row.get("pkcs11_object_id")?,
         pkcs11_object_label: row.get("pkcs11_object_label")?,
+        enclave_tag: row.get("enclave_tag")?,
     })
 }
 
@@ -211,7 +219,7 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                    pkcs11_object_id, pkcs11_object_label \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -232,7 +240,7 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                    pkcs11_object_id, pkcs11_object_label \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -251,8 +259,8 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
         "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
                                credential_id, application_string, has_user_verification, agent_policy, \
                                backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                               pkcs11_object_id, pkcs11_object_label) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17) \
+                               pkcs11_object_id, pkcs11_object_label, enclave_tag) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -270,6 +278,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            pkcs11_token_serial = excluded.pkcs11_token_serial, \
            pkcs11_object_id = excluded.pkcs11_object_id, \
            pkcs11_object_label = excluded.pkcs11_object_label, \
+           enclave_tag = excluded.enclave_tag, \
            deleted_at = NULL",
         params![
             row.id,
@@ -289,6 +298,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.pkcs11_token_serial,
             row.pkcs11_object_id,
             row.pkcs11_object_label,
+            row.enclave_tag,
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -342,7 +352,7 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
                     credential_id, application_string, has_user_verification, agent_policy, \
                     backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                    pkcs11_object_id, pkcs11_object_label \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC \
              /* list_metadata */",
         )
@@ -431,8 +441,8 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
                                        credential_id, application_string, has_user_verification, agent_policy, \
                                        backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
-                                       pkcs11_object_id, pkcs11_object_label) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17) \
+                                       pkcs11_object_id, pkcs11_object_label, enclave_tag) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -450,6 +460,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    pkcs11_token_serial = excluded.pkcs11_token_serial, \
                    pkcs11_object_id = excluded.pkcs11_object_id, \
                    pkcs11_object_label = excluded.pkcs11_object_label, \
+                   enclave_tag = excluded.enclave_tag, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -472,6 +483,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.pkcs11_token_serial,
                 row.pkcs11_object_id,
                 row.pkcs11_object_label,
+                row.enclave_tag,
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -600,6 +612,7 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             pkcs11_token_serial: proposed.pkcs11_token_serial.clone(),
             pkcs11_object_id: proposed.pkcs11_object_id.clone(),
             pkcs11_object_label: proposed.pkcs11_object_label.clone(),
+            enclave_tag: proposed.enclave_tag.clone(),
         },
     )?;
     tx.commit()
@@ -673,6 +686,7 @@ mod import_for_merge_tests {
             pkcs11_token_serial: None,
             pkcs11_object_id: None,
             pkcs11_object_label: None,
+            enclave_tag: None,
         }
     }
 
@@ -781,6 +795,7 @@ mod tombstone_tests {
                     pkcs11_token_serial: None,
                     pkcs11_object_id: None,
                     pkcs11_object_label: None,
+                    enclave_tag: None,
                 },
             )
         })
@@ -873,6 +888,7 @@ mod tombstone_tests {
             pkcs11_token_serial: None,
             pkcs11_object_id: None,
             pkcs11_object_label: None,
+            enclave_tag: None,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

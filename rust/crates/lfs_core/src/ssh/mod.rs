@@ -33,6 +33,12 @@ pub mod wire;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 pub mod pkcs11_signer;
 
+// Apple Secure Enclave SSH Signer. Cfg-gated to macOS / iOS —
+// the underlying `lfs_os_security::apple_se_ssh` driver only
+// compiles on Darwin.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub mod enclave_signer;
+
 use sk_signer::FidoSigner;
 
 /// russh `Handler` impl for our client side. Carries an mpsc sender
@@ -639,6 +645,25 @@ pub struct ConnectPubkeyPkcs11OwnedArgs {
     /// / `ed25519`. Drives the SSH wire-name selection.
     pub key_type: String,
     pub pin_secret_id: Option<String>,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_enclave_owned`].
+/// SE-bound keys carry no PIN — the OS surfaces its biometric /
+/// passcode prompt inside the `SecKeyCreateSignature` call.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyEnclaveOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    /// Captured `id_*.pub` body the connect path re-parses to
+    /// recover the SSH `Algorithm`. Always `ecdsa-sha2-nistp256`
+    /// for SE-bound keys.
+    pub public_openssh: String,
+    /// Opaque `kSecAttrApplicationTag` bytes captured at create
+    /// time. Persisted in `ssh_keys.enclave_tag`; the signer
+    /// passes them verbatim to `SecItemCopyMatching` on every
+    /// signature.
+    pub application_tag: Vec<u8>,
 }
 
 /// Shareable across tasks — every method takes `&self` because
@@ -1279,6 +1304,64 @@ impl Session {
         Box::pin(async move {
             Err(Error::Unsupported(
                 "pkcs11 hardware tokens are not available on this platform".into(),
+            ))
+        })
+    }
+
+    /// Connect + authenticate with an Apple Secure Enclave-bound SSH
+    /// key. `public_openssh` is the `id_*.pub` body captured at
+    /// create time (always `ecdsa-sha2-nistp256` for SE-bound keys);
+    /// `application_tag` is the opaque blob the Keychain
+    /// `SecItemCopyMatching` matches on to resolve the on-chip
+    /// private half.
+    ///
+    /// Signing routes through [`crate::ssh::enclave_signer::EnclaveSigner`],
+    /// which drives `lfs_os_security::apple_se_ssh::sign` on every
+    /// challenge. The OS fires its biometric / passcode prompt at
+    /// the `SecKeyCreateSignature` boundary per the ACL flags
+    /// chosen at create time. Private key bytes never leave the
+    /// chip.
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    pub fn connect_pubkey_enclave_owned(
+        args: ConnectPubkeyEnclaveOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let (mut handle, forward_rx) = open_handle_for_session(&args.host, args.port).await?;
+            let parsed_pub = ssh_key::PublicKey::from_openssh(args.public_openssh.trim())
+                .map_err(|e| Error::KeyParse(format!("enclave pubkey: {e}")))?;
+            let mut signer = crate::ssh::enclave_signer::EnclaveSigner {
+                application_tag: args.application_tag,
+                label: String::new(),
+            };
+            // ECDSA path leaves `hash_alg = None` — russh's wire
+            // negotiation lands on `ecdsa-sha2-nistp256` (the only
+            // shape SE supports). russh ignores hash_alg for ECDSA.
+            let auth_result = handle
+                .authenticate_publickey_with(&args.user, parsed_pub, None, &mut signer)
+                .await
+                .map_err(|e| Error::Auth(format!("{e}")))?;
+            if !matches!(auth_result, AuthResult::Success) {
+                return Err(Error::AuthFailed);
+            }
+            Ok(Session::from_handle(handle, forward_rx))
+        })
+    }
+
+    /// Non-Apple platforms — surface a typed unsupported error so the
+    /// `ConnectAuthRef::PubkeyEnclave` dispatcher in
+    /// `connection::mod` stays cfg-clean. The DB row's
+    /// `backend = 'enclave'` discriminator is never created on
+    /// non-Apple builds (the wizard hides the toolbar action), so
+    /// this arm only fires on cross-device `.lfs` imports the
+    /// runtime then refuses with the documented "key cannot leave
+    /// this Mac" reason.
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    pub fn connect_pubkey_enclave_owned(
+        _args: ConnectPubkeyEnclaveOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Err(Error::Unsupported(
+                "Apple Secure Enclave keys are available on macOS / iOS only".into(),
             ))
         })
     }

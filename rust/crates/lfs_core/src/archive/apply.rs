@@ -643,6 +643,7 @@ fn apply_keys(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: 
             pkcs11_token_serial: None,
             pkcs11_object_id: None,
             pkcs11_object_label: None,
+            enclave_tag: None,
         };
         if row.id.is_empty() {
             result.errors.push("key row missing id".to_string());
@@ -865,6 +866,7 @@ mod tests {
                 pkcs11_token_serial: None,
                 pkcs11_object_id: None,
                 pkcs11_object_label: None,
+                enclave_tag: None,
             },
         )
         .unwrap();
@@ -1049,6 +1051,7 @@ mod tests {
                 pkcs11_token_serial: None,
                 pkcs11_object_id: None,
                 pkcs11_object_label: None,
+                enclave_tag: None,
             },
         )
         .unwrap();
@@ -1555,6 +1558,7 @@ mod tests {
                 pkcs11_token_serial: None,
                 pkcs11_object_id: None,
                 pkcs11_object_label: None,
+                enclave_tag: None,
             },
         )
         .unwrap();

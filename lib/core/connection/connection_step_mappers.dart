@@ -74,6 +74,11 @@ rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
         keyType: keyType,
         pinSecretId: pinSecretId,
       ),
+    SshAuthPubkeyEnclaveRef(:final publicOpenssh, :final applicationTag) =>
+      rust_bus.BusConnectAuthRef.pubkeyEnclave(
+        publicOpenssh: publicOpenssh,
+        applicationTag: applicationTag,
+      ),
     SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
   };
 }

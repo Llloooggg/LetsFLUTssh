@@ -30,6 +30,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/enclave_ssh_dialog.dart';
 import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/toast.dart';
 
@@ -184,6 +185,19 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               : s.pkcs11HwUnavailableMobile,
           onTap: _pkcs11Available ? _importPkcs11Key : null,
         ),
+        // Apple Secure Enclave generate. Capability-ladder rung 3 on
+        // macOS / iOS (native `SecKeyCreateRandomKey`); rung 4 elsewhere
+        // (toolbar action hidden — the underlying chip doesn't exist
+        // on Linux / Windows / Android). On ad-hoc-signed dev builds
+        // the action stays enabled but the wizard's probe step routes
+        // the user at the code-signing reason.
+        if (isApplePlatform)
+          _ToolbarButton(
+            icon: Icons.shield_outlined,
+            label: s.sshKeyAddHardwareBound,
+            tooltip: s.sshKeyAddHardwareBound,
+            onTap: _generateEnclaveKey,
+          ),
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -226,9 +240,12 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         entry.keyType.startsWith('sk-ssh-') ||
         entry.keyType.startsWith('sk-ecdsa-sha2-');
     final isPkcs11 = entry.isPkcs11;
+    final isEnclave = entry.isEnclave;
     final iconData = isFido2
         ? Icons.usb
-        : (isPkcs11 ? Icons.memory : Icons.vpn_key);
+        : (isPkcs11
+              ? Icons.memory
+              : (isEnclave ? Icons.shield_outlined : Icons.vpn_key));
     return AppDataRow(
       icon: iconData,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
@@ -253,6 +270,11 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               tokenSerial: entry.pkcs11TokenSerial,
               objectLabel: entry.pkcs11ObjectLabel,
             ),
+          ),
+        if (isEnclave)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: EnclaveBadge(label: s.sshKeyEnclaveBadge),
           ),
         if (expired)
           Padding(
@@ -774,6 +796,42 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     Toast.show(
       context,
       message: s.pkcs11SaveSuccess,
+      level: ToastLevel.success,
+    );
+  }
+
+  /// Apple Secure Enclave key generation. Opens the wizard dialog
+  /// ([EnclaveSshDialog]) which probes the chip, captures the auth-
+  /// policy choice, fires `enclaveSshGenerate`, and surfaces the
+  /// authorized_keys-shaped public-key line for the user to paste on
+  /// the server. The row lands Rust-side inside the generate call;
+  /// we only refresh the listing and surface the success toast.
+  Future<void> _generateEnclaveKey() async {
+    final s = S.of(context);
+    final EnclaveSshResult? result;
+    try {
+      result = await EnclaveSshDialog.show(context);
+    } catch (e) {
+      AppLogger.instance.log(
+        'enclave wizard failed: $e',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(s, e),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+    if (result == null || !mounted) return;
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
+    if (!mounted) return;
+    Toast.show(
+      context,
+      message: s.keyImported(result.label),
       level: ToastLevel.success,
     );
   }

@@ -3123,4 +3123,104 @@ class SFa extends S {
 
   @override
   String get pkcs11WizardNext => 'بعدی';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'افزودن hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key داخل secure hardware دستگاه قرار دارد و export نمی‌شود.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'این key فقط روی همین Mac کار می‌کند.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'این key فقط روی همین iPhone کار می‌کند.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'این key فقط روی همین PC کار می‌کند.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'الزام Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'اجازه استفاده از passcode دستگاه به‌عنوان fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'الزام Windows Hello (PIN، اثر انگشت یا چهره)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware keys در دسترس نیست';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'برای استفاده از Secure Enclave اپ باید code-signed باشد.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello روی این PC تنظیم نشده.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM شناسایی نشد — فقط software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'ساختن';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'در حال ساخت key در secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing لازم است — به USER_GUIDE.md → Hardware-bound keys مراجعه کنید.';
+
+  @override
+  String get sshKeySignInProgress => 'امضا با secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'کپی public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'این خط را به ~/.ssh/authorized_keys روی سرور اضافه کنید.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'نام key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

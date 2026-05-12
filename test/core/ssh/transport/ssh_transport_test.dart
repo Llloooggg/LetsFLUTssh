@@ -58,6 +58,7 @@ void main() {
         SshAuthPubkeyCertRef() => 'pubkey-cert',
         SshAuthPubkeySkRef() => 'pubkey-sk',
         SshAuthPubkeyPkcs11Ref() => 'pubkey-pkcs11',
+        SshAuthPubkeyEnclaveRef() => 'pubkey-enclave',
       };
       expect(describe(const SshAuthAgent()), 'agent');
       expect(describe(const SshAuthPasswordRef('x')), 'password');
@@ -73,6 +74,15 @@ void main() {
           ),
         ),
         'pubkey-sk',
+      );
+      expect(
+        describe(
+          SshAuthPubkeyEnclaveRef(
+            publicOpenssh: 'ecdsa-sha2-nistp256 AAAA...',
+            applicationTag: Uint8List.fromList([0xDE, 0xAD]),
+          ),
+        ),
+        'pubkey-enclave',
       );
     });
   });

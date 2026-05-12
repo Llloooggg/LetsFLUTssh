@@ -154,6 +154,12 @@ pub mod kind {
     /// (`wrong pin:`, `pin locked:`, `unplugged:`, generic) to pick
     /// the right toast / dialog.
     pub const PKCS11: &str = "pkcs11";
+    /// Apple Secure Enclave failure (ad-hoc-signed bundle, biometric
+    /// cancel, key not found, sign refused). Detail carries the short
+    /// reason; the Dart UI's wizard / connect dialog branches on the
+    /// leading discriminator (`code-signing required`, `cancelled`,
+    /// `key not found`, generic) to pick the right toast.
+    pub const ENCLAVE: &str = "enclave";
     /// Operation is structurally unavailable on this build target
     /// (e.g. the in-process ssh-agent endpoint on Android / iOS).
     /// UI renders the matching control disabled-with-reason rather
@@ -220,6 +226,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::S3(s) => wire(kind::S3, s),
         CoreError::Fido2(s) => wire(kind::FIDO2, s),
         CoreError::Pkcs11(s) => wire(kind::PKCS11, s),
+        CoreError::Enclave(s) => wire(kind::ENCLAVE, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

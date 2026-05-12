@@ -196,6 +196,49 @@ The private key never leaves the token; every connect-time signature routes thro
 
 **GOST keys.** PKCS#11 supports `CKK_GOSTR3410` for state-sector cryptography. SSH has no GOST wire suite, so the picker shows GOST keys but disables them with the "GOST cannot be used with SSH" reason. JaCarta / Рутокен tokens that hold both an RSA / ECDSA key (for SSH) and a GOST key (for state-portal auth) work fine — the import picks the SSH-usable one and ignores the GOST sibling.
 
+### Hardware key (Apple Secure Enclave)
+
+On macOS (Apple Silicon or T2 Intel) and iOS, LetsFLUTssh can generate SSH keys whose private half lives on the Secure Enclave coprocessor — the same silicon that backs Touch ID / Face ID. The chip refuses to export the private bytes; every connect-time signature routes through `SecKeyCreateSignature`, and the OS fires a biometric / passcode prompt at the call boundary.
+
+- **Algorithm.** ECDSA P-256 only (`ecdsa-sha2-nistp256`). The chip implements no other curve.
+- **Device-bound.** SE keys cannot be exported or copied to another device — the key works only on the Mac / iPhone that generated it.
+- **Re-enrolment caveat.** When you choose **Touch ID / Face ID required** the chip ties the key to the *current* biometric template. Adding a finger or re-enrolling Face ID invalidates the key; you must re-generate. Choose **Allow device passcode as fallback** if you need biometric re-enrolment to survive.
+
+#### Generating a key
+
+1. **Tools → SSH Keys → Add hardware-bound key** (the row is visible only on macOS and iOS — Linux / Windows / Android hide it).
+2. The wizard probes the chip. On unsigned / ad-hoc-signed dev builds the probe surfaces "App must be code-signed to use the Secure Enclave" — see the "Self-build users" note below.
+3. Pick a label and an auth policy:
+   - **Require Touch ID / Face ID** — strongest binding; re-enrolment invalidates the key.
+   - **Allow device passcode as fallback** — survives re-enrolment; a stolen passcode unlocks every key in this class.
+4. Tap **Generate**. The OS fires the biometric / passcode prompt; on success the wizard shows the `authorized_keys`-shaped public-key line with a Copy affordance.
+5. Add that line to `~/.ssh/authorized_keys` on the server.
+6. Reference the new row from a session's **Auth → Key from manager** drop-down. Every connect attempt fires the OS biometric / passcode prompt the first time the key is used inside the LAContext cache window (a few minutes); subsequent reconnects within that window skip the prompt.
+
+#### Self-build users — code-signing requirement
+
+Apple's Keychain Services refuses to bind keys to the Secure Enclave when the running binary isn't code-signed. Distributed builds (the GitHub Release artifacts) are signed and work out of the box. Self-build users running `make build-macos` against the source tree see `errSecMissingEntitlement (-34018)` on the first key-generate call.
+
+Fix with an ad-hoc signature against the bundle:
+
+```bash
+codesign -s - --identifier com.poddeo3.letsflutssh \
+    --entitlements macos/Runner/Release.entitlements \
+    --deep --force \
+    build/macos/Build/Products/Release/letsflutssh.app
+```
+
+Re-launch the app and re-run the wizard. The `-s -` signature is ad-hoc (no Apple identity required) but provides the stable Code Directory hash Keychain needs to bind keys.
+
+#### Platform availability
+
+| Platform | Status |
+|---|---|
+| macOS (Apple Silicon, T2 Intel) | Supported. Code-signed bundles work directly; ad-hoc-signed dev builds need the `codesign -s -` snippet above. |
+| iOS | Supported. The app must be signed with a development / distribution profile (Xcode handles this automatically). |
+| Intel Macs without a T2 chip | Hidden — no Secure Enclave silicon. |
+| Linux / Windows / Android | Hidden — chip doesn't exist on these platforms. |
+
 ---
 
 ## 4. Terminal

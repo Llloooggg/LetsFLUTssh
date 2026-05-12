@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "태그",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester}가 {keyLabel}로 서명하려고 합니다",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "외부 SSH 클라이언트",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "ssh-agent endpoint를 시작할 수 없습니다: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "스마트카드 / 토큰 키 추가",
   "pkcs11ModuleLabel": "PKCS#11 모듈",
   "pkcs11ModuleAutoDetected": "자동 감지됨",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "토큰: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "시리얼: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "토큰에 로그인이 필요합니다.",
   "pkcs11PinPrompt": "{token} PIN",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "토큰 PIN 패드에서 확인하세요.",
   "pkcs11PinIncorrect": "PIN 틀림. {remaining}회 남음.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "토큰 PIN이 잠겼습니다. PUK로 해제하세요.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "토큰 \"{label}\"이(가) 삽입되지 않았습니다.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "저장된 토큰을 찾을 수 없습니다. 다시 연결하세요.",
   "pkcs11SignFailed": "서명 실패: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "스마트카드 / PKCS#11 토큰은 이 플랫폼에서 사용할 수 없습니다.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "모듈: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "토큰 시리얼: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "객체: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "PKCS#11 모듈 선택",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "키 가져오기",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "모듈 로드 실패.",
   "pkcs11PinPadHint": "(기기 PIN pad)",
   "pkcs11WizardBack": "뒤로",
-  "pkcs11WizardNext": "다음"
+  "pkcs11WizardNext": "다음",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "하드웨어 키 추가",
+  "sshKeyHardwareBoundExplainer": "프라이빗 키는 디바이스의 시큐어 하드웨어에 있으며 내보낼 수 없습니다.",
+  "sshKeyEnclaveDeviceBound": "이 키는 이 Mac에서만 작동합니다.",
+  "sshKeyEnclaveDeviceBoundIos": "이 키는 이 iPhone에서만 작동합니다.",
+  "sshKeyHelloDeviceBound": "이 키는 이 PC에서만 작동합니다.",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID 요구",
+  "sshKeyEnclavePasscodeFallback": "디바이스 passcode를 fallback으로 허용",
+  "sshKeyHelloPinRequired": "Windows Hello 요구 (PIN, 지문 또는 얼굴)",
+  "sshKeyHardwareUnavailableTitle": "하드웨어 키를 사용할 수 없음",
+  "sshKeyHardwareUnavailableSe": "Secure Enclave를 사용하려면 앱이 code-signed 되어야 합니다.",
+  "sshKeyHardwareUnavailableHello": "이 PC에 Windows Hello가 설정되어 있지 않습니다.",
+  "sshKeyHardwareUnavailableTpm": "TPM이 감지되지 않음 — software-backed만 가능.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "생성",
+  "sshKeyGenerateInProgress": "시큐어 하드웨어에서 키 생성 중...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing 필요 — USER_GUIDE.md → Hardware-bound keys 참조.",
+  "sshKeySignInProgress": "시큐어 하드웨어로 서명 중...",
+  "sshKeyPublicCopy": "퍼블릭 키 복사",
+  "sshKeyAuthorizedKeysHint": "이 라인을 서버의 ~/.ssh/authorized_keys에 추가하세요.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH 키",
+  "sshKeyEnclaveWizardLabelHint": "키 이름",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

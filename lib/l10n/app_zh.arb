@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "标签",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} 想要使用 {keyLabel} 签名",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "外部 SSH 客户端",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "无法启动 ssh-agent endpoint：{detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "添加智能卡 / 令牌密钥",
   "pkcs11ModuleLabel": "PKCS#11 模块",
   "pkcs11ModuleAutoDetected": "自动检测",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "令牌: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "序列号: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "令牌需要登录。",
   "pkcs11PinPrompt": "{token} 的 PIN",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "在令牌的 PIN 板上确认。",
   "pkcs11PinIncorrect": "PIN 错误。剩 {remaining} 次。",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "令牌 PIN 已锁定。使用 PUK 解锁。",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "令牌 \"{label}\" 未插入。",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "未找到已保存的令牌。请重新插入后重试。",
   "pkcs11SignFailed": "签名失败: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "此平台不支持智能卡 / PKCS#11 令牌。",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "模块：{path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "令牌序列号：{serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "对象：{label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "选择 PKCS#11 模块",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "导入密钥",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "模块加载失败。",
   "pkcs11PinPadHint": "（设备 PIN pad）",
   "pkcs11WizardBack": "上一步",
-  "pkcs11WizardNext": "下一步"
+  "pkcs11WizardNext": "下一步",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "添加 hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key 存储在设备的 secure hardware 中，无法导出。",
+  "sshKeyEnclaveDeviceBound": "此 key 只在这台 Mac 上有效。",
+  "sshKeyEnclaveDeviceBoundIos": "此 key 只在这台 iPhone 上有效。",
+  "sshKeyHelloDeviceBound": "此 key 只在这台 PC 上有效。",
+  "sshKeyEnclaveTouchIdRequired": "要求 Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "允许设备 passcode 作为 fallback",
+  "sshKeyHelloPinRequired": "要求 Windows Hello（PIN、指纹或人脸）",
+  "sshKeyHardwareUnavailableTitle": "Hardware key 不可用",
+  "sshKeyHardwareUnavailableSe": "应用必须 code-signed 才能使用 Secure Enclave。",
+  "sshKeyHardwareUnavailableHello": "此 PC 未配置 Windows Hello。",
+  "sshKeyHardwareUnavailableTpm": "未检测到 TPM — 仅 software-backed。",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "生成",
+  "sshKeyGenerateInProgress": "正在 secure hardware 中生成 key...",
+  "sshKeyGenerateMissingEntitlement": "需要 code-signing — 参见 USER_GUIDE.md → Hardware-bound keys。",
+  "sshKeySignInProgress": "正在使用 secure hardware 签名...",
+  "sshKeyPublicCopy": "复制 public key",
+  "sshKeyAuthorizedKeysHint": "将此行添加到服务器的 ~/.ssh/authorized_keys。",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Key 名称",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

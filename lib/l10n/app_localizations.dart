@@ -5504,6 +5504,186 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Next'**
   String get pkcs11WizardNext;
+
+  /// No description provided for @sshKeyBackendSoftware.
+  ///
+  /// In en, this message translates to:
+  /// **'Software'**
+  String get sshKeyBackendSoftware;
+
+  /// No description provided for @sshKeyBackendEnclave.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave'**
+  String get sshKeyBackendEnclave;
+
+  /// No description provided for @sshKeyBackendHello.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello'**
+  String get sshKeyBackendHello;
+
+  /// No description provided for @sshKeyBackendFido2.
+  ///
+  /// In en, this message translates to:
+  /// **'Security key'**
+  String get sshKeyBackendFido2;
+
+  /// No description provided for @sshKeyAddHardwareBound.
+  ///
+  /// In en, this message translates to:
+  /// **'Add hardware-bound key'**
+  String get sshKeyAddHardwareBound;
+
+  /// No description provided for @sshKeyHardwareBoundExplainer.
+  ///
+  /// In en, this message translates to:
+  /// **'The private key lives in the device\'s secure hardware and cannot be exported.'**
+  String get sshKeyHardwareBoundExplainer;
+
+  /// No description provided for @sshKeyEnclaveDeviceBound.
+  ///
+  /// In en, this message translates to:
+  /// **'This key works only on this Mac.'**
+  String get sshKeyEnclaveDeviceBound;
+
+  /// No description provided for @sshKeyEnclaveDeviceBoundIos.
+  ///
+  /// In en, this message translates to:
+  /// **'This key works only on this iPhone.'**
+  String get sshKeyEnclaveDeviceBoundIos;
+
+  /// No description provided for @sshKeyHelloDeviceBound.
+  ///
+  /// In en, this message translates to:
+  /// **'This key works only on this PC.'**
+  String get sshKeyHelloDeviceBound;
+
+  /// No description provided for @sshKeyEnclaveTouchIdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Require Touch ID / Face ID'**
+  String get sshKeyEnclaveTouchIdRequired;
+
+  /// No description provided for @sshKeyEnclavePasscodeFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow device passcode as fallback'**
+  String get sshKeyEnclavePasscodeFallback;
+
+  /// No description provided for @sshKeyHelloPinRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Require Windows Hello (PIN, fingerprint, or face)'**
+  String get sshKeyHelloPinRequired;
+
+  /// No description provided for @sshKeyHardwareUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound keys are not available'**
+  String get sshKeyHardwareUnavailableTitle;
+
+  /// No description provided for @sshKeyHardwareUnavailableSe.
+  ///
+  /// In en, this message translates to:
+  /// **'App must be code-signed to use the Secure Enclave.'**
+  String get sshKeyHardwareUnavailableSe;
+
+  /// No description provided for @sshKeyHardwareUnavailableHello.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello is not configured on this PC.'**
+  String get sshKeyHardwareUnavailableHello;
+
+  /// No description provided for @sshKeyHardwareUnavailableTpm.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM detected — software-backed only.'**
+  String get sshKeyHardwareUnavailableTpm;
+
+  /// No description provided for @sshKeyHardwareUnavailableTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Software-gated'**
+  String get sshKeyHardwareUnavailableTier;
+
+  /// No description provided for @sshKeyEnclaveAlgorithm.
+  ///
+  /// In en, this message translates to:
+  /// **'ecdsa-sha2-nistp256'**
+  String get sshKeyEnclaveAlgorithm;
+
+  /// No description provided for @sshKeyHelloAlgorithmEcdsa256.
+  ///
+  /// In en, this message translates to:
+  /// **'ecdsa-sha2-nistp256 (TPM)'**
+  String get sshKeyHelloAlgorithmEcdsa256;
+
+  /// No description provided for @sshKeyHelloAlgorithmEcdsa384.
+  ///
+  /// In en, this message translates to:
+  /// **'ecdsa-sha2-nistp384 (TPM)'**
+  String get sshKeyHelloAlgorithmEcdsa384;
+
+  /// No description provided for @sshKeyHelloAlgorithmRsa.
+  ///
+  /// In en, this message translates to:
+  /// **'rsa-sha2-256 (TPM)'**
+  String get sshKeyHelloAlgorithmRsa;
+
+  /// No description provided for @sshKeyGenerateCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get sshKeyGenerateCta;
+
+  /// No description provided for @sshKeyGenerateInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating key in secure hardware...'**
+  String get sshKeyGenerateInProgress;
+
+  /// No description provided for @sshKeyGenerateMissingEntitlement.
+  ///
+  /// In en, this message translates to:
+  /// **'Code-signing required — see USER_GUIDE.md → Hardware-bound keys.'**
+  String get sshKeyGenerateMissingEntitlement;
+
+  /// No description provided for @sshKeySignInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing with secure hardware...'**
+  String get sshKeySignInProgress;
+
+  /// No description provided for @sshKeyPublicCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy public key'**
+  String get sshKeyPublicCopy;
+
+  /// No description provided for @sshKeyAuthorizedKeysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this line to ~/.ssh/authorized_keys on the server.'**
+  String get sshKeyAuthorizedKeysHint;
+
+  /// No description provided for @sshKeyEnclaveWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave SSH key'**
+  String get sshKeyEnclaveWizardTitle;
+
+  /// No description provided for @sshKeyEnclaveWizardLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Key label'**
+  String get sshKeyEnclaveWizardLabelHint;
+
+  /// No description provided for @sshKeyEnclaveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave'**
+  String get sshKeyEnclaveBadge;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

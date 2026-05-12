@@ -167,6 +167,11 @@ pub struct DbSshKey {
     /// `CKA_LABEL` of the private-key object — human-readable;
     /// renders alongside the key-manager row.
     pub pkcs11_object_label: Option<String>,
+    /// Apple Secure Enclave application-tag bytes (schema v10).
+    /// Opaque blob captured at create time; the
+    /// `SecItemCopyMatching` lookup matches on it. Only populated
+    /// for `backend = 'enclave'` rows on macOS / iOS.
+    pub enclave_tag: Option<Vec<u8>>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -189,6 +194,7 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             pkcs11_token_serial: r.pkcs11_token_serial,
             pkcs11_object_id: r.pkcs11_object_id,
             pkcs11_object_label: r.pkcs11_object_label,
+            enclave_tag: r.enclave_tag,
         }
     }
 }
@@ -213,6 +219,7 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             pkcs11_token_serial: r.pkcs11_token_serial,
             pkcs11_object_id: r.pkcs11_object_id,
             pkcs11_object_label: r.pkcs11_object_label,
+            enclave_tag: r.enclave_tag,
         }
     }
 }
@@ -1686,6 +1693,7 @@ mod tests {
             pkcs11_token_serial: None,
             pkcs11_object_id: None,
             pkcs11_object_label: None,
+            enclave_tag: None,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

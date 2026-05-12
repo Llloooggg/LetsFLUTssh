@@ -157,6 +157,17 @@ pub enum ConnectAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Apple Secure Enclave-bound SSH key. `application_tag` is the
+    /// opaque `kSecAttrApplicationTag` bytes captured at create
+    /// time — the Keychain `SecItemCopyMatching` matches on it to
+    /// resolve the on-chip private half. No PIN slot: the OS fires
+    /// its biometric / passcode prompt at the
+    /// `SecKeyCreateSignature` boundary. Reaches
+    /// `Session::connect_pubkey_enclave_owned` on dispatch.
+    PubkeyEnclave {
+        public_openssh: String,
+        application_tag: Vec<u8>,
+    },
     Agent,
 }
 
@@ -1015,6 +1026,25 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         }
         (ConnectAuthRef::PubkeyPkcs11 { .. }, Some(_parent)) => Err(Error::Auth(
             "PKCS#11 hardware key over ProxyJump is not supported yet".into(),
+        )),
+        (
+            ConnectAuthRef::PubkeyEnclave {
+                public_openssh,
+                application_tag,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_enclave_owned(crate::ssh::ConnectPubkeyEnclaveOwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                application_tag,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeyEnclave { .. }, Some(_parent)) => Err(Error::Auth(
+            "Apple Secure Enclave hardware key over ProxyJump is not supported yet".into(),
         )),
         (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
         (ConnectAuthRef::Agent, Some(parent)) => {

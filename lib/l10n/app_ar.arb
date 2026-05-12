@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "العلامات",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} يريد التوقيع باستخدام {keyLabel}",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "عميل SSH خارجي",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "تعذّر تشغيل ssh-agent endpoint: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "إضافة مفتاح smart-card / token",
   "pkcs11ModuleLabel": "وحدة PKCS#11",
   "pkcs11ModuleAutoDetected": "تم اكتشافه تلقائيًا",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "الرقم التسلسلي: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "يتطلب الـ token تسجيل دخول.",
   "pkcs11PinPrompt": "PIN لـ {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "أكّد على PIN-pad الـ token.",
   "pkcs11PinIncorrect": "PIN خاطئ. {remaining} محاولات متبقية.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "PIN الـ token مقفل. افتحه باستخدام PUK.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "الـ token \"{label}\" غير موصول.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Token المحفوظ غير موجود. أعد التوصيل وحاول مجددًا.",
   "pkcs11SignFailed": "فشل التوقيع: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smart-cards / tokens PKCS#11 غير متاحة على هذه المنصة.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Module: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Token serial: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Object: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "اختر module PKCS#11",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Import key",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "فشل تحميل module.",
   "pkcs11PinPadHint": "(PIN pad على الجهاز)",
   "pkcs11WizardBack": "رجوع",
-  "pkcs11WizardNext": "التالي"
+  "pkcs11WizardNext": "التالي",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "إضافة hardware key",
+  "sshKeyHardwareBoundExplainer": "الـ private key يعيش في الـ secure hardware للجهاز ولا يمكن تصديره.",
+  "sshKeyEnclaveDeviceBound": "هذا الـ key يعمل فقط على هذا الـ Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "هذا الـ key يعمل فقط على هذا الـ iPhone.",
+  "sshKeyHelloDeviceBound": "هذا الـ key يعمل فقط على هذا الـ PC.",
+  "sshKeyEnclaveTouchIdRequired": "اشترط Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "اسمح بـ passcode الجهاز كـ fallback",
+  "sshKeyHelloPinRequired": "اشترط Windows Hello (PIN، بصمة، أو وجه)",
+  "sshKeyHardwareUnavailableTitle": "الـ hardware keys غير متاحة",
+  "sshKeyHardwareUnavailableSe": "يجب أن يكون التطبيق code-signed لاستخدام Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello غير مُعدّ على هذا الـ PC.",
+  "sshKeyHardwareUnavailableTpm": "لم يتم اكتشاف TPM — software-backed فقط.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "إنشاء",
+  "sshKeyGenerateInProgress": "إنشاء key في الـ secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing مطلوب — راجع USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "توقيع عبر الـ secure hardware...",
+  "sshKeyPublicCopy": "نسخ الـ public key",
+  "sshKeyAuthorizedKeysHint": "أضف هذا السطر إلى ~/.ssh/authorized_keys على الخادم.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "اسم الـ key",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

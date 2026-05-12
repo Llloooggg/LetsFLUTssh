@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Tag",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} ingin menandatangani dengan {keyLabel}",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "SSH client eksternal",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "Tidak dapat memulai ssh-agent endpoint: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Tambah key smart-card / token",
   "pkcs11ModuleLabel": "Modul PKCS#11",
   "pkcs11ModuleAutoDetected": "Terdeteksi otomatis",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Serial: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "Token butuh login.",
   "pkcs11PinPrompt": "PIN untuk {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Konfirmasi di PIN-pad token.",
   "pkcs11PinIncorrect": "PIN salah. Sisa {remaining} percobaan.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "PIN token terkunci. Unblock dengan PUK.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "Token \"{label}\" tidak terpasang.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Token tersimpan tidak ditemukan. Sambungkan ulang dan coba lagi.",
   "pkcs11SignFailed": "Signing gagal: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 tidak tersedia di platform ini.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Module: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Token serial: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Object: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "Pilih module PKCS#11",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Import key",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Gagal memuat module.",
   "pkcs11PinPadHint": "(PIN pad di perangkat)",
   "pkcs11WizardBack": "Kembali",
-  "pkcs11WizardNext": "Lanjut"
+  "pkcs11WizardNext": "Lanjut",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Tambah hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key tersimpan di secure hardware perangkat dan tidak bisa diexport.",
+  "sshKeyEnclaveDeviceBound": "Key ini hanya berfungsi di Mac ini.",
+  "sshKeyEnclaveDeviceBoundIos": "Key ini hanya berfungsi di iPhone ini.",
+  "sshKeyHelloDeviceBound": "Key ini hanya berfungsi di PC ini.",
+  "sshKeyEnclaveTouchIdRequired": "Wajibkan Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Izinkan passcode perangkat sebagai fallback",
+  "sshKeyHelloPinRequired": "Wajibkan Windows Hello (PIN, sidik jari, atau wajah)",
+  "sshKeyHardwareUnavailableTitle": "Hardware key tidak tersedia",
+  "sshKeyHardwareUnavailableSe": "Aplikasi harus code-signed untuk pakai Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello belum disetup di PC ini.",
+  "sshKeyHardwareUnavailableTpm": "TPM tidak terdeteksi — hanya software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Generate",
+  "sshKeyGenerateInProgress": "Membuat key di secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing diperlukan — lihat USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Menandatangani via secure hardware...",
+  "sshKeyPublicCopy": "Copy public key",
+  "sshKeyAuthorizedKeysHint": "Tambahkan baris ini ke ~/.ssh/authorized_keys di server.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Nama key",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

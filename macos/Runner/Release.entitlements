@@ -19,5 +19,23 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!--
+	  Apple Secure Enclave SSH keys (lfs_os_security::apple_se_ssh)
+	  bind their private half under a per-key kSecAttrApplicationTag
+	  in the user keychain. With `app-sandbox = false` above, no
+	  `keychain-access-groups` entitlement is needed — the unsandboxed
+	  process accesses the user-default keychain directly. When a
+	  future Developer ID + Hardened Runtime build flips sandbox on,
+	  add:
+	    <key>keychain-access-groups</key>
+	    <array>
+	      <string>$(TeamIdentifierPrefix)com.poddeo3.letsflutssh</string>
+	    </array>
+	  so the bound keys remain accessible across the team identity.
+	  ad-hoc-signed dev builds will surface
+	  `errSecMissingEntitlement (-34018)` on `SecKeyCreateRandomKey`;
+	  the wizard probe step routes the user at the documented
+	  `codesign -s -` remediation in USER_GUIDE.md.
+	-->
 </dict>
 </plist>

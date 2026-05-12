@@ -3138,4 +3138,106 @@ class STr extends S {
 
   @override
   String get pkcs11WizardNext => 'İleri';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Hardware anahtarı ekle';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key cihazın secure hardware bileşeninde yaşıyor ve dışa aktarılamaz.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound =>
+      'Bu key yalnızca bu Mac üzerinde çalışır.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Bu key yalnızca bu iPhone üzerinde çalışır.';
+
+  @override
+  String get sshKeyHelloDeviceBound =>
+      'Bu key yalnızca bu PC üzerinde çalışır.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Touch ID / Face ID zorunlu olsun';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Cihaz passcode\'unu fallback olarak kabul et';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Windows Hello zorunlu olsun (PIN, parmak izi veya yüz)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key kullanılamıyor';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Secure Enclave için uygulamanın code-signed olması gerekir.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Bu PC\'de Windows Hello yapılandırılmamış.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM algılanmadı — yalnızca software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Oluştur';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Key secure hardware içinde oluşturuluyor...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing gerekli — USER_GUIDE.md → Hardware-bound keys bölümüne bakın.';
+
+  @override
+  String get sshKeySignInProgress => 'Secure hardware ile imzalanıyor...';
+
+  @override
+  String get sshKeyPublicCopy => 'Public key\'i kopyala';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Bu satırı sunucudaki ~/.ssh/authorized_keys dosyasına ekleyin.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Key adı';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

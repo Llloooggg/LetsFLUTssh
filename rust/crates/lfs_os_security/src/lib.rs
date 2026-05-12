@@ -407,6 +407,16 @@ pub mod winbio;
 // the library.
 pub mod pkcs11;
 
+// Apple Secure Enclave SSH driver — ECDSA P-256 keypair generation
+// + signing on macOS / iOS. Private bytes never leave the chip;
+// every sign routes through `SecKeyCreateSignature` and the
+// system biometric / passcode prompt fires at the OS layer per
+// the access-control flags chosen at create time. Cfg-gated to
+// Apple targets — the module body relies on `security-framework-sys`
+// + `core-foundation` symbols that only exist on Darwin.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub mod apple_se_ssh;
+
 // Android-only — direct JNI to platform Java APIs
 // (`java.security.KeyStore`, `androidx.biometric.BiometricPrompt`).
 // See `android::keystore` status block for the verification gate.

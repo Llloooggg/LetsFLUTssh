@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Thẻ",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} muốn ký bằng {keyLabel}",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "Một SSH client bên ngoài",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "Không khởi động được ssh-agent endpoint: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Thêm key smart-card / token",
   "pkcs11ModuleLabel": "Module PKCS#11",
   "pkcs11ModuleAutoDetected": "Tự động phát hiện",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Serial: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "Token yêu cầu login.",
   "pkcs11PinPrompt": "PIN cho {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Xác nhận trên PIN-pad của token.",
   "pkcs11PinIncorrect": "PIN sai. Còn {remaining} lần thử.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "PIN của token đã khoá. Mở khoá bằng PUK.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "Token \"{label}\" không được cắm.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Không tìm thấy token đã lưu. Cắm lại và thử lại.",
   "pkcs11SignFailed": "Signing thất bại: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 không khả dụng trên nền tảng này.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Module: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Token serial: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Object: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "Chọn module PKCS#11",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Import key",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Không tải được module.",
   "pkcs11PinPadHint": "(PIN pad trên thiết bị)",
   "pkcs11WizardBack": "Quay lại",
-  "pkcs11WizardNext": "Tiếp"
+  "pkcs11WizardNext": "Tiếp",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Thêm hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key nằm trong secure hardware của thiết bị và không thể export.",
+  "sshKeyEnclaveDeviceBound": "Key này chỉ hoạt động trên Mac này.",
+  "sshKeyEnclaveDeviceBoundIos": "Key này chỉ hoạt động trên iPhone này.",
+  "sshKeyHelloDeviceBound": "Key này chỉ hoạt động trên PC này.",
+  "sshKeyEnclaveTouchIdRequired": "Yêu cầu Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Cho phép passcode thiết bị làm fallback",
+  "sshKeyHelloPinRequired": "Yêu cầu Windows Hello (PIN, vân tay hoặc khuôn mặt)",
+  "sshKeyHardwareUnavailableTitle": "Hardware key không khả dụng",
+  "sshKeyHardwareUnavailableSe": "App phải được code-signed mới dùng được Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello chưa được cấu hình trên PC này.",
+  "sshKeyHardwareUnavailableTpm": "Không phát hiện TPM — chỉ software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Tạo",
+  "sshKeyGenerateInProgress": "Đang tạo key trong secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Cần code-signing — xem USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Đang ký với secure hardware...",
+  "sshKeyPublicCopy": "Sao chép public key",
+  "sshKeyAuthorizedKeysHint": "Thêm dòng này vào ~/.ssh/authorized_keys trên server.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Tên key",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

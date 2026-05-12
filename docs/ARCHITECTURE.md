@@ -1410,7 +1410,7 @@ sequenceDiagram
   Note over Dart,Tok: on connect: russh Signer drives C_Sign per challenge
 ```
 
-Persistence: `db::ssh_keys` carries an explicit `backend` discriminator from schema v9 onwards (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name). The v8 -> v9 migration arm UPDATEs every pre-existing `credential_id IS NOT NULL` row to `backend = 'fido2'` so the dispatcher's typed switch never falls through to a software arm for a hardware-bound key.
+Persistence: `db::ssh_keys` carries an explicit `backend` discriminator from schema v9 onwards (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name) and — from schema v10 — the Apple Secure Enclave `enclave_tag` blob (the opaque `kSecAttrApplicationTag` bytes the Keychain matches on; only populated for `backend = 'enclave'` rows). The v8 -> v9 migration arm UPDATEs every pre-existing `credential_id IS NOT NULL` row to `backend = 'fido2'` so the dispatcher's typed switch never falls through to a software arm for a hardware-bound key. The v9 -> v10 hop is additive (one `ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL`); existing rows backfill to NULL.
 
 Mechanism → SSH algorithm table:
 
@@ -1482,6 +1482,64 @@ Capability ladder rendering:
 | iOS | 4 honestly hide | Sandbox forbids `dlopen` of arbitrary `.dylib`. The picker row renders disabled with the `pkcs11HwUnavailableMobile` reason. |
 
 Error envelope: `Error::Pkcs11(String)` carves the PKCS#11 path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::PKCS11` discriminator lets the Dart UI route `wrong pin:` to the PIN re-prompt branch, `pin locked:` to the "unblock with PUK" halt, `unplugged:` to the replug toast, and the catch-all to the smart-card error toast. Display strings carry a stable leading discriminator (`wrong pin: <N> tries remaining`, `pin locked: token user PIN is locked`, `unplugged: matching token not present in any reader`) so the Dart matcher can string-match the prefix without re-parsing the full envelope.
+
+#### Apple Secure Enclave SSH keys — on-chip ECDSA P-256
+
+`lfs_os_security::apple_se_ssh` generates / signs / lists / deletes SSH keys whose private half lives on the Secure Enclave coprocessor — same silicon Apple uses to back Touch ID / Face ID for system unlock. The chip refuses to export the private bytes; every signing operation routes through `SecKeyCreateSignature`, and the OS surfaces a biometric / passcode prompt at the FFI boundary per the access-control flags chosen at create time.
+
+**Algorithm exclusivity.** ECDSA P-256 only. The SE silicon implements no other curve and no asymmetric primitive beyond ECDSA + ECIES — `SecKeyCreateRandomKey` with `kSecAttrTokenIDSecureEnclave` fails for every other `kSecAttrKeyType`. SSH wire-side this surfaces as `ecdsa-sha2-nistp256` exclusively; `ssh_keys.key_type` always reads back the same value, and the connect dispatcher refuses any other key_type on `backend = 'enclave'` rows.
+
+```mermaid
+flowchart LR
+    UI[EnclaveSshDialog]
+    UI --> FRB[enclave_ssh_generate FRB]
+    FRB --> SECREATE[SecKeyCreateRandomKey<br/>kSecAttrTokenIDSecureEnclave]
+    SECREATE -- ECDSA P-256 keypair --> CHIP[(Secure Enclave coprocessor)]
+    CHIP --> KEYREF[SecKeyRef + applicationTag]
+    KEYREF --> PUBEXTRACT[SecKeyCopyExternalRepresentation<br/>65-byte uncompressed point]
+    PUBEXTRACT --> WIRE[encode_public_ecdsa_p256<br/>SSH authorized_keys]
+    WIRE --> DB[ssh_keys row backend='enclave']
+    DB --> SIGN[Connect / agent dispatch]
+    SIGN --> SECSIGN[SecKeyCreateSignature<br/>kSecKeyAlgorithmECDSASignatureMessageX962SHA256]
+    SECSIGN -- DER r,s --> WIREHELP[ecdsa_der_to_ssh_mpint]
+    WIREHELP --> SSH[ssh-agent / userauth signature]
+```
+
+**Module layout.** Files live under `rust/crates/lfs_os_security/src/apple_se_ssh.rs` (single shared module, cfg-gated to `target_os = "macos" | "ios"`). The Signer adapter lives at `rust/crates/lfs_core/src/ssh/enclave_signer.rs` (mirrors the PKCS#11 / FIDO2 shape — `russh::Signer` impl wrapping the FFI surface). The FRB shim lives at `rust/crates/lfs_frb/src/api/enclave.rs`.
+
+**Access-control policy.** Two shapes selected per-key at creation, captured implicitly via the on-chip ACL — there is no DB column for the policy because the chip refuses to mutate the ACL after creation:
+
+| `AuthPolicy` | `SecAccessControl` flag | Effect |
+|---|---|---|
+| `BiometryCurrentSet` | `kSecAccessControlBiometryCurrentSet` | Touch ID / Face ID gates every sign. Re-enrolment invalidates the key (chip biometric template snapshot changes). Strongest binding. |
+| `UserPresence` | `kSecAccessControlUserPresence` | Accepts biometry OR the device passcode as fallback. Survives re-enrolment; a stolen passcode unlocks every key in this class. |
+
+Both shapes pin to `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` so the key never syncs (iCloud Keychain stays out of the loop) and never persists past a passcode unset.
+
+**Application tag.** Each key registers under a unique `kSecAttrApplicationTag` blob — `letsflutssh.ssh.<lowercase-hex-uuid>` — generated at creation time and persisted in `ssh_keys.enclave_tag` (BLOB NULL, schema v10). The Keychain query at sign time matches on the tag; storing the tag in our own DB rather than letting Keychain enumerate by partial match keeps the mapping unambiguous when multiple keys co-exist on the same device.
+
+**LAContext caching.** Mirrors Secretive's `PersistentAuthenticationHandler` pattern — the caller may cache a single `LAContext` per session and pass it via `kSecUseAuthenticationContext` on subsequent `SecItemCopyMatching` calls. The OS skips the biometric prompt while the context's `evaluatedPolicyDomainState` blob is still valid (a few minutes per Apple's docs; we mirror PKCS#11's 5-minute idle drop). For T-5 the caching surface is wired (`load_private_key` accepts `Option<&Retained<LAContext>>`) but the per-session reuse path lives at the FRB worker boundary (one `LAContext` per connect / agent dispatch); the in-process ssh-agent endpoint reuses it across SIGN_REQUEST bursts from the same external client.
+
+**Public-key extraction.** `SecKeyCopyPublicKey` → `SecKeyCopyExternalRepresentation` returns the 65-byte uncompressed `0x04 || X(32) || Y(32)` point; `lfs_core::ssh::wire::encode_public_ecdsa_p256` wraps it into the SSH authorized_keys body (`string("ecdsa-sha2-nistp256") || string("nistp256") || string(point)`).
+
+**Signing.** `SecKeyCreateSignature(privateKey, kSecKeyAlgorithmECDSASignatureMessageX962SHA256, dataRef, &cferr)` — the OS performs SHA-256 internally, so we pass the raw userauth buffer. The returned bytes are DER `SEQUENCE { INTEGER r, INTEGER s }`; `lfs_core::ssh::wire::ecdsa_der_to_ssh_mpint` produces the two `mpint`s the SSH wire wants.
+
+**Code-signing requirement.** Unsigned / ad-hoc bundles surface `errSecMissingEntitlement` (`-34018`) on the first `SecKeyCreateRandomKey` call. The wizard probe step classifies this separately so the UI can route the user at the documented remediation (`codesign -s - --identifier com.poddeo3.letsflutssh` for self-build users). With `app-sandbox = false` in `macos/Runner/Release.entitlements`, no `keychain-access-groups` entitlement is needed — the unsandboxed process accesses the user-default keychain directly. A future Developer ID + Hardened Runtime build flipping sandbox on will need the team-prefixed access group; the entitlements file carries the documented template.
+
+**Capability ladder rendering.**
+
+| Platform | Probe | Rung | UI |
+|---|---|---|---|
+| macOS code-signed + SE present | `Ok` | 3 native | "Secure Enclave" enabled |
+| macOS unsigned / ad-hoc-unidentified | `Err(CodeSignRequired)` | 4 honestly hide | Wizard disabled with code-signing reason + USER_GUIDE link |
+| iOS (always sandboxed + signed) | `Ok` | 3 native | "Secure Enclave" enabled |
+| Linux / Windows / Android | n/a | 4 honestly hide | Key-manager toolbar action hidden — `isApplePlatform` gate at the call site |
+
+**`.lfs` export semantics.** SE-bound keys' private half is non-exportable by chip design. Today's `.lfs` archive shape includes the row with `backend = 'enclave'` + the `enclave_tag` blob; the importing device's connect path checks the chip via `apple_se_ssh::list()` and surfaces "Missing on this device — re-generate" when the tag isn't registered. Cross-device portability is impossible; the docs surface the constraint at every UI surface that creates an SE-bound key.
+
+**Error envelope.** `Error::Enclave(String)` carves the SE path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::ENCLAVE` discriminator lets the Dart UI route `code-signing required` to the wizard probe-disabled state, `cancelled` to a "touch the sensor again" hint, `key not found` to the recovery dialog, and the catch-all to the generic SE error toast.
+
+**Tests.** Unit tests in `rust/crates/lfs_os_security/src/apple_se_ssh.rs::tests` cover the application-tag mint shape, the unavailable-reason renderer, and the auth-policy flag mapping. Integration tests for the actual `SecKeyCreateRandomKey` round-trip are gated with `#[ignore]` so CI without an Apple machine can compile-check. The Signer adapter has its own tests under `rust/crates/lfs_core/src/ssh/enclave_signer.rs::tests` (algorithm-string contract, error round-trip). The Dart-side wizard tests live in `test/widgets/enclave_ssh_dialog_test.dart` — four cases covering probe-disabled state, code-sign reason rendering, happy-path generate, and the generate-failure recovery.
 
 #### In-process ssh-agent endpoint
 

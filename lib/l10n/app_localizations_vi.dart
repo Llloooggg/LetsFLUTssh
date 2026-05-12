@@ -3122,4 +3122,104 @@ class SVi extends S {
 
   @override
   String get pkcs11WizardNext => 'Tiếp';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Thêm hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key nằm trong secure hardware của thiết bị và không thể export.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'Key này chỉ hoạt động trên Mac này.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Key này chỉ hoạt động trên iPhone này.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'Key này chỉ hoạt động trên PC này.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Yêu cầu Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Cho phép passcode thiết bị làm fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Yêu cầu Windows Hello (PIN, vân tay hoặc khuôn mặt)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key không khả dụng';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'App phải được code-signed mới dùng được Secure Enclave.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello chưa được cấu hình trên PC này.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'Không phát hiện TPM — chỉ software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Tạo';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Đang tạo key trong secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Cần code-signing — xem USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Đang ký với secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'Sao chép public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Thêm dòng này vào ~/.ssh/authorized_keys trên server.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Tên key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

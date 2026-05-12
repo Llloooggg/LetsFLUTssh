@@ -545,6 +545,18 @@ PIN entry is per-connect, never cached: the `hardware_key_prompt_dialog` collect
 
 The connect path's `FidoSigner` (russh `auth::Signer` impl) SHA-256-hashes the SSH userauth signature input, sends it to the device as the WebAuthn `clientDataHash`, and embeds the resulting CTAP signature in the OpenSSH `sk-*` wire-format trailer (`flags || u32 counter` for sk-ed25519; `mpint r || mpint s || flags || u32 counter` for sk-ecdsa-p256). The counter increments per assertion — replay across the wire is detectable by any SSH server that tracks it.
 
+## Apple Secure Enclave SSH keys
+
+On macOS (T2 Intel + Apple Silicon) and iOS, SSH keys can be generated directly on Apple's Secure Enclave coprocessor — the same silicon that holds Touch ID / Face ID templates. The chip refuses to export the private bytes; every connect-time signature routes through `SecKeyCreateSignature`, and the OS surfaces a biometric / passcode prompt at the FFI boundary per the access-control flags chosen at key creation. At-rest theft of the laptop yields nothing the attacker can replay — the chip refuses to sign without a fresh biometric / passcode unlock, and the wrapped key material is bound to the device's UID such that another device cannot deserialise it.
+
+What we persist alongside the SSH key row: the opaque `kSecAttrApplicationTag` bytes (`letsflutssh.ssh.<uuid>`) and the OpenSSH public-key body. None of these grants signing capability — the chip matches the tag against its on-board key on every `SecKeyCreateSignature` call. An attacker reading the on-disk SQLCipher DB obtains the tag but cannot redirect the chip to sign for them.
+
+Auth policy at create time picks between `kSecAccessControlBiometryCurrentSet` (Touch ID / Face ID required; re-enrolment invalidates the key by clearing the chip's biometric template binding) and `kSecAccessControlUserPresence` (biometry OR device passcode; survives re-enrolment, costs the passcode-as-fallback weakness). Both shapes pin to `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` so the key never syncs to iCloud Keychain and never persists past a passcode unset.
+
+`.lfs` archive export of SE-bound keys carries the row + the tag envelope only; the importing device's connect path checks the chip's register via `apple_se_ssh::list()` and surfaces "Missing on this device — re-generate" when the tag isn't present. Cross-device portability is impossible by chip design.
+
+Code-signing requirement: unsigned / ad-hoc bundles surface `errSecMissingEntitlement` (`-34018`) on the first `SecKeyCreateRandomKey` call. The wizard probe step classifies this separately so the UI can route the user at the `codesign -s -` remediation in USER_GUIDE.md. Distributed releases are signed and work out of the box.
+
 ## In-process ssh-agent endpoint
 
 `Settings → External SSH client integration` exposes the app's hardware-bound keys to other SSH-protocol-speaking applications on the same host (`git`, OpenSSH `ssh`, IDE plugins). The endpoint is off by default; the user opts in explicitly. When running it binds a Unix domain socket at `${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` (Linux / macOS) with parent-directory mode `0o700`, or a Windows named pipe at `\\.\pipe\letsflutssh-agent.<pid>` whose default DACL grants only the current user SID + SYSTEM.

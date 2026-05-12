@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Теги",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} запрашивает подпись ключом {keyLabel}",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "Внешний SSH-клиент",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "Не удалось запустить ssh-agent endpoint: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Добавить ключ со смарт-карты или токена",
   "pkcs11ModuleLabel": "Модуль PKCS#11",
   "pkcs11ModuleAutoDetected": "Найдено автоматически",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Токен: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Серийный номер: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "Требуется вход на токен.",
   "pkcs11PinPrompt": "PIN для {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Подтвердите на PIN-паде токена.",
   "pkcs11PinIncorrect": "Неверный PIN. Осталось попыток: {remaining}.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "PIN заблокирован. Разблокируйте через PUK.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "Токен \"{label}\" не вставлен.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Сохранённый токен не найден. Переподключите и повторите.",
   "pkcs11SignFailed": "Подпись не удалась: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Смарт-карты и токены PKCS#11 недоступны на этой платформе.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Модуль: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Серийный номер токена: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Объект: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "Выберите модуль PKCS#11",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Импортировать ключ",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Не удалось загрузить модуль.",
   "pkcs11PinPadHint": "(PIN-пад на устройстве)",
   "pkcs11WizardBack": "Назад",
-  "pkcs11WizardNext": "Далее"
+  "pkcs11WizardNext": "Далее",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Добавить hardware-ключ",
+  "sshKeyHardwareBoundExplainer": "Приватный ключ хранится в защищённом hardware и не может быть экспортирован.",
+  "sshKeyEnclaveDeviceBound": "Этот ключ работает только на этом Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "Этот ключ работает только на этом iPhone.",
+  "sshKeyHelloDeviceBound": "Этот ключ работает только на этом PC.",
+  "sshKeyEnclaveTouchIdRequired": "Требовать Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Разрешить passcode устройства как fallback",
+  "sshKeyHelloPinRequired": "Требовать Windows Hello (PIN, отпечаток или лицо)",
+  "sshKeyHardwareUnavailableTitle": "Hardware-ключи недоступны",
+  "sshKeyHardwareUnavailableSe": "Для Secure Enclave приложение должно быть подписано.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello не настроен на этом PC.",
+  "sshKeyHardwareUnavailableTpm": "TPM не обнаружен — только software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Сгенерировать",
+  "sshKeyGenerateInProgress": "Генерация ключа в защищённом hardware...",
+  "sshKeyGenerateMissingEntitlement": "Требуется code-signing — см. USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Подписание через защищённое hardware...",
+  "sshKeyPublicCopy": "Скопировать публичный ключ",
+  "sshKeyAuthorizedKeysHint": "Добавьте эту строку в ~/.ssh/authorized_keys на сервере.",
+  "sshKeyEnclaveWizardTitle": "SSH-ключ в Secure Enclave",
+  "sshKeyEnclaveWizardLabelHint": "Название ключа",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

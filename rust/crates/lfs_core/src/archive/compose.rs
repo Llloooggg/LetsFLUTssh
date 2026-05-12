@@ -941,6 +941,7 @@ mod tests {
                 pkcs11_token_serial: None,
                 pkcs11_object_id: None,
                 pkcs11_object_label: None,
+                enclave_tag: None,
             },
         )
         .unwrap();

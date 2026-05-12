@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Tags",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} möchte mit {keyLabel} signieren",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "Ein externer SSH-Client",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "SSH-Agent-Endpoint konnte nicht gestartet werden: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Smartcard- / Token-Schlüssel hinzufügen",
   "pkcs11ModuleLabel": "PKCS#11-Modul",
   "pkcs11ModuleAutoDetected": "Automatisch erkannt",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Seriennummer: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "Token benötigt Login.",
   "pkcs11PinPrompt": "PIN für {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Auf dem PIN-Pad des Tokens bestätigen.",
   "pkcs11PinIncorrect": "PIN falsch. {remaining} Versuche übrig.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "Token-PIN ist gesperrt. Mit PUK entsperren.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "Token \"{label}\" ist nicht eingesteckt.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Gespeicherter Token nicht gefunden. Erneut einstecken und wiederholen.",
   "pkcs11SignFailed": "Signieren fehlgeschlagen: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smartcards / PKCS#11-Tokens sind auf dieser Plattform nicht verfügbar.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Modul: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Token-Seriennummer: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Objekt: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "PKCS#11-Modul wählen",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Schlüssel importieren",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Modul konnte nicht geladen werden.",
   "pkcs11PinPadHint": "(PIN-Pad am Gerät)",
   "pkcs11WizardBack": "Zurück",
-  "pkcs11WizardNext": "Weiter"
+  "pkcs11WizardNext": "Weiter",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Hardware-Schlüssel hinzufügen",
+  "sshKeyHardwareBoundExplainer": "Der private Schlüssel liegt im Secure Hardware des Geräts und kann nicht exportiert werden.",
+  "sshKeyEnclaveDeviceBound": "Dieser Schlüssel funktioniert nur auf diesem Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "Dieser Schlüssel funktioniert nur auf diesem iPhone.",
+  "sshKeyHelloDeviceBound": "Dieser Schlüssel funktioniert nur auf diesem PC.",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID erforderlich",
+  "sshKeyEnclavePasscodeFallback": "Gerätepasscode als Fallback erlauben",
+  "sshKeyHelloPinRequired": "Windows Hello erforderlich (PIN, Fingerabdruck oder Gesicht)",
+  "sshKeyHardwareUnavailableTitle": "Hardware-Schlüssel nicht verfügbar",
+  "sshKeyHardwareUnavailableSe": "App muss signiert sein, um die Secure Enclave zu nutzen.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello ist auf diesem PC nicht eingerichtet.",
+  "sshKeyHardwareUnavailableTpm": "Kein TPM erkannt — nur software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Generieren",
+  "sshKeyGenerateInProgress": "Schlüssel im Secure Hardware wird erzeugt...",
+  "sshKeyGenerateMissingEntitlement": "Code-Signing erforderlich — siehe USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Signiere mit Secure Hardware...",
+  "sshKeyPublicCopy": "Öffentlichen Schlüssel kopieren",
+  "sshKeyAuthorizedKeysHint": "Diese Zeile in ~/.ssh/authorized_keys auf dem Server eintragen.",
+  "sshKeyEnclaveWizardTitle": "Secure-Enclave-SSH-Schlüssel",
+  "sshKeyEnclaveWizardLabelHint": "Schlüsselname",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

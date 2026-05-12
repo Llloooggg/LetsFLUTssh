@@ -297,6 +297,12 @@ class SshKeyMetadata {
   /// rows imported before schema v9 (which the migration arm relabels
   /// to `fido2`) still pick the FIDO2 badge.
   bool get isFido2 => backend == 'fido2';
+
+  /// True when the row's `backend` discriminator names an Apple
+  /// Secure Enclave key. Drives the key-manager badge + info popover
+  /// + the "device-bound" warning the key cannot leave this Mac /
+  /// iPhone.
+  bool get isEnclave => backend == 'enclave';
 }
 
 /// Thrown when key store operations fail.

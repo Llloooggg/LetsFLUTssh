@@ -3156,4 +3156,105 @@ class SRu extends S {
 
   @override
   String get pkcs11WizardNext => 'Далее';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Добавить hardware-ключ';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Приватный ключ хранится в защищённом hardware и не может быть экспортирован.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound =>
+      'Этот ключ работает только на этом Mac.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Этот ключ работает только на этом iPhone.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'Этот ключ работает только на этом PC.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Требовать Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Разрешить passcode устройства как fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Требовать Windows Hello (PIN, отпечаток или лицо)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware-ключи недоступны';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Для Secure Enclave приложение должно быть подписано.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello не настроен на этом PC.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM не обнаружен — только software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Сгенерировать';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Генерация ключа в защищённом hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Требуется code-signing — см. USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Подписание через защищённое hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'Скопировать публичный ключ';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Добавьте эту строку в ~/.ssh/authorized_keys на сервере.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'SSH-ключ в Secure Enclave';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Название ключа';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
 }

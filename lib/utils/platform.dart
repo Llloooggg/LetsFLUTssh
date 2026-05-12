@@ -32,6 +32,12 @@ bool? debugDesktopPlatformOverride;
 @visibleForTesting
 bool? debugIsMacosOverride;
 
+/// Override for testing — when non-null, [isApplePlatform] returns this
+/// value. Drives the Apple Secure Enclave key-manager toolbar action
+/// (macOS + iOS) that would otherwise skip the branch on a Linux CI host.
+@visibleForTesting
+bool? debugIsAppleOverride;
+
 /// Drop the FRB-cached results so the next read re-queries the
 /// native lib. Used by the test harness when toggling FRB load
 /// state mid-suite; callers in production never need this.
@@ -41,6 +47,7 @@ void debugResetPlatformCache() {
   _isMobileCached = null;
   _isDesktopCached = null;
   _isMacosCached = null;
+  _isAppleCached = null;
 }
 
 /// True on Android or iOS.
@@ -77,6 +84,20 @@ bool get isMacosPlatform =>
       () => Platform.isMacOS,
     ));
 bool? _isMacosCached;
+
+/// True on macOS or iOS — the Apple-target umbrella. Drives the
+/// Apple Secure Enclave SSH-key toolbar action's visibility (the
+/// underlying `lfs_os_security::apple_se_ssh` driver compiles only
+/// on `target_os = "macos"` or `target_os = "ios"`; the toolbar
+/// action stays hidden on Linux / Windows / Android per the
+/// capability ladder's rung-4 "honestly hide" rule).
+///
+/// Cached after the first read; falls back to `dart:io` when FRB
+/// hasn't bootstrapped yet, same shape as the sibling helpers.
+bool get isApplePlatform =>
+    debugIsAppleOverride ??
+    (_isAppleCached ??= Platform.isMacOS || Platform.isIOS);
+bool? _isAppleCached;
 
 /// Try the FRB call; on `StateError` (RustLib not initialised in
 /// flutter_test contexts) fall back to the Dart `Platform.isXyz`

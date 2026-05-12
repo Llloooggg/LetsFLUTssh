@@ -117,6 +117,15 @@ pub enum PreparedAuthRef {
         key_type: String,
         pin_secret_id: Option<String>,
     },
+    /// Apple Secure Enclave SSH key resolved from the manager.
+    /// `application_tag` is the opaque `kSecAttrApplicationTag`
+    /// bytes captured at create time and persisted on
+    /// `ssh_keys.enclave_tag`. No PIN slot — the OS handles the
+    /// biometric / passcode prompt inside `SecKeyCreateSignature`.
+    PubkeyEnclave {
+        public_openssh: String,
+        application_tag: Vec<u8>,
+    },
 }
 
 /// Aggregated output. `auth` carries the ref the connect actor
@@ -180,6 +189,25 @@ pub fn prepare_auth(
     //    c) plain software pubkey.
     if !input.key_id.is_empty() {
         if let Some(row) = ssh_keys::get(conn, &input.key_id)? {
+            // Apple Secure Enclave sub-branch — takes precedence
+            // over every software-key path because the row's
+            // `private_key` column is empty by design (on-chip)
+            // and the OS handles its own auth prompt inside
+            // SecKeyCreateSignature; no Dart-side PIN dialog
+            // pre-staging is needed.
+            if row.backend == ssh_keys::KeyBackend::Enclave {
+                let application_tag = row
+                    .enclave_tag
+                    .clone()
+                    .ok_or_else(|| Error::Auth("enclave row missing enclave_tag".into()))?;
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::PubkeyEnclave {
+                        public_openssh: row.public_key.clone(),
+                        application_tag,
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
             // PKCS#11 sub-branch — the row's `backend = 'pkcs11'`
             // takes precedence over the FIDO2 / cert / plain-pubkey
             // branches because the `private_key` column is empty

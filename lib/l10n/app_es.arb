@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Etiquetas",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} quiere firmar con {keyLabel}",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "Un cliente SSH externo",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "No se pudo iniciar el ssh-agent endpoint: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Añadir clave de tarjeta inteligente / token",
   "pkcs11ModuleLabel": "Módulo PKCS#11",
   "pkcs11ModuleAutoDetected": "Detectado automáticamente",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Número de serie: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "El token requiere login.",
   "pkcs11PinPrompt": "PIN para {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Confirma en el PIN-pad del token.",
   "pkcs11PinIncorrect": "PIN incorrecto. Quedan {remaining} intentos.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "El PIN del token está bloqueado. Desbloquéalo con el PUK.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "El token \"{label}\" no está conectado.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Token guardado no encontrado. Reconéctalo y reintenta.",
   "pkcs11SignFailed": "Falló la firma: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Las tarjetas inteligentes / tokens PKCS#11 no están disponibles en esta plataforma.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Módulo: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Serial del token: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Objeto: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "Selecciona el módulo PKCS#11",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Importar clave",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Fallo al cargar el módulo.",
   "pkcs11PinPadHint": "(PIN pad en el dispositivo)",
   "pkcs11WizardBack": "Atrás",
-  "pkcs11WizardNext": "Siguiente"
+  "pkcs11WizardNext": "Siguiente",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Añadir clave hardware",
+  "sshKeyHardwareBoundExplainer": "La clave privada vive en el hardware seguro del dispositivo y no puede exportarse.",
+  "sshKeyEnclaveDeviceBound": "Esta clave solo funciona en este Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "Esta clave solo funciona en este iPhone.",
+  "sshKeyHelloDeviceBound": "Esta clave solo funciona en este PC.",
+  "sshKeyEnclaveTouchIdRequired": "Requerir Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Permitir el passcode del dispositivo como fallback",
+  "sshKeyHelloPinRequired": "Requerir Windows Hello (PIN, huella o rostro)",
+  "sshKeyHardwareUnavailableTitle": "Las claves hardware no están disponibles",
+  "sshKeyHardwareUnavailableSe": "La app debe estar firmada para usar el Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello no está configurado en este PC.",
+  "sshKeyHardwareUnavailableTpm": "TPM no detectado — solo software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Generar",
+  "sshKeyGenerateInProgress": "Generando clave en hardware seguro...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing requerido — ver USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Firmando con hardware seguro...",
+  "sshKeyPublicCopy": "Copiar clave pública",
+  "sshKeyAuthorizedKeysHint": "Añade esta línea a ~/.ssh/authorized_keys en el servidor.",
+  "sshKeyEnclaveWizardTitle": "Clave SSH del Secure Enclave",
+  "sshKeyEnclaveWizardLabelHint": "Nombre de la clave",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "Tags",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} quer assinar com {keyLabel}",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "Um cliente SSH externo",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "Não foi possível iniciar o ssh-agent endpoint: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "Adicionar chave de smartcard / token",
   "pkcs11ModuleLabel": "Módulo PKCS#11",
   "pkcs11ModuleAutoDetected": "Detectado automaticamente",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Número de série: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "O token requer login.",
   "pkcs11PinPrompt": "PIN para {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "Confirme no PIN-pad do token.",
   "pkcs11PinIncorrect": "PIN incorreto. Restam {remaining} tentativas.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "PIN do token bloqueado. Desbloqueie com o PUK.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "O token \"{label}\" não está conectado.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Token salvo não encontrado. Reconecte e tente novamente.",
   "pkcs11SignFailed": "Falha na assinatura: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smartcards / tokens PKCS#11 não estão disponíveis nesta plataforma.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Módulo: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Serial do token: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Objeto: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "Selecione o módulo PKCS#11",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Importar chave",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "Falha ao carregar o módulo.",
   "pkcs11PinPadHint": "(PIN pad no dispositivo)",
   "pkcs11WizardBack": "Voltar",
-  "pkcs11WizardNext": "Próximo"
+  "pkcs11WizardNext": "Próximo",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Adicionar chave hardware",
+  "sshKeyHardwareBoundExplainer": "A chave privada vive no hardware seguro do dispositivo e não pode ser exportada.",
+  "sshKeyEnclaveDeviceBound": "Esta chave só funciona neste Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "Esta chave só funciona neste iPhone.",
+  "sshKeyHelloDeviceBound": "Esta chave só funciona neste PC.",
+  "sshKeyEnclaveTouchIdRequired": "Exigir Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Permitir o passcode do dispositivo como fallback",
+  "sshKeyHelloPinRequired": "Exigir Windows Hello (PIN, digital ou rosto)",
+  "sshKeyHardwareUnavailableTitle": "Chaves hardware indisponíveis",
+  "sshKeyHardwareUnavailableSe": "O app precisa estar assinado para usar o Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello não está configurado neste PC.",
+  "sshKeyHardwareUnavailableTpm": "TPM não detectado — apenas software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Gerar",
+  "sshKeyGenerateInProgress": "Gerando chave no hardware seguro...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing necessário — veja USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Assinando com hardware seguro...",
+  "sshKeyPublicCopy": "Copiar chave pública",
+  "sshKeyAuthorizedKeysHint": "Adicione esta linha em ~/.ssh/authorized_keys no servidor.",
+  "sshKeyEnclaveWizardTitle": "Chave SSH do Secure Enclave",
+  "sshKeyEnclaveWizardLabelHint": "Nome da chave",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

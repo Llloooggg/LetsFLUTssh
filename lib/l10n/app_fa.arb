@@ -677,8 +677,12 @@
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {
-      "current": {"type": "String"},
-      "total": {"type": "String"}
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "tags": "برچسب‌ها",
@@ -1021,8 +1025,12 @@
   "agentEndpointSignatureRequestBody": "{requester} می‌خواهد با {keyLabel} امضا کند",
   "@agentEndpointSignatureRequestBody": {
     "placeholders": {
-      "requester": {"type": "String"},
-      "keyLabel": {"type": "String"}
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
     }
   },
   "agentEndpointRequesterUnknown": "یک کلاینت SSH خارجی",
@@ -1036,10 +1044,11 @@
   "agentEndpointStartFailed": "راه‌اندازی ssh-agent endpoint ممکن نشد: {detail}",
   "@agentEndpointStartFailed": {
     "placeholders": {
-      "detail": {"type": "String"}
+      "detail": {
+        "type": "String"
+      }
     }
   },
-
   "pkcs11AddTitle": "افزودن کلید smart-card / token",
   "pkcs11ModuleLabel": "ماژول PKCS#11",
   "pkcs11ModuleAutoDetected": "به‌طور خودکار پیدا شد",
@@ -1051,27 +1060,35 @@
   "pkcs11TokenLabel": "Token: {label}",
   "@pkcs11TokenLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11TokenSerial": "Serial: {serial}",
   "@pkcs11TokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11LoginRequired": "Token نیاز به ورود دارد.",
   "pkcs11PinPrompt": "PIN برای {token}",
   "@pkcs11PinPrompt": {
     "placeholders": {
-      "token": {"type": "String"}
+      "token": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinPad": "روی PIN-pad token تأیید کنید.",
   "pkcs11PinIncorrect": "PIN اشتباه. {remaining} تلاش باقی‌مانده.",
   "@pkcs11PinIncorrect": {
     "placeholders": {
-      "remaining": {"type": "String"}
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "pkcs11PinLocked": "PIN قفل شده. با PUK باز کنید.",
@@ -1080,14 +1097,18 @@
   "pkcs11TokenUnplugged": "Token \"{label}\" متصل نیست.",
   "@pkcs11TokenUnplugged": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11UriRebindFailed": "Token ذخیره‌شده پیدا نشد. دوباره وصل کنید.",
   "pkcs11SignFailed": "Sign ناموفق: {reason}",
   "@pkcs11SignFailed": {
     "placeholders": {
-      "reason": {"type": "String"}
+      "reason": {
+        "type": "String"
+      }
     }
   },
   "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 در این پلتفرم در دسترس نیست.",
@@ -1095,19 +1116,25 @@
   "pkcs11InfoModulePath": "Module: {path}",
   "@pkcs11InfoModulePath": {
     "placeholders": {
-      "path": {"type": "String"}
+      "path": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoTokenSerial": "Token serial: {serial}",
   "@pkcs11InfoTokenSerial": {
     "placeholders": {
-      "serial": {"type": "String"}
+      "serial": {
+        "type": "String"
+      }
     }
   },
   "pkcs11InfoObjectLabel": "Object: {label}",
   "@pkcs11InfoObjectLabel": {
     "placeholders": {
-      "label": {"type": "String"}
+      "label": {
+        "type": "String"
+      }
     }
   },
   "pkcs11WizardStepModule": "Module PKCS#11 را انتخاب کنید",
@@ -1121,8 +1148,12 @@
   "pkcs11KeyMetaFormat": "{algo} {detail}",
   "@pkcs11KeyMetaFormat": {
     "placeholders": {
-      "algo": {"type": "String"},
-      "detail": {"type": "String"}
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "pkcs11SaveCta": "Import key",
@@ -1136,5 +1167,35 @@
   "pkcs11ModuleStatusFailed": "بارگذاری module ناموفق بود.",
   "pkcs11PinPadHint": "(PIN pad روی دستگاه)",
   "pkcs11WizardBack": "بازگشت",
-  "pkcs11WizardNext": "بعدی"
+  "pkcs11WizardNext": "بعدی",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "افزودن hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key داخل secure hardware دستگاه قرار دارد و export نمی‌شود.",
+  "sshKeyEnclaveDeviceBound": "این key فقط روی همین Mac کار می‌کند.",
+  "sshKeyEnclaveDeviceBoundIos": "این key فقط روی همین iPhone کار می‌کند.",
+  "sshKeyHelloDeviceBound": "این key فقط روی همین PC کار می‌کند.",
+  "sshKeyEnclaveTouchIdRequired": "الزام Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "اجازه استفاده از passcode دستگاه به‌عنوان fallback",
+  "sshKeyHelloPinRequired": "الزام Windows Hello (PIN، اثر انگشت یا چهره)",
+  "sshKeyHardwareUnavailableTitle": "Hardware keys در دسترس نیست",
+  "sshKeyHardwareUnavailableSe": "برای استفاده از Secure Enclave اپ باید code-signed باشد.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello روی این PC تنظیم نشده.",
+  "sshKeyHardwareUnavailableTpm": "TPM شناسایی نشد — فقط software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "ساختن",
+  "sshKeyGenerateInProgress": "در حال ساخت key در secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing لازم است — به USER_GUIDE.md → Hardware-bound keys مراجعه کنید.",
+  "sshKeySignInProgress": "امضا با secure hardware...",
+  "sshKeyPublicCopy": "کپی public key",
+  "sshKeyAuthorizedKeysHint": "این خط را به ~/.ssh/authorized_keys روی سرور اضافه کنید.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "نام key",
+  "sshKeyEnclaveBadge": "Secure Enclave"
 }

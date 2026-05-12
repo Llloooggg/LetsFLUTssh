@@ -151,6 +151,18 @@ pub enum Error {
     #[error("pkcs11: {0}")]
     Pkcs11(String),
 
+    /// Apple Secure Enclave failures surfaced by
+    /// `lfs_os_security::apple_se_ssh` — `errSecMissingEntitlement`
+    /// on an ad-hoc-signed bundle, biometric cancel, key not found
+    /// after a Keychain reset, `SecKeyCreateSignature` refused
+    /// (signing-identity mismatch). Carved out of `Io` /
+    /// `Platform` so the connect path's biometric prompt dialog
+    /// can route a code-sign reason ("re-sign the app") differently
+    /// from a cancel ("touch the sensor again") or a missing-key
+    /// state ("re-generate the key on this device").
+    #[error("enclave: {0}")]
+    Enclave(String),
+
     #[error("timeout")]
     Timeout,
 

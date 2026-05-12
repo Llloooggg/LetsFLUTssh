@@ -424,8 +424,13 @@ impl Db {
 /// FIDO2 rows. The migration arm UPDATEs every pre-existing
 /// `credential_id IS NOT NULL` row to `backend = 'fido2'` so the
 /// dispatcher's discriminator switch never falls through to a
-/// software-row arm for a hardware-bound key.
-pub const SCHEMA_VERSION: i32 = 9;
+/// software-row arm for a hardware-bound key. v10 adds
+/// `enclave_tag` (BLOB NULL) on `ssh_keys` for Apple Secure Enclave
+/// rows — carries the `kSecAttrApplicationTag` bytes the
+/// `SecItemCopyMatching` lookup needs to resolve the on-chip
+/// private key at sign time. Only populated for `backend = 'enclave'`
+/// rows; the column stays NULL for every other backend.
+pub const SCHEMA_VERSION: i32 = 10;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -531,6 +536,16 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // and skip this arm.
         if (1..9).contains(&current) {
             add_ssh_keys_pkcs11_columns(conn)?;
+        }
+        // v1..v9 -> v10: stamp the Apple Secure Enclave application-tag
+        // column on `ssh_keys`. Existing rows backfill to NULL —
+        // the column carries the opaque bytes the
+        // `kSecAttrApplicationTag` lookup matches on, and only
+        // `backend = 'enclave'` rows ever set it. Fresh installs
+        // (`current == 0`) get the column from `SCHEMA_SQL` and
+        // skip this arm.
+        if (1..10).contains(&current) {
+            add_ssh_keys_enclave_tag_column(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -689,6 +704,25 @@ fn add_ssh_keys_pkcs11_columns(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys pkcs11 cols: {e}")))
 }
 
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL` on
+/// the v9 -> v10 hop. Same shape contract as the older ALTER helpers:
+/// a one-shot batch gated by the version range inside
+/// `bootstrap_schema`, with SQLite's duplicate-column-name error
+/// reserved for the re-run case which the gate prevents. Fresh
+/// installs (`current == 0`) get the column from `SCHEMA_SQL`.
+///
+/// `enclave_tag` is the opaque `kSecAttrApplicationTag` bytes the
+/// `SecItemCopyMatching` lookup matches on; only populated for
+/// `backend = 'enclave'` rows. Stored as BLOB rather than TEXT
+/// because the tag is an arbitrary byte string by Apple's API
+/// contract (we generate it as a UUID-suffixed UTF-8 prefix today,
+/// but the column shape stays permissive).
+fn add_ssh_keys_enclave_tag_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL")
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys.enclave_tag: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -744,9 +778,14 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     pkcs11_module_path TEXT NULL,
     pkcs11_token_serial TEXT NULL,
     pkcs11_object_id BLOB NULL,
-    pkcs11_object_label TEXT NULL
+    pkcs11_object_label TEXT NULL,
+    -- Apple Secure Enclave application-tag (v10). Opaque bytes the
+    -- `kSecAttrApplicationTag` lookup matches on. NULL for every
+    -- non-enclave row; populated only when `backend = 'enclave'`.
+    enclave_tag BLOB NULL
     -- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
     -- pkcs11 columns populated for backend = pkcs11 rows only.
+    -- enclave_tag populated for backend = enclave rows only.
     -- See ARCHITECTURE.md schema docs for full notes.
 );
 
@@ -1068,7 +1107,9 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
-                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 2).unwrap();
@@ -1132,7 +1173,9 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
-                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 5).unwrap();
@@ -1179,7 +1222,9 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
-                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 6).unwrap();
@@ -1242,7 +1287,9 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
-                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 7).unwrap();
@@ -1411,7 +1458,9 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
                  ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
-                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 4).unwrap();
@@ -1466,6 +1515,7 @@ mod tests {
             pkcs11_token_serial: None,
             pkcs11_object_id: None,
             pkcs11_object_label: None,
+            enclave_tag: None,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

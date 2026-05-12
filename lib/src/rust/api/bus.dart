@@ -192,6 +192,16 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String keyType,
     String? pinSecretId,
   }) = BusConnectAuthRef_PubkeyPkcs11;
+
+  /// Apple Secure Enclave hardware key. Carries the captured
+  /// `id_*.pub` body + the opaque `kSecAttrApplicationTag`
+  /// bytes the Keychain matches on. No PIN slot — the OS fires
+  /// its biometric / passcode prompt inside
+  /// `SecKeyCreateSignature`.
+  const factory BusConnectAuthRef.pubkeyEnclave({
+    required String publicOpenssh,
+    required Uint8List applicationTag,
+  }) = BusConnectAuthRef_PubkeyEnclave;
   const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 

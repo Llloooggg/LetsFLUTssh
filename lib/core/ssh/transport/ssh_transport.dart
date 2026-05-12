@@ -156,6 +156,28 @@ class SshAuthPubkeyPkcs11Ref extends SshAuthMethod {
   });
 }
 
+/// Apple Secure Enclave-bound SSH key. `publicOpenssh` carries the
+/// captured `id_*.pub` body the Rust connect path re-parses; the
+/// SSH `Algorithm` is always `ecdsa-sha2-nistp256` (the SE chip
+/// only implements P-256 ECDSA). `applicationTag` is the opaque
+/// `kSecAttrApplicationTag` bytes captured at create time —
+/// `SecItemCopyMatching` matches on it to resolve the on-chip
+/// private half on every sign.
+///
+/// No PIN slot: the OS fires its biometric / passcode prompt
+/// inside `SecKeyCreateSignature` per the access-control flags
+/// chosen at create time. SE keys cannot leave the device, so
+/// this method only works on the Mac / iPhone that generated the
+/// key.
+class SshAuthPubkeyEnclaveRef extends SshAuthMethod {
+  final String publicOpenssh;
+  final Uint8List applicationTag;
+  const SshAuthPubkeyEnclaveRef({
+    required this.publicOpenssh,
+    required this.applicationTag,
+  });
+}
+
 /// PTY-backed interactive shell channel.
 abstract class SshShellChannel {
   /// Stdin: write user keystrokes / pasted bytes.

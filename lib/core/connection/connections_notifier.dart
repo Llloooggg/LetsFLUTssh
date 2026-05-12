@@ -809,6 +809,19 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           keyType: keyType,
           pinSecretId: pinSecretId,
         ),
+      // Apple Secure Enclave branch — `auth_compose::prepare_auth`
+      // routes this when the resolved manager-key row carries
+      // `backend = 'enclave'`. No PIN dialog: the OS handles its
+      // biometric / passcode prompt inside `SecKeyCreateSignature`
+      // per the ACL flags chosen at create time.
+      rust_auth.DbPreparedAuthRef_PubkeyEnclave(
+        :final publicOpenssh,
+        :final applicationTag,
+      ) =>
+        SshAuthPubkeyEnclaveRef(
+          publicOpenssh: publicOpenssh,
+          applicationTag: applicationTag,
+        ),
     };
   }
 
