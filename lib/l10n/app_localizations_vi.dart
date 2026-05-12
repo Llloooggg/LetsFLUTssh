@@ -2960,4 +2960,166 @@ class SVi extends S {
   String agentEndpointStartFailed(String detail) {
     return 'Không khởi động được ssh-agent endpoint: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Thêm key smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'Module PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Tự động phát hiện';
+
+  @override
+  String get pkcs11ModuleCustom => 'Module tuỳ chỉnh...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Chọn library PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Không tìm thấy module PKCS#11. Cài OpenSC hoặc chọn library của vendor.';
+
+  @override
+  String get pkcs11InitializeFailed => 'Module PKCS#11 không initialise được.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Không có token nào trong reader.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token yêu cầu login.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN cho $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Xác nhận trên PIN-pad của token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN sai. Còn $remaining lần thử.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN của token đã khoá. Mở khoá bằng PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token không có key dùng được với SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Key GOST không dùng được với SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" không được cắm.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Không tìm thấy token đã lưu. Cắm lại và thử lại.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing thất bại: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / token PKCS#11 không khả dụng trên nền tảng này.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Chọn module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Chọn token';
+
+  @override
+  String get pkcs11WizardStepKey => 'Chọn key';
+
+  @override
+  String get pkcs11WizardStepPin => 'Nhập PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'Đang đọc public key từ token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Đã thêm key smart card.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Đang quét module PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Đang tải token...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Đang tải key...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module đã được tải.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Không có token.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Không tải được module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad trên thiết bị)';
+
+  @override
+  String get pkcs11WizardBack => 'Quay lại';
+
+  @override
+  String get pkcs11WizardNext => 'Tiếp';
 }

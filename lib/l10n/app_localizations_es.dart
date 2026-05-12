@@ -3052,4 +3052,168 @@ class SEs extends S {
   String agentEndpointStartFailed(String detail) {
     return 'No se pudo iniciar el ssh-agent endpoint: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Añadir clave de tarjeta inteligente / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'Módulo PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Detectado automáticamente';
+
+  @override
+  String get pkcs11ModuleCustom => 'Módulo personalizado...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Elegir librería PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'No se encontró módulo PKCS#11. Instala OpenSC o elige una librería del proveedor.';
+
+  @override
+  String get pkcs11InitializeFailed => 'El módulo PKCS#11 no se inicializó.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'No hay token en ningún lector.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Número de serie: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'El token requiere login.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN para $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Confirma en el PIN-pad del token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN incorrecto. Quedan $remaining intentos.';
+  }
+
+  @override
+  String get pkcs11PinLocked =>
+      'El PIN del token está bloqueado. Desbloquéalo con el PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'El token no tiene claves utilizables por SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported =>
+      'Las claves GOST no se pueden usar con SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'El token \"$label\" no está conectado.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token guardado no encontrado. Reconéctalo y reintenta.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Falló la firma: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Las tarjetas inteligentes / tokens PKCS#11 no están disponibles en esta plataforma.';
+
+  @override
+  String get pkcs11Badge => 'Tarjeta inteligente / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Módulo: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Serial del token: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Objeto: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Selecciona el módulo PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Selecciona el token';
+
+  @override
+  String get pkcs11WizardStepKey => 'Selecciona la clave';
+
+  @override
+  String get pkcs11WizardStepPin => 'Introduce el PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Importar clave';
+
+  @override
+  String get pkcs11SaveInProgress => 'Leyendo clave pública del token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Clave de tarjeta inteligente agregada.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Buscando módulos PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Cargando tokens...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Cargando claves...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Módulo cargado.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Sin token presente.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Fallo al cargar el módulo.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad en el dispositivo)';
+
+  @override
+  String get pkcs11WizardBack => 'Atrás';
+
+  @override
+  String get pkcs11WizardNext => 'Siguiente';
 }

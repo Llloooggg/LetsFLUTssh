@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "添加智能卡 / 令牌密钥",
+  "pkcs11ModuleLabel": "PKCS#11 模块",
+  "pkcs11ModuleAutoDetected": "自动检测",
+  "pkcs11ModuleCustom": "自定义模块...",
+  "pkcs11ModulePickerTitle": "选择 PKCS#11 库",
+  "pkcs11NoModuleFound": "未找到 PKCS#11 模块。请安装 OpenSC 或选择供应商库。",
+  "pkcs11InitializeFailed": "PKCS#11 模块初始化失败。",
+  "pkcs11NoTokenPresent": "读卡器中没有令牌。",
+  "pkcs11TokenLabel": "令牌: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "序列号: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "令牌需要登录。",
+  "pkcs11PinPrompt": "{token} 的 PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "在令牌的 PIN 板上确认。",
+  "pkcs11PinIncorrect": "PIN 错误。剩 {remaining} 次。",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "令牌 PIN 已锁定。使用 PUK 解锁。",
+  "pkcs11NoSignableKeys": "令牌上没有 SSH 可用的密钥 (RSA、ECDSA、Ed25519)。",
+  "pkcs11GostUnsupported": "GOST 密钥无法用于 SSH。",
+  "pkcs11TokenUnplugged": "令牌 \"{label}\" 未插入。",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "未找到已保存的令牌。请重新插入后重试。",
+  "pkcs11SignFailed": "签名失败: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "此平台不支持智能卡 / PKCS#11 令牌。",
+  "pkcs11Badge": "智能卡 / 令牌",
+  "pkcs11InfoModulePath": "模块：{path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "令牌序列号：{serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "对象：{label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "选择 PKCS#11 模块",
+  "pkcs11WizardStepToken": "选择令牌",
+  "pkcs11WizardStepKey": "选择密钥",
+  "pkcs11WizardStepPin": "输入 PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "导入密钥",
+  "pkcs11SaveInProgress": "正在从令牌读取公钥...",
+  "pkcs11SaveSuccess": "已添加智能卡密钥。",
+  "pkcs11ScanInProgress": "正在扫描 PKCS#11 模块...",
+  "pkcs11LoadingTokens": "正在加载令牌...",
+  "pkcs11LoadingKeys": "正在加载密钥...",
+  "pkcs11ModuleStatusReady": "模块已加载。",
+  "pkcs11ModuleStatusNoToken": "未插入令牌。",
+  "pkcs11ModuleStatusFailed": "模块加载失败。",
+  "pkcs11PinPadHint": "（设备 PIN pad）",
+  "pkcs11WizardBack": "上一步",
+  "pkcs11WizardNext": "下一步"
 }

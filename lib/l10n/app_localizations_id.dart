@@ -2974,4 +2974,166 @@ class SId extends S {
   String agentEndpointStartFailed(String detail) {
     return 'Tidak dapat memulai ssh-agent endpoint: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Tambah key smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'Modul PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Terdeteksi otomatis';
+
+  @override
+  String get pkcs11ModuleCustom => 'Modul kustom...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Pilih library PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Modul PKCS#11 tidak ditemukan. Install OpenSC atau pilih library vendor.';
+
+  @override
+  String get pkcs11InitializeFailed => 'Modul PKCS#11 gagal initialise.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Tidak ada token di reader manapun.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token butuh login.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN untuk $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Konfirmasi di PIN-pad token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN salah. Sisa $remaining percobaan.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN token terkunci. Unblock dengan PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token tidak punya key SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Key GOST tidak bisa dipakai dengan SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" tidak terpasang.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token tersimpan tidak ditemukan. Sambungkan ulang dan coba lagi.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing gagal: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / token PKCS#11 tidak tersedia di platform ini.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Pilih module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Pilih token';
+
+  @override
+  String get pkcs11WizardStepKey => 'Pilih key';
+
+  @override
+  String get pkcs11WizardStepPin => 'Masukkan PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'Membaca public key dari token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Key smart card ditambahkan.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Memindai module PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Memuat token...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Memuat key...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module dimuat.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token tidak ada.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Gagal memuat module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad di perangkat)';
+
+  @override
+  String get pkcs11WizardBack => 'Kembali';
+
+  @override
+  String get pkcs11WizardNext => 'Lanjut';
 }

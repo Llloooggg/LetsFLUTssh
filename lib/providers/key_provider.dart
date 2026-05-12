@@ -202,6 +202,14 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     applicationString: e.applicationString,
     hasUserVerification: e.hasUserVerification,
     agentPolicy: e.agentPolicy,
+    // Backend + PKCS#11 columns ride through unchanged when the
+    // `SshKeyEntry` carries them; software keys leave them at the
+    // default `'software'` + null. The full PKCS#11 import flow
+    // bypasses this row builder entirely (Rust `pkcs11_import_key`
+    // composes the row server-side); this path is the legacy
+    // `SshKeyEntry` round-trip for software / FIDO2 rows that the
+    // existing key-manager state machine already produces.
+    backend: 'software',
   );
 
   /// Project the `ssh_keys` row + optional `ssh_key_certificates`
@@ -250,6 +258,10 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
       principals: principals,
       criticalOptions: critical,
       certFingerprint: certFp,
+      backend: r.backend,
+      pkcs11ModulePath: r.pkcs11ModulePath,
+      pkcs11TokenSerial: r.pkcs11TokenSerial,
+      pkcs11ObjectLabel: r.pkcs11ObjectLabel,
     );
   }
 

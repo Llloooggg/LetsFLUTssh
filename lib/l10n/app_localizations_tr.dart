@@ -2976,4 +2976,166 @@ class STr extends S {
   String agentEndpointStartFailed(String detail) {
     return 'ssh-agent endpoint başlatılamadı: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Smart card / token anahtarı ekle';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 modülü';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Otomatik algılandı';
+
+  @override
+  String get pkcs11ModuleCustom => 'Özel modül...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 kütüphanesi seç';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 modülü bulunamadı. OpenSC yükle veya vendor kütüphanesi seç.';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 modülü initialise olmadı.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Hiçbir okuyucuda token yok.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Seri: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token login gerektiriyor.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token için PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Token\'ın PIN-pad\'inde onayla.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN yanlış. $remaining deneme kaldı.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'Token PIN kilitli. PUK ile aç.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token\'da SSH için kullanılabilir key yok (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST key\'leri SSH ile kullanılamaz.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" takılı değil.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Kaydedilmiş token bulunamadı. Yeniden tak ve dene.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing başarısız: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart card / PKCS#11 token\'lar bu platformda yok.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 module seç';
+
+  @override
+  String get pkcs11WizardStepToken => 'Token seç';
+
+  @override
+  String get pkcs11WizardStepKey => 'Key seç';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN gir';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Key\'i import et';
+
+  @override
+  String get pkcs11SaveInProgress => 'Token\'dan public key okunuyor...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Smart card key eklendi.';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 module\'leri taranıyor...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Token\'lar yükleniyor...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Key\'ler yükleniyor...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module yüklendi.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token yok.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Module yüklenemedi.';
+
+  @override
+  String get pkcs11PinPadHint => '(Cihaz üzerinde PIN pad)';
+
+  @override
+  String get pkcs11WizardBack => 'Geri';
+
+  @override
+  String get pkcs11WizardNext => 'İleri';
 }

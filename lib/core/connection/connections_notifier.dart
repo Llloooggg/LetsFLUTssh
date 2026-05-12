@@ -788,6 +788,27 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           application: application,
           pinSecretId: pinSecretId,
         ),
+      // PKCS#11 hardware-token branch — composed by
+      // `auth_compose::prepare_auth` when the resolved manager-key
+      // row carries `backend = 'pkcs11'`. The PIN stages as a
+      // transient SecretStore entry the Rust connect path reads
+      // inside its `_owned` future, mirroring the sk-* flow.
+      rust_auth.DbPreparedAuthRef_PubkeyPkcs11(
+        :final publicOpenssh,
+        :final modulePath,
+        :final tokenSerial,
+        :final ckaId,
+        :final keyType,
+        :final pinSecretId,
+      ) =>
+        SshAuthPubkeyPkcs11Ref(
+          publicOpenssh: publicOpenssh,
+          modulePath: modulePath,
+          tokenSerial: tokenSerial,
+          ckaId: ckaId,
+          keyType: keyType,
+          pinSecretId: pinSecretId,
+        ),
     };
   }
 

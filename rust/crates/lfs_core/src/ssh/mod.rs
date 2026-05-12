@@ -26,6 +26,13 @@ pub mod sk;
 mod sk_signer;
 pub mod wire;
 
+// PKCS#11 (Cryptoki) hardware-token signer. Desktop-only — the
+// underlying `lfs_os_security::pkcs11` driver compiles to a stub on
+// mobile platforms (Android / iOS sandboxes forbid `dlopen` of
+// arbitrary `.dylib`).
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+pub mod pkcs11_signer;
+
 use sk_signer::FidoSigner;
 
 /// russh `Handler` impl for our client side. Carries an mpsc sender
@@ -598,6 +605,42 @@ pub struct ConnectPubkeySkOwnedArgs {
     pub pin_secret_id: Option<String>,
 }
 
+/// Borrow-shaped bundle for [`Session::connect_pubkey_pkcs11`]. Keeps
+/// the call shape under clippy's too-many-arguments threshold while
+/// pinning every load-bearing field. The `_owned` twin exists for
+/// the FRB / Send + 'static path.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyPkcs11Args<'a> {
+    pub host: &'a str,
+    pub port: u16,
+    pub user: &'a str,
+    pub public_openssh: &'a str,
+    pub module_path: &'a str,
+    pub token_serial: &'a str,
+    pub cka_id: &'a [u8],
+    pub key_type: &'a str,
+    pub pin: Option<&'a str>,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_pkcs11_owned`].
+/// Same `Send + 'static` motivation as [`ConnectPubkeySkOwnedArgs`].
+/// `pin_secret_id` is a SecretStore id — bytes never round-trip
+/// through this struct.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyPkcs11OwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub public_openssh: String,
+    pub module_path: String,
+    pub token_serial: String,
+    pub cka_id: Vec<u8>,
+    /// Short tag — `rsa` / `ecdsa-p256` / `ecdsa-p384` / `ecdsa-p521`
+    /// / `ed25519`. Drives the SSH wire-name selection.
+    pub key_type: String,
+    pub pin_secret_id: Option<String>,
+}
+
 /// Shareable across tasks — every method takes `&self` because
 /// russh's `Handle` is internally `Sync`. Wrap in `Arc` if multiple
 /// owners need it.
@@ -1137,6 +1180,106 @@ impl Session {
                 pin.as_deref(),
             )
             .await
+        })
+    }
+
+    /// Connect + authenticate with a PKCS#11 hardware-token key.
+    ///
+    /// `public_openssh` is the `id_*.pub` body captured at import;
+    /// we re-parse it here to recover the SSH `PublicKey` russh's
+    /// `authenticate_publickey_with` needs. `module_path` +
+    /// `token_serial` + `cka_id` identify the on-device private key
+    /// the signer reaches for on every userauth signature.
+    ///
+    /// Signing routes through [`crate::ssh::pkcs11_signer::Pkcs11Signer`],
+    /// which drives `lfs_os_security::pkcs11::sign_with_pkcs11` on
+    /// every challenge. Private key material lives on the token —
+    /// never on the heap.
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    pub async fn connect_pubkey_pkcs11(args: ConnectPubkeyPkcs11Args<'_>) -> Result<Self, Error> {
+        let (mut handle, forward_rx) = open_handle_for_session(args.host, args.port).await?;
+        let parsed_pub = ssh_key::PublicKey::from_openssh(args.public_openssh.trim())
+            .map_err(|e| Error::KeyParse(format!("pkcs11 pubkey: {e}")))?;
+        // Validate the key_type tag parses cleanly before reaching
+        // the russh authenticate call. The Signer reads the SSH
+        // algorithm string off the same tag at sign time, so a bad
+        // input here fails loudly rather than surfacing as a
+        // mid-handshake mismatch.
+        let _ = crate::ssh::pkcs11_signer::algorithm_for_key_type(args.key_type)?;
+        // RSA defaults to SHA-512 — server-side OpenSSH ≥ 8.2 negotiates
+        // `rsa-sha2-512` ahead of the deprecated SHA-1 `ssh-rsa`. ECDSA
+        // / Ed25519 paths leave hash_alg = None and let russh's wire
+        // negotiation pick.
+        let hash_alg = if args.key_type == "rsa" {
+            Some(HashAlg::Sha512)
+        } else {
+            None
+        };
+        let mut signer = crate::ssh::pkcs11_signer::Pkcs11Signer {
+            module_path: args.module_path.to_string(),
+            token_serial: args.token_serial.to_string(),
+            cka_id: args.cka_id.to_vec(),
+            algorithm: crate::ssh::pkcs11_signer::ssh_algorithm_string(args.key_type).to_string(),
+            pin: args.pin.map(|p| Zeroizing::new(p.to_string())),
+        };
+        let auth_result = handle
+            .authenticate_publickey_with(args.user, parsed_pub, hash_alg, &mut signer)
+            .await
+            .map_err(|e| Error::Auth(format!("{e}")))?;
+        if !matches!(auth_result, AuthResult::Success) {
+            return Err(Error::AuthFailed);
+        }
+        Ok(Session::from_handle(handle, forward_rx))
+    }
+
+    /// Owned-arg twin of [`connect_pubkey_pkcs11`]. Mirrors the FIDO2
+    /// `_owned` shape — resolves the optional PIN out of the
+    /// SecretStore inside the future so the caller hands only Send
+    /// owned arguments across the FRB worker boundary.
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    pub fn connect_pubkey_pkcs11_owned(
+        args: ConnectPubkeyPkcs11OwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let pin_bytes = match args.pin_secret_id.as_deref() {
+                Some(id) => crate::app::instance().secrets.get(id),
+                None => None,
+            };
+            let pin: Option<String> = match pin_bytes.as_ref() {
+                Some(b) => Some(
+                    std::str::from_utf8(b)
+                        .map_err(|e| Error::Auth(format!("pin not utf-8: {e}")))?
+                        .to_owned(),
+                ),
+                None => None,
+            };
+            Self::connect_pubkey_pkcs11(ConnectPubkeyPkcs11Args {
+                host: &args.host,
+                port: args.port,
+                user: &args.user,
+                public_openssh: &args.public_openssh,
+                module_path: &args.module_path,
+                token_serial: &args.token_serial,
+                cka_id: &args.cka_id,
+                key_type: &args.key_type,
+                pin: pin.as_deref(),
+            })
+            .await
+        })
+    }
+
+    /// Mobile stub — PKCS#11 isn't reachable on Android / iOS, so the
+    /// owned-arg twin returns a typed unsupported error. The
+    /// dispatcher in `connection::mod` calls this on any cfg combo
+    /// where the desktop implementation isn't built.
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    pub fn connect_pubkey_pkcs11_owned(
+        _args: ConnectPubkeyPkcs11OwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Err(Error::Unsupported(
+                "pkcs11 hardware tokens are not available on this platform".into(),
+            ))
         })
     }
 

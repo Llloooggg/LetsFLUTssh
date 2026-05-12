@@ -597,6 +597,17 @@ pub enum BusConnectAuthRef {
         application: String,
         pin_secret_id: Option<String>,
     },
+    /// PKCS#11 hardware-token key. Carries the captured `id_*.pub`
+    /// body, resolved module path, captured token serial, opaque
+    /// `CKA_ID`, key-type short tag, and a transient PIN secret id.
+    PubkeyPkcs11 {
+        public_openssh: String,
+        module_path: String,
+        token_serial: String,
+        cka_id: Vec<u8>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
     Agent,
 }
 
@@ -631,6 +642,21 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
                 public_openssh,
                 credential_id,
                 application,
+                pin_secret_id,
+            },
+            BusConnectAuthRef::PubkeyPkcs11 {
+                public_openssh,
+                module_path,
+                token_serial,
+                cka_id,
+                key_type,
+                pin_secret_id,
+            } => lfs_core::connection::ConnectAuthRef::PubkeyPkcs11 {
+                public_openssh,
+                module_path,
+                token_serial,
+                cka_id,
+                key_type,
                 pin_secret_id,
             },
             BusConnectAuthRef::Agent => lfs_core::connection::ConnectAuthRef::Agent,

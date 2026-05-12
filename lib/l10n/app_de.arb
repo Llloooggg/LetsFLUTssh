@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Smartcard- / Token-Schlüssel hinzufügen",
+  "pkcs11ModuleLabel": "PKCS#11-Modul",
+  "pkcs11ModuleAutoDetected": "Automatisch erkannt",
+  "pkcs11ModuleCustom": "Benutzerdefiniertes Modul...",
+  "pkcs11ModulePickerTitle": "PKCS#11-Bibliothek auswählen",
+  "pkcs11NoModuleFound": "Kein PKCS#11-Modul gefunden. OpenSC installieren oder Vendor-Library wählen.",
+  "pkcs11InitializeFailed": "PKCS#11-Modul wurde nicht initialisiert.",
+  "pkcs11NoTokenPresent": "Kein Token im Lesegerät.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Seriennummer: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Token benötigt Login.",
+  "pkcs11PinPrompt": "PIN für {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Auf dem PIN-Pad des Tokens bestätigen.",
+  "pkcs11PinIncorrect": "PIN falsch. {remaining} Versuche übrig.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "Token-PIN ist gesperrt. Mit PUK entsperren.",
+  "pkcs11NoSignableKeys": "Token hat keine SSH-tauglichen Schlüssel (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "GOST-Schlüssel funktionieren nicht über SSH.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" ist nicht eingesteckt.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Gespeicherter Token nicht gefunden. Erneut einstecken und wiederholen.",
+  "pkcs11SignFailed": "Signieren fehlgeschlagen: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smartcards / PKCS#11-Tokens sind auf dieser Plattform nicht verfügbar.",
+  "pkcs11Badge": "Smartcard / Token",
+  "pkcs11InfoModulePath": "Modul: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token-Seriennummer: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Objekt: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "PKCS#11-Modul wählen",
+  "pkcs11WizardStepToken": "Token wählen",
+  "pkcs11WizardStepKey": "Schlüssel wählen",
+  "pkcs11WizardStepPin": "PIN eingeben",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Schlüssel importieren",
+  "pkcs11SaveInProgress": "Öffentlichen Schlüssel vom Token lesen...",
+  "pkcs11SaveSuccess": "Smartcard-Schlüssel hinzugefügt.",
+  "pkcs11ScanInProgress": "Suche nach PKCS#11-Modulen...",
+  "pkcs11LoadingTokens": "Tokens werden geladen...",
+  "pkcs11LoadingKeys": "Schlüssel werden geladen...",
+  "pkcs11ModuleStatusReady": "Modul geladen.",
+  "pkcs11ModuleStatusNoToken": "Kein Token vorhanden.",
+  "pkcs11ModuleStatusFailed": "Modul konnte nicht geladen werden.",
+  "pkcs11PinPadHint": "(PIN-Pad am Gerät)",
+  "pkcs11WizardBack": "Zurück",
+  "pkcs11WizardNext": "Weiter"
 }

@@ -126,4 +126,17 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required bool hasUserVerification,
     String? pinSecretId,
   }) = DbPreparedAuthRef_PubkeySk;
+
+  /// PKCS#11 hardware-token key resolved from the manager. The Dart
+  /// connect path routes this through the same dispatcher that
+  /// shipped FIDO2; the surface mirrors the underlying
+  /// `lfs_core::connection::ConnectAuthRef::PubkeyPkcs11` shape.
+  const factory DbPreparedAuthRef.pubkeyPkcs11({
+    required String publicOpenssh,
+    required String modulePath,
+    required String tokenSerial,
+    required Uint8List ckaId,
+    required String keyType,
+    String? pinSecretId,
+  }) = DbPreparedAuthRef_PubkeyPkcs11;
 }

@@ -180,6 +180,18 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String application,
     String? pinSecretId,
   }) = BusConnectAuthRef_PubkeySk;
+
+  /// PKCS#11 hardware-token key. Carries the captured `id_*.pub`
+  /// body, resolved module path, captured token serial, opaque
+  /// `CKA_ID`, key-type short tag, and a transient PIN secret id.
+  const factory BusConnectAuthRef.pubkeyPkcs11({
+    required String publicOpenssh,
+    required String modulePath,
+    required String tokenSerial,
+    required Uint8List ckaId,
+    required String keyType,
+    String? pinSecretId,
+  }) = BusConnectAuthRef_PubkeyPkcs11;
   const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 

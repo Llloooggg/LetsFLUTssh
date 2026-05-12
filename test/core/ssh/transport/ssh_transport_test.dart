@@ -57,6 +57,7 @@ void main() {
         SshAuthPubkeyRef() => 'pubkey',
         SshAuthPubkeyCertRef() => 'pubkey-cert',
         SshAuthPubkeySkRef() => 'pubkey-sk',
+        SshAuthPubkeyPkcs11Ref() => 'pubkey-pkcs11',
       };
       expect(describe(const SshAuthAgent()), 'agent');
       expect(describe(const SshAuthPasswordRef('x')), 'password');

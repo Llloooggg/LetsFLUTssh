@@ -132,6 +132,30 @@ class SshAuthPubkeySkRef extends SshAuthMethod {
   });
 }
 
+/// PKCS#11 hardware-token key. Mirrors the FIDO2 sk-* shape: the
+/// `publicOpenssh` body the connect path re-parses, the resolved
+/// vendor library path + token serial + opaque `CKA_ID` the signing
+/// path needs at runtime, and the SSH key-type short tag the Rust
+/// side maps to the wire algorithm. `pinSecretId` resolves a
+/// transient PIN entry; `null` for protected-authentication-path
+/// (PIN-pad) tokens and tokens that do not require login.
+class SshAuthPubkeyPkcs11Ref extends SshAuthMethod {
+  final String publicOpenssh;
+  final String modulePath;
+  final String tokenSerial;
+  final Uint8List ckaId;
+  final String keyType;
+  final String? pinSecretId;
+  const SshAuthPubkeyPkcs11Ref({
+    required this.publicOpenssh,
+    required this.modulePath,
+    required this.tokenSerial,
+    required this.ckaId,
+    required this.keyType,
+    this.pinSecretId,
+  });
+}
+
 /// PTY-backed interactive shell channel.
 abstract class SshShellChannel {
   /// Stdin: write user keystrokes / pasted bytes.

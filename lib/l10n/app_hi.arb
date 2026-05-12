@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Smart-card / token key add करें",
+  "pkcs11ModuleLabel": "PKCS#11 module",
+  "pkcs11ModuleAutoDetected": "Auto-detect हुआ",
+  "pkcs11ModuleCustom": "Custom module...",
+  "pkcs11ModulePickerTitle": "PKCS#11 library चुनें",
+  "pkcs11NoModuleFound": "PKCS#11 module नहीं मिला। OpenSC install करें या vendor library चुनें।",
+  "pkcs11InitializeFailed": "PKCS#11 module initialise नहीं हुआ।",
+  "pkcs11NoTokenPresent": "किसी reader में token नहीं है।",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Token को login की ज़रूरत है।",
+  "pkcs11PinPrompt": "{token} का PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Token के PIN-pad पर confirm करें।",
+  "pkcs11PinIncorrect": "PIN गलत है। {remaining} attempts बाकी।",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "Token का PIN locked है। PUK से unblock करें।",
+  "pkcs11NoSignableKeys": "Token पर SSH-usable keys नहीं हैं (RSA, ECDSA, Ed25519)।",
+  "pkcs11GostUnsupported": "GOST keys SSH में नहीं चलतीं।",
+  "pkcs11TokenUnplugged": "Token \"{label}\" connect नहीं है।",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Saved token नहीं मिला। फिर से plug करें।",
+  "pkcs11SignFailed": "Signing fail हो गयी: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / PKCS#11 tokens इस platform पर available नहीं हैं।",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "PKCS#11 module चुनें",
+  "pkcs11WizardStepToken": "Token चुनें",
+  "pkcs11WizardStepKey": "Key चुनें",
+  "pkcs11WizardStepPin": "PIN दर्ज करें",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Key import करें",
+  "pkcs11SaveInProgress": "Token से public key पढ़ रहा है...",
+  "pkcs11SaveSuccess": "Smart-card key जोड़ी गई।",
+  "pkcs11ScanInProgress": "PKCS#11 modules scan कर रहा है...",
+  "pkcs11LoadingTokens": "Tokens load हो रहे हैं...",
+  "pkcs11LoadingKeys": "Keys load हो रही हैं...",
+  "pkcs11ModuleStatusReady": "Module load हो गया।",
+  "pkcs11ModuleStatusNoToken": "Token नहीं है।",
+  "pkcs11ModuleStatusFailed": "Module load fail हुआ।",
+  "pkcs11PinPadHint": "(Device पर PIN pad)",
+  "pkcs11WizardBack": "वापस",
+  "pkcs11WizardNext": "आगे"
 }

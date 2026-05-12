@@ -103,6 +103,20 @@ pub enum PreparedAuthRef {
         has_user_verification: bool,
         pin_secret_id: Option<String>,
     },
+    /// PKCS#11 hardware-token key resolved from the manager.
+    /// `module_path` + `token_serial` + `cka_id` carry the
+    /// disambiguation surface the sign path needs at runtime;
+    /// `pin_secret_id` points at a staged transient PIN entry the
+    /// Dart caller seeded before dispatch (None for
+    /// protected-authentication-path / no-login tokens).
+    PubkeyPkcs11 {
+        public_openssh: String,
+        module_path: String,
+        token_serial: String,
+        cka_id: Vec<u8>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
 }
 
 /// Aggregated output. `auth` carries the ref the connect actor
@@ -166,6 +180,46 @@ pub fn prepare_auth(
     //    c) plain software pubkey.
     if !input.key_id.is_empty() {
         if let Some(row) = ssh_keys::get(conn, &input.key_id)? {
+            // PKCS#11 sub-branch — the row's `backend = 'pkcs11'`
+            // takes precedence over the FIDO2 / cert / plain-pubkey
+            // branches because the `private_key` column is empty
+            // by design (hardware-bound) and falling through would
+            // try to stage zero bytes for the connect.
+            if row.backend == ssh_keys::KeyBackend::Pkcs11 {
+                let module_path = row
+                    .pkcs11_module_path
+                    .clone()
+                    .ok_or_else(|| Error::Auth("pkcs11 row missing module_path".into()))?;
+                let token_serial = row
+                    .pkcs11_token_serial
+                    .clone()
+                    .ok_or_else(|| Error::Auth("pkcs11 row missing token_serial".into()))?;
+                let cka_id = row
+                    .pkcs11_object_id
+                    .clone()
+                    .ok_or_else(|| Error::Auth("pkcs11 row missing object_id".into()))?;
+                let pin_secret_id = if !input.pin.is_empty() {
+                    let id = format!("pkcs11.pin.{}", input.key_id);
+                    crate::app::instance()
+                        .secrets
+                        .put(&id, input.pin.as_bytes());
+                    transients.push(id.clone());
+                    Some(id)
+                } else {
+                    None
+                };
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::PubkeyPkcs11 {
+                        public_openssh: row.public_key.clone(),
+                        module_path,
+                        token_serial,
+                        cka_id,
+                        key_type: row.key_type.clone(),
+                        pin_secret_id,
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
             if let (Some(credential_id), Some(application)) =
                 (&row.credential_id, &row.application_string)
             {

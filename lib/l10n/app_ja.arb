@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "スマートカード / トークン キーを追加",
+  "pkcs11ModuleLabel": "PKCS#11 モジュール",
+  "pkcs11ModuleAutoDetected": "自動検出",
+  "pkcs11ModuleCustom": "カスタムモジュール...",
+  "pkcs11ModulePickerTitle": "PKCS#11 ライブラリを選択",
+  "pkcs11NoModuleFound": "PKCS#11 モジュールが見つかりません。OpenSC をインストールするか、ベンダーライブラリを選択してください。",
+  "pkcs11InitializeFailed": "PKCS#11 モジュールを初期化できませんでした。",
+  "pkcs11NoTokenPresent": "リーダーにトークンがありません。",
+  "pkcs11TokenLabel": "トークン: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "シリアル: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "トークンへのログインが必要です。",
+  "pkcs11PinPrompt": "{token} の PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "トークンの PIN パッドで確認してください。",
+  "pkcs11PinIncorrect": "PIN が違います。残り {remaining} 回。",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "トークンの PIN がロックされています。PUK で解除してください。",
+  "pkcs11NoSignableKeys": "SSH で使えるキー (RSA、ECDSA、Ed25519) がトークンにありません。",
+  "pkcs11GostUnsupported": "GOST キーは SSH では使えません。",
+  "pkcs11TokenUnplugged": "トークン \"{label}\" が挿入されていません。",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "保存されたトークンが見つかりません。再接続してください。",
+  "pkcs11SignFailed": "署名に失敗しました: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "このプラットフォームではスマートカード / PKCS#11 トークンは利用できません。",
+  "pkcs11Badge": "スマートカード / トークン",
+  "pkcs11InfoModulePath": "モジュール: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "トークンのシリアル: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "オブジェクト: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "PKCS#11 モジュールを選択",
+  "pkcs11WizardStepToken": "トークンを選択",
+  "pkcs11WizardStepKey": "鍵を選択",
+  "pkcs11WizardStepPin": "PIN を入力",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "鍵をインポート",
+  "pkcs11SaveInProgress": "トークンから公開鍵を読み込み中...",
+  "pkcs11SaveSuccess": "スマートカードの鍵を追加しました。",
+  "pkcs11ScanInProgress": "PKCS#11 モジュールをスキャン中...",
+  "pkcs11LoadingTokens": "トークンを読み込み中...",
+  "pkcs11LoadingKeys": "鍵を読み込み中...",
+  "pkcs11ModuleStatusReady": "モジュール読み込み完了。",
+  "pkcs11ModuleStatusNoToken": "トークンが見つかりません。",
+  "pkcs11ModuleStatusFailed": "モジュールの読み込みに失敗しました。",
+  "pkcs11PinPadHint": "(デバイスの PIN パッド)",
+  "pkcs11WizardBack": "戻る",
+  "pkcs11WizardNext": "次へ"
 }

@@ -2973,4 +2973,166 @@ class SHi extends S {
   String agentEndpointStartFailed(String detail) {
     return 'ssh-agent endpoint start नहीं हुआ: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Smart-card / token key add करें';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 module';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Auto-detect हुआ';
+
+  @override
+  String get pkcs11ModuleCustom => 'Custom module...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 library चुनें';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 module नहीं मिला। OpenSC install करें या vendor library चुनें।';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 module initialise नहीं हुआ।';
+
+  @override
+  String get pkcs11NoTokenPresent => 'किसी reader में token नहीं है।';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token को login की ज़रूरत है।';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token का PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Token के PIN-pad पर confirm करें।';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN गलत है। $remaining attempts बाकी।';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'Token का PIN locked है। PUK से unblock करें।';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token पर SSH-usable keys नहीं हैं (RSA, ECDSA, Ed25519)।';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST keys SSH में नहीं चलतीं।';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" connect नहीं है।';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Saved token नहीं मिला। फिर से plug करें।';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing fail हो गयी: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / PKCS#11 tokens इस platform पर available नहीं हैं।';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 module चुनें';
+
+  @override
+  String get pkcs11WizardStepToken => 'Token चुनें';
+
+  @override
+  String get pkcs11WizardStepKey => 'Key चुनें';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN दर्ज करें';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Key import करें';
+
+  @override
+  String get pkcs11SaveInProgress => 'Token से public key पढ़ रहा है...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Smart-card key जोड़ी गई।';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 modules scan कर रहा है...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Tokens load हो रहे हैं...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Keys load हो रही हैं...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module load हो गया।';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token नहीं है।';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Module load fail हुआ।';
+
+  @override
+  String get pkcs11PinPadHint => '(Device पर PIN pad)';
+
+  @override
+  String get pkcs11WizardBack => 'वापस';
+
+  @override
+  String get pkcs11WizardNext => 'आगे';
 }

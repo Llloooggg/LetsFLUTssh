@@ -25,10 +25,22 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 lfs_core = { path = "../crates/lfs_core" }
+# RFC 7512 `pkcs11:` URI parser lives under `lfs_os_security::pkcs11::uri`
+# — vendored to dodge the unmaintained `pkcs11-uri` crate. The fuzz
+# target drives raw bytes into `Pkcs11Uri::parse` + round-trips the
+# emit through `parse` again.
+lfs_os_security = { path = "../crates/lfs_os_security" }
 
 [[bin]]
 name = "deeplink"
 path = "fuzz_targets/deeplink.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pkcs11_uri"
+path = "fuzz_targets/pkcs11_uri.rs"
 test = false
 doc = false
 bench = false

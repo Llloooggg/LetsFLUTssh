@@ -2994,4 +2994,166 @@ class SRu extends S {
   String agentEndpointStartFailed(String detail) {
     return 'Не удалось запустить ssh-agent endpoint: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Добавить ключ со смарт-карты или токена';
+
+  @override
+  String get pkcs11ModuleLabel => 'Модуль PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Найдено автоматически';
+
+  @override
+  String get pkcs11ModuleCustom => 'Указать модуль...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Выбор библиотеки PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Модуль PKCS#11 не найден. Установите OpenSC или укажите библиотеку вендора.';
+
+  @override
+  String get pkcs11InitializeFailed => 'Модуль PKCS#11 не инициализировался.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Нет токена в считывателе.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Токен: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Серийный номер: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Требуется вход на токен.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN для $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Подтвердите на PIN-паде токена.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'Неверный PIN. Осталось попыток: $remaining.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN заблокирован. Разблокируйте через PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'На токене нет ключей, пригодных для SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Ключи GOST не работают по SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Токен \"$label\" не вставлен.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Сохранённый токен не найден. Переподключите и повторите.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Подпись не удалась: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Смарт-карты и токены PKCS#11 недоступны на этой платформе.';
+
+  @override
+  String get pkcs11Badge => 'Смарт-карта / токен';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Модуль: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Серийный номер токена: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Объект: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Выберите модуль PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Выберите токен';
+
+  @override
+  String get pkcs11WizardStepKey => 'Выберите ключ';
+
+  @override
+  String get pkcs11WizardStepPin => 'Введите PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Импортировать ключ';
+
+  @override
+  String get pkcs11SaveInProgress => 'Чтение публичного ключа с токена...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Ключ со смарт-карты добавлен.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Поиск модулей PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Загрузка токенов...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Загрузка ключей...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Модуль загружен.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Токен не вставлен.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Не удалось загрузить модуль.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN-пад на устройстве)';
+
+  @override
+  String get pkcs11WizardBack => 'Назад';
+
+  @override
+  String get pkcs11WizardNext => 'Далее';
 }

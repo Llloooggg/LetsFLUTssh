@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "افزودن کلید smart-card / token",
+  "pkcs11ModuleLabel": "ماژول PKCS#11",
+  "pkcs11ModuleAutoDetected": "به‌طور خودکار پیدا شد",
+  "pkcs11ModuleCustom": "ماژول دلخواه...",
+  "pkcs11ModulePickerTitle": "انتخاب کتابخانه PKCS#11",
+  "pkcs11NoModuleFound": "ماژول PKCS#11 پیدا نشد. OpenSC را نصب کنید یا کتابخانه vendor را انتخاب کنید.",
+  "pkcs11InitializeFailed": "ماژول PKCS#11 initialise نشد.",
+  "pkcs11NoTokenPresent": "هیچ token در reader وجود ندارد.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Token نیاز به ورود دارد.",
+  "pkcs11PinPrompt": "PIN برای {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "روی PIN-pad token تأیید کنید.",
+  "pkcs11PinIncorrect": "PIN اشتباه. {remaining} تلاش باقی‌مانده.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "PIN قفل شده. با PUK باز کنید.",
+  "pkcs11NoSignableKeys": "Token کلید SSH-قابل‌استفاده ندارد (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "کلیدهای GOST با SSH کار نمی‌کنند.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" متصل نیست.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Token ذخیره‌شده پیدا نشد. دوباره وصل کنید.",
+  "pkcs11SignFailed": "Sign ناموفق: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 در این پلتفرم در دسترس نیست.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Module PKCS#11 را انتخاب کنید",
+  "pkcs11WizardStepToken": "Token را انتخاب کنید",
+  "pkcs11WizardStepKey": "کلید را انتخاب کنید",
+  "pkcs11WizardStepPin": "PIN را وارد کنید",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "خواندن کلید عمومی از token...",
+  "pkcs11SaveSuccess": "کلید smart card اضافه شد.",
+  "pkcs11ScanInProgress": "جستجوی module های PKCS#11...",
+  "pkcs11LoadingTokens": "بارگذاری token ها...",
+  "pkcs11LoadingKeys": "بارگذاری کلیدها...",
+  "pkcs11ModuleStatusReady": "Module بارگذاری شد.",
+  "pkcs11ModuleStatusNoToken": "Token موجود نیست.",
+  "pkcs11ModuleStatusFailed": "بارگذاری module ناموفق بود.",
+  "pkcs11PinPadHint": "(PIN pad روی دستگاه)",
+  "pkcs11WizardBack": "بازگشت",
+  "pkcs11WizardNext": "بعدی"
 }

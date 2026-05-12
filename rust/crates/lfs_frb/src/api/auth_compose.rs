@@ -78,6 +78,18 @@ pub enum DbPreparedAuthRef {
         has_user_verification: bool,
         pin_secret_id: Option<String>,
     },
+    /// PKCS#11 hardware-token key resolved from the manager. The Dart
+    /// connect path routes this through the same dispatcher that
+    /// shipped FIDO2; the surface mirrors the underlying
+    /// `lfs_core::connection::ConnectAuthRef::PubkeyPkcs11` shape.
+    PubkeyPkcs11 {
+        public_openssh: String,
+        module_path: String,
+        token_serial: String,
+        cka_id: Vec<u8>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -124,6 +136,21 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 credential_id,
                 application,
                 has_user_verification,
+                pin_secret_id,
+            },
+            auth_compose::PreparedAuthRef::PubkeyPkcs11 {
+                public_openssh,
+                module_path,
+                token_serial,
+                cka_id,
+                key_type,
+                pin_secret_id,
+            } => DbPreparedAuthRef::PubkeyPkcs11 {
+                public_openssh,
+                module_path,
+                token_serial,
+                cka_id,
+                key_type,
                 pin_secret_id,
             },
         };

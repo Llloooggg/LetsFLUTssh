@@ -1177,6 +1177,35 @@ class DbSshKey {
   /// `DbAgentPolicy` helpers below map Rust enum <-> String.
   final String agentPolicy;
 
+  /// Backend discriminator (schema v9). Wire values:
+  /// `"software"` / `"fido2"` / `"pkcs11"` / `"tpm"` / `"enclave"` /
+  /// `"hello"` / `"keystore"`. Default `"software"`; the connect /
+  /// agent dispatcher reads this to route to the right Signer impl.
+  final String backend;
+
+  /// RFC 7512 `pkcs11:` URI captured at import for PKCS#11 rows.
+  /// `None` for every other backend. The connect path prefers this
+  /// over the resolved module path so a re-plug under a different
+  /// slot still resolves the right token + object.
+  final String? pkcs11Uri;
+
+  /// Resolved on-disk path of the PKCS#11 module the import wizard
+  /// loaded. Cached for fast re-binding; the loader still verifies
+  /// the SHA-256 matches before reuse.
+  final String? pkcs11ModulePath;
+
+  /// PKCS#11 token serial captured at import — used to confirm the
+  /// same physical token is inserted before signing.
+  final String? pkcs11TokenSerial;
+
+  /// `CKA_ID` of the private-key object on the token. Opaque to
+  /// Dart; passed verbatim back to Rust on sign.
+  final Uint8List? pkcs11ObjectId;
+
+  /// `CKA_LABEL` of the private-key object — human-readable;
+  /// renders alongside the key-manager row.
+  final String? pkcs11ObjectLabel;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1189,6 +1218,12 @@ class DbSshKey {
     this.applicationString,
     required this.hasUserVerification,
     required this.agentPolicy,
+    required this.backend,
+    this.pkcs11Uri,
+    this.pkcs11ModulePath,
+    this.pkcs11TokenSerial,
+    this.pkcs11ObjectId,
+    this.pkcs11ObjectLabel,
   });
 
   @override
@@ -1203,7 +1238,13 @@ class DbSshKey {
       credentialId.hashCode ^
       applicationString.hashCode ^
       hasUserVerification.hashCode ^
-      agentPolicy.hashCode;
+      agentPolicy.hashCode ^
+      backend.hashCode ^
+      pkcs11Uri.hashCode ^
+      pkcs11ModulePath.hashCode ^
+      pkcs11TokenSerial.hashCode ^
+      pkcs11ObjectId.hashCode ^
+      pkcs11ObjectLabel.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1220,7 +1261,13 @@ class DbSshKey {
           credentialId == other.credentialId &&
           applicationString == other.applicationString &&
           hasUserVerification == other.hasUserVerification &&
-          agentPolicy == other.agentPolicy;
+          agentPolicy == other.agentPolicy &&
+          backend == other.backend &&
+          pkcs11Uri == other.pkcs11Uri &&
+          pkcs11ModulePath == other.pkcs11ModulePath &&
+          pkcs11TokenSerial == other.pkcs11TokenSerial &&
+          pkcs11ObjectId == other.pkcs11ObjectId &&
+          pkcs11ObjectLabel == other.pkcs11ObjectLabel;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
@@ -1285,6 +1332,22 @@ class DbSshKeyMetadata {
   final String privateFingerprint;
   final String publicFingerprint;
 
+  /// Backend discriminator (schema v9). One of `software` / `fido2` /
+  /// `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`. The Dart
+  /// key-manager UI picks the per-backend badge variant off this
+  /// string.
+  final String backend;
+
+  /// PKCS#11 module path captured at import. `None` for non-PKCS#11
+  /// rows.
+  final String? pkcs11ModulePath;
+
+  /// PKCS#11 token serial captured at import.
+  final String? pkcs11TokenSerial;
+
+  /// PKCS#11 object label (`CKA_LABEL`).
+  final String? pkcs11ObjectLabel;
+
   const DbSshKeyMetadata({
     required this.id,
     required this.label,
@@ -1294,6 +1357,10 @@ class DbSshKeyMetadata {
     required this.createdAtMs,
     required this.privateFingerprint,
     required this.publicFingerprint,
+    required this.backend,
+    this.pkcs11ModulePath,
+    this.pkcs11TokenSerial,
+    this.pkcs11ObjectLabel,
   });
 
   @override
@@ -1305,7 +1372,11 @@ class DbSshKeyMetadata {
       isGenerated.hashCode ^
       createdAtMs.hashCode ^
       privateFingerprint.hashCode ^
-      publicFingerprint.hashCode;
+      publicFingerprint.hashCode ^
+      backend.hashCode ^
+      pkcs11ModulePath.hashCode ^
+      pkcs11TokenSerial.hashCode ^
+      pkcs11ObjectLabel.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1319,7 +1390,11 @@ class DbSshKeyMetadata {
           isGenerated == other.isGenerated &&
           createdAtMs == other.createdAtMs &&
           privateFingerprint == other.privateFingerprint &&
-          publicFingerprint == other.publicFingerprint;
+          publicFingerprint == other.publicFingerprint &&
+          backend == other.backend &&
+          pkcs11ModulePath == other.pkcs11ModulePath &&
+          pkcs11TokenSerial == other.pkcs11TokenSerial &&
+          pkcs11ObjectLabel == other.pkcs11ObjectLabel;
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.

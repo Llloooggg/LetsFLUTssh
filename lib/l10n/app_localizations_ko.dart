@@ -2896,4 +2896,165 @@ class SKo extends S {
   String agentEndpointStartFailed(String detail) {
     return 'ssh-agent endpoint를 시작할 수 없습니다: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => '스마트카드 / 토큰 키 추가';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 모듈';
+
+  @override
+  String get pkcs11ModuleAutoDetected => '자동 감지됨';
+
+  @override
+  String get pkcs11ModuleCustom => '사용자 정의 모듈...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 라이브러리 선택';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 모듈을 찾을 수 없습니다. OpenSC를 설치하거나 벤더 라이브러리를 선택하세요.';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 모듈이 초기화되지 않았습니다.';
+
+  @override
+  String get pkcs11NoTokenPresent => '리더에 토큰이 없습니다.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return '토큰: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return '시리얼: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => '토큰에 로그인이 필요합니다.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => '토큰 PIN 패드에서 확인하세요.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN 틀림. $remaining회 남음.';
+  }
+
+  @override
+  String get pkcs11PinLocked => '토큰 PIN이 잠겼습니다. PUK로 해제하세요.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      '토큰에 SSH 사용 가능한 키가 없습니다 (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST 키는 SSH에 사용할 수 없습니다.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return '토큰 \"$label\"이(가) 삽입되지 않았습니다.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed => '저장된 토큰을 찾을 수 없습니다. 다시 연결하세요.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return '서명 실패: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      '스마트카드 / PKCS#11 토큰은 이 플랫폼에서 사용할 수 없습니다.';
+
+  @override
+  String get pkcs11Badge => '스마트카드 / 토큰';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return '모듈: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return '토큰 시리얼: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return '객체: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 모듈 선택';
+
+  @override
+  String get pkcs11WizardStepToken => '토큰 선택';
+
+  @override
+  String get pkcs11WizardStepKey => '키 선택';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN 입력';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => '키 가져오기';
+
+  @override
+  String get pkcs11SaveInProgress => '토큰에서 공개 키를 읽는 중...';
+
+  @override
+  String get pkcs11SaveSuccess => '스마트카드 키를 추가했습니다.';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 모듈을 스캔하는 중...';
+
+  @override
+  String get pkcs11LoadingTokens => '토큰을 로드하는 중...';
+
+  @override
+  String get pkcs11LoadingKeys => '키를 로드하는 중...';
+
+  @override
+  String get pkcs11ModuleStatusReady => '모듈을 로드했습니다.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => '토큰이 없습니다.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => '모듈 로드 실패.';
+
+  @override
+  String get pkcs11PinPadHint => '(기기 PIN pad)';
+
+  @override
+  String get pkcs11WizardBack => '뒤로';
+
+  @override
+  String get pkcs11WizardNext => '다음';
 }

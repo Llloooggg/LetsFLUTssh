@@ -743,6 +743,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "cryptoki"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff765b99fc49f3116c9a908484486a2b92fd73c48da45c3a69716471c6cc56c6"
+dependencies = [
+ "bitflags",
+ "cryptoki-sys",
+ "libloading",
+ "log",
+ "secrecy",
+]
+
+[[package]]
+name = "cryptoki-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1fd850498411e4057f1cba79e6e2bc7cbe960544c1046ab46d4685c403a1121"
+dependencies = [
+ "libloading",
+]
+
+[[package]]
 name = "ctap-hid-fido2"
 version = "3.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2080,6 +2102,7 @@ dependencies = [
 name = "lfs_frb"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "bytes",
  "flutter_rust_bridge",
  "futures-util",
@@ -2096,6 +2119,7 @@ name = "lfs_fuzz"
 version = "0.0.0"
 dependencies = [
  "lfs_core",
+ "lfs_os_security",
  "libfuzzer-sys",
 ]
 
@@ -2107,6 +2131,7 @@ dependencies = [
  "block2",
  "core-foundation",
  "core-foundation-sys",
+ "cryptoki",
  "futures-util",
  "jni",
  "libc",
@@ -2120,6 +2145,7 @@ dependencies = [
  "secret-service",
  "security-framework",
  "security-framework-sys",
+ "sha2 0.10.9",
  "subtle",
  "tempfile",
  "tokio",
@@ -2127,6 +2153,7 @@ dependencies = [
  "windows",
  "windows-future",
  "zbus",
+ "zeroize",
 ]
 
 [[package]]

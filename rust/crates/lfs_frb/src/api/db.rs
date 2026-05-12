@@ -144,6 +144,29 @@ pub struct DbSshKey {
     /// so the Dart side doesn't need a generated enum mirror; the
     /// `DbAgentPolicy` helpers below map Rust enum <-> String.
     pub agent_policy: String,
+    /// Backend discriminator (schema v9). Wire values:
+    /// `"software"` / `"fido2"` / `"pkcs11"` / `"tpm"` / `"enclave"` /
+    /// `"hello"` / `"keystore"`. Default `"software"`; the connect /
+    /// agent dispatcher reads this to route to the right Signer impl.
+    pub backend: String,
+    /// RFC 7512 `pkcs11:` URI captured at import for PKCS#11 rows.
+    /// `None` for every other backend. The connect path prefers this
+    /// over the resolved module path so a re-plug under a different
+    /// slot still resolves the right token + object.
+    pub pkcs11_uri: Option<String>,
+    /// Resolved on-disk path of the PKCS#11 module the import wizard
+    /// loaded. Cached for fast re-binding; the loader still verifies
+    /// the SHA-256 matches before reuse.
+    pub pkcs11_module_path: Option<String>,
+    /// PKCS#11 token serial captured at import — used to confirm the
+    /// same physical token is inserted before signing.
+    pub pkcs11_token_serial: Option<String>,
+    /// `CKA_ID` of the private-key object on the token. Opaque to
+    /// Dart; passed verbatim back to Rust on sign.
+    pub pkcs11_object_id: Option<Vec<u8>>,
+    /// `CKA_LABEL` of the private-key object — human-readable;
+    /// renders alongside the key-manager row.
+    pub pkcs11_object_label: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -160,6 +183,12 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             application_string: r.application_string,
             has_user_verification: r.has_user_verification,
             agent_policy: r.agent_policy.as_db_str().to_string(),
+            backend: r.backend.as_db_str().to_string(),
+            pkcs11_uri: r.pkcs11_uri,
+            pkcs11_module_path: r.pkcs11_module_path,
+            pkcs11_token_serial: r.pkcs11_token_serial,
+            pkcs11_object_id: r.pkcs11_object_id,
+            pkcs11_object_label: r.pkcs11_object_label,
         }
     }
 }
@@ -178,6 +207,12 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             application_string: r.application_string,
             has_user_verification: r.has_user_verification,
             agent_policy: lfs_core::db::ssh_keys::AgentPolicy::from_db(&r.agent_policy),
+            backend: lfs_core::db::ssh_keys::KeyBackend::from_db(&r.backend),
+            pkcs11_uri: r.pkcs11_uri,
+            pkcs11_module_path: r.pkcs11_module_path,
+            pkcs11_token_serial: r.pkcs11_token_serial,
+            pkcs11_object_id: r.pkcs11_object_id,
+            pkcs11_object_label: r.pkcs11_object_label,
         }
     }
 }
@@ -250,6 +285,18 @@ pub struct DbSshKeyMetadata {
     pub created_at_ms: i64,
     pub private_fingerprint: String,
     pub public_fingerprint: String,
+    /// Backend discriminator (schema v9). One of `software` / `fido2` /
+    /// `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`. The Dart
+    /// key-manager UI picks the per-backend badge variant off this
+    /// string.
+    pub backend: String,
+    /// PKCS#11 module path captured at import. `None` for non-PKCS#11
+    /// rows.
+    pub pkcs11_module_path: Option<String>,
+    /// PKCS#11 token serial captured at import.
+    pub pkcs11_token_serial: Option<String>,
+    /// PKCS#11 object label (`CKA_LABEL`).
+    pub pkcs11_object_label: Option<String>,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
@@ -263,6 +310,10 @@ impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
             created_at_ms: m.created_at_ms,
             private_fingerprint: m.private_fingerprint,
             public_fingerprint: m.public_fingerprint,
+            backend: m.backend,
+            pkcs11_module_path: m.pkcs11_module_path,
+            pkcs11_token_serial: m.pkcs11_token_serial,
+            pkcs11_object_label: m.pkcs11_object_label,
         }
     }
 }
@@ -1629,6 +1680,12 @@ mod tests {
             application_string: None,
             has_user_verification: false,
             agent_policy: "ask".into(),
+            backend: "software".into(),
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

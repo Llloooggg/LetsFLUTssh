@@ -141,6 +141,16 @@ pub enum Error {
     #[error("fido2: {0}")]
     Fido2(String),
 
+    /// PKCS#11 (Cryptoki) hardware-token failures surfaced by
+    /// `lfs_os_security::pkcs11` — module load failure, slot empty,
+    /// PIN rejected, lockout imminent / final-try, sign mechanism
+    /// refused, GOST-only token, dropped session. Carved out of
+    /// `Io` / `Platform` so the connect path's smart-card prompt
+    /// dialog can route a `wrong PIN` retry, a `pin locked` halt,
+    /// and a `token unplugged` replug branch independently.
+    #[error("pkcs11: {0}")]
+    Pkcs11(String),
+
     #[error("timeout")]
     Timeout,
 

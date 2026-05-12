@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Thêm key smart-card / token",
+  "pkcs11ModuleLabel": "Module PKCS#11",
+  "pkcs11ModuleAutoDetected": "Tự động phát hiện",
+  "pkcs11ModuleCustom": "Module tuỳ chỉnh...",
+  "pkcs11ModulePickerTitle": "Chọn library PKCS#11",
+  "pkcs11NoModuleFound": "Không tìm thấy module PKCS#11. Cài OpenSC hoặc chọn library của vendor.",
+  "pkcs11InitializeFailed": "Module PKCS#11 không initialise được.",
+  "pkcs11NoTokenPresent": "Không có token nào trong reader.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Token yêu cầu login.",
+  "pkcs11PinPrompt": "PIN cho {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Xác nhận trên PIN-pad của token.",
+  "pkcs11PinIncorrect": "PIN sai. Còn {remaining} lần thử.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "PIN của token đã khoá. Mở khoá bằng PUK.",
+  "pkcs11NoSignableKeys": "Token không có key dùng được với SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Key GOST không dùng được với SSH.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" không được cắm.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Không tìm thấy token đã lưu. Cắm lại và thử lại.",
+  "pkcs11SignFailed": "Signing thất bại: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 không khả dụng trên nền tảng này.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Chọn module PKCS#11",
+  "pkcs11WizardStepToken": "Chọn token",
+  "pkcs11WizardStepKey": "Chọn key",
+  "pkcs11WizardStepPin": "Nhập PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "Đang đọc public key từ token...",
+  "pkcs11SaveSuccess": "Đã thêm key smart card.",
+  "pkcs11ScanInProgress": "Đang quét module PKCS#11...",
+  "pkcs11LoadingTokens": "Đang tải token...",
+  "pkcs11LoadingKeys": "Đang tải key...",
+  "pkcs11ModuleStatusReady": "Module đã được tải.",
+  "pkcs11ModuleStatusNoToken": "Không có token.",
+  "pkcs11ModuleStatusFailed": "Không tải được module.",
+  "pkcs11PinPadHint": "(PIN pad trên thiết bị)",
+  "pkcs11WizardBack": "Quay lại",
+  "pkcs11WizardNext": "Tiếp"
 }

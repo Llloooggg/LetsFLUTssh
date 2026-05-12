@@ -396,6 +396,17 @@ pub use subprocess_util::bundle_root_from_macos_executable;
 // a target_os gate inside the module.
 pub mod winbio;
 
+// PKCS#11 (Cryptoki) driver — smart-card / hardware-token signing
+// for JaCarta / Рутокен / eToken / OpenPGP card / YubiKey PIV /
+// EU eID / Thales Luna / AWS CloudHSM. Desktop-only (Linux + macOS
+// + Windows); mobile cfg compiles to a stub that exposes the
+// "unsupported" error so the FRB shim can pass the failure through
+// without a separate cfg-gate on every call site. RFC 7512 URI
+// parser is cross-target because the import-flow's saved-URI rebind
+// path is shared regardless of whether the host can actually load
+// the library.
+pub mod pkcs11;
+
 // Android-only — direct JNI to platform Java APIs
 // (`java.security.KeyStore`, `androidx.biometric.BiometricPrompt`).
 // See `android::keystore` status block for the verification gate.

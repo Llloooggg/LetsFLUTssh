@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Añadir clave de tarjeta inteligente / token",
+  "pkcs11ModuleLabel": "Módulo PKCS#11",
+  "pkcs11ModuleAutoDetected": "Detectado automáticamente",
+  "pkcs11ModuleCustom": "Módulo personalizado...",
+  "pkcs11ModulePickerTitle": "Elegir librería PKCS#11",
+  "pkcs11NoModuleFound": "No se encontró módulo PKCS#11. Instala OpenSC o elige una librería del proveedor.",
+  "pkcs11InitializeFailed": "El módulo PKCS#11 no se inicializó.",
+  "pkcs11NoTokenPresent": "No hay token en ningún lector.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Número de serie: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "El token requiere login.",
+  "pkcs11PinPrompt": "PIN para {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Confirma en el PIN-pad del token.",
+  "pkcs11PinIncorrect": "PIN incorrecto. Quedan {remaining} intentos.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "El PIN del token está bloqueado. Desbloquéalo con el PUK.",
+  "pkcs11NoSignableKeys": "El token no tiene claves utilizables por SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Las claves GOST no se pueden usar con SSH.",
+  "pkcs11TokenUnplugged": "El token \"{label}\" no está conectado.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Token guardado no encontrado. Reconéctalo y reintenta.",
+  "pkcs11SignFailed": "Falló la firma: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Las tarjetas inteligentes / tokens PKCS#11 no están disponibles en esta plataforma.",
+  "pkcs11Badge": "Tarjeta inteligente / token",
+  "pkcs11InfoModulePath": "Módulo: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Serial del token: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Objeto: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Selecciona el módulo PKCS#11",
+  "pkcs11WizardStepToken": "Selecciona el token",
+  "pkcs11WizardStepKey": "Selecciona la clave",
+  "pkcs11WizardStepPin": "Introduce el PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Importar clave",
+  "pkcs11SaveInProgress": "Leyendo clave pública del token...",
+  "pkcs11SaveSuccess": "Clave de tarjeta inteligente agregada.",
+  "pkcs11ScanInProgress": "Buscando módulos PKCS#11...",
+  "pkcs11LoadingTokens": "Cargando tokens...",
+  "pkcs11LoadingKeys": "Cargando claves...",
+  "pkcs11ModuleStatusReady": "Módulo cargado.",
+  "pkcs11ModuleStatusNoToken": "Sin token presente.",
+  "pkcs11ModuleStatusFailed": "Fallo al cargar el módulo.",
+  "pkcs11PinPadHint": "(PIN pad en el dispositivo)",
+  "pkcs11WizardBack": "Atrás",
+  "pkcs11WizardNext": "Siguiente"
 }

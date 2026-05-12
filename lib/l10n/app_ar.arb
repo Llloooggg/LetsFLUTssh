@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "إضافة مفتاح smart-card / token",
+  "pkcs11ModuleLabel": "وحدة PKCS#11",
+  "pkcs11ModuleAutoDetected": "تم اكتشافه تلقائيًا",
+  "pkcs11ModuleCustom": "وحدة مخصصة...",
+  "pkcs11ModulePickerTitle": "اختر مكتبة PKCS#11",
+  "pkcs11NoModuleFound": "لم يتم العثور على وحدة PKCS#11. ثبّت OpenSC أو اختر مكتبة المُورد.",
+  "pkcs11InitializeFailed": "فشل تهيئة وحدة PKCS#11.",
+  "pkcs11NoTokenPresent": "لا يوجد token في القارئ.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "الرقم التسلسلي: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "يتطلب الـ token تسجيل دخول.",
+  "pkcs11PinPrompt": "PIN لـ {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "أكّد على PIN-pad الـ token.",
+  "pkcs11PinIncorrect": "PIN خاطئ. {remaining} محاولات متبقية.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "PIN الـ token مقفل. افتحه باستخدام PUK.",
+  "pkcs11NoSignableKeys": "الـ token لا يحتوي على مفاتيح SSH (RSA، ECDSA، Ed25519).",
+  "pkcs11GostUnsupported": "مفاتيح GOST لا تعمل مع SSH.",
+  "pkcs11TokenUnplugged": "الـ token \"{label}\" غير موصول.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Token المحفوظ غير موجود. أعد التوصيل وحاول مجددًا.",
+  "pkcs11SignFailed": "فشل التوقيع: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-cards / tokens PKCS#11 غير متاحة على هذه المنصة.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "اختر module PKCS#11",
+  "pkcs11WizardStepToken": "اختر token",
+  "pkcs11WizardStepKey": "اختر مفتاحًا",
+  "pkcs11WizardStepPin": "أدخل PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "قراءة المفتاح العام من token...",
+  "pkcs11SaveSuccess": "تم إضافة مفتاح smart card.",
+  "pkcs11ScanInProgress": "البحث عن modules PKCS#11...",
+  "pkcs11LoadingTokens": "تحميل tokens...",
+  "pkcs11LoadingKeys": "تحميل المفاتيح...",
+  "pkcs11ModuleStatusReady": "تم تحميل module.",
+  "pkcs11ModuleStatusNoToken": "لا يوجد token.",
+  "pkcs11ModuleStatusFailed": "فشل تحميل module.",
+  "pkcs11PinPadHint": "(PIN pad على الجهاز)",
+  "pkcs11WizardBack": "رجوع",
+  "pkcs11WizardNext": "التالي"
 }

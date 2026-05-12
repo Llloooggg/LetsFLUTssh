@@ -2873,4 +2873,162 @@ class SZh extends S {
   String agentEndpointStartFailed(String detail) {
     return '无法启动 ssh-agent endpoint：$detail';
   }
+
+  @override
+  String get pkcs11AddTitle => '添加智能卡 / 令牌密钥';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 模块';
+
+  @override
+  String get pkcs11ModuleAutoDetected => '自动检测';
+
+  @override
+  String get pkcs11ModuleCustom => '自定义模块...';
+
+  @override
+  String get pkcs11ModulePickerTitle => '选择 PKCS#11 库';
+
+  @override
+  String get pkcs11NoModuleFound => '未找到 PKCS#11 模块。请安装 OpenSC 或选择供应商库。';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 模块初始化失败。';
+
+  @override
+  String get pkcs11NoTokenPresent => '读卡器中没有令牌。';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return '令牌: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return '序列号: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => '令牌需要登录。';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token 的 PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => '在令牌的 PIN 板上确认。';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN 错误。剩 $remaining 次。';
+  }
+
+  @override
+  String get pkcs11PinLocked => '令牌 PIN 已锁定。使用 PUK 解锁。';
+
+  @override
+  String get pkcs11NoSignableKeys => '令牌上没有 SSH 可用的密钥 (RSA、ECDSA、Ed25519)。';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST 密钥无法用于 SSH。';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return '令牌 \"$label\" 未插入。';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed => '未找到已保存的令牌。请重新插入后重试。';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return '签名失败: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile => '此平台不支持智能卡 / PKCS#11 令牌。';
+
+  @override
+  String get pkcs11Badge => '智能卡 / 令牌';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return '模块：$path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return '令牌序列号：$serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return '对象：$label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => '选择 PKCS#11 模块';
+
+  @override
+  String get pkcs11WizardStepToken => '选择令牌';
+
+  @override
+  String get pkcs11WizardStepKey => '选择密钥';
+
+  @override
+  String get pkcs11WizardStepPin => '输入 PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => '导入密钥';
+
+  @override
+  String get pkcs11SaveInProgress => '正在从令牌读取公钥...';
+
+  @override
+  String get pkcs11SaveSuccess => '已添加智能卡密钥。';
+
+  @override
+  String get pkcs11ScanInProgress => '正在扫描 PKCS#11 模块...';
+
+  @override
+  String get pkcs11LoadingTokens => '正在加载令牌...';
+
+  @override
+  String get pkcs11LoadingKeys => '正在加载密钥...';
+
+  @override
+  String get pkcs11ModuleStatusReady => '模块已加载。';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => '未插入令牌。';
+
+  @override
+  String get pkcs11ModuleStatusFailed => '模块加载失败。';
+
+  @override
+  String get pkcs11PinPadHint => '（设备 PIN pad）';
+
+  @override
+  String get pkcs11WizardBack => '上一步';
+
+  @override
+  String get pkcs11WizardNext => '下一步';
 }

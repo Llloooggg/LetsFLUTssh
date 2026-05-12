@@ -5228,6 +5228,282 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Could not start the SSH agent endpoint: {detail}'**
   String agentEndpointStartFailed(String detail);
+
+  /// No description provided for @pkcs11AddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add smart-card / token key'**
+  String get pkcs11AddTitle;
+
+  /// No description provided for @pkcs11ModuleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PKCS#11 module'**
+  String get pkcs11ModuleLabel;
+
+  /// No description provided for @pkcs11ModuleAutoDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detected'**
+  String get pkcs11ModuleAutoDetected;
+
+  /// No description provided for @pkcs11ModuleCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom module...'**
+  String get pkcs11ModuleCustom;
+
+  /// No description provided for @pkcs11ModulePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose PKCS#11 library'**
+  String get pkcs11ModulePickerTitle;
+
+  /// No description provided for @pkcs11NoModuleFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No PKCS#11 module found. Install OpenSC or pick a vendor library.'**
+  String get pkcs11NoModuleFound;
+
+  /// No description provided for @pkcs11InitializeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'PKCS#11 module did not initialise.'**
+  String get pkcs11InitializeFailed;
+
+  /// No description provided for @pkcs11NoTokenPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'No token present in any reader.'**
+  String get pkcs11NoTokenPresent;
+
+  /// No description provided for @pkcs11TokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Token: {label}'**
+  String pkcs11TokenLabel(String label);
+
+  /// No description provided for @pkcs11TokenSerial.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial: {serial}'**
+  String pkcs11TokenSerial(String serial);
+
+  /// No description provided for @pkcs11LoginRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Token requires login.'**
+  String get pkcs11LoginRequired;
+
+  /// No description provided for @pkcs11PinPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN for {token}'**
+  String pkcs11PinPrompt(String token);
+
+  /// No description provided for @pkcs11PinPad.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm on the token\'s PIN pad.'**
+  String get pkcs11PinPad;
+
+  /// No description provided for @pkcs11PinIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN incorrect. {remaining} tries left.'**
+  String pkcs11PinIncorrect(String remaining);
+
+  /// No description provided for @pkcs11PinLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Token PIN is locked. Unblock with the PUK.'**
+  String get pkcs11PinLocked;
+
+  /// No description provided for @pkcs11NoSignableKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Token has no SSH-usable keys (RSA, ECDSA, Ed25519).'**
+  String get pkcs11NoSignableKeys;
+
+  /// No description provided for @pkcs11GostUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'GOST keys cannot be used with SSH.'**
+  String get pkcs11GostUnsupported;
+
+  /// No description provided for @pkcs11TokenUnplugged.
+  ///
+  /// In en, this message translates to:
+  /// **'Token \"{label}\" is not currently inserted.'**
+  String pkcs11TokenUnplugged(String label);
+
+  /// No description provided for @pkcs11UriRebindFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved token not found. Replug and retry.'**
+  String get pkcs11UriRebindFailed;
+
+  /// No description provided for @pkcs11SignFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing failed: {reason}'**
+  String pkcs11SignFailed(String reason);
+
+  /// No description provided for @pkcs11HwUnavailableMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-card / PKCS#11 tokens are not available on this platform.'**
+  String get pkcs11HwUnavailableMobile;
+
+  /// No description provided for @pkcs11Badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart card / token'**
+  String get pkcs11Badge;
+
+  /// No description provided for @pkcs11InfoModulePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Module: {path}'**
+  String pkcs11InfoModulePath(String path);
+
+  /// No description provided for @pkcs11InfoTokenSerial.
+  ///
+  /// In en, this message translates to:
+  /// **'Token serial: {serial}'**
+  String pkcs11InfoTokenSerial(String serial);
+
+  /// No description provided for @pkcs11InfoObjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Object: {label}'**
+  String pkcs11InfoObjectLabel(String label);
+
+  /// No description provided for @pkcs11WizardStepModule.
+  ///
+  /// In en, this message translates to:
+  /// **'Select PKCS#11 module'**
+  String get pkcs11WizardStepModule;
+
+  /// No description provided for @pkcs11WizardStepToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Select token'**
+  String get pkcs11WizardStepToken;
+
+  /// No description provided for @pkcs11WizardStepKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Select key'**
+  String get pkcs11WizardStepKey;
+
+  /// No description provided for @pkcs11WizardStepPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter PIN'**
+  String get pkcs11WizardStepPin;
+
+  /// No description provided for @pkcs11AlgoRsa.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA'**
+  String get pkcs11AlgoRsa;
+
+  /// No description provided for @pkcs11AlgoEcdsa.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA'**
+  String get pkcs11AlgoEcdsa;
+
+  /// No description provided for @pkcs11AlgoEd25519.
+  ///
+  /// In en, this message translates to:
+  /// **'Ed25519'**
+  String get pkcs11AlgoEd25519;
+
+  /// No description provided for @pkcs11AlgoGost.
+  ///
+  /// In en, this message translates to:
+  /// **'GOST'**
+  String get pkcs11AlgoGost;
+
+  /// No description provided for @pkcs11KeyMetaFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'{algo} {detail}'**
+  String pkcs11KeyMetaFormat(String algo, String detail);
+
+  /// No description provided for @pkcs11SaveCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Import key'**
+  String get pkcs11SaveCta;
+
+  /// No description provided for @pkcs11SaveInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading public key from token...'**
+  String get pkcs11SaveInProgress;
+
+  /// No description provided for @pkcs11SaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-card key added.'**
+  String get pkcs11SaveSuccess;
+
+  /// No description provided for @pkcs11ScanInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for PKCS#11 modules...'**
+  String get pkcs11ScanInProgress;
+
+  /// No description provided for @pkcs11LoadingTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading tokens...'**
+  String get pkcs11LoadingTokens;
+
+  /// No description provided for @pkcs11LoadingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading keys...'**
+  String get pkcs11LoadingKeys;
+
+  /// No description provided for @pkcs11ModuleStatusReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Module loaded.'**
+  String get pkcs11ModuleStatusReady;
+
+  /// No description provided for @pkcs11ModuleStatusNoToken.
+  ///
+  /// In en, this message translates to:
+  /// **'No token present.'**
+  String get pkcs11ModuleStatusNoToken;
+
+  /// No description provided for @pkcs11ModuleStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Module load failed.'**
+  String get pkcs11ModuleStatusFailed;
+
+  /// No description provided for @pkcs11PinPadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'(PIN pad on device)'**
+  String get pkcs11PinPadHint;
+
+  /// No description provided for @pkcs11WizardBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get pkcs11WizardBack;
+
+  /// No description provided for @pkcs11WizardNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get pkcs11WizardNext;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

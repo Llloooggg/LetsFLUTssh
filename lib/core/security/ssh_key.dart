@@ -248,6 +248,25 @@ class SshKeyMetadata {
   final Map<String, String> criticalOptions;
   final String certFingerprint;
 
+  /// Backend discriminator mirrored from `ssh_keys.backend`. One of
+  /// `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` /
+  /// `keystore`. Drives the badge picker in the key manager — software
+  /// rows render no badge, FIDO2 the "Hardware-bound (FIDO2)" pill,
+  /// PKCS#11 the "Smart card / token" pill (with an info popover
+  /// showing module + token serial + object label).
+  final String backend;
+
+  /// PKCS#11 module path captured at import. `null` for non-PKCS#11
+  /// rows.
+  final String? pkcs11ModulePath;
+
+  /// PKCS#11 token serial captured at import.
+  final String? pkcs11TokenSerial;
+
+  /// PKCS#11 object label (`CKA_LABEL`) — the on-token name of the
+  /// key object. Distinct from the row's user-typed [label].
+  final String? pkcs11ObjectLabel;
+
   const SshKeyMetadata({
     required this.id,
     required this.label,
@@ -261,9 +280,23 @@ class SshKeyMetadata {
     this.principals = const [],
     this.criticalOptions = const {},
     this.certFingerprint = '',
+    this.backend = 'software',
+    this.pkcs11ModulePath,
+    this.pkcs11TokenSerial,
+    this.pkcs11ObjectLabel,
   });
 
   bool get hasCertificate => certFingerprint.isNotEmpty;
+
+  /// True when the row's `backend` discriminator names a PKCS#11
+  /// smart-card / token. Drives the key-manager badge + info popover.
+  bool get isPkcs11 => backend == 'pkcs11';
+
+  /// True when the row's `backend` discriminator names a FIDO2 sk-*
+  /// hardware key. Mirrors the existing `sk-*` keyType heuristic so
+  /// rows imported before schema v9 (which the migration arm relabels
+  /// to `fido2`) still pick the FIDO2 badge.
+  bool get isFido2 => backend == 'fido2';
 }
 
 /// Thrown when key store operations fail.

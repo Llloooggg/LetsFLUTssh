@@ -2961,4 +2961,166 @@ class SFa extends S {
   String agentEndpointStartFailed(String detail) {
     return 'راه‌اندازی ssh-agent endpoint ممکن نشد: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'افزودن کلید smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'ماژول PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'به‌طور خودکار پیدا شد';
+
+  @override
+  String get pkcs11ModuleCustom => 'ماژول دلخواه...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'انتخاب کتابخانه PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'ماژول PKCS#11 پیدا نشد. OpenSC را نصب کنید یا کتابخانه vendor را انتخاب کنید.';
+
+  @override
+  String get pkcs11InitializeFailed => 'ماژول PKCS#11 initialise نشد.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'هیچ token در reader وجود ندارد.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token نیاز به ورود دارد.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN برای $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'روی PIN-pad token تأیید کنید.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN اشتباه. $remaining تلاش باقی‌مانده.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN قفل شده. با PUK باز کنید.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token کلید SSH-قابل‌استفاده ندارد (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'کلیدهای GOST با SSH کار نمی‌کنند.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" متصل نیست.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token ذخیره‌شده پیدا نشد. دوباره وصل کنید.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Sign ناموفق: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / token PKCS#11 در این پلتفرم در دسترس نیست.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Module PKCS#11 را انتخاب کنید';
+
+  @override
+  String get pkcs11WizardStepToken => 'Token را انتخاب کنید';
+
+  @override
+  String get pkcs11WizardStepKey => 'کلید را انتخاب کنید';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN را وارد کنید';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'خواندن کلید عمومی از token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'کلید smart card اضافه شد.';
+
+  @override
+  String get pkcs11ScanInProgress => 'جستجوی module های PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'بارگذاری token ها...';
+
+  @override
+  String get pkcs11LoadingKeys => 'بارگذاری کلیدها...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module بارگذاری شد.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token موجود نیست.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'بارگذاری module ناموفق بود.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad روی دستگاه)';
+
+  @override
+  String get pkcs11WizardBack => 'بازگشت';
+
+  @override
+  String get pkcs11WizardNext => 'بعدی';
 }

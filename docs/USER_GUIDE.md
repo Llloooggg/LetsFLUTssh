@@ -155,6 +155,47 @@ sudo udevadm trigger
 
 The rules cover Yubico (1050), STMicroelectronics (0483, SoloKey), Feitian (096e), Trezor (1209/53c1), Nitrokey (20a0), Google Titan (18d1), and OpenMoko (1d50, OnlyKey + assorted FIDO2 firmware).
 
+### Hardware key (PKCS#11 smart cards and tokens)
+
+LetsFLUTssh supports smart cards and hardware tokens that speak the PKCS#11 (Cryptoki) standard. Coverage includes:
+
+- **JaCarta** (Aladdin / Aladdin R.D.) — corp-segment Russia / CIS.
+- **Рутокен** (Rutoken ECP / ECP2 / Lite series) — corp-segment Russia / CIS.
+- **eToken / SafeNet** — global enterprise.
+- **YubiKey PIV applet** (alternative to the FIDO2 path; uses the on-card PIV slots).
+- **OpenPGP card** (Nitrokey Pro / Storage, ZeitControl OpenPGP card, Yubikey OpenPGP applet).
+- **Estonian ID / Finnish HST / German eIDAS smartcards** via OpenSC.
+- **Thales Luna network HSM** — enterprise HSMs.
+- **AWS CloudHSM** — Cloud HSM client.
+
+The private key never leaves the token; every connect-time signature routes through the vendor's `dlopen`'d library into `C_Sign`. Imported PKCS#11 keys also surface through the in-process ssh-agent (see [§10b](#10b-using-hardware-bound-keys-outside-the-app)) so `git`, `ssh`, IDE plugins can use them.
+
+1. Install the vendor driver:
+   - **Linux** — `apt-get install opensc` (OpenPGP card, PIV applets, eID), `apt-get install pcscd` + add yourself to the `scard` or `pcscd` group for reader access. JaCarta / Рутокен / eToken: install the vendor's `.deb` / `.rpm` (Aladdin JaCarta drivers, Rutoken SDK, SafeNet Authentication Client). Restart the session after group changes.
+   - **Windows** — vendor installer (JaCarta Unified Client, Rutoken Driver, SafeNet Authentication Client, YubiKey Manager + PIV Tool, OpenSC for OpenPGP card / eID).
+   - **macOS** — `brew install opensc` or vendor `.pkg`. The macOS hardened-runtime may block unsigned vendor `.dylib`s; if the picker reports "module did not initialise" right after install, open **System Settings → Privacy & Security**, scroll down, click **Allow** next to the blocked library, then re-try.
+2. Plug the token / insert the smart card.
+3. In the app: **Tools → SSH Keys → Add smart-card / token key**. The wizard's first step shows every well-known vendor library it found on disk; pick one (or use **Custom...** to browse for a vendor library at a non-standard path). Each row carries a status dot — **green** = the module loaded and a token is present, **amber** = module loaded but no token in any reader, **red** = the library failed to initialise (vendor driver missing / blocked).
+4. Step two lists tokens present in the chosen module. The row shows the manufacturer, model, serial number, and any warnings (PIN-final-try, PIN-locked). Tokens with a built-in PIN pad show "(PIN pad on device)" instead of asking for a PIN here.
+5. Step three asks for the PIN (skipped for PIN-pad tokens and for tokens that do not require login). Wrong PINs surface the remaining-tries counter the token reports; **don't keep trying** when "1 try left" appears — the next failure locks the card and recovery requires the SO-PIN / PUK from your administrator.
+6. Step four lists every SSH-usable key on the token (RSA, ECDSA P-256 / P-384 / P-521, Ed25519). GOST-only keys show disabled with the "GOST cannot be used with SSH" reason. Pick the row you want and confirm.
+7. Step five — confirm the label (defaults to the on-token object label) and tap **Import key**. The imported key appears in the SSH Keys list with the **Smart card / token** badge; tap the badge to see the captured module path, token serial, and object label.
+8. Reference the key from a session's **Auth → Key from manager** drop-down. On connect the app asks for the PIN once per connect attempt (or fires the PIN-pad prompt on protected-authentication-path tokens).
+
+**Platform availability**
+
+| Platform | Status |
+|---|---|
+| Linux | Supported. Install `pcscd` + the vendor driver. |
+| Windows | Supported. Vendor DLLs install with vendor drivers. |
+| macOS | Supported. Hardened-runtime / Library Validation may block unsigned vendor `.dylib`; allow once in System Settings → Privacy & Security. |
+| Android | Disabled — no compatible vendor `.so` ABI on Android. |
+| iOS | Disabled — the sandbox forbids `dlopen` of arbitrary `.dylib`. |
+
+**Network HSM caveats.** Thales Luna and AWS CloudHSM both require their respective clients to be pre-configured (`/etc/Chrystoki.conf` for Luna, `/etc/cloudhsm/cloudhsm.cfg` for CloudHSM). LetsFLUTssh's UI does not ship a configuration surface for those clients — set them up per the vendor's documentation first, then point the picker at the resulting `.so` (`libCryptoki2_64.so` or `libcloudhsm_pkcs11.so`).
+
+**GOST keys.** PKCS#11 supports `CKK_GOSTR3410` for state-sector cryptography. SSH has no GOST wire suite, so the picker shows GOST keys but disables them with the "GOST cannot be used with SSH" reason. JaCarta / Рутокен tokens that hold both an RSA / ECDSA key (for SSH) and a GOST key (for state-portal auth) work fine — the import picks the SSH-usable one and ignores the GOST sibling.
+
 ---
 
 ## 4. Terminal
@@ -559,7 +600,7 @@ Centralised key store so a single key can be referenced from many sessions.
 
 ## 10b. Using hardware-bound keys outside the app
 
-LetsFLUTssh can act as an ssh-agent on the same host so `git`, OpenSSH `ssh` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+ and other SSH-protocol-speaking tools can use the FIDO2 (and future PKCS#11 / TPM / Secure Enclave / Hello / Keystore) keys you import here.
+LetsFLUTssh can act as an ssh-agent on the same host so `git`, OpenSSH `ssh` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+ and other SSH-protocol-speaking tools can use the FIDO2 and PKCS#11 (and future TPM / Secure Enclave / Hello / Keystore) keys you import here.
 
 The endpoint is off by default for safety — flip it on under **Settings → External SSH client integration** when you want to reach your hardware keys from outside the app. Every signature request still routes through a confirmation dialog ("Authorize once" / "Authorize and remember" / "Deny") unless you explicitly promote the key's policy.
 

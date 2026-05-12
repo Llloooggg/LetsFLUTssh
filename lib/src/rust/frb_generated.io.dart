@@ -42,6 +42,7 @@ import 'api/os_security.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
 import 'api/persisted_rate_limit_actor.dart';
+import 'api/pkcs11.dart';
 import 'api/qr_codec_encode.dart';
 import 'api/qr_compose.dart';
 import 'api/rate_limit.dart';
@@ -378,6 +379,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPkcs11ImportArgs dco_decode_box_autoadd_db_pkcs_11_import_args(dynamic raw);
+
+  @protected
   DbPortForwardRule dco_decode_box_autoadd_db_port_forward_rule(dynamic raw);
 
   @protected
@@ -660,6 +664,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPasswordStrength dco_decode_db_password_strength(dynamic raw);
 
   @protected
+  DbPkcs11ImportArgs dco_decode_db_pkcs_11_import_args(dynamic raw);
+
+  @protected
+  DbPkcs11KeyMeta dco_decode_db_pkcs_11_key_meta(dynamic raw);
+
+  @protected
+  DbPkcs11ModuleCandidate dco_decode_db_pkcs_11_module_candidate(dynamic raw);
+
+  @protected
+  DbPkcs11TokenInfo dco_decode_db_pkcs_11_token_info(dynamic raw);
+
+  @protected
+  DbPkcs11UriParts dco_decode_db_pkcs_11_uri_parts(dynamic raw);
+
+  @protected
   DbPlaybackEvent dco_decode_db_playback_event(dynamic raw);
 
   @protected
@@ -933,6 +952,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbParsedHostEntry> dco_decode_list_db_parsed_host_entry(dynamic raw);
+
+  @protected
+  List<DbPkcs11KeyMeta> dco_decode_list_db_pkcs_11_key_meta(dynamic raw);
+
+  @protected
+  List<DbPkcs11ModuleCandidate> dco_decode_list_db_pkcs_11_module_candidate(
+    dynamic raw,
+  );
+
+  @protected
+  List<DbPkcs11TokenInfo> dco_decode_list_db_pkcs_11_token_info(dynamic raw);
 
   @protected
   List<DbPortForwardRule> dco_decode_list_db_port_forward_rule(dynamic raw);
@@ -1520,6 +1550,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPkcs11ImportArgs sse_decode_box_autoadd_db_pkcs_11_import_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbPortForwardRule sse_decode_box_autoadd_db_port_forward_rule(
     SseDeserializer deserializer,
   );
@@ -1886,6 +1921,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPkcs11ImportArgs sse_decode_db_pkcs_11_import_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbPkcs11KeyMeta sse_decode_db_pkcs_11_key_meta(SseDeserializer deserializer);
+
+  @protected
+  DbPkcs11ModuleCandidate sse_decode_db_pkcs_11_module_candidate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbPkcs11TokenInfo sse_decode_db_pkcs_11_token_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbPkcs11UriParts sse_decode_db_pkcs_11_uri_parts(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbPlaybackEvent sse_decode_db_playback_event(SseDeserializer deserializer);
 
   @protected
@@ -2247,6 +2305,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbParsedHostEntry> sse_decode_list_db_parsed_host_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbPkcs11KeyMeta> sse_decode_list_db_pkcs_11_key_meta(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbPkcs11ModuleCandidate> sse_decode_list_db_pkcs_11_module_candidate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbPkcs11TokenInfo> sse_decode_list_db_pkcs_11_token_info(
     SseDeserializer deserializer,
   );
 
@@ -2964,6 +3037,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_pkcs_11_import_args(
+    DbPkcs11ImportArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_port_forward_rule(
     DbPortForwardRule self,
     SseSerializer serializer,
@@ -3435,6 +3514,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_pkcs_11_import_args(
+    DbPkcs11ImportArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_pkcs_11_key_meta(
+    DbPkcs11KeyMeta self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_pkcs_11_module_candidate(
+    DbPkcs11ModuleCandidate self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_pkcs_11_token_info(
+    DbPkcs11TokenInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_pkcs_11_uri_parts(
+    DbPkcs11UriParts self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_playback_event(
     DbPlaybackEvent self,
     SseSerializer serializer,
@@ -3902,6 +4011,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_parsed_host_entry(
     List<DbParsedHostEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_pkcs_11_key_meta(
+    List<DbPkcs11KeyMeta> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_pkcs_11_module_candidate(
+    List<DbPkcs11ModuleCandidate> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_pkcs_11_token_info(
+    List<DbPkcs11TokenInfo> self,
     SseSerializer serializer,
   );
 

@@ -3042,4 +3042,167 @@ class SPt extends S {
   String agentEndpointStartFailed(String detail) {
     return 'Não foi possível iniciar o ssh-agent endpoint: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Adicionar chave de smartcard / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'Módulo PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Detectado automaticamente';
+
+  @override
+  String get pkcs11ModuleCustom => 'Módulo personalizado...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Escolher biblioteca PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Nenhum módulo PKCS#11 encontrado. Instale OpenSC ou escolha uma biblioteca do fornecedor.';
+
+  @override
+  String get pkcs11InitializeFailed => 'O módulo PKCS#11 não inicializou.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Nenhum token em nenhum leitor.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Número de série: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'O token requer login.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN para $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Confirme no PIN-pad do token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN incorreto. Restam $remaining tentativas.';
+  }
+
+  @override
+  String get pkcs11PinLocked =>
+      'PIN do token bloqueado. Desbloqueie com o PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'O token não tem chaves utilizáveis por SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Chaves GOST não funcionam com SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'O token \"$label\" não está conectado.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token salvo não encontrado. Reconecte e tente novamente.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Falha na assinatura: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smartcards / tokens PKCS#11 não estão disponíveis nesta plataforma.';
+
+  @override
+  String get pkcs11Badge => 'Smartcard / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Módulo: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Serial do token: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Objeto: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Selecione o módulo PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Selecione o token';
+
+  @override
+  String get pkcs11WizardStepKey => 'Selecione a chave';
+
+  @override
+  String get pkcs11WizardStepPin => 'Digite o PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Importar chave';
+
+  @override
+  String get pkcs11SaveInProgress => 'Lendo chave pública do token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Chave do smartcard adicionada.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Procurando módulos PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Carregando tokens...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Carregando chaves...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Módulo carregado.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Nenhum token presente.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Falha ao carregar o módulo.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad no dispositivo)';
+
+  @override
+  String get pkcs11WizardBack => 'Voltar';
+
+  @override
+  String get pkcs11WizardNext => 'Próximo';
 }

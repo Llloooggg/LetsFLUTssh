@@ -143,6 +143,20 @@ pub enum ConnectAuthRef {
         application: String,
         pin_secret_id: Option<String>,
     },
+    /// PKCS#11 hardware-token key. The `module_path`, `token_serial`,
+    /// and `cka_id` triple carries the disambiguation surface; `key_type`
+    /// drives the wire-name selection (rsa, ecdsa-*, ed25519); and
+    /// `pin_secret_id` points at a staged transient PIN entry — `None`
+    /// for protected-authentication-path tokens. Reaches
+    /// `Session::connect_pubkey_pkcs11_owned` on dispatch.
+    PubkeyPkcs11 {
+        public_openssh: String,
+        module_path: String,
+        token_serial: String,
+        cka_id: Vec<u8>,
+        key_type: String,
+        pin_secret_id: Option<String>,
+    },
     Agent,
 }
 
@@ -975,6 +989,33 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
                 "FIDO2 hardware key over ProxyJump is not supported yet".into(),
             ))
         }
+        (
+            ConnectAuthRef::PubkeyPkcs11 {
+                public_openssh,
+                module_path,
+                token_serial,
+                cka_id,
+                key_type,
+                pin_secret_id,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_pkcs11_owned(crate::ssh::ConnectPubkeyPkcs11OwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                module_path,
+                token_serial,
+                cka_id,
+                key_type,
+                pin_secret_id,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeyPkcs11 { .. }, Some(_parent)) => Err(Error::Auth(
+            "PKCS#11 hardware key over ProxyJump is not supported yet".into(),
+        )),
         (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
         (ConnectAuthRef::Agent, Some(parent)) => {
             Session::connect_agent_via_proxy_owned(parent, host, port, user).await

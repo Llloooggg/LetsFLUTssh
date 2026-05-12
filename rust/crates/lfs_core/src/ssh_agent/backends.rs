@@ -58,31 +58,35 @@ pub struct SignOutput {
     pub signature: Vec<u8>,
 }
 
-/// Backend discriminator. Today we resolve from the live
-/// `ssh_keys` columns (`credential_id IS NOT NULL` -> `Fido2`,
-/// otherwise `Software`). Each future hardware-bound Signer task
-/// extends this enum + the matching dispatch arm in lockstep —
-/// adding variants before their Signer exists trips
-/// dead-code-analysis and the project's lints policy bars
-/// suppression.
+/// Backend discriminator. Schema v9 introduced the explicit
+/// `ssh_keys.backend` TEXT column; the dispatcher reads it through
+/// the typed [`KeyBackend`] enum on the row. Each future
+/// hardware-bound Signer task extends this enum + the matching
+/// dispatch arm in lockstep — adding variants before their Signer
+/// exists trips dead-code-analysis and the project's lints policy
+/// bars suppression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
     Software,
     Fido2,
+    Pkcs11,
 }
 
 impl BackendKind {
     /// Resolve the backend discriminator from a stored `ssh_keys`
-    /// row. Today the schema does not carry an explicit `backend`
-    /// column; the hardware-key column rollout introduces it,
-    /// and at that point this resolver re-routes through the
-    /// explicit text. Returning a typed enum keeps the
-    /// dispatcher's switch compile-checked at every site.
+    /// row. Reads the typed `backend` column; pre-v9 software-only
+    /// rows surface as `Software`, FIDO2 rows surface as `Fido2`,
+    /// PKCS#11 rows surface as `Pkcs11`. Reserved backends (TPM,
+    /// Enclave, Hello, Keystore) fall through to `Software` until
+    /// their Signer lands — the listing path filters those out
+    /// before the dispatcher sees them, so the fallback never
+    /// fires in practice.
     pub fn from_row(row: &SshKeyRow) -> Self {
-        if row.credential_id.is_some() {
-            Self::Fido2
-        } else {
-            Self::Software
+        use crate::db::ssh_keys::KeyBackend;
+        match row.backend {
+            KeyBackend::Fido2 => Self::Fido2,
+            KeyBackend::Pkcs11 => Self::Pkcs11,
+            _ => Self::Software,
         }
     }
 }
@@ -117,11 +121,140 @@ pub async fn dispatch_sign_by_kind(
     kind: BackendKind,
     row: &SshKeyRow,
     data: &[u8],
-    _flags: u32,
+    flags: u32,
 ) -> Result<SignOutput, BackendError> {
     match kind {
         BackendKind::Software => Err(BackendError::SoftwareKeyRefused),
         BackendKind::Fido2 => fido2_sign(row, data).await,
+        BackendKind::Pkcs11 => pkcs11_sign(row, data, flags).await,
+    }
+}
+
+/// PKCS#11 dispatcher. Resolves the row's module path, token serial,
+/// and `CKA_ID`, asks `lfs_os_security::pkcs11` to sign the userauth
+/// buffer, then composes the SSH wire body.
+///
+/// PIN handling for agent-endpoint dispatch: the wire protocol has
+/// no surface for a PIN prompt during sign; we reach into the
+/// SecretStore for an entry under `pkcs11.pin.<key_id>` that the
+/// user-facing UI seeded earlier (typically the import or the
+/// recently-completed connect flow). Absent that entry, the
+/// dispatcher refuses with a typed `Pkcs11` error so the external
+/// client surfaces a clear "no PIN cached" failure rather than
+/// hanging on a `C_Login` without a PIN.
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+async fn pkcs11_sign(row: &SshKeyRow, data: &[u8], flags: u32) -> Result<SignOutput, BackendError> {
+    // Pull module path + CKA_ID out of the row; refuse loudly if a
+    // backend='pkcs11' row is missing either ingredient — that
+    // shape would be a DB corruption case the schema check at
+    // import already rejects.
+    let module_path = row.pkcs11_module_path.clone().ok_or_else(|| {
+        BackendError::Signer(Error::Pkcs11("row missing pkcs11_module_path".into()))
+    })?;
+    let object_id = row.pkcs11_object_id.clone().ok_or_else(|| {
+        BackendError::Signer(Error::Pkcs11("row missing pkcs11_object_id".into()))
+    })?;
+
+    let key_id = row.id.clone();
+    let key_type = row.key_type.clone();
+    let token_serial = row.pkcs11_token_serial.clone();
+    let data = data.to_vec();
+
+    tokio::task::spawn_blocking(move || -> Result<SignOutput, BackendError> {
+        let path = std::path::PathBuf::from(&module_path);
+        let module = lfs_os_security::pkcs11::module::load(&path)
+            .map_err(|e| BackendError::Signer(Error::Pkcs11(format!("load module: {e}"))))?;
+        // Walk slots to find one whose token serial matches.
+        let slots = module
+            .pkcs11()
+            .get_slots_with_token()
+            .map_err(|e| BackendError::Signer(Error::Pkcs11(format!("get_slots: {e}"))))?;
+        let mut matched = None;
+        for slot in slots {
+            if let Ok(info) = module.pkcs11().get_token_info(slot) {
+                let serial = info.serial_number().to_string();
+                if token_serial.as_deref() == Some(serial.trim()) {
+                    matched = Some(slot);
+                    break;
+                }
+            }
+        }
+        let slot = matched.ok_or_else(|| {
+            BackendError::Signer(Error::Pkcs11(
+                "unplugged: matching token not present".into(),
+            ))
+        })?;
+        let session = lfs_os_security::pkcs11::session::for_slot(&module, slot);
+        // PIN resolution — read the cached entry under the canonical id.
+        let pin_id = format!("pkcs11.pin.{key_id}");
+        let pin_bytes = crate::app::instance().secrets.get(&pin_id);
+        let pin_str = match pin_bytes.as_ref() {
+            Some(b) => Some(
+                std::str::from_utf8(b)
+                    .map_err(|_| {
+                        BackendError::Signer(Error::Pkcs11("pin: cached entry not utf-8".into()))
+                    })?
+                    .to_string(),
+            ),
+            None => None,
+        };
+        // RSA flag selection: 0x02 = rsa-sha2-256, 0x04 = rsa-sha2-512
+        // per draft-miller-ssh-agent §3.6.1. ECDSA / Ed25519 ignore flags.
+        let algorithm = ssh_algorithm_for_pkcs11(&key_type, flags);
+        let req = lfs_os_security::pkcs11::sign::SignRequest {
+            session: &session,
+            pin: pin_str.as_deref(),
+            cka_id: &object_id,
+            algorithm: &algorithm,
+            to_sign: &data,
+        };
+        let out = lfs_os_security::pkcs11::sign::sign_with_pkcs11(req)
+            .map_err(|e| BackendError::Signer(Error::Pkcs11(e.to_string())))?;
+        Ok(SignOutput {
+            algorithm,
+            signature: out.ssh_sig_body,
+        })
+    })
+    .await
+    .map_err(|e| BackendError::Signer(Error::Pkcs11(format!("spawn_blocking: {e}"))))?
+}
+
+/// Mobile stub — the desktop-only `lfs_os_security::pkcs11` module
+/// is not built on Android / iOS. The agent endpoint itself is also
+/// stubbed there, so this branch is reached only on impossible
+/// cfg combinations; surface a typed unsupported error so the build
+/// stays cfg-clean.
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+async fn pkcs11_sign(
+    _row: &SshKeyRow,
+    _data: &[u8],
+    _flags: u32,
+) -> Result<SignOutput, BackendError> {
+    Err(BackendError::Signer(Error::Pkcs11(
+        "pkcs11 unavailable on this platform".into(),
+    )))
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+fn ssh_algorithm_for_pkcs11(key_type: &str, flags: u32) -> String {
+    match key_type {
+        "rsa" | "ssh-rsa" => {
+            // SSH agent draft §3.6.1: flag 0x02 selects SHA-256,
+            // 0x04 selects SHA-512. Default to SHA-512 (the stronger
+            // option) when neither bit is set — old `ssh-rsa` SHA-1
+            // is server-deprecated and the PKCS#11 sign path refuses
+            // it explicitly.
+            if flags & 0x02 != 0 {
+                "rsa-sha2-256".into()
+            } else {
+                "rsa-sha2-512".into()
+            }
+        }
+        "ecdsa-p256" | "ecdsa-sha2-nistp256" => "ecdsa-sha2-nistp256".into(),
+        "ecdsa-p384" | "ecdsa-sha2-nistp384" => "ecdsa-sha2-nistp384".into(),
+        "ecdsa-p521" | "ecdsa-sha2-nistp521" => "ecdsa-sha2-nistp521".into(),
+        "ed25519" | "ssh-ed25519" => "ssh-ed25519".into(),
+        other => other.to_string(),
     }
 }
 
@@ -214,6 +347,12 @@ mod tests {
             application_string: None,
             has_user_verification: false,
             agent_policy: AgentPolicy::Ask,
+            backend: crate::db::ssh_keys::KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         }
     }
 
@@ -222,6 +361,7 @@ mod tests {
             credential_id: Some(vec![1, 2, 3]),
             application_string: Some("ssh:".into()),
             key_type: "sk-ssh-ed25519@openssh.com".into(),
+            backend: crate::db::ssh_keys::KeyBackend::Fido2,
             ..row_software()
         }
     }

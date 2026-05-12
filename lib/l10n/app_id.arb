@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Tambah key smart-card / token",
+  "pkcs11ModuleLabel": "Modul PKCS#11",
+  "pkcs11ModuleAutoDetected": "Terdeteksi otomatis",
+  "pkcs11ModuleCustom": "Modul kustom...",
+  "pkcs11ModulePickerTitle": "Pilih library PKCS#11",
+  "pkcs11NoModuleFound": "Modul PKCS#11 tidak ditemukan. Install OpenSC atau pilih library vendor.",
+  "pkcs11InitializeFailed": "Modul PKCS#11 gagal initialise.",
+  "pkcs11NoTokenPresent": "Tidak ada token di reader manapun.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Token butuh login.",
+  "pkcs11PinPrompt": "PIN untuk {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Konfirmasi di PIN-pad token.",
+  "pkcs11PinIncorrect": "PIN salah. Sisa {remaining} percobaan.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "PIN token terkunci. Unblock dengan PUK.",
+  "pkcs11NoSignableKeys": "Token tidak punya key SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Key GOST tidak bisa dipakai dengan SSH.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" tidak terpasang.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Token tersimpan tidak ditemukan. Sambungkan ulang dan coba lagi.",
+  "pkcs11SignFailed": "Signing gagal: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 tidak tersedia di platform ini.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Pilih module PKCS#11",
+  "pkcs11WizardStepToken": "Pilih token",
+  "pkcs11WizardStepKey": "Pilih key",
+  "pkcs11WizardStepPin": "Masukkan PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "Membaca public key dari token...",
+  "pkcs11SaveSuccess": "Key smart card ditambahkan.",
+  "pkcs11ScanInProgress": "Memindai module PKCS#11...",
+  "pkcs11LoadingTokens": "Memuat token...",
+  "pkcs11LoadingKeys": "Memuat key...",
+  "pkcs11ModuleStatusReady": "Module dimuat.",
+  "pkcs11ModuleStatusNoToken": "Token tidak ada.",
+  "pkcs11ModuleStatusFailed": "Gagal memuat module.",
+  "pkcs11PinPadHint": "(PIN pad di perangkat)",
+  "pkcs11WizardBack": "Kembali",
+  "pkcs11WizardNext": "Lanjut"
 }

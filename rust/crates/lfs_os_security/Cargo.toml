@@ -37,6 +37,32 @@ rand = { version = "0.8", default-features = false, features = ["std", "std_rng"
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
 
+# PKCS#11 (Cryptoki) wrapper — desktop-only smart-card / hardware-
+# token driver. parallaxsecond/Parsec's `cryptoki` crate is the
+# canonical Rust PKCS#11 binding (the companion `pkcs11-uri` is
+# unmaintained, so RFC 7512 parsing is vendored inline in
+# `pkcs11::uri`). The crate is synchronous; every entry point
+# gets wrapped in `tokio::task::spawn_blocking` at the call site
+# so the FRB worker pool doesn't stall behind a `C_Sign` round
+# trip. Cfg-gated to the three desktop targets where
+# dynamic-loading a vendor .so / .dylib / .dll is feasible —
+# mobile sandboxes (Android, iOS) forbid arbitrary `dlopen`, so
+# the module compiles to its no-op stub there.
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
+cryptoki = "0.12"
+# SHA-256 for the `pkcs11::module::ModuleKey` content-hash used as
+# the pool dedup key. RustCrypto's `sha2` is already in the workspace
+# tree via `lfs_core`; we pull it directly here so the desktop-only
+# pkcs11 module compiles without a feature-gate gymnastic on the
+# cross-target dep list.
+sha2 = "0.10"
+# `zeroize::Zeroizing` for the per-call PIN buffer in
+# `pkcs11::session::Session`. The PIN crosses FRB as a transient
+# SecretStore entry on the Rust side; we re-wrap it in `Zeroizing`
+# around the cryptoki `AuthPin` boundary so the bytes drop on
+# every sign call.
+zeroize = { workspace = true }
+
 # Windows-only — WinRT bindings for Windows Hello biometric
 # auth (`Security_Credentials_UI` covers UserConsentVerifier,
 # the API the Hello prompt fires through) plus the Win32

@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Ajouter une clé carte à puce / jeton",
+  "pkcs11ModuleLabel": "Module PKCS#11",
+  "pkcs11ModuleAutoDetected": "Détecté automatiquement",
+  "pkcs11ModuleCustom": "Module personnalisé...",
+  "pkcs11ModulePickerTitle": "Choisir la bibliothèque PKCS#11",
+  "pkcs11NoModuleFound": "Aucun module PKCS#11 trouvé. Installez OpenSC ou choisissez la bibliothèque du fournisseur.",
+  "pkcs11InitializeFailed": "Le module PKCS#11 n'a pas pu s'initialiser.",
+  "pkcs11NoTokenPresent": "Aucun jeton dans le lecteur.",
+  "pkcs11TokenLabel": "Jeton : {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Numéro de série : {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Le jeton nécessite une connexion.",
+  "pkcs11PinPrompt": "PIN pour {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Confirmer sur le PIN-pad du jeton.",
+  "pkcs11PinIncorrect": "PIN incorrect. {remaining} essais restants.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "Le PIN du jeton est verrouillé. Déverrouillez avec le PUK.",
+  "pkcs11NoSignableKeys": "Le jeton n'a pas de clés SSH-compatibles (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Les clés GOST ne fonctionnent pas avec SSH.",
+  "pkcs11TokenUnplugged": "Le jeton \"{label}\" n'est pas inséré.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Jeton enregistré introuvable. Reconnectez-le et réessayez.",
+  "pkcs11SignFailed": "Échec de la signature : {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Les cartes à puce / jetons PKCS#11 ne sont pas disponibles sur cette plateforme.",
+  "pkcs11Badge": "Carte à puce / jeton",
+  "pkcs11InfoModulePath": "Module : {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Numéro de série du jeton : {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Objet : {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Choisir le module PKCS#11",
+  "pkcs11WizardStepToken": "Choisir le jeton",
+  "pkcs11WizardStepKey": "Choisir la clé",
+  "pkcs11WizardStepPin": "Saisir le PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Importer la clé",
+  "pkcs11SaveInProgress": "Lecture de la clé publique depuis le jeton...",
+  "pkcs11SaveSuccess": "Clé de carte à puce ajoutée.",
+  "pkcs11ScanInProgress": "Recherche de modules PKCS#11...",
+  "pkcs11LoadingTokens": "Chargement des jetons...",
+  "pkcs11LoadingKeys": "Chargement des clés...",
+  "pkcs11ModuleStatusReady": "Module chargé.",
+  "pkcs11ModuleStatusNoToken": "Aucun jeton présent.",
+  "pkcs11ModuleStatusFailed": "Échec du chargement du module.",
+  "pkcs11PinPadHint": "(PIN pad sur l'appareil)",
+  "pkcs11WizardBack": "Retour",
+  "pkcs11WizardNext": "Suivant"
 }

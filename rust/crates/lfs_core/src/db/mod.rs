@@ -415,7 +415,17 @@ impl Db {
 /// Default `'ask'` keeps the security-first posture: every
 /// SIGN_REQUEST routes through a confirmation dialog until the
 /// user explicitly promotes the row to `'always'` or `'deny'`.
-pub const SCHEMA_VERSION: i32 = 8;
+/// v9 introduces the explicit `backend` discriminator on `ssh_keys`
+/// alongside the PKCS#11 column block (`pkcs11_uri`,
+/// `pkcs11_module_path`, `pkcs11_token_serial`, `pkcs11_object_id`,
+/// `pkcs11_object_label`) so smart-card / hardware-token keys
+/// (JaCarta / Рутокен / eToken / YubiKey PIV / Estonian-Finnish-German
+/// eID / Thales Luna / AWS CloudHSM) persist alongside software +
+/// FIDO2 rows. The migration arm UPDATEs every pre-existing
+/// `credential_id IS NOT NULL` row to `backend = 'fido2'` so the
+/// dispatcher's discriminator switch never falls through to a
+/// software-row arm for a hardware-bound key.
+pub const SCHEMA_VERSION: i32 = 9;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -509,6 +519,18 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // from `SCHEMA_SQL` and skip this arm.
         if (1..8).contains(&current) {
             add_ssh_keys_agent_policy_column(conn)?;
+        }
+        // v1..v8 -> v9: stamp the backend discriminator + the PKCS#11
+        // column block on `ssh_keys`. Existing software keys backfill
+        // to `backend = 'software'` via the schema default; the post-
+        // ALTER UPDATE flips every pre-existing FIDO2 row (one with
+        // a non-NULL `credential_id`) to `backend = 'fido2'` so the
+        // agent / connect dispatcher's typed discriminator switch
+        // never falls through to a software-row arm. Fresh installs
+        // (`current == 0`) get the columns directly from `SCHEMA_SQL`
+        // and skip this arm.
+        if (1..9).contains(&current) {
+            add_ssh_keys_pkcs11_columns(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -644,6 +666,29 @@ fn add_ssh_keys_agent_policy_column(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys.agent_policy: {e}")))
 }
 
+/// Issue the v8 -> v9 column block: the `backend` discriminator
+/// (TEXT NOT NULL DEFAULT 'software'; one of `'software'`, `'fido2'`,
+/// `'pkcs11'`, `'tpm'`, `'enclave'`, `'hello'`, `'keystore'`) plus
+/// the PKCS#11 ingredient columns (`pkcs11_uri`, `pkcs11_module_path`,
+/// `pkcs11_token_serial`, `pkcs11_object_id`, `pkcs11_object_label`).
+/// Backfills every pre-existing FIDO2 row (one with
+/// `credential_id IS NOT NULL`) to `backend = 'fido2'` so the
+/// agent dispatcher's match is exhaustive without falling through
+/// to a software-row arm for a hardware-bound key.
+fn add_ssh_keys_pkcs11_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN backend TEXT NOT NULL DEFAULT 'software'; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_uri TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_module_path TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_token_serial TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_object_id BLOB NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_object_label TEXT NULL; \
+             UPDATE ssh_keys SET backend = 'fido2' WHERE credential_id IS NOT NULL;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys pkcs11 cols: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -693,7 +738,16 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     credential_id BLOB NULL,
     application_string TEXT NULL,
     has_user_verification INTEGER NOT NULL DEFAULT 0,
-    agent_policy TEXT NOT NULL DEFAULT 'ask'
+    agent_policy TEXT NOT NULL DEFAULT 'ask',
+    backend TEXT NOT NULL DEFAULT 'software',
+    pkcs11_uri TEXT NULL,
+    pkcs11_module_path TEXT NULL,
+    pkcs11_token_serial TEXT NULL,
+    pkcs11_object_id BLOB NULL,
+    pkcs11_object_label TEXT NULL
+    -- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
+    -- pkcs11 columns populated for backend = pkcs11 rows only.
+    -- See ARCHITECTURE.md schema docs for full notes.
 );
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
@@ -1008,7 +1062,13 @@ mod tests {
                 "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
                  ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
-                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 2).unwrap();
@@ -1066,7 +1126,13 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
                  ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
-                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 5).unwrap();
@@ -1107,7 +1173,13 @@ mod tests {
                 "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
                  ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
-                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 6).unwrap();
@@ -1163,7 +1235,15 @@ mod tests {
             )
             .unwrap();
         conn.inner()
-            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN agent_policy")
+            .execute_batch(
+                "ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
+            )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 7).unwrap();
 
@@ -1199,6 +1279,108 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v8 -> v9 upgrade hop. A database with the v8 schema shape
+    /// (no `backend` discriminator, no `pkcs11_*` block) must pick
+    /// up every column on bootstrap. The migration arm also UPDATEs
+    /// every pre-existing `credential_id IS NOT NULL` row to
+    /// `backend = 'fido2'`; we build the v8 shape via raw CREATE
+    /// TABLE (rather than bootstrap-then-strip, because SQLite's
+    /// ALTER TABLE DROP COLUMN re-parses the on-disk CREATE-TABLE
+    /// text and trips on the multi-line column-comments the v9
+    /// shape carries — purely a test-fixture limitation, not a
+    /// production concern).
+    #[test]
+    fn bootstrap_v8_to_v9_adds_pkcs11_columns_and_backfills_fido2_backend() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch(
+                "CREATE TABLE ssh_keys ( \
+                    id TEXT PRIMARY KEY, \
+                    label TEXT NOT NULL, \
+                    private_key TEXT NOT NULL, \
+                    public_key TEXT NOT NULL, \
+                    key_type TEXT NOT NULL, \
+                    is_generated INTEGER NOT NULL DEFAULT 1, \
+                    created_at INTEGER NOT NULL, \
+                    deleted_at INTEGER NULL, \
+                    credential_id BLOB NULL, \
+                    application_string TEXT NULL, \
+                    has_user_verification INTEGER NOT NULL DEFAULT 0, \
+                    agent_policy TEXT NOT NULL DEFAULT 'ask' \
+                 );",
+            )
+            .unwrap();
+        // Seed two rows under the v8 shape — one software, one FIDO2.
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, credential_id, \
+                                       application_string, has_user_verification, agent_policy) \
+                 VALUES ('sw', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, NULL, NULL, 0, 'ask')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, credential_id, \
+                                       application_string, has_user_verification, agent_policy) \
+                 VALUES ('fido', 'lab', '', 'PUB', 'sk-ssh-ed25519@openssh.com', 0, 0, \
+                         X'01020304', 'ssh:', 1, 'ask')",
+                [],
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 8).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        // Every expected column landed.
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "backend",
+            "pkcs11_uri",
+            "pkcs11_module_path",
+            "pkcs11_token_serial",
+            "pkcs11_object_id",
+            "pkcs11_object_label",
+        ] {
+            assert!(seen.contains(col), "ssh_keys.{col} missing after v8 -> v9");
+        }
+
+        // Software row backfilled to 'software'; FIDO2 row backfilled
+        // to 'fido2' so the agent dispatcher's typed switch routes
+        // correctly without falling through to a software arm for a
+        // hardware-bound key.
+        let sw_backend: String = conn
+            .inner()
+            .query_row("SELECT backend FROM ssh_keys WHERE id = 'sw'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(sw_backend, "software");
+        let fido_backend: String = conn
+            .inner()
+            .query_row(
+                "SELECT backend FROM ssh_keys WHERE id = 'fido'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(fido_backend, "fido2");
+
+        // Re-running bootstrap is a no-op once the stamp lands at v9.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1223,7 +1405,13 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN credential_id; \
                  ALTER TABLE ssh_keys DROP COLUMN application_string; \
                  ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
-                 ALTER TABLE ssh_keys DROP COLUMN agent_policy;",
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label;",
             )
             .unwrap();
         conn.inner().pragma_update(None, "user_version", 4).unwrap();
@@ -1272,6 +1460,12 @@ mod tests {
             application_string: None,
             has_user_verification: false,
             agent_policy: ssh_keys::AgentPolicy::Ask,
+            backend: ssh_keys::KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

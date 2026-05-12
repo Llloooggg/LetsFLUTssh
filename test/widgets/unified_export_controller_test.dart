@@ -93,6 +93,7 @@ Future<void> _populateDb({
         createdAtMs: DateTime(2025).millisecondsSinceEpoch,
         hasUserVerification: false,
         agentPolicy: 'ask',
+        backend: 'software',
       ),
     );
   }

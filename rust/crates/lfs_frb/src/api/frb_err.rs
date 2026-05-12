@@ -147,6 +147,13 @@ pub mod kind {
     /// branches on the leading discriminator (`wrong pin:`,
     /// `timeout:`, generic) to pick the right toast.
     pub const FIDO2: &str = "fido2";
+    /// PKCS#11 / Cryptoki hardware-token failure (module not loaded,
+    /// no token in slot, PIN rejected, lockout imminent, sign refused,
+    /// session dropped). Detail carries the short reason; the Dart UI
+    /// smart-card prompt branches on the leading discriminator
+    /// (`wrong pin:`, `pin locked:`, `unplugged:`, generic) to pick
+    /// the right toast / dialog.
+    pub const PKCS11: &str = "pkcs11";
     /// Operation is structurally unavailable on this build target
     /// (e.g. the in-process ssh-agent endpoint on Android / iOS).
     /// UI renders the matching control disabled-with-reason rather
@@ -212,6 +219,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::WebDav(s) => wire(kind::WEBDAV, s),
         CoreError::S3(s) => wire(kind::S3, s),
         CoreError::Fido2(s) => wire(kind::FIDO2, s),
+        CoreError::Pkcs11(s) => wire(kind::PKCS11, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

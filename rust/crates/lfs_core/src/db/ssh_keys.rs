@@ -46,6 +46,94 @@ pub struct SshKeyRow {
     /// same host routes through a Flutter confirmation dialog
     /// until the user explicitly promotes the row.
     pub agent_policy: AgentPolicy,
+    /// Backend discriminator (schema v9). One of
+    /// [`KeyBackend::Software`] / [`KeyBackend::Fido2`] /
+    /// [`KeyBackend::Pkcs11`] / [`KeyBackend::Tpm`] /
+    /// [`KeyBackend::Enclave`] / [`KeyBackend::Hello`] /
+    /// [`KeyBackend::Keystore`]. Drives the connect / agent
+    /// dispatcher's typed signer selection. Default
+    /// `Software` for pre-hardware-bound rows; the v8 -> v9
+    /// migration flipped pre-existing FIDO2 rows to `Fido2` so
+    /// the discriminator is exhaustive.
+    pub backend: KeyBackend,
+    /// RFC 7512 `pkcs11:` URI captured at import. `None` for every
+    /// backend other than [`KeyBackend::Pkcs11`]. Preferred over the
+    /// resolved module path so a re-plug under a different slot
+    /// still resolves the right token + object.
+    pub pkcs11_uri: Option<String>,
+    /// Resolved on-disk path of the PKCS#11 module the import wizard
+    /// loaded. Cached so the loader can fast-path to the same library
+    /// next time; verified against the SHA-256 in the pool dedup
+    /// key before reuse.
+    pub pkcs11_module_path: Option<String>,
+    /// PKCS#11 token serial number captured at import. Used by the
+    /// connect / sign path to confirm the same physical token is
+    /// inserted before reaching for the key — guards against a
+    /// re-plug shuffle.
+    pub pkcs11_token_serial: Option<String>,
+    /// `CKA_ID` blob of the private-key object. Opaque to us; passed
+    /// verbatim to `find_objects` on every sign.
+    pub pkcs11_object_id: Option<Vec<u8>>,
+    /// `CKA_LABEL` of the private-key object (human-readable, the
+    /// import wizard captures it for the key-manager row label).
+    pub pkcs11_object_label: Option<String>,
+}
+
+/// Backend discriminator on `ssh_keys.backend` (schema v9). Drives
+/// the connect / agent-endpoint dispatcher's typed signer selection.
+/// Stored as TEXT so the on-disk shape stays declarative; the Rust
+/// round-trip is the single writer and clamps the value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyBackend {
+    /// Plain-text private-key PEM stored alongside the row. The
+    /// agent endpoint MUST NOT expose these rows externally; the
+    /// connect path uses `private_key` verbatim.
+    Software,
+    /// FIDO2 sk-* key — `credential_id` + `application_string`
+    /// + `has_user_verification` carry the CTAP2 metadata.
+    Fido2,
+    /// PKCS#11 smart-card / hardware-token — `pkcs11_*` columns
+    /// carry the URI + slot + object id.
+    Pkcs11,
+    /// TPM 2.0 (Linux ESAPI / Windows PCP). Reserved.
+    Tpm,
+    /// Apple Secure Enclave. Reserved.
+    Enclave,
+    /// Windows Hello (NCrypt). Reserved.
+    Hello,
+    /// Android Hardware Keystore (StrongBox / TEE). Reserved.
+    Keystore,
+}
+
+impl KeyBackend {
+    /// Parse the TEXT column value. Unknown values fall back to
+    /// `Software` so a future schema additions / corrupted DB stays
+    /// safe-by-default rather than promoting an unknown row to a
+    /// hardware-bound signer that doesn't exist.
+    pub fn from_db(s: &str) -> Self {
+        match s {
+            "fido2" => Self::Fido2,
+            "pkcs11" => Self::Pkcs11,
+            "tpm" => Self::Tpm,
+            "enclave" => Self::Enclave,
+            "hello" => Self::Hello,
+            "keystore" => Self::Keystore,
+            _ => Self::Software,
+        }
+    }
+
+    /// Serialize for the TEXT column.
+    pub fn as_db_str(self) -> &'static str {
+        match self {
+            Self::Software => "software",
+            Self::Fido2 => "fido2",
+            Self::Pkcs11 => "pkcs11",
+            Self::Tpm => "tpm",
+            Self::Enclave => "enclave",
+            Self::Hello => "hello",
+            Self::Keystore => "keystore",
+        }
+    }
 }
 
 /// Per-key dispatch policy for the in-process ssh-agent endpoint.
@@ -93,6 +181,7 @@ impl AgentPolicy {
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
     let agent_policy_raw: String = row.get("agent_policy")?;
+    let backend_raw: String = row.get("backend")?;
     Ok(SshKeyRow {
         id: row.get("id")?,
         label: row.get("label")?,
@@ -106,6 +195,12 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         application_string: row.get("application_string")?,
         has_user_verification: row.get::<_, i64>("has_user_verification")? != 0,
         agent_policy: AgentPolicy::from_db(&agent_policy_raw),
+        backend: KeyBackend::from_db(&backend_raw),
+        pkcs11_uri: row.get("pkcs11_uri")?,
+        pkcs11_module_path: row.get("pkcs11_module_path")?,
+        pkcs11_token_serial: row.get("pkcs11_token_serial")?,
+        pkcs11_object_id: row.get("pkcs11_object_id")?,
+        pkcs11_object_label: row.get("pkcs11_object_label")?,
     })
 }
 
@@ -114,7 +209,9 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
         .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
-                    credential_id, application_string, has_user_verification, agent_policy \
+                    credential_id, application_string, has_user_verification, agent_policy, \
+                    backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
+                    pkcs11_object_id, pkcs11_object_label \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -133,7 +230,9 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
         .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
-                    credential_id, application_string, has_user_verification, agent_policy \
+                    credential_id, application_string, has_user_verification, agent_policy, \
+                    backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
+                    pkcs11_object_id, pkcs11_object_label \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -150,8 +249,10 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
 pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Error> {
     conn.raw().execute(
         "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
-                               credential_id, application_string, has_user_verification, agent_policy) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+                               credential_id, application_string, has_user_verification, agent_policy, \
+                               backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
+                               pkcs11_object_id, pkcs11_object_label) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -163,6 +264,12 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            application_string = excluded.application_string, \
            has_user_verification = excluded.has_user_verification, \
            agent_policy = excluded.agent_policy, \
+           backend = excluded.backend, \
+           pkcs11_uri = excluded.pkcs11_uri, \
+           pkcs11_module_path = excluded.pkcs11_module_path, \
+           pkcs11_token_serial = excluded.pkcs11_token_serial, \
+           pkcs11_object_id = excluded.pkcs11_object_id, \
+           pkcs11_object_label = excluded.pkcs11_object_label, \
            deleted_at = NULL",
         params![
             row.id,
@@ -176,6 +283,12 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             row.application_string,
             if row.has_user_verification { 1 } else { 0 },
             row.agent_policy.as_db_str(),
+            row.backend.as_db_str(),
+            row.pkcs11_uri,
+            row.pkcs11_module_path,
+            row.pkcs11_token_serial,
+            row.pkcs11_object_id,
+            row.pkcs11_object_label,
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -206,6 +319,20 @@ pub struct SshKeyMetadata {
     /// empty string if the row has no public half. Mirrors
     /// `KeyStore.publicKeyFingerprint`.
     pub public_fingerprint: String,
+    /// Backend discriminator (schema v9). One of `software` / `fido2` /
+    /// `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`. Surfaced
+    /// here so the key-manager UI can pick the correct badge variant
+    /// without a second FRB hop.
+    pub backend: String,
+    /// PKCS#11 module path captured at import. `None` for non-PKCS#11
+    /// rows; carried so the info popover can show which vendor
+    /// library serviced the token.
+    pub pkcs11_module_path: Option<String>,
+    /// PKCS#11 token serial captured at import.
+    pub pkcs11_token_serial: Option<String>,
+    /// PKCS#11 object label (`CKA_LABEL`). Distinct from the row's
+    /// `label` (user-typed), which may diverge from the on-token name.
+    pub pkcs11_object_label: Option<String>,
 }
 
 pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetadata>, Error> {
@@ -213,14 +340,18 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
         .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
-                    credential_id, application_string, has_user_verification, agent_policy \
-             FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
+                    credential_id, application_string, has_user_verification, agent_policy, \
+                    backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
+                    pkcs11_object_id, pkcs11_object_label \
+             FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC \
+             /* list_metadata */",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata prepare: {e}")))?;
     let rows = stmt
         .query_map([], |row| {
             let private_key: String = row.get("private_key")?;
             let public_key: String = row.get("public_key")?;
+            let backend_raw: String = row.get("backend")?;
             Ok(SshKeyMetadata {
                 id: row.get("id")?,
                 label: row.get("label")?,
@@ -230,6 +361,10 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                 private_fingerprint: normalized_sha256_hex(&private_key),
                 public_fingerprint: normalized_sha256_hex(&public_key),
                 public_key,
+                backend: KeyBackend::from_db(&backend_raw).as_db_str().to_string(),
+                pkcs11_module_path: row.get("pkcs11_module_path")?,
+                pkcs11_token_serial: row.get("pkcs11_token_serial")?,
+                pkcs11_object_label: row.get("pkcs11_object_label")?,
             })
         })
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata query: {e}")))?;
@@ -294,8 +429,10 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
         let mut stmt = tx
             .prepare_cached(
                 "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at, \
-                                       credential_id, application_string, has_user_verification, agent_policy) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+                                       credential_id, application_string, has_user_verification, agent_policy, \
+                                       backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
+                                       pkcs11_object_id, pkcs11_object_label) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -307,6 +444,12 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    application_string = excluded.application_string, \
                    has_user_verification = excluded.has_user_verification, \
                    agent_policy = excluded.agent_policy, \
+                   backend = excluded.backend, \
+                   pkcs11_uri = excluded.pkcs11_uri, \
+                   pkcs11_module_path = excluded.pkcs11_module_path, \
+                   pkcs11_token_serial = excluded.pkcs11_token_serial, \
+                   pkcs11_object_id = excluded.pkcs11_object_id, \
+                   pkcs11_object_label = excluded.pkcs11_object_label, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -323,6 +466,12 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                 row.application_string,
                 if row.has_user_verification { 1 } else { 0 },
                 row.agent_policy.as_db_str(),
+                row.backend.as_db_str(),
+                row.pkcs11_uri,
+                row.pkcs11_module_path,
+                row.pkcs11_token_serial,
+                row.pkcs11_object_id,
+                row.pkcs11_object_label,
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -445,6 +594,12 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             application_string: proposed.application_string.clone(),
             has_user_verification: proposed.has_user_verification,
             agent_policy: proposed.agent_policy,
+            backend: proposed.backend,
+            pkcs11_uri: proposed.pkcs11_uri.clone(),
+            pkcs11_module_path: proposed.pkcs11_module_path.clone(),
+            pkcs11_token_serial: proposed.pkcs11_token_serial.clone(),
+            pkcs11_object_id: proposed.pkcs11_object_id.clone(),
+            pkcs11_object_label: proposed.pkcs11_object_label.clone(),
         },
     )?;
     tx.commit()
@@ -512,6 +667,12 @@ mod import_for_merge_tests {
             application_string: None,
             has_user_verification: false,
             agent_policy: AgentPolicy::Ask,
+            backend: KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         }
     }
 
@@ -614,6 +775,12 @@ mod tombstone_tests {
                     application_string: None,
                     has_user_verification: false,
                     agent_policy: AgentPolicy::Ask,
+                    backend: KeyBackend::Software,
+                    pkcs11_uri: None,
+                    pkcs11_module_path: None,
+                    pkcs11_token_serial: None,
+                    pkcs11_object_id: None,
+                    pkcs11_object_label: None,
                 },
             )
         })
@@ -700,6 +867,12 @@ mod tombstone_tests {
             application_string: None,
             has_user_verification: false,
             agent_policy: AgentPolicy::Ask,
+            backend: KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

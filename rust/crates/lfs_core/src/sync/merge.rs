@@ -374,6 +374,18 @@ fn merge_keys(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOu
             // device routes new merges through the confirmation
             // dialog until the operator opts in locally.
             agent_policy: ssh_keys::AgentPolicy::Ask,
+            // Backend + PKCS#11 fields are per-device (the module path,
+            // token serial, object id are tied to the physical
+            // hardware on this host); sync merges always land the
+            // incoming row as `software` and clear every pkcs11 hint.
+            // A hardware-bound row that needs to ride sync goes through
+            // the explicit re-import flow on the receiving device.
+            backend: ssh_keys::KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         };
         match ssh_keys::upsert(conn, &row) {
             Ok(_) => outcome.keys_merged += 1,
@@ -745,6 +757,12 @@ mod tests {
             application_string: None,
             has_user_verification: false,
             agent_policy: ssh_keys::AgentPolicy::Ask,
+            backend: ssh_keys::KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         };
         db.with_conn(|c| ssh_keys::upsert(c, &row)).unwrap();
         let peer = r#"[{

@@ -630,6 +630,19 @@ fn apply_keys(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: 
             // onto a fresh host should not silently authorise the new
             // host's ssh-agent endpoint to sign for it.
             agent_policy: ssh_keys::AgentPolicy::Ask,
+            // Hardware-bound backends (FIDO2 / PKCS#11 / TPM / Enclave /
+            // Hello / Keystore) are intrinsically per-device — the
+            // module path, token serial, object id, credential blob are
+            // bound to one host's hardware. Archive apply always lands
+            // the row as `software` and clears every pkcs11 hint; a
+            // hardware-bound key on the receiving device goes through
+            // the explicit re-import flow.
+            backend: ssh_keys::KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
         };
         if row.id.is_empty() {
             result.errors.push("key row missing id".to_string());
@@ -846,6 +859,12 @@ mod tests {
                 application_string: None,
                 has_user_verification: false,
                 agent_policy: ssh_keys::AgentPolicy::Ask,
+                backend: ssh_keys::KeyBackend::Software,
+                pkcs11_uri: None,
+                pkcs11_module_path: None,
+                pkcs11_token_serial: None,
+                pkcs11_object_id: None,
+                pkcs11_object_label: None,
             },
         )
         .unwrap();
@@ -1024,6 +1043,12 @@ mod tests {
                 application_string: None,
                 has_user_verification: false,
                 agent_policy: ssh_keys::AgentPolicy::Ask,
+                backend: ssh_keys::KeyBackend::Software,
+                pkcs11_uri: None,
+                pkcs11_module_path: None,
+                pkcs11_token_serial: None,
+                pkcs11_object_id: None,
+                pkcs11_object_label: None,
             },
         )
         .unwrap();
@@ -1524,6 +1549,12 @@ mod tests {
                 application_string: None,
                 has_user_verification: false,
                 agent_policy: ssh_keys::AgentPolicy::Ask,
+                backend: ssh_keys::KeyBackend::Software,
+                pkcs11_uri: None,
+                pkcs11_module_path: None,
+                pkcs11_token_serial: None,
+                pkcs11_object_id: None,
+                pkcs11_object_label: None,
             },
         )
         .unwrap();

@@ -2899,4 +2899,165 @@ class SJa extends S {
   String agentEndpointStartFailed(String detail) {
     return 'ssh-agent エンドポイントを開始できません: $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'スマートカード / トークン キーを追加';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 モジュール';
+
+  @override
+  String get pkcs11ModuleAutoDetected => '自動検出';
+
+  @override
+  String get pkcs11ModuleCustom => 'カスタムモジュール...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 ライブラリを選択';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 モジュールが見つかりません。OpenSC をインストールするか、ベンダーライブラリを選択してください。';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 モジュールを初期化できませんでした。';
+
+  @override
+  String get pkcs11NoTokenPresent => 'リーダーにトークンがありません。';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'トークン: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'シリアル: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'トークンへのログインが必要です。';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token の PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => 'トークンの PIN パッドで確認してください。';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN が違います。残り $remaining 回。';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'トークンの PIN がロックされています。PUK で解除してください。';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'SSH で使えるキー (RSA、ECDSA、Ed25519) がトークンにありません。';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST キーは SSH では使えません。';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'トークン \"$label\" が挿入されていません。';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed => '保存されたトークンが見つかりません。再接続してください。';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return '署名に失敗しました: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'このプラットフォームではスマートカード / PKCS#11 トークンは利用できません。';
+
+  @override
+  String get pkcs11Badge => 'スマートカード / トークン';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'モジュール: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'トークンのシリアル: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'オブジェクト: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 モジュールを選択';
+
+  @override
+  String get pkcs11WizardStepToken => 'トークンを選択';
+
+  @override
+  String get pkcs11WizardStepKey => '鍵を選択';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN を入力';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => '鍵をインポート';
+
+  @override
+  String get pkcs11SaveInProgress => 'トークンから公開鍵を読み込み中...';
+
+  @override
+  String get pkcs11SaveSuccess => 'スマートカードの鍵を追加しました。';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 モジュールをスキャン中...';
+
+  @override
+  String get pkcs11LoadingTokens => 'トークンを読み込み中...';
+
+  @override
+  String get pkcs11LoadingKeys => '鍵を読み込み中...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'モジュール読み込み完了。';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'トークンが見つかりません。';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'モジュールの読み込みに失敗しました。';
+
+  @override
+  String get pkcs11PinPadHint => '(デバイスの PIN パッド)';
+
+  @override
+  String get pkcs11WizardBack => '戻る';
+
+  @override
+  String get pkcs11WizardNext => '次へ';
 }

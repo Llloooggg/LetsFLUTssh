@@ -3063,4 +3063,170 @@ class SFr extends S {
   String agentEndpointStartFailed(String detail) {
     return 'Impossible de démarrer le ssh-agent endpoint : $detail';
   }
+
+  @override
+  String get pkcs11AddTitle => 'Ajouter une clé carte à puce / jeton';
+
+  @override
+  String get pkcs11ModuleLabel => 'Module PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Détecté automatiquement';
+
+  @override
+  String get pkcs11ModuleCustom => 'Module personnalisé...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Choisir la bibliothèque PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Aucun module PKCS#11 trouvé. Installez OpenSC ou choisissez la bibliothèque du fournisseur.';
+
+  @override
+  String get pkcs11InitializeFailed =>
+      'Le module PKCS#11 n\'a pas pu s\'initialiser.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Aucun jeton dans le lecteur.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Jeton : $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Numéro de série : $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Le jeton nécessite une connexion.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN pour $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Confirmer sur le PIN-pad du jeton.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN incorrect. $remaining essais restants.';
+  }
+
+  @override
+  String get pkcs11PinLocked =>
+      'Le PIN du jeton est verrouillé. Déverrouillez avec le PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Le jeton n\'a pas de clés SSH-compatibles (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported =>
+      'Les clés GOST ne fonctionnent pas avec SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Le jeton \"$label\" n\'est pas inséré.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Jeton enregistré introuvable. Reconnectez-le et réessayez.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Échec de la signature : $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Les cartes à puce / jetons PKCS#11 ne sont pas disponibles sur cette plateforme.';
+
+  @override
+  String get pkcs11Badge => 'Carte à puce / jeton';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module : $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Numéro de série du jeton : $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Objet : $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Choisir le module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Choisir le jeton';
+
+  @override
+  String get pkcs11WizardStepKey => 'Choisir la clé';
+
+  @override
+  String get pkcs11WizardStepPin => 'Saisir le PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Importer la clé';
+
+  @override
+  String get pkcs11SaveInProgress =>
+      'Lecture de la clé publique depuis le jeton...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Clé de carte à puce ajoutée.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Recherche de modules PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Chargement des jetons...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Chargement des clés...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module chargé.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Aucun jeton présent.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Échec du chargement du module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad sur l\'appareil)';
+
+  @override
+  String get pkcs11WizardBack => 'Retour';
+
+  @override
+  String get pkcs11WizardNext => 'Suivant';
 }

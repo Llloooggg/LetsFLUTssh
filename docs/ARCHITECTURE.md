@@ -1382,6 +1382,107 @@ Every hardware-bound signer (FIDO2 today, PKCS#11 / TPM 2.0 / Apple Secure Encla
 
 The DER parser accepts only the strict shape OpenSSH itself parses (definite length, no trailing bytes, single-component length fields up to four bytes — anything wider would be structurally malformed for an EC signature component); malformed input returns `Error::Auth(...)` rather than panicking. The mpint encoder strips one redundant leading 0x00 byte when dropping it would not flip the sign and re-adds a leading 0x00 when the high bit of the first byte is set, mirroring RFC 4251 §5. Round-trip tests + a fuzz-style sweep covering random byte slices live in `rust/crates/lfs_core/src/ssh/wire.rs::tests`.
 
+#### PKCS#11 hardware tokens — smart cards, USB tokens, network HSMs
+
+The connect path supports smart-card / hardware-token keys via the PKCS#11 (Cryptoki) standard so corporate users on JaCarta, Рутокен, eToken, OpenPGP card, YubiKey PIV applet, Estonian / Finnish / German eID cards, Thales Luna network HSMs, and AWS CloudHSM can authenticate without the private key ever crossing the FRB boundary. Private key material lives on the token; every signature attempt routes through `lfs_os_security::pkcs11::sign::sign_with_pkcs11`, which talks Cryptoki over `dlopen`'d vendor `.so` / `.dylib` / `.dll`.
+
+```mermaid
+sequenceDiagram
+  participant Dart as Key manager (Dart)
+  participant Frb as lfs_frb
+  participant Sec as lfs_os_security::pkcs11
+  participant Tok as Smart card / HSM
+  Dart->>Frb: pkcs11_scan_well_known_paths()
+  Frb->>Sec: discovery::scan_well_known_paths
+  Sec-->>Dart: vendor candidates (only existing paths)
+  Dart->>Frb: pkcs11_list_tokens(path)
+  Frb->>Sec: module::load + get_slots_with_token
+  Sec->>Tok: C_Initialize + C_GetSlotList
+  Tok-->>Sec: token info per slot
+  Sec-->>Dart: DbPkcs11TokenInfo[]
+  Dart->>Frb: pkcs11_list_keys(slot, pin_id?)
+  Frb->>Sec: session::for_slot + login_if_needed + find_objects
+  Sec->>Tok: C_Login (PIN) + C_FindObjects (CKO_PUBLIC_KEY)
+  Tok-->>Sec: object handles + CKA_LABEL + CKA_EC_POINT / Modulus
+  Sec-->>Dart: signable keys + ssh-wire public blobs
+  Dart->>Frb: pkcs11_import_key(args)
+  Frb-->>Dart: DbSshKeyId
+  Note over Dart,Tok: on connect: russh Signer drives C_Sign per challenge
+```
+
+Persistence: `db::ssh_keys` carries an explicit `backend` discriminator from schema v9 onwards (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name). The v8 -> v9 migration arm UPDATEs every pre-existing `credential_id IS NOT NULL` row to `backend = 'fido2'` so the dispatcher's typed switch never falls through to a software arm for a hardware-bound key.
+
+Mechanism → SSH algorithm table:
+
+| PKCS#11 | SSH | Notes |
+|---|---|---|
+| `CKK_RSA` + `CKM_RSA_PKCS` | `rsa-sha2-256` / `rsa-sha2-512` | Pre-hash + PKCS#1 v1.5 DigestInfo built client-side; raw `CKM_RSA_PKCS` mechanism. Old `ssh-rsa` (SHA-1) is server-deprecated and refused. |
+| `CKK_EC` (`prime256v1` / `secp384r1` / `secp521r1`) + `CKM_ECDSA` | `ecdsa-sha2-nistp{256,384,521}` | `C_Sign` returns raw `r ‖ s` left-padded; SSH wants `mpint(r) ‖ mpint(s)` so the sign helper splits + reflows. |
+| `CKK_EC_EDWARDS` + `CKM_EDDSA` (Pure scheme) | `ssh-ed25519` | PKCS#11 v3.0+. YubiKey PIV does NOT expose Ed25519 over PKCS#11 today. |
+| `CKK_GOSTR3410` | (none — SSH has no GOST suite) | Listed in the picker but disabled with the localized "GOST cannot be used with SSH" reason. |
+
+Well-known module-path discovery (table in `pkcs11::discovery::well_known_table`):
+
+| Vendor | Linux | Windows | macOS |
+|---|---|---|---|
+| OpenSC (default multi-vendor) | `/usr/lib/{x86_64-linux-gnu,64,}/opensc-pkcs11.so` | `C:\Program Files\OpenSC Project\OpenSC\pkcs11\opensc-pkcs11.dll` | `/Library/OpenSC/lib/opensc-pkcs11.so`, brew prefix |
+| YubiKey PIV (`ykcs11`) | `/usr/lib/x86_64-linux-gnu/libykcs11.so`, `/usr/local/lib/libykcs11.so` | `C:\Program Files\Yubico\Yubico PIV Tool\bin\libykcs11.dll` | `/usr/local/lib/libykcs11.dylib`, brew prefix |
+| JaCarta | `/usr/lib{,64}/libjcPKCS11-2.so` | `C:\Windows\System32\jcPKCS11-2.dll` | — |
+| Рутокен (Rutoken ECP / ECP2 / Lite) | `/usr/lib{,64}/librtpkcs11ecp.so` | `C:\Windows\System32\rtPKCS11ECP.dll` | `/Library/Frameworks/rtPKCS11.framework/rtpkcs11ecp.dylib` |
+| eToken / SafeNet | `/usr/lib/libeToken.so`, `/usr/lib64/libeTPkcs11.so` | `C:\Windows\System32\eTPKCS11.dll` | `/usr/local/lib/libeTPkcs11.dylib` |
+| Thales Luna network HSM | `/usr/safenet/lunaclient/lib/libCryptoki2_64.so` | `C:\Program Files\SafeNet\LunaClient\cryptoki.dll` | — |
+| AWS CloudHSM | `/opt/cloudhsm/lib/libcloudhsm_pkcs11.so` | — | — |
+
+`discovery::scan_well_known_paths` returns only candidates whose file exists on disk; probing the library via `Pkcs11::new + initialize` is deferred to the picker (`module::load`) so the listing pass stays cheap.
+
+Wire format: the `Pkcs11Signer` impl of russh's `Signer` (lives at `lfs_core::ssh::pkcs11_signer`) routes every userauth challenge through `tokio::task::spawn_blocking` into `lfs_os_security::pkcs11::sign::sign_with_pkcs11`. The blocking task resolves the slot by matching `token_serial` against the present-slot list (so a re-plug under a different slot transparently shifts; an unplugged token surfaces as `Error::Pkcs11("unplugged: ...")`), opens the session via the per-`(module, slot)` pool in `pkcs11::session`, runs `C_Login` (or skips it for `CKF_PROTECTED_AUTHENTICATION_PATH` / no-login tokens), reaches for the matching `CKO_PRIVATE_KEY` by `CKA_ID`, fires `C_Sign`, and composes `string(algorithm) || string(sig_blob)` per the SSH userauth contract before handing the buffer back. The PIN crosses FRB as a transient `SecretStore` entry under `pkcs11.pin.<key_id>` (or `key.pin.<key_id>` on the connect path) — never as a plaintext field in the FRB envelope.
+
+Session lifecycle: one session per `(module, slot)` reused across signatures via the global `Mutex<HashMap<...>>` pool in `pkcs11::session`. The 5-minute idle threshold (`IDLE_TIMEOUT`) drops the cryptoki session on the next `with_session` call when the gap exceeds it; the next signature re-opens + re-logs-in. The PIN cache is per-call — the `Zeroizing<String>` inside the Signer drops at the end of the connect attempt, the SecretStore transient evicts when the connect terminal state lands (Connected / Disconnected). PKCS#11 sessions hold an implicit login bound to the logged-in `cryptoki::Session` handle, so re-opening on the next sign attempt forces a fresh prompt — matching the security-first posture even on long-lived workspaces.
+
+PIN counter awareness: the `pkcs11_list_tokens` FRB shim surfaces `user_pin_count_low` and `user_pin_final_try` flags (mapped off `TokenInfo::user_pin_count_low()` / `user_pin_final_try()`); the UI raises the "stop trying" warning loudly before the user fires one more attempt. The token's PIN-attempt counter is hardware-wide — there is no per-app retry budget. `user_pin_locked` reports the terminal state; recovery requires the SO-PIN / PUK and is out of scope (vendor tooling owns the unblock flow).
+
+Import wizard (`lib/widgets/pkcs11_import_dialog.dart` + `pkcs11_import_dialog_logic.dart`) drives the five-step ladder the key-manager toolbar's "Add smart-card / token key" action surfaces. The wizard composes `AppDialog` + `AppDialogHeader` / `AppDialogFooter` + `AppButton` per the reuse rule and pops a `Pkcs11ImportResult` on success.
+
+```mermaid
+stateDiagram-v2
+    [*] --> module: open dialog
+    module --> token: probe loadModule(path), listTokens(path)
+    token --> pin: loginRequired && !protectedAuthPath
+    token --> key: protectedAuthPath || !loginRequired
+    pin --> key: stagePin → listKeys
+    key --> save: select signable row
+    save --> [*]: importKey → row id
+    save --> key: Back
+    pin --> token: Back
+    key --> pin: Back (no pin pad)
+    key --> token: Back (pin pad)
+    token --> module: Back
+```
+
+Step semantics:
+
+1. **Module pick** — `pkcs11ScanWellKnownPaths` populates the candidate list with a per-row colored status dot (green = `loadModule + listTokens` succeeded with at least one slot-with-token, amber = module loaded but no token, red = `loadModule` threw). "Custom..." opens the native file picker so users on vendor `.so` paths outside the well-known table can still import. The probe runs lazily on row selection; the initial list-build is on-disk-existence only so the scan stays cheap.
+2. **Token pick** — `pkcs11ListTokens` populates the candidate list. Each row carries `tokenLabel`, `serial`, manufacturer, plus the conditional "PIN pad on device" hint (when `CKF_PROTECTED_AUTHENTICATION_PATH` is set) and the orange "1 try left" / red "PIN locked" warnings.
+3. **PIN prompt** — reuses `HardwareKeyPromptDialog` (the same surface FIDO2 uses) so the visual contract for hardware-key affordances stays consistent across backends. Skipped entirely for `protectedAuthPath` tokens (the reader's keypad answers) and for `!loginRequired` tokens (public-object enumeration suffices for the listing). The collected PIN crosses FRB as a transient SecretStore entry under `pkcs11.pin.wizard.<timestamp>`; the wizard's `dispose` drops the entry unconditionally so a swallowed-exception path can never leave it pinned.
+4. **Key picker** — `pkcs11ListKeys` returns every signable `CKO_PRIVATE_KEY` plus the matching public-key blob. The Dart side disables rows whose `disabledReason` is non-empty (GOST today) and renders the algorithm + curve detail via `pkcs11AlgoDetail`.
+5. **Save** — composes the RFC 7512 `pkcs11:` URI Dart-side from the picked token + object metadata (pct-encoding `id` per `pk11-attr-chars`), calls `pkcs11ImportKey`, and pops `Pkcs11ImportResult(keyId, label)`.
+
+The key-manager row badge for `backend = 'pkcs11'` rows is the `Pkcs11Badge` widget at the bottom of the same file. Visual contract mirrors the `_HardwareBadge` pill in `key_manager_dialog.dart` so the row tail reads consistently when PKCS#11 + FIDO2 + certificate badges co-exist. A tap on the badge drops an `AppDialog` info popover with the module path, token serial, and object label captured at import — surfaces the fields the user might need to debug a re-plug failure ("does this row still point at my actual physical token?") without forcing them to inspect the DB.
+
+The wizard backend is abstracted behind a `Pkcs11Backend` interface so widget tests can drive every step without booting FRB; the production `Pkcs11FrbBackend` is the single FRB-call site. The same DI shape will land for the T-4..T-8 sibling backends so each per-backend wizard can be tested in isolation.
+
+Capability ladder rendering:
+
+| Platform | Rung | UI label |
+|---|---|---|
+| Linux | 3 native impl | "PKCS#11 (smart card)" enabled when at least one candidate validates. Reader access requires `pcscd` + user in the `scard` / `pcscd` group. |
+| Windows | 3 native impl | Enabled when at least one vendor DLL present. Vendor installers register the DLL under `C:\Windows\System32\` or a Program Files subdir; reboots not required. |
+| macOS | 3 native impl | Enabled. Hardened-runtime / Library Validation may block unsigned vendor `.dylib` — the README documents the Privacy & Security accept step. |
+| Android | 4 honestly hide | No `.so` ABI compatible. NFC smart-card stack is a separate driver; out of scope today. |
+| iOS | 4 honestly hide | Sandbox forbids `dlopen` of arbitrary `.dylib`. The picker row renders disabled with the `pkcs11HwUnavailableMobile` reason. |
+
+Error envelope: `Error::Pkcs11(String)` carves the PKCS#11 path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::PKCS11` discriminator lets the Dart UI route `wrong pin:` to the PIN re-prompt branch, `pin locked:` to the "unblock with PUK" halt, `unplugged:` to the replug toast, and the catch-all to the smart-card error toast. Display strings carry a stable leading discriminator (`wrong pin: <N> tries remaining`, `pin locked: token user PIN is locked`, `unplugged: matching token not present in any reader`) so the Dart matcher can string-match the prefix without re-parsing the full envelope.
+
 #### In-process ssh-agent endpoint
 
 `lfs_core::ssh_agent` exposes our hardware-bound SSH keys (FIDO2 today; PKCS#11 / TPM 2.0 / Apple Secure Enclave / Windows NCrypt / Android Hardware Keystore as those backends land) to every SSH-protocol-speaking application on the same host — `git` in a terminal, OpenSSH `ssh.exe` / `scp` / `sftp`, VS Code Remote-SSH, JetBrains Gateway, PuTTY 0.78+, IDE plugins, CI runners. Without the endpoint the hardware-bound keys we import are reachable only from our own connect path; corporate workflows expect a key on a host to work everywhere on that host. The endpoint is the symmetric counterpart of `connect_default_agent` — that path consumes external agents, this one IS the agent for external clients.
@@ -1400,7 +1501,7 @@ flowchart LR
     SESSION --> POLICY[per_key_confirm gate]
     POLICY --> DISP[backends::dispatch_sign]
     DISP --> FIDO[FidoSigner &nbsp; CTAP2 HID]
-    DISP -.future.-> P11[PKCS#11]
+    DISP --> P11[Pkcs11Signer &nbsp; Cryptoki]
     DISP -.future.-> TPM[TPM 2.0]
     DISP -.future.-> SE[Secure Enclave]
     DISP -.future.-> NCRYPT[Windows NCrypt]
@@ -5180,6 +5281,24 @@ same column shape. Future bumps:
   backfill to `'ask'` via the additive `ALTER` gated by
   `(1..8).contains(&current)`; fresh installs take the column from
   the inline `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL`.
+- **v9** — adds the explicit `backend` discriminator on
+  `ssh_keys` (TEXT NOT NULL DEFAULT `'software'`; one of
+  `'software'` / `'fido2'` / `'pkcs11'` / `'tpm'` / `'enclave'` /
+  `'hello'` / `'keystore'`) plus the PKCS#11 ingredient block
+  (`pkcs11_uri`, `pkcs11_module_path`, `pkcs11_token_serial`,
+  `pkcs11_object_id BLOB`, `pkcs11_object_label`). The connect /
+  agent dispatcher reads `backend` to route to the right Signer
+  impl instead of inferring from `credential_id IS NOT NULL`. The
+  migration arm also issues an `UPDATE ssh_keys SET backend =
+  'fido2' WHERE credential_id IS NOT NULL` so the discriminator is
+  exhaustive on day one — a hardware-bound FIDO2 row never falls
+  through to a software arm. Existing v8 installs backfill via the
+  additive `ALTER` block gated by `(1..9).contains(&current)`;
+  fresh installs take every column from the inline `CREATE TABLE
+  IF NOT EXISTS` in `SCHEMA_SQL`. PKCS#11 columns are populated for
+  `backend = 'pkcs11'` rows only; every other backend leaves them
+  NULL. See the PKCS#11 subsection of §3 above for the wire shape
+  the columns carry.
 
 ### Soft-delete contract (v3+)
 

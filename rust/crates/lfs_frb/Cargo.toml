@@ -34,6 +34,11 @@ zeroize = { workspace = true }
 # loop plus `stream::once` for the put-side single-chunk source.
 bytes = { workspace = true }
 futures-util = { workspace = true }
+# Authorized-keys line composition in the PKCS#11 import path —
+# the helper base64-encodes the SSH wire blob into the `ssh-*`
+# style id_*.pub body before persistence. `lfs_core` already pins
+# the workspace base64; we route through the same version.
+base64 = { workspace = true }
 
 [dev-dependencies]
 # Per-test scratch directories for the keychain-marker lifecycle

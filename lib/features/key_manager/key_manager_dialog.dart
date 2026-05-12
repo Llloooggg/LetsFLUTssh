@@ -18,9 +18,11 @@ import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/fido2.dart' as rust_fido2;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/keys.dart' as rust_keys;
+import '../../src/rust/api/pkcs11.dart' as rust_pkcs11;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import '../../utils/platform.dart';
 import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
@@ -28,6 +30,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable SSH key manager — toolbar + list with CRUD.
@@ -58,6 +61,19 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   bool get _fido2Available {
     try {
       return rust_fido2.fido2IsAvailable();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// PKCS#11 desktop-only probe. Mobile (Android / iOS) returns
+  /// `false` because the sandbox / vendor-ABI mismatch makes the
+  /// path impossible — capability ladder rung 4 ("honestly hide").
+  /// `false` also in flutter_test contexts without FRB.
+  bool get _pkcs11Available {
+    if (isMobilePlatform) return false;
+    try {
+      return rust_pkcs11.pkcs11IsAvailable();
     } catch (_) {
       return false;
     }
@@ -155,6 +171,19 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               : s.hardwareKeyUnsupported,
           onTap: _fido2Available ? _importHardwareKey : null,
         ),
+        // PKCS#11 smart-card / token import. Capability-ladder rung 3
+        // on desktop (native Cryptoki via `dlopen`); rung 4 on mobile
+        // (disabled with `pkcs11HwUnavailableMobile` tooltip — Android
+        // has no compatible vendor `.so` ABI, iOS sandbox forbids
+        // `dlopen` of arbitrary `.dylib`).
+        _ToolbarButton(
+          icon: Icons.memory,
+          label: s.pkcs11AddTitle,
+          tooltip: _pkcs11Available
+              ? s.pkcs11AddTitle
+              : s.pkcs11HwUnavailableMobile,
+          onTap: _pkcs11Available ? _importPkcs11Key : null,
+        ),
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -187,17 +216,21 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   Widget _buildKeyEntry(S s, SshKeyMetadata entry) {
     final hasCert = entry.hasCertificate;
     final expired = entry.validity?.isExpired ?? false;
-    // `keyType` is the short tag stored in the DB. The metadata
-    // listing does not pull credential_id (private material adjacent
-    // field), so the hardware-bound flag derives off the wire-format
-    // discriminator OpenSSH itself uses.
-    final isHardware =
+    // FIDO2 sk-* rows: the v9 backend column is authoritative, but
+    // we also fall back to the OpenSSH wire-format tag for rows
+    // written before the migration filled the discriminator.
+    final isFido2 =
+        entry.isFido2 ||
         entry.keyType == 'sk-ed25519' ||
         entry.keyType == 'sk-ecdsa-p256' ||
         entry.keyType.startsWith('sk-ssh-') ||
         entry.keyType.startsWith('sk-ecdsa-sha2-');
+    final isPkcs11 = entry.isPkcs11;
+    final iconData = isFido2
+        ? Icons.usb
+        : (isPkcs11 ? Icons.memory : Icons.vpn_key);
     return AppDataRow(
-      icon: isHardware ? Icons.usb : Icons.vpn_key,
+      icon: iconData,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
       title: entry.label,
       secondary:
@@ -206,10 +239,20 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       secondaryMono: true,
       tertiary: hasCert ? _certTertiary(s, entry) : null,
       trailing: [
-        if (isHardware)
+        if (isFido2)
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.xs),
             child: _HardwareBadge(label: s.hardwareKeyBadge),
+          ),
+        if (isPkcs11)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: Pkcs11Badge(
+              label: s.pkcs11Badge,
+              modulePath: entry.pkcs11ModulePath,
+              tokenSerial: entry.pkcs11TokenSerial,
+              objectLabel: entry.pkcs11ObjectLabel,
+            ),
           ),
         if (expired)
           Padding(
@@ -698,6 +741,41 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         );
       }
     }
+  }
+
+  /// PKCS#11 smart-card / token import. Opens the wizard dialog
+  /// (`Pkcs11ImportDialog`) which walks the user through module →
+  /// token → PIN → key picker → save. The row lands Rust-side as
+  /// part of `pkcs11_import_key`; we only refresh the listing and
+  /// surface the success toast.
+  Future<void> _importPkcs11Key() async {
+    final s = S.of(context);
+    final Pkcs11ImportResult? result;
+    try {
+      result = await Pkcs11ImportDialog.show(context);
+    } catch (e) {
+      AppLogger.instance.log(
+        'pkcs11 wizard failed: $e',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(s, e),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+    if (result == null || !mounted) return;
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
+    if (!mounted) return;
+    Toast.show(
+      context,
+      message: s.pkcs11SaveSuccess,
+      level: ToastLevel.success,
+    );
   }
 
   Future<void> _persistImportedKey(String label, String pem) async {

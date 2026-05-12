@@ -1038,5 +1038,103 @@
     "placeholders": {
       "detail": {"type": "String"}
     }
-  }
+  },
+
+  "pkcs11AddTitle": "Добавить ключ со смарт-карты или токена",
+  "pkcs11ModuleLabel": "Модуль PKCS#11",
+  "pkcs11ModuleAutoDetected": "Найдено автоматически",
+  "pkcs11ModuleCustom": "Указать модуль...",
+  "pkcs11ModulePickerTitle": "Выбор библиотеки PKCS#11",
+  "pkcs11NoModuleFound": "Модуль PKCS#11 не найден. Установите OpenSC или укажите библиотеку вендора.",
+  "pkcs11InitializeFailed": "Модуль PKCS#11 не инициализировался.",
+  "pkcs11NoTokenPresent": "Нет токена в считывателе.",
+  "pkcs11TokenLabel": "Токен: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Серийный номер: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Требуется вход на токен.",
+  "pkcs11PinPrompt": "PIN для {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Подтвердите на PIN-паде токена.",
+  "pkcs11PinIncorrect": "Неверный PIN. Осталось попыток: {remaining}.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "PIN заблокирован. Разблокируйте через PUK.",
+  "pkcs11NoSignableKeys": "На токене нет ключей, пригодных для SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Ключи GOST не работают по SSH.",
+  "pkcs11TokenUnplugged": "Токен \"{label}\" не вставлен.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Сохранённый токен не найден. Переподключите и повторите.",
+  "pkcs11SignFailed": "Подпись не удалась: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Смарт-карты и токены PKCS#11 недоступны на этой платформе.",
+  "pkcs11Badge": "Смарт-карта / токен",
+  "pkcs11InfoModulePath": "Модуль: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Серийный номер токена: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Объект: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Выберите модуль PKCS#11",
+  "pkcs11WizardStepToken": "Выберите токен",
+  "pkcs11WizardStepKey": "Выберите ключ",
+  "pkcs11WizardStepPin": "Введите PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Импортировать ключ",
+  "pkcs11SaveInProgress": "Чтение публичного ключа с токена...",
+  "pkcs11SaveSuccess": "Ключ со смарт-карты добавлен.",
+  "pkcs11ScanInProgress": "Поиск модулей PKCS#11...",
+  "pkcs11LoadingTokens": "Загрузка токенов...",
+  "pkcs11LoadingKeys": "Загрузка ключей...",
+  "pkcs11ModuleStatusReady": "Модуль загружен.",
+  "pkcs11ModuleStatusNoToken": "Токен не вставлен.",
+  "pkcs11ModuleStatusFailed": "Не удалось загрузить модуль.",
+  "pkcs11PinPadHint": "(PIN-пад на устройстве)",
+  "pkcs11WizardBack": "Назад",
+  "pkcs11WizardNext": "Далее"
 }

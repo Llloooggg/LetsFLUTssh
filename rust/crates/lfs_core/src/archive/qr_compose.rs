@@ -434,6 +434,12 @@ mod tests {
                 application_string: None,
                 has_user_verification: false,
                 agent_policy: crate::db::ssh_keys::AgentPolicy::Ask,
+                backend: crate::db::ssh_keys::KeyBackend::Software,
+                pkcs11_uri: None,
+                pkcs11_module_path: None,
+                pkcs11_token_serial: None,
+                pkcs11_object_id: None,
+                pkcs11_object_label: None,
             },
         )
         .unwrap();
