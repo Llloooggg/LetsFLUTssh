@@ -22,7 +22,7 @@
 use std::sync::{Mutex, OnceLock};
 
 use async_trait::async_trait;
-use ssh_agent_lib::agent::{listen, Session};
+use ssh_agent_lib::agent::Session;
 use ssh_agent_lib::error::AgentError;
 use ssh_agent_lib::proto::{
     AddIdentity, AddIdentityConstrained, AddSmartcardKeyConstrained, Extension, Identity,
@@ -61,12 +61,20 @@ impl Endpoint {
     /// will publish through `request_identities` PLUS skipped ones
     /// (so callers can log the filtering decision); the publishing
     /// path filters further to hardware-bound only.
-    fn list_rows() -> Result<Vec<SshKeyRow>, Error> {
+    pub(super) fn list_rows() -> Result<Vec<SshKeyRow>, Error> {
         let app = crate::app::instance();
         let db_guard = app
             .db()
             .ok_or_else(|| Error::Db("ssh-agent: DB not initialised".into()))?;
         db_guard.with_conn(ssh_keys::list_all)
+    }
+
+    /// Per-connection lock readout. The custom listen loop honours
+    /// the same lock flag the `Session` trait surface flips through
+    /// `lock` / `unlock`. Locked sessions advertise zero identities
+    /// and refuse to sign.
+    pub(super) fn is_locked(&self) -> bool {
+        self.locked
     }
 
     /// Lookup a stored row by matching its SSH wire-format public
@@ -396,10 +404,14 @@ fn handle_slot() -> &'static Mutex<Option<AgentHandle>> {
 }
 
 /// Bind the listener, spawn the tokio task running
-/// [`ssh_agent_lib::agent::listen`]. Returns the path / pipe name
-/// so the Settings UI can show the copy button. Idempotent — a
-/// repeat call returns the same path without starting a second
-/// listener.
+/// [`crate::ssh_agent::loop_runner::handle_socket`]. Returns the path
+/// / pipe name so the Settings UI can show the copy button.
+/// Idempotent — a repeat call returns the same path without starting a
+/// second listener.
+///
+/// The custom loop is the cert-aware substitute for
+/// `ssh_agent_lib::agent::listen` — see
+/// [`crate::ssh_agent::loop_runner`] for the why.
 pub fn start_endpoint() -> Result<String, Error> {
     let mut slot = handle_slot().lock().unwrap_or_else(|e| e.into_inner());
     if let Some(existing) = slot.as_ref() {
@@ -411,9 +423,7 @@ pub fn start_endpoint() -> Result<String, Error> {
         let (listener, path) = transport::bind_unix()?;
         let path_string = path.to_string_lossy().to_string();
         let task = tokio::spawn(async move {
-            if let Err(e) = listen(listener, Endpoint::default()).await {
-                crate::app_log_warn!("SshAgent", "listener loop terminated: {e}");
-            }
+            unix_accept_loop(listener).await;
         });
         *slot = Some(AgentHandle {
             socket_path: path_string.clone(),
@@ -428,9 +438,7 @@ pub fn start_endpoint() -> Result<String, Error> {
     {
         let (listener, path) = transport::bind_windows()?;
         let task = tokio::spawn(async move {
-            if let Err(e) = listen(listener, Endpoint::default()).await {
-                crate::app_log_warn!("SshAgent", "listener loop terminated: {e}");
-            }
+            windows_accept_loop(listener).await;
         });
         *slot = Some(AgentHandle {
             socket_path: path.clone(),
@@ -439,6 +447,57 @@ pub fn start_endpoint() -> Result<String, Error> {
         });
         crate::app_log_info!("SshAgent", "endpoint started at <{}>", path);
         Ok(path)
+    }
+}
+
+/// Per-platform accept loop — Unix variant. Each accept spawns a task
+/// running [`crate::ssh_agent::loop_runner::handle_socket`] on a fresh
+/// [`Endpoint`] clone (per-connection `locked` state, default-off).
+#[cfg(unix)]
+async fn unix_accept_loop(listener: tokio::net::UnixListener) {
+    loop {
+        match listener.accept().await {
+            Ok((stream, _addr)) => {
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        super::loop_runner::handle_socket(Endpoint::default(), stream).await
+                    {
+                        crate::app_log_warn!("SshAgent", "connection ended: {e}");
+                    }
+                });
+            }
+            Err(e) => {
+                crate::app_log_warn!("SshAgent", "accept failed: {e}");
+                return;
+            }
+        }
+    }
+}
+
+/// Per-platform accept loop — Windows variant. The
+/// [`ssh_agent_lib::agent::NamedPipeListener`] implements the same
+/// `accept().await` shape as a tokio Unix listener so the structure
+/// mirrors. Each accept yields a `NamedPipeServer` stream the custom
+/// loop drives directly.
+#[cfg(windows)]
+async fn windows_accept_loop(mut listener: ssh_agent_lib::agent::NamedPipeListener) {
+    use ssh_agent_lib::agent::ListeningSocket;
+    loop {
+        match listener.accept().await {
+            Ok(stream) => {
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        super::loop_runner::handle_socket(Endpoint::default(), stream).await
+                    {
+                        crate::app_log_warn!("SshAgent", "connection ended: {e}");
+                    }
+                });
+            }
+            Err(e) => {
+                crate::app_log_warn!("SshAgent", "accept failed: {e}");
+                return;
+            }
+        }
     }
 }
 

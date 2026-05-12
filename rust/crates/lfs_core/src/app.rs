@@ -153,6 +153,17 @@ impl AppState {
         g.clone()
     }
 
+    /// Test-only DB injection. Wraps an already-built `Db` (typically
+    /// `Db::from_raw_for_tests` over an in-memory rusqlite connection)
+    /// into the singleton slot so module tests can exercise paths
+    /// that route through `app::instance().db()` without going through
+    /// SQLCipher. Mirrors `db_init` minus the file/keying step.
+    #[cfg(test)]
+    pub fn db_inject_for_tests(&self, db: Db) {
+        let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        *g = Some(Arc::new(db));
+    }
+
     /// Drop the running DB handle. Idempotent — calling twice is a
     /// no-op. Used by the auto-lock path to release the rusqlite
     /// connection (and SQLCipher's C-layer page-cipher state) when

@@ -103,6 +103,10 @@ mod backends;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 mod endpoint;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+mod identities;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+mod loop_runner;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 pub mod per_key_confirm;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 mod transport;

@@ -886,6 +886,10 @@ Every imported hardware key starts at policy `Ask` — every signature request f
 
 To pre-set or change a policy without waiting for a prompt: Tools → SSH Keys → pick a key → policy dropdown (`Always` / `Ask` / `Deny`). `Deny` also hides the key from `request_identities`, so external clients can't even see that the key exists.
 
+### Certificates
+
+If you've paired an OpenSSH certificate to a key (Tools → SSH Keys → key → Import certificate), the certificate is advertised alongside the bare public key — `ssh-add -l` against our endpoint shows two lines per cert-paired key, ending `(...-SK)` for the bare entry and `(...-CERT-SK)` for the cert entry. OpenSSH 8+ clients automatically pick the cert form during userauth, so a `git push` over SSH against a server that trusts your CA will authenticate via the certificate without any extra knob. Bare-only clients fall back to the public-key entry transparently. Mirror of what `ssh-add cert.pub` against the OpenSSH `ssh-agent` would advertise.
+
 ### Refused operations
 
 The endpoint never accepts key material from external clients — `ssh-add <file>` / `ssh-add -d` / `ssh-add -D` all fail with `SSH_AGENT_FAILURE`. Keys flow only one way: through the in-app import flow (Tools → SSH Keys → Import).
