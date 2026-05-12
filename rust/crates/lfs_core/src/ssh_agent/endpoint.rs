@@ -82,7 +82,7 @@ impl Endpoint {
     /// agent protocol matches on the encoded `KeyData` (which is
     /// what `request_identities` published), and `ssh_keys.public_key`
     /// is the OpenSSH text we re-parse to recover `KeyData`.
-    fn find_row_by_keydata(target: &KeyData) -> Result<Option<SshKeyRow>, Error> {
+    pub(super) fn find_row_by_keydata(target: &KeyData) -> Result<Option<SshKeyRow>, Error> {
         let rows = Self::list_rows()?;
         for row in rows {
             let Ok(pk) = PublicKey::from_openssh(&row.public_key) else {
@@ -97,6 +97,78 @@ impl Endpoint {
             }
         }
         Ok(None)
+    }
+
+    /// Drive a SIGN_REQUEST through the policy gate + backend
+    /// dispatcher once the row has already been resolved. Shared
+    /// between the typed [`Session::sign`] path (which matches by
+    /// `KeyData`) and the cert-aware path in
+    /// [`super::loop_runner`] (which matches by the bare key blob
+    /// embedded in an OpenSSH certificate). Returns the wire-shape
+    /// [`Signature`] that the agent response carries verbatim.
+    ///
+    /// Cert and bare requests emit the same signature shape — the
+    /// agent protocol's `key_blob` only selects the identity; the
+    /// `Signature` field always carries the bare algorithm string
+    /// and the bare signing primitive's output (verified against
+    /// OpenSSH `ssh_ed25519_encode_store_sig` and the matching
+    /// rsa/ecdsa/sk callbacks — every callback writes the bare
+    /// algorithm name without the `-cert-v01@openssh.com` suffix).
+    pub(super) async fn run_sign(
+        &mut self,
+        row: SshKeyRow,
+        data: &[u8],
+        flags: u32,
+    ) -> Result<Signature, AgentError> {
+        if self.locked {
+            return Err(AgentError::Other("agent is locked".into()));
+        }
+        // Software keys: belt-and-braces refusal. The listing path
+        // already skipped them, so the only way to land here is a
+        // misbehaving client guessing a KeyData / cert blob.
+        if BackendKind::from_row(&row) == BackendKind::Software {
+            return Err(AgentError::Other(
+                "ssh-agent: software keys are never signed through this endpoint".into(),
+            ));
+        }
+        if row.agent_policy == AgentPolicy::Deny {
+            return Err(AgentError::Other(
+                "ssh-agent: this key is policy-denied".into(),
+            ));
+        }
+        if row.agent_policy == AgentPolicy::Ask {
+            let (prompt, rx) =
+                per_key_confirm::enqueue_with_receiver(&row.id, &row.label, peer_requester());
+            publish_prompt_event(&prompt);
+            let decision = tokio::time::timeout(per_key_confirm::PROMPT_TIMEOUT, rx)
+                .await
+                .unwrap_or(Ok(Decision::Deny))
+                .unwrap_or(Decision::Deny);
+            match decision {
+                Decision::Deny => {
+                    return Err(AgentError::Other("ssh-agent: user denied".into()));
+                }
+                Decision::AuthorizeAndRemember => {
+                    if let Err(e) = persist_policy(&row.id, AgentPolicy::Always) {
+                        crate::app_log_warn!(
+                            "SshAgent",
+                            "policy promotion failed for key=<{}>: {e}",
+                            row.id
+                        );
+                    }
+                }
+                Decision::AuthorizeOnce => {}
+            }
+        }
+
+        let out = backends::dispatch_sign(&row, data, flags)
+            .await
+            .map_err(map_backend_error)?;
+
+        let algorithm = parse_algorithm_label(&out.algorithm)
+            .map_err(|e| AgentError::Other(format!("ssh-agent: {e}").into()))?;
+        Signature::new(algorithm, out.signature)
+            .map_err(|e| AgentError::Other(format!("ssh-agent: encode signature: {e}").into()))
     }
 }
 
@@ -137,69 +209,19 @@ impl Session for Endpoint {
     /// Resolve the row by public key, gate through the per-key
     /// confirm dialog (`agent_policy == Ask`), dispatch through
     /// the backend signer.
+    ///
+    /// Cert-form `key_blob` never lands here — `ssh_agent_lib::SignRequest::decode`
+    /// can't represent a cert in its `KeyData` field
+    /// (`KeyData::Other(OpaquePublicKey)` injects an extra length
+    /// prefix that doesn't match the cert wire shape). The cert
+    /// path is intercepted in [`super::loop_runner`] and dispatches
+    /// through [`run_sign`](Self::run_sign) directly. This arm
+    /// handles bare-key requests only.
     async fn sign(&mut self, request: SignRequest) -> Result<Signature, AgentError> {
-        if self.locked {
-            return Err(AgentError::Other("agent is locked".into()));
-        }
         let row = Self::find_row_by_keydata(&request.pubkey)
             .map_err(|e| AgentError::Other(format!("ssh-agent: lookup row: {e}").into()))?
             .ok_or_else(|| AgentError::Other("ssh-agent: unknown key".into()))?;
-
-        // Software keys: belt-and-braces refusal. The listing path
-        // already skipped them, so the only way to land here is a
-        // misbehaving client guessing a KeyData blob.
-        if BackendKind::from_row(&row) == BackendKind::Software {
-            return Err(AgentError::Other(
-                "ssh-agent: software keys are never signed through this endpoint".into(),
-            ));
-        }
-        if row.agent_policy == AgentPolicy::Deny {
-            return Err(AgentError::Other(
-                "ssh-agent: this key is policy-denied".into(),
-            ));
-        }
-        if row.agent_policy == AgentPolicy::Ask {
-            let (prompt, rx) =
-                per_key_confirm::enqueue_with_receiver(&row.id, &row.label, peer_requester());
-            // Publish on the bus so the Dart side can mount the
-            // dialog. The receiver waits on the verdict.
-            publish_prompt_event(&prompt);
-            let decision = tokio::time::timeout(per_key_confirm::PROMPT_TIMEOUT, rx)
-                .await
-                .unwrap_or(Ok(Decision::Deny))
-                .unwrap_or(Decision::Deny);
-            match decision {
-                Decision::Deny => {
-                    return Err(AgentError::Other("ssh-agent: user denied".into()));
-                }
-                Decision::AuthorizeAndRemember => {
-                    // Best-effort policy promotion. Failure here
-                    // does not block the current signature — the
-                    // user's intent for this one request is honoured;
-                    // the persistence layer is the slow path and the
-                    // user-visible failure mode is "the dialog
-                    // re-appears next time", which is the conservative
-                    // default.
-                    if let Err(e) = persist_policy(&row.id, AgentPolicy::Always) {
-                        crate::app_log_warn!(
-                            "SshAgent",
-                            "policy promotion failed for key=<{}>: {e}",
-                            row.id
-                        );
-                    }
-                }
-                Decision::AuthorizeOnce => {}
-            }
-        }
-
-        let out = backends::dispatch_sign(&row, &request.data, request.flags)
-            .await
-            .map_err(map_backend_error)?;
-
-        let algorithm = parse_algorithm_label(&out.algorithm)
-            .map_err(|e| AgentError::Other(format!("ssh-agent: {e}").into()))?;
-        Signature::new(algorithm, out.signature)
-            .map_err(|e| AgentError::Other(format!("ssh-agent: encode signature: {e}").into()))
+        self.run_sign(row, &request.data, request.flags).await
     }
 
     /// Refuse — external clients cannot push key material.

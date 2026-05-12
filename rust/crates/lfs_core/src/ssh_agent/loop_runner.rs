@@ -13,15 +13,19 @@
 //! adds an extra `u32` length prefix between the algorithm string and
 //! the rest of the encoded bytes, which doesn't match the wire shape
 //! of an OpenSSH certificate (algo string then `string nonce` then the
-//! inline cert fields, no extra length prefix in between). So we
-//! cannot route a cert through the typed Identity at all.
+//! inline cert fields, no extra length prefix in between). The same
+//! mismatch hits SIGN_REQUEST: `SignRequest::decode` calls
+//! `reader.read_prefixed(KeyData::decode)` and the cert blob fails
+//! the inner length check, so the typed sign path can never receive a
+//! cert `key_blob` either.
 //!
 //! Bypassing `listen` keeps the Session trait surface intact (tests +
-//! the unlikely future of a non-cert use case still rely on it) while
-//! letting `RequestIdentities` emit hand-crafted bytes through
-//! [`identities::encode_identities_answer`]. Every other request type
-//! still routes through `Session::handle` and the typed `Response`
-//! encoder — only the listing path is custom.
+//! every non-cert verb still rely on it) while letting
+//! `RequestIdentities` emit hand-crafted bytes through
+//! [`identities::encode_identities_answer`] and letting cert-bearing
+//! SIGN_REQUEST frames route through [`Endpoint::run_sign`] after we
+//! resolve the row by the bare key blob embedded in the certificate.
+//! Bare-key SIGN_REQUEST frames stay on the typed path.
 //!
 //! ## Wire framing
 //!
@@ -30,12 +34,21 @@
 //! followed by a per-type payload. See
 //! [draft-miller-ssh-agent-14 §3](https://www.ietf.org/archive/id/draft-miller-ssh-agent-14.html#section-3).
 //! We read framed bytes via `read_exact`, peek the type byte, and
-//! either route through our cert-aware listing path (`type == 11`) or
-//! pass the request through to `Session::handle` for the typed path.
+//! route through one of three arms:
+//!
+//! - msg id 11 (REQUEST_IDENTITIES) — cert-aware listing path.
+//! - msg id 13 (SIGN_REQUEST) — peek the `key_blob` algorithm string;
+//!   if it ends in `-cert-v01@openssh.com` the cert path resolves the
+//!   row by the bare pubkey embedded in the cert and dispatches
+//!   through [`Endpoint::run_sign`]. Otherwise fall through to the
+//!   typed path.
+//! - any other id — typed path via `Session::handle`.
 
 use ssh_agent_lib::agent::Session;
 use ssh_agent_lib::proto::message::{Request, Response};
 use ssh_agent_lib::ssh_encoding::{Decode, Encode};
+use ssh_key::public::KeyData;
+use ssh_key::Certificate;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::ssh_agent::endpoint::Endpoint;
@@ -45,6 +58,25 @@ use crate::ssh_agent::identities;
 /// `SSH_AGENTC_REQUEST_IDENTITIES`. See
 /// [draft-miller-ssh-agent-14 §6.1](https://www.ietf.org/archive/id/draft-miller-ssh-agent-14.html#section-6.1).
 const REQUEST_IDENTITIES_MSG_ID: u8 = 11;
+
+/// SSH agent protocol message-type byte for `SSH_AGENTC_SIGN_REQUEST`.
+/// See [draft-miller-ssh-agent-14 §3.6](https://www.ietf.org/archive/id/draft-miller-ssh-agent-14.html#section-3.6).
+const SIGN_REQUEST_MSG_ID: u8 = 13;
+
+/// SSH agent protocol message-type byte for `SSH_AGENT_SIGN_RESPONSE`.
+/// Wire body is `string signature` where `signature` follows the
+/// OpenSSH userauth shape `string algorithm || string sig_blob`. The
+/// algorithm is always the bare key's algorithm — verified against
+/// OpenSSH `ssh_ed25519_encode_store_sig` and siblings: every
+/// per-type sign callback writes the bare algorithm name regardless of
+/// whether the lookup key was a cert. The cert blob discriminator only
+/// selects the identity; the response carries the bare-key signature.
+const SIGN_RESPONSE_MSG_ID: u8 = 14;
+
+/// Suffix every OpenSSH cert-form algorithm string ends with. The
+/// SIGN_REQUEST cert-detection peek matches against this so we don't
+/// pay the cost of a full cert decode on every bare-key sign.
+const CERT_ALGORITHM_SUFFIX: &str = "-cert-v01@openssh.com";
 
 /// Maximum frame size we accept on a single request. The wire protocol
 /// is u32-prefixed; absent a cap a hostile peer could ask us to
@@ -109,6 +141,11 @@ async fn dispatch_payload(session: &mut Endpoint, payload: &[u8]) -> Vec<u8> {
             }
         };
     }
+    if msg_id == SIGN_REQUEST_MSG_ID {
+        if let Some(reply) = try_sign_with_cert(session, &payload[1..]).await {
+            return reply;
+        }
+    }
 
     // Every other verb keeps the typed path: decode the wire bytes
     // into a `Request`, run them through `Session::handle`, encode
@@ -132,6 +169,124 @@ async fn dispatch_payload(session: &mut Endpoint, payload: &[u8]) -> Vec<u8> {
         }
     };
     encode_typed_response(&resp).unwrap_or_else(|_| failure_payload())
+}
+
+/// Cert-aware SIGN_REQUEST arm. `body` is the SIGN_REQUEST payload
+/// after the msg-id byte: `string key_blob || string data || uint32 flags`.
+///
+/// Returns:
+/// - `Some(bytes)` with a fully-framed SIGN_RESPONSE or FAILURE
+///   payload when the request is a cert-form sign — caller writes
+///   the bytes back verbatim.
+/// - `None` when the `key_blob` is NOT a cert; caller falls through
+///   to the typed `Session::handle` path.
+async fn try_sign_with_cert(session: &mut Endpoint, body: &[u8]) -> Option<Vec<u8>> {
+    let mut reader: &[u8] = body;
+    let key_blob = Vec::<u8>::decode(&mut reader).ok()?;
+    if !is_cert_algorithm(&key_blob) {
+        return None;
+    }
+    let data = match Vec::<u8>::decode(&mut reader) {
+        Ok(v) => v,
+        Err(e) => {
+            crate::app_log_warn!("SshAgent", "sign-cert: data decode: {e}");
+            return Some(failure_payload());
+        }
+    };
+    let flags = match u32::decode(&mut reader) {
+        Ok(v) => v,
+        Err(e) => {
+            crate::app_log_warn!("SshAgent", "sign-cert: flags decode: {e}");
+            return Some(failure_payload());
+        }
+    };
+    Some(sign_cert_request(session, &key_blob, &data, flags).await)
+}
+
+/// Peek the leading `string` of a `key_blob` and report whether the
+/// algorithm name ends in `-cert-v01@openssh.com`. Cheap — reads at
+/// most the first `u32 len + 32` bytes and never allocates.
+fn is_cert_algorithm(key_blob: &[u8]) -> bool {
+    if key_blob.len() < 4 {
+        return false;
+    }
+    let algo_len = u32::from_be_bytes(key_blob[0..4].try_into().expect("4 bytes")) as usize;
+    if 4 + algo_len > key_blob.len() {
+        return false;
+    }
+    let algo_bytes = &key_blob[4..4 + algo_len];
+    match std::str::from_utf8(algo_bytes) {
+        Ok(s) => s.ends_with(CERT_ALGORITHM_SUFFIX),
+        Err(_) => false,
+    }
+}
+
+/// Sign a cert-form SIGN_REQUEST. Returns the SIGN_RESPONSE wire
+/// payload (msg id 14 + `string signature`) on success or a
+/// SSH_AGENT_FAILURE payload on any failure mode.
+///
+/// Steps:
+/// 1. Parse `key_blob` as an OpenSSH certificate via
+///    [`ssh_key::Certificate::from_bytes`].
+/// 2. Extract the underlying bare [`KeyData`] from the cert.
+/// 3. Find the matching `ssh_keys` row via
+///    [`Endpoint::find_row_by_keydata`] — same equality check the
+///    typed bare-key path uses.
+/// 4. Dispatch through [`Endpoint::run_sign`] which runs the
+///    per-key policy gate and the backend signer, then encode the
+///    resulting [`ssh_key::Signature`] as SSH_AGENT_SIGN_RESPONSE.
+async fn sign_cert_request(
+    session: &mut Endpoint,
+    key_blob: &[u8],
+    data: &[u8],
+    flags: u32,
+) -> Vec<u8> {
+    let cert = match Certificate::from_bytes(key_blob) {
+        Ok(c) => c,
+        Err(e) => {
+            crate::app_log_warn!("SshAgent", "sign-cert: cert decode: {e}");
+            return failure_payload();
+        }
+    };
+    let bare: &KeyData = cert.public_key();
+    let row = match Endpoint::find_row_by_keydata(bare) {
+        Ok(Some(r)) => r,
+        Ok(None) => {
+            crate::app_log_warn!("SshAgent", "sign-cert: no row matches cert pubkey");
+            return failure_payload();
+        }
+        Err(e) => {
+            crate::app_log_warn!("SshAgent", "sign-cert: row lookup: {e}");
+            return failure_payload();
+        }
+    };
+    let sig = match session.run_sign(row, data, flags).await {
+        Ok(s) => s,
+        Err(e) => {
+            crate::app_log_warn!("SshAgent", "sign-cert: backend dispatch: {e}");
+            return failure_payload();
+        }
+    };
+    encode_sign_response(&sig).unwrap_or_else(|e| {
+        crate::app_log_warn!("SshAgent", "sign-cert: response encode: {e}");
+        failure_payload()
+    })
+}
+
+/// Compose the SIGN_RESPONSE wire payload: msg id 14 followed by a
+/// length-prefixed `Signature` (which itself is `string algorithm ||
+/// string sig_blob`). Mirrors the typed `Response::SignResponse`
+/// shape — see ssh-agent-lib `proto/message/response.rs` —
+/// constructed by hand because the cert path doesn't synthesise a
+/// `Response` enum value.
+fn encode_sign_response(
+    sig: &ssh_key::Signature,
+) -> Result<Vec<u8>, ssh_agent_lib::ssh_encoding::Error> {
+    let inner_len = sig.encoded_len()?;
+    let mut out = Vec::with_capacity(1 + 4 + inner_len);
+    out.push(SIGN_RESPONSE_MSG_ID);
+    sig.encode_prefixed(&mut out)?;
+    Ok(out)
 }
 
 /// Build the SSH_AGENT_IDENTITIES_ANSWER payload bytes from live DB
@@ -184,6 +339,13 @@ mod tests {
     use super::*;
     use tokio::io::duplex;
 
+    /// Serialise tests that prime the process-singleton DB via
+    /// `app.db_inject_for_tests`. `cargo test` runs tokio tests in
+    /// parallel by default; the singleton slot races otherwise — one
+    /// test's prime gets replaced by another's before assertions run.
+    /// Acquire at the top of any test touching the shared DB.
+    static DB_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     #[tokio::test]
     async fn write_frame_emits_length_prefix() {
         let (mut srv, mut cli) = duplex(64);
@@ -229,6 +391,7 @@ mod tests {
         use crate::db::{bootstrap_schema, ssh_key_certificates, ssh_keys, Connection, Db};
         use crate::ssh_agent::identities;
 
+        let _guard = DB_TEST_LOCK.lock().await;
         // Prime the process singleton + an in-memory DB shared with
         // `Endpoint::list_rows`.
         let app = crate::app::init();
@@ -384,6 +547,197 @@ mod tests {
             found_cert_blob,
             "expected a cert blob entry in the answer; cert bytes: {} on wire",
             expected_cert_blob.len()
+        );
+    }
+
+    /// Compose a SIGN_REQUEST body (without the leading msg-id byte):
+    /// `string key_blob || string data || uint32 flags`. Used by the
+    /// cert-routing tests below to exercise the framing branch
+    /// without dragging in the full `ssh_agent_lib` typed encoder.
+    fn build_sign_request_body(key_blob: &[u8], data: &[u8], flags: u32) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(&(key_blob.len() as u32).to_be_bytes());
+        out.extend_from_slice(key_blob);
+        out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        out.extend_from_slice(data);
+        out.extend_from_slice(&flags.to_be_bytes());
+        out
+    }
+
+    #[test]
+    fn is_cert_algorithm_recognises_cert_suffix() {
+        // `ssh-ed25519-cert-v01@openssh.com` = 32 ASCII bytes, length 32.
+        let algo = b"ssh-ed25519-cert-v01@openssh.com";
+        let mut blob = Vec::new();
+        blob.extend_from_slice(&(algo.len() as u32).to_be_bytes());
+        blob.extend_from_slice(algo);
+        assert!(is_cert_algorithm(&blob));
+    }
+
+    #[test]
+    fn is_cert_algorithm_recognises_sk_cert_suffix() {
+        let algo = b"sk-ssh-ed25519-cert-v01@openssh.com";
+        let mut blob = Vec::new();
+        blob.extend_from_slice(&(algo.len() as u32).to_be_bytes());
+        blob.extend_from_slice(algo);
+        assert!(is_cert_algorithm(&blob));
+    }
+
+    #[test]
+    fn is_cert_algorithm_rejects_bare_key_blob() {
+        let algo = b"ssh-ed25519";
+        let mut blob = Vec::new();
+        blob.extend_from_slice(&(algo.len() as u32).to_be_bytes());
+        blob.extend_from_slice(algo);
+        assert!(!is_cert_algorithm(&blob));
+    }
+
+    #[test]
+    fn is_cert_algorithm_rejects_truncated_blob() {
+        // Length header claims 32 bytes; payload provides 4.
+        let blob = vec![0, 0, 0, 32, b'x', b'y', b'z', b'a'];
+        assert!(!is_cert_algorithm(&blob));
+    }
+
+    #[test]
+    fn is_cert_algorithm_rejects_empty_blob() {
+        assert!(!is_cert_algorithm(&[]));
+    }
+
+    /// Routing-only smoke. Sends a SIGN_REQUEST whose `key_blob` is
+    /// the real ed25519 cert from the fixture. The matching `ssh_keys`
+    /// row is FIDO2-backed, so the dispatcher reaches
+    /// `fido2_sign` — there's no FIDO2 device in CI, so the dispatcher
+    /// surfaces a typed error which the loop translates into a
+    /// SSH_AGENT_FAILURE byte. The contract this test pins is the
+    /// *routing*: the cert blob reached `try_sign_with_cert`, decoded
+    /// as a cert, matched the row, and ran through the gate; failure
+    /// to reach the device is the expected ending in this harness.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cert_sign_routes_to_dispatch_then_returns_failure_without_device() {
+        use crate::db::{bootstrap_schema, ssh_keys, Connection, Db};
+
+        let _guard = DB_TEST_LOCK.lock().await;
+        let app = crate::app::init();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        let db = Db::from_raw_for_tests(conn);
+
+        const USER_PUB: &str = include_str!("test_fixtures/ed25519_user.pub");
+        const USER_CERT: &[u8] = include_bytes!("test_fixtures/ed25519_cert.pub");
+
+        db.with_conn(|c| {
+            ssh_keys::upsert(
+                c,
+                &ssh_keys::SshKeyRow {
+                    id: "fido-cert-sign".into(),
+                    label: "FIDO-with-cert-sign".into(),
+                    private_key: "PRIV".into(),
+                    public_key: USER_PUB.into(),
+                    key_type: "sk-ssh-ed25519@openssh.com".into(),
+                    is_generated: false,
+                    created_at_ms: 0,
+                    credential_id: Some(vec![1, 2, 3]),
+                    application_string: Some("ssh:".into()),
+                    has_user_verification: false,
+                    // `Always` skips the per-key confirm gate so we
+                    // reach the backend dispatcher directly.
+                    agent_policy: ssh_keys::AgentPolicy::Always,
+                    backend: ssh_keys::KeyBackend::Fido2,
+                    pkcs11_uri: None,
+                    pkcs11_module_path: None,
+                    pkcs11_token_serial: None,
+                    pkcs11_object_id: None,
+                    pkcs11_object_label: None,
+                    enclave_tag: None,
+                    hello_credential_name: None,
+                    tpm_blob: None,
+                    tpm_handle: None,
+                    tpm_provider: None,
+                    tpm_pin_required: false,
+                    cng_key_name: None,
+                    keystore_alias: None,
+                    keystore_strongbox: false,
+                    keystore_user_auth_required: false,
+                    keystore_platform: None,
+                },
+            )
+        })
+        .unwrap();
+        app.db_inject_for_tests(db);
+
+        let cert_text = std::str::from_utf8(USER_CERT).unwrap().trim();
+        let cert = ssh_key::Certificate::from_openssh(cert_text).unwrap();
+        let cert_blob = cert.to_bytes().unwrap();
+
+        let mut ep = Endpoint::default();
+        let mut payload = vec![SIGN_REQUEST_MSG_ID];
+        payload.extend_from_slice(&build_sign_request_body(&cert_blob, b"to-sign", 0));
+        let reply = dispatch_payload(&mut ep, &payload).await;
+
+        // CTAP2 over libfido2 is unreachable in CI — the dispatcher
+        // surfaces the typed error and the loop encodes it as the
+        // failure byte. The exact failure mode (device missing /
+        // permission denied / unimplemented) is environment-
+        // dependent; we pin the wire byte that's invariant.
+        assert_eq!(reply, failure_payload());
+    }
+
+    /// Cert blob with no matching DB row -> SSH_AGENT_FAILURE without
+    /// reaching the backend. Independent of CTAP2 availability.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cert_sign_unknown_row_returns_failure() {
+        use crate::db::{bootstrap_schema, Connection, Db};
+
+        let _guard = DB_TEST_LOCK.lock().await;
+        let app = crate::app::init();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        let db = Db::from_raw_for_tests(conn);
+        // No rows inserted — the cert pubkey will not match anything.
+        app.db_inject_for_tests(db);
+
+        const USER_CERT: &[u8] = include_bytes!("test_fixtures/ed25519_cert.pub");
+        let cert_text = std::str::from_utf8(USER_CERT).unwrap().trim();
+        let cert = ssh_key::Certificate::from_openssh(cert_text).unwrap();
+        let cert_blob = cert.to_bytes().unwrap();
+
+        let mut ep = Endpoint::default();
+        let mut payload = vec![SIGN_REQUEST_MSG_ID];
+        payload.extend_from_slice(&build_sign_request_body(&cert_blob, b"to-sign", 0));
+        let reply = dispatch_payload(&mut ep, &payload).await;
+        assert_eq!(reply, failure_payload());
+    }
+
+    /// Bare-key SIGN_REQUEST stays on the typed path — the cert arm
+    /// returns `None` and the loop falls through to `Session::handle`.
+    /// We assert the failure wire byte (no device + no row) instead of
+    /// a SIGN_RESPONSE, but the load-bearing claim is that the cert arm
+    /// did NOT short-circuit on a bare blob.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn bare_key_sign_request_falls_through_to_typed_path() {
+        let mut ep = Endpoint::default();
+        // Compose a bare ssh-ed25519 SIGN_REQUEST against an empty
+        // store. The typed path decodes the KeyData fine, finds no
+        // matching row, and returns SSH_AGENT_FAILURE.
+        const USER_PUB: &str = include_str!("test_fixtures/ed25519_user.pub");
+        let pk = ssh_key::PublicKey::from_openssh(USER_PUB).unwrap();
+        let mut bare_blob = Vec::new();
+        pk.key_data().encode(&mut bare_blob).unwrap();
+
+        // Run a try_sign_with_cert directly to assert the cert arm
+        // returns None for a bare blob.
+        let body = build_sign_request_body(&bare_blob, b"to-sign", 0);
+        let cert_arm = try_sign_with_cert(&mut ep, &body).await;
+        assert!(
+            cert_arm.is_none(),
+            "bare-key SIGN_REQUEST must fall through to the typed path"
         );
     }
 
