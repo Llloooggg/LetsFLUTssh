@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data' show Uint8List;
 
 import 'package:path/path.dart' as p;
@@ -38,7 +37,7 @@ const _rustDbFileName = 'letsflutssh.db';
 Future<bool> lfsCoreDbExists() async {
   try {
     final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _rustDbFileName)).exists();
+    return rust_app.dbFileExists(path: p.join(dir.path, _rustDbFileName));
   } catch (e) {
     AppLogger.instance.log(
       'letsflutssh.db existence probe failed: $e',

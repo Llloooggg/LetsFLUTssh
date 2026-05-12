@@ -126,6 +126,16 @@ Future<void> dbRekey({required List<int> newKey}) =>
 Future<void> dbRekeyFromSecret({required String secretId}) =>
     RustLib.instance.api.crateApiAppDbRekeyFromSecret(secretId: secretId);
 
+/// Cheap existence probe for the on-disk SQLCipher DB at `path`.
+/// Used by Dart at first-launch to distinguish "fresh install" from
+/// "existing install — unlock previous key" without pulling
+/// `dart:io` into the cold-start ordering. Errors (path resolution,
+/// I/O) collapse to `false` so the caller treats them as the
+/// fresh-install case — symmetric with the pre-FRB Dart behaviour
+/// that returned `false` on any exception.
+bool dbFileExists({required String path}) =>
+    RustLib.instance.api.crateApiAppDbFileExists(path: path);
+
 /// Smoke-test query — returns the count of rows in `sqlite_master`.
 /// Used by Dart at startup to assert the DB is reachable before
 /// the rest of the app uses it.
