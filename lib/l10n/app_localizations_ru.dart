@@ -2410,9 +2410,6 @@ class SRu extends S {
   String get colT1PasswordBiometric => 'T1 + пароль + биометрия';
 
   @override
-  String get colT2 => 'T2 Аппаратный';
-
-  @override
   String get colT2Password => 'T2 + пароль';
 
   @override
@@ -2521,7 +2518,7 @@ class SRu extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Продвинутый: ключ привязан к оборудованию. Данные невосстановимы, если чип этого устройства утерян или заменён.';
+      'Продвинутый: ключ привязан к оборудованию, всегда защищён паролем. Данные невосстановимы, если чип этого устройства утерян или заменён.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2543,6 +2540,10 @@ class SRu extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Вводимый секрет — барьер перед разблокировкой хранилища.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Обязательно — Hardware-уровень всегда защищён паролем.';
 
   @override
   String get modifierBiometricLabel => 'Биометрический ярлык';
@@ -2572,8 +2573,50 @@ class SRu extends S {
       'fprintd не установлен или нет зарегистрированного отпечатка.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM без пароля обеспечивает изоляцию, но не аутентификацию. Любой, кто может запустить это приложение, сможет разблокировать данные.';
+  String get t2RequiresPasswordTitle =>
+      'Задайте мастер-пароль для Hardware-уровня';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware-уровень требует пароль как модификатор. Биометрия — опциональный ярлык поверх него.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware-уровень требует пароль';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Существующие установки Hardware без пароля должны задать его сейчас, чтобы продолжить.';
+
+  @override
+  String get t2MigrationContinue => 'Продолжить';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Включить биометрический ярлык на Hardware-уровне';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Освобождает пароль из биометрически защищённого слота ОС.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Биометрическая оболочка пока недоступна на этой платформе.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Сначала задайте пароль Hardware-уровня.';
+
+  @override
+  String get t2UnlockTitle => 'Разблокировать мастер-паролем';
+
+  @override
+  String get t2UnlockSubtitle => 'Hardware-bound ключ защищён вашим паролем.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Использовать биометрию';
+
+  @override
+  String get t2PasswordChanged => 'Пароль Hardware-уровня обновлён.';
 
   @override
   String get paranoidMasterPasswordNote =>

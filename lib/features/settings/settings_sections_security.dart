@@ -229,7 +229,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required SecurityTier tier,
     required SecurityTierModifiers modifiers,
     String? shortPassword,
-    String? pin,
+    String? hardwarePassword,
     String? masterPassword,
     bool? pendingBiometric,
   }) async {
@@ -246,7 +246,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       tier: tier,
       modifiers: modifiers,
       shortPasswordSecretId: SecuritySetupResult.stageSecret(shortPassword),
-      pinSecretId: SecuritySetupResult.stageSecret(pin),
+      pinSecretId: SecuritySetupResult.stageSecret(hardwarePassword),
       masterPasswordSecretId: SecuritySetupResult.stageSecret(masterPassword),
       keychainAvailable: keychainAvail,
     );
@@ -317,7 +317,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         tier,
         modifiers,
         shortPassword: shortPassword,
-        pin: pin,
+        hardwarePassword: hardwarePassword,
         masterPassword: masterPassword,
       );
       if (biometricCapture.kind == _BiometricKeyCaptureKind.cancelled) {

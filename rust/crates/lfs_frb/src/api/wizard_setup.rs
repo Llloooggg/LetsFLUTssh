@@ -126,16 +126,14 @@ mod tests {
     fn hardware_lands_typed_secret_in_master_password_slot() {
         // Hardware is always password-gated — the typed secret is
         // the primary unlock gate. The Rust mapper lands it in
-        // `master_password` (canonical) and duplicates into `pin`
-        // as a back-compat hand-off for the Dart wizard wiring
-        // that still reads `pinSecretId`; the imminent Dart UI
-        // flip retires the duplicate.
+        // `master_password` exclusively; biometric is the optional
+        // shortcut layer on top, not a separate PIN.
         let mapped =
             security_map_wizard_choice("hardware".into(), true, false, Some("4321".into()))
                 .expect("hardware");
         assert_eq!(mapped.master_password.as_deref(), Some("4321"));
         assert!(mapped.short_password.is_none());
-        assert_eq!(mapped.pin.as_deref(), Some("4321"));
+        assert!(mapped.pin.is_none());
         assert!(mapped.password);
     }
 

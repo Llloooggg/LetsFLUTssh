@@ -2,7 +2,6 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
-import 'package:letsflutssh/core/security/windows/winbio_probe.dart';
 import 'package:letsflutssh/src/rust/api/os_security.dart' as rust_os;
 
 void main() {
@@ -107,31 +106,6 @@ void main() {
         expect(await bio.availability(), isNull);
       },
     );
-  });
-
-  group('BiometricAuth.availability — Windows WinBio gate', () {
-    // `_FakeWinBioProbe` answers a canned unit count. On non-Windows
-    // hosts `availability` skips the WinBio block entirely, so these
-    // tests assert the gate's Dart-side contract: 0 units → noSensor,
-    // positive units → whatever the rest of the probe decided. The
-    // full round-trip against `winbio.dll` lives on the Windows
-    // smoke suite.
-    test(
-      'zero physical units demotes Hello to noSensor (Windows-only path)',
-      () {
-        if (!Platform.isWindows) return;
-        final bio = BiometricAuth(winbioProbe: _FakeWinBioProbe(0));
-        expect(bio, isA<BiometricAuth>());
-      },
-    );
-
-    test('positive unit count means the WinBio gate does not override', () {
-      // Same caveat as above — host-guarded; we assert the
-      // constructor shape so the injection point is not accidentally
-      // dropped by a refactor.
-      final bio = BiometricAuth(winbioProbe: _FakeWinBioProbe(1));
-      expect(bio, isA<BiometricAuth>());
-    });
   });
 
   group('BiometricAuth.authenticate — Linux branch', () {
@@ -263,18 +237,4 @@ void main() {
       },
     );
   });
-}
-
-/// Stand-in WinBioProbe that returns a canned unit count without
-/// touching `winbio.dll`. Used by the Windows-branch availability
-/// tests so the gate can be exercised on a Linux / macOS test host.
-class _FakeWinBioProbe implements WinBioProbe {
-  _FakeWinBioProbe(this.units);
-  final int units;
-
-  @override
-  Future<int> countBiometricUnits() async => units;
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

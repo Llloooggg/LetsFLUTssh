@@ -2394,9 +2394,6 @@ class SAr extends S {
   String get colT1PasswordBiometric => 'T1 + كلمة مرور + بصمة حيوية';
 
   @override
-  String get colT2 => 'T2 عتاد';
-
-  @override
   String get colT2Password => 'T2 + كلمة مرور';
 
   @override
@@ -2506,7 +2503,7 @@ class SAr extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'متقدم: مفتاح مرتبط بالعتاد. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.';
+      'متقدم: مفتاح مرتبط بالعتاد، محمي دائماً بكلمة مرور. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2527,6 +2524,10 @@ class SAr extends S {
 
   @override
   String get modifierPasswordSubtitle => 'حاجز سري يُكتب قبل فتح القبو.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'مطلوبة — مستوى Hardware محمي دائماً بكلمة مرور.';
 
   @override
   String get modifierBiometricLabel => 'اختصار بصمة';
@@ -2556,8 +2557,50 @@ class SAr extends S {
       'لم يتم تثبيت fprintd أو لا توجد بصمة مسجلة.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'يوفر TPM بدون كلمة مرور عزلًا وليس مصادقة. أي شخص يستطيع تشغيل هذا التطبيق يمكنه فتح البيانات.';
+  String get t2RequiresPasswordTitle => 'اضبط كلمة مرور رئيسية لمستوى Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'يحتاج مستوى Hardware إلى كلمة مرور كمعدّل. القياس الحيوي هو اختصار اختياري فوقها.';
+
+  @override
+  String get t2MigrationPromptTitle => 'مستوى Hardware يحتاج كلمة مرور';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'تثبيتات Hardware الحالية بدون كلمة مرور يجب تعيين واحدة الآن للمتابعة.';
+
+  @override
+  String get t2MigrationContinue => 'متابعة';
+
+  @override
+  String get biometricOverlayEnable =>
+      'تفعيل اختصار القياس الحيوي على مستوى Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'يحرّر كلمة المرور من فتحة نظام محمية بالقياس الحيوي.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'طبقة القياس الحيوي غير متاحة على هذا النظام بعد.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'اضبط كلمة مرور مستوى Hardware أولاً.';
+
+  @override
+  String get t2UnlockTitle => 'افتح بكلمة المرور الرئيسية';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'المفتاح المرتبط بالعتاد محمي بكلمة المرور الخاصة بك.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'استخدم القياس الحيوي';
+
+  @override
+  String get t2PasswordChanged => 'تم تحديث كلمة مرور مستوى Hardware.';
 
   @override
   String get paranoidMasterPasswordNote =>

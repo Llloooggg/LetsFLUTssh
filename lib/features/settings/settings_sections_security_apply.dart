@@ -34,6 +34,16 @@ extension _TierApply on _SecuritySectionState {
       promptCurrentPassword: _promptCurrentPasswordWithWipe,
       verifyMaster: ref.read(masterPasswordProvider).verify,
       verifyKeychainGate: ref.read(keychainPasswordGateProvider).verify,
+      verifyHardwareVault: (entered) async {
+        // The hw-vault unseal returns the DB key on a correct
+        // password and null on a mismatch — non-null is the
+        // verifier. The returned bytes are discarded; the apply
+        // pipeline reseals under whatever the next tier wants.
+        final unsealed = await ref
+            .read(hardwareTierVaultProvider)
+            .read(entered);
+        return unsealed != null;
+      },
     );
     switch (result) {
       case ConfirmPasswordResult.notRequired:
@@ -133,13 +143,15 @@ extension _TierApply on _SecuritySectionState {
   }
 
   Future<void> _applyHardwareTier(SecuritySetupResult result) async {
-    // Hardware tier accepts a passwordless seal — `pin == null` when
-    // the wizard left the password modifier off for T2. The modifier
-    // snapshot stays the source of truth for later unlock flows.
+    // Hardware tier is always password-gated; biometric is the
+    // optional shortcut on top. A missing password at this point
+    // is a misuse — the wizard / Settings card both force the
+    // modifier on for T2 — so we fail loud rather than silently
+    // seal against an empty HMAC.
     final hwVault = ref.read(hardwareTierVaultProvider);
     await applyHardwareTier(
       modifiers: result.modifiers,
-      pin: result.takePin(),
+      password: result.takePin(),
       stageRandomKey: _stageRandomKey,
       hardwareStoreFromSecret: hwVault.storeFromSecret,
       applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,

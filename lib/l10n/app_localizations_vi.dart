@@ -2377,9 +2377,6 @@ class SVi extends S {
   String get colT1PasswordBiometric => 'T1 + mật khẩu + biometric';
 
   @override
-  String get colT2 => 'T2 Phần cứng';
-
-  @override
   String get colT2Password => 'T2 + mật khẩu';
 
   @override
@@ -2489,7 +2486,7 @@ class SVi extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Nâng cao: khóa gắn với phần cứng. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.';
+      'Nâng cao: khóa gắn với phần cứng, luôn được bảo vệ bằng password. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2511,6 +2508,10 @@ class SVi extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Mật khẩu cần nhập trước khi mở vault dữ liệu.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Bắt buộc — tier Hardware luôn được bảo vệ bằng password.';
 
   @override
   String get modifierBiometricLabel => 'Shortcut biometric';
@@ -2540,8 +2541,50 @@ class SVi extends S {
       'fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM không có mật khẩu chỉ cung cấp sự cô lập, không phải xác thực. Bất kỳ ai có thể chạy ứng dụng này đều có thể mở khóa dữ liệu.';
+  String get t2RequiresPasswordTitle => 'Đặt master password cho tier Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Tier Hardware cần password làm modifier. Biometric là shortcut tùy chọn ở trên.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Tier Hardware cần password';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Các install Hardware hiện có không có password phải đặt một cái ngay bây giờ để tiếp tục.';
+
+  @override
+  String get t2MigrationContinue => 'Tiếp tục';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Kích hoạt shortcut biometric trên tier Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Giải phóng password của bạn từ một OS slot được bảo vệ bằng biometric.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Overlay biometric chưa khả dụng trên platform này.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Đặt password tier Hardware trước đã.';
+
+  @override
+  String get t2UnlockTitle => 'Mở khóa bằng master password';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Khóa hardware-bound được bảo vệ bằng password của bạn.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Dùng biometric';
+
+  @override
+  String get t2PasswordChanged => 'Password tier Hardware đã được cập nhật.';
 
   @override
   String get paranoidMasterPasswordNote =>

@@ -31,28 +31,30 @@ bool wizardBiometricToggleEnabled({
 }
 
 /// True when the password-modifier toggle should respond to taps.
-/// Paranoid carries a mandatory password (toggle is fixed on);
-/// plaintext has nothing to gate (toggle is fixed off). T1/T2 are
-/// the only tiers where the user picks.
+/// Paranoid and Hardware carry a mandatory password (toggle is
+/// fixed on — Hardware's typed password is the primary gate,
+/// biometric is the optional shortcut on top); plaintext has
+/// nothing to gate (toggle is fixed off). Keychain is the only
+/// tier where the user picks.
 bool wizardPasswordToggleEnabled(WizardTier selected) {
   if (selected == WizardTier.paranoid) return false;
+  if (selected == WizardTier.hardware) return false;
   if (selected == WizardTier.plaintext) return false;
   return true;
 }
 
 /// True when the wizard's secret-input field block (master password
 /// for Paranoid, short bank-style password for T1/T2) must be filled
-/// before [wizardCanSubmit] passes. Plaintext / passwordless T1 /
-/// passwordless T2 don't ask.
+/// before [wizardCanSubmit] passes. Plaintext and passwordless
+/// Keychain do not ask; Hardware always asks because T2 is
+/// password-gated by contract.
 bool wizardNeedsSecretInput({
   required WizardTier selected,
   required bool password,
 }) {
   if (selected == WizardTier.paranoid) return true;
-  if ((selected == WizardTier.keychain || selected == WizardTier.hardware) &&
-      password) {
-    return true;
-  }
+  if (selected == WizardTier.hardware) return true;
+  if (selected == WizardTier.keychain && password) return true;
   return false;
 }
 

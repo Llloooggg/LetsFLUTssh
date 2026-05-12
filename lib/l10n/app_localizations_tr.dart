@@ -2396,9 +2396,6 @@ class STr extends S {
   String get colT1PasswordBiometric => 'T1 + parola + biyometrik';
 
   @override
-  String get colT2 => 'T2 Donanım';
-
-  @override
   String get colT2Password => 'T2 + parola';
 
   @override
@@ -2508,7 +2505,7 @@ class STr extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.';
+      'Gelişmiş: donanıma bağlı anahtar, her zaman parola ile korunur. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2530,6 +2527,10 @@ class STr extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Kasa açılmadan önce yazılan gizli geçiş kapısı.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Zorunlu — Hardware tier her zaman parola ile korunur.';
 
   @override
   String get modifierBiometricLabel => 'Biyometrik kısayol';
@@ -2559,8 +2560,51 @@ class STr extends S {
       'fprintd kurulu değil veya kayıtlı parmak izi yok.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'Parolasız TPM izolasyon sağlar, kimlik doğrulama sağlamaz. Bu uygulamayı çalıştırabilen herkes veriyi açabilir.';
+  String get t2RequiresPasswordTitle =>
+      'Hardware tier için master password belirle';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware tier modifier olarak password gerektirir. Biometric bunun üzerinde opsiyonel bir shortcut\'tır.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware tier password gerektiriyor';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Password\'siz mevcut Hardware install\'lar devam etmek için şimdi bir tane belirlemeli.';
+
+  @override
+  String get t2MigrationContinue => 'Devam';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Hardware tier üzerinde biometric shortcut\'ı etkinleştir';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Password\'ünü biometric-gated bir OS slot\'undan serbest bırakır.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Biometric overlay bu platformda henüz mevcut değil.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Önce Hardware tier password\'ünü belirle.';
+
+  @override
+  String get t2UnlockTitle => 'Master password ile aç';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Hardware-bound anahtar password\'ün ile korunur.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Biometric kullan';
+
+  @override
+  String get t2PasswordChanged => 'Hardware tier password\'ü güncellendi.';
 
   @override
   String get paranoidMasterPasswordNote =>

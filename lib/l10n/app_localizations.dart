@@ -4221,12 +4221,6 @@ abstract class S {
   /// **'T1 + password + biometric'**
   String get colT1PasswordBiometric;
 
-  /// No description provided for @colT2.
-  ///
-  /// In en, this message translates to:
-  /// **'T2 Hardware'**
-  String get colT2;
-
   /// No description provided for @colT2Password.
   ///
   /// In en, this message translates to:
@@ -4422,7 +4416,7 @@ abstract class S {
   /// No description provided for @tierHardwareSubtitleHonest.
   ///
   /// In en, this message translates to:
-  /// **'Advanced: hardware-bound key. Data is irrecoverable if this device\'s chip is lost or replaced.'**
+  /// **'Advanced: hardware-bound key, always password-gated. Data is irrecoverable if this device\'s chip is lost or replaced.'**
   String get tierHardwareSubtitleHonest;
 
   /// No description provided for @tierParanoidSubtitleHonest.
@@ -4460,6 +4454,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Typed secret gate before the vault unlocks.'**
   String get modifierPasswordSubtitle;
+
+  /// No description provided for @modifierPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required — Hardware tier is always password-gated.'**
+  String get modifierPasswordRequired;
 
   /// No description provided for @modifierBiometricLabel.
   ///
@@ -4503,11 +4503,83 @@ abstract class S {
   /// **'fprintd not installed or no enrolled finger.'**
   String get fprintdNotAvailable;
 
-  /// No description provided for @linuxTpmWithoutPasswordNote.
+  /// No description provided for @t2RequiresPasswordTitle.
   ///
   /// In en, this message translates to:
-  /// **'TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.'**
-  String get linuxTpmWithoutPasswordNote;
+  /// **'Set a master password for Hardware tier'**
+  String get t2RequiresPasswordTitle;
+
+  /// No description provided for @t2RequiresPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound tier needs a password as a modifier. Biometric is an optional shortcut on top.'**
+  String get t2RequiresPasswordBody;
+
+  /// No description provided for @t2MigrationPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware tier needs a password'**
+  String get t2MigrationPromptTitle;
+
+  /// No description provided for @t2MigrationPromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing Hardware-tier installs without a password need one set now to continue.'**
+  String get t2MigrationPromptBody;
+
+  /// No description provided for @t2MigrationContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get t2MigrationContinue;
+
+  /// No description provided for @biometricOverlayEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable biometric shortcut on Hardware tier'**
+  String get biometricOverlayEnable;
+
+  /// No description provided for @biometricOverlayEnableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Releases your password from a biometric-gated OS slot.'**
+  String get biometricOverlayEnableSubtitle;
+
+  /// No description provided for @biometricOverlayUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric overlay not available on this platform yet.'**
+  String get biometricOverlayUnavailable;
+
+  /// No description provided for @biometricOverlayRequiresPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the Hardware-tier password first.'**
+  String get biometricOverlayRequiresPassword;
+
+  /// No description provided for @t2UnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock with your master password'**
+  String get t2UnlockTitle;
+
+  /// No description provided for @t2UnlockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound key is gated by your password.'**
+  String get t2UnlockSubtitle;
+
+  /// No description provided for @t2UnlockUseBiometricButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Use biometric instead'**
+  String get t2UnlockUseBiometricButton;
+
+  /// No description provided for @t2PasswordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-tier password updated.'**
+  String get t2PasswordChanged;
 
   /// No description provided for @paranoidMasterPasswordNote.
   ///

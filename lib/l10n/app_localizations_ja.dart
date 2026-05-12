@@ -2334,9 +2334,6 @@ class SJa extends S {
   String get colT1PasswordBiometric => 'T1 + パスワード + 生体認証';
 
   @override
-  String get colT2 => 'T2 ハードウェア';
-
-  @override
   String get colT2Password => 'T2 + パスワード';
 
   @override
@@ -2444,7 +2441,7 @@ class SJa extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      '上級: ハードウェアに紐づく鍵。このデバイスのチップが失われたり交換されたりすると、データは復元できません。';
+      '上級: ハードウェアに紐づく鍵、常にパスワード保護されます。このデバイスのチップが失われたり交換されたりすると、データは復元できません。';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2465,6 +2462,9 @@ class SJa extends S {
 
   @override
   String get modifierPasswordSubtitle => 'ボールトを復号する前に入力する秘密のゲート。';
+
+  @override
+  String get modifierPasswordRequired => '必須 — Hardware ティアは常にパスワード保護されます。';
 
   @override
   String get modifierBiometricLabel => '生体認証ショートカット';
@@ -2490,8 +2490,48 @@ class SJa extends S {
   String get fprintdNotAvailable => 'fprintd がインストールされていないか、指紋が登録されていません。';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを復号できます。';
+  String get t2RequiresPasswordTitle => 'Hardware ティアにマスターパスワードを設定';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware ティアは modifier としてパスワードが必要です。バイオメトリクスはその上のオプショナル shortcut です。';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware ティアにパスワードが必要';
+
+  @override
+  String get t2MigrationPromptBody =>
+      '既存のパスワードなし Hardware インストールは続行のため今すぐ設定する必要があります。';
+
+  @override
+  String get t2MigrationContinue => '続行';
+
+  @override
+  String get biometricOverlayEnable => 'Hardware ティアでバイオメトリクス shortcut を有効化';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'バイオメトリクス保護された OS スロットからパスワードを解放します。';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'バイオメトリクス overlay はこのプラットフォームではまだ利用できません。';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      '先に Hardware ティアのパスワードを設定してください。';
+
+  @override
+  String get t2UnlockTitle => 'マスターパスワードでアンロック';
+
+  @override
+  String get t2UnlockSubtitle => 'hardware-bound 鍵はパスワードで保護されています。';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'バイオメトリクスを使う';
+
+  @override
+  String get t2PasswordChanged => 'Hardware ティアのパスワードを更新しました。';
 
   @override
   String get paranoidMasterPasswordNote =>

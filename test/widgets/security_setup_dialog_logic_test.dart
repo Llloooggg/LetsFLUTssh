@@ -64,13 +64,19 @@ void main() {
       expect(wizardPasswordToggleEnabled(WizardTier.paranoid), isFalse);
     });
 
+    test('hardware has a mandatory password — toggle locked', () {
+      // T2 is always password-gated; biometric is the optional
+      // shortcut on top. The wizard force-pins the modifier on
+      // for Hardware, so the toggle row renders as read-only.
+      expect(wizardPasswordToggleEnabled(WizardTier.hardware), isFalse);
+    });
+
     test('plaintext has nothing to gate — toggle locked', () {
       expect(wizardPasswordToggleEnabled(WizardTier.plaintext), isFalse);
     });
 
-    test('keychain / hardware let the user pick', () {
+    test('keychain lets the user pick', () {
       expect(wizardPasswordToggleEnabled(WizardTier.keychain), isTrue);
-      expect(wizardPasswordToggleEnabled(WizardTier.hardware), isTrue);
     });
   });
 
@@ -98,19 +104,32 @@ void main() {
       );
     });
 
-    test('keychain / hardware ask only when password modifier is on', () {
-      for (final tier in [WizardTier.keychain, WizardTier.hardware]) {
-        expect(
-          wizardNeedsSecretInput(selected: tier, password: false),
-          isFalse,
-          reason: '$tier passwordless skips the secret input',
-        );
-        expect(
-          wizardNeedsSecretInput(selected: tier, password: true),
-          isTrue,
-          reason: '$tier+password requires the bank-style secret',
-        );
-      }
+    test('keychain asks only when password modifier is on', () {
+      expect(
+        wizardNeedsSecretInput(selected: WizardTier.keychain, password: false),
+        isFalse,
+        reason: 'passwordless keychain skips the secret input',
+      );
+      expect(
+        wizardNeedsSecretInput(selected: WizardTier.keychain, password: true),
+        isTrue,
+        reason: 'keychain+password requires the bank-style secret',
+      );
+    });
+
+    test('hardware always asks regardless of the modifier flag', () {
+      // T2 is mandatory-password by tier; biometric is the
+      // optional shortcut layer on top. The wizard force-pins
+      // the password modifier on, but the predicate must hold
+      // even when a stale caller passes `password=false`.
+      expect(
+        wizardNeedsSecretInput(selected: WizardTier.hardware, password: true),
+        isTrue,
+      );
+      expect(
+        wizardNeedsSecretInput(selected: WizardTier.hardware, password: false),
+        isTrue,
+      );
     });
   });
 

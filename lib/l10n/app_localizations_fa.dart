@@ -2379,9 +2379,6 @@ class SFa extends S {
   String get colT1PasswordBiometric => 'T1 + رمز + زیست‌سنجی';
 
   @override
-  String get colT2 => 'T2 سخت‌افزار';
-
-  @override
   String get colT2Password => 'T2 + رمز';
 
   @override
@@ -2491,7 +2488,7 @@ class SFa extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'پیشرفته: کلید به سخت‌افزار گره خورده است. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.';
+      'پیشرفته: کلید به سخت‌افزار گره خورده، همیشه با رمز عبور محافظت می‌شود. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2513,6 +2510,10 @@ class SFa extends S {
   @override
   String get modifierPasswordSubtitle =>
       'دروازهٔ مخفیِ تایپ‌شده پیش از باز شدن گاوصندوق.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'الزامی — لایه Hardware همیشه با رمز محافظت می‌شود.';
 
   @override
   String get modifierBiometricLabel => 'میان‌برِ بیومتریک';
@@ -2542,8 +2543,51 @@ class SFa extends S {
       'fprintd نصب نشده یا هیچ اثر انگشتی ثبت نشده است.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM بدون رمز عبور فقط جداسازی فراهم می‌کند، نه احراز هویت. هر کسی که بتواند این برنامه را اجرا کند می‌تواند داده‌ها را باز کند.';
+  String get t2RequiresPasswordTitle =>
+      'یک رمز master برای لایه Hardware تعیین کنید';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'لایه Hardware به یک رمز به عنوان modifier نیاز دارد. بیومتریک یک shortcut اختیاری روی آن است.';
+
+  @override
+  String get t2MigrationPromptTitle => 'لایه Hardware به رمز نیاز دارد';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'نصب‌های موجود Hardware بدون رمز باید اکنون یکی تعیین کنند تا ادامه دهند.';
+
+  @override
+  String get t2MigrationContinue => 'ادامه';
+
+  @override
+  String get biometricOverlayEnable =>
+      'فعال‌سازی shortcut بیومتریک روی لایه Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'رمز شما را از یک slot سیستم با گیت بیومتریک آزاد می‌کند.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'overlay بیومتریک هنوز روی این پلتفرم در دسترس نیست.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'ابتدا رمز لایه Hardware را تعیین کنید.';
+
+  @override
+  String get t2UnlockTitle => 'با رمز master باز کنید';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'کلید hardware-bound با رمز شما محافظت می‌شود.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'از بیومتریک استفاده کنید';
+
+  @override
+  String get t2PasswordChanged => 'رمز لایه Hardware به‌روز شد.';
 
   @override
   String get paranoidMasterPasswordNote =>

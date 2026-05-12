@@ -26,7 +26,8 @@ import 'toast.dart';
 // Six private helper widgets (_TierRow / _ModifierToggle /
 // _SectionDivider / _ReducedWizardBanner / _PlaintextAckPanel /
 // _HonestyNote) live in a part-of sibling so the State + the
-// 511-LOC build chain stay focused. Same pattern as
+// build chain stay focused. _HonestyNote is now used only by
+// the Paranoid master-password subtitle; same pattern as
 // expandable_tier_card_widgets.
 part 'security_setup_dialog_widgets.dart';
 
@@ -482,7 +483,14 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ? null
         : _hardwareDisabledReason(l10n, caps),
     onSelect: caps.hardwareVaultAvailable
-        ? () => setState(() => _selected = WizardTier.hardware)
+        ? () => setState(() {
+            _selected = WizardTier.hardware;
+            // Hardware is always password-gated; biometric is the
+            // optional shortcut on top. Force the modifier on so
+            // the secret-input panel renders and the toggle row
+            // reads "Required" instead of "Optional".
+            _password = true;
+          })
         : null,
   );
 
@@ -570,19 +578,23 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   }
 
   /// Modifier panel for the T1 / T2 branch (keychain + hardware) —
-  /// they share the password + biometric toggles and an optional
-  /// Linux-TPM honesty note. Extracted so [_buildModifierPanel]
-  /// stays under the S3776 threshold; the switch itself is simple
-  /// dispatch, each case's body belongs in its own method.
+  /// they share the password + biometric toggles. The Hardware
+  /// password toggle is rendered as locked-on with a "Required"
+  /// subtitle so the user sees the contract instead of a togglable
+  /// affordance that the wizard would silently re-pin anyway.
+  /// Extracted so [_buildModifierPanel] stays under the S3776
+  /// threshold; the switch itself is simple dispatch, each case's
+  /// body belongs in its own method.
   Widget _buildMidTierPanel(S l10n, SecurityCapabilities caps) {
-    final linuxNote =
-        caps.isLinuxHost && _selected == WizardTier.hardware && !_password;
+    final passwordRequired = _selected == WizardTier.hardware;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ModifierToggle(
           label: l10n.modifierPasswordLabel,
-          subtitle: l10n.modifierPasswordSubtitle,
+          subtitle: passwordRequired
+              ? l10n.modifierPasswordRequired
+              : l10n.modifierPasswordSubtitle,
           icon: Icons.password,
           value: _password,
           enabled: _passwordToggleEnabled,
@@ -599,10 +611,6 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
               : _biometricDisabledReason(l10n, caps),
           onChanged: (v) => setState(() => _biometric = v),
         ),
-        if (linuxNote) ...[
-          const SizedBox(height: AppSpacing.sm),
-          _HonestyNote(text: l10n.linuxTpmWithoutPasswordNote),
-        ],
         if (_needsSecretInput()) _buildSecretForm(l10n),
       ],
     );

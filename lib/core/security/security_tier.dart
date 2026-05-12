@@ -206,17 +206,42 @@ class SecurityConfig {
   bool get usesHardwareVault => tier == SecurityTier.hardware;
 
   /// True when the config carries any user-typed secret on the
-  /// unlock path. Paranoid is mandatory-password by definition;
-  /// for `keychain` / `hardware` the answer depends on the
-  /// modifier (`tier: keychain, modifiers.password: true` is the
-  /// bank-style T1+pw — previously a dedicated `keychainWithPassword`
-  /// tier value).
+  /// unlock path. Paranoid and Hardware are mandatory-password by
+  /// definition — Hardware uses the typed password as the primary
+  /// gate on top of the hardware-bound vault; biometric is the
+  /// optional shortcut that releases that password from an
+  /// OS-managed slot, never a replacement. Keychain flips on the
+  /// explicit `modifiers.password` modifier (the bank-style T1+pw
+  /// shape — pre-v3 installs persisted this as a dedicated
+  /// `keychainWithPassword` tier value).
   bool get hasUserSecret {
-    if (tier == SecurityTier.paranoid) return true;
-    if (tier == SecurityTier.keychain || tier == SecurityTier.hardware) {
-      return modifiers.password;
+    switch (tier) {
+      case SecurityTier.paranoid:
+      case SecurityTier.hardware:
+        return true;
+      case SecurityTier.keychain:
+        return modifiers.password;
+      case SecurityTier.plaintext:
+        return false;
     }
-    return false;
+  }
+
+  /// True when the user must supply a typed password to provision
+  /// or unlock [tier]. Mirrors [hasUserSecret] but is keyed on the
+  /// tier alone (modifiers ignored) so the wizard / Settings
+  /// pickers can decide ahead of the modifier bag whether a
+  /// password slot is mandatory. Hardware and Paranoid always
+  /// require a password; Keychain leaves the call to the modifier
+  /// toggle; Plaintext has nothing to gate.
+  static bool requiresPasswordForTier(SecurityTier tier) {
+    switch (tier) {
+      case SecurityTier.paranoid:
+      case SecurityTier.hardware:
+        return true;
+      case SecurityTier.keychain:
+      case SecurityTier.plaintext:
+        return false;
+    }
   }
 
   SecurityConfig copyWith({

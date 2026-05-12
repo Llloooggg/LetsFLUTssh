@@ -20447,14 +20447,16 @@ fn wire__crate__api__tier_unlock_orchestrator__tier_unlock_hardware_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_pin = <Option<String>>::sse_decode(&mut deserializer);
+            let api_password = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok(
-                            crate::api::tier_unlock_orchestrator::tier_unlock_hardware(api_pin)
-                                .await,
+                            crate::api::tier_unlock_orchestrator::tier_unlock_hardware(
+                                api_password,
+                            )
+                            .await,
                         )?;
                         Ok(output_ok)
                     })()

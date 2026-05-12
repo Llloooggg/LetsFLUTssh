@@ -2262,7 +2262,7 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<DbUnlockOutcome> crateApiTierUnlockOrchestratorTierUnlockHardware({
-    String? pin,
+    required String password,
   });
 
   void crateApiTierUnlockOrchestratorTierUnlockHardwareCancel();
@@ -20367,13 +20367,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<DbUnlockOutcome> crateApiTierUnlockOrchestratorTierUnlockHardware({
-    String? pin,
+    required String password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_opt_String(pin, serializer);
+          sse_encode_String(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -20386,7 +20386,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiTierUnlockOrchestratorTierUnlockHardwareConstMeta,
-        argValues: [pin],
+        argValues: [password],
         apiImpl: this,
       ),
     );
@@ -20394,7 +20394,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockHardwareConstMeta =>
-      const TaskConstMeta(debugName: "tier_unlock_hardware", argNames: ["pin"]);
+      const TaskConstMeta(
+        debugName: "tier_unlock_hardware",
+        argNames: ["password"],
+      );
 
   @override
   void crateApiTierUnlockOrchestratorTierUnlockHardwareCancel() {

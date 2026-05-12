@@ -176,13 +176,20 @@ wizard and Settings surface the active backing level as a subtitle
 ("Backing: Hardware / TEE / Secure Enclave / software") so users see
 exactly what they are relying on.
 
-| Platform | T1 backing | T2 backing | Rust ownership |
-|---|---|---|---|
-| iOS | Keychain → Secure Enclave | Secure Enclave (direct) | `lfs_os_security::secure_key_storage` + `hardware_tier_vault::apple` (`security-framework` + `objc2`) |
-| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs | same as iOS — shared Apple-cfg Rust path |
-| Android | AES-256-GCM wrap key in AndroidKeyStore (TEE / StrongBox), wrapped value bytes in 0600 file under `getFilesDir()` | StrongBox-backed AES-256-GCM key with PIN-HMAC frame envelope, falls back to TEE on `StrongBoxUnavailableException` | `lfs_os_security::android::keystore` + `android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`, no Kotlin shim) |
-| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 | `lfs_os_security::secure_key_storage::windows` (`extern "system"` to `CredReadW` / `CredWriteW`); hardware vault → `lfs_os_security::windows::hardware_vault` (direct `windows` crate FFI to NCrypt) |
-| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` (subprocess + native dual backend, byte-compatible envelope) |
+T2 is mandatory-password by tier across every platform — biometric
+is the optional shortcut layer that releases the typed password from
+an OS-managed slot, never a replacement. The "Biometric overlay"
+column names the OS API used to gate that slot; "—" means the
+overlay is not wired on this platform yet (the password path still
+works, the biometric shortcut is unavailable).
+
+| Platform | T1 backing | T2 backing | Biometric overlay | Rust ownership |
+|---|---|---|---|---|
+| iOS | Keychain → Secure Enclave | Secure Enclave (direct) | `kSecAccessControlBiometryCurrentSet` ACL on the overlay key | `lfs_os_security::secure_key_storage` + `hardware_tier_vault::apple` (`security-framework` + `objc2`) |
+| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs | `kSecAccessControlBiometryCurrentSet` ACL on the overlay key | same as iOS — shared Apple-cfg Rust path |
+| Android | AES-256-GCM wrap key in AndroidKeyStore (TEE / StrongBox), wrapped value bytes in 0600 file under `getFilesDir()` | StrongBox-backed AES-256-GCM key with password-HMAC frame envelope, falls back to TEE on `StrongBoxUnavailableException` | `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` alias `lfs.hardware_tier_vault.l3.bio` | `lfs_os_security::android::keystore` + `android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`, no Kotlin shim) |
+| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 | — (Hello-gated `NCRYPT_UI_PROTECT_KEY_FLAG` overlay key planned; the password path covers T2 today) | `lfs_os_security::secure_key_storage::windows` (`extern "system"` to `CredReadW` / `CredWriteW`); hardware vault → `lfs_os_security::windows::hardware_vault` (direct `windows` crate FFI to NCrypt) |
+| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in | — (fprintd-gated separate TPM blob planned; the password path covers T2 today) | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` (subprocess + native dual backend, byte-compatible envelope) |
 
 **Linux notes.** T1 on Linux is the weakest default across the
 matrix because `libsecret` does not integrate with TPM. Users who
@@ -423,14 +430,19 @@ generated directly from the canonical `SecurityThreat` /
 `ThreatStatus` vocabulary in `lib/core/security/threat_vocabulary.dart`
 so this document and the UI cannot drift. Short summary:
 
-| Threat | T0 | T1 | T1 + pw | T2 | T2 + pw | Paranoid |
-|---|---|---|---|---|---|---|
-| Cold disk theft | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Keyring / keychain file exfiltration | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ |
-| Offline brute force on password | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
-| Bystander at unlocked machine | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
-| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
-| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
+| Threat | T0 | T1 | T1 + pw | T2 + pw | Paranoid |
+|---|---|---|---|---|---|
+| Cold disk theft | ✗ | ✓ | ✓ | ✓ | ✓ |
+| Keyring / keychain file exfiltration | ✗ | ✗ | ✓ | ✓ | ✓ |
+| Offline brute force on password | ✗ | ✗ | ✓ | ✓ | ✓ |
+| Bystander at unlocked machine | ✗ | ✗ | ✓ | ✓ | ✓ |
+| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✓ | ✓ |
+| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✓ | ✓ |
+
+The standalone "T2" column is gone — Hardware tier is always
+password-gated by contract; biometric is the optional shortcut
+that releases that password from a biometric-gated OS slot, not
+a separate tier variant.
 
 *Deliberately omitted:* same-user malware and live process memory
 dump are ✗ on every tier. Including them in the per-tier table would

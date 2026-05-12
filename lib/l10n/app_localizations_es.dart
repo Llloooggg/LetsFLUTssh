@@ -2464,9 +2464,6 @@ class SEs extends S {
   String get colT1PasswordBiometric => 'T1 + contraseña + biometría';
 
   @override
-  String get colT2 => 'T2 Hardware';
-
-  @override
   String get colT2Password => 'T2 + contraseña';
 
   @override
@@ -2576,7 +2573,7 @@ class SEs extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Avanzado: clave vinculada al hardware. Los datos son irrecuperables si el chip de este dispositivo se pierde o se reemplaza.';
+      'Avanzado: clave vinculada al hardware, siempre protegida por contraseña. Los datos son irrecuperables si el chip de este dispositivo se pierde o se reemplaza.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2598,6 +2595,10 @@ class SEs extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Barrera de secreto escrito antes de desbloquear la bóveda.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Requerido — la capa Hardware está siempre protegida por contraseña.';
 
   @override
   String get modifierBiometricLabel => 'Atajo biométrico';
@@ -2627,8 +2628,51 @@ class SEs extends S {
       'fprintd no instalado o sin huellas registradas.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'El TPM sin contraseña proporciona aislamiento, no autenticación. Cualquier persona que pueda ejecutar esta aplicación puede desbloquear los datos.';
+  String get t2RequiresPasswordTitle =>
+      'Configura una contraseña maestra para la capa Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'La capa Hardware necesita una contraseña como modificador. La biometría es un atajo opcional encima.';
+
+  @override
+  String get t2MigrationPromptTitle => 'La capa Hardware necesita contraseña';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Las instalaciones Hardware existentes sin contraseña deben configurar una ahora para continuar.';
+
+  @override
+  String get t2MigrationContinue => 'Continuar';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Activar atajo biométrico en la capa Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Libera tu contraseña desde una ranura del sistema protegida por biometría.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'El overlay biométrico aún no está disponible en esta plataforma.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Configura primero la contraseña de la capa Hardware.';
+
+  @override
+  String get t2UnlockTitle => 'Desbloquear con tu contraseña maestra';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'La clave hardware-bound está protegida por tu contraseña.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Usar biometría';
+
+  @override
+  String get t2PasswordChanged => 'Contraseña de la capa Hardware actualizada.';
 
   @override
   String get paranoidMasterPasswordNote =>

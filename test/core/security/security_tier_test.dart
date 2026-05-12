@@ -55,22 +55,48 @@ void main() {
               tier: tier,
               modifiers: SecurityTierModifiers(password: pw),
             );
-            // Paranoid is mandatory-password by definition; keychain
-            // + pw is the bank-style L2, hardware + pw is the
-            // L3-with-typed-password variant. Plaintext stays out
-            // even when the modifier is on — there's no key store
-            // for the password to gate against, so the predicate
-            // returns false to keep the auto-lock helper from arming.
+            // Paranoid and Hardware are mandatory-password by
+            // definition — Hardware uses the typed password as the
+            // primary gate, biometric is the optional shortcut on
+            // top. Keychain flips on the explicit modifier (the
+            // bank-style T1+pw shape). Plaintext stays out even
+            // when the modifier is on — there's no key store for
+            // the password to gate against, so the predicate
+            // returns false to keep the auto-lock helper from
+            // arming.
             final expected =
                 tier == SecurityTier.paranoid ||
-                ((tier == SecurityTier.keychain ||
-                        tier == SecurityTier.hardware) &&
-                    pw);
+                tier == SecurityTier.hardware ||
+                (tier == SecurityTier.keychain && pw);
             expect(cfg.hasUserSecret, expected, reason: 'tier=$tier pw=$pw');
           }
         }
       },
     );
+
+    test('requiresPasswordForTier matches the mandatory-password set', () {
+      // Hardware and Paranoid always require a password; Keychain
+      // leaves the call to the modifier toggle; Plaintext has
+      // nothing to gate. The static helper is the wizard /
+      // Settings entry point for "should the password slot
+      // render?" decisions.
+      expect(
+        SecurityConfig.requiresPasswordForTier(SecurityTier.paranoid),
+        isTrue,
+      );
+      expect(
+        SecurityConfig.requiresPasswordForTier(SecurityTier.hardware),
+        isTrue,
+      );
+      expect(
+        SecurityConfig.requiresPasswordForTier(SecurityTier.keychain),
+        isFalse,
+      );
+      expect(
+        SecurityConfig.requiresPasswordForTier(SecurityTier.plaintext),
+        isFalse,
+      );
+    });
 
     test('isParanoid is strictly paranoid', () {
       for (final tier in SecurityTier.values) {

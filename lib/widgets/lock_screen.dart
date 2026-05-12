@@ -18,7 +18,7 @@ import 'secure_screen_scope.dart';
 
 /// Full-screen lock overlay shown while [lockStateProvider] is true.
 ///
-/// Paranoid-only re-auth surface. `_submitPassword` drives
+/// Paranoid-only re-auth surface today. `_submitPassword` drives
 /// [MasterPasswordManager.unlockAttempt] which routes through the
 /// `tier_unlock_paranoid` orchestrator: stage key in SecretStore +
 /// emit unlock cascade. The [TierUnlockedListener] takes the bytes
@@ -27,10 +27,13 @@ import 'secure_screen_scope.dart';
 /// config persist); after the listener resolves we flip
 /// [lockStateProvider] off so the UI restores the workspace.
 ///
-/// Biometric unlock is deliberately absent — Paranoid opts out of
-/// biometric by design (see ARCHITECTURE §3.6 → Biometric unlock for
-/// the rationale), so there is nothing to auto-trigger and no
-/// fingerprint affordance to render.
+/// The biometric overlay surfaces only on tiers that carry an
+/// OS-managed biometric slot for the typed password (T1+pw, T2);
+/// Paranoid forbids biometric by design (see ARCHITECTURE §3.6 →
+/// Biometric unlock for the rationale). The dispatcher that
+/// renders the lock screen on a non-Paranoid tier supplies a
+/// biometric retry button keyed off the live overlay state; this
+/// surface keeps the password-only entry for the Paranoid branch.
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
 

@@ -263,49 +263,6 @@ extension _UnlockFlows on SecurityInitController {
     final mods = ref.read(configProvider).security?.modifiers;
     final listener = ref.read(tierUnlockedListenerProvider)..start();
     final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
-    if (mods != null && !mods.password) {
-      // Passwordless variant — vault was sealed without a user
-      // secret. Routes through `tier_unlock_hardware(null)` which
-      // fans out to the platform vault via the prompt registry +
-      // stages bytes in the SecretStore. FRB-unreachable contexts
-      // (flutter_test) skip straight to the plaintext fallback.
-      try {
-        final outcome = await rust_orch.tierUnlockHardware();
-        if (outcome is rust_orch.DbUnlockOutcome_Staged) {
-          final result = await unlockDone.timeout(
-            tierUnlockedListenerWaitTimeout,
-            onTimeout: () => TierUnlockOutcome.failed,
-          );
-          if (result == TierUnlockOutcome.unlocked) {
-            AppLogger.instance.log(
-              'T2 hardware-vault unlocked (passwordless)',
-              name: 'App',
-            );
-            return;
-          }
-          AppLogger.instance.log(
-            'T2 passwordless listener returned $result after Staged',
-            name: 'App',
-            level: LogLevel.warn,
-          );
-        }
-      } catch (e) {
-        AppLogger.instance.log(
-          'tier_unlock_hardware (passwordless) FRB unreachable: $e',
-          name: 'App',
-          level: LogLevel.warn,
-        );
-      }
-      listener.cancelPending();
-      _credentialsWereReset = true;
-      await _injectDatabase();
-      AppLogger.instance.log(
-        'T2 passwordless unseal failed — plaintext fallback',
-        name: 'App',
-        level: LogLevel.warn,
-      );
-      return;
-    }
     var biometricAttempted = false;
     final vault2 = ref.read(biometricKeyVaultProvider);
     final bio = ref.read(biometricAuthProvider);
@@ -408,16 +365,18 @@ extension _UnlockFlows on SecurityInitController {
         wrongSecretLabel: l10n.l3WrongPin,
       ),
       rateLimiter: limiter,
-      verify: (pin) async {
-        // Routes through `tier_unlock_hardware(pin)` which fans
-        // out to the platform vault via the prompt registry,
+      verify: (password) async {
+        // Routes through `tier_unlock_hardware(password)` which
+        // fans out to the platform vault via the prompt registry,
         // stages bytes in the SecretStore, emits the cascade.
         // FRB-unreachable contexts (flutter_test) surface as
         // `TierUnlockAttempt.error` so the dialog closes + the
         // caller routes through the plaintext fallback in
         // `_unlockHardware`.
         try {
-          final outcome = await rust_orch.tierUnlockHardware(pin: pin);
+          final outcome = await rust_orch.tierUnlockHardware(
+            password: password,
+          );
           return mapUnlockOutcome(outcome);
         } catch (e) {
           AppLogger.instance.log(

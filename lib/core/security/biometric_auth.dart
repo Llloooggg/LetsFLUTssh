@@ -7,7 +7,6 @@ import '../../src/rust/api/fprintd.dart' as rust_fprintd;
 import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../src/rust/api/tpm.dart' as rust_tpm;
 import '../../utils/logger.dart';
-import 'windows/winbio_probe.dart';
 
 /// Why biometric unlock is unavailable. Distinguishes "no hardware"
 /// from "hardware but nothing enrolled" so the UI can show a tooltip
@@ -126,14 +125,12 @@ class BiometricAuth {
   final Future<bool> Function() _fprintdVerify;
   final Future<bool> Function() _tpmAvailable;
 
-  final WinBioProbe _winbio;
-
   /// Process-lifetime cache of the availability probe. The probe
-  /// hits fprintd / TPM2 / winbio every call; without this cache
-  /// every Settings rebuild + every connect dialog open spammed
-  /// fprintd with `GetDefaultDevice` D-Bus traffic (~10 calls per
-  /// minute on a busy session) which floods the log + wakes the
-  /// reader hardware unnecessarily.
+  /// hits fprintd / TPM2 every call; without this cache every
+  /// Settings rebuild + every connect dialog open spammed fprintd
+  /// with `GetDefaultDevice` D-Bus traffic (~10 calls per minute
+  /// on a busy session) which floods the log + wakes the reader
+  /// hardware unnecessarily.
   ///
   /// Invalidated only via explicit [invalidateProbe] — typically
   /// called after a tier transition, master-password reset, or
@@ -148,13 +145,11 @@ class BiometricAuth {
   bool _backingLevelProbed = false;
 
   BiometricAuth({
-    WinBioProbe? winbioProbe,
     @visibleForTesting Future<bool> Function()? fprintdReachable,
     @visibleForTesting Future<bool> Function()? fprintdHasEnrolled,
     @visibleForTesting Future<bool> Function()? fprintdVerify,
     @visibleForTesting Future<bool> Function()? tpmAvailable,
-  }) : _winbio = winbioProbe ?? const WinBioProbe(),
-       _fprintdReachable =
+  }) : _fprintdReachable =
            fprintdReachable ?? rust_fprintd.fprintdIsServiceReachable,
        _fprintdHasEnrolled =
            fprintdHasEnrolled ?? rust_fprintd.fprintdHasEnrolledFingers,
@@ -241,15 +236,10 @@ class BiometricAuth {
   /// null when biometric unlock is ready to use, or a
   /// [BiometricUnavailableReason] describing why it isn't.
   ///
-  /// Windows caveat: the Rust `UserConsentVerifier` probe answers
-  /// "ready" the moment Windows Hello is configured — which is
-  /// satisfied by a PIN alone. An extra `winbio.dll` probe enumerates
-  /// the *physical* biometric sensors attached to the host so a
-  /// PIN-only Hello setup demotes to [BiometricUnavailableReason.noSensor]
-  /// instead of lighting up the toggle. The probe is a straight
-  /// `WinBioEnumBiometricUnits(factor=FINGERPRINT|FACIAL|IRIS)` +
-  /// `WinBioFree` — no prompts, no side effects, runs on every
-  /// Windows SKU we ship to.
+  /// Windows accepts the `UserConsentVerifier` answer at face value
+  /// — a Hello-PIN-only setup is a valid OS-gated biometric overlay
+  /// the user can flip into, so demoting to "no sensor" because no
+  /// physical reader is attached would block a usable shortcut.
   Future<BiometricAvailability> availability() async {
     if (_availabilityProbed) return _cachedAvailability;
     // Coalesce concurrent callers — Settings rebuild + a connect
@@ -275,22 +265,7 @@ class BiometricAuth {
         Platform.isIOS ||
         Platform.isWindows ||
         Platform.isAndroid) {
-      final result = await _rustAvailability();
-      if (result == null && Platform.isWindows) {
-        // PIN-only Hello setups satisfy UserConsentVerifier even
-        // when no physical biometric sensor is attached. Demote to
-        // noSensor so the toggle stays dark.
-        final units = await _winbio.countBiometricUnits();
-        if (units == 0) {
-          AppLogger.instance.log(
-            'WinBio reports zero biometric units; demoting Hello to noSensor',
-            name: 'BiometricAuth',
-            level: LogLevel.warn,
-          );
-          return BiometricUnavailableReason.noSensor;
-        }
-      }
-      return result;
+      return _rustAvailability();
     }
     return BiometricUnavailableReason.platformUnsupported;
   }

@@ -96,17 +96,26 @@ void main() {
       expect(mapped.modifiers.biometric, isTrue);
     });
 
-    test('hardware → hardware tier with pin populated from typedSecret', () {
-      final mapped = mapWizardChoice(
-        chosen: WizardTier.hardware,
-        password: true,
-        biometric: false,
-        typedSecret: 'verylong_pass',
-      );
-      expect(mapped.tier, SecurityTier.hardware);
-      expect(mapped.pin, 'verylong_pass');
-      expect(mapped.modifiers.password, isTrue);
-    });
+    test(
+      'hardware → hardware tier with masterPassword populated from typedSecret',
+      () {
+        // Hardware is always password-gated; the typed secret is
+        // the primary unlock gate and lands in `masterPassword`
+        // exclusively. Biometric is the optional shortcut layer
+        // on top, never a separate PIN.
+        final mapped = mapWizardChoice(
+          chosen: WizardTier.hardware,
+          password: true,
+          biometric: false,
+          typedSecret: 'verylong_pass',
+        );
+        expect(mapped.tier, SecurityTier.hardware);
+        expect(mapped.masterPassword, 'verylong_pass');
+        expect(mapped.pin, isNull);
+        expect(mapped.shortPassword, isNull);
+        expect(mapped.modifiers.password, isTrue);
+      },
+    );
 
     test('paranoid → paranoid tier with masterPassword populated', () {
       final mapped = mapWizardChoice(

@@ -2392,9 +2392,6 @@ class SId extends S {
   String get colT1PasswordBiometric => 'T1 + kata sandi + biometrik';
 
   @override
-  String get colT2 => 'T2 Perangkat keras';
-
-  @override
   String get colT2Password => 'T2 + kata sandi';
 
   @override
@@ -2504,7 +2501,7 @@ class SId extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Lanjutan: kunci terikat pada perangkat keras. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.';
+      'Lanjutan: kunci terikat pada perangkat keras, selalu dilindungi password. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2526,6 +2523,10 @@ class SId extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Gerbang rahasia yang diketik sebelum brankas dibuka.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Wajib — tier Hardware selalu dilindungi password.';
 
   @override
   String get modifierBiometricLabel => 'Pintasan biometrik';
@@ -2555,8 +2556,51 @@ class SId extends S {
       'fprintd belum diinstal atau tidak ada sidik jari terdaftar.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM tanpa kata sandi menyediakan isolasi, bukan autentikasi. Siapa pun yang dapat menjalankan aplikasi ini dapat membuka data.';
+  String get t2RequiresPasswordTitle =>
+      'Atur master password untuk tier Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Tier Hardware butuh password sebagai modifier. Biometric adalah shortcut opsional di atasnya.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Tier Hardware butuh password';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Install Hardware yang sudah ada tanpa password harus menetapkan satu sekarang untuk melanjutkan.';
+
+  @override
+  String get t2MigrationContinue => 'Lanjutkan';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Aktifkan shortcut biometric pada tier Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Membebaskan password kamu dari slot OS yang dilindungi biometric.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Overlay biometric belum tersedia di platform ini.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Atur password tier Hardware terlebih dahulu.';
+
+  @override
+  String get t2UnlockTitle => 'Buka dengan master password kamu';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Kunci hardware-bound dilindungi password kamu.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Gunakan biometric';
+
+  @override
+  String get t2PasswordChanged => 'Password tier Hardware diperbarui.';
 
   @override
   String get paranoidMasterPasswordNote =>

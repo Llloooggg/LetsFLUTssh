@@ -106,12 +106,17 @@ pub async fn tier_unlock_paranoid(password: Vec<u8>) -> DbUnlockOutcome {
 }
 
 /// Hardware tier (T2) — fan out a hardware-vault-unlock prompt
-/// to the Dart subscriber + emit cascade events. `pin` is the
-/// typed user secret for the password modifier; pass `None`
-/// for the passwordless variant. Stages the unsealed bytes in
-/// the SecretStore on success.
-pub async fn tier_unlock_hardware(pin: Option<String>) -> DbUnlockOutcome {
-    tier_unlock_orchestrator::unlock_hardware(pin).await.into()
+/// to the Dart subscriber + emit cascade events. `password` is
+/// the typed user secret — the primary unlock gate. T2 is
+/// mandatory-password (biometric is the optional shortcut on
+/// top, taken by [`tier_unlock_biometric_commit`]), so the
+/// signature carries a plain `String` and an empty argument
+/// surfaces a typed
+/// `PluginError("hardware_password_required")` failure.
+pub async fn tier_unlock_hardware(password: String) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::unlock_hardware(password)
+        .await
+        .into()
 }
 
 /// Resolve a pending hardware-vault unlock with success bytes.

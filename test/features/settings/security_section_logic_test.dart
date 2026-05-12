@@ -390,11 +390,13 @@ void main() {
     });
 
     test('non-verifiable source tiers never demand a verification prompt', () {
+      // Hardware and Paranoid both carry a verifiable password by
+      // tier — see the dedicated cases above. Only Plaintext + the
+      // passwordless Keychain configuration have no verifier to
+      // route the typed string through.
       const cases = [
         (SecurityTier.plaintext, noPw),
         (SecurityTier.keychain, noPw),
-        (SecurityTier.hardware, noPw),
-        (SecurityTier.hardware, withPw),
       ];
       for (final (src, mods) in cases) {
         for (final next in SecurityTier.values) {
@@ -412,6 +414,25 @@ void main() {
                 'password — $src → $next',
           );
         }
+      }
+    });
+
+    test('hardware → anything other than hardware requires verification', () {
+      // T2 is always password-gated; the hw-vault unseal is the
+      // verifier so every tier change off Hardware must re-prompt
+      // before discarding the live seal.
+      for (final next in SecurityTier.values) {
+        if (next == SecurityTier.hardware) continue;
+        expect(
+          isVerifiablePasswordDrop(
+            currentTier: SecurityTier.hardware,
+            currentModifiers: withPw,
+            nextTier: next,
+            nextModifiers: noPw,
+          ),
+          isTrue,
+          reason: 'Drop from hardware to $next must verify',
+        );
       }
     });
   });
@@ -644,6 +665,13 @@ void main() {
       );
     });
 
+    test('hardware → hardwareVault', () {
+      expect(
+        passwordVerifierKindFor(SecurityTier.hardware),
+        PasswordVerifierKind.hardwareVault,
+      );
+    });
+
     test('non-verifiable tiers fall back to keychainGate', () {
       // The caller (`_confirmCurrentPasswordIfDropping`) is gated by
       // `isVerifiablePasswordDrop`, so these tiers never reach the
@@ -651,11 +679,9 @@ void main() {
       // return *some* kind to keep the switch exhaustive. Pick the
       // safe-default branch (keychainGate); the surrounding gate
       // would have already short-circuited on the false return.
-      for (final tier in [
-        SecurityTier.plaintext,
-        SecurityTier.keychain,
-        SecurityTier.hardware,
-      ]) {
+      // Hardware is verifiable now, so the only remaining
+      // unsupported tiers are plaintext and keychain (passwordless).
+      for (final tier in [SecurityTier.plaintext, SecurityTier.keychain]) {
         expect(
           passwordVerifierKindFor(tier),
           PasswordVerifierKind.keychainGate,
@@ -715,17 +741,14 @@ void main() {
       );
     });
 
-    test('same-tier T0 / T1 / T2 (no password) → pullFromAppliedTier', () {
+    test('same-tier T0 / T1 (no password) → pullFromAppliedTier', () {
       // No verifiable password to re-prompt against — the post-apply
       // DB key is the only thing we can stash. Empty sentinel falls
       // out as a no-op when the tier holds no key (plaintext / T1
-      // without password).
+      // without password). Hardware is mandatory-password so it
+      // routes through `promptAndVerifyHardwarePassword` instead.
       const noPw = SecurityTierModifiers.defaults;
-      for (final tier in [
-        SecurityTier.plaintext,
-        SecurityTier.keychain,
-        SecurityTier.hardware,
-      ]) {
+      for (final tier in [SecurityTier.plaintext, SecurityTier.keychain]) {
         expect(
           biometricKeySourceFor(
             currentTier: tier,
@@ -737,6 +760,23 @@ void main() {
           reason: 'same-tier $tier has no verifiable secret to prompt for',
         );
       }
+    });
+
+    test('same-tier Hardware → promptAndVerifyHardwarePassword', () {
+      // T2 is always password-gated; the hw-vault unseal is the
+      // verifier so a same-tier biometric flip on Hardware
+      // re-prompts the user for the typed password and stages the
+      // unsealed DB key under the staging slot.
+      const withPw = SecurityTierModifiers(password: true);
+      expect(
+        biometricKeySourceFor(
+          currentTier: SecurityTier.hardware,
+          currentModifiers: withPw,
+          nextTier: SecurityTier.hardware,
+          nextModifiers: withPw,
+        ),
+        BiometricKeySource.promptAndVerifyHardwarePassword,
+      );
     });
   });
 
@@ -828,53 +868,65 @@ void main() {
   });
 
   group('applyHardwareTier', () {
-    test('happy path passes pin through to hardwareStoreFromSecret', () async {
-      final calls = <String>[];
-      String? capturedPin;
-      await applyHardwareTier(
-        modifiers: const SecurityTierModifiers(password: true),
-        pin: 'pin-1',
-        stageRandomKey: () {
-          calls.add('stage');
-          return 'fake-id';
-        },
-        hardwareStoreFromSecret: ({required secretId, required pin}) async {
-          capturedPin = pin;
-          calls.add('seal($secretId)');
-          return true;
-        },
-        applyAlwaysRekeyFromSecret: (id, level, _) async {
-          calls.add('rekey($level,$id)');
-        },
-        dropStaged: (id) => calls.add('drop($id)'),
-        runClearPlan: (target, _) async {
-          calls.add('clearPlan($target)');
-        },
-      );
-      expect(calls, [
-        'stage',
-        'seal(fake-id)',
-        'rekey(SecurityTier.hardware,fake-id)',
-        'clearPlan(SecurityTier.hardware)',
-      ]);
-      expect(capturedPin, 'pin-1');
-    });
+    test(
+      'happy path passes password through to hardwareStoreFromSecret',
+      () async {
+        final calls = <String>[];
+        String? capturedPassword;
+        await applyHardwareTier(
+          modifiers: const SecurityTierModifiers(password: true),
+          password: 'pw-1',
+          stageRandomKey: () {
+            calls.add('stage');
+            return 'fake-id';
+          },
+          hardwareStoreFromSecret: ({required secretId, required pin}) async {
+            capturedPassword = pin;
+            calls.add('seal($secretId)');
+            return true;
+          },
+          applyAlwaysRekeyFromSecret: (id, level, _) async {
+            calls.add('rekey($level,$id)');
+          },
+          dropStaged: (id) => calls.add('drop($id)'),
+          runClearPlan: (target, _) async {
+            calls.add('clearPlan($target)');
+          },
+        );
+        expect(calls, [
+          'stage',
+          'seal(fake-id)',
+          'rekey(SecurityTier.hardware,fake-id)',
+          'clearPlan(SecurityTier.hardware)',
+        ]);
+        expect(capturedPassword, 'pw-1');
+      },
+    );
 
-    test('null pin (passwordless T2) is forwarded as-is', () async {
-      String? capturedPin = 'sentinel';
-      await applyHardwareTier(
-        modifiers: const SecurityTierModifiers(),
-        pin: null,
-        stageRandomKey: () => 'fake-id',
-        hardwareStoreFromSecret: ({required secretId, required pin}) async {
-          capturedPin = pin;
-          return true;
-        },
-        applyAlwaysRekeyFromSecret: (_, _, _) async {},
-        dropStaged: (_) {},
-        runClearPlan: (_, _) async {},
+    test('null password throws hardware password missing', () async {
+      // Hardware tier is mandatory-password; the apply pipeline
+      // must never reach the seal without one. A null reaches
+      // here only via misuse and surfaces as a typed StateError
+      // before any vault touch.
+      await expectLater(
+        () => applyHardwareTier(
+          modifiers: const SecurityTierModifiers(password: true),
+          password: null,
+          stageRandomKey: () => 'fake-id',
+          hardwareStoreFromSecret: ({required secretId, required pin}) async =>
+              true,
+          applyAlwaysRekeyFromSecret: (_, _, _) async {},
+          dropStaged: (_) {},
+          runClearPlan: (_, _) async {},
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'hardware password missing',
+          ),
+        ),
       );
-      expect(capturedPin, isNull);
     });
 
     test(
@@ -883,8 +935,8 @@ void main() {
         final calls = <String>[];
         await expectLater(
           () => applyHardwareTier(
-            modifiers: const SecurityTierModifiers(),
-            pin: null,
+            modifiers: const SecurityTierModifiers(password: true),
+            password: 'pw',
             stageRandomKey: () {
               calls.add('stage');
               return 'fake-id';
@@ -1142,6 +1194,7 @@ void main() {
       required Future<String?> Function() prompt,
       bool masterAccepts = true,
       bool gateAccepts = true,
+      bool hardwareAccepts = true,
     }) {
       return confirmCurrentPasswordIfDropping(
         currentTier: current,
@@ -1151,6 +1204,7 @@ void main() {
         promptCurrentPassword: prompt,
         verifyMaster: (_) async => masterAccepts,
         verifyKeychainGate: (_) async => gateAccepts,
+        verifyHardwareVault: (_) async => hardwareAccepts,
       );
     }
 
@@ -1239,8 +1293,46 @@ void main() {
           gateCalled++;
           return false;
         },
+        verifyHardwareVault: (_) async => false,
       );
       expect(gateCalled, 0);
+    });
+
+    test('hardware → plaintext routes through verifyHardwareVault', () async {
+      // Hardware tier always carries a verifiable password (the
+      // hw-vault unseal is the verifier). A wrong-password drop
+      // surfaces as wrongPassword instead of silently routing
+      // through the keychainGate fallback.
+      var gateCalled = 0;
+      final r = await confirmCurrentPasswordIfDropping(
+        currentTier: SecurityTier.hardware,
+        currentModifiers: const SecurityTierModifiers(password: true),
+        targetTier: SecurityTier.plaintext,
+        targetModifiers: const SecurityTierModifiers(),
+        promptCurrentPassword: () async => 'pw',
+        verifyMaster: (_) async => true,
+        verifyKeychainGate: (_) async {
+          gateCalled++;
+          return true;
+        },
+        verifyHardwareVault: (_) async => false,
+      );
+      expect(r, ConfirmPasswordResult.wrongPassword);
+      expect(gateCalled, 0);
+    });
+
+    test('hardware → plaintext with correct password → ok', () async {
+      final r = await confirmCurrentPasswordIfDropping(
+        currentTier: SecurityTier.hardware,
+        currentModifiers: const SecurityTierModifiers(password: true),
+        targetTier: SecurityTier.plaintext,
+        targetModifiers: const SecurityTierModifiers(),
+        promptCurrentPassword: () async => 'pw',
+        verifyMaster: (_) async => false,
+        verifyKeychainGate: (_) async => false,
+        verifyHardwareVault: (_) async => true,
+      );
+      expect(r, ConfirmPasswordResult.ok);
     });
   });
 

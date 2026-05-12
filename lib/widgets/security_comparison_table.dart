@@ -40,10 +40,10 @@ class SecurityComparisonTable extends StatelessWidget {
         biometric: true,
       ),
     ),
-    _Column(
-      id: 'T2',
-      model: ThreatModel(tier: ThreatTier.hardware),
-    ),
+    // T2 is always password-gated; the prior "T2 (no password)"
+    // column is gone from the model. Biometric stays as an
+    // orthogonal column because the overlay is the optional
+    // shortcut layer on top of the typed password.
     _Column(
       id: 'T2+pw',
       model: ThreatModel(tier: ThreatTier.hardware, password: true),
@@ -280,8 +280,6 @@ String _columnLabel(_Column col, S l10n) {
       return l10n.colT1Password;
     case 'T1+pw+bio':
       return l10n.colT1PasswordBiometric;
-    case 'T2':
-      return l10n.colT2;
     case 'T2+pw':
       return l10n.colT2Password;
     case 'T2+pw+bio':

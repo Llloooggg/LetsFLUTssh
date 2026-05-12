@@ -379,53 +379,48 @@ pub async fn unlock_paranoid(password: Vec<u8>) -> UnlockOutcome {
 /// hardware vault (Linux TPM via `tpm2-tools`, Apple Secure
 /// Enclave / Android StrongBox / Windows Hello via method
 /// channel). Dispatches the cascade events along the way;
-/// returns the unsealed key bytes on success or `None` on
-/// wrong PIN / cancelled dialog / plugin failure.
+/// returns the unsealed key bytes on success or a typed
+/// failure variant on wrong PIN / cancelled dialog / plugin
+/// failure.
 ///
-/// `pin` is the typed user secret. The Hardware tier is always
-/// password-gated — biometric is the optional shortcut layer
-/// that releases the typed password from an OS-managed slot,
-/// not a replacement. A `None` argument signals the caller did
-/// not collect a secret; the orchestrator short-circuits with
-/// a typed `PluginUnavailable { code: "hardware_password_required" }`
-/// failure so the bootstrap path surfaces a clear error
-/// instead of a silent wrong-password loop. The v6 → v7
-/// config migration stamps `modifiers.password=true` for
-/// pre-flip Hardware configs; an install whose wrapped key
-/// was sealed against an empty PIN-HMAC also writes
-/// [`v6_v7_password_set_marker_path`] so the
-/// [`hardware_password_set_wizard_required`] probe routes the
-/// bootstrap caller into the password-set wizard ahead of
-/// this orchestrator. See [`crate::security::hardware_tier_vault`]
-/// → "v6→v7 password-set marker" for the marker file shape.
+/// `password` is the typed user secret — the primary unlock
+/// gate. Biometric is the optional shortcut layer that
+/// releases this password from an OS-managed slot, never a
+/// replacement; the biometric fast-path bypasses this
+/// orchestrator and uses [`commit_biometric_unlock_from_secret`]
+/// instead.
+///
+/// Hardware tier is mandatory-password by contract — the
+/// signature carries `String` (not `Option<String>`) so a
+/// caller that forgot to collect a secret fails the type
+/// check at the call site rather than at runtime. An empty
+/// string is treated as a usage error and short-circuits with
+/// `PluginError("hardware_password_required")` so older
+/// dispatch paths that round-tripped through a `String`
+/// container surface a typed signal instead of silently
+/// rate-limiting against an unseal payload that will always
+/// fail.
 ///
 /// The Dart caller owns the T2 unlock dialog UI (PIN input,
 /// rate-limit countdown, biometric option, "forgot PIN" reset)
 /// and the platform channel call itself; the orchestrator
 /// publishes a `HardwareVaultUnlockPromptRequest` and the
 /// `HardwareVaultUnlockPromptListener` Dart subscriber calls
-/// `HardwareTierVault.read(pin)` which fans out per-platform.
-pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
+/// `HardwareTierVault.read(password)` which fans out per-platform.
+pub async fn unlock_hardware(password: String) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockRequested);
 
-    // Hardware tier is mandatory-password — a `None` pin signals
-    // the caller never collected one. Short-circuit before the
-    // prompt registry fires so the bootstrap path surfaces a
-    // typed error rather than rate-limiting itself against an
-    // empty unseal payload that will always fail.
-    let pin = match pin {
-        Some(p) if !p.is_empty() => Some(p),
-        Some(_) | None => {
-            let code = "hardware_password_required".to_string();
-            instance_dispatch(
-                SecurityTier::Hardware,
-                &TierEvent::UnlockFailed {
-                    reason: UnlockFailureReason::PluginUnavailable { code: code.clone() },
-                },
-            );
-            return UnlockOutcome::PluginError(code);
-        }
-    };
+    if password.is_empty() {
+        let code = "hardware_password_required".to_string();
+        instance_dispatch(
+            SecurityTier::Hardware,
+            &TierEvent::UnlockFailed {
+                reason: UnlockFailureReason::PluginUnavailable { code: code.clone() },
+            },
+        );
+        return UnlockOutcome::PluginError(code);
+    }
+    let pin = Some(password);
 
     // Rate-limit gate (parity with `unlock_keychain_with_password` /
     // `unlock_paranoid`). The Dart unlock dialog's countdown was
@@ -896,15 +891,16 @@ mod tests {
         limiters.record_success(PARANOID_UNLOCK_LIMITER_ID);
     }
 
-    /// `unlock_hardware(None)` must surface a typed error before
+    /// `unlock_hardware(empty)` must surface a typed error before
     /// the prompt registry fires — the Hardware tier is always
-    /// password-gated and a `None` argument means the caller never
-    /// collected one (e.g. a pre-flip Dart UI still hitting the
-    /// stale passwordless path against a v6→v7-migrated config).
-    /// A silent fallback would rate-limit itself against an
-    /// always-failing unseal payload.
+    /// password-gated and an empty string means the caller never
+    /// collected a secret. The signature requires `String`, so
+    /// "no secret at all" can't even be expressed at the type
+    /// level; the empty-string check guards the legacy
+    /// FRB-shim wire shape that round-trips through a `String`
+    /// container.
     #[tokio::test]
-    async fn unlock_hardware_missing_pin_returns_typed_error() {
+    async fn unlock_hardware_empty_password_returns_typed_error() {
         let _guard = serial_mutex().lock().await;
         let _ = crate::app::init();
         let limiters = &crate::app::instance().rate_limiters;
@@ -912,17 +908,7 @@ mod tests {
         // mask the short-circuit assertion.
         limiters.record_success(HARDWARE_UNLOCK_LIMITER_ID);
 
-        let outcome = unlock_hardware(None).await;
-        match outcome {
-            UnlockOutcome::PluginError(code) => {
-                assert_eq!(code, "hardware_password_required");
-            }
-            other => panic!("expected PluginError(hardware_password_required), got {other:?}"),
-        }
-
-        // An empty pin string is the same misuse and must surface
-        // the same typed error.
-        let outcome = unlock_hardware(Some(String::new())).await;
+        let outcome = unlock_hardware(String::new()).await;
         match outcome {
             UnlockOutcome::PluginError(code) => {
                 assert_eq!(code, "hardware_password_required");

@@ -17,7 +17,7 @@ Future<void> _noop({
   required SecurityTier tier,
   required SecurityTierModifiers modifiers,
   String? shortPassword,
-  String? pin,
+  String? hardwarePassword,
   String? masterPassword,
   bool? pendingBiometric,
 }) async {}
@@ -147,7 +147,7 @@ void main() {
         required SecurityTier tier,
         required SecurityTierModifiers modifiers,
         String? shortPassword,
-        String? pin,
+        String? hardwarePassword,
         String? masterPassword,
         bool? pendingBiometric,
       }) async {
@@ -189,7 +189,7 @@ void main() {
           required SecurityTier tier,
           required SecurityTierModifiers modifiers,
           String? shortPassword,
-          String? pin,
+          String? hardwarePassword,
           String? masterPassword,
           bool? pendingBiometric,
         }) async {
@@ -236,7 +236,7 @@ void main() {
           required SecurityTier tier,
           required SecurityTierModifiers modifiers,
           String? shortPassword,
-          String? pin,
+          String? hardwarePassword,
           String? masterPassword,
           bool? pendingBiometric,
         }) async {
@@ -277,7 +277,7 @@ void main() {
           required SecurityTier tier,
           required SecurityTierModifiers modifiers,
           String? shortPassword,
-          String? pin,
+          String? hardwarePassword,
           String? masterPassword,
           bool? pendingBiometric,
         }) async {

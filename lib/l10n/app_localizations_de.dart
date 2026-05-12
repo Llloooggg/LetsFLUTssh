@@ -2460,9 +2460,6 @@ class SDe extends S {
   String get colT1PasswordBiometric => 'T1 + Passwort + Biometrie';
 
   @override
-  String get colT2 => 'T2 Hardware';
-
-  @override
   String get colT2Password => 'T2 + Passwort';
 
   @override
@@ -2572,7 +2569,7 @@ class SDe extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Fortgeschritten: hardware-gebundener Schlüssel. Daten sind unwiederbringlich verloren, wenn der Chip dieses Geräts verloren geht oder ersetzt wird.';
+      'Fortgeschritten: hardware-gebundener Schlüssel, immer Passwort-geschützt. Daten sind unwiederbringlich verloren, wenn der Chip dieses Geräts verloren geht oder ersetzt wird.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2594,6 +2591,10 @@ class SDe extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Eingegebenes Passwort, das vor dem Entsperren des Tresors abgefragt wird.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Erforderlich — Hardware-Stufe ist immer Passwort-geschützt.';
 
   @override
   String get modifierBiometricLabel => 'Biometrische Verknüpfung';
@@ -2623,8 +2624,51 @@ class SDe extends S {
       'fprintd ist nicht installiert oder kein Finger registriert.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'Ein TPM ohne Passwort bietet Isolation, keine Authentifizierung. Wer diese App ausführen kann, kann die Daten entsperren.';
+  String get t2RequiresPasswordTitle =>
+      'Master-Passwort für Hardware-Stufe festlegen';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware-Stufe braucht ein Passwort als Modifier. Biometrie ist ein optionaler Shortcut darüber.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware-Stufe braucht ein Passwort';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Bestehende Hardware-Installationen ohne Passwort müssen jetzt eines setzen, um fortzufahren.';
+
+  @override
+  String get t2MigrationContinue => 'Weiter';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Biometrie-Shortcut auf Hardware-Stufe aktivieren';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Gibt dein Passwort aus einem biometrisch geschützten OS-Slot frei.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Biometrie-Overlay auf dieser Plattform noch nicht verfügbar.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Setze zuerst das Hardware-Passwort.';
+
+  @override
+  String get t2UnlockTitle => 'Mit Master-Passwort entsperren';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Der hardware-gebundene Schlüssel ist durch dein Passwort geschützt.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Biometrie verwenden';
+
+  @override
+  String get t2PasswordChanged => 'Hardware-Passwort aktualisiert.';
 
   @override
   String get paranoidMasterPasswordNote =>

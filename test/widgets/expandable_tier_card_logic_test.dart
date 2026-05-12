@@ -92,24 +92,43 @@ void main() {
       );
     });
 
-    test('plain Keychain / Hardware / Plaintext respect the modifier flag', () {
-      for (final t in [
-        SecurityTier.plaintext,
-        SecurityTier.keychain,
-        SecurityTier.hardware,
-      ]) {
+    test('plain Keychain / Plaintext respect the modifier flag', () {
+      // Hardware is mandatory-password by tier — its dedicated
+      // case sits above this test. Keychain and Plaintext are the
+      // only tiers whose password state depends on the modifier
+      // (Keychain) or is always false (Plaintext).
+      for (final t in [SecurityTier.plaintext, SecurityTier.keychain]) {
         expect(
           currentConfigHasPassword(currentTier: t, currentModifiers: noMods),
           isFalse,
           reason: '$t with no modifier',
         );
+      }
+      expect(
+        currentConfigHasPassword(
+          currentTier: SecurityTier.keychain,
+          currentModifiers: passwordOn,
+        ),
+        isTrue,
+        reason: 'keychain + password modifier on',
+      );
+    });
+
+    test('Hardware always reports password = true', () {
+      // T2 is always password-gated by tier; the modifier flag is
+      // pinned on by the wizard / Settings card. The predicate
+      // returns true regardless of the modifier bag passed in to
+      // keep callers consistent if a stale `password=false` slips
+      // through (the v6→v7 migration also stamps the modifier on
+      // for pre-flip Hardware configs).
+      for (final mods in [noMods, passwordOn]) {
         expect(
           currentConfigHasPassword(
-            currentTier: t,
-            currentModifiers: passwordOn,
+            currentTier: SecurityTier.hardware,
+            currentModifiers: mods,
           ),
           isTrue,
-          reason: '$t with password modifier',
+          reason: 'hardware tier is mandatory-password',
         );
       }
     });
@@ -127,18 +146,30 @@ void main() {
       );
     });
 
-    test('non-current T1 / T2 cards initialise password OFF', () {
-      for (final t in [SecurityTier.keychain, SecurityTier.hardware]) {
-        expect(
-          derivePasswordModifierForCard(
-            cardTier: t,
-            currentTier: SecurityTier.plaintext,
-            currentModifiers: noMods,
-          ),
-          isFalse,
-          reason: '$t non-current default',
-        );
-      }
+    test('non-current Keychain card initialises password OFF', () {
+      expect(
+        derivePasswordModifierForCard(
+          cardTier: SecurityTier.keychain,
+          currentTier: SecurityTier.plaintext,
+          currentModifiers: noMods,
+        ),
+        isFalse,
+        reason: 'keychain non-current default',
+      );
+    });
+
+    test('non-current Hardware card initialises password ON', () {
+      // T2 is mandatory-password by tier; the card forces the
+      // modifier on so the password input + secret-form panel
+      // render correctly even on a non-current card.
+      expect(
+        derivePasswordModifierForCard(
+          cardTier: SecurityTier.hardware,
+          currentTier: SecurityTier.plaintext,
+          currentModifiers: noMods,
+        ),
+        isTrue,
+      );
     });
 
     test('current card mirrors the applied modifier state', () {
@@ -162,9 +193,13 @@ void main() {
   });
 
   group('tierCardPasswordToggleAvailable', () {
-    test('only T1 / T2 expose the toggle', () {
+    test('only Keychain exposes the toggle', () {
+      // Plaintext has no password to gate; Hardware and Paranoid
+      // are mandatory-password by tier — their cards render the
+      // password modifier as locked-on without a flippable
+      // toggle.
       expect(tierCardPasswordToggleAvailable(SecurityTier.keychain), isTrue);
-      expect(tierCardPasswordToggleAvailable(SecurityTier.hardware), isTrue);
+      expect(tierCardPasswordToggleAvailable(SecurityTier.hardware), isFalse);
       expect(tierCardPasswordToggleAvailable(SecurityTier.plaintext), isFalse);
       expect(tierCardPasswordToggleAvailable(SecurityTier.paranoid), isFalse);
     });
@@ -186,18 +221,49 @@ void main() {
       }
     });
 
-    test('T1 / T2 with password modifier off never ask', () {
-      for (final t in [SecurityTier.keychain, SecurityTier.hardware]) {
+    test('Keychain with password modifier off never asks', () {
+      // Hardware no longer takes the modifier flag — the tier
+      // itself is mandatory-password, so the card always asks
+      // (subject to the same "skip on current" rule).
+      expect(
+        requiresShortPasswordInput(
+          cardTier: SecurityTier.keychain,
+          passwordModifierEnabled: false,
+          isCurrent: false,
+          currentHasPassword: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('non-current Hardware card asks regardless of the modifier flag', () {
+      // The modifier flag is force-pinned on for Hardware, but
+      // the helper still has to hold even if a stale caller
+      // passes `passwordModifierEnabled=false`.
+      for (final flag in [true, false]) {
         expect(
           requiresShortPasswordInput(
-            cardTier: t,
-            passwordModifierEnabled: false,
+            cardTier: SecurityTier.hardware,
+            passwordModifierEnabled: flag,
             isCurrent: false,
             currentHasPassword: false,
           ),
-          isFalse,
+          isTrue,
+          reason: 'non-current Hardware always asks',
         );
       }
+    });
+
+    test('current Hardware card hides the input (avoid double-prompt)', () {
+      expect(
+        requiresShortPasswordInput(
+          cardTier: SecurityTier.hardware,
+          passwordModifierEnabled: true,
+          isCurrent: true,
+          currentHasPassword: true,
+        ),
+        isFalse,
+      );
     });
 
     test('current T1+password card hides the input (avoid double-prompt)', () {

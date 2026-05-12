@@ -66,14 +66,17 @@ Future<DbUnlockOutcome> tierUnlockParanoid({required List<int> password}) =>
     );
 
 /// Hardware tier (T2) — fan out a hardware-vault-unlock prompt
-/// to the Dart subscriber + emit cascade events. `pin` is the
-/// typed user secret for the password modifier; pass `None`
-/// for the passwordless variant. Stages the unsealed bytes in
-/// the SecretStore on success.
-Future<DbUnlockOutcome> tierUnlockHardware({String? pin}) => RustLib
-    .instance
-    .api
-    .crateApiTierUnlockOrchestratorTierUnlockHardware(pin: pin);
+/// to the Dart subscriber + emit cascade events. `password` is
+/// the typed user secret — the primary unlock gate. T2 is
+/// mandatory-password (biometric is the optional shortcut on
+/// top, taken by [`tier_unlock_biometric_commit`]), so the
+/// signature carries a plain `String` and an empty argument
+/// surfaces a typed
+/// `PluginError("hardware_password_required")` failure.
+Future<DbUnlockOutcome> tierUnlockHardware({required String password}) =>
+    RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockHardware(
+      password: password,
+    );
 
 /// Resolve a pending hardware-vault unlock with success bytes.
 /// `Ok(Some(bytes))` on a successful unseal; the orchestrator

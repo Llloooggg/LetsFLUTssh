@@ -2475,9 +2475,6 @@ class SFr extends S {
   String get colT1PasswordBiometric => 'T1 + mot de passe + biométrie';
 
   @override
-  String get colT2 => 'T2 Matériel';
-
-  @override
   String get colT2Password => 'T2 + mot de passe';
 
   @override
@@ -2588,7 +2585,7 @@ class SFr extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Avancé : clé liée au matériel. Les données sont irrécupérables si la puce de cet appareil est perdue ou remplacée.';
+      'Avancé : clé liée au matériel, toujours protégée par mot de passe. Les données sont irrécupérables si la puce de cet appareil est perdue ou remplacée.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2610,6 +2607,10 @@ class SFr extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Barrière de secret saisi avant le déverrouillage du coffre.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Requis — la couche Hardware est toujours protégée par mot de passe.';
 
   @override
   String get modifierBiometricLabel => 'Raccourci biométrique';
@@ -2639,8 +2640,53 @@ class SFr extends S {
       'fprintd non installé ou aucune empreinte enregistrée.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'Un TPM sans mot de passe fournit de l\'isolation, pas de l\'authentification. Quiconque peut exécuter cette application peut déverrouiller les données.';
+  String get t2RequiresPasswordTitle =>
+      'Définir un mot de passe maître pour la couche Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'La couche Hardware a besoin d\'un mot de passe comme modifier. La biométrie est un raccourci optionnel par-dessus.';
+
+  @override
+  String get t2MigrationPromptTitle =>
+      'La couche Hardware a besoin d\'un mot de passe';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Les installations Hardware existantes sans mot de passe doivent en définir un maintenant pour continuer.';
+
+  @override
+  String get t2MigrationContinue => 'Continuer';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Activer le raccourci biométrique sur la couche Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Libère ton mot de passe depuis un slot OS protégé par biométrie.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'L\'overlay biométrique n\'est pas encore disponible sur cette plateforme.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Définis d\'abord le mot de passe de la couche Hardware.';
+
+  @override
+  String get t2UnlockTitle => 'Déverrouiller avec ton mot de passe maître';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'La clé hardware-bound est protégée par ton mot de passe.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Utiliser la biométrie';
+
+  @override
+  String get t2PasswordChanged =>
+      'Mot de passe de la couche Hardware mis à jour.';
 
   @override
   String get paranoidMasterPasswordNote =>

@@ -2428,9 +2428,6 @@ class SEn extends S {
   String get colT1PasswordBiometric => 'T1 + password + biometric';
 
   @override
-  String get colT2 => 'T2 Hardware';
-
-  @override
   String get colT2Password => 'T2 + password';
 
   @override
@@ -2539,7 +2536,7 @@ class SEn extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Advanced: hardware-bound key. Data is irrecoverable if this device\'s chip is lost or replaced.';
+      'Advanced: hardware-bound key, always password-gated. Data is irrecoverable if this device\'s chip is lost or replaced.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2561,6 +2558,10 @@ class SEn extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Typed secret gate before the vault unlocks.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Required — Hardware tier is always password-gated.';
 
   @override
   String get modifierBiometricLabel => 'Biometric shortcut';
@@ -2590,8 +2591,51 @@ class SEn extends S {
       'fprintd not installed or no enrolled finger.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.';
+  String get t2RequiresPasswordTitle =>
+      'Set a master password for Hardware tier';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware-bound tier needs a password as a modifier. Biometric is an optional shortcut on top.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware tier needs a password';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Existing Hardware-tier installs without a password need one set now to continue.';
+
+  @override
+  String get t2MigrationContinue => 'Continue';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Enable biometric shortcut on Hardware tier';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Releases your password from a biometric-gated OS slot.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Biometric overlay not available on this platform yet.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Set the Hardware-tier password first.';
+
+  @override
+  String get t2UnlockTitle => 'Unlock with your master password';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Hardware-bound key is gated by your password.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Use biometric instead';
+
+  @override
+  String get t2PasswordChanged => 'Hardware-tier password updated.';
 
   @override
   String get paranoidMasterPasswordNote =>

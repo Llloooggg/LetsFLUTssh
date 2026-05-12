@@ -116,15 +116,16 @@ extension _BiometricFlow on _SecuritySectionState {
     SecurityTier next,
     SecurityTierModifiers nextModifiers, {
     String? shortPassword,
-    String? pin,
+    String? hardwarePassword,
     String? masterPassword,
   }) async {
     // Decision lives in `security_section_logic.biometricKeySourceFor`
     // so the priority ladder (cross-tier → pullFromApplied; same-tier
-    // T1+pw → keychain gate; same-tier Paranoid → master password;
-    // everything else → empty sentinel) is unit-tested without a
-    // pumpWidget round-trip. The dispatcher here only wires the
-    // chosen source onto its prompt + read implementation.
+    // T1+pw → keychain gate; same-tier T2 → hardware-vault password
+    // prompt; same-tier Paranoid → master password; everything else
+    // → pullFromApplied) is unit-tested without a pumpWidget
+    // round-trip. The dispatcher here only wires the chosen source
+    // onto its prompt + read implementation.
     switch (biometricKeySourceFor(
       currentTier: current,
       currentModifiers: currentModifiers,
@@ -135,9 +136,39 @@ extension _BiometricFlow on _SecuritySectionState {
         return _BiometricKeyCapture.pullFromActiveAfterApply;
       case BiometricKeySource.promptAndVerifyKeychainGate:
         return _captureKeyFromKeychainPassword();
+      case BiometricKeySource.promptAndVerifyHardwarePassword:
+        return _captureKeyFromHardwarePassword();
       case BiometricKeySource.promptAndVerifyMasterPassword:
         return _captureKeyFromMasterPassword();
     }
+  }
+
+  /// T2 same-tier biometric enable: prompt the user for the current
+  /// hardware-tier password, hand it to the hw-vault unseal path,
+  /// and stage the unsealed DB key under
+  /// `kBiometricEnableStagingSecretId` so the post-Apply biometric
+  /// step seals it into the biometric-overlay slot. The biometric
+  /// overlay is the optional shortcut layer that releases this
+  /// password from an OS-managed slot; we still need to verify the
+  /// raw password ourselves so the overlay never caches against a
+  /// wrong secret.
+  Future<_BiometricKeyCapture> _captureKeyFromHardwarePassword() async {
+    final entered = await _enableBiometricDialogPrompt();
+    if (entered == null || !mounted) return _BiometricKeyCapture.cancelled;
+    final vault = ref.read(hardwareTierVaultProvider);
+    final unsealed = await vault.read(entered);
+    if (unsealed == null) {
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).currentPasswordIncorrect,
+          level: ToastLevel.error,
+        );
+      }
+      return _BiometricKeyCapture.cancelled;
+    }
+    rust_app.secretsPut(id: kBiometricEnableStagingSecretId, bytes: unsealed);
+    return _BiometricKeyCapture.stagedInSecretStore;
   }
 
   Future<_BiometricKeyCapture> _captureKeyFromKeychainPassword() async {

@@ -2316,9 +2316,6 @@ class SZh extends S {
   String get colT1PasswordBiometric => 'T1 + 密码 + 生物识别';
 
   @override
-  String get colT2 => 'T2 硬件';
-
-  @override
   String get colT2Password => 'T2 + 密码';
 
   @override
@@ -2424,7 +2421,8 @@ class SZh extends S {
   String get recommendedBadge => '推荐';
 
   @override
-  String get tierHardwareSubtitleHonest => '进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。';
+  String get tierHardwareSubtitleHonest =>
+      '进阶：密钥与硬件绑定，始终需要密码保护。若此设备的芯片丢失或更换，数据将无法恢复。';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2445,6 +2443,9 @@ class SZh extends S {
 
   @override
   String get modifierPasswordSubtitle => '解锁保险库前需要输入的密钥门槛。';
+
+  @override
+  String get modifierPasswordRequired => '必需 — Hardware 层级始终受密码保护。';
 
   @override
   String get modifierBiometricLabel => '生物识别快捷方式';
@@ -2468,8 +2469,44 @@ class SZh extends S {
   String get fprintdNotAvailable => '未安装 fprintd 或未登记指纹。';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      '没有密码的 TPM 仅提供隔离，而非身份验证。任何能运行此应用的人都可以解锁数据。';
+  String get t2RequiresPasswordTitle => '为 Hardware 层级设置主密码';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware 层级需要密码作为 modifier。生物识别是其上的可选 shortcut。';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware 层级需要密码';
+
+  @override
+  String get t2MigrationPromptBody => '现有无密码的 Hardware 安装必须立即设置一个才能继续。';
+
+  @override
+  String get t2MigrationContinue => '继续';
+
+  @override
+  String get biometricOverlayEnable => '在 Hardware 层级启用生物识别 shortcut';
+
+  @override
+  String get biometricOverlayEnableSubtitle => '从受生物识别保护的 OS 槽中释放你的密码。';
+
+  @override
+  String get biometricOverlayUnavailable => '生物识别 overlay 在此平台上暂不可用。';
+
+  @override
+  String get biometricOverlayRequiresPassword => '请先设置 Hardware 层级的密码。';
+
+  @override
+  String get t2UnlockTitle => '用主密码解锁';
+
+  @override
+  String get t2UnlockSubtitle => 'hardware-bound 密钥由你的密码保护。';
+
+  @override
+  String get t2UnlockUseBiometricButton => '使用生物识别';
+
+  @override
+  String get t2PasswordChanged => 'Hardware 层级密码已更新。';
 
   @override
   String get paranoidMasterPasswordNote =>

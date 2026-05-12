@@ -969,16 +969,24 @@ How the app protects credentials at rest. First launch auto-selects **T1 — Key
 |---|---|---|
 | **T0 — Plaintext** | Nowhere — DB itself is unencrypted | App still opens via rusqlite/SQLCipher in-process; just no `PRAGMA key` set. Use only when you have full-disk encryption + accept the trade-off. |
 | **T1 — Keychain** | OS keychain via direct Rust calls (macOS / iOS Keychain via `security-framework`, Linux libsecret via `secret-service` D-Bus, Windows Credential Manager via `CredReadW` / `CredWriteW`, Android `java.security.KeyStore` via direct JNI). No third-party plugin in the call chain. | Strongest "no master password to remember" option on most desktops. |
-| **T2 — Hardware** | Hardware-bound key in TPM 2.0 (Linux/Windows), Secure Enclave (macOS/iOS), StrongBox (Android) | Needs hardware. App detects + offers when available. |
+| **T2 — Hardware** (requires password) | Hardware-bound key in TPM 2.0 (Linux/Windows), Secure Enclave (macOS/iOS), StrongBox (Android) — **always password-gated.** | Needs hardware. App detects + offers when available. The typed password is the primary unlock gate; biometric is the optional shortcut. |
 | **Paranoid** | Argon2id-derived from a master password you type every launch | Nothing on disk except the salt + verifier. Lose the password = lose the data. |
 
-### Modifiers (orthogonal, T1/T2 only)
+### Modifiers (orthogonal, Keychain optional / Hardware mandatory)
 
-- **Master password gate** — adds a pre-vault password check (HMAC-SHA256 of input against the stored verifier, with the pepper in the OS keychain so disk access alone can't forge a hit). The keychain/hardware key is only released after the gate passes. Defends against "attacker has filesystem access but not your password".
+- **Master password gate** — adds a pre-vault password check (HMAC-SHA256 of input against the stored verifier, with the pepper in the OS keychain so disk access alone can't forge a hit). The keychain/hardware key is only released after the gate passes. Defends against "attacker has filesystem access but not your password". Optional on T1; **mandatory on T2** (the typed password is the primary unlock gate for the Hardware tier — the modifier toggle is locked-on for that row).
 - **Biometric shortcut** — FaceID / TouchID / Windows Hello / fingerprint reader / fprintd. Releases the *stored* password automatically.
   - **Invariant: biometric requires password.** The shortcut is one specific UX path for entering the password, never a replacement. The password is still the auth value the keychain / hardware vault expects; the biometric prompt only releases the password from a biometric-gated OS slot. Re-enrolling your biometrics (adding a new fingerprint / re-running Face ID setup) invalidates the slot and forces a password re-entry — the OS-level invariant we ride on, not something we choose.
-  - **Anti-debug gate.** When a debugger is attached to the running app the biometric path is silently refused on every unlock attempt — the app falls through to the typed-secret form (master password / PIN) so an OS-stored password can never be released into a process whose RAM the debugger can read. Logged via the Settings → Logging viewer (`ProcessHardening` tag) at critical severity. Affects developer builds running under Xcode / `gdb -p` / `lldb -p`; legitimate end-user installs never see this path.
+  - **Anti-debug gate.** When a debugger is attached to the running app the biometric path is silently refused on every unlock attempt — the app falls through to the typed-secret form (master password) so an OS-stored password can never be released into a process whose RAM the debugger can read. Logged via the Settings → Logging viewer (`ProcessHardening` tag) at critical severity. Affects developer builds running under Xcode / `gdb -p` / `lldb -p`; legitimate end-user installs never see this path.
   - **Failure fallback.** If the biometric prompt fails or is cancelled, you type the password as usual. No data loss; the keychain entry remains intact.
+
+### Biometric overlay (Hardware tier shortcut)
+
+The biometric overlay is the OS-managed slot that holds the Hardware-tier password under a biometric ACL. When you enable biometric on T2 the app caches your typed password in this slot; every subsequent unlock fires the system biometric prompt and reads the password back without asking you to retype it. Per platform:
+
+- **Apple (macOS / iOS)** — Secure Enclave overlay key with `kSecAccessControlBiometryCurrentSet`.
+- **Android** — AndroidKeyStore alias `lfs.hardware_tier_vault.l3.bio` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)`.
+- **Windows / Linux** — coming in a follow-up release; the password path covers T2 today and the overlay UI surface is disabled with an honest "not available on this platform yet" tooltip.
 
 ### Switching tiers
 

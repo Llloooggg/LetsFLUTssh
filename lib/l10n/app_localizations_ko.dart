@@ -2331,9 +2331,6 @@ class SKo extends S {
   String get colT1PasswordBiometric => 'T1 + 비밀번호 + 생체 인식';
 
   @override
-  String get colT2 => 'T2 하드웨어';
-
-  @override
   String get colT2Password => 'T2 + 비밀번호';
 
   @override
@@ -2441,7 +2438,7 @@ class SKo extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      '고급: 하드웨어에 바인딩된 키. 이 기기의 칩이 분실되거나 교체되면 데이터를 복구할 수 없습니다.';
+      '고급: 하드웨어에 바인딩된 키, 항상 패스워드로 보호됩니다. 이 기기의 칩이 분실되거나 교체되면 데이터를 복구할 수 없습니다.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2462,6 +2459,9 @@ class SKo extends S {
 
   @override
   String get modifierPasswordSubtitle => '볼트 잠금 해제 전에 입력하는 비밀 관문.';
+
+  @override
+  String get modifierPasswordRequired => '필수 — Hardware 티어는 항상 패스워드로 보호됩니다.';
 
   @override
   String get modifierBiometricLabel => '생체 인증 단축';
@@ -2488,8 +2488,47 @@ class SKo extends S {
   String get fprintdNotAvailable => 'fprintd가 설치되지 않았거나 등록된 지문이 없습니다.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      '비밀번호 없는 TPM은 격리는 제공하지만 인증은 제공하지 않습니다. 이 앱을 실행할 수 있는 사람은 누구나 데이터의 잠금을 해제할 수 있습니다.';
+  String get t2RequiresPasswordTitle => 'Hardware 티어용 마스터 패스워드 설정';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware 티어는 modifier로 패스워드가 필요합니다. 바이오메트릭은 그 위의 선택적 shortcut입니다.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware 티어에 패스워드가 필요합니다';
+
+  @override
+  String get t2MigrationPromptBody =>
+      '기존 패스워드 없는 Hardware 설치는 계속하려면 지금 하나를 설정해야 합니다.';
+
+  @override
+  String get t2MigrationContinue => '계속';
+
+  @override
+  String get biometricOverlayEnable => 'Hardware 티어에서 바이오메트릭 shortcut 활성화';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      '바이오메트릭 게이트가 있는 OS 슬롯에서 패스워드를 해제합니다.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      '바이오메트릭 overlay는 이 플랫폼에서 아직 사용할 수 없습니다.';
+
+  @override
+  String get biometricOverlayRequiresPassword => 'Hardware 티어 패스워드를 먼저 설정하세요.';
+
+  @override
+  String get t2UnlockTitle => '마스터 패스워드로 잠금 해제';
+
+  @override
+  String get t2UnlockSubtitle => 'hardware-bound 키가 패스워드로 보호되어 있습니다.';
+
+  @override
+  String get t2UnlockUseBiometricButton => '바이오메트릭 사용';
+
+  @override
+  String get t2PasswordChanged => 'Hardware 티어 패스워드가 업데이트되었습니다.';
 
   @override
   String get paranoidMasterPasswordNote =>

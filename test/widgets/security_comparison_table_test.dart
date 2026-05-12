@@ -37,7 +37,7 @@ void main() {
   setUpAll(requireFrbLoaded);
 
   group('SecurityComparisonTable', () {
-    testWidgets('renders all 8 column headers (en)', (tester) async {
+    testWidgets('renders all 7 column headers (en)', (tester) async {
       await tester.pumpWidget(_wrap(const SizedBox()));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
@@ -47,12 +47,14 @@ void main() {
 
       // Every column header must appear at least once (DataTable on wide
       // layout, section headings on transposed mobile layout — the test
-      // runs on desktop-like MediaQuery so expect DataTable).
+      // runs on desktop-like MediaQuery so expect DataTable). The
+      // standalone "T2" column is gone — Hardware tier is always
+      // password-gated, so the comparison matrix carries only the
+      // password-bearing T2 variants.
       expect(find.text(l10n.colT0), findsOneWidget);
       expect(find.text(l10n.colT1), findsOneWidget);
       expect(find.text(l10n.colT1Password), findsOneWidget);
       expect(find.text(l10n.colT1PasswordBiometric), findsOneWidget);
-      expect(find.text(l10n.colT2), findsOneWidget);
       expect(find.text(l10n.colT2Password), findsOneWidget);
       expect(find.text(l10n.colT2PasswordBiometric), findsOneWidget);
       expect(find.text(l10n.colParanoid), findsOneWidget);

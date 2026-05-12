@@ -28,7 +28,7 @@ typedef TierSelectCallback =
       required SecurityTier tier,
       required SecurityTierModifiers modifiers,
       String? shortPassword,
-      String? pin,
+      String? hardwarePassword,
       String? masterPassword,
       bool? pendingBiometric,
     });
@@ -344,10 +344,20 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// .password` to decide whether to drive the gate-bearing flow.
   SecurityTier _resolveTargetTier() => widget.tier;
 
-  SecurityTierModifiers _resolveModifiers() => SecurityTierModifiers(
-    password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
-    biometric: widget.currentModifiers.biometric,
-  );
+  SecurityTierModifiers _resolveModifiers() {
+    // Paranoid and Hardware both carry a mandatory password by
+    // tier — `_passwordEnabled` is locked on for those cards but
+    // the resolved modifier still has to be coherent in case the
+    // toggle row was bypassed (e.g. the password row is hidden on
+    // these cards, so the local pending flag is irrelevant).
+    final passwordRequired =
+        widget.tier == SecurityTier.paranoid ||
+        widget.tier == SecurityTier.hardware;
+    return SecurityTierModifiers(
+      password: passwordRequired || _passwordEnabled,
+      biometric: widget.currentModifiers.biometric,
+    );
+  }
 
   String? _shortPasswordPayload() {
     if (!_requiresPasswordInput) return null;
@@ -355,7 +365,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     return _passwordCtrl.text;
   }
 
-  String? _pinPayload() {
+  String? _hardwarePasswordPayload() {
     if (!_requiresPasswordInput) return null;
     if (widget.tier != SecurityTier.hardware) return null;
     return _passwordCtrl.text;
@@ -376,14 +386,15 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     setState(() => _busy = true);
     try {
       // T1 uses `shortPassword` against the keychain-password gate;
-      // T2 uses the same value as the PIN HMAC input to the hw
-      // vault. Same UX field, different backend consumer — the
-      // tier switcher routes it. Paranoid uses `masterPassword`.
+      // T2 uses `hardwarePassword` — the typed gate fed to the
+      // hw-vault HMAC. Same UX field, different backend consumer
+      // — the tier switcher routes it. Paranoid uses
+      // `masterPassword`.
       await widget.onSelect(
         tier: _resolveTargetTier(),
         modifiers: _resolveModifiers(),
         shortPassword: _shortPasswordPayload(),
-        pin: _pinPayload(),
+        hardwarePassword: _hardwarePasswordPayload(),
         masterPassword: _requiresMasterPasswordInput
             ? _masterPasswordCtrl.text
             : null,

@@ -157,18 +157,19 @@ BiometricModifierSpec? biometricSpecFor({
 /// password — meaning the tier change wants the user to re-enter the
 /// existing password before we discard it. Verifiable means the
 /// previous config carries a password that can be cryptographically
-/// checked: keychain + password (gate verifier file) and paranoid
-/// (KDF-derived key against the master verifier). Plaintext, plain
-/// keychain, and hardware (with or without password) do not — the
-/// gate-down transition for those has nothing to verify against, so
-/// the helper returns false and the apply pipeline skips the prompt.
+/// checked: keychain + password (gate verifier file), hardware
+/// (always password-gated — the hw-vault unseal is the verifier),
+/// and paranoid (KDF-derived key against the master verifier).
+/// Plaintext and plain keychain do not — the gate-down transition
+/// for those has nothing to verify against, so the helper returns
+/// false and the apply pipeline skips the prompt.
 ///
-/// Same-tier transitions (keychain+pw → keychain+pw, paranoid →
-/// paranoid) return false too: the user is reconfiguring modifiers,
-/// not dropping the password, so the prompt would be redundant. A
-/// keychain+pw → keychain (drop the modifier alone) IS a verifiable
-/// drop and triggers the prompt — the tier value stays but the
-/// password gate goes away.
+/// Same-tier transitions (keychain+pw → keychain+pw, hardware →
+/// hardware, paranoid → paranoid) return false: the user is
+/// reconfiguring modifiers, not dropping the password, so the
+/// prompt would be redundant. A keychain+pw → keychain (drop the
+/// modifier alone) IS a verifiable drop and triggers the prompt
+/// — the tier value stays but the password gate goes away.
 bool isVerifiablePasswordDrop({
   required SecurityTier currentTier,
   required SecurityTierModifiers currentModifiers,
@@ -185,6 +186,10 @@ bool isVerifiablePasswordDrop({
   final isKeychainWithPassword =
       nextTier == SecurityTier.keychain && nextModifiers.password;
   if (wasKeychainWithPassword && !isKeychainWithPassword) return true;
+  if (currentTier == SecurityTier.hardware &&
+      nextTier != SecurityTier.hardware) {
+    return true;
+  }
   if (currentTier == SecurityTier.paranoid &&
       nextTier != SecurityTier.paranoid) {
     return true;
@@ -250,28 +255,38 @@ String securityTierLogName(SecurityTier tier) {
 /// `_TierApply._confirmCurrentPasswordIfDropping` switches on the
 /// enum and routes to the matching provider's `verify` method.
 ///
-/// Only Paranoid and KeychainWithPassword carry a verifiable password
-/// — see [isVerifiablePasswordDrop] — so the gate caller has already
-/// narrowed the input to those two tiers by the time this is reached.
+/// Only Paranoid, KeychainWithPassword, and Hardware carry a
+/// verifiable password — see [isVerifiablePasswordDrop] — so the
+/// gate caller has already narrowed the input to those tiers by
+/// the time this is reached.
 enum PasswordVerifierKind {
   /// `masterPasswordProvider.verify(entered)` — Paranoid.
   masterPassword,
 
   /// `keychainPasswordGateProvider.verify(entered)` — KeychainWithPassword.
   keychainGate,
+
+  /// `hardwareTierVaultProvider.read(entered)` non-null — Hardware.
+  /// The hw-vault unseal succeeds only when the typed password
+  /// HMAC matches the seal-time HMAC, so a non-null result is the
+  /// verifier.
+  hardwareVault,
 }
 
 /// Pick the verifier the password-drop confirm dialog routes through
 /// for [currentTier]. Paranoid uses the master-password manager;
-/// KeychainWithPassword uses the keychain gate. Any other tier reaches
-/// here only via misuse — `isVerifiablePasswordDrop` is the gate that
-/// keeps T0 / T1 / T2 from invoking the prompt at all — so the helper
-/// falls back to keychainGate as a safe default; the surrounding
-/// dispatcher would have already short-circuited on `false` from the
-/// gate.
+/// KeychainWithPassword uses the keychain gate; Hardware uses the
+/// hw-vault unseal. Any other tier reaches here only via misuse —
+/// `isVerifiablePasswordDrop` is the gate that keeps T0 / T1 from
+/// invoking the prompt at all — so the helper falls back to
+/// keychainGate as a safe default; the surrounding dispatcher would
+/// have already short-circuited on `false` from the gate.
 PasswordVerifierKind passwordVerifierKindFor(SecurityTier currentTier) {
   if (currentTier == SecurityTier.paranoid) {
     return PasswordVerifierKind.masterPassword;
+  }
+  if (currentTier == SecurityTier.hardware) {
+    return PasswordVerifierKind.hardwareVault;
   }
   return PasswordVerifierKind.keychainGate;
 }
@@ -290,12 +305,17 @@ PasswordVerifierKind passwordVerifierKindFor(SecurityTier currentTier) {
 ///   T1+pw. The gate verifier is the only way to revalidate the
 ///   user's password without a tier rekey, so prompt + verify, then
 ///   read the stored key out of the keychain.
+/// * [promptAndVerifyHardwarePassword] — same-tier biometric flip on
+///   T2. The Hardware tier is always password-gated; the only way
+///   to revalidate without a tier rekey is to unseal the hardware
+///   vault under the typed password and stage the resulting key.
 /// * [promptAndVerifyMasterPassword] — same-tier biometric flip on
 ///   Paranoid. Master-password manager owns both the verifier file
 ///   and the KDF; verifyAndDerive returns the key directly.
 enum BiometricKeySource {
   pullFromAppliedTier,
   promptAndVerifyKeychainGate,
+  promptAndVerifyHardwarePassword,
   promptAndVerifyMasterPassword,
 }
 
@@ -303,8 +323,8 @@ enum BiometricKeySource {
 /// current and target tier. Cross-tier transitions never need to
 /// re-prompt — the new tier's password is fresh from the card and
 /// drives the rekey. Same-tier flips only need a re-prompt when the
-/// tier carries a verifiable password (T1+pw, Paranoid); other
-/// same-tier flips (T1 without password, T2, plaintext) have no
+/// tier carries a verifiable password (T1+pw, T2, Paranoid); other
+/// same-tier flips (T1 without password, plaintext) have no
 /// verifiable secret to gate against, so they fall back to reading
 /// the post-apply DB key.
 BiometricKeySource biometricKeySourceFor({
@@ -323,6 +343,13 @@ BiometricKeySource biometricKeySourceFor({
       currentModifiers.password &&
       nextModifiers.password) {
     return BiometricKeySource.promptAndVerifyKeychainGate;
+  }
+  // Same-tier flip on T2 — the Hardware tier is always
+  // password-gated, so a same-tier biometric enable always has a
+  // verifiable secret to re-prompt against. The hw-vault unseal
+  // itself is the verifier.
+  if (currentTier == SecurityTier.hardware) {
+    return BiometricKeySource.promptAndVerifyHardwarePassword;
   }
   if (currentTier == SecurityTier.paranoid) {
     return BiometricKeySource.promptAndVerifyMasterPassword;
@@ -465,19 +492,17 @@ Future<void> applyKeychainTier({
   await runClearPlan(SecurityTier.keychain, modifiers);
 }
 
-/// Apply the Hardware tier. Generates a fresh DB key, seals it under
-/// the hardware vault (with optional pin — null for passwordless T2),
-/// rekeys, runs the vault clear plan. Throws [StateError] when the
-/// seal fails — the hardware vault hasn't committed anything to roll
-/// back.
 /// Apply the Hardware tier — SecretRef variant. Seals the staged
-/// SecretStore key under the hardware vault (passwordless when
-/// [pin] is null), rekeys, runs the vault clear plan. Throws
-/// [StateError] on seal failure; staged secret is dropped before
-/// the throw.
+/// SecretStore key under the hardware vault keyed by the typed
+/// [password] (T2 is always password-gated; biometric is the
+/// optional shortcut layer), rekeys, runs the vault clear plan.
+/// Throws [StateError] when [password] is null/empty — the apply
+/// pipeline must not reach the hardware seal without one. Also
+/// throws on seal failure; staged secret is dropped before the
+/// throw.
 Future<void> applyHardwareTier({
   required SecurityTierModifiers modifiers,
-  required String? pin,
+  required String? password,
   required String Function() stageRandomKey,
   required Future<bool> Function({
     required String secretId,
@@ -497,8 +522,14 @@ Future<void> applyHardwareTier({
   )
   runClearPlan,
 }) async {
+  if (password == null || password.isEmpty) {
+    throw StateError('hardware password missing');
+  }
   final secretId = stageRandomKey();
-  final sealed = await hardwareStoreFromSecret(secretId: secretId, pin: pin);
+  final sealed = await hardwareStoreFromSecret(
+    secretId: secretId,
+    pin: password,
+  );
   if (!sealed) {
     dropStaged(secretId);
     throw StateError('hardware seal failed');
@@ -654,6 +685,7 @@ Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
   required Future<String?> Function() promptCurrentPassword,
   required Future<bool> Function(Uint8List) verifyMaster,
   required Future<bool> Function(Uint8List) verifyKeychainGate,
+  required Future<bool> Function(String) verifyHardwareVault,
 }) async {
   if (!isVerifiablePasswordDrop(
     currentTier: currentTier,
@@ -665,12 +697,19 @@ Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
   }
   final entered = await promptCurrentPassword();
   if (entered == null) return ConfirmPasswordResult.cancelled;
-  // Convert here so the verify seams marshal `Uint8List` over FRB —
-  // the typed `String` from the dialog stays in this scope only.
-  final enteredBytes = Uint8List.fromList(utf8.encode(entered));
   final ok = switch (passwordVerifierKindFor(currentTier)) {
-    PasswordVerifierKind.masterPassword => await verifyMaster(enteredBytes),
-    PasswordVerifierKind.keychainGate => await verifyKeychainGate(enteredBytes),
+    // Master + keychain verifiers marshal Uint8List over FRB —
+    // convert here so the typed `String` from the dialog stays in
+    // this scope only.
+    PasswordVerifierKind.masterPassword => await verifyMaster(
+      Uint8List.fromList(utf8.encode(entered)),
+    ),
+    PasswordVerifierKind.keychainGate => await verifyKeychainGate(
+      Uint8List.fromList(utf8.encode(entered)),
+    ),
+    // Hardware unseal takes the String directly — the HMAC is
+    // computed Rust-side from the typed bytes + per-install salt.
+    PasswordVerifierKind.hardwareVault => await verifyHardwareVault(entered),
   };
   return ok ? ConfirmPasswordResult.ok : ConfirmPasswordResult.wrongPassword;
 }

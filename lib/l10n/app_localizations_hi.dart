@@ -2389,9 +2389,6 @@ class SHi extends S {
   String get colT1PasswordBiometric => 'T1 + पासवर्ड + बायोमेट्रिक';
 
   @override
-  String get colT2 => 'T2 हार्डवेयर';
-
-  @override
   String get colT2Password => 'T2 + पासवर्ड';
 
   @override
@@ -2501,7 +2498,7 @@ class SHi extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'उन्नत: हार्डवेयर-बाध्य कुंजी। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।';
+      'उन्नत: हार्डवेयर-बाध्य कुंजी, हमेशा पासवर्ड से सुरक्षित। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2523,6 +2520,10 @@ class SHi extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Vault खुलने से पहले टाइप किया जाने वाला secret।';
+
+  @override
+  String get modifierPasswordRequired =>
+      'आवश्यक — Hardware tier हमेशा पासवर्ड से सुरक्षित होता है।';
 
   @override
   String get modifierBiometricLabel => 'बायोमेट्रिक शॉर्टकट';
@@ -2552,8 +2553,51 @@ class SHi extends S {
       'fprintd संस्थापित नहीं है या कोई फिंगरप्रिंट पंजीकृत नहीं है।';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'पासवर्ड के बिना TPM पृथक्करण प्रदान करता है, प्रमाणीकरण नहीं। जो कोई भी इस ऐप को चला सकता है, वह डेटा को अनलॉक कर सकता है।';
+  String get t2RequiresPasswordTitle =>
+      'Hardware tier के लिए master password सेट करें';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware tier को modifier के रूप में पासवर्ड की आवश्यकता है। बायोमेट्रिक उसके ऊपर एक वैकल्पिक shortcut है।';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware tier को पासवर्ड चाहिए';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'बिना पासवर्ड वाले मौजूदा Hardware installs को आगे बढ़ने के लिए अब एक सेट करना होगा।';
+
+  @override
+  String get t2MigrationContinue => 'जारी रखें';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Hardware tier पर बायोमेट्रिक shortcut सक्षम करें';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'आपके पासवर्ड को बायोमेट्रिक-गेटेड OS slot से रिलीज़ करता है।';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'इस प्लेटफ़ॉर्म पर बायोमेट्रिक overlay अभी उपलब्ध नहीं है।';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'पहले Hardware tier का पासवर्ड सेट करें।';
+
+  @override
+  String get t2UnlockTitle => 'अपने master password से अनलॉक करें';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Hardware-bound कुंजी आपके पासवर्ड से सुरक्षित है।';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'बायोमेट्रिक का उपयोग करें';
+
+  @override
+  String get t2PasswordChanged => 'Hardware tier का पासवर्ड अपडेट किया गया।';
 
   @override
   String get paranoidMasterPasswordNote =>
