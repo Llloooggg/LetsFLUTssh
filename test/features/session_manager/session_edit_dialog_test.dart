@@ -12,6 +12,7 @@ import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/dropdown_select_button.dart';
+import 'package:letsflutssh/widgets/hardware_key_badge.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/frb_bootstrap.dart';
@@ -2166,6 +2167,302 @@ void main() {
       },
     );
   });
+
+  group('SessionEditDialog — key picker hardware badge', () {
+    SshKeyEntry makeKey(String id, String label) => SshKeyEntry(
+      id: id,
+      label: label,
+      privateKey: '',
+      publicKey: '',
+      keyType: 'ed25519',
+      createdAt: DateTime(2025, 1, 1),
+    );
+
+    Widget buildWithKeys(
+      List<SshKeyEntry> keys, {
+      Map<String, String> backends = const {},
+    }) {
+      final keysList = List<SshKeyEntry>.unmodifiable(keys);
+      return ProviderScope(
+        overrides: [
+          sshKeysProvider.overrideWith(
+            () => _StubKeysNotifier(keysList, backends: backends),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => SessionEditDialog.show(context),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets(
+      'FIDO2 row in the picker dropdown carries the HardwareKeyBadge',
+      // Spec: the standalone key manager already renders the
+      // HardwareKeyBadge next to FIDO2 sk-* rows. The session-edit
+      // "Select from key store" picker is a second listing surface
+      // for the same rows and must mirror the badge — corp users
+      // with mixed software / hardware key stores need to tell at
+      // a glance which row is which inside the picker too.
+      (tester) async {
+        await tester.pumpWidget(
+          buildWithKeys(
+            [makeKey('k1', 'YubiKey 5'), makeKey('k2', 'Laptop key')],
+            backends: {'k1': 'fido2'},
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Auth'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+
+        // The FIDO2 row carries the hardware badge — same widget
+        // class the key manager uses, so a visual regression on one
+        // surface lands on the other.
+        expect(find.byType(HardwareKeyBadge), findsOneWidget);
+      },
+    );
+
+    testWidgets('software rows render no badge', (tester) async {
+      await tester.pumpWidget(buildWithKeys([makeKey('k1', 'Laptop key')]));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Auth'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select from Key Store'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HardwareKeyBadge), findsNothing);
+    });
+  });
+
+  group('SessionEditDialog — system ssh-agent option', () {
+    Widget buildAgentApp({Session? session}) {
+      return ProviderScope(
+        overrides: [
+          sshKeysProvider.overrideWith(() => _StubKeysNotifier(const [])),
+          if (session != null)
+            sessionTagsProvider(
+              session.id,
+            ).overrideWith((_) async => const <Tag>[]),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () =>
+                    SessionEditDialog.show(context, session: session),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    group('desktop', () {
+      setUp(() {
+        debugDesktopPlatformOverride = true;
+        debugMobilePlatformOverride = false;
+      });
+
+      tearDown(() {
+        debugDesktopPlatformOverride = null;
+        debugMobilePlatformOverride = null;
+      });
+
+      testWidgets('option renders enabled on the Auth tab', (tester) async {
+        await tester.pumpWidget(buildAgentApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Auth'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Use system ssh-agent'), findsOneWidget);
+        // Password / key sections still render — the toggle is off
+        // by default for fresh sessions.
+        expect(find.text('PASSWORD'), findsOneWidget);
+      });
+
+      testWidgets(
+        'selecting the agent option collapses the password + key sections',
+        (tester) async {
+          await tester.pumpWidget(buildAgentApp());
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Auth'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Use system ssh-agent'));
+          await tester.pumpAndSettle();
+
+          // No password field, no OR divider, no key passphrase —
+          // the agent owns every credential.
+          expect(find.text('PASSWORD'), findsNothing);
+          expect(find.text('OR'), findsNothing);
+          expect(find.text('KEY PASSPHRASE'), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'Save & Connect with agent selected returns SaveResult with AuthType.agent',
+        // Spec: the bus mapper already routes AuthType.agent (set
+        // by toSSHConfig.useAgent) into BusConnectAuthRef.agent.
+        // The dialog must therefore stamp the session's authType
+        // to AuthType.agent when the toggle is on so the connect
+        // arm picks the SshAuthAgent ref instead of the composer.
+        (tester) async {
+          SessionDialogResult? result;
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                sshKeysProvider.overrideWith(() => _StubKeysNotifier(const [])),
+              ],
+              child: MaterialApp(
+                localizationsDelegates: S.localizationsDelegates,
+                supportedLocales: S.supportedLocales,
+                home: Scaffold(
+                  body: Builder(
+                    builder: (context) => ElevatedButton(
+                      onPressed: () async {
+                        result = await SessionEditDialog.show(context);
+                      },
+                      child: const Text('Open'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+
+          // Connection tab — fill host / user so the form validates.
+          await tester.enterText(
+            find.widgetWithText(TextFormField, '192.168.1.1'),
+            'example.com',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextFormField, 'root'),
+            'testuser',
+          );
+          await tester.tap(find.text('Auth'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Use system ssh-agent'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Save & Connect'));
+          await tester.pumpAndSettle();
+
+          expect(result, isA<SaveResult>());
+          final save = result! as SaveResult;
+          expect(save.session.authType, AuthType.agent);
+          // No password / key / passphrase leaked through.
+          expect(save.session.password, isEmpty);
+          expect(save.session.keyData, isEmpty);
+          expect(save.session.keyId, isEmpty);
+        },
+      );
+
+      testWidgets(
+        'toSSHConfig propagates useAgent when authType is agent',
+        // Spec: the connect path reads SshAuth.useAgent inside
+        // ConnectionsNotifier._authFromConfig. toSSHConfig must
+        // set the flag from authType so a saved AuthType.agent
+        // row routes to SshAuthAgent on every dial.
+        (tester) async {
+          // No widget pump here — pure projection check.
+          final session = Session(
+            id: 's',
+            label: 'agent',
+            server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+            auth: const SessionAuth(authType: AuthType.agent),
+          );
+          expect(session.toSSHConfig().auth.useAgent, isTrue);
+
+          final passwordSession = session.copyWith(
+            auth: session.auth.copyWith(authType: AuthType.password),
+          );
+          expect(passwordSession.toSSHConfig().auth.useAgent, isFalse);
+        },
+      );
+
+      testWidgets(
+        'editing an existing AuthType.agent session opens with toggle on',
+        (tester) async {
+          final existing = Session(
+            id: 's1',
+            label: 'agent session',
+            server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+            auth: const SessionAuth(authType: AuthType.agent),
+          );
+          await tester.pumpWidget(buildAgentApp(session: existing));
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Auth'));
+          await tester.pumpAndSettle();
+
+          // Password / key sections collapsed because the saved
+          // session is agent-mode.
+          expect(find.text('PASSWORD'), findsNothing);
+          expect(find.text('Use system ssh-agent'), findsOneWidget);
+        },
+      );
+    });
+
+    group('mobile', () {
+      setUp(() {
+        debugDesktopPlatformOverride = false;
+        debugMobilePlatformOverride = true;
+      });
+
+      tearDown(() {
+        debugDesktopPlatformOverride = null;
+        debugMobilePlatformOverride = null;
+      });
+
+      testWidgets(
+        'option is disabled with tooltip — agent endpoint is desktop-only',
+        // Spec: the system ssh-agent endpoint is desktop-only —
+        // Android / iOS have no analogue. The UI keeps the option
+        // visible so the session configuration surface looks the
+        // same on every platform, but the row is disabled and
+        // surfaces the reason in a tooltip so the user does not
+        // have to guess.
+        (tester) async {
+          await tester.pumpWidget(buildAgentApp());
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Auth'));
+          await tester.pumpAndSettle();
+
+          // Tooltip is rendered.
+          expect(
+            find.byTooltip(
+              'Not available on mobile — the system ssh-agent endpoint is desktop-only.',
+            ),
+            findsOneWidget,
+          );
+
+          // Tap-through is suppressed — the password field stays
+          // visible (toggle should not flip).
+          await tester.tap(find.text('Use system ssh-agent'));
+          await tester.pumpAndSettle();
+          expect(find.text('PASSWORD'), findsOneWidget);
+        },
+      );
+    });
+  });
 }
 
 /// Minimal [SshKeysNotifier] test double.
@@ -2175,12 +2472,22 @@ void main() {
 /// label. Records the lookups so tests can assert the dialog only
 /// pulls metadata and never PEM bytes. `build()` returns the seeded
 /// list so `ref.watch(sshKeysProvider)` resolves immediately.
+///
+/// `backends` lets a test set the `backend` discriminator on a row
+/// keyed by id so the key-picker surface (which routes the badge
+/// widget off this column) can be asserted against. Rows whose id
+/// is missing from the map default to `'software'` (no badge).
 class _StubKeysNotifier extends SshKeysNotifier {
-  _StubKeysNotifier(this._initial, {Map<String, SshKeyEntry>? lookup})
-    : _entries = lookup ?? {for (final k in _initial) k.id: k};
+  _StubKeysNotifier(
+    this._initial, {
+    Map<String, SshKeyEntry>? lookup,
+    Map<String, String>? backends,
+  }) : _entries = lookup ?? {for (final k in _initial) k.id: k},
+       _backends = backends ?? const {};
 
   final List<SshKeyEntry> _initial;
   final Map<String, SshKeyEntry> _entries;
+  final Map<String, String> _backends;
 
   /// Number of `loadAllMetadata` invocations — `_resolveKeyLabel`
   /// hits this once per key-picker open, never PEM-bearing `loadAll`.
@@ -2203,6 +2510,7 @@ class _StubKeysNotifier extends SshKeysNotifier {
           isGenerated: entry.isGenerated,
           privateFingerprint: '',
           publicFingerprint: '',
+          backend: _backends[entry.id] ?? 'software',
         ),
     };
   }

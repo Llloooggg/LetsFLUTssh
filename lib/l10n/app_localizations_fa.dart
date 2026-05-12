@@ -377,6 +377,17 @@ class SFa extends S {
   String get auth => 'احراز هویت';
 
   @override
+  String get authMethodAgent => 'استفاده از ssh-agent سیستم';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'احراز هویت از طریق \$SSH_AUTH_SOCK (Linux/macOS) یا OpenSSH named pipe (Windows). مفید اگر کلیدهایت در gpg-agent، Pageant یا یک ssh-agent سیستمی هستند.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'در موبایل در دسترس نیست — endpoint مربوط به ssh-agent سیستم فقط روی دسکتاپ کار می‌کند.';
+
+  @override
   String get options => 'گزینه‌ها';
 
   @override

@@ -378,6 +378,17 @@ class SId extends S {
   String get auth => 'Autentikasi';
 
   @override
+  String get authMethodAgent => 'Pakai ssh-agent sistem';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Autentikasi via \$SSH_AUTH_SOCK (Linux/macOS) atau OpenSSH named pipe (Windows). Berguna kalau key kamu disimpan di gpg-agent, Pageant, atau ssh-agent sistem.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Tidak tersedia di mobile — endpoint ssh-agent sistem khusus desktop.';
+
+  @override
   String get options => 'Opsi';
 
   @override

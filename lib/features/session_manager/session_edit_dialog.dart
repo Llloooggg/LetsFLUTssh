@@ -21,9 +21,15 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_picker_chip.dart';
 import '../../widgets/dropdown_select_button.dart';
+import '../../widgets/enclave_ssh_dialog.dart';
+import '../../widgets/hardware_key_badge.dart';
+import '../../widgets/hello_ssh_dialog.dart';
 import '../../widgets/hover_region.dart';
+import '../../widgets/keystore_ssh_dialog.dart';
+import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../widgets/tag_color.dart';
+import '../../widgets/tpm_ssh_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
@@ -206,6 +212,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   String _selectedKeyId = '';
   String _selectedKeyLabel = '';
 
+  /// `true` when the user picked "Use system ssh-agent" on the Auth
+  /// tab. Defers every credential lookup to the running agent (Unix
+  /// `$SSH_AUTH_SOCK`, Windows OpenSSH named pipe / Pageant) so the
+  /// dialog needs no password / key fields. Hydrated from
+  /// `widget.session?.auth.authType == AuthType.agent` on edit;
+  /// fresh sessions default to `false`. The mobile build keeps the
+  /// toggle visible but disabled — the agent endpoint is desktop-only.
+  bool _useAgent = false;
+
   /// In-memory rule list backing the Forwarding tab. Hydrated from
   /// the store on init when editing; the new-session path starts
   /// empty. Persisted by the caller after a successful Save via
@@ -293,6 +308,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// older callers (and tests) still pass populated `password` /
   /// `keyData` directly.
   AuthType get _derivedAuthType {
+    // ssh-agent selection wins over every other slot — the connect
+    // path defers to the agent and ignores the (unset) key / password
+    // columns, so the persisted authType has to match what the
+    // dispatch arm will read on the next dial.
+    if (_useAgent) return AuthType.agent;
     final saved = widget.session?.auth;
     final hasPassword =
         _passwordCtrl.text.isNotEmpty ||
@@ -367,6 +387,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     if (_selectedKeyId.isNotEmpty) {
       _resolveKeyLabel();
     }
+    _useAgent = s?.auth.authType == AuthType.agent;
     // ProxyJump editor state — initialise mode + controllers from the
     // session being edited, falling back to "none" / empty for new
     // sessions.
@@ -562,6 +583,16 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         user: _userCtrl.text.trim(),
       );
     }
+    // ssh-agent path owns the credential — the agent dispatches every
+    // signature, so the per-row key / password slots stay empty on
+    // save. Without this the `_derivedAuthType == agent` flip would
+    // leak a stale `_selectedKeyId` / typed password into the row,
+    // hiding behind the agent flag without anyone seeing it.
+    final String resolvedKeyId = _useAgent ? '' : _selectedKeyId;
+    final String resolvedPassword = _useAgent ? '' : _passwordCtrl.text;
+    final String resolvedKeyPath = _useAgent ? '' : keyPath;
+    final String resolvedKeyData = _useAgent ? '' : _keyDataCtrl.text.trim();
+    final String resolvedPassphrase = _useAgent ? '' : _passphraseCtrl.text;
     Session built;
     if (_isEditing) {
       built = widget.session!.copyWith(
@@ -571,11 +602,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         server: server,
         auth: widget.session!.auth.copyWith(
           authType: _derivedAuthType,
-          keyId: _selectedKeyId,
-          password: _passwordCtrl.text,
-          keyPath: keyPath,
-          keyData: _keyDataCtrl.text.trim(),
-          passphrase: _passphraseCtrl.text,
+          keyId: resolvedKeyId,
+          password: resolvedPassword,
+          keyPath: resolvedKeyPath,
+          keyData: resolvedKeyData,
+          passphrase: resolvedPassphrase,
         ),
         viaSessionId: viaSessionId,
         viaOverride: viaOverride,
@@ -588,11 +619,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         server: server,
         auth: SessionAuth(
           authType: _derivedAuthType,
-          keyId: _selectedKeyId,
-          password: _passwordCtrl.text,
-          keyPath: keyPath,
-          keyData: _keyDataCtrl.text.trim(),
-          passphrase: _passphraseCtrl.text,
+          keyId: resolvedKeyId,
+          password: resolvedPassword,
+          keyPath: resolvedKeyPath,
+          keyData: resolvedKeyData,
+          passphrase: resolvedPassphrase,
         ),
         viaSessionId: viaSessionId,
         viaOverride: viaOverride,
@@ -672,6 +703,12 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   bool _validateAuth() {
     if (_kind == SessionKind.webdav) return _validateWebDavAuth();
     if (_kind == SessionKind.s3) return _validateS3Auth();
+    // ssh-agent path needs no password / key — the running agent
+    // owns the credential, so the predicate short-circuits.
+    if (_useAgent) {
+      setState(() => _authError = null);
+      return true;
+    }
     final saved = widget.session?.auth;
     final hasPassword =
         _passwordCtrl.text.isNotEmpty ||

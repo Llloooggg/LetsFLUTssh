@@ -84,7 +84,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 
 ## 3. Authentication
 
-The Auth tab in the session edit dialog supports four modes; you fill in the parts that apply.
+The Auth tab in the session edit dialog supports five modes; you fill in the parts that apply.
 
 ### Password
 
@@ -100,11 +100,19 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 - Drop-down references a key already imported via Tools → SSH Keys (see [§10](#10-ssh-key-manager--putty-ppk-import)).
 - Preferred over file paths for portability — the key travels with the session via export/import.
+- Each row carries a backend badge — "Hardware-bound (FIDO2)" for sk-* keys, "Smart card / token" for PKCS#11, "Secure Enclave" / "Windows Hello" / "TPM 2.0" / "Android Keystore" for the platform-bound variants. Software keys carry no badge. The visual matches the standalone key manager so switching between the two surfaces does not require re-learning which row is which.
 
 ### PEM key text
 
 - Paste the private-key body (`-----BEGIN OPENSSH PRIVATE KEY-----` … or PKCS#1/PKCS#8 PEM).
 - Used for one-off keys you don't want to save to disk.
+
+### System ssh-agent
+
+- "Use system ssh-agent" toggle at the top of the Auth tab. Defers every signature to a running ssh-agent on this machine — `$SSH_AUTH_SOCK` on Linux / macOS, the OpenSSH named pipe `\\.\pipe\openssh-ssh-agent` (or Pageant) on Windows.
+- No key / passphrase / password slot has to be filled — the agent owns the credential. Selecting the toggle collapses the rest of the Auth tab.
+- Useful if you already keep your keys in `gpg-agent`, Pageant, KeePassXC's SSH-agent integration, or a system ssh-agent, and you don't want a second copy living inside the app.
+- Desktop-only — Android / iOS have no system ssh-agent equivalent to dial, so the toggle renders disabled with a tooltip explaining why. This is distinct from the **outgoing** agent endpoint the app exposes for other tools (see [§10b](#10b-using-hardware-bound-keys-outside-the-app)) — this toggle makes the app a **client** of the existing agent, not a server.
 
 ### Passphrase
 

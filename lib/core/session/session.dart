@@ -7,7 +7,14 @@ import '../../utils/platform.dart';
 import '../ssh/ssh_config.dart';
 
 /// Authentication type for a session.
-enum AuthType { password, key, keyWithPassword }
+///
+/// `agent` defers credential discovery to a running system ssh-agent
+/// (Unix `$SSH_AUTH_SOCK` / Windows OpenSSH named pipe / Pageant).
+/// The session row carries no key id / inline PEM / password — every
+/// signature flows through the agent over its socket; the dialog
+/// surfaces no extra fields and the connect path short-circuits to
+/// [SshAuthAgent] without staging anything into SecretStore.
+enum AuthType { password, key, keyWithPassword, agent }
 
 /// Transport kind. SSH covers the classic shell + SFTP file
 /// browser; WebDAV runs the file browser against an HTTP-backed
@@ -123,6 +130,12 @@ class SessionAuth extends SshAuth {
     String? keyPath,
     String? keyData,
     String? passphrase,
+    // Accepted to satisfy the [SshAuth.copyWith] override signature.
+    // SessionAuth carries the typed [authType] field instead — the
+    // agent flag is derived in [Session.toSSHConfig] when projecting
+    // the bag into [SshAuth]; routing it back through this copyWith
+    // would risk a SessionAuth whose flag disagreed with authType.
+    bool? useAgent,
   }) => SessionAuth(
     authType: authType ?? this.authType,
     keyId: keyId ?? this.keyId,
@@ -381,6 +394,7 @@ class Session {
         keyData: keyData,
         keyId: keyId,
         passphrase: passphrase,
+        useAgent: auth.authType == AuthType.agent,
       ),
     );
   }

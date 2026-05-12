@@ -414,6 +414,17 @@ class SFr extends S {
   String get auth => 'Authentification';
 
   @override
+  String get authMethodAgent => 'Utiliser le ssh-agent du système';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Authentification via \$SSH_AUTH_SOCK (Linux/macOS) ou le OpenSSH named pipe (Windows). Pratique si tes keys vivent dans gpg-agent, Pageant ou un ssh-agent système.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Indisponible sur mobile — l\'endpoint du ssh-agent système est réservé au desktop.';
+
+  @override
   String get options => 'Options';
 
   @override

@@ -407,6 +407,17 @@ class SDe extends S {
   String get auth => 'Authentifizierung';
 
   @override
+  String get authMethodAgent => 'System-ssh-agent verwenden';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Authentifizierung über \$SSH_AUTH_SOCK (Linux/macOS) oder die OpenSSH named pipe (Windows). Nützlich, wenn deine Keys in gpg-agent, Pageant oder einem System-ssh-agent liegen.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Auf Mobilgeräten nicht verfügbar — der System-ssh-agent-Endpoint ist desktop-only.';
+
+  @override
   String get options => 'Optionen';
 
   @override

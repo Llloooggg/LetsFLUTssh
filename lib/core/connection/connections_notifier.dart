@@ -735,6 +735,14 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     String? sessionId,
     Connection conn,
   ) async {
+    // System ssh-agent dispatch — short-circuit before the composer
+    // runs. `SshAuthAgent` carries no per-session secret; the Rust
+    // driver dials `$SSH_AUTH_SOCK` (Unix) / the OpenSSH named pipe
+    // / Pageant (Windows) and walks every key the agent advertises,
+    // so SecretStore never has to be staged for this path.
+    if (auth.useAgent) {
+      return const SshAuthAgent();
+    }
     // FIDO2 manager-key dispatch: when the manager key id resolves
     // to a hardware-bound (`sk-*`) row carrying the user-verification
     // bit, prompt for a PIN before the composer runs so the staged

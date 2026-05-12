@@ -46,16 +46,26 @@ class SshAuth {
   final String keyId;
   final String passphrase;
 
+  /// `true` when the session defers to a system ssh-agent (Unix
+  /// `$SSH_AUTH_SOCK`, Windows OpenSSH named pipe / Pageant) for
+  /// every signature. Set by [Session.toSSHConfig] when the saved
+  /// row's [AuthType] is `agent`; the connect path short-circuits
+  /// to [SshAuthAgent] before the auth composer runs so no key /
+  /// password column has to be populated.
+  final bool useAgent;
+
   const SshAuth({
     this.password = '',
     this.keyPath = '',
     this.keyData = '',
     this.keyId = '',
     this.passphrase = '',
+    this.useAgent = false,
   });
 
   /// True if any auth method is configured.
   bool get hasAuth =>
+      useAgent ||
       password.isNotEmpty ||
       keyPath.isNotEmpty ||
       keyData.isNotEmpty ||
@@ -67,12 +77,14 @@ class SshAuth {
     String? keyData,
     String? keyId,
     String? passphrase,
+    bool? useAgent,
   }) => SshAuth(
     password: password ?? this.password,
     keyPath: keyPath ?? this.keyPath,
     keyData: keyData ?? this.keyData,
     keyId: keyId ?? this.keyId,
     passphrase: passphrase ?? this.passphrase,
+    useAgent: useAgent ?? this.useAgent,
   );
 
   @override
@@ -83,11 +95,12 @@ class SshAuth {
           keyPath == other.keyPath &&
           keyData == other.keyData &&
           keyId == other.keyId &&
-          passphrase == other.passphrase;
+          passphrase == other.passphrase &&
+          useAgent == other.useAgent;
 
   @override
   int get hashCode =>
-      Object.hash(password, keyPath, keyData, keyId, passphrase);
+      Object.hash(password, keyPath, keyData, keyId, passphrase, useAgent);
 }
 
 /// SSH connection configuration model.

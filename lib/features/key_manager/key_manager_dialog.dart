@@ -31,6 +31,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/enclave_ssh_dialog.dart';
+import '../../widgets/hardware_key_badge.dart';
 import '../../widgets/hello_ssh_dialog.dart';
 import '../../widgets/keystore_ssh_dialog.dart';
 import '../../widgets/pkcs11_import_dialog.dart';
@@ -318,7 +319,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         if (isFido2)
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: _HardwareBadge(label: s.hardwareKeyBadge),
+            child: HardwareKeyBadge(label: s.hardwareKeyBadge),
           ),
         if (isPkcs11)
           Padding(
@@ -1404,45 +1405,6 @@ class _ExpiredBadge extends StatelessWidget {
             style: AppFonts.inter(
               fontSize: AppFonts.xxs,
               color: AppTheme.red,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// "Hardware-bound (FIDO2)" pill rendered in the key-manager row's
-/// trailing slot when the stored key is an `sk-*` variant. Visual
-/// contract mirrors `_ExpiredBadge` so the row tail reads
-/// consistently when multiple badges co-exist.
-class _HardwareBadge extends StatelessWidget {
-  final String label;
-  const _HardwareBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.accent.withValues(alpha: 0.16),
-        borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.usb, size: 12, color: AppTheme.accent),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: AppFonts.inter(
-              fontSize: AppFonts.xxs,
-              color: AppTheme.accent,
               fontWeight: FontWeight.w600,
             ),
           ),

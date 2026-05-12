@@ -384,6 +384,17 @@ class SRu extends S {
   String get auth => 'Авторизация';
 
   @override
+  String get authMethodAgent => 'Использовать системный ssh-agent';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Авторизация через \$SSH_AUTH_SOCK (Linux/macOS) или OpenSSH named pipe (Windows). Удобно, если ключи лежат в gpg-agent, Pageant или системном ssh-agent.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Недоступно на мобильных — endpoint системного ssh-agent работает только на десктопе.';
+
+  @override
   String get options => 'Параметры';
 
   @override

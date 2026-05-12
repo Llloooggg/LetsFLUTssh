@@ -375,6 +375,17 @@ class SJa extends S {
   String get auth => '認証';
 
   @override
+  String get authMethodAgent => 'システムの ssh-agent を使う';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      '\$SSH_AUTH_SOCK (Linux/macOS) または OpenSSH named pipe (Windows) 経由で認証します。gpg-agent、Pageant、システムの ssh-agent に key を置いている場合に便利です。';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'モバイルでは利用できません — システム ssh-agent の endpoint はデスクトップ専用です。';
+
+  @override
   String get options => 'オプション';
 
   @override

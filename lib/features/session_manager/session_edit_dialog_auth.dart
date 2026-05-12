@@ -1,12 +1,12 @@
 part of 'session_edit_dialog.dart';
 
-/// Auth-tab UI — password / key-store / inline-PEM / passphrase
-/// fields plus the picker + drop-target helpers. Lives as an
-/// extension on the dialog state so the helpers reach the per-field
-/// controllers (`_passwordCtrl`, `_keyDataCtrl`, …) and the dirty-bit
-/// flags directly without going through a public surface; `part of`
-/// joins the file into the same library so library-private names
-/// stay reachable.
+/// Auth-tab UI — the system-ssh-agent toggle plus the password /
+/// key-store / inline-PEM / passphrase fields and the picker +
+/// drop-target helpers. Lives as an extension on the dialog state
+/// so the helpers reach the per-field controllers (`_passwordCtrl`,
+/// `_keyDataCtrl`, …) and the dirty-bit flags directly without
+/// going through a public surface; `part of` joins the file into
+/// the same library so library-private names stay reachable.
 extension _AuthTab on _SessionEditDialogState {
   Widget _buildAuthTab() {
     return Column(
@@ -27,13 +27,90 @@ extension _AuthTab on _SessionEditDialogState {
               ),
             ),
           ),
-        _buildPasswordField(),
-        const SizedBox(height: 16),
-        _buildOrDivider(),
-        const SizedBox(height: 16),
-        ..._buildKeyFields(),
+        _buildAgentOption(),
+        if (!_useAgent) ...[
+          const SizedBox(height: 16),
+          _buildPasswordField(),
+          const SizedBox(height: 16),
+          _buildOrDivider(),
+          const SizedBox(height: 16),
+          ..._buildKeyFields(),
+        ],
       ],
     );
+  }
+
+  /// Renders the "Use system ssh-agent" toggle at the top of the
+  /// Auth tab. Selecting it collapses every other auth field — the
+  /// running agent (`$SSH_AUTH_SOCK` on Unix, OpenSSH named pipe /
+  /// Pageant on Windows) owns every signature for the session.
+  ///
+  /// Mobile builds keep the toggle visible but disabled — the agent
+  /// endpoint is desktop-only because Android / iOS have no system
+  /// ssh-agent equivalent to dial. Disabling instead of hiding keeps
+  /// configuration parity with the desktop UI so a session edited on
+  /// mobile preserves the toggle state instead of silently dropping
+  /// it.
+  Widget _buildAgentOption() {
+    final s = S.of(context);
+    final disabled = !isDesktopPlatform;
+    final tile = Opacity(
+      opacity: disabled ? 0.5 : 1.0,
+      child: HoverRegion(
+        onTap: disabled ? null : () => rebuild(() => _useAgent = !_useAgent),
+        builder: (hovered) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: _useAgent
+                ? AppTheme.accent.withValues(alpha: 0.1)
+                : (hovered ? AppTheme.hover : AppTheme.bg2),
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(
+              color: _useAgent
+                  ? AppTheme.accent.withValues(alpha: 0.4)
+                  : AppTheme.borderLight,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _useAgent ? Icons.check_box : Icons.check_box_outline_blank,
+                size: 18,
+                color: _useAgent ? AppTheme.accent : AppTheme.fgFaint,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.authMethodAgent,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.sm,
+                        color: AppTheme.fg,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      s.authMethodAgentSubtitle,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.fgFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (disabled) {
+      return Tooltip(message: s.authMethodAgentMobileUnsupported, child: tile);
+    }
+    return tile;
   }
 
   Widget _buildOrDivider() {
@@ -184,30 +261,29 @@ extension _AuthTab on _SessionEditDialogState {
   }
 
   Future<void> _showKeyPicker(List<SshKeyEntry> keys) async {
+    // Pull metadata once on picker-open so each row can render the
+    // matching backend badge (FIDO2 / PKCS#11 / Enclave / Hello /
+    // TPM / Keystore). `SshKeyEntry` carries the user-facing label
+    // + key type but drops the backend discriminator — the metadata
+    // listing is the only source for the per-backend `is*` flags.
+    // Software rows render no badge (the legacy default).
+    Map<String, SshKeyMetadata> metadata = const {};
+    try {
+      metadata = await ref.read(sshKeysProvider.notifier).loadAllMetadata();
+    } catch (_) {
+      // Metadata lookup is decorative only — a transient FRB miss
+      // degrades to the unbadged list shape rather than blocking
+      // the picker. The selected id still routes through the same
+      // save path so a software fallback never blocks a connect.
+      metadata = const {};
+    }
+    if (!mounted) return;
     final selected = await showDialog<SshKeyEntry>(
       context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(S.of(context).selectFromKeyStore),
         children: keys
-            .map(
-              (k) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(ctx, k),
-                child: ListTile(
-                  leading: Icon(
-                    Icons.vpn_key,
-                    size: 16,
-                    color: k.isGenerated ? AppTheme.accent : AppTheme.fgDim,
-                  ),
-                  title: Text(k.label),
-                  subtitle: Text(
-                    k.keyType,
-                    style: TextStyle(fontSize: AppFonts.xs),
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            )
+            .map((k) => _buildKeyPickerOption(ctx, k, metadata[k.id]))
             .toList(),
       ),
     );
@@ -221,6 +297,81 @@ extension _AuthTab on _SessionEditDialogState {
         _showKeyText = false;
       });
     }
+  }
+
+  /// One row inside the "Select from key store" picker. Renders the
+  /// row's hardware-backend badge inline so the user can tell which
+  /// stored key is FIDO2 / PKCS#11 / Enclave / Hello / TPM / Keystore
+  /// versus software-stored. The badge widgets are reused verbatim
+  /// from the standalone key manager so the two surfaces stay
+  /// visually identical.
+  Widget _buildKeyPickerOption(
+    BuildContext ctx,
+    SshKeyEntry k,
+    SshKeyMetadata? meta,
+  ) {
+    final s = S.of(context);
+    return SimpleDialogOption(
+      onPressed: () => Navigator.pop(ctx, k),
+      child: ListTile(
+        leading: Icon(
+          Icons.vpn_key,
+          size: 16,
+          color: k.isGenerated ? AppTheme.accent : AppTheme.fgDim,
+        ),
+        title: Text(k.label),
+        subtitle: Text(k.keyType, style: TextStyle(fontSize: AppFonts.xs)),
+        trailing: _keyPickerBadge(s, meta),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  /// Pick the matching badge widget for a manager-key metadata row.
+  /// Returns `null` for software rows (no badge — same as the key
+  /// manager list). Order matches the key manager: FIDO2 → PKCS#11 →
+  /// Enclave → Hello → TPM → Keystore. The backend column is mutually
+  /// exclusive so the priority chain only ever resolves one badge.
+  Widget? _keyPickerBadge(S s, SshKeyMetadata? meta) {
+    if (meta == null) return null;
+    if (meta.isFido2) {
+      return HardwareKeyBadge(label: s.hardwareKeyBadge);
+    }
+    if (meta.isPkcs11) {
+      return Pkcs11Badge(
+        label: s.pkcs11Badge,
+        modulePath: meta.pkcs11ModulePath,
+        tokenSerial: meta.pkcs11TokenSerial,
+        objectLabel: meta.pkcs11ObjectLabel,
+      );
+    }
+    if (meta.isEnclave) {
+      return EnclaveBadge(label: s.sshKeyEnclaveBadge);
+    }
+    if (meta.isHello) {
+      return HelloBadge(
+        label: s.helloBadge,
+        credentialName: meta.helloCredentialName,
+      );
+    }
+    if (meta.isTpm) {
+      return TpmBadge(
+        label: s.tpmSshBadge,
+        provider: meta.tpmProvider,
+        persistentHandle: meta.tpmHandle,
+        pinRequired: meta.tpmPinRequired,
+        silent: meta.tpmProvider == 'cng-pcp',
+      );
+    }
+    if (meta.isKeystore) {
+      return KeystoreBadge(
+        label: s.keystoreBadge,
+        strongbox: meta.keystoreStrongBox,
+        platform: meta.keystorePlatform,
+      );
+    }
+    return null;
   }
 
   Future<void> _pickKeyFile() async {

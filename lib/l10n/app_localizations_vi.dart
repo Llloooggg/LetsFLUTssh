@@ -377,6 +377,17 @@ class SVi extends S {
   String get auth => 'Xác thực';
 
   @override
+  String get authMethodAgent => 'Dùng ssh-agent hệ thống';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Xác thực qua \$SSH_AUTH_SOCK (Linux/macOS) hoặc OpenSSH named pipe (Windows). Tiện nếu key của bạn nằm trong gpg-agent, Pageant hoặc ssh-agent hệ thống.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Không khả dụng trên mobile — endpoint ssh-agent hệ thống chỉ chạy trên desktop.';
+
+  @override
   String get options => 'Tùy chọn';
 
   @override
