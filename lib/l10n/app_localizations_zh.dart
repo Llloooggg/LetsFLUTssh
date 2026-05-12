@@ -2811,4 +2811,7 @@ class SZh extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => '已取消硬件密钥提示';
 }

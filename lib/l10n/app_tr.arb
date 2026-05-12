@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "Bu SSH key bir hardware key gerektiriyor — auth için dokun",
   "errSkWrongPin": "PIN hatalı",
   "hardwareKeyImport": "Hardware key import et (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Hardware key prompt iptal edildi"
 }

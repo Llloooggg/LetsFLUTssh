@@ -2908,4 +2908,7 @@ class SHi extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Hardware key prompt cancel कर दिया';
 }

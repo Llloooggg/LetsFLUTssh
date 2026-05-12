@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "SSH key ini butuh hardware key — sentuh untuk auth",
   "errSkWrongPin": "PIN salah",
   "hardwareKeyImport": "Import hardware key (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Prompt hardware key dibatalkan"
 }

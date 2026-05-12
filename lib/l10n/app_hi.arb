@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "इस SSH key के लिए hardware key चाहिए — auth के लिए टैप करें",
   "errSkWrongPin": "PIN गलत है",
   "hardwareKeyImport": "Hardware key import करें (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Hardware key prompt cancel कर दिया"
 }

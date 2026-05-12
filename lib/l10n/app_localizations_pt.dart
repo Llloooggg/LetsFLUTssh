@@ -2977,4 +2977,7 @@ class SPt extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Prompt do hardware key cancelado';
 }

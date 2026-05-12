@@ -1608,5 +1608,6 @@
   "skKeyRequiresDevice": "This SSH key requires a hardware key — tap it to authenticate",
   "errSkWrongPin": "Incorrect PIN",
   "hardwareKeyImport": "Import hardware key (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Hardware key prompt cancelled"
 }

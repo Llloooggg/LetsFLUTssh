@@ -2896,4 +2896,7 @@ class SVi extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Đã hủy prompt hardware key';
 }

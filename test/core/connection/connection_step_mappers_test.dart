@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
@@ -97,6 +99,42 @@ void main() {
       final ref = busAuthRef(const SshAuthPubkeyCertRef('k', 'c'));
       final pkc = ref as rust_bus.BusConnectAuthRef_PubkeyCert;
       expect(pkc.passphraseSecretId, isNull);
+    });
+
+    test('pubkeySk variant carries every FIDO2 field', () {
+      // FIDO2 hardware-bound `sk-*` dispatch — every field on the
+      // ref must reach the bus envelope verbatim, otherwise the
+      // Rust connect driver can't reconstruct the credential.
+      final credentialId = Uint8List.fromList([0xCA, 0xFE, 0xBA, 0xBE]);
+      final ref = busAuthRef(
+        SshAuthPubkeySkRef(
+          publicOpenssh: 'sk-ssh-ed25519@openssh.com AAAA...',
+          credentialId: credentialId,
+          application: 'ssh:',
+          pinSecretId: 'key.pin.sk1',
+        ),
+      );
+      expect(ref, isA<rust_bus.BusConnectAuthRef_PubkeySk>());
+      final sk = ref as rust_bus.BusConnectAuthRef_PubkeySk;
+      expect(sk.publicOpenssh, 'sk-ssh-ed25519@openssh.com AAAA...');
+      expect(sk.credentialId, equals(credentialId));
+      expect(sk.application, 'ssh:');
+      expect(sk.pinSecretId, 'key.pin.sk1');
+    });
+
+    test('pubkeySk variant null pinSecretId passes through (touch-only)', () {
+      // Touch-only credentials skip PIN staging — the ref carries
+      // `null`, and the Rust connect path drives a touch-only
+      // assertion on the device.
+      final ref = busAuthRef(
+        SshAuthPubkeySkRef(
+          publicOpenssh: 'sk-ssh-ed25519@openssh.com AAAA...',
+          credentialId: Uint8List.fromList([1]),
+          application: 'ssh:',
+        ),
+      );
+      final sk = ref as rust_bus.BusConnectAuthRef_PubkeySk;
+      expect(sk.pinSecretId, isNull);
     });
   });
 }

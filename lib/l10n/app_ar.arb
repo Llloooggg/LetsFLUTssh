@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "هذا المفتاح SSH يحتاج hardware key — المسه للمصادقة",
   "errSkWrongPin": "PIN غير صحيح",
   "hardwareKeyImport": "استيراد hardware key (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "تم إلغاء طلب hardware key"
 }

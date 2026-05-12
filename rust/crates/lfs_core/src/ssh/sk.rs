@@ -35,6 +35,7 @@ use sha2::{Digest, Sha256};
 
 use crate::error::Error;
 use crate::fido2;
+use crate::ssh::wire;
 
 /// Captured-at-import shape the connect path resolves before it
 /// hands russh a `FidoSigner`. Cloned across the await chain because
@@ -74,9 +75,9 @@ fn algorithm_wire_name(algorithm: &Algorithm) -> Result<&'static str, Error> {
 /// Compose the SSH `sk-*` signature trailer the OpenSSH server
 /// expects. `raw_signature` is the bytes the device returned
 /// verbatim — Ed25519 is the 64-byte raw signature; ECDSA P-256 is
-/// the DER-encoded `SEQUENCE { r, s }` we decode here into the SSH
-/// `mpint` shape.
-fn encode_sk_signature(
+/// the DER-encoded `SEQUENCE { r, s }` normalised here into the SSH
+/// `mpint(r) || mpint(s)` shape via [`crate::ssh::wire`].
+pub(crate) fn encode_sk_signature(
     algorithm: &Algorithm,
     raw_signature: &[u8],
     flags: u8,
@@ -98,13 +99,12 @@ fn encode_sk_signature(
         }
         Algorithm::SkEcdsaSha2NistP256 => {
             // CTAP2 returns ECDSA-P256 as DER `SEQUENCE { INTEGER r,
-            // INTEGER s }`. SSH expects two mpints. Decode the DER
-            // header structurally — accepting only the strict shape
-            // OpenSSH itself parses — and emit `string(r) || string(s)`.
-            let (r, s) = parse_ecdsa_der(raw_signature)?;
-            let mut out = Vec::with_capacity(r.len() + s.len() + 16);
-            push_ssh_string(&mut out, &r);
-            push_ssh_string(&mut out, &s);
+            // INTEGER s }`. Delegate to the shared wire helper for
+            // the `mpint(r) || mpint(s)` shape, then append the SSH
+            // sk-* trailer (flags || counter).
+            let rs = wire::ecdsa_der_to_ssh_mpint(raw_signature)?;
+            let mut out = Vec::with_capacity(rs.len() + 5);
+            out.extend_from_slice(&rs);
             out.push(flags);
             out.extend_from_slice(&counter.to_be_bytes());
             Ok(out)
@@ -129,86 +129,9 @@ pub(crate) fn encode_signature(
     let inner_len = name.len() + sk_signature_blob.len() + 8;
     let mut buf = Vec::with_capacity(inner_len + 4);
     buf.extend_from_slice(&(inner_len as u32).to_be_bytes());
-    push_ssh_string(&mut buf, name.as_bytes());
-    push_ssh_string(&mut buf, sk_signature_blob);
+    wire::push_ssh_string(&mut buf, name.as_bytes());
+    wire::push_ssh_string(&mut buf, sk_signature_blob);
     Ok(buf)
-}
-
-fn push_ssh_string(buf: &mut Vec<u8>, payload: &[u8]) {
-    buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-    buf.extend_from_slice(payload);
-}
-
-/// Strict DER `SEQUENCE { INTEGER r, INTEGER s }` decoder. Each
-/// integer is normalised to the SSH `mpint` wire shape — a leading
-/// 0x00 byte stays in the output when the high bit of the first
-/// real byte is set (SSH treats the value as signed) so the server
-/// can verify the signature without rejecting a perfectly valid
-/// positive-but-high-bit-set component.
-fn parse_ecdsa_der(der: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Error> {
-    let mut idx = 0;
-    if der.len() < 2 || der[idx] != 0x30 {
-        return Err(Error::Auth("fido2 signer: bad DER (SEQUENCE tag)".into()));
-    }
-    idx += 1;
-    let seq_len = read_der_length(der, &mut idx)?;
-    if idx + seq_len != der.len() {
-        return Err(Error::Auth(
-            "fido2 signer: bad DER (SEQUENCE length)".into(),
-        ));
-    }
-    let r = read_der_integer(der, &mut idx)?;
-    let s = read_der_integer(der, &mut idx)?;
-    if idx != der.len() {
-        return Err(Error::Auth("fido2 signer: bad DER (trailing bytes)".into()));
-    }
-    Ok((r, s))
-}
-
-fn read_der_length(buf: &[u8], idx: &mut usize) -> Result<usize, Error> {
-    if *idx >= buf.len() {
-        return Err(Error::Auth("fido2 signer: truncated DER length".into()));
-    }
-    let first = buf[*idx];
-    *idx += 1;
-    if first & 0x80 == 0 {
-        return Ok(first as usize);
-    }
-    let nbytes = (first & 0x7f) as usize;
-    if nbytes == 0 || nbytes > 4 || *idx + nbytes > buf.len() {
-        return Err(Error::Auth("fido2 signer: bad DER length encoding".into()));
-    }
-    let mut len = 0usize;
-    for _ in 0..nbytes {
-        len = (len << 8) | (buf[*idx] as usize);
-        *idx += 1;
-    }
-    Ok(len)
-}
-
-fn read_der_integer(buf: &[u8], idx: &mut usize) -> Result<Vec<u8>, Error> {
-    if *idx >= buf.len() || buf[*idx] != 0x02 {
-        return Err(Error::Auth("fido2 signer: bad DER (INTEGER tag)".into()));
-    }
-    *idx += 1;
-    let len = read_der_length(buf, idx)?;
-    if *idx + len > buf.len() || len == 0 {
-        return Err(Error::Auth("fido2 signer: truncated DER INTEGER".into()));
-    }
-    let mut bytes = buf[*idx..*idx + len].to_vec();
-    *idx += len;
-    // Strip a leading 0x00 unless dropping it would flip the sign
-    // (high bit set on the next byte). Keep SSH mpint discipline.
-    while bytes.len() > 1 && bytes[0] == 0x00 && bytes[1] & 0x80 == 0 {
-        bytes.remove(0);
-    }
-    // Re-add a leading 0x00 if the value's MSB is set — SSH mpints
-    // are signed; a high bit on the first byte without the leading
-    // zero means the value is negative.
-    if !bytes.is_empty() && bytes[0] & 0x80 != 0 {
-        bytes.insert(0, 0x00);
-    }
-    Ok(bytes)
 }
 
 /// Build the SSH-format signature for [`to_sign`] using the device
@@ -366,27 +289,32 @@ mod tests {
     }
 
     #[test]
-    fn parse_ecdsa_der_round_trips_simple_sequence() {
-        // SEQUENCE { INTEGER 0x01, INTEGER 0x02 } — minimal valid
-        // shape. DER: 30 06 02 01 01 02 01 02
+    fn encode_sk_signature_ecdsa_p256_uses_wire_mpint() {
+        // SEQUENCE { INTEGER 0x01, INTEGER 0x02 } || flags || counter.
         let der: Vec<u8> = vec![0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02];
-        let (r, s) = parse_ecdsa_der(&der).unwrap();
-        assert_eq!(r, vec![0x01]);
-        assert_eq!(s, vec![0x02]);
+        let out = encode_sk_signature(&Algorithm::SkEcdsaSha2NistP256, &der, 0x03, 0x0A_0B_0C_0D)
+            .unwrap();
+        // mpint(1) || mpint(2) — 10 bytes — then flags + counter.
+        assert_eq!(
+            &out[..10],
+            &[
+                0, 0, 0, 1, 0x01, // mpint r
+                0, 0, 0, 1, 0x02, // mpint s
+            ]
+        );
+        assert_eq!(out[10], 0x03);
+        assert_eq!(&out[11..15], &[0x0A, 0x0B, 0x0C, 0x0D]);
     }
 
     #[test]
-    fn parse_ecdsa_der_prepends_leading_zero_when_msb_set() {
-        // SEQUENCE { INTEGER 0x80, INTEGER 0x02 }. The high bit on
-        // 0x80 means SSH mpint must keep / add the leading zero.
-        let der: Vec<u8> = vec![0x30, 0x06, 0x02, 0x01, 0x80, 0x02, 0x01, 0x02];
-        let (r, _) = parse_ecdsa_der(&der).unwrap();
-        assert_eq!(r, vec![0x00, 0x80]);
-    }
-
-    #[test]
-    fn parse_ecdsa_der_rejects_truncated() {
-        let err = parse_ecdsa_der(&[0x30, 0x06, 0x02, 0x01]).expect_err("truncated");
+    fn encode_sk_signature_ecdsa_p256_rejects_truncated_der() {
+        let err = encode_sk_signature(
+            &Algorithm::SkEcdsaSha2NistP256,
+            &[0x30, 0x06, 0x02, 0x01],
+            0,
+            0,
+        )
+        .unwrap_err();
         assert!(matches!(err, Error::Auth(_)));
     }
 

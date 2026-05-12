@@ -552,6 +552,17 @@ pub enum BusConnectAuthRef {
         cert_secret_id: String,
         passphrase_secret_id: Option<String>,
     },
+    /// FIDO2 hardware-bound `sk-*` SSH key. Carries the captured
+    /// `id_*.pub` body + the opaque CTAP2 credential id + the
+    /// `application` RP-id (typically `ssh:`). `pin_secret_id`
+    /// resolves a transient PIN staged by the Dart caller before
+    /// dispatch — `None` for touch-only credentials.
+    PubkeySk {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        pin_secret_id: Option<String>,
+    },
     Agent,
 }
 
@@ -576,6 +587,17 @@ impl From<BusConnectAuthRef> for lfs_core::connection::ConnectAuthRef {
                 key_secret_id,
                 cert_secret_id,
                 passphrase_secret_id,
+            },
+            BusConnectAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                pin_secret_id,
+            } => lfs_core::connection::ConnectAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                pin_secret_id,
             },
             BusConnectAuthRef::Agent => lfs_core::connection::ConnectAuthRef::Agent,
         }
@@ -925,6 +947,12 @@ mod tests {
                 key_secret_id: "key-x".into(),
                 cert_secret_id: "cert-x".into(),
                 passphrase_secret_id: None,
+            },
+            BusConnectAuthRef::PubkeySk {
+                public_openssh: "sk-ssh-ed25519@openssh.com AAAA...".into(),
+                credential_id: vec![0xCA, 0xFE],
+                application: "ssh:".into(),
+                pin_secret_id: Some("key.pin.k1".into()),
             },
             BusConnectAuthRef::Agent,
         ];

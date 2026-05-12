@@ -56,11 +56,23 @@ void main() {
         SshAuthPasswordRef() => 'password',
         SshAuthPubkeyRef() => 'pubkey',
         SshAuthPubkeyCertRef() => 'pubkey-cert',
+        SshAuthPubkeySkRef() => 'pubkey-sk',
       };
       expect(describe(const SshAuthAgent()), 'agent');
       expect(describe(const SshAuthPasswordRef('x')), 'password');
       expect(describe(const SshAuthPubkeyRef('x')), 'pubkey');
       expect(describe(const SshAuthPubkeyCertRef('k', 'c')), 'pubkey-cert');
+      expect(
+        describe(
+          SshAuthPubkeySkRef(
+            publicOpenssh: 'sk-ssh-ed25519@openssh.com AAAA...',
+            credentialId: Uint8List.fromList([0xCA, 0xFE]),
+            application: 'ssh:',
+            pinSecretId: 'key.pin.sk1',
+          ),
+        ),
+        'pubkey-sk',
+      );
     });
   });
 

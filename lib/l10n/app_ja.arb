@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "この SSH キーはハードウェアキーが必要です — タップして認証してください",
   "errSkWrongPin": "PIN が違います",
   "hardwareKeyImport": "ハードウェアキーをインポート (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "ハードウェアキーのプロンプトをキャンセルしました"
 }

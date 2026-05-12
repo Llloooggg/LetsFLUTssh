@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "SSH key này cần hardware key — chạm để auth",
   "errSkWrongPin": "PIN không đúng",
   "hardwareKeyImport": "Import hardware key (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Đã hủy prompt hardware key"
 }

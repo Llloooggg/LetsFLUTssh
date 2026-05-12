@@ -2929,4 +2929,7 @@ class SRu extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Запрос hardware key отменён';
 }

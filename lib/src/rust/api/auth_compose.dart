@@ -27,12 +27,19 @@ class DbPrepareAuthInput {
   final String password;
   final String passphrase;
 
+  /// FIDO2 PIN the user typed for this connect attempt — forwarded
+  /// when the resolved manager key is hardware-bound (`sk-*`) and
+  /// requires user verification. Empty for touch-only credentials
+  /// and for every non-sk-* path.
+  final String pin;
+
   const DbPrepareAuthInput({
     this.sessionId,
     required this.keyId,
     required this.keyData,
     required this.password,
     required this.passphrase,
+    required this.pin,
   });
 
   @override
@@ -41,7 +48,8 @@ class DbPrepareAuthInput {
       keyId.hashCode ^
       keyData.hashCode ^
       password.hashCode ^
-      passphrase.hashCode;
+      passphrase.hashCode ^
+      pin.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -52,7 +60,8 @@ class DbPrepareAuthInput {
           keyId == other.keyId &&
           keyData == other.keyData &&
           password == other.password &&
-          passphrase == other.passphrase;
+          passphrase == other.passphrase &&
+          pin == other.pin;
 }
 
 class DbPreparedAuth {
@@ -104,4 +113,17 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required String certSecretId,
     String? passphraseSecretId,
   }) = DbPreparedAuthRef_PubkeyCert;
+
+  /// FIDO2 hardware-bound `sk-*` SSH key resolved from the manager.
+  /// Carries the captured `public_openssh` body + the opaque CTAP2
+  /// credential id + the `application` RP-id. `has_user_verification`
+  /// drives the Dart-side PIN-prompt UX; `pin_secret_id` resolves a
+  /// transient staged PIN (`None` for touch-only).
+  const factory DbPreparedAuthRef.pubkeySk({
+    required String publicOpenssh,
+    required Uint8List credentialId,
+    required String application,
+    required bool hasUserVerification,
+    String? pinSecretId,
+  }) = DbPreparedAuthRef_PubkeySk;
 }

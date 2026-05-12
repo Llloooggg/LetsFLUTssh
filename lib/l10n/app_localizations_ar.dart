@@ -2910,4 +2910,7 @@ class SAr extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'تم إلغاء طلب hardware key';
 }

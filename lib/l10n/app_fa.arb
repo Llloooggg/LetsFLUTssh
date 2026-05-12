@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "این کلید SSH به hardware key نیاز دارد — برای auth لمس کن",
   "errSkWrongPin": "PIN اشتباه است",
   "hardwareKeyImport": "import کردن hardware key (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "درخواست hardware key لغو شد"
 }

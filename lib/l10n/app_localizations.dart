@@ -5114,6 +5114,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Hardware-bound (FIDO2)'**
   String get hardwareKeyBadge;
+
+  /// No description provided for @hardwareKeyPromptCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key prompt cancelled'**
+  String get hardwareKeyPromptCancelled;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

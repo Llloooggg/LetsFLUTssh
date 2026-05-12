@@ -21657,6 +21657,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           passphraseSecretId: dco_decode_opt_String(raw[3]),
         );
       case 3:
+        return BusConnectAuthRef_PubkeySk(
+          publicOpenssh: dco_decode_String(raw[1]),
+          credentialId: dco_decode_list_prim_u_8_strict(raw[2]),
+          application: dco_decode_String(raw[3]),
+          pinSecretId: dco_decode_opt_String(raw[4]),
+        );
+      case 4:
         return BusConnectAuthRef_Agent();
       default:
         throw Exception("unreachable");
@@ -22520,14 +22527,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbPrepareAuthInput dco_decode_db_prepare_auth_input(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DbPrepareAuthInput(
       sessionId: dco_decode_opt_String(arr[0]),
       keyId: dco_decode_String(arr[1]),
       keyData: dco_decode_String(arr[2]),
       password: dco_decode_String(arr[3]),
       passphrase: dco_decode_String(arr[4]),
+      pin: dco_decode_String(arr[5]),
     );
   }
 
@@ -22559,6 +22567,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           keySecretId: dco_decode_String(raw[1]),
           certSecretId: dco_decode_String(raw[2]),
           passphraseSecretId: dco_decode_opt_String(raw[3]),
+        );
+      case 3:
+        return DbPreparedAuthRef_PubkeySk(
+          publicOpenssh: dco_decode_String(raw[1]),
+          credentialId: dco_decode_list_prim_u_8_strict(raw[2]),
+          application: dco_decode_String(raw[3]),
+          hasUserVerification: dco_decode_bool(raw[4]),
+          pinSecretId: dco_decode_opt_String(raw[5]),
         );
       default:
         throw Exception("unreachable");
@@ -25229,6 +25245,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           passphraseSecretId: var_passphraseSecretId,
         );
       case 3:
+        var var_publicOpenssh = sse_decode_String(deserializer);
+        var var_credentialId = sse_decode_list_prim_u_8_strict(deserializer);
+        var var_application = sse_decode_String(deserializer);
+        var var_pinSecretId = sse_decode_opt_String(deserializer);
+        return BusConnectAuthRef_PubkeySk(
+          publicOpenssh: var_publicOpenssh,
+          credentialId: var_credentialId,
+          application: var_application,
+          pinSecretId: var_pinSecretId,
+        );
+      case 4:
         return BusConnectAuthRef_Agent();
       default:
         throw UnimplementedError('');
@@ -26253,12 +26280,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_keyData = sse_decode_String(deserializer);
     var var_password = sse_decode_String(deserializer);
     var var_passphrase = sse_decode_String(deserializer);
+    var var_pin = sse_decode_String(deserializer);
     return DbPrepareAuthInput(
       sessionId: var_sessionId,
       keyId: var_keyId,
       keyData: var_keyData,
       password: var_password,
       passphrase: var_passphrase,
+      pin: var_pin,
     );
   }
 
@@ -26299,6 +26328,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           keySecretId: var_keySecretId,
           certSecretId: var_certSecretId,
           passphraseSecretId: var_passphraseSecretId,
+        );
+      case 3:
+        var var_publicOpenssh = sse_decode_String(deserializer);
+        var var_credentialId = sse_decode_list_prim_u_8_strict(deserializer);
+        var var_application = sse_decode_String(deserializer);
+        var var_hasUserVerification = sse_decode_bool(deserializer);
+        var var_pinSecretId = sse_decode_opt_String(deserializer);
+        return DbPreparedAuthRef_PubkeySk(
+          publicOpenssh: var_publicOpenssh,
+          credentialId: var_credentialId,
+          application: var_application,
+          hasUserVerification: var_hasUserVerification,
+          pinSecretId: var_pinSecretId,
         );
       default:
         throw UnimplementedError('');
@@ -29843,8 +29885,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(keySecretId, serializer);
         sse_encode_String(certSecretId, serializer);
         sse_encode_opt_String(passphraseSecretId, serializer);
-      case BusConnectAuthRef_Agent():
+      case BusConnectAuthRef_PubkeySk(
+        publicOpenssh: final publicOpenssh,
+        credentialId: final credentialId,
+        application: final application,
+        pinSecretId: final pinSecretId,
+      ):
         sse_encode_i_32(3, serializer);
+        sse_encode_String(publicOpenssh, serializer);
+        sse_encode_list_prim_u_8_strict(credentialId, serializer);
+        sse_encode_String(application, serializer);
+        sse_encode_opt_String(pinSecretId, serializer);
+      case BusConnectAuthRef_Agent():
+        sse_encode_i_32(4, serializer);
     }
   }
 
@@ -30701,6 +30754,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.keyData, serializer);
     sse_encode_String(self.password, serializer);
     sse_encode_String(self.passphrase, serializer);
+    sse_encode_String(self.pin, serializer);
   }
 
   @protected
@@ -30739,6 +30793,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(keySecretId, serializer);
         sse_encode_String(certSecretId, serializer);
         sse_encode_opt_String(passphraseSecretId, serializer);
+      case DbPreparedAuthRef_PubkeySk(
+        publicOpenssh: final publicOpenssh,
+        credentialId: final credentialId,
+        application: final application,
+        hasUserVerification: final hasUserVerification,
+        pinSecretId: final pinSecretId,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(publicOpenssh, serializer);
+        sse_encode_list_prim_u_8_strict(credentialId, serializer);
+        sse_encode_String(application, serializer);
+        sse_encode_bool(hasUserVerification, serializer);
+        sse_encode_opt_String(pinSecretId, serializer);
     }
   }
 

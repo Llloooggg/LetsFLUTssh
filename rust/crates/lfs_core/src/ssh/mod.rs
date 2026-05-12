@@ -23,6 +23,10 @@ use zeroize::Zeroizing;
 use crate::error::Error;
 
 pub mod sk;
+mod sk_signer;
+pub mod wire;
+
+use sk_signer::FidoSigner;
 
 /// russh `Handler` impl for our client side. Carries an mpsc sender
 /// for inbound `-R` (server-initiated `forwarded-tcpip`) channels —
@@ -561,6 +565,39 @@ pub struct ConnectPubkeyCertOwnedArgs {
     pub passphrase_secret_id: Option<String>,
 }
 
+/// Bundled inputs for the FIDO2 sk-* proxy connect path
+/// ([`Session::connect_pubkey_sk_via_proxy`]). Keeps the call shape
+/// under clippy's too-many-arguments threshold; every field is
+/// load-bearing — `user` + `public_openssh` build the userauth
+/// request, `credential_id` + `application` + `pin` drive the
+/// CTAP2 round trip.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeySkArgs<'a> {
+    pub user: &'a str,
+    pub public_openssh: &'a str,
+    pub credential_id: &'a [u8],
+    pub application: &'a str,
+    pub pin: Option<&'a str>,
+}
+
+/// Owned-arg bundle for [`Session::connect_pubkey_sk_owned`]. Mirrors
+/// the borrow-shaped [`ConnectPubkeySkArgs`] but every field is owned
+/// so the resulting future is `Send + 'static` without HRTB inference
+/// reaching into the `&str` / `&[u8]` borrows. `pin_secret_id` is a
+/// SecretStore id rather than the PIN bytes — staged transiently by
+/// the Dart-side caller before the dispatch and dropped after the
+/// connect attempt settles.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeySkOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub public_openssh: String,
+    pub credential_id: Vec<u8>,
+    pub application: String,
+    pub pin_secret_id: Option<String>,
+}
+
 /// Shareable across tasks — every method takes `&self` because
 /// russh's `Handle` is internally `Sync`. Wrap in `Arc` if multiple
 /// owners need it.
@@ -715,33 +752,65 @@ impl Session {
 
     /// Connect + authenticate with a hardware-bound `sk-*` SSH key.
     ///
-    /// **Connect path NOT wired yet.** russh's `auth::Signer` trait
-    /// is `pub(crate)` in the upstream fork the project pins, so an
-    /// external impl of the custom signer the FIDO2 connect path
-    /// needs is unreachable today. The function returns a typed
-    /// `Error::Fido2` until the russh integration lands. The
-    /// `lfs_core::fido2` surface (probe / list / get_assertion) and
-    /// the import flow (parse the sk-* `.pub`, persist credential_id
-    /// plus application plus UV) are fully functional — the user
-    /// can import a hardware key today; the connect path completes
-    /// in a follow-up commit that either lifts russh's `Signer` to
-    /// `pub` or routes through a local ssh-agent shim that the
-    /// fork already accepts.
+    /// `public_openssh` is the single-line `id_*.pub` body captured
+    /// at import; we re-parse it here to recover the SSH `Algorithm`
+    /// and `PublicKey` russh's `authenticate_publickey_with` requires.
+    /// `credential_id` + `application` come from the same parse; we
+    /// take them as parameters so the FRB API stays decoupled from
+    /// the public-key text-shape (a future PKCS#11-encoded credential
+    /// may not parse out of an `id_*.pub` blob).
+    ///
+    /// Signing routes through [`sk_signer::FidoSigner`], which drives
+    /// `lfs_core::fido2::get_assertion` on every userauth signature
+    /// challenge. Private key material lives on the authenticator —
+    /// never on the heap.
     pub async fn connect_pubkey_sk(
-        _host: &str,
-        _port: u16,
-        _user: &str,
-        _public_openssh: &str,
-        _credential_id: &[u8],
-        _application: &str,
-        _pin: Option<&str>,
+        host: &str,
+        port: u16,
+        user: &str,
+        public_openssh: &str,
+        credential_id: &[u8],
+        application: &str,
+        pin: Option<&str>,
     ) -> Result<Self, Error> {
-        Err(Error::Fido2(
-            "FIDO2 connect path requires a russh signer-trait lift; \
-             import + DB persistence work today, but auth must route \
-             through ssh-agent or a russh upstream patch until then"
-                .into(),
-        ))
+        let (mut handle, forward_rx) = open_handle_for_session(host, port).await?;
+        finish_authenticate_pubkey_sk(
+            &mut handle,
+            user,
+            public_openssh,
+            credential_id,
+            application,
+            pin,
+        )
+        .await?;
+        Ok(Session::from_handle(handle, forward_rx))
+    }
+
+    /// FIDO2 pubkey auth tunnelled through a ProxyJump parent.
+    ///
+    /// Mirrors the non-proxy [`Session::connect_pubkey_sk`] but
+    /// dials the inner SSH transport through a `direct-tcpip` channel
+    /// on `parent` instead of opening a fresh TCP socket — exactly
+    /// the same composition trick the other `connect_*_via_proxy`
+    /// variants use. Not wired through FRB today; reserved for the
+    /// cert-via-FIDO composition that lands on top of this.
+    pub async fn connect_pubkey_sk_via_proxy(
+        parent: &Session,
+        host: &str,
+        port: u16,
+        args: ConnectPubkeySkArgs<'_>,
+    ) -> Result<Self, Error> {
+        let (mut handle, forward_rx) = open_handle_via_proxy(parent, host, port).await?;
+        finish_authenticate_pubkey_sk(
+            &mut handle,
+            args.user,
+            args.public_openssh,
+            args.credential_id,
+            args.application,
+            args.pin,
+        )
+        .await?;
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     /// Open a PTY-backed shell channel sized to `cols × rows`. The
@@ -1032,6 +1101,40 @@ impl Session {
                 &args.key_secret_id,
                 &args.cert_secret_id,
                 args.passphrase_secret_id.as_deref(),
+            )
+            .await
+        })
+    }
+
+    /// Owned-arg twin of [`connect_pubkey_sk`]. Reads the optional
+    /// PIN out of the SecretStore inside the future so the FRB
+    /// `wrap_async` `Send + 'static` bound holds — the resulting
+    /// future captures only `String` / `Vec<u8>` by value, and the
+    /// PIN bytes never round-trip back to Dart.
+    pub fn connect_pubkey_sk_owned(
+        args: ConnectPubkeySkOwnedArgs,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let pin_bytes = match args.pin_secret_id.as_deref() {
+                Some(id) => crate::app::instance().secrets.get(id),
+                None => None,
+            };
+            let pin: Option<String> = match pin_bytes.as_ref() {
+                Some(b) => Some(
+                    std::str::from_utf8(b)
+                        .map_err(|e| Error::Auth(format!("pin not utf-8: {e}")))?
+                        .to_owned(),
+                ),
+                None => None,
+            };
+            Self::connect_pubkey_sk(
+                &args.host,
+                args.port,
+                &args.user,
+                &args.public_openssh,
+                &args.credential_id,
+                &args.application,
+                pin.as_deref(),
             )
             .await
         })
@@ -1635,6 +1738,50 @@ async fn connect_via_agent_proxy(
     }
 
     Err(Error::AuthFailed)
+}
+
+/// Authenticate against `session` with a FIDO2 hardware-bound key.
+///
+/// Re-parses `public_openssh` to recover the SSH `PublicKey` russh
+/// hands the signer at every signature round trip, then routes the
+/// userauth loop through a [`FidoSigner`]. Only `sk-ssh-ed25519@*` /
+/// `sk-ecdsa-sha2-nistp256@*` are accepted; software keys take the
+/// `finish_authenticate_pubkey` path instead.
+async fn finish_authenticate_pubkey_sk(
+    session: &mut Handle<LfsHandler>,
+    user: &str,
+    public_openssh: &str,
+    credential_id: &[u8],
+    application: &str,
+    pin: Option<&str>,
+) -> Result<(), Error> {
+    let public = ssh_key::PublicKey::from_openssh(public_openssh.trim())
+        .map_err(|e| Error::KeyParse(format!("sk public key: {e}")))?;
+    let algorithm = public.algorithm();
+    if !sk::is_sk_algorithm(&algorithm) {
+        return Err(Error::Auth(format!(
+            "fido2 signer: public key algorithm {algorithm:?} is not an sk-* variant"
+        )));
+    }
+
+    let mut signer = FidoSigner {
+        algorithm: algorithm.clone(),
+        credential: sk::FidoCredential {
+            credential_id: credential_id.to_vec(),
+            application: application.to_owned(),
+            pin: pin.map(str::to_owned),
+        },
+    };
+
+    let auth_result = session
+        .authenticate_publickey_with(user, public, sk::hash_alg_for(&algorithm), &mut signer)
+        .await
+        .map_err(Error::from)?;
+
+    if !matches!(auth_result, AuthResult::Success) {
+        return Err(Error::AuthFailed);
+    }
+    Ok(())
 }
 
 async fn finish_authenticate_pubkey(

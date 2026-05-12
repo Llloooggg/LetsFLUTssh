@@ -129,7 +129,9 @@ OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openss
 2. Copy the matching `~/.ssh/id_ed25519_sk.pub` to the server's `~/.ssh/authorized_keys`.
 3. In the app: **Tools → SSH Keys → Import hardware key (sk-*)**. Pick the private file (`id_ed25519_sk`, not `.pub`). The row shows the "Hardware-bound (FIDO2)" badge once imported.
 4. Reference the key from a session's **Auth → Key from manager** drop-down.
-5. On connect: the device LED starts blinking. Tap the metal contact (or enter the PIN first if the credential was created with `verify-required`).
+5. On connect: if the credential was created with `verify-required` the app shows a "Tap your hardware key" dialog asking for the PIN first; touch-only credentials skip the dialog. Then the device LED starts blinking — tap the metal contact to authorise the signature. The app routes every userauth signature through the device via CTAP2 over USB HID for the lifetime of the connect handshake; `ssh-agent` is not involved.
+
+The signing path is in-process: every userauth challenge SHA-256-hashes the SSH packet, asks the device for an assertion against the credential id captured at import, and assembles the `sk-*` signature trailer (Ed25519: raw 64 bytes + flags + counter; ECDSA-P256: SSH mpints for r/s + flags + counter). Private key material never leaves the authenticator.
 
 **Platform availability**
 

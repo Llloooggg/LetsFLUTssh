@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "이 SSH 키는 하드웨어 키가 필요합니다 — 인증하려면 탭하세요",
   "errSkWrongPin": "PIN 이 올바르지 않습니다",
   "hardwareKeyImport": "하드웨어 키 import (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "하드웨어 키 프롬프트를 취소했습니다"
 }

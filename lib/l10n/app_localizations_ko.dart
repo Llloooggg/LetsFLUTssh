@@ -2833,4 +2833,7 @@ class SKo extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => '하드웨어 키 프롬프트를 취소했습니다';
 }

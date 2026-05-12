@@ -22,6 +22,11 @@ pub struct DbPrepareAuthInput {
     pub key_data: String,
     pub password: String,
     pub passphrase: String,
+    /// FIDO2 PIN the user typed for this connect attempt — forwarded
+    /// when the resolved manager key is hardware-bound (`sk-*`) and
+    /// requires user verification. Empty for touch-only credentials
+    /// and for every non-sk-* path.
+    pub pin: String,
 }
 
 impl From<DbPrepareAuthInput> for auth_compose::PrepareAuthInput {
@@ -32,6 +37,7 @@ impl From<DbPrepareAuthInput> for auth_compose::PrepareAuthInput {
             key_data: d.key_data,
             password: d.password,
             passphrase: d.passphrase,
+            pin: d.pin,
         }
     }
 }
@@ -59,6 +65,18 @@ pub enum DbPreparedAuthRef {
         key_secret_id: String,
         cert_secret_id: String,
         passphrase_secret_id: Option<String>,
+    },
+    /// FIDO2 hardware-bound `sk-*` SSH key resolved from the manager.
+    /// Carries the captured `public_openssh` body + the opaque CTAP2
+    /// credential id + the `application` RP-id. `has_user_verification`
+    /// drives the Dart-side PIN-prompt UX; `pin_secret_id` resolves a
+    /// transient staged PIN (`None` for touch-only).
+    PubkeySk {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        has_user_verification: bool,
+        pin_secret_id: Option<String>,
     },
 }
 
@@ -94,6 +112,19 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 key_secret_id,
                 cert_secret_id,
                 passphrase_secret_id,
+            },
+            auth_compose::PreparedAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                pin_secret_id,
+            } => DbPreparedAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                pin_secret_id,
             },
         };
         DbPreparedAuth {
@@ -133,6 +164,7 @@ mod tests {
             key_data: "-----BEGIN…".into(),
             password: "hunter2".into(),
             passphrase: "pass-x".into(),
+            pin: "654321".into(),
         };
         let core: auth_compose::PrepareAuthInput = db.into();
         assert_eq!(core.session_id.as_deref(), Some("sess-1"));
@@ -140,6 +172,7 @@ mod tests {
         assert_eq!(core.key_data, "-----BEGIN…");
         assert_eq!(core.password, "hunter2");
         assert_eq!(core.passphrase, "pass-x");
+        assert_eq!(core.pin, "654321");
     }
 
     #[test]
@@ -210,8 +243,40 @@ mod tests {
             key_data: String::new(),
             password: "pw".into(),
             passphrase: String::new(),
+            pin: String::new(),
         };
         let core: auth_compose::PrepareAuthInput = db.into();
         assert!(core.session_id.is_none());
+    }
+
+    #[test]
+    fn db_prepared_auth_pubkey_sk_variant_carries_every_field() {
+        let core = auth_compose::PreparedAuth {
+            auth: auth_compose::PreparedAuthRef::PubkeySk {
+                public_openssh: "sk-ssh-ed25519@openssh.com AAAA...".into(),
+                credential_id: vec![0xDE, 0xAD, 0xBE, 0xEF],
+                application: "ssh:".into(),
+                has_user_verification: true,
+                pin_secret_id: Some("key.pin.sk1".into()),
+            },
+            transient_secret_ids: vec!["key.pin.sk1".into()],
+        };
+        let db: DbPreparedAuth = core.into();
+        match db.auth {
+            DbPreparedAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                pin_secret_id,
+            } => {
+                assert!(public_openssh.starts_with("sk-ssh-ed25519"));
+                assert_eq!(credential_id, vec![0xDE, 0xAD, 0xBE, 0xEF]);
+                assert_eq!(application, "ssh:");
+                assert!(has_user_verification);
+                assert_eq!(pin_secret_id.as_deref(), Some("key.pin.sk1"));
+            }
+            _ => panic!("expected PubkeySk variant"),
+        }
     }
 }

@@ -131,6 +131,18 @@ pub enum ConnectAuthRef {
         cert_secret_id: String,
         passphrase_secret_id: Option<String>,
     },
+    /// FIDO2 hardware-bound `sk-*` SSH key. `public_openssh` is the
+    /// captured `id_*.pub` body re-parsed inside the connect path to
+    /// recover the SSH `Algorithm`. `credential_id` + `application`
+    /// drive the CTAP2 round trip; `pin_secret_id` points at a staged
+    /// transient PIN for credentials that carry the user-verification
+    /// bit, `None` for touch-only.
+    PubkeySk {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        pin_secret_id: Option<String>,
+    },
     Agent,
 }
 
@@ -932,6 +944,36 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
                 },
             )
             .await
+        }
+        (
+            ConnectAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                pin_secret_id,
+            },
+            None,
+        ) => {
+            Session::connect_pubkey_sk_owned(crate::ssh::ConnectPubkeySkOwnedArgs {
+                host,
+                port,
+                user,
+                public_openssh,
+                credential_id,
+                application,
+                pin_secret_id,
+            })
+            .await
+        }
+        (ConnectAuthRef::PubkeySk { .. }, Some(_parent)) => {
+            // FIDO2-via-ProxyJump composition (cert-via-FIDO) is
+            // tracked separately; the bastion-aware connect path
+            // for `sk-*` lands alongside it. Until then surface the
+            // gap loudly rather than dialing the inner hop with the
+            // wrong auth shape.
+            Err(Error::Auth(
+                "FIDO2 hardware key over ProxyJump is not supported yet".into(),
+            ))
         }
         (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
         (ConnectAuthRef::Agent, Some(parent)) => {

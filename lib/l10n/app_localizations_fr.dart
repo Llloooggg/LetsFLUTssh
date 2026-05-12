@@ -2997,4 +2997,7 @@ class SFr extends S {
 
   @override
   String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Demande de hardware key annulée';
 }

@@ -717,13 +717,14 @@ extension BusConnectAuthRefPatterns on BusConnectAuthRef {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusConnectAuthRef_Password value)?  password,TResult Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( BusConnectAuthRef_Agent value)?  agent,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusConnectAuthRef_Password value)?  password,TResult Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( BusConnectAuthRef_PubkeySk value)?  pubkeySk,TResult Function( BusConnectAuthRef_Agent value)?  agent,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
 return password(_that);case BusConnectAuthRef_Pubkey() when pubkey != null:
 return pubkey(_that);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
-return pubkeyCert(_that);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyCert(_that);case BusConnectAuthRef_PubkeySk() when pubkeySk != null:
+return pubkeySk(_that);case BusConnectAuthRef_Agent() when agent != null:
 return agent(_that);case _:
   return orElse();
 
@@ -742,13 +743,14 @@ return agent(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusConnectAuthRef_Password value)  password,required TResult Function( BusConnectAuthRef_Pubkey value)  pubkey,required TResult Function( BusConnectAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( BusConnectAuthRef_Agent value)  agent,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusConnectAuthRef_Password value)  password,required TResult Function( BusConnectAuthRef_Pubkey value)  pubkey,required TResult Function( BusConnectAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( BusConnectAuthRef_PubkeySk value)  pubkeySk,required TResult Function( BusConnectAuthRef_Agent value)  agent,}){
 final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password():
 return password(_that);case BusConnectAuthRef_Pubkey():
 return pubkey(_that);case BusConnectAuthRef_PubkeyCert():
-return pubkeyCert(_that);case BusConnectAuthRef_Agent():
+return pubkeyCert(_that);case BusConnectAuthRef_PubkeySk():
+return pubkeySk(_that);case BusConnectAuthRef_Agent():
 return agent(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -763,13 +765,14 @@ return agent(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusConnectAuthRef_Password value)?  password,TResult? Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult? Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( BusConnectAuthRef_Agent value)?  agent,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusConnectAuthRef_Password value)?  password,TResult? Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult? Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( BusConnectAuthRef_PubkeySk value)?  pubkeySk,TResult? Function( BusConnectAuthRef_Agent value)?  agent,}){
 final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
 return password(_that);case BusConnectAuthRef_Pubkey() when pubkey != null:
 return pubkey(_that);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
-return pubkeyCert(_that);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyCert(_that);case BusConnectAuthRef_PubkeySk() when pubkeySk != null:
+return pubkeySk(_that);case BusConnectAuthRef_Agent() when agent != null:
 return agent(_that);case _:
   return null;
 
@@ -787,12 +790,13 @@ return agent(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function()?  agent,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)?  pubkeySk,TResult Function()?  agent,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
 return password(_that.secretId);case BusConnectAuthRef_Pubkey() when pubkey != null:
 return pubkey(_that.keySecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
-return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeySk() when pubkeySk != null:
+return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.pinSecretId);case BusConnectAuthRef_Agent() when agent != null:
 return agent();case _:
   return orElse();
 
@@ -811,12 +815,13 @@ return agent();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function()  agent,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)  pubkeySk,required TResult Function()  agent,}) {final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password():
 return password(_that.secretId);case BusConnectAuthRef_Pubkey():
 return pubkey(_that.keySecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeyCert():
-return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_Agent():
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeySk():
+return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.pinSecretId);case BusConnectAuthRef_Agent():
 return agent();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -831,12 +836,13 @@ return agent();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function()?  agent,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function( String publicOpenssh,  Uint8List credentialId,  String application,  String? pinSecretId)?  pubkeySk,TResult? Function()?  agent,}) {final _that = this;
 switch (_that) {
 case BusConnectAuthRef_Password() when password != null:
 return password(_that.secretId);case BusConnectAuthRef_Pubkey() when pubkey != null:
 return pubkey(_that.keySecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
-return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_Agent() when agent != null:
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeySk() when pubkeySk != null:
+return pubkeySk(_that.publicOpenssh,_that.credentialId,_that.application,_that.pinSecretId);case BusConnectAuthRef_Agent() when agent != null:
 return agent();case _:
   return null;
 
@@ -1042,6 +1048,78 @@ class _$BusConnectAuthRef_PubkeyCertCopyWithImpl<$Res>
 keySecretId: null == keySecretId ? _self.keySecretId : keySecretId // ignore: cast_nullable_to_non_nullable
 as String,certSecretId: null == certSecretId ? _self.certSecretId : certSecretId // ignore: cast_nullable_to_non_nullable
 as String,passphraseSecretId: freezed == passphraseSecretId ? _self.passphraseSecretId : passphraseSecretId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusConnectAuthRef_PubkeySk extends BusConnectAuthRef {
+  const BusConnectAuthRef_PubkeySk({required this.publicOpenssh, required this.credentialId, required this.application, this.pinSecretId}): super._();
+  
+
+ final  String publicOpenssh;
+ final  Uint8List credentialId;
+ final  String application;
+ final  String? pinSecretId;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusConnectAuthRef_PubkeySkCopyWith<BusConnectAuthRef_PubkeySk> get copyWith => _$BusConnectAuthRef_PubkeySkCopyWithImpl<BusConnectAuthRef_PubkeySk>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef_PubkeySk&&(identical(other.publicOpenssh, publicOpenssh) || other.publicOpenssh == publicOpenssh)&&const DeepCollectionEquality().equals(other.credentialId, credentialId)&&(identical(other.application, application) || other.application == application)&&(identical(other.pinSecretId, pinSecretId) || other.pinSecretId == pinSecretId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,publicOpenssh,const DeepCollectionEquality().hash(credentialId),application,pinSecretId);
+
+@override
+String toString() {
+  return 'BusConnectAuthRef.pubkeySk(publicOpenssh: $publicOpenssh, credentialId: $credentialId, application: $application, pinSecretId: $pinSecretId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusConnectAuthRef_PubkeySkCopyWith<$Res> implements $BusConnectAuthRefCopyWith<$Res> {
+  factory $BusConnectAuthRef_PubkeySkCopyWith(BusConnectAuthRef_PubkeySk value, $Res Function(BusConnectAuthRef_PubkeySk) _then) = _$BusConnectAuthRef_PubkeySkCopyWithImpl;
+@useResult
+$Res call({
+ String publicOpenssh, Uint8List credentialId, String application, String? pinSecretId
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusConnectAuthRef_PubkeySkCopyWithImpl<$Res>
+    implements $BusConnectAuthRef_PubkeySkCopyWith<$Res> {
+  _$BusConnectAuthRef_PubkeySkCopyWithImpl(this._self, this._then);
+
+  final BusConnectAuthRef_PubkeySk _self;
+  final $Res Function(BusConnectAuthRef_PubkeySk) _then;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? publicOpenssh = null,Object? credentialId = null,Object? application = null,Object? pinSecretId = freezed,}) {
+  return _then(BusConnectAuthRef_PubkeySk(
+publicOpenssh: null == publicOpenssh ? _self.publicOpenssh : publicOpenssh // ignore: cast_nullable_to_non_nullable
+as String,credentialId: null == credentialId ? _self.credentialId : credentialId // ignore: cast_nullable_to_non_nullable
+as Uint8List,application: null == application ? _self.application : application // ignore: cast_nullable_to_non_nullable
+as String,pinSecretId: freezed == pinSecretId ? _self.pinSecretId : pinSecretId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

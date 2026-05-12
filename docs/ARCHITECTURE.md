@@ -307,6 +307,9 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
 | `shell_helper.dart` | `ShellHelper.openShell()` | Shared shell-open path used by the terminal pane + session recorder. Returns a `ShellConnection` wrapping the FRB shell handle. |
 | `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`. Host-key verification runs entirely Rust-side: the russh `check_server_key` callback consults `lfs_core::known_hosts` directly + raises `BusEvent::KnownHostPromptRequest` for unknown / mismatched fingerprints; the Dart side's `HostKeyPromptListener` (`lib/app/host_key_prompt_listener.dart`) shows the dialog and resolves the prompt via the known-host bus command. |
+| `rust/crates/lfs_core/src/ssh/sk.rs` | `lfs_core::ssh::sk` | FIDO2 `sk-*` userauth glue — `FidoCredential` type, `sign_for_userauth`, `algorithm_from_key_type`, `extract_application_from_openssh_pub`. Bridges `lfs_core::fido2::get_assertion` (CTAP2 round trip) to the SSH `sk-*` signature trailer + outer wire string. |
+| `rust/crates/lfs_core/src/ssh/sk_signer.rs` | `lfs_core::ssh::sk_signer::FidoSigner` | `russh::Signer` adapter that routes per-message SSH userauth signatures through a FIDO2 hardware authenticator. Used by `Session::connect_pubkey_sk` + the proxy mirror. Private key material never reaches the heap — every signature attempt round-trips through `sk::sign_for_userauth`. |
+| `rust/crates/lfs_core/src/ssh/wire.rs` | `lfs_core::ssh::wire` | Shared SSH wire-format primitives (mpint encoding, ECDSA DER → SSH mpint, fixed-width raw `r\|\|s` → SSH mpint, RSA / Ed25519 signature wrappers, public-key blob encoders). Used today by `ssh::sk`; reserved for the PKCS#11 / TPM 2.0 / Secure Enclave / NCrypt / Hardware Keystore signers landing in subsequent commits. |
 
 #### SSH transport surface
 
@@ -1341,7 +1344,7 @@ sequenceDiagram
 
 Persistence: `db::ssh_keys` carries three FIDO2 columns (`credential_id BLOB`, `application_string TEXT`, `has_user_verification INTEGER`) from schema v7 onwards. Software keys leave the columns NULL / 0; `sk-*` rows populate all three at import. The row's `key_type` short tag is `sk-ed25519` or `sk-ecdsa-p256`; the connect dispatch maps these back to `ssh_key::Algorithm::SkEd25519` / `SkEcdsaSha2NistP256` through `ssh::sk::algorithm_from_key_type`.
 
-Wire format: the `FidoSigner` impl of russh's `auth::Signer` SHA-256-hashes the SSH userauth signature input, asks the device for an assertion against `(rp_id=application, clientDataHash)`, then composes the OpenSSH `sk-*` signature trailer — `64-byte raw Ed25519 sig || u8 flags || u32 counter` for sk-ed25519, `string mpint r || string mpint s || u8 flags || u32 counter` for sk-ecdsa-p256 — and appends `string(algo_name) || string(sk_signature)` as a single length-prefixed SSH string to the buffer russh handed in.
+Wire format: the `FidoSigner` impl of russh's `Signer` (publicly re-exported at the crate root in `russh = "0.59"`, see `russh/src/lib_inner.rs`) SHA-256-hashes the SSH userauth signature input, asks the device for an assertion against `(rp_id=application, clientDataHash)`, then composes the OpenSSH `sk-*` signature trailer — `64-byte raw Ed25519 sig || u8 flags || u32 counter` for sk-ed25519, `string mpint r || string mpint s || u8 flags || u32 counter` for sk-ecdsa-p256 — and appends `string(algo_name) || string(sk_signature)` as a single length-prefixed SSH string to the buffer russh handed in. The signer impl lives at `lfs_core::ssh::sk_signer::FidoSigner`; the shared byte-layout helpers (mpint encoding, ECDSA DER → SSH mpint, public-key blob construction) live at `lfs_core::ssh::wire` so subsequent hardware-bound `Signer` impls (PKCS#11, TPM 2.0, Apple Secure Enclave, Windows NCrypt, Android Hardware Keystore) reuse them — see [Hardware-bound SSH signer wire helpers](#hardware-bound-ssh-signer-wire-helpers) below.
 
 Capability ladder. The runtime probe `fido2::is_available()` drives the UI: the key manager's "Import hardware key (sk-*)" row renders disabled with a tooltip reason on platforms where the path is inert. Desktop (Linux + Windows) gets the real HID path. macOS reports `is_available() = true` against the HID stack, but the first `get_assertion` may fail with `kIOReturnNotPermitted` until a build is shipped under the Apple Developer Program entitlement (the UI tooltip surfaces the `hardwareKeyAppleEntitlementRequired` string). iOS keeps the path disabled — NFC-only is a future follow-up. Android needs the USB-host JNI bridge.
 
@@ -1349,7 +1352,34 @@ Linux udev. `linux/packaging/70-letsflutssh-fido.rules` carries `uaccess` / `plu
 
 Error envelope. `Error::Fido2(String)` carves the FIDO path out of the generic `Io` / `Platform` buckets; the FRB envelope's `kind::FIDO2` discriminator lets the Dart UI route `wrong pin:` (the matcher in `client::map_upstream_err` prepends this discriminator) to the PIN re-prompt branch versus `timeout:` ("did not respond" toast) versus the catch-all "hardware key error" toast.
 
-**Status:** today's build ships the Linux + Windows direct CTAP2 path, the runtime probe, the key manager import row + badge, the localized hardware-key prompt dialog, and the `ssh_connect_pubkey_sk` FRB entry point. The connections-notifier's `_authFromConfig` dispatch still routes through the secret-staged composer (`connectionPrepareAuth`) which is unaware of `sk-*` keys — wiring the composer's `DbPreparedAuthRef` to learn a `HardwareKey` variant is a follow-up commit. Until then a Dart caller wanting the hardware path calls `sshConnectPubkeySk` directly with the captured credential metadata.
+**Status:** today's build ships the Linux + Windows direct CTAP2 path end-to-end from the workspace UI down to the device. The connect path is:
+
+1. The user opens a session whose `keyId` resolves to a manager row carrying `credential_id` / `application_string` (set at `sk-*` import by `keys_import_openssh`).
+2. `ConnectionsNotifier._authFromConfig` queries `dbSshKeysGet(keyId)` and — when the row has the user-verification bit set — surfaces `HardwareKeyPromptDialog` through the `navigatorKey` global to collect the PIN. Touch-only rows skip the prompt.
+3. The Dart caller invokes `connectionPrepareAuth` with the typed PIN in the new `DbPrepareAuthInput.pin` field. `auth_compose::prepare_auth` detects the sk-* row (manager-key path sub-branch (a)), stages the PIN as a transient `key.pin.<id>` SecretStore entry when present, and returns `PreparedAuthRef::PubkeySk { public_openssh, credential_id, application, has_user_verification, pin_secret_id }`. The cert-paired sub-branch (b) and plain-pubkey sub-branch (c) run only when the row is software-only.
+4. The Dart `_authFromConfig` switch builds `SshAuthPubkeySkRef`; the `busAuthRef` mapper emits `BusConnectAuthRef::PubkeySk`; `connectionConnect` ships it to the Rust actor.
+5. The driver dispatcher in `lfs_core::connection::connect_async` routes `ConnectAuthRef::PubkeySk` to `Session::connect_pubkey_sk_owned`. The owned-arg twin reads the PIN out of the SecretStore inside the future, drops it into `Session::connect_pubkey_sk`, and the `FidoSigner` does the per-message CTAP2 round trip.
+6. `connect_async` rejects `(PubkeySk, Some(parent))` with a typed error — FIDO2-over-ProxyJump composition (cert-via-FIDO) is tracked separately and lands alongside it.
+
+The transient PIN id is added to `transient_secret_ids` so it drops out of the SecretStore the moment the connect attempt settles (Connected or Disconnected), mirroring the typed-passphrase eviction shape on the cert-paired path. The ProxyJump variant `Session::connect_pubkey_sk_via_proxy` is wired Rust-side and ready for the cert-via-FIDO composition; the dispatcher gates it until that path lands so a bastion session built on top of an `sk-*` key fails loudly rather than dialing with the wrong auth shape.
+
+##### Hardware-bound SSH signer wire helpers
+
+Every hardware-bound signer (FIDO2 today, PKCS#11 / TPM 2.0 / Apple Secure Enclave / Windows NCrypt / Android Hardware Keystore as they land) speaks the byte layout RFC 4253 §6.6 prescribes for the userauth signature blob and the public-key blob. The shared primitives live in `rust/crates/lfs_core/src/ssh/wire.rs`:
+
+| Function | Purpose | Backends |
+|---|---|---|
+| `ecdsa_der_to_ssh_mpint(&[u8])` | Parse ASN.1 DER `SEQUENCE { INTEGER r, INTEGER s }` and emit `mpint(r) \|\| mpint(s)` | CTAP2 ECDSA, Apple Secure Enclave, anything calling OpenSSL `ECDSA_sign` |
+| `ecdsa_raw_concat_to_ssh_mpint(&[u8])` | Split fixed-width raw `r \|\| s` and emit two mpints | Windows NCrypt `NCryptSignHash`, Android Keystore `NONEwithECDSA` |
+| `rsa_pkcs1_v15_to_ssh_blob(&[u8])` | Wrap raw RSA PKCS#1 v1.5 signature into SSH `string(sig)` | PKCS#11, NCrypt RSA |
+| `ed25519_to_ssh_blob(&[u8])` | Wrap 64-byte Ed25519 signature into SSH `string(sig)` | Every Ed25519 backend |
+| `encode_public_ecdsa_p256(&[u8; 65])` | `0x04 \|\| X \|\| Y` → `ssh-keygen`-shaped ECDSA-P256 public blob | Every ECDSA backend |
+| `encode_public_ed25519(&[u8; 32])` | Raw key → `ssh-ed25519` public blob | Every Ed25519 backend |
+| `encode_public_rsa(modulus, exponent)` | `(n, e)` → `ssh-rsa` public blob | Every RSA backend |
+| `push_ssh_mpint(&mut Vec<u8>, magnitude)` | Append a length-prefixed signed integer with the SSH leading-zero discipline | Composing inner mpints inside the helpers above |
+| `push_ssh_string(&mut Vec<u8>, payload)` | Append a length-prefixed SSH string | Composing inner strings inside the helpers above |
+
+The DER parser accepts only the strict shape OpenSSH itself parses (definite length, no trailing bytes, single-component length fields up to four bytes — anything wider would be structurally malformed for an EC signature component); malformed input returns `Error::Auth(...)` rather than panicking. The mpint encoder strips one redundant leading 0x00 byte when dropping it would not flip the sign and re-adds a leading 0x00 when the high bit of the first byte is set, mirroring RFC 4251 §5. Round-trip tests + a fuzz-style sweep covering random byte slices live in `rust/crates/lfs_core/src/ssh/wire.rs::tests`.
 
 #### Cipher choice — SQLCipher 4.x (AES-256-CBC + HMAC-SHA512)
 

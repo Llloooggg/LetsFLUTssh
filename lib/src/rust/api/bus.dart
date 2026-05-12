@@ -168,6 +168,18 @@ sealed class BusConnectAuthRef with _$BusConnectAuthRef {
     required String certSecretId,
     String? passphraseSecretId,
   }) = BusConnectAuthRef_PubkeyCert;
+
+  /// FIDO2 hardware-bound `sk-*` SSH key. Carries the captured
+  /// `id_*.pub` body + the opaque CTAP2 credential id + the
+  /// `application` RP-id (typically `ssh:`). `pin_secret_id`
+  /// resolves a transient PIN staged by the Dart caller before
+  /// dispatch — `None` for touch-only credentials.
+  const factory BusConnectAuthRef.pubkeySk({
+    required String publicOpenssh,
+    required Uint8List credentialId,
+    required String application,
+    String? pinSecretId,
+  }) = BusConnectAuthRef_PubkeySk;
   const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 

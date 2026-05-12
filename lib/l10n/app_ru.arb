@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "Этому SSH-ключу нужен hardware key — коснитесь устройства для аутентификации",
   "errSkWrongPin": "Неверный PIN",
   "hardwareKeyImport": "Импорт hardware key (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Запрос hardware key отменён"
 }

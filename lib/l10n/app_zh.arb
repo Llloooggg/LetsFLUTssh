@@ -1008,5 +1008,6 @@
   "skKeyRequiresDevice": "此 SSH 密钥需要硬件密钥 — 触碰以认证",
   "errSkWrongPin": "PIN 错误",
   "hardwareKeyImport": "导入硬件密钥 (sk-*)",
-  "hardwareKeyBadge": "Hardware-bound (FIDO2)"
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "已取消硬件密钥提示"
 }

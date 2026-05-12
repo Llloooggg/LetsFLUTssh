@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../providers/session_credential_cache_provider.dart';
+import '../../app/navigator_key.dart';
+import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/auth_compose.dart' as rust_auth;
 import '../../src/rust/api/bus.dart' as rust_bus;
@@ -13,9 +15,11 @@ import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/s3.dart' as rust_s3;
 import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../utils/logger.dart';
+import '../../widgets/hardware_key_prompt_dialog.dart';
 import '../bus/app_bus.dart';
 import '../security/session_credential_cache.dart';
 import '../session/session.dart';
+import '../ssh/errors.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/ssh_transport.dart';
 import 'connection.dart';
@@ -731,6 +735,14 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     String? sessionId,
     Connection conn,
   ) async {
+    // FIDO2 manager-key dispatch: when the manager key id resolves
+    // to a hardware-bound (`sk-*`) row carrying the user-verification
+    // bit, prompt for a PIN before the composer runs so the staged
+    // transient `key.pin.<id>` is ready by the time the Rust driver
+    // reads it. Touch-only credentials skip the prompt entirely — the
+    // device fires its presence challenge inside the firmware on the
+    // first signing round trip.
+    final pin = await _resolveHardwareKeyPin(auth.keyId);
     final prepared = await rust_auth.connectionPrepareAuth(
       input: rust_auth.DbPrepareAuthInput(
         sessionId: sessionId,
@@ -738,6 +750,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         keyData: auth.keyData,
         password: auth.password,
         passphrase: auth.passphrase,
+        pin: pin ?? '',
       ),
     );
     conn.transientSecretIds.addAll(prepared.transientSecretIds);
@@ -763,7 +776,81 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         :final passphraseSecretId,
       ) =>
         SshAuthPubkeyRef(keySecretId, passphraseSecretId: passphraseSecretId),
+      rust_auth.DbPreparedAuthRef_PubkeySk(
+        :final publicOpenssh,
+        :final credentialId,
+        :final application,
+        :final pinSecretId,
+      ) =>
+        SshAuthPubkeySkRef(
+          publicOpenssh: publicOpenssh,
+          credentialId: credentialId,
+          application: application,
+          pinSecretId: pinSecretId,
+        ),
     };
+  }
+
+  /// Inspect the manager-key row for [keyId] and, when the row is a
+  /// hardware-bound `sk-*` key that carries the user-verification
+  /// bit, surface the [HardwareKeyPromptDialog] and return the
+  /// user-entered PIN. Returns `null` when:
+  ///   - [keyId] is empty (no manager key linked),
+  ///   - the row is missing or software-only (`credentialId` null),
+  ///   - the row is touch-only (`hasUserVerification` false),
+  ///   - no `BuildContext` is available (FRB-unreachable
+  ///     `flutter_test` runs).
+  ///
+  /// Throws [HardwareKeyPromptCancelled] when the user dismisses the
+  /// dialog. The Rust composer treats `pin == ""` as "no PIN
+  /// staged" — the connect path then surfaces the CTAP2 missing-PIN
+  /// error from the device round trip rather than failing pre-flight,
+  /// so a successful empty return means the device must accept a
+  /// touch-only assertion.
+  ///
+  /// Rust owns the data: the row is re-fetched via FRB on every
+  /// connect attempt rather than cached on the Dart side; a manager
+  /// edit (touch-only → UV-required, or vice versa) is picked up on
+  /// the next dial.
+  Future<String?> _resolveHardwareKeyPin(String keyId) async {
+    if (keyId.isEmpty) return null;
+    rust_db.DbSshKey? row;
+    try {
+      row = await rust_db.dbSshKeysGet(id: keyId);
+    } on StateError catch (e) {
+      // FRB-unreachable in flutter_test — fall through; the existing
+      // composer call will throw the same error a couple of lines
+      // below if the test actually exercises the Rust path.
+      AppLogger.instance.log(
+        'hardware-key prompt skipped (FRB not init): $e',
+        name: 'Connection',
+      );
+      return null;
+    }
+    if (row == null || row.credentialId == null) return null;
+    if (!row.hasUserVerification) return null;
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) {
+      AppLogger.instance.log(
+        'hardware-key prompt skipped (no navigator)',
+        name: 'Connection',
+        level: LogLevel.warn,
+      );
+      return null;
+    }
+    // Resolve the localized cancel message synchronously — the
+    // navigator's `BuildContext` is unsafe to read after the dialog's
+    // await (analyzer rule `use_build_context_synchronously`).
+    final cancelMessage = S.of(ctx).hardwareKeyPromptCancelled;
+    final result = await HardwareKeyPromptDialog.show(
+      ctx,
+      deviceName: row.label,
+      requiresPin: true,
+    );
+    if (result == null || result.cancelled) {
+      throw HardwareKeyPromptCancelled(cancelMessage);
+    }
+    return result.pin;
   }
 
   /// Store the post-auth credential envelope so a later reconnect

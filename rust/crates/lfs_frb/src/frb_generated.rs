@@ -21429,6 +21429,18 @@ impl SseDecode for crate::api::bus::BusConnectAuthRef {
                 };
             }
             3 => {
+                let mut var_publicOpenssh = <String>::sse_decode(deserializer);
+                let mut var_credentialId = <Vec<u8>>::sse_decode(deserializer);
+                let mut var_application = <String>::sse_decode(deserializer);
+                let mut var_pinSecretId = <Option<String>>::sse_decode(deserializer);
+                return crate::api::bus::BusConnectAuthRef::PubkeySk {
+                    public_openssh: var_publicOpenssh,
+                    credential_id: var_credentialId,
+                    application: var_application,
+                    pin_secret_id: var_pinSecretId,
+                };
+            }
+            4 => {
                 return crate::api::bus::BusConnectAuthRef::Agent;
             }
             _ => {
@@ -22649,12 +22661,14 @@ impl SseDecode for crate::api::auth_compose::DbPrepareAuthInput {
         let mut var_keyData = <String>::sse_decode(deserializer);
         let mut var_password = <String>::sse_decode(deserializer);
         let mut var_passphrase = <String>::sse_decode(deserializer);
+        let mut var_pin = <String>::sse_decode(deserializer);
         return crate::api::auth_compose::DbPrepareAuthInput {
             session_id: var_sessionId,
             key_id: var_keyId,
             key_data: var_keyData,
             password: var_password,
             passphrase: var_passphrase,
+            pin: var_pin,
         };
     }
 }
@@ -22698,6 +22712,20 @@ impl SseDecode for crate::api::auth_compose::DbPreparedAuthRef {
                     key_secret_id: var_keySecretId,
                     cert_secret_id: var_certSecretId,
                     passphrase_secret_id: var_passphraseSecretId,
+                };
+            }
+            3 => {
+                let mut var_publicOpenssh = <String>::sse_decode(deserializer);
+                let mut var_credentialId = <Vec<u8>>::sse_decode(deserializer);
+                let mut var_application = <String>::sse_decode(deserializer);
+                let mut var_hasUserVerification = <bool>::sse_decode(deserializer);
+                let mut var_pinSecretId = <Option<String>>::sse_decode(deserializer);
+                return crate::api::auth_compose::DbPreparedAuthRef::PubkeySk {
+                    public_openssh: var_publicOpenssh,
+                    credential_id: var_credentialId,
+                    application: var_application,
+                    has_user_verification: var_hasUserVerification,
+                    pin_secret_id: var_pinSecretId,
                 };
             }
             _ => {
@@ -26142,7 +26170,20 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusConnectAuthRef {
                 passphrase_secret_id.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::bus::BusConnectAuthRef::Agent => [3.into_dart()].into_dart(),
+            crate::api::bus::BusConnectAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                pin_secret_id,
+            } => [
+                3.into_dart(),
+                public_openssh.into_into_dart().into_dart(),
+                credential_id.into_into_dart().into_dart(),
+                application.into_into_dart().into_dart(),
+                pin_secret_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusConnectAuthRef::Agent => [4.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -27654,6 +27695,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::auth_compose::DbPrepareAuthIn
             self.key_data.into_into_dart().into_dart(),
             self.password.into_into_dart().into_dart(),
             self.passphrase.into_into_dart().into_dart(),
+            self.pin.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -27715,6 +27757,21 @@ impl flutter_rust_bridge::IntoDart for crate::api::auth_compose::DbPreparedAuthR
                 key_secret_id.into_into_dart().into_dart(),
                 cert_secret_id.into_into_dart().into_dart(),
                 passphrase_secret_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::auth_compose::DbPreparedAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                pin_secret_id,
+            } => [
+                3.into_dart(),
+                public_openssh.into_into_dart().into_dart(),
+                credential_id.into_into_dart().into_dart(),
+                application.into_into_dart().into_dart(),
+                has_user_verification.into_into_dart().into_dart(),
+                pin_secret_id.into_into_dart().into_dart(),
             ]
             .into_dart(),
             _ => {
@@ -29978,8 +30035,20 @@ impl SseEncode for crate::api::bus::BusConnectAuthRef {
                 <String>::sse_encode(cert_secret_id, serializer);
                 <Option<String>>::sse_encode(passphrase_secret_id, serializer);
             }
-            crate::api::bus::BusConnectAuthRef::Agent => {
+            crate::api::bus::BusConnectAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                pin_secret_id,
+            } => {
                 <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(public_openssh, serializer);
+                <Vec<u8>>::sse_encode(credential_id, serializer);
+                <String>::sse_encode(application, serializer);
+                <Option<String>>::sse_encode(pin_secret_id, serializer);
+            }
+            crate::api::bus::BusConnectAuthRef::Agent => {
+                <i32>::sse_encode(4, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -30937,6 +31006,7 @@ impl SseEncode for crate::api::auth_compose::DbPrepareAuthInput {
         <String>::sse_encode(self.key_data, serializer);
         <String>::sse_encode(self.password, serializer);
         <String>::sse_encode(self.passphrase, serializer);
+        <String>::sse_encode(self.pin, serializer);
     }
 }
 
@@ -30973,6 +31043,20 @@ impl SseEncode for crate::api::auth_compose::DbPreparedAuthRef {
                 <String>::sse_encode(key_secret_id, serializer);
                 <String>::sse_encode(cert_secret_id, serializer);
                 <Option<String>>::sse_encode(passphrase_secret_id, serializer);
+            }
+            crate::api::auth_compose::DbPreparedAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                pin_secret_id,
+            } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(public_openssh, serializer);
+                <Vec<u8>>::sse_encode(credential_id, serializer);
+                <String>::sse_encode(application, serializer);
+                <bool>::sse_encode(has_user_verification, serializer);
+                <Option<String>>::sse_encode(pin_secret_id, serializer);
             }
             _ => {
                 unimplemented!("");

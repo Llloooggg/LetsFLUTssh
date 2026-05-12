@@ -92,3 +92,11 @@ class ProxyJumpBastionError extends SSHError {
   ProxyJumpBastionError(this.bastionLabel, Object? cause)
     : super('Bastion $bastionLabel failed', cause);
 }
+
+/// User dismissed the FIDO2 hardware-key PIN prompt before the
+/// connect path reached the device round trip. Surfaces a localized
+/// message on the connect-progress UI without bubbling a stack
+/// trace — the cancel is a deliberate user action, not a fault.
+class HardwareKeyPromptCancelled extends SSHError {
+  const HardwareKeyPromptCancelled(super.message);
+}

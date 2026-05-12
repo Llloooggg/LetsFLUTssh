@@ -56,6 +56,11 @@ pub struct PrepareAuthInput {
     /// Used to unlock either the inline `key_data` or the
     /// manager-key PEM.
     pub passphrase: String,
+    /// FIDO2 PIN the user typed for this connect attempt. Forwarded
+    /// to the CTAP2 layer when the resolved manager key is hardware-
+    /// bound (`sk-*`) and carries the user-verification bit. Empty
+    /// for touch-only credentials and for every non-sk-* path.
+    pub pin: String,
 }
 
 /// Typed ref returned by [`prepare_auth`]. Mirrors the Dart-era
@@ -79,6 +84,24 @@ pub enum PreparedAuthRef {
         key_secret_id: String,
         cert_secret_id: String,
         passphrase_secret_id: Option<String>,
+    },
+    /// FIDO2 hardware-bound `sk-*` SSH key resolved from the manager.
+    /// `public_openssh` is the captured `id_*.pub` body the connect
+    /// path re-parses to recover the SSH `Algorithm`. Together with
+    /// `credential_id` and `application`, this is the metadata the
+    /// device matches against on every CTAP2 getAssertion.
+    ///
+    /// `has_user_verification` drives the touch-only vs PIN UX: when
+    /// `true`, the Dart caller stages a PIN under `pin_secret_id`
+    /// before the dispatch so the Rust connect path can read it
+    /// without a re-prompt; when `false`, `pin_secret_id` is `None`
+    /// and the device accepts a touch-only assertion.
+    PubkeySk {
+        public_openssh: String,
+        credential_id: Vec<u8>,
+        application: String,
+        has_user_verification: bool,
+        pin_secret_id: Option<String>,
     },
 }
 
@@ -133,39 +156,77 @@ pub fn prepare_auth(
         }
     }
 
-    // 2. Manager-key path. The cert lookup runs ahead of the
-    //    plain-pubkey return so a stored cert is always preferred —
-    //    OpenSSH cert auth is strictly stronger than bare pubkey
-    //    (CA-signed) and bypassing it would force a re-cert dance
-    //    every time the cert's validity window rotates.
-    if !input.key_id.is_empty() && ssh_keys::stage_secret_into_store(conn, &input.key_id)? {
-        let mut passphrase_secret_id = session_passphrase_id.clone();
-        if !input.passphrase.is_empty() && passphrase_secret_id.is_none() {
-            let id = format!("key.passphrase.{}", input.key_id);
-            crate::app::instance()
-                .secrets
-                .put(&id, input.passphrase.as_bytes());
-            transients.push(id.clone());
-            passphrase_secret_id = Some(id);
+    // 2. Manager-key path. Three sub-paths in precedence order:
+    //    a) FIDO2 hardware-bound `sk-*` key — `credential_id IS NOT
+    //       NULL` on the row. The PEM is the SSH wire-format public
+    //       key body, not a usable private key, so this branch
+    //       short-circuits ahead of any private-key staging.
+    //    b) cert-paired software key — the cert is strictly stronger
+    //       (CA-signed) than the plain pubkey it pairs with.
+    //    c) plain software pubkey.
+    if !input.key_id.is_empty() {
+        if let Some(row) = ssh_keys::get(conn, &input.key_id)? {
+            if let (Some(credential_id), Some(application)) =
+                (&row.credential_id, &row.application_string)
+            {
+                // sk-* row. `public_key` carries the captured
+                // `id_*.pub` body the connect path re-parses to
+                // recover the SSH `Algorithm`. PIN staging is
+                // transient under `key.pin.<id>` so the bytes do
+                // not survive the connect handshake.
+                let pin_secret_id = if row.has_user_verification && !input.pin.is_empty() {
+                    let id = format!("key.pin.{}", input.key_id);
+                    crate::app::instance()
+                        .secrets
+                        .put(&id, input.pin.as_bytes());
+                    transients.push(id.clone());
+                    Some(id)
+                } else {
+                    None
+                };
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::PubkeySk {
+                        public_openssh: row.public_key.clone(),
+                        credential_id: credential_id.clone(),
+                        application: application.clone(),
+                        has_user_verification: row.has_user_verification,
+                        pin_secret_id,
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
+            if ssh_keys::stage_secret_into_store(conn, &input.key_id)? {
+                let mut passphrase_secret_id = session_passphrase_id.clone();
+                if !input.passphrase.is_empty() && passphrase_secret_id.is_none() {
+                    let id = format!("key.passphrase.{}", input.key_id);
+                    crate::app::instance()
+                        .secrets
+                        .put(&id, input.passphrase.as_bytes());
+                    transients.push(id.clone());
+                    passphrase_secret_id = Some(id);
+                }
+                let key_secret_id = format!("key.priv.{}", input.key_id);
+                if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
+                    return Ok(PreparedAuth {
+                        auth: PreparedAuthRef::PubkeyCert {
+                            key_secret_id,
+                            cert_secret_id: ssh_key_certificates::certificate_secret_id(
+                                &input.key_id,
+                            ),
+                            passphrase_secret_id,
+                        },
+                        transient_secret_ids: transients,
+                    });
+                }
+                return Ok(PreparedAuth {
+                    auth: PreparedAuthRef::Pubkey {
+                        key_secret_id,
+                        passphrase_secret_id,
+                    },
+                    transient_secret_ids: transients,
+                });
+            }
         }
-        let key_secret_id = format!("key.priv.{}", input.key_id);
-        if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
-            return Ok(PreparedAuth {
-                auth: PreparedAuthRef::PubkeyCert {
-                    key_secret_id,
-                    cert_secret_id: ssh_key_certificates::certificate_secret_id(&input.key_id),
-                    passphrase_secret_id,
-                },
-                transient_secret_ids: transients,
-            });
-        }
-        return Ok(PreparedAuth {
-            auth: PreparedAuthRef::Pubkey {
-                key_secret_id,
-                passphrase_secret_id,
-            },
-            transient_secret_ids: transients,
-        });
     }
 
     // 3. Quick-connect fallback. Every id under `conn.*` is
@@ -526,6 +587,155 @@ mod tests {
             )
             .unwrap();
             assert!(matches!(r.auth, PreparedAuthRef::Pubkey { .. }));
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    fn insert_sk_key(
+        conn: &impl crate::db::DbAccess,
+        id: &str,
+        public_openssh: &str,
+        credential_id: &[u8],
+        application: &str,
+        has_user_verification: bool,
+    ) {
+        conn.raw()
+            .execute(
+                "INSERT INTO ssh_keys (\
+                id, label, private_key, public_key, key_type, created_at, \
+                credential_id, application_string, has_user_verification\
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                rusqlite::params![
+                    id,
+                    "sk-label",
+                    "",
+                    public_openssh,
+                    "sk-ssh-ed25519@openssh.com",
+                    0_i64,
+                    credential_id,
+                    application,
+                    if has_user_verification { 1_i64 } else { 0_i64 },
+                ],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn manager_key_with_credential_id_routes_to_pubkey_sk_variant() {
+        // Hardware-bound row — composer must short-circuit ahead of
+        // the plain-pubkey path. The captured `public_key` flows
+        // through `public_openssh`; touch-only (no UV) skips PIN
+        // staging.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_sk_key(
+                c,
+                "sk1",
+                "sk-ssh-ed25519@openssh.com AAAA...",
+                &[0xCA, 0xFE],
+                "ssh:",
+                false,
+            );
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "sk1".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeySk {
+                public_openssh,
+                credential_id,
+                application,
+                has_user_verification,
+                pin_secret_id,
+            } = r.auth
+            else {
+                panic!("expected PubkeySk");
+            };
+            assert_eq!(public_openssh, "sk-ssh-ed25519@openssh.com AAAA...");
+            assert_eq!(credential_id, vec![0xCA, 0xFE]);
+            assert_eq!(application, "ssh:");
+            assert!(!has_user_verification);
+            assert!(pin_secret_id.is_none());
+            assert!(r.transient_secret_ids.is_empty());
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn manager_key_sk_with_user_verification_and_typed_pin_stages_transient() {
+        // Hardware-bound row with UV bit set — composer stages the
+        // typed PIN as `key.pin.<id>` transient and routes the id
+        // through the ref so the Rust connect path can forward it
+        // to the CTAP2 layer without a re-prompt.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_sk_key(
+                c,
+                "sk2",
+                "sk-ssh-ed25519@openssh.com AAAA...",
+                &[0xDE, 0xAD],
+                "ssh:",
+                true,
+            );
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "sk2".into(),
+                    pin: "123456".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeySk {
+                has_user_verification,
+                pin_secret_id,
+                ..
+            } = r.auth
+            else {
+                panic!("expected PubkeySk");
+            };
+            assert!(has_user_verification);
+            assert_eq!(pin_secret_id.as_deref(), Some("key.pin.sk2"));
+            assert_eq!(r.transient_secret_ids, vec!["key.pin.sk2".to_string()]);
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn manager_key_sk_with_user_verification_but_no_pin_drops_pin_id() {
+        // UV bit set but the caller passed no PIN — the dispatcher
+        // still proceeds. CTAP2 surfaces the missing-PIN error on
+        // the device round trip; we don't pre-fail here so the
+        // Rust connect path stays the only failure surface.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_sk_key(
+                c,
+                "sk3",
+                "sk-ssh-ed25519@openssh.com AAAA...",
+                &[0x01],
+                "ssh:",
+                true,
+            );
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "sk3".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeySk { pin_secret_id, .. } = r.auth else {
+                panic!("expected PubkeySk");
+            };
+            assert!(pin_secret_id.is_none());
+            assert!(r.transient_secret_ids.is_empty());
             Ok::<(), Error>(())
         })
         .unwrap();

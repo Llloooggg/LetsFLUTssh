@@ -106,6 +106,32 @@ class SshAuthPubkeyCertRef extends SshAuthMethod {
   });
 }
 
+/// FIDO2 hardware-bound `sk-*` SSH key resolved from the manager.
+///
+/// `publicOpenssh` carries the captured `id_*.pub` body so the Rust
+/// connect path can recover the SSH `Algorithm` without a second FRB
+/// hop. `credentialId` is the opaque CTAP2 blob the device matches
+/// against on every assertion. `application` is the SSH RP-id (the
+/// `ssh:` literal in every default `ssh-keygen -t ed25519-sk` flow,
+/// but the user can override at generation time).
+///
+/// `pinSecretId` resolves a transient PIN staged by the Dart-side
+/// caller before dispatch (via `connection_prepare_auth` with `pin`
+/// populated). `null` for touch-only credentials — the device fires
+/// its presence prompt without a PIN round trip.
+class SshAuthPubkeySkRef extends SshAuthMethod {
+  final String publicOpenssh;
+  final Uint8List credentialId;
+  final String application;
+  final String? pinSecretId;
+  const SshAuthPubkeySkRef({
+    required this.publicOpenssh,
+    required this.credentialId,
+    required this.application,
+    this.pinSecretId,
+  });
+}
+
 /// PTY-backed interactive shell channel.
 abstract class SshShellChannel {
   /// Stdin: write user keystrokes / pasted bytes.
