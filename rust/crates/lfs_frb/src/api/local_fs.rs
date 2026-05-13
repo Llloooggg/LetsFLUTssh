@@ -13,21 +13,49 @@ pub struct DbLocalFileEntry {
     pub mode: u32,
     pub mod_time_unix_ms: i64,
     pub is_dir: bool,
+    /// `true` only when the entry was produced by
+    /// [`local_fs_symlink_stat`] and the path is itself a
+    /// symbolic link. List / stat results report `false`.
+    pub is_symlink: bool,
+}
+
+fn to_db_entry(e: lfs_core::fs::local::LocalFileEntry) -> DbLocalFileEntry {
+    DbLocalFileEntry {
+        name: e.name,
+        path: e.path,
+        size: e.size,
+        mode: e.mode,
+        mod_time_unix_ms: e.mod_time_unix_ms,
+        is_dir: e.is_dir,
+        is_symlink: e.is_symlink,
+    }
 }
 
 pub async fn local_fs_list(path: String) -> Result<Vec<DbLocalFileEntry>, String> {
     Ok(lfs_core::fs::local::list(path)
         .await?
         .into_iter()
-        .map(|e| DbLocalFileEntry {
-            name: e.name,
-            path: e.path,
-            size: e.size,
-            mode: e.mode,
-            mod_time_unix_ms: e.mod_time_unix_ms,
-            is_dir: e.is_dir,
-        })
+        .map(to_db_entry)
         .collect())
+}
+
+/// Stat `path` following symlinks. `None` means "does not
+/// exist"; other I/O failures (permission denied, broken disk)
+/// surface as `Err`. The transfer walker uses this to read size
+/// and mtime for the change-detected replace path; the file pane
+/// uses it as a one-trip "exists?" probe.
+pub async fn local_fs_stat(path: String) -> Result<Option<DbLocalFileEntry>, String> {
+    Ok(lfs_core::fs::local::stat(path).await?.map(to_db_entry))
+}
+
+/// Stat `path` without following symlinks. The returned
+/// entry's `is_symlink` is `true` when the path itself is a
+/// symlink, regardless of target type — matches Dart's
+/// `FileSystemEntity.typeSync(path, followLinks: false)`.
+pub async fn local_fs_symlink_stat(path: String) -> Result<Option<DbLocalFileEntry>, String> {
+    Ok(lfs_core::fs::local::symlink_stat(path)
+        .await?
+        .map(to_db_entry))
 }
 
 pub async fn local_fs_list_directories(path: String) -> Result<Vec<String>, String> {

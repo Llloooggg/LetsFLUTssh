@@ -399,6 +399,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost dco_decode_box_autoadd_db_known_host(dynamic raw);
 
   @protected
+  DbLocalFileEntry dco_decode_box_autoadd_db_local_file_entry(dynamic raw);
+
+  @protected
   DbOpenSshImportPreview dco_decode_box_autoadd_db_open_ssh_import_preview(
     dynamic raw,
   );
@@ -1251,6 +1254,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost? dco_decode_opt_box_autoadd_db_known_host(dynamic raw);
 
   @protected
+  DbLocalFileEntry? dco_decode_opt_box_autoadd_db_local_file_entry(dynamic raw);
+
+  @protected
   DbOpenSshImportPreview? dco_decode_opt_box_autoadd_db_open_ssh_import_preview(
     dynamic raw,
   );
@@ -1683,6 +1689,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHost sse_decode_box_autoadd_db_known_host(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbLocalFileEntry sse_decode_box_autoadd_db_local_file_entry(
     SseDeserializer deserializer,
   );
 
@@ -2813,6 +2824,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbLocalFileEntry? sse_decode_opt_box_autoadd_db_local_file_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbOpenSshImportPreview? sse_decode_opt_box_autoadd_db_open_ssh_import_preview(
     SseDeserializer deserializer,
   );
@@ -3330,6 +3346,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_known_host(
     DbKnownHost self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_local_file_entry(
+    DbLocalFileEntry self,
     SseSerializer serializer,
   );
 
@@ -4772,6 +4794,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_known_host(
     DbKnownHost? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_local_file_entry(
+    DbLocalFileEntry? self,
     SseSerializer serializer,
   );
 

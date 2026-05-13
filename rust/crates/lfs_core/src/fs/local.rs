@@ -41,6 +41,12 @@ pub struct LocalFileEntry {
     /// the underlying FS doesn't expose mtime (rare).
     pub mod_time_unix_ms: i64,
     pub is_dir: bool,
+    /// `true` when the entry is a symbolic link itself (only
+    /// populated by [`symlink_stat`]; [`list`] and [`stat`]
+    /// follow links and report `false` here even when the
+    /// underlying path resolves through a symlink). Matches
+    /// the Dart caller's `FileSystemEntityType.link` discriminator.
+    pub is_symlink: bool,
 }
 
 /// Enumerate immediate sub-directories of `path`. Returns
@@ -110,25 +116,110 @@ pub async fn list(path: String) -> Result<Vec<LocalFileEntry>, String> {
         .map_err(|e| format!("read_dir({path}): {e}"))?;
     let mut entries = Vec::new();
     while let Some(entry) = rd.next_entry().await.map_err(|e| e.to_string())? {
-        // Skip entries whose metadata we can't stat (broken
-        // symlinks, permission denied) — same forgiving behaviour
-        // the Dart side had.
-        let metadata = match entry.metadata().await {
-            Ok(m) => m,
+        // Probe the entry's own type without following symlinks
+        // first so the `is_symlink` discriminator is set even
+        // when the link target is missing or unreadable.
+        // `DirEntry::file_type` does not traverse on Unix; the
+        // resolved-target metadata comes from the follow path
+        // below.
+        let link_type = entry.file_type().await.ok();
+        let is_symlink = link_type.map(|ft| ft.is_symlink()).unwrap_or(false);
+        // Follow symlinks for the resolved metadata so `size`,
+        // `mod_time_unix_ms`, and `is_dir` match what the
+        // Dart-side `FileStat.statSync(path)` surfaced
+        // (followLinks defaults to true). `DirEntry::metadata`
+        // does NOT follow on Unix; `tokio::fs::metadata(path)`
+        // does. The upload walker relies on the target's size
+        // to size each transfer task.
+        let metadata = match tokio::fs::metadata(entry.path()).await {
+            Ok(m) => Some(m),
+            Err(_) if is_symlink => None,
             Err(_) => continue,
         };
         let name = entry.file_name().to_string_lossy().into_owned();
         let path = entry.path().to_string_lossy().into_owned();
+        let (size, mode, mod_time_unix_ms, is_dir) = match metadata.as_ref() {
+            Some(m) => (m.len(), posix_mode(m), mod_time_ms(m), m.is_dir()),
+            None => (0, 0, 0, false),
+        };
         entries.push(LocalFileEntry {
             name,
             path,
-            size: metadata.len(),
-            mode: posix_mode(&metadata),
-            mod_time_unix_ms: mod_time_ms(&metadata),
-            is_dir: metadata.is_dir(),
+            size,
+            mode,
+            mod_time_unix_ms,
+            is_dir,
+            is_symlink,
         });
     }
     Ok(entries)
+}
+
+/// Stat `path`, following symlinks. Returns `Ok(Some(entry))`
+/// when the path resolves, `Ok(None)` when it does not exist,
+/// and `Err(...)` for every other I/O failure (permission
+/// denied on the parent, broken disk, etc.). The returned
+/// `is_symlink` is always `false` — callers that need to
+/// discriminate "is this a symlink itself?" use [`symlink_stat`]
+/// instead.
+///
+/// Mirrors `FileStat.statSync(path)` + "does it exist?" in one
+/// trip so the Dart caller can probe and read metadata together
+/// without paying for two FRB hops.
+pub async fn stat(path: String) -> Result<Option<LocalFileEntry>, String> {
+    let metadata = match tokio::fs::metadata(&path).await {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(map_io_error(e)),
+    };
+    Ok(Some(LocalFileEntry {
+        name: basename(&path),
+        path: path.clone(),
+        size: metadata.len(),
+        mode: posix_mode(&metadata),
+        mod_time_unix_ms: mod_time_ms(&metadata),
+        is_dir: metadata.is_dir(),
+        is_symlink: false,
+    }))
+}
+
+/// Stat `path` without following symlinks. Returns `Ok(None)`
+/// when the path is missing. The returned entry's `is_symlink`
+/// is `true` when `path` itself is a symbolic link (regardless
+/// of whether the target is a file or directory); `is_dir` then
+/// reports the link entry's type (always `false` for a symlink
+/// because `symlink_metadata` does not chase the target).
+///
+/// Mirrors `FileSystemEntity.typeSync(path, followLinks: false)`
+/// — the Dart caller used this discrimination to refuse
+/// overwriting an existing symlink on download.
+pub async fn symlink_stat(path: String) -> Result<Option<LocalFileEntry>, String> {
+    let metadata = match tokio::fs::symlink_metadata(&path).await {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(map_io_error(e)),
+    };
+    let file_type = metadata.file_type();
+    Ok(Some(LocalFileEntry {
+        name: basename(&path),
+        path: path.clone(),
+        size: metadata.len(),
+        mode: posix_mode(&metadata),
+        mod_time_unix_ms: mod_time_ms(&metadata),
+        is_dir: file_type.is_dir(),
+        is_symlink: file_type.is_symlink(),
+    }))
+}
+
+fn basename(path: &str) -> String {
+    // Use std::path::Path so the split respects whichever native
+    // separator(s) the caller passed (`/` on Unix, `/` or `\` on
+    // Windows). Falls back to the original string when the path
+    // has no separator (a bare filename).
+    std::path::Path::new(path)
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string())
 }
 
 /// Recursively create `path` (no error if it already exists).
@@ -402,6 +493,119 @@ mod tests {
             })
             .collect();
         assert_eq!(basenames, vec!["apple", "Banana", "Cherry"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn stat_returns_some_for_existing_file() {
+        let dir = temp_dir("stat_file");
+        let f = dir.join("hello.txt");
+        std::fs::write(&f, b"hello").unwrap();
+        let entry = stat(f.to_string_lossy().into_owned())
+            .await
+            .unwrap()
+            .expect("entry");
+        assert_eq!(entry.size, 5);
+        assert!(!entry.is_dir);
+        assert!(!entry.is_symlink);
+        assert_eq!(entry.name, "hello.txt");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn stat_returns_some_for_existing_directory() {
+        let dir = temp_dir("stat_dir");
+        let entry = stat(dir.to_string_lossy().into_owned())
+            .await
+            .unwrap()
+            .expect("entry");
+        assert!(entry.is_dir);
+        assert!(!entry.is_symlink);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn stat_returns_none_for_missing_path() {
+        let result = stat("/path/that/does/not/exist/lfs_stat_test".to_string())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn symlink_stat_returns_none_for_missing_path() {
+        let result = symlink_stat("/path/that/does/not/exist/lfs_symlink_test".to_string())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn symlink_stat_reports_plain_file_not_symlink() {
+        let dir = temp_dir("symlink_stat_plain");
+        let f = dir.join("plain.txt");
+        std::fs::write(&f, b"x").unwrap();
+        let entry = symlink_stat(f.to_string_lossy().into_owned())
+            .await
+            .unwrap()
+            .expect("entry");
+        assert!(!entry.is_symlink);
+        assert!(!entry.is_dir);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn list_marks_symlink_entries() {
+        use std::os::unix::fs::symlink;
+        let dir = temp_dir("list_symlink");
+        std::fs::write(dir.join("plain.txt"), b"x").unwrap();
+        let target = dir.join("target.txt");
+        std::fs::write(&target, b"hello").unwrap();
+        symlink(&target, dir.join("link.txt")).unwrap();
+
+        let mut entries = list(dir.to_string_lossy().into_owned()).await.unwrap();
+        entries.sort_by(|a, b| a.name.cmp(&b.name));
+        let by_name = |n: &str| entries.iter().find(|e| e.name == n).expect("present");
+
+        assert!(!by_name("plain.txt").is_symlink);
+        assert!(by_name("link.txt").is_symlink);
+        // The link still resolves (target exists), so the
+        // resolved metadata is populated.
+        assert_eq!(by_name("link.txt").size, 5);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn symlink_stat_reports_symlink_separately() {
+        use std::os::unix::fs::symlink;
+        let dir = temp_dir("symlink_stat_link");
+        let target = dir.join("target_dir");
+        std::fs::create_dir(&target).unwrap();
+        let link = dir.join("link_to_dir");
+        symlink(&target, &link).unwrap();
+
+        let entry = symlink_stat(link.to_string_lossy().into_owned())
+            .await
+            .unwrap()
+            .expect("entry");
+        assert!(entry.is_symlink);
+        // `symlink_metadata` does not chase the target, so the link
+        // entry's own type (not the directory it points at) is what
+        // `is_dir` reports — `false`.
+        assert!(!entry.is_dir);
+
+        // `stat` follows the symlink and reports the underlying
+        // directory's metadata, with `is_symlink: false`.
+        let resolved = stat(link.to_string_lossy().into_owned())
+            .await
+            .unwrap()
+            .expect("resolved");
+        assert!(resolved.is_dir);
+        assert!(!resolved.is_symlink);
+
         std::fs::remove_dir_all(&dir).ok();
     }
 

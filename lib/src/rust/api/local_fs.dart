@@ -6,10 +6,26 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `to_db_entry`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 Future<List<DbLocalFileEntry>> localFsList({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsList(path: path);
+
+/// Stat `path` following symlinks. `None` means "does not
+/// exist"; other I/O failures (permission denied, broken disk)
+/// surface as `Err`. The transfer walker uses this to read size
+/// + mtime for the change-detected replace path; the file pane
+/// uses it as a one-trip "exists?" probe.
+Future<DbLocalFileEntry?> localFsStat({required String path}) =>
+    RustLib.instance.api.crateApiLocalFsLocalFsStat(path: path);
+
+/// Stat `path` without following symlinks. The returned
+/// entry's `is_symlink` is `true` when the path itself is a
+/// symlink, regardless of target type — matches Dart's
+/// `FileSystemEntity.typeSync(path, followLinks: false)`.
+Future<DbLocalFileEntry?> localFsSymlinkStat({required String path}) =>
+    RustLib.instance.api.crateApiLocalFsLocalFsSymlinkStat(path: path);
 
 Future<List<String>> localFsListDirectories({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsListDirectories(path: path);
@@ -45,6 +61,11 @@ class DbLocalFileEntry {
   final PlatformInt64 modTimeUnixMs;
   final bool isDir;
 
+  /// `true` only when the entry was produced by
+  /// [`local_fs_symlink_stat`] and the path is itself a
+  /// symbolic link. List / stat results report `false`.
+  final bool isSymlink;
+
   const DbLocalFileEntry({
     required this.name,
     required this.path,
@@ -52,6 +73,7 @@ class DbLocalFileEntry {
     required this.mode,
     required this.modTimeUnixMs,
     required this.isDir,
+    required this.isSymlink,
   });
 
   @override
@@ -61,7 +83,8 @@ class DbLocalFileEntry {
       size.hashCode ^
       mode.hashCode ^
       modTimeUnixMs.hashCode ^
-      isDir.hashCode;
+      isDir.hashCode ^
+      isSymlink.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -73,5 +96,6 @@ class DbLocalFileEntry {
           size == other.size &&
           mode == other.mode &&
           modTimeUnixMs == other.modTimeUnixMs &&
-          isDir == other.isDir;
+          isDir == other.isDir &&
+          isSymlink == other.isSymlink;
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
@@ -9,6 +8,7 @@ import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/conflict_resolver.dart';
 import '../../core/transfer/unique_name.dart';
 import '../../providers/transfer_provider.dart';
+import '../../src/rust/api/local_fs.dart' as rust_local_fs;
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
@@ -44,7 +44,7 @@ class TransferHelpers {
         manager: manager,
         sftp: sftp,
         connectionId: connectionId,
-        localDir: Directory(entry.path),
+        localDir: entry.path,
         remoteDir: remotePath,
         conflictResolver: conflictResolver,
       );
@@ -121,13 +121,15 @@ class TransferHelpers {
   }
 
   /// Walk [localDir] recursively and enqueue an upload task per leaf
-  /// file. Skips symlinks (we don't follow into arbitrary targets) and
-  /// conflict-skipped paths. Returns the total enqueue count.
+  /// file. Skips symlinks (we don't follow them into arbitrary targets)
+  /// and conflict-skipped paths. Returns the total enqueue count.
+  /// Routes the directory listing through `lfs_core::fs::local::list`
+  /// so `dart:io` never participates in upload enumeration.
   static Future<int> _enqueueUploadDir({
     required TransfersNotifier manager,
     required RemoteSftpFs sftp,
     required String connectionId,
-    required Directory localDir,
+    required String localDir,
     required String remoteDir,
     required BatchConflictResolver? conflictResolver,
   }) async {
@@ -138,40 +140,40 @@ class TransferHelpers {
       // Already exists or other transient — per-file upserts will fail
       // if the dir is genuinely unwritable; let those surface there.
     }
-    final children = localDir.listSync(followLinks: false);
+    final children = await rust_local_fs.localFsList(path: localDir);
     for (final child in children) {
-      final base = p.basename(child.path);
-      final remoteChild = p.posix.join(remoteDir, base);
-      if (child is Directory) {
+      // Symlinks are surfaced by Rust's `list` with `isSymlink: true`;
+      // skip them so we never follow into arbitrary targets.
+      if (child.isSymlink) continue;
+      final remoteChild = p.posix.join(remoteDir, child.name);
+      if (child.isDir) {
         enqueued += await _enqueueUploadDir(
           manager: manager,
           sftp: sftp,
           connectionId: connectionId,
-          localDir: child,
+          localDir: child.path,
           remoteDir: remoteChild,
           conflictResolver: conflictResolver,
         );
-      } else if (child is File) {
-        String? resolved = remoteChild;
-        if (conflictResolver != null) {
-          resolved = await _resolveUploadConflict(
-            sftp: sftp,
-            targetPath: remoteChild,
-            resolver: conflictResolver,
-          );
-          if (resolved == null) continue;
-        }
-        final stat = child.statSync();
-        await manager.enqueueUpload(
-          connectionId: connectionId,
-          name: p.posix.basename(resolved),
-          localPath: child.path,
-          remotePath: resolved,
-          sizeBytes: stat.size,
-        );
-        enqueued++;
+        continue;
       }
-      // Skip symlinks — we don't follow them into arbitrary targets.
+      String? resolved = remoteChild;
+      if (conflictResolver != null) {
+        resolved = await _resolveUploadConflict(
+          sftp: sftp,
+          targetPath: remoteChild,
+          resolver: conflictResolver,
+        );
+        if (resolved == null) continue;
+      }
+      await manager.enqueueUpload(
+        connectionId: connectionId,
+        name: p.posix.basename(resolved),
+        localPath: child.path,
+        remotePath: resolved,
+        sizeBytes: child.size.toInt(),
+      );
+      enqueued++;
     }
     return enqueued;
   }
@@ -187,7 +189,7 @@ class TransferHelpers {
     required BatchConflictResolver? conflictResolver,
   }) async {
     var enqueued = 0;
-    Directory(localDir).createSync(recursive: true);
+    await rust_local_fs.localFsMkdir(path: localDir);
     final entries = await sftp.list(remoteDir);
     for (final remoteEntry in entries) {
       final base = remoteEntry.name;
@@ -274,7 +276,7 @@ class TransferHelpers {
     required String targetPath,
     required BatchConflictResolver resolver,
   }) async {
-    final snapshot = _snapshotLocal(targetPath);
+    final snapshot = await _snapshotLocal(targetPath);
     if (snapshot == null) return targetPath;
     if (snapshot.isSymlink) {
       AppLogger.instance.log(
@@ -291,7 +293,7 @@ class TransferHelpers {
       case ConflictAction.keepBoth:
         return uniqueSiblingName(targetPath, _localExists);
       case ConflictAction.replace:
-        final current = _snapshotLocal(targetPath);
+        final current = await _snapshotLocal(targetPath);
         if (!_localSnapshotsMatch(snapshot, current)) {
           AppLogger.instance.log(
             'Local target changed between probe and confirm — aborting: $targetPath',
@@ -304,7 +306,8 @@ class TransferHelpers {
   }
 
   static Future<bool> _localExists(String path) async {
-    return FileSystemEntity.typeSync(path) != FileSystemEntityType.notFound;
+    final entry = await rust_local_fs.localFsSymlinkStat(path: path);
+    return entry != null;
   }
 
   /// Reject SFTP-supplied filenames that could escape the user-chosen
@@ -338,52 +341,58 @@ class TransferHelpers {
     return true;
   }
 
-  static _LocalSnapshot? _snapshotLocal(String path) {
-    final type = FileSystemEntity.typeSync(path, followLinks: false);
-    if (type == FileSystemEntityType.notFound) return null;
-    if (type == FileSystemEntityType.link) {
-      return const _LocalSnapshot.symlink();
-    }
-    FileStat? stat;
+  /// Probe the local path without following symlinks. The probe
+  /// is the one feeding the change-detected `replace` path: we
+  /// stat the target before the user confirms, stat it again
+  /// after, and abort when size / mtime / type drifted in
+  /// between. Symlinks are surfaced as a distinct snapshot so
+  /// the caller can refuse to overwrite them.
+  static Future<_LocalSnapshot?> _snapshotLocal(String path) async {
+    rust_local_fs.DbLocalFileEntry? entry;
     try {
-      stat = FileStat.statSync(path);
+      entry = await rust_local_fs.localFsSymlinkStat(path: path);
     } catch (_) {
       return const _LocalSnapshot.unknown();
     }
-    return _LocalSnapshot(type: type, size: stat.size, modified: stat.modified);
+    if (entry == null) return null;
+    if (entry.isSymlink) return const _LocalSnapshot.symlink();
+    return _LocalSnapshot(
+      isDir: entry.isDir,
+      size: entry.size.toInt(),
+      modifiedMs: entry.modTimeUnixMs.toInt(),
+    );
   }
 
   static bool _localSnapshotsMatch(_LocalSnapshot a, _LocalSnapshot? b) {
     if (b == null) return false;
     if (a.isSymlink || b.isSymlink) return false;
-    return a.type == b.type &&
+    return a.isDir == b.isDir &&
         a.size == b.size &&
-        a.modified?.millisecondsSinceEpoch ==
-            b.modified?.millisecondsSinceEpoch;
+        a.modifiedMs == b.modifiedMs;
   }
 }
 
 class _LocalSnapshot {
-  final FileSystemEntityType? type;
+  final bool? isDir;
   final int? size;
-  final DateTime? modified;
+  final int? modifiedMs;
   final bool isSymlink;
 
   const _LocalSnapshot({
-    required this.type,
+    required this.isDir,
     required this.size,
-    required this.modified,
+    required this.modifiedMs,
   }) : isSymlink = false;
 
   const _LocalSnapshot.symlink()
-    : type = null,
+    : isDir = null,
       size = null,
-      modified = null,
+      modifiedMs = null,
       isSymlink = true;
 
   const _LocalSnapshot.unknown()
-    : type = null,
+    : isDir = null,
       size = null,
-      modified = null,
+      modifiedMs = null,
       isSymlink = false;
 }
