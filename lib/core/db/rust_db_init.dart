@@ -4,7 +4,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// On-disk filename of the SQLCipher-encrypted sqlite database.
@@ -101,10 +100,11 @@ Future<void> ensureRustDbOpen({Uint8List? key, String? secretId}) async {
     final path = p.join(dir.path, _rustDbFileName);
     // `dbInit` / `dbInitFromSecret` route through
     // `lfs_core::db::Connection::open` which mkdir's the parent
-    // directory and lets SQLite create the file itself; the Rust
-    // path is the single owner of the on-disk handle.
-    await hardenFilePerms(path);
-    mark('harden_perms');
+    // directory, lets SQLite create the file itself, AND runs
+    // `lfs_core::path::harden_file_perms` against the resulting
+    // handle (Rust-side; `lfs_os_security::path::harden_file_perms_windows`
+    // on Windows, `chmod 0600` libc syscall on Unix). No Dart-side
+    // pre-call — the file does not exist yet at this point.
     if (secretId != null) {
       await rust_app.dbInitFromSecret(path: path, secretId: secretId);
     } else {
