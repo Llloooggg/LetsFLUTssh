@@ -113,35 +113,32 @@ class SecurityCapabilities {
     return jsonDecode(str) as Map<String, dynamic>;
   }
 
-  /// Pure-Dart decode. The wire-format shape (snake_case keys,
-  /// enum values matching `KeyringProbeResult.name`) is the
-  /// canonical encoding `lfs_core::security::capabilities` emits
-  /// and Dart writes back through `SecurityCapabilities.toJson`,
-  /// so a manual decode produces the same result as the Rust
-  /// round-trip without paying the FRB hop on every config
-  /// snapshot. Returns `null` for malformed input (unknown enum
-  /// value, missing required keys).
+  /// Routes through `rust_caps.securityCapabilitiesFromJson` —
+  /// the canonical decoder that the wire-format-owning crate
+  /// `lfs_core::security::capabilities` already ships. Keeps
+  /// encoder + decoder symmetric (both Rust-side) so a rename
+  /// of any field key or enum value only touches Rust. Returns
+  /// `null` for malformed input (non-object root, unknown enum
+  /// case, missing required strings).
   static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
-    try {
-      final probeName = json['keychain_probe'] as String?;
-      final probe = KeyringProbeResult.values
-          .where((v) => v.name == probeName)
-          .firstOrNull;
-      if (probe == null) return null;
-      return SecurityCapabilities(
-        keychainAvailable: json['keychain_available'] as bool? ?? false,
-        hardwareVaultAvailable:
-            json['hardware_vault_available'] as bool? ?? false,
-        biometricAvailable: json['biometric_available'] as bool? ?? false,
-        fprintdAvailable: json['fprintd_available'] as bool? ?? false,
-        isLinuxHost: json['is_linux_host'] as bool? ?? false,
-        keychainProbe: probe,
-        hardwareProbeCode: json['hardware_probe_code'] as String? ?? 'unknown',
-      );
-    } catch (_) {
-      return null;
-    }
+    final parsed = rust_caps.securityCapabilitiesFromJson(
+      json: jsonEncode(json),
+    );
+    if (parsed == null) return null;
+    final probe = KeyringProbeResult.values
+        .where((v) => v.name == parsed.keychainProbeWireName)
+        .firstOrNull;
+    if (probe == null) return null;
+    return SecurityCapabilities(
+      keychainAvailable: parsed.keychainAvailable,
+      hardwareVaultAvailable: parsed.hardwareVaultAvailable,
+      biometricAvailable: parsed.biometricAvailable,
+      fprintdAvailable: parsed.fprintdAvailable,
+      isLinuxHost: parsed.isLinuxHost,
+      keychainProbe: probe,
+      hardwareProbeCode: parsed.hardwareProbeCode,
+    );
   }
 
   @override
