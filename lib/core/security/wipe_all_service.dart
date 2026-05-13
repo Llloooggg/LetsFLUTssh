@@ -214,13 +214,6 @@ class WipeAllService {
   /// + bin file on Android, NCrypt persisted key + bin file on
   /// Windows, TPM2 envelope on Linux.
   Future<bool> _clearNativePrimary() async {
-    if (!Platform.isMacOS &&
-        !Platform.isIOS &&
-        !Platform.isAndroid &&
-        !Platform.isWindows &&
-        !Platform.isLinux) {
-      return false;
-    }
     try {
       final dir = await _supportDir();
       await rust_hwvault.hardwareTierVaultClear(supportDir: dir.path);
@@ -241,13 +234,6 @@ class WipeAllService {
   /// lives one crate up in `lfs_core` because it depends on the
   /// in-crate fprintd D-Bus walk.
   Future<bool> _clearNativeBiometricOverlay() async {
-    if (!Platform.isMacOS &&
-        !Platform.isIOS &&
-        !Platform.isAndroid &&
-        !Platform.isWindows &&
-        !Platform.isLinux) {
-      return false;
-    }
     try {
       final dir = await _supportDir();
       await rust_hwvault.hardwareTierVaultClearBiometricPassword(

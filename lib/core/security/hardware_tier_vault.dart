@@ -51,29 +51,13 @@ import '../../utils/logger.dart';
 class HardwareTierVault {
   HardwareTierVault();
 
-  /// Every supported platform routes through Rust FRB —
-  /// Apple SE + Android Keystore + Windows CNG via `lfs_os_security`,
-  /// Linux TPM2 via `lfs_core::security::hardware_tier_vault::linux`
-  /// (TPM CLI shell-out is a Rust subprocess; the FRB layer
-  /// dispatches by `cfg(target_os = ...)`). No native-plugin path
-  /// remains; Dart only paints the UI and forwards the PIN HMAC.
-  bool get _usesRust =>
-      Platform.isMacOS ||
-      Platform.isIOS ||
-      Platform.isAndroid ||
-      Platform.isLinux ||
-      Platform.isWindows;
-
   /// True when the current platform can host the Hardware tier
   /// *today*. The Rust FRB shim covers every supported OS — Apple
   /// SE / Android Keystore / Windows CNG via `lfs_os_security`,
   /// Linux TPM2 via `lfs_core::platform::linux::tpm` (CLI shell-out
   /// is a Rust subprocess).
   Future<bool> isAvailable() async {
-    if (_usesRust) {
-      return await rust_vault.hardwareTierVaultIsAvailable();
-    }
-    return false;
+    return await rust_vault.hardwareTierVaultIsAvailable();
   }
 
   /// Classified hardware-unavailable reason. Returns an opaque
@@ -88,10 +72,7 @@ class HardwareTierVault {
   /// `lfs_core::platform::linux::tpm::probe` and never enters this
   /// method.
   Future<String> probeDetail() async {
-    if (_usesRust) {
-      return await rust_vault.hardwareTierVaultProbeDetail();
-    }
-    return 'unknown';
+    return await rust_vault.hardwareTierVaultProbeDetail();
   }
 
   /// True when a sealed blob is on disk. Linux inspects
@@ -100,28 +81,23 @@ class HardwareTierVault {
   /// required — a half-wiped state is a reset, not an unlock).
   Future<bool> isStored() async {
     try {
-      if (_usesRust) {
-        if (Platform.isLinux) {
-          // Linux orchestrator co-locates salt + sealed inside
-          // `hardware_vault.bin` — single-file presence is the
-          // whole contract.
-          final dir = await getApplicationSupportDirectory();
-          return await rust_vault.hardwareTierVaultIsStored(
-            supportDir: dir.path,
-          );
-        }
-        // Apple / Android / Windows keep the wrapped key inside the
-        // platform vault; the salt rides next to it on disk under
-        // `hardware_vault_salt.bin`. Both halves required —
-        // half-wiped state is a reset, not an unlock.
+      if (Platform.isLinux) {
+        // Linux orchestrator co-locates salt + sealed inside
+        // `hardware_vault.bin` — single-file presence is the
+        // whole contract.
         final dir = await getApplicationSupportDirectory();
-        final salt = await rust_vault.hardwareTierVaultReadSalt(
-          supportDir: dir.path,
-        );
-        if (salt == null) return false;
         return await rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
       }
-      return false;
+      // Apple / Android / Windows keep the wrapped key inside the
+      // platform vault; the salt rides next to it on disk under
+      // `hardware_vault_salt.bin`. Both halves required —
+      // half-wiped state is a reset, not an unlock.
+      final dir = await getApplicationSupportDirectory();
+      final salt = await rust_vault.hardwareTierVaultReadSalt(
+        supportDir: dir.path,
+      );
+      if (salt == null) return false;
+      return await rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.isStored failed: $e',
@@ -143,38 +119,35 @@ class HardwareTierVault {
   Future<bool> store({required Uint8List dbKey, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
-      if (_usesRust) {
-        try {
-          final dir = await getApplicationSupportDirectory();
-          // Provision-then-vault: a fresh salt lands on disk
-          // (sibling file on Apple / Windows / Android, no-op on
-          // Linux where the salt embeds inside the envelope) BEFORE
-          // the platform vault is touched. A crash between the two
-          // would otherwise leave the native side wrapping bytes
-          // against a salt that no longer exists on disk →
-          // permanent lockout because the next read re-derives
-          // `_deriveAuth(pin, fresh_salt)` and the chip refuses to
-          // unwrap.
-          final salt = await rust_vault.hardwareTierVaultProvisionSalt(
-            supportDir: dir.path,
-          );
-          final authValue = _deriveAuth(pin, salt);
-          await rust_vault.hardwareTierVaultStore(
-            supportDir: dir.path,
-            dbKey: dbKey,
-            salt: salt,
-            pinHmac: authValue,
-          );
-          return true;
-        } catch (e) {
-          AppLogger.instance.log(
-            'HardwareTierVault.store (Rust): $e',
-            name: 'HardwareTierVault',
-          );
-          return false;
-        }
+      try {
+        final dir = await getApplicationSupportDirectory();
+        // Provision-then-vault: a fresh salt lands on disk
+        // (sibling file on Apple / Windows / Android, no-op on
+        // Linux where the salt embeds inside the envelope) BEFORE
+        // the platform vault is touched. A crash between the two
+        // would otherwise leave the native side wrapping bytes
+        // against a salt that no longer exists on disk →
+        // permanent lockout because the next read re-derives
+        // `_deriveAuth(pin, fresh_salt)` and the chip refuses to
+        // unwrap.
+        final salt = await rust_vault.hardwareTierVaultProvisionSalt(
+          supportDir: dir.path,
+        );
+        final authValue = _deriveAuth(pin, salt);
+        await rust_vault.hardwareTierVaultStore(
+          supportDir: dir.path,
+          dbKey: dbKey,
+          salt: salt,
+          pinHmac: authValue,
+        );
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.store (Rust): $e',
+          name: 'HardwareTierVault',
+        );
+        return false;
       }
-      return false;
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.store failed: $e',
@@ -192,37 +165,34 @@ class HardwareTierVault {
   Future<bool> storeFromSecret({required String secretId, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
-      if (_usesRust) {
-        try {
-          final dir = await getApplicationSupportDirectory();
-          // Salt-then-vault ordering: same rationale as `store`.
-          // Failing the salt provision before touching the vault
-          // means the live state stays whatever it was before this
-          // call started; the user's prior entry (if any) is intact
-          // and the next attempt re-derives a fresh salt cleanly.
-          // On Linux the salt rides inside `hardware_vault.bin`,
-          // so the provision call returns the bytes without writing
-          // a sibling file.
-          final salt = await rust_vault.hardwareTierVaultProvisionSalt(
-            supportDir: dir.path,
-          );
-          final authValue = _deriveAuth(pin, salt);
-          await rust_vault.hardwareTierVaultStoreFromSecret(
-            supportDir: dir.path,
-            secretId: secretId,
-            salt: salt,
-            pinHmac: authValue,
-          );
-          return true;
-        } catch (e) {
-          AppLogger.instance.log(
-            'HardwareTierVault.storeFromSecret (Rust): $e',
-            name: 'HardwareTierVault',
-          );
-          return false;
-        }
+      try {
+        final dir = await getApplicationSupportDirectory();
+        // Salt-then-vault ordering: same rationale as `store`.
+        // Failing the salt provision before touching the vault
+        // means the live state stays whatever it was before this
+        // call started; the user's prior entry (if any) is intact
+        // and the next attempt re-derives a fresh salt cleanly.
+        // On Linux the salt rides inside `hardware_vault.bin`,
+        // so the provision call returns the bytes without writing
+        // a sibling file.
+        final salt = await rust_vault.hardwareTierVaultProvisionSalt(
+          supportDir: dir.path,
+        );
+        final authValue = _deriveAuth(pin, salt);
+        await rust_vault.hardwareTierVaultStoreFromSecret(
+          supportDir: dir.path,
+          secretId: secretId,
+          salt: salt,
+          pinHmac: authValue,
+        );
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.storeFromSecret (Rust): $e',
+          name: 'HardwareTierVault',
+        );
+        return false;
       }
-      return false;
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.storeFromSecret failed: $e',
@@ -233,8 +203,8 @@ class HardwareTierVault {
   }
 
   /// Unseal the DB key using [pin]. Returns null on wrong PIN,
-  /// missing state, unsupported platform, or any other failure —
-  /// the rate limiter layered on top is responsible for backoff.
+  /// missing state, or any other failure — the rate limiter layered
+  /// on top is responsible for backoff.
   ///
   /// When [pin] is null or empty the derivation mirrors [store]'s
   /// passwordless branch (empty auth value), so a vault sealed
@@ -242,34 +212,29 @@ class HardwareTierVault {
   Future<Uint8List?> read(String? pin) async {
     try {
       if (!await isAvailable()) return null;
-      if (_usesRust) {
-        try {
-          final dir = await getApplicationSupportDirectory();
-          // Linux co-locates salt inside `hardware_vault.bin` and
-          // exposes it via `hardwareTierVaultReadBlobSalt`. Apple /
-          // Android / Windows keep it on disk in the sibling
-          // `hardware_vault_salt.bin` read via
-          // `hardwareTierVaultReadSalt`.
-          final salt = Platform.isLinux
-              ? rust_vault.hardwareTierVaultReadBlobSalt(supportDir: dir.path)
-              : await rust_vault.hardwareTierVaultReadSalt(
-                  supportDir: dir.path,
-                );
-          if (salt == null) return null;
-          final authValue = _deriveAuth(pin, salt);
-          return await rust_vault.hardwareTierVaultRead(
-            supportDir: dir.path,
-            pinHmac: authValue,
-          );
-        } catch (e) {
-          AppLogger.instance.log(
-            'HardwareTierVault.read (Rust): $e',
-            name: 'HardwareTierVault',
-          );
-          return null;
-        }
+      try {
+        final dir = await getApplicationSupportDirectory();
+        // Linux co-locates salt inside `hardware_vault.bin` and
+        // exposes it via `hardwareTierVaultReadBlobSalt`. Apple /
+        // Android / Windows keep it on disk in the sibling
+        // `hardware_vault_salt.bin` read via
+        // `hardwareTierVaultReadSalt`.
+        final salt = Platform.isLinux
+            ? rust_vault.hardwareTierVaultReadBlobSalt(supportDir: dir.path)
+            : await rust_vault.hardwareTierVaultReadSalt(supportDir: dir.path);
+        if (salt == null) return null;
+        final authValue = _deriveAuth(pin, salt);
+        return await rust_vault.hardwareTierVaultRead(
+          supportDir: dir.path,
+          pinHmac: authValue,
+        );
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.read (Rust): $e',
+          name: 'HardwareTierVault',
+        );
+        return null;
       }
-      return null;
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.read failed: $e',
@@ -298,7 +263,6 @@ class HardwareTierVault {
   /// reports the file's presence regardless so wipe can still clean
   /// it up.
   Future<bool> isBiometricPasswordStored() async {
-    if (!_usesRust) return false;
     try {
       final dir = await getApplicationSupportDirectory();
       return await rust_vault.hardwareTierVaultIsBiometricPasswordStored(
@@ -317,32 +281,29 @@ class HardwareTierVault {
   /// on PIN change (before a new [store]).
   Future<void> clear() async {
     try {
-      if (_usesRust) {
-        try {
-          final dir = await getApplicationSupportDirectory();
-          await rust_vault.hardwareTierVaultClear(supportDir: dir.path);
-        } catch (e) {
-          // Best-effort — the salt file is authoritative for "is
-          // stored" on Apple / Android / Windows, so failing the
-          // Rust-side clear still degrades safely into "locked out".
-          // Log so a support trace points at a stale native-side
-          // blob the next tier-switch has to tolerate. Linux
-          // co-locates both halves so the Rust clear *is* the whole
-          // clear; failure there leaves a stuck file the next
-          // attempt overwrites.
-          AppLogger.instance.log(
-            'HardwareTierVault.clear (Rust) failed (salt delete continues): $e',
-            name: 'HardwareTierVault',
-          );
-        }
-        // Apple / Android / Windows keep the salt in a sibling
-        // file; drop it Rust-side now. Linux co-locates the salt
-        // inside the envelope and is already cleared above.
-        if (!Platform.isLinux) {
-          final dir = await getApplicationSupportDirectory();
-          await rust_vault.hardwareTierVaultDeleteSalt(supportDir: dir.path);
-        }
-        return;
+      try {
+        final dir = await getApplicationSupportDirectory();
+        await rust_vault.hardwareTierVaultClear(supportDir: dir.path);
+      } catch (e) {
+        // Best-effort — the salt file is authoritative for "is
+        // stored" on Apple / Android / Windows, so failing the
+        // Rust-side clear still degrades safely into "locked out".
+        // Log so a support trace points at a stale native-side
+        // blob the next tier-switch has to tolerate. Linux
+        // co-locates both halves so the Rust clear *is* the whole
+        // clear; failure there leaves a stuck file the next
+        // attempt overwrites.
+        AppLogger.instance.log(
+          'HardwareTierVault.clear (Rust) failed (salt delete continues): $e',
+          name: 'HardwareTierVault',
+        );
+      }
+      // Apple / Android / Windows keep the salt in a sibling
+      // file; drop it Rust-side now. Linux co-locates the salt
+      // inside the envelope and is already cleared above.
+      if (!Platform.isLinux) {
+        final dir = await getApplicationSupportDirectory();
+        await rust_vault.hardwareTierVaultDeleteSalt(supportDir: dir.path);
       }
     } catch (e) {
       AppLogger.instance.log(
