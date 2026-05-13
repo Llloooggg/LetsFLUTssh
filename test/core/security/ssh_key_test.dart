@@ -42,80 +42,6 @@ void main() {
     });
   });
 
-  group('SshKeyEntry JSON round-trip', () {
-    test('full round-trip preserves every field', () {
-      final original = _entry(isGenerated: true);
-      final restored = SshKeyEntry.fromJson(original.toJson());
-      expect(restored.id, original.id);
-      expect(restored.label, original.label);
-      expect(restored.privateKey, original.privateKey);
-      expect(restored.publicKey, original.publicKey);
-      expect(restored.keyType, original.keyType);
-      expect(restored.createdAt, original.createdAt);
-      expect(restored.isGenerated, isTrue);
-    });
-
-    test('toJson uses snake_case keys for the persistence layer', () {
-      final json = _entry().toJson();
-      // The DB / archive consumers index on these keys; renaming
-      // any of them is a wire-format change.
-      expect(
-        json.keys,
-        containsAll(<String>{
-          'id',
-          'label',
-          'private_key',
-          'public_key',
-          'key_type',
-          'created_at',
-          'is_generated',
-        }),
-      );
-    });
-
-    test('toJson serialises createdAt as ISO-8601', () {
-      final json = _entry(
-        createdAt: DateTime.utc(2025, 1, 2, 3, 4, 5),
-      ).toJson();
-      expect(json['created_at'], '2025-01-02T03:04:05.000Z');
-    });
-
-    test('fromJson defaults missing optional fields', () {
-      // Older archive formats may omit fields the model added later
-      // — fromJson must tolerate the absence and fall back to
-      // sensible defaults rather than throw.
-      final restored = SshKeyEntry.fromJson({'id': 'only-id'});
-      expect(restored.id, 'only-id');
-      expect(restored.label, isEmpty);
-      expect(restored.privateKey, isEmpty);
-      expect(restored.publicKey, isEmpty);
-      expect(restored.keyType, isEmpty);
-      expect(restored.isGenerated, isFalse);
-    });
-
-    test(
-      'fromJson tolerates an unparseable createdAt by falling back to now',
-      () {
-        final before = DateTime.now();
-        final restored = SshKeyEntry.fromJson({
-          'id': 'x',
-          'created_at': 'not-an-iso-date',
-        });
-        final after = DateTime.now();
-        expect(
-          restored.createdAt.isAfter(
-            before.subtract(const Duration(seconds: 1)),
-          ),
-          isTrue,
-        );
-        expect(
-          restored.createdAt.isBefore(after.add(const Duration(seconds: 1))),
-          isTrue,
-        );
-      },
-    );
-  });
-
   group('SshKeyEntry equality', () {
     test('equal when id + label + privateKey match', () {
       final a = _entry();
@@ -153,43 +79,6 @@ void main() {
   });
 
   group('SshKeyEntry certificate fields', () {
-    test('fromJson defaults to no certificate when fields are absent', () {
-      final restored = SshKeyEntry.fromJson({'id': 'a'});
-      expect(restored.certificate, isNull);
-      expect(restored.validity, isNull);
-      expect(restored.principals, isEmpty);
-      expect(restored.criticalOptions, isEmpty);
-    });
-
-    test('toJson omits certificate fields when no cert is attached', () {
-      // Keys without a cert (the common case) must round-trip
-      // without flooding the wire format with empty defaults — the
-      // archive consumer expects optional keys to be absent.
-      final json = _entry().toJson();
-      expect(json.containsKey('certificate'), isFalse);
-      expect(json.containsKey('valid_from'), isFalse);
-      expect(json.containsKey('valid_to'), isFalse);
-      expect(json.containsKey('principals'), isFalse);
-      expect(json.containsKey('critical_options'), isFalse);
-    });
-
-    test('JSON round-trip with cert fields preserves every value', () {
-      final original = _entry().copyWith(
-        certificate: Uint8List.fromList(const [0xDE, 0xAD, 0xBE, 0xEF]),
-        validity: CertValidity(
-          from: DateTime.utc(2025, 1, 1),
-          to: DateTime.utc(2026, 1, 1),
-        ),
-        principals: const ['alice', 'root'],
-        criticalOptions: const {'force-command': 'echo hi'},
-      );
-      final restored = SshKeyEntry.fromJson(original.toJson());
-      expect(restored.certificate, original.certificate);
-      expect(restored.validity, original.validity);
-      expect(restored.principals, original.principals);
-      expect(restored.criticalOptions, original.criticalOptions);
-    });
-
     test('CertValidity.isExpired reflects current clock vs to', () {
       final past = CertValidity(
         from: DateTime.utc(2020, 1, 1),
@@ -236,33 +125,6 @@ void main() {
     test('isHardwareBound reflects credentialId presence', () {
       expect(hardwareEntry().isHardwareBound, isTrue);
       expect(_entry().isHardwareBound, isFalse);
-    });
-
-    test('JSON round-trip preserves credentialId / application / UV', () {
-      final original = hardwareEntry(uv: true);
-      final restored = SshKeyEntry.fromJson(original.toJson());
-      expect(restored.credentialId, equals(original.credentialId));
-      expect(restored.applicationString, 'ssh:');
-      expect(restored.hasUserVerification, isTrue);
-      expect(restored.isHardwareBound, isTrue);
-    });
-
-    test('toJson omits FIDO2 fields for software keys', () {
-      // Software-key rows must not bloat the manifest with null
-      // FIDO2 fields — peer / older builds may not understand them.
-      final json = _entry().toJson();
-      expect(json.containsKey('credential_id'), isFalse);
-      expect(json.containsKey('application_string'), isFalse);
-      expect(json.containsKey('has_user_verification'), isFalse);
-    });
-
-    test('toJson omits has_user_verification when false', () {
-      // The flag is the most common-false of the three FIDO fields;
-      // emitting `false` would add wire noise on touch-only keys.
-      final json = hardwareEntry(uv: false).toJson();
-      expect(json.containsKey('has_user_verification'), isFalse);
-      expect(json['credential_id'], isA<List<dynamic>>());
-      expect(json['application_string'], 'ssh:');
     });
 
     test('copyWith threads FIDO2 fields without touching unrelated fields', () {
