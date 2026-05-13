@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
+import 'package:letsflutssh/src/rust/api/installer.dart' as rust_installer;
 import 'package:letsflutssh/src/rust/api/update_http.dart' as rust_update_http;
 
 import '../../helpers/frb_bootstrap.dart';
@@ -908,126 +909,150 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.openFile (platform injected via constructor)
+  // UpdateService.openFile (platform + InstallerOpener injected via
+  // constructor)
   // ===========================================================================
   //
-  // Spec (derived from update_service.openFile source): pick a host-specific
-  // "open this file" command from the platform string, pass the path, and
-  // return whether the process exited cleanly. Windows additionally refuses
-  // paths carrying shell metacharacters because cmd /c start would interpret
-  // them. Unsupported platforms (e.g. 'android', 'unknown') must refuse
-  // without spawning a process.
+  // Spec (derived from update_service.openFile source): hand the path +
+  // platform string off to the installer-launch perimeter (which lives in
+  // `lfs_os_security::installer_launch` in production, swapped for a
+  // scripted [InstallerOpener] in tests) and translate the typed
+  // [rust_installer.InstallerLaunchOutcome] into the bool the UI expects —
+  // `true` only on [InstallerLaunchOutcome.launched]. Every other variant
+  // (`refusedUnsafePath`, `unsupportedPlatform`, `launchFailed`) surfaces as
+  // `false` and lets Settings fall back to opening the GitHub release page.
+  //
+  // Tests below never call `openFile` without injecting `openInstaller`: the
+  // default binding routes through the real FRB shim, which on Linux/WSL
+  // would spawn `xdg-open` and pop a Windows file-association dialog.
   group('UpdateService.openFile', () {
-    test('linux opens via xdg-open and returns true on exit 0', () async {
-      String? capturedExe;
-      List<String>? capturedArgs;
-      final service = UpdateService(
-        platform: 'linux',
-        runProcess: (exe, args) async {
-          capturedExe = exe;
-          capturedArgs = args;
-          return ProcessResult(0, 0, '', '');
-        },
-      );
-
-      final ok = await service.openFile('/tmp/test.AppImage');
-
-      expect(ok, isTrue);
-      expect(capturedExe, 'xdg-open');
-      expect(capturedArgs, ['/tmp/test.AppImage']);
-    });
-
-    test('macos opens via /usr/bin/open and returns true on exit 0', () async {
-      String? capturedExe;
-      List<String>? capturedArgs;
-      final service = UpdateService(
-        platform: 'macos',
-        runProcess: (exe, args) async {
-          capturedExe = exe;
-          capturedArgs = args;
-          return ProcessResult(0, 0, '', '');
-        },
-      );
-
-      final ok = await service.openFile('/Applications/App.dmg');
-
-      expect(ok, isTrue);
-      expect(capturedExe, 'open');
-      expect(capturedArgs, ['/Applications/App.dmg']);
-    });
-
-    test('windows opens via cmd /c start with empty title slot', () async {
-      // The empty string between `start` and `path` is the window title
-      // placeholder — mandatory when the path is quoted, and a common source
-      // of bugs when people omit it. Test asserts the exact arg vector.
-      String? capturedExe;
-      List<String>? capturedArgs;
-      final service = UpdateService(
-        platform: 'windows',
-        runProcess: (exe, args) async {
-          capturedExe = exe;
-          capturedArgs = args;
-          return ProcessResult(0, 0, '', '');
-        },
-      );
-
-      final ok = await service.openFile(r'C:\Users\me\setup.exe');
-
-      expect(ok, isTrue);
-      expect(capturedExe, 'cmd');
-      expect(capturedArgs, ['/c', 'start', '', r'C:\Users\me\setup.exe']);
-    });
-
-    test('non-zero exit propagates as false on each host platform', () async {
-      for (final platform in ['linux', 'macos', 'windows']) {
+    test(
+      'linux Launched outcome returns true and hits the perimeter',
+      () async {
+        String? capturedPath;
+        String? capturedPlatform;
         final service = UpdateService(
-          platform: platform,
-          runProcess: (_, _) async => ProcessResult(0, 1, '', 'err'),
+          platform: 'linux',
+          openInstaller: (path, platform) async {
+            capturedPath = path;
+            capturedPlatform = platform;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
         );
 
-        expect(
-          await service.openFile('/tmp/x.bin'),
-          isFalse,
-          reason: '$platform should surface non-zero exit as false',
-        );
-      }
-    });
+        final ok = await service.openFile('/tmp/test.AppImage');
+
+        expect(ok, isTrue);
+        expect(capturedPath, '/tmp/test.AppImage');
+        expect(capturedPlatform, 'linux');
+      },
+    );
 
     test(
-      'unsupported platform refuses without calling the process runner',
-      // Spec: on platforms we don't ship self-update for (iOS, fuchsia,
-      // anything not in _selfUpdatablePlatforms) openFile must short-circuit
-      // to false — spawning `xdg-open` on an iPhone would be pure crash bait.
+      'macos Launched outcome returns true and hits the perimeter',
       () async {
-        var processCalled = false;
+        String? capturedPath;
+        String? capturedPlatform;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (path, platform) async {
+            capturedPath = path;
+            capturedPlatform = platform;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile('/Applications/App.dmg');
+
+        expect(ok, isTrue);
+        expect(capturedPath, '/Applications/App.dmg');
+        expect(capturedPlatform, 'macos');
+      },
+    );
+
+    test(
+      'windows Launched outcome returns true and hits the perimeter',
+      () async {
+        String? capturedPath;
+        String? capturedPlatform;
+        final service = UpdateService(
+          platform: 'windows',
+          openInstaller: (path, platform) async {
+            capturedPath = path;
+            capturedPlatform = platform;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile(r'C:\Users\me\setup.exe');
+
+        expect(ok, isTrue);
+        expect(capturedPath, r'C:\Users\me\setup.exe');
+        expect(capturedPlatform, 'windows');
+      },
+    );
+
+    test(
+      'LaunchFailed outcome surfaces as false on every host platform',
+      // Spec: a non-zero exit (or a missing executable) from the perimeter
+      // surfaces as `InstallerLaunchOutcome.launchFailed`. `openFile` must
+      // return false on each supported platform so Settings can fall back to
+      // the browser-reveal path.
+      () async {
+        for (final platform in ['linux', 'macos', 'windows']) {
+          final service = UpdateService(
+            platform: platform,
+            openInstaller: (_, _) async =>
+                const rust_installer.InstallerLaunchOutcome.launchFailed(
+                  exitCode: 1,
+                  stderr: 'err',
+                ),
+          );
+
+          expect(
+            await service.openFile('/tmp/x.bin'),
+            isFalse,
+            reason: '$platform should surface LaunchFailed as false',
+          );
+        }
+      },
+    );
+
+    test(
+      'UnsupportedPlatform outcome refuses without retrying',
+      // Spec: the perimeter answers `UnsupportedPlatform` for any platform
+      // string outside linux/macos/windows. `openFile` must return false and
+      // must not call the opener twice (no fallback retry).
+      () async {
+        var calls = 0;
         final service = UpdateService(
           platform: 'ios',
-          runProcess: (_, _) async {
-            processCalled = true;
-            return ProcessResult(0, 0, '', '');
+          openInstaller: (_, _) async {
+            calls++;
+            return const rust_installer.InstallerLaunchOutcome.unsupportedPlatform();
           },
         );
 
         final ok = await service.openFile('/tmp/anything');
 
         expect(ok, isFalse);
-        expect(processCalled, isFalse);
+        expect(calls, 1);
       },
     );
 
     test(
-      'windows refuses path with shell metacharacter before spawning cmd',
-      // Spec: `cmd /c start` parses `&`, `|`, `<`, `>`, `^`, `%` as shell
-      // metacharacters, so a path containing any of them would either fail
-      // loudly or — worse — execute something unintended. openFile must
-      // reject such paths up front and never spawn cmd.
+      'RefusedUnsafePath outcome surfaces as false without retry',
+      // Spec: when the perimeter's cmd.exe-metacharacter allowlist refuses
+      // the path, `openFile` must return false and must not retry with a
+      // sanitised path. Loops over the six core cmd metacharacters to pin
+      // every-character handling end-to-end.
       () async {
-        var processCalled = false;
+        var calls = 0;
         final service = UpdateService(
           platform: 'windows',
-          runProcess: (_, _) async {
-            processCalled = true;
-            return ProcessResult(0, 0, '', '');
+          openInstaller: (_, _) async {
+            calls++;
+            return const rust_installer.InstallerLaunchOutcome.refusedUnsafePath();
           },
         );
 
@@ -1036,25 +1061,26 @@ void main() {
           expect(
             ok,
             isFalse,
-            reason: 'path with "$ch" should be refused without spawning cmd',
+            reason: 'path with "$ch" should refuse without retry',
           );
         }
-        expect(processCalled, isFalse);
+        expect(calls, 6);
       },
     );
 
     test(
-      'windows with safe path still spawns cmd (regression guard)',
+      'safe windows path reaches the perimeter and Launched returns true',
+      // Paranoid regression guard: realistic Windows paths (spaces, hyphens,
+      // dots, underscores) MUST reach the perimeter and surface as Launched.
+      // If a future Dart-side pre-filter over-rejected safe paths, this
+      // test would catch it because the opener would never be invoked.
       () async {
-        // Paranoid check that the metacharacter filter isn't over-matching and
-        // blocking paths that contain hyphens, dots, underscores, or spaces —
-        // real Windows paths routinely carry these.
-        var processCalled = false;
+        var calls = 0;
         final service = UpdateService(
           platform: 'windows',
-          runProcess: (_, _) async {
-            processCalled = true;
-            return ProcessResult(0, 0, '', '');
+          openInstaller: (_, _) async {
+            calls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
           },
         );
 
@@ -1065,7 +1091,7 @@ void main() {
         ]) {
           expect(await service.openFile(path), isTrue);
         }
-        expect(processCalled, isTrue);
+        expect(calls, 3);
       },
     );
   });

@@ -30,6 +30,7 @@ import 'api/fprintd.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/hello.dart';
 import 'api/host_info.dart';
+import 'api/installer.dart';
 import 'api/keychain_marker.dart';
 import 'api/keychain_password_gate.dart';
 import 'api/keychain_password_gate_actor.dart';
@@ -1008,6 +1009,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  InstallerLaunchOutcome dco_decode_installer_launch_outcome(dynamic raw);
 
   @protected
   KeyMaterial dco_decode_key_material(dynamic raw);
@@ -2487,6 +2491,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  InstallerLaunchOutcome sse_decode_installer_launch_outcome(
+    SseDeserializer deserializer,
+  );
 
   @protected
   KeyMaterial sse_decode_key_material(SseDeserializer deserializer);
@@ -4363,6 +4372,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_installer_launch_outcome(
+    InstallerLaunchOutcome self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_key_material(KeyMaterial self, SseSerializer serializer);

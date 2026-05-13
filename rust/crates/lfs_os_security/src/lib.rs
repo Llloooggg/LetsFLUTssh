@@ -389,6 +389,7 @@ pub mod fido2_broker;
 // helpers gated to a single OS would never see test execution
 // because `rust-cross-check` is compile-validation only.
 pub mod hardware_tier_vault;
+pub mod installer_launch;
 pub mod secure_clipboard;
 pub mod secure_key_storage;
 pub mod session_lock_listener;

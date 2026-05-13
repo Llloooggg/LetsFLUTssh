@@ -32,6 +32,7 @@ pub mod fprintd;
 pub mod hardware_tier_vault;
 pub mod hello;
 pub mod host_info;
+pub mod installer;
 pub mod keychain_marker;
 pub mod keychain_password_gate;
 pub mod keychain_password_gate_actor;

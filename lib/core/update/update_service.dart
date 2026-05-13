@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/installer.dart' as rust_installer;
 import '../../src/rust/api/update_http.dart' as rust_update_http;
 import '../../src/rust/api/update_metadata.dart' as rust_update;
 import '../../utils/logger.dart';
@@ -132,9 +133,25 @@ enum UpdateDownloadPhase {
   verifying,
 }
 
-/// Callback type for running a process — injectable for testing.
-typedef ProcessRunner =
-    Future<ProcessResult> Function(String executable, List<String> arguments);
+/// Callback shape for the installer-launch hand-off — opens a
+/// downloaded artefact under the host's default handler
+/// (`xdg-open` on Linux, `/usr/bin/open` on macOS, `cmd /c start`
+/// on Windows). Production wires this to the FRB shim
+/// `rust_installer.openInstallerFile`, which routes through the
+/// `lfs_os_security::installer_launch` perimeter so every
+/// subprocess spawn that consumes a user-influenced path lives
+/// in one audited crate. Tests inject a scripted
+/// [rust_installer.InstallerLaunchOutcome] per case so the
+/// branching in [UpdateService.openFile] is exercised without
+/// touching a real subprocess — critical on WSL hosts where
+/// `xdg-open` proxies through `wslu` to the Windows shell and
+/// would surface a file-association dialog for any artefact
+/// path that doesn't already have a Linux MIME handler.
+typedef InstallerOpener =
+    Future<rust_installer.InstallerLaunchOutcome> Function(
+      String path,
+      String platform,
+    );
 
 /// Signature for the FRB download+verify call routed through
 /// [UpdateService.debugDownloadOverride]. Matches the named-parameter
@@ -159,7 +176,7 @@ class UpdateService {
   );
 
   final HttpFetcher _fetch;
-  final ProcessRunner _runProcess;
+  final InstallerOpener _openInstaller;
   final MacosDmgInstaller? _macosDmgInstaller;
 
   /// Platform identifier used by [openFile] to pick the host-specific opener.
@@ -169,13 +186,22 @@ class UpdateService {
 
   UpdateService({
     HttpFetcher? fetch,
-    ProcessRunner? runProcess,
+    InstallerOpener? openInstaller,
     String? platform,
     MacosDmgInstaller? macosDmgInstaller,
   }) : _fetch = fetch ?? defaultFetch,
-       _runProcess = runProcess ?? Process.run,
+       _openInstaller = openInstaller ?? _defaultOpenInstaller,
        _platform = platform ?? _hostPlatform(),
        _macosDmgInstaller = macosDmgInstaller;
+
+  /// Default production binding for [InstallerOpener]: route the
+  /// hand-off through the FRB shim so the subprocess plumbing
+  /// (and the Windows allowlist) lives in
+  /// `lfs_os_security::installer_launch`.
+  static Future<rust_installer.InstallerLaunchOutcome> _defaultOpenInstaller(
+    String path,
+    String platform,
+  ) => rust_installer.openInstallerFile(path: path, platform: platform);
 
   /// Test seam for the FRB download+verify call. Production never
   /// sets this — [downloadAsset] then routes through
@@ -370,16 +396,6 @@ class UpdateService {
     return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
 
-  /// Characters that must not appear in file paths passed to
-  /// `cmd /c start`. The list covers every metacharacter cmd.exe
-  /// interprets (`& | < > ^ %`) plus the quote / paren / backtick /
-  /// semicolon characters the audit flagged: a hostile installer
-  /// path like `update";calc.exe;` would otherwise inject a
-  /// command substitution past the `start ""` argument boundary.
-  /// Paths that hit the gate fall back to opening the GitHub
-  /// release page in a browser instead.
-  static final _unsafePathChars = RegExp(r'''[&|<>^%"'`();]''');
-
   /// Platforms where the app can launch a platform-native installer for
   /// a downloaded artefact (AppImage / .exe / .dmg via `xdg-open` / `cmd
   /// start` / `open`). Anything outside this set must fall back to
@@ -398,25 +414,24 @@ class UpdateService {
   bool get canLaunchInstaller => _platformsWithInstaller.contains(_platform);
 
   /// Open a downloaded file using the platform's default handler.
+  ///
+  /// The actual subprocess hand-off lives in
+  /// `lfs_os_security::installer_launch` — every spawn that
+  /// consumes a user-influenced path runs through the single
+  /// audited perimeter crate. Here on the Dart side we only:
+  ///
+  /// 1. Try the native macOS atomic-swap installer first when
+  ///    the artefact is a `.dmg` and a [MacosDmgInstaller] is
+  ///    wired in. A `true` return means the new bundle is
+  ///    already running; a `false` return signals "fall back to
+  ///    the Finder-reveal path" and we continue to step 2.
+  /// 2. Hand the path + platform string off through
+  ///    [_openInstaller] and translate the typed
+  ///    [rust_installer.InstallerLaunchOutcome] into the Dart
+  ///    bool the UI surface expects (`true` only for
+  ///    [rust_installer.InstallerLaunchOutcome_Launched]).
   Future<bool> openFile(String path) async {
-    ProcessResult result;
-    if (_platform == 'linux') {
-      AppLogger.instance.log(
-        'Opening file with xdg-open: $path',
-        name: 'UpdateService',
-      );
-      result = await _runProcess('xdg-open', [path]);
-    } else if (_platform == 'macos') {
-      // When a `MacosDmgInstaller` is wired in and the artefact is a
-      // `.dmg`, try the native atomic-swap install first (hdiutil →
-      // rsync → re-sign → verify → atomic rename). On a `true` return
-      // the installer has already relaunched the new bundle; on
-      // `false` fall back to the `open <dmg>` Finder reveal so the
-      // user can still drag the .app manually when the silent path
-      // is unavailable (no write permission on the install parent,
-      // missing `rsync` binary, etc.). Layer-clean: the callback
-      // lives at the UI wiring point; core/update doesn't import
-      // from `lib/platform/`.
+    if (_platform == 'macos') {
       final installer = _macosDmgInstaller;
       if (installer != null && path.toLowerCase().endsWith('.dmg')) {
         AppLogger.instance.log(
@@ -430,32 +445,38 @@ class UpdateService {
           name: 'UpdateService',
         );
       }
-      AppLogger.instance.log(
-        'Opening file with open: $path',
-        name: 'UpdateService',
-      );
-      result = await _runProcess('open', [path]);
-    } else if (_platform == 'windows') {
-      if (_unsafePathChars.hasMatch(path)) {
+    }
+    AppLogger.instance.log(
+      'Opening file via installer-launch perimeter ($_platform): $path',
+      name: 'UpdateService',
+    );
+    final outcome = await _openInstaller(path, _platform);
+    switch (outcome) {
+      case rust_installer.InstallerLaunchOutcome_Launched():
+        return true;
+      case rust_installer.InstallerLaunchOutcome_RefusedUnsafePath():
         AppLogger.instance.log(
           'Refusing to open path with unsafe characters: $path',
           name: 'UpdateService',
         );
         return false;
-      }
-      AppLogger.instance.log(
-        'Opening file with cmd /c start: $path',
-        name: 'UpdateService',
-      );
-      result = await _runProcess('cmd', ['/c', 'start', '', path]);
-    } else {
-      AppLogger.instance.log(
-        'Cannot open file: unsupported platform',
-        name: 'UpdateService',
-      );
-      return false;
+      case rust_installer.InstallerLaunchOutcome_UnsupportedPlatform():
+        AppLogger.instance.log(
+          'Cannot open file: unsupported platform',
+          name: 'UpdateService',
+        );
+        return false;
+      case rust_installer.InstallerLaunchOutcome_LaunchFailed(
+        :final exitCode,
+        :final stderr,
+      ):
+        AppLogger.instance.log(
+          'Installer launch failed (exit=$exitCode, stderr=$stderr)',
+          name: 'UpdateService',
+          level: LogLevel.warn,
+        );
+        return false;
     }
-    return result.exitCode == 0;
   }
 
   // ---------------------------------------------------------------------------
