@@ -524,18 +524,11 @@ class SessionNotifier extends Notifier<List<Session>> {
       final folderId = findFolderIdByPath(folderPath, _folderMap);
       if (folderId != null) {
         await rust_db.dbFoldersToggleCollapsed(id: folderId);
-        // Refresh cache row so subsequent reads see the new flag.
-        final row = _folderMap[folderId];
-        if (row != null) {
-          _folderMap[folderId] = rust_db.DbFolder(
-            id: row.id,
-            name: row.name,
-            parentId: row.parentId,
-            sortOrder: row.sortOrder,
-            collapsed: !row.collapsed,
-            createdAtMs: row.createdAtMs,
-          );
-        }
+        // `db_folders_toggle_collapsed` emits a `SessionsChanged`
+        // bus event on success; the subscriber wired in `build()`
+        // re-runs `_doLoad` which rebuilds `_folderMap` from the
+        // registry. No optimistic Dart-side patch — the cache is
+        // Rust-owned and stays in sync via the bus tick.
       }
     } catch (e) {
       AppLogger.instance.log(
