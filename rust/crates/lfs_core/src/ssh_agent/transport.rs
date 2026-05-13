@@ -30,6 +30,7 @@
 //! cfg-gated to the platform; mobile builds return `Err(Unsupported)`
 //! via the stub module.
 
+#[cfg(unix)]
 use std::path::PathBuf;
 
 use crate::error::Error;
@@ -130,11 +131,10 @@ pub fn cleanup_windows(_path: &str) {
     // us. Nothing to do here.
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn unix_socket_path_uses_pid_suffix() {
         let path = unix_socket_path();
@@ -148,10 +148,8 @@ mod tests {
     /// race for the same socket file. A `Mutex<()>` is enough —
     /// the test runner schedules tests across threads but never
     /// against the same lock concurrently.
-    #[cfg(unix)]
     static UNIX_BIND_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn bind_unix_creates_owner_only_parent() {
         use std::os::unix::fs::PermissionsExt;
@@ -165,7 +163,6 @@ mod tests {
         cleanup_unix(&path);
     }
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn bind_unix_replaces_stale_socket() {
         let _g = UNIX_BIND_LOCK.lock().unwrap_or_else(|e| e.into_inner());

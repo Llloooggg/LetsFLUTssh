@@ -100,16 +100,15 @@ use std::ptr;
 
 // `security-framework-sys` doesn't re-export every Security.framework
 // symbol we need. `kSecAttrApplicationTag`,
-// `kSecUseAuthenticationContext`, the ECDSA-message algorithm, and
-// `kSecAttrApplicationLabel` are re-declared here as `extern "C"`
-// statics — the linker resolves them against Security.framework
-// at load time on every macOS / iOS host. Same pattern the T2
-// hardware-vault path uses for the application tag.
+// `kSecUseAuthenticationContext`, and the ECDSA-message algorithm
+// are re-declared here as `extern "C"` statics — the linker resolves
+// them against Security.framework at load time on every macOS / iOS
+// host. Same pattern the T2 hardware-vault path uses for the
+// application tag.
 extern "C" {
     static kSecAttrApplicationTag: CFStringRef;
     static kSecUseAuthenticationContext: CFStringRef;
     static kSecKeyAlgorithmECDSASignatureMessageX962SHA256: CFStringRef;
-    static kSecAttrApplicationLabel: CFStringRef;
     // `security-framework-sys` exports `kSecMatchLimit` (the attr
     // key) and `kSecMatchLimitAll` (a value), but not
     // `kSecMatchLimitOne`. Re-declare it here as an extern static so

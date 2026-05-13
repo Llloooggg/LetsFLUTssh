@@ -24,7 +24,7 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         lint-workflows lint-release-hardening rust-mutants \
         dart-test dart-lint dart-format dart-format-check \
         rust-format rust-format-check rust-lint rust-lint-host rust-test rust-build rust-codegen rust-clean rust-machete rust-coverage \
-        rust-lint-android rust-lint-windows-gnu rust-lint-ios rust-lint-macos-arm
+        rust-lint-android rust-lint-android-workspace rust-lint-windows-gnu rust-lint-ios rust-lint-macos-arm
 
 all: build
 
@@ -366,17 +366,42 @@ rust-lint-host: ## clippy lint for the host target (whole workspace, deny warnin
 #
 # Requires `rustup target add aarch64-linux-android
 # x86_64-pc-windows-gnu aarch64-apple-ios aarch64-apple-darwin`.
-rust-lint-android: ## clippy lint for aarch64-linux-android (lfs_os_security only)
+# Cross-target lints. The Windows-GNU + Apple targets run
+# `--workspace --exclude lfs_fuzz` so cfg-gated code lives wherever
+# it actually lives — `lfs_os_security` for FFI shims, `lfs_core`
+# for `platform/*` glue + Windows-cfg branches inside transport /
+# fs / recorder helpers, `lfs_frb` for per-OS FRB shims
+# (`api/hello.rs`, `api/enclave.rs`, `api/macos_*.rs`). Limiting
+# to `-p lfs_os_security` (the previous shape) missed every
+# FRB-layer cfg-leak.
+#
+# Android is the exception: `lfs_core → rusqlite →
+# bundled-sqlcipher-vendored-openssl` requires a target C compiler
+# (Android NDK) the dev host typically does not have on PATH.
+# CI provisions it via `cargo-ndk`; locally we stay narrow on
+# `-p lfs_os_security` (which itself stops short of OpenSSL) so
+# `make rust-lint` works without an NDK install. Devs who want the
+# wider Android workspace lint run `rust-lint-android-workspace`
+# opt-in (requires NDK on PATH).
+#
+# `lfs_fuzz` is excluded everywhere because `libfuzzer-sys` needs
+# its own target C compiler that rustup does not ship per
+# cross-target — its host-only fuzz coverage stays under
+# `make fuzz-build`.
+rust-lint-android: ## clippy lint for aarch64-linux-android (lfs_os_security; no NDK needed)
 	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-linux-android --all-targets --locked -- -D warnings
 
-rust-lint-windows-gnu: ## clippy lint for x86_64-pc-windows-gnu (lfs_os_security only)
-	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target x86_64-pc-windows-gnu --all-targets --locked -- -D warnings
+rust-lint-android-workspace: ## clippy lint for aarch64-linux-android (full workspace; requires Android NDK on PATH)
+	cd $(RUST_DIR) && cargo clippy --workspace --exclude lfs_fuzz --target aarch64-linux-android --all-targets --locked -- -D warnings
 
-rust-lint-ios: ## clippy lint for aarch64-apple-ios (lfs_os_security only)
-	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-apple-ios --all-targets --locked -- -D warnings
+rust-lint-windows-gnu: ## clippy lint for x86_64-pc-windows-gnu (workspace minus fuzz)
+	cd $(RUST_DIR) && cargo clippy --workspace --exclude lfs_fuzz --target x86_64-pc-windows-gnu --all-targets --locked -- -D warnings
 
-rust-lint-macos-arm: ## clippy lint for aarch64-apple-darwin (lfs_os_security only)
-	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-apple-darwin --all-targets --locked -- -D warnings
+rust-lint-ios: ## clippy lint for aarch64-apple-ios (workspace minus fuzz; macOS hosts)
+	cd $(RUST_DIR) && cargo clippy --workspace --exclude lfs_fuzz --target aarch64-apple-ios --all-targets --locked -- -D warnings
+
+rust-lint-macos-arm: ## clippy lint for aarch64-apple-darwin (workspace minus fuzz; macOS hosts)
+	cd $(RUST_DIR) && cargo clippy --workspace --exclude lfs_fuzz --target aarch64-apple-darwin --all-targets --locked -- -D warnings
 
 rust-test: ## Run Rust tests (unit + integration + doc), --locked enforces Cargo.lock parity
 	cd $(RUST_DIR) && cargo test --workspace --locked

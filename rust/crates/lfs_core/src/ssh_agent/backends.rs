@@ -190,13 +190,17 @@ async fn tpm_sign(row: &SshKeyRow, data: &[u8], flags: u32) -> Result<SignOutput
         .clone()
         .ok_or_else(|| BackendError::Signer(Error::Tpm("row missing tpm_provider".into())))?;
     let key_type = row.key_type.clone();
-    // Inputs captured for the spawn_blocking closure. The `cng_name`
-    // arm is Windows-only — the cfg-attribute-on-binding form
-    // (`#[cfg(target_os = "windows")] let cng_name = ...`) avoids
-    // the unused-variable warning on Linux while keeping the
-    // dispatcher branch reachable.
+    // Inputs captured for the spawn_blocking closure. The Linux blob
+    // path needs the row id (PIN-cache lookup) + the `tpm_pin_required`
+    // flag + the wrapped blob bytes; the Windows PCP-silent path needs
+    // the CNG persistent-key name. Each side gates its bindings via
+    // `#[cfg(target_os = "...")]` on the binding so the unused
+    // variables don't trip clippy on the other host.
+    #[cfg(target_os = "linux")]
     let key_id = row.id.clone();
+    #[cfg(target_os = "linux")]
     let pin_required = row.tpm_pin_required;
+    #[cfg(target_os = "linux")]
     let blob = row.tpm_blob.clone();
     #[cfg(target_os = "windows")]
     let cng_name = row.cng_key_name.clone();
@@ -468,10 +472,12 @@ async fn hello_sign(
 fn ssh_algorithm_for_hello(key_type: &str, flags: u32) -> String {
     match key_type {
         "rsa" | "ssh-rsa" | "rsa-2048" => {
+            // §3.6.1: 0x02 picks SHA-256. Anything else (0x04 set or
+            // no hash flag at all) lands on SHA-512 — stronger-by-
+            // default beats SHA-1-era `ssh-rsa`, which NCrypt SSH
+            // refuses to emit anyway.
             if flags & 0x02 != 0 {
                 "rsa-sha2-256".into()
-            } else if flags & 0x04 != 0 {
-                "rsa-sha2-512".into()
             } else {
                 "rsa-sha2-512".into()
             }

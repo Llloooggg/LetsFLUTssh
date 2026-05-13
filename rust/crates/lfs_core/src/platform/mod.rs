@@ -9,11 +9,12 @@
 #[cfg(target_os = "linux")]
 pub mod linux;
 
-// macOS module is built on Apple targets in production. We
-// also expose it under `cfg(test)` on every host so the
-// MockRunner-driven unit tests run on the Linux dev box. Both
-// flavours compile against pure std + rand — there is no real
-// macOS-only API in the source, only macOS-specific CLI shell
-// outs that the mock substitutes.
-#[cfg(any(target_os = "macos", test))]
+// macOS module is built on Apple targets in production. We also
+// expose it under `cfg(test)` on Unix-like hosts so the
+// MockRunner-driven unit tests run on the Linux dev box. The
+// `unix` arm in the test gate keeps the module out of a Windows
+// test compile (`cargo test --target x86_64-pc-windows-*` or the
+// workspace cross-clippy) — `use std::os::unix::fs::PermissionsExt`
+// inside the macOS shell-out helpers does not resolve on Windows.
+#[cfg(any(target_os = "macos", all(test, unix)))]
 pub mod macos;

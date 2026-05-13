@@ -125,19 +125,25 @@ pub async fn enclave_ssh_generate(
             .map_err(|e| {
                 frb_err::wire(frb_err::kind::ENCLAVE, &format!("spawn_blocking: {e}"))
             })??;
+        // Capture the fields the result envelope needs before the
+        // closure takes ownership of `outcome` — `move` consumes it
+        // for the DB worker, and the post-await `Ok(...)` builds the
+        // FRB return value from the same fields.
+        let result_label = outcome.label.clone();
+        let result_line = outcome.authorized_keys_line.clone();
         // Persist via the shared DB worker pool — runs on the
         // single rusqlite mutex, separate from the keychain
         // round trip above.
         let inserted = crate::api::db::run_db_mut(move |conn| {
             let row = lfs_core::db::ssh_keys::SshKeyRow {
                 id: lfs_core::id::random_handle_hex_32(),
-                label: outcome.label.clone(),
+                label: outcome.label,
                 // Hardware-bound rows keep `private_key` non-empty per
                 // the schema's `NOT NULL` shape; the empty-string
                 // sentinel is the standing convention from the FIDO2
                 // / PKCS#11 paths.
                 private_key: String::new(),
-                public_key: outcome.authorized_keys_line.clone(),
+                public_key: outcome.authorized_keys_line,
                 key_type: "ecdsa-sha2-nistp256".into(),
                 is_generated: true,
                 created_at_ms: now_unix_ms(),
@@ -151,21 +157,25 @@ pub async fn enclave_ssh_generate(
                 pkcs11_token_serial: None,
                 pkcs11_object_id: None,
                 pkcs11_object_label: None,
-                enclave_tag: Some(outcome.application_tag.clone()),
+                enclave_tag: Some(outcome.application_tag),
                 hello_credential_name: None,
                 tpm_blob: None,
                 tpm_handle: None,
                 tpm_provider: None,
                 tpm_pin_required: false,
                 cng_key_name: None,
+                keystore_alias: None,
+                keystore_strongbox: false,
+                keystore_user_auth_required: false,
+                keystore_platform: None,
             };
             lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
         })
         .await?;
         Ok(DbEnclaveImportResult {
             key_id: inserted,
-            label: outcome.label,
-            authorized_keys_line: outcome.authorized_keys_line,
+            label: result_label,
+            authorized_keys_line: result_line,
         })
     }
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]

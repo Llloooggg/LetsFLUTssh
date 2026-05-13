@@ -48,7 +48,7 @@ pub async fn macos_resign_has_identity() -> Result<bool, String> {
             lfs_os_security::macos::code_signing::DEFAULT_COMMON_NAME,
         )
         .await
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::PLATFORM, e))
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -67,7 +67,7 @@ pub async fn macos_resign_ensure_identity() -> Result<bool, String> {
             lfs_os_security::macos::code_signing::DEFAULT_COMMON_NAME,
         )
         .await
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::PLATFORM, e))
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -92,7 +92,7 @@ pub async fn macos_resign_bundle(executable_path: String) -> Result<MacosResignO
         )
         .await
         .map(MacosResignOutcome::from)
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::PLATFORM, e))
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -110,7 +110,7 @@ pub async fn macos_resign_uninstall_identity() -> Result<(), String> {
             lfs_os_security::macos::code_signing::DEFAULT_COMMON_NAME,
         )
         .await
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::PLATFORM, e))
     }
     #[cfg(not(target_os = "macos"))]
     {
