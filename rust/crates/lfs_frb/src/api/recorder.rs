@@ -394,6 +394,38 @@ pub async fn recorder_register_from_active(
     .map_err(|e| format!("recorder register from active task: {e}"))?
 }
 
+/// FRB mirror of [`lfs_core::recorder::reader::DecodedEvent`]:
+/// asciinema-v2 `[timestamp, direction, data]` triple. The
+/// playback dialog dispatches one of these per emitted record;
+/// the wire shape is a flat struct so the Dart side gets the
+/// three fields directly without an intermediate `List<dynamic>`.
+#[derive(Debug, Clone)]
+pub struct DbRecordingEvent {
+    pub timestamp: f64,
+    pub direction: String,
+    pub data: String,
+}
+
+/// Parse one JSON-Lines record from a recording. Returns
+/// `Some(event)` for a 3-tuple event row, `None` for the header
+/// line (object, not array), malformed JSON, or any other shape
+/// the caller should silently skip.
+///
+/// Sync because the playback dialog calls this once per frame
+/// while ticking through the recording's emitted records — an
+/// async hop would force a per-frame `Future.await` on the
+/// rendering path. The wire shape is stable (asciinema v2) and
+/// the cost is dominated by the JSON parse, which the standard
+/// `serde_json` path runs in microseconds.
+#[flutter_rust_bridge::frb(sync)]
+pub fn recorder_decode_event_line(line: String) -> Option<DbRecordingEvent> {
+    lfs_core::recorder::reader::decode_event_line(&line).map(|e| DbRecordingEvent {
+        timestamp: e.timestamp,
+        direction: e.direction,
+        data: e.data,
+    })
+}
+
 /// FRB mirror of [`lfs_core::recorder::RecordDirection`].
 pub enum DbRecordDirection {
     Output,

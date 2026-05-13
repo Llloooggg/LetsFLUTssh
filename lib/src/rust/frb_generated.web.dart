@@ -421,6 +421,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbQrExportInput dco_decode_box_autoadd_db_qr_export_input(dynamic raw);
 
   @protected
+  DbRecordingEvent dco_decode_box_autoadd_db_recording_event(dynamic raw);
+
+  @protected
   DbS3SessionDetails dco_decode_box_autoadd_db_s_3_session_details(dynamic raw);
 
   @protected
@@ -805,6 +808,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecordingEntry dco_decode_db_recording_entry(dynamic raw);
+
+  @protected
+  DbRecordingEvent dco_decode_db_recording_event(dynamic raw);
 
   @protected
   DbReleaseAsset dco_decode_db_release_asset(dynamic raw);
@@ -1267,6 +1273,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbRecordingEvent? dco_decode_opt_box_autoadd_db_recording_event(dynamic raw);
+
+  @protected
   DbS3SessionDetails? dco_decode_opt_box_autoadd_db_s_3_session_details(
     dynamic raw,
   );
@@ -1724,6 +1733,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportInput sse_decode_box_autoadd_db_qr_export_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbRecordingEvent sse_decode_box_autoadd_db_recording_event(
     SseDeserializer deserializer,
   );
 
@@ -2236,6 +2250,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecordingEntry sse_decode_db_recording_entry(SseDeserializer deserializer);
+
+  @protected
+  DbRecordingEvent sse_decode_db_recording_event(SseDeserializer deserializer);
 
   @protected
   DbReleaseAsset sse_decode_db_release_asset(SseDeserializer deserializer);
@@ -2844,6 +2861,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbRecordingEvent? sse_decode_opt_box_autoadd_db_recording_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbS3SessionDetails? sse_decode_opt_box_autoadd_db_s_3_session_details(
     SseDeserializer deserializer,
   );
@@ -3392,6 +3414,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_qr_export_input(
     DbQrExportInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_recording_event(
+    DbRecordingEvent self,
     SseSerializer serializer,
   );
 
@@ -4055,6 +4083,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_recording_entry(
     DbRecordingEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_recording_event(
+    DbRecordingEvent self,
     SseSerializer serializer,
   );
 
@@ -4822,6 +4856,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_open_ssh_import_preview(
     DbOpenSshImportPreview? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_recording_event(
+    DbRecordingEvent? self,
     SseSerializer serializer,
   );
 

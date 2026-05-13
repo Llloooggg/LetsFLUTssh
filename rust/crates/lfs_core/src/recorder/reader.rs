@@ -94,6 +94,71 @@ pub fn open_lfsr_iter(path: &Path, key: [u8; 32]) -> Result<LfsrFrameIter, Reade
     open_lfsr_iter_at(path, key, None)
 }
 
+/// Single asciinema-v2 event: `[timestamp_seconds, direction,
+/// data]`. Mirror of the Dart `RecordingFrame` struct the
+/// playback dialog consumes one per emitted record.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DecodedEvent {
+    pub timestamp: f64,
+    pub direction: String,
+    pub data: String,
+}
+
+/// Parse one JSON-Lines record from a recording. Returns
+/// `Some(event)` when the line is a 3-tuple event, `None` for
+/// the header line (object, not array), malformed JSON, or any
+/// other shape the playback dialog should silently skip.
+///
+/// Lives in `lfs_core::recorder::reader` (not Dart) so the
+/// asciinema-v2 wire shape stays Rust-side; the encrypted-envelope
+/// decode that produces this line already lives here, this is
+/// just the last leaf-parse on the playback stream.
+pub fn decode_event_line(line: &str) -> Option<DecodedEvent> {
+    let value: serde_json::Value = serde_json::from_str(line).ok()?;
+    let arr = value.as_array()?;
+    if arr.len() < 3 {
+        return None;
+    }
+    let timestamp = arr[0].as_f64()?;
+    let direction = arr[1].as_str()?.to_string();
+    let data = arr[2].as_str()?.to_string();
+    Some(DecodedEvent {
+        timestamp,
+        direction,
+        data,
+    })
+}
+
+#[cfg(test)]
+mod decode_event_line_tests {
+    use super::*;
+
+    #[test]
+    fn three_tuple_decodes_to_event() {
+        let e = decode_event_line(r#"[1.5,"o","hello"]"#).unwrap();
+        assert_eq!(e.timestamp, 1.5);
+        assert_eq!(e.direction, "o");
+        assert_eq!(e.data, "hello");
+    }
+
+    #[test]
+    fn header_object_returns_none() {
+        // The first line of an asciinema-v2 cast is the header
+        // object, not an event tuple.
+        assert!(decode_event_line(r#"{"version":2,"width":80}"#).is_none());
+    }
+
+    #[test]
+    fn malformed_json_returns_none() {
+        assert!(decode_event_line("not json").is_none());
+    }
+
+    #[test]
+    fn two_tuple_returns_none() {
+        assert!(decode_event_line(r#"[1.5,"o"]"#).is_none());
+    }
+}
+
 /// `open_lfsr_iter` with an optional pre-positioned byte offset for
 /// scrub-bar seek. The offset MUST land on a frame boundary the
 /// sidecar `.idx` produced (otherwise the next `[len][nonce][ct]`

@@ -208,22 +208,17 @@ class RecordingReader {
 }
 
 /// Parse a raw JSON-Lines record from the recording into either a
-/// header object or an event tuple. Caller dispatches on
-/// [RecordingFrame] vs [RecordingHeader].
+/// header object or an event tuple. Routes through the Rust-side
+/// `recorder_decode_event_line` so the asciinema-v2 wire shape
+/// stays in one place — the encrypted-envelope decode that
+/// produces this line already lives Rust-side. Caller dispatches
+/// on [RecordingFrame] vs the header (returned as `null` from
+/// here; the playback dialog reads the header line through a
+/// dedicated path).
 RecordingFrame? decodeEventLine(String line) {
-  try {
-    final v = jsonDecode(line);
-    if (v is List && v.length >= 3) {
-      return RecordingFrame(
-        (v[0] as num).toDouble(),
-        v[1] as String,
-        v[2] as String,
-      );
-    }
-  } catch (_) {
-    // Header line or malformed record — caller treats as skip.
-  }
-  return null;
+  final event = rust_recorder.recorderDecodeEventLine(line: line);
+  if (event == null) return null;
+  return RecordingFrame(event.timestamp, event.direction, event.data);
 }
 
 /// Thin wrapper around a single JSON-Lines record yielded by the

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `read_cap_from_store`, `recorder_open_for_playback_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -126,6 +126,20 @@ Future<DbRecorderSnapshot> recorderRegisterFromActive({
   sessionId: sessionId,
   path: path,
 );
+
+/// Parse one JSON-Lines record from a recording. Returns
+/// `Some(event)` for a 3-tuple event row, `None` for the header
+/// line (object, not array), malformed JSON, or any other shape
+/// the caller should silently skip.
+///
+/// Sync because the playback dialog calls this once per frame
+/// while ticking through the recording's emitted records — an
+/// async hop would force a per-frame `Future.await` on the
+/// rendering path. The wire shape is stable (asciinema v2) and
+/// the cost is dominated by the JSON parse, which the standard
+/// `serde_json` path runs in microseconds.
+DbRecordingEvent? recorderDecodeEventLine({required String line}) =>
+    RustLib.instance.api.crateApiRecorderRecorderDecodeEventLine(line: line);
 
 /// Compose the asciinema v2 header line for the registered
 /// recording (`{"version": 2, "width": …, "height": …,
@@ -450,6 +464,35 @@ class DbRecordingEntry {
           sizeBytes == other.sizeBytes &&
           mtimeUnixSecs == other.mtimeUnixSecs &&
           encrypted == other.encrypted;
+}
+
+/// FRB mirror of [`lfs_core::recorder::reader::DecodedEvent`]:
+/// asciinema-v2 `[timestamp, direction, data]` triple. The
+/// playback dialog dispatches one of these per emitted record;
+/// the wire shape is a flat struct so the Dart side gets the
+/// three fields directly without an intermediate `List<dynamic>`.
+class DbRecordingEvent {
+  final double timestamp;
+  final String direction;
+  final String data;
+
+  const DbRecordingEvent({
+    required this.timestamp,
+    required this.direction,
+    required this.data,
+  });
+
+  @override
+  int get hashCode => timestamp.hashCode ^ direction.hashCode ^ data.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbRecordingEvent &&
+          runtimeType == other.runtimeType &&
+          timestamp == other.timestamp &&
+          direction == other.direction &&
+          data == other.data;
 }
 
 /// FRB mirror of [`lfs_core::recorder::index_sidecar::SeekHit`].
