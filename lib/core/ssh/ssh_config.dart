@@ -131,7 +131,18 @@ class SSHConfig {
   String get passphrase => auth.passphrase;
   bool get hasAuth => auth.hasAuth;
 
-  /// Validate required fields. Returns error message or null.
+  /// Validate required fields for a freshly-edited config.
+  ///
+  /// Form-level "is the empty / range basics" check that the
+  /// session-edit dialog runs before submit. The architectural
+  /// rule "validation belongs Rust-side" carves out
+  /// "form-level field validation for empty/format checks before
+  /// submission" (CLAUDE.md → conventions). The fields covered
+  /// here are pure UI-form constraints (required text non-empty,
+  /// integer in range); the deeper "is this a runnable SSH
+  /// config" check happens Rust-side on actual connect. Keeping
+  /// the validator Dart-side keeps the dialog's per-keystroke
+  /// feedback synchronous.
   String? validate() {
     if (host.trim().isEmpty) return 'Host is required';
     if (port < 1 || port > 65535) return 'Port must be 1-65535';
