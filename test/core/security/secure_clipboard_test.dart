@@ -35,58 +35,42 @@ void main() {
     expect(stockText, isNull, reason: 'stock path must not run on success');
   });
 
-  test('Linux falls back to stock clipboard on Rust failure', () async {
-    String? stockText;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-          if (call.method == 'Clipboard.setData') {
-            stockText = (call.arguments as Map?)?['text'] as String?;
-          }
-          return null;
-        });
+  for (final os in const ['linux', 'windows', 'macos', 'ios', 'android']) {
+    test(
+      '$os refuses the write on Rust failure (single audit perimeter)',
+      () async {
+        // Every platform routes through the Rust `set_secure_text`
+        // helper — the single audit perimeter for clipboard writes.
+        // A stock `Clipboard.setData` fallback would either deposit
+        // the secret on the cloud-syncing pasteboard (Win+V history,
+        // Universal Clipboard, Handoff, Android 13+ history preview)
+        // without the per-platform "do not sync, do not history"
+        // markers, or — on Linux — route around the Rust perimeter
+        // entirely. Refusing the copy and surfacing a "copy failed"
+        // toast is strictly safer than either.
+        String? stockText;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                stockText = (call.arguments as Map?)?['text'] as String?;
+              }
+              return null;
+            });
 
-    final clip = SecureClipboard(
-      rustWriter: (_) => throw StateError('Rust unavailable'),
-      platformOs: 'linux',
+        final clip = SecureClipboard(
+          rustWriter: (_) => throw StateError('Rust unavailable'),
+          platformOs: os,
+        );
+
+        final landed = await clip.setText('hunter2');
+
+        expect(landed, isFalse, reason: '$os must refuse on Rust failure');
+        expect(
+          stockText,
+          isNull,
+          reason: '$os must NOT touch the stock clipboard',
+        );
+      },
     );
-
-    final landed = await clip.setText('hunter2');
-
-    expect(landed, isTrue, reason: 'Linux fallback must land the copy');
-    expect(stockText, 'hunter2');
-  });
-
-  for (final os in const ['windows', 'macos', 'ios', 'android']) {
-    test('$os refuses the write on Rust failure (cloud-sync gate)', () async {
-      // The opt-out flags are part of the same write session as the
-      // text. A stock `Clipboard.setData` fallback would deposit the
-      // secret on the cloud-syncing pasteboard (Win+V history,
-      // Universal Clipboard, Handoff, Android 13+ history preview)
-      // without the per-platform "do not sync, do not history"
-      // markers — strictly worse than refusing the copy and
-      // surfacing a "copy failed" toast to the user.
-      String? stockText;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-            if (call.method == 'Clipboard.setData') {
-              stockText = (call.arguments as Map?)?['text'] as String?;
-            }
-            return null;
-          });
-
-      final clip = SecureClipboard(
-        rustWriter: (_) => throw StateError('Rust unavailable'),
-        platformOs: os,
-      );
-
-      final landed = await clip.setText('hunter2');
-
-      expect(landed, isFalse, reason: '$os must refuse on Rust failure');
-      expect(
-        stockText,
-        isNull,
-        reason: '$os must NOT touch the stock clipboard',
-      );
-    });
   }
 }

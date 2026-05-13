@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/secure_clipboard.dart';
 import 'package:letsflutssh/features/session_manager/qr_display_screen.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
@@ -151,16 +151,17 @@ void main() {
     });
 
     testWidgets('Copy Link button copies data to clipboard', (tester) async {
+      // The Copy Link button routes through `SecureClipboard()` for a
+      // non-credentials payload (deep link) and through
+      // `ClipboardSecret()` for a credentials payload. The
+      // `debugRustWriterOverride` seam stands in for the FRB-backed
+      // writer; the test asserts that the resulting text matches the
+      // payload the screen was handed.
       String? clipboardContent;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboardContent = (call.arguments as Map)['text'] as String;
-          }
-          return null;
-        },
-      );
+      SecureClipboard.debugRustWriterOverride = (text) {
+        clipboardContent = text;
+      };
+      addTearDown(SecureClipboard.debugResetRustWriter);
 
       await tester.pumpWidget(buildApp(data: testPayload));
       await tester.pumpAndSettle();

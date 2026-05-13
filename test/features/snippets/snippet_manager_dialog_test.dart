@@ -87,10 +87,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // SecureClipboard's Linux fallback awaits `Clipboard.setData` —
-  // flutter_test does not stub the `flutter/platform` channel by
-  // default, so the await hangs forever. Stub the channel so the
-  // copy-button path drains in pumpAndSettle.
+  // The dialog body opens a Scaffold + MaterialApp surface whose
+  // system-overlay-style writes touch `flutter/platform`;
+  // flutter_test does not stub that channel by default. Stub it so
+  // any platform-method call coming from the widget tree drains
+  // cleanly in pumpAndSettle instead of throwing a MissingPlugin.
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

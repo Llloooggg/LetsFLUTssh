@@ -1,14 +1,12 @@
 import 'dart:io' show Platform;
 
-import 'package:flutter/services.dart';
-
 import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
 
 /// Platform-aware clipboard writer that opts the payload out of cloud
 /// sync and OS clipboard history before it hits the system pasteboard.
 ///
-/// Flutter's stock [Clipboard.setData] lands the text on the system
+/// Flutter's stock `Clipboard.setData` lands the text on the system
 /// clipboard as a plain string. Every modern OS ships some form of
 /// "remember what you copied" or "sync to the other device" feature
 /// that then scoops it up:
@@ -37,13 +35,18 @@ import '../../utils/logger.dart';
 ///   the content. The flag is set on the `ClipData` extras via JNI
 ///   into `android.content.ClipboardManager`.
 /// * **Linux** — nothing to opt out of; X11 and Wayland have no cloud
-///   clipboard default. Falls through to arboard via Rust.
+///   clipboard default. The Rust path drives arboard, which picks
+///   the right backend per session type.
 ///
 /// Routing: every platform calls
 /// `lfs_os_security::secure_clipboard::set_secure_text` over FRB.
 /// The Rust side does the per-platform sensitive-flag dance in the
 /// same write session as the text, so a watcher can't see the string
-/// without the marker.
+/// without the marker. There is no Dart-side fallback — the single
+/// audit perimeter for clipboard writes lives in
+/// `lfs_os_security::secure_clipboard`, and every platform refuses
+/// the write on Rust-side failure rather than depositing the
+/// payload through a stock pasteboard call that bypasses the flags.
 class SecureClipboard {
   /// Construct the writer.
   ///
@@ -53,8 +56,23 @@ class SecureClipboard {
   /// writer + a forced platform string to exercise each branch
   /// without an FRB runtime.
   SecureClipboard({void Function(String text)? rustWriter, String? platformOs})
-    : _rustWriter = rustWriter ?? _defaultRustWriter,
+    : _rustWriter = rustWriter ?? debugRustWriterOverride ?? _defaultRustWriter,
       _platformOs = platformOs ?? Platform.operatingSystem;
+
+  /// Test seam — installed by widget tests that exercise call sites
+  /// constructing `SecureClipboard()` with no args (the QR copy
+  /// button, `ClipboardSecret`, in-place factories). Production
+  /// leaves this `null`; the default constructor then resolves to
+  /// the FRB-backed writer. Tests set it in `setUp` and reset via
+  /// [debugResetRustWriter] in `tearDown`. Per-instance overrides
+  /// via the `rustWriter:` constructor argument still win — the
+  /// override only applies when no explicit writer is passed.
+  static void Function(String text)? debugRustWriterOverride;
+
+  /// Reset the default writer to the FRB-backed production path.
+  static void debugResetRustWriter() {
+    debugRustWriterOverride = null;
+  }
 
   static void _defaultRustWriter(String text) {
     rust_os.osSecuritySetSecureClipboard(text: text);
@@ -64,37 +82,26 @@ class SecureClipboard {
   final String _platformOs;
 
   /// Write [text] to the system clipboard with the per-platform
-  /// cloud / history opt-out flags applied. On platforms where the
-  /// stock `Clipboard.setData` would silently leak the payload
-  /// into a cloud-sync ring (Windows 10+, macOS Universal
-  /// Clipboard, iOS Handoff, Android 13+ history) the secure path
-  /// **refuses** to write on failure rather than fall back —
-  /// "best-effort write" against an attacker who scrapes the
-  /// cloud ring is no better than not writing at all. Linux has
-  /// no cloud-clipboard default, so the fallback there is the
-  /// same posture as a plain copy and the helper degrades to
-  /// `Clipboard.setData` on a Rust-side failure.
+  /// cloud / history opt-out flags applied. Every platform routes
+  /// through the Rust `set_secure_text` helper — there is no
+  /// Dart-side fallback. On Rust-side failure the helper
+  /// **refuses** to write rather than deposit the payload through
+  /// a stock pasteboard call that would bypass the per-platform
+  /// "do not sync, do not history" markers (Windows Win+V ring,
+  /// macOS Universal Clipboard, iOS Handoff, Android 13+ history
+  /// preview). Linux has no cloud-clipboard default, but the same
+  /// refusal keeps the audit perimeter on the Rust side instead of
+  /// silently routing around it through Flutter's stock channel.
   ///
-  /// Returns `true` when the secure path landed (or the Linux
-  /// plain fallback ran), `false` when the cloud-leak gate
-  /// refused the write. Callers surface a "copy failed, try
-  /// again" toast on `false` instead of silently dropping
-  /// material onto a syncing pasteboard.
+  /// Returns `true` when the secure path landed, `false` when the
+  /// Rust write failed. Callers surface a "copy failed, try again"
+  /// toast on `false` instead of silently dropping material onto a
+  /// syncing pasteboard.
   Future<bool> setText(String text) async {
     if (_tryRustNative(text)) return true;
-    if (_platformOs == 'linux') {
-      // No cloud-clipboard default on X11 / Wayland — the plain
-      // path is the same posture as the Rust path on Linux.
-      await Clipboard.setData(ClipboardData(text: text));
-      return true;
-    }
-    // Win 10+ / macOS / iOS / Android — refusing is the only safe
-    // posture; the fallback would deposit the secret into a
-    // cloud-sync ring or the Android 13+ history preview without
-    // the opt-out flags.
     AppLogger.instance.log(
       'SecureClipboard refusing fallback on $_platformOs — '
-      'cloud-clipboard sync would land payload without opt-out flags',
+      'stock Clipboard.setData would bypass the Rust audit perimeter',
       name: 'SecureClipboard',
       level: LogLevel.warn,
     );
@@ -107,7 +114,7 @@ class SecureClipboard {
       return true;
     } catch (e) {
       AppLogger.instance.log(
-        'SecureClipboard Rust write failed, falling back: $e',
+        'SecureClipboard Rust write failed: $e',
         name: 'SecureClipboard',
         level: LogLevel.warn,
       );

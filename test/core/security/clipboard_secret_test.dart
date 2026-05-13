@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/clipboard_secret.dart';
+import 'package:letsflutssh/core/security/secure_clipboard.dart';
 
 /// Mock the Flutter clipboard channel so tests can simulate writes /
 /// reads / user-pasted-over scenarios without touching the host
@@ -32,11 +33,20 @@ void main() {
     backend = _FakeClipboardBackend();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, backend.handle);
+    // Route SecureClipboard's FRB writer through the fake backend so
+    // the auto-wipe contract can be exercised end-to-end without an
+    // FRB runtime. Mirrors what production does: every "write" lands
+    // through the secure path, the timer reads back via
+    // `Clipboard.getData` (which the same backend serves).
+    SecureClipboard.debugRustWriterOverride = (text) {
+      backend.text = text;
+    };
   });
 
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
+    SecureClipboard.debugResetRustWriter();
   });
 
   // Short wipe window so tests stay fast; the production default is

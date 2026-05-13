@@ -78,9 +78,11 @@ class TerminalClipboard {
   static void copyText(String text) {
     if (text.isEmpty) return;
     if (_looksSensitive(text)) {
-      // Fire-and-forget — `SecureClipboard.setText` falls back to the
-      // stock clipboard on Linux / missing-plugin so a copy action
-      // always succeeds visibly on the user's side.
+      // Fire-and-forget — `SecureClipboard.setText` refuses the
+      // write on Rust-side failure rather than bypassing the audit
+      // perimeter through Flutter's stock channel. The terminal copy
+      // path keeps the fire-and-forget shape; a refusal logs at warn
+      // level on the SecureClipboard tag.
       unawaited(_secureClipboard.setText(text));
     } else {
       Clipboard.setData(ClipboardData(text: text));
