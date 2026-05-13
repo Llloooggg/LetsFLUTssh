@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
-import '../core/db/_folder_path_compat.dart';
 import '../core/db/mappers.dart';
 import '../core/session/session.dart';
 import '../core/session/session_history.dart';
@@ -565,56 +564,20 @@ class SessionNotifier extends Notifier<List<Session>> {
       _runUndoable('rename folder', () async {
         if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
 
-        // Optimistic Dart-side cache cascade — the bus event will
-        // re-hydrate from the registry snapshot, but the live cache
-        // needs to reflect the new path between the FRB call and the
-        // bus tick so widgets reading off `state` don't render the
-        // old path for a frame.
-        final next = <Session>[];
-        for (final s in state) {
-          if (s.folder == oldPath) {
-            next.add(s.copyWith(folder: newPath));
-          } else if (s.folder.startsWith('$oldPath/')) {
-            next.add(
-              s.copyWith(folder: newPath + s.folder.substring(oldPath.length)),
-            );
-          } else {
-            next.add(s);
-          }
-        }
-        state = next;
-
-        final renamedEmpty = folderRenamePathsCascadeCompat(
-          _emptyFolders,
-          oldPath,
-          newPath,
-        );
-        _emptyFolders
-          ..clear()
-          ..addAll(renamedEmpty);
-        final renamedCollapsed = folderRenamePathsCascadeCompat(
-          _collapsedFolders,
-          oldPath,
-          newPath,
-        );
-        _collapsedFolders
-          ..clear()
-          ..addAll(renamedCollapsed);
-
-        // One Rust transaction now resolves the existing folder by
-        // path, ensures the new parent path (creating segments as
-        // needed), and updates the row. Replaces the prior two-step
-        // (`findFolderIdByPath` Dart-side + `dbFoldersUpdateNameParent`
-        // with the OLD `parent_id`) which silently failed to re-parent
-        // on cross-tree moves.
+        // One Rust transaction resolves the existing folder by path,
+        // ensures the new parent path (creating segments as needed),
+        // and updates the row. The call emits a `SessionsChanged` bus
+        // event on success; the subscriber wired in `build()` re-runs
+        // `_doLoad`, which re-hydrates `state`, `_folderMap`,
+        // `_emptyFolders`, and `_collapsedFolders` from the registry.
+        // No optimistic Dart-side cascade — every cached surface is
+        // Rust-owned and the bus tick is authoritative.
         try {
           await rust_db.dbFoldersRenamePathCascade(
             oldPath: oldPath,
             newPath: newPath,
             nowMs: DateTime.now().millisecondsSinceEpoch,
           );
-          final folders = await rust_db.dbFoldersListAll();
-          _folderMap = buildFolderMap(folders);
         } catch (e) {
           AppLogger.instance.log(
             'renameFolder failed: $e',
