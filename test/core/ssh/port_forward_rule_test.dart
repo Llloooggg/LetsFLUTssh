@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/ssh/port_forward_rule.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  setUpAll(requireFrbLoaded);
+
   group('PortForwardRule.validate', () {
     PortForwardRule rule({
       PortForwardKind kind = PortForwardKind.local,

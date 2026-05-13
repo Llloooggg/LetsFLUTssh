@@ -1,5 +1,7 @@
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/forward.dart' as rust_forward;
+
 /// Direction of an SSH port forward.
 ///
 /// v1 ships local-only (-L). Remote (-R) and dynamic SOCKS5 (-D) are
@@ -62,21 +64,29 @@ class PortForwardRule {
        createdAt = createdAt ?? DateTime.now();
 
   /// Return `null` when the rule's network params are valid, else a
-  /// short reason string. Centralises the validation so the picker
-  /// dialog and any import path agree on the same constraints.
+  /// short reason string. The grammar (range bounds + per-kind
+  /// target rules) lives in `lfs_core::portforward::validate_rule`
+  /// so the runtime check here, any future import-path check, and
+  /// the driver's own pre-flight share one source.
   String? validate() {
-    if (bindPort < 1 || bindPort > 65535) return 'Bind port out of range';
-    // Local + remote forwards target a (host:port) on the SSH server
-    // side; dynamic does not. Validate accordingly so a user-typed
-    // partial rule does not crash the runtime.
-    if (kind != PortForwardKind.dynamic_) {
-      if (remoteHost.trim().isEmpty) return 'Target host required';
-      if (remotePort < 1 || remotePort > 65535) {
+    final err = rust_forward.portForwardValidateRule(
+      kind: kind.wireName,
+      bindHost: bindHost,
+      bindPort: bindPort,
+      remoteHost: remoteHost,
+      remotePort: remotePort,
+    );
+    if (err == null) return null;
+    switch (err) {
+      case rust_forward.DbPortForwardRuleValidationError.bindPortOutOfRange:
+        return 'Bind port out of range';
+      case rust_forward.DbPortForwardRuleValidationError.targetHostRequired:
+        return 'Target host required';
+      case rust_forward.DbPortForwardRuleValidationError.targetPortOutOfRange:
         return 'Target port out of range';
-      }
+      case rust_forward.DbPortForwardRuleValidationError.bindHostRequired:
+        return 'Bind host required';
     }
-    if (bindHost.trim().isEmpty) return 'Bind host required';
-    return null;
   }
 
   /// Loopback-only check — used by the UI to surface a warning when

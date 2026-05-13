@@ -47,6 +47,61 @@ impl SshForwardChannel {
     }
 }
 
+/// FRB mirror of [`lfs_core::portforward::RuleValidationError`].
+/// The Dart caller maps each variant to the matching localised
+/// message key; the grammar lives Rust-side so the UI pre-flight
+/// + the runtime checks share one source.
+#[derive(Debug, Clone, Copy)]
+pub enum DbPortForwardRuleValidationError {
+    BindPortOutOfRange,
+    TargetHostRequired,
+    TargetPortOutOfRange,
+    BindHostRequired,
+}
+
+/// Pre-flight check for a port-forward rule. Returns `None` when
+/// the rule's network params are valid for its kind, else the
+/// matching reject variant. `kind` is the wire string the Dart
+/// `PortForwardKind` enum emits (`"local"` / `"remote"` /
+/// `"dynamic"`); any other value treats the rule as Local for the
+/// validation (matches the prior Dart fallback in
+/// `PortForwardKindExt.fromWireName`).
+#[flutter_rust_bridge::frb(sync)]
+pub fn port_forward_validate_rule(
+    kind: String,
+    bind_host: String,
+    bind_port: i64,
+    remote_host: String,
+    remote_port: i64,
+) -> Option<DbPortForwardRuleValidationError> {
+    let rule_kind = match kind.as_str() {
+        "remote" => lfs_core::portforward::RuleKind::Remote,
+        "dynamic" => lfs_core::portforward::RuleKind::Dynamic,
+        _ => lfs_core::portforward::RuleKind::Local,
+    };
+    lfs_core::portforward::validate_rule(
+        rule_kind,
+        &bind_host,
+        bind_port,
+        &remote_host,
+        remote_port,
+    )
+    .map(|e| match e {
+        lfs_core::portforward::RuleValidationError::BindPortOutOfRange => {
+            DbPortForwardRuleValidationError::BindPortOutOfRange
+        }
+        lfs_core::portforward::RuleValidationError::TargetHostRequired => {
+            DbPortForwardRuleValidationError::TargetHostRequired
+        }
+        lfs_core::portforward::RuleValidationError::TargetPortOutOfRange => {
+            DbPortForwardRuleValidationError::TargetPortOutOfRange
+        }
+        lfs_core::portforward::RuleValidationError::BindHostRequired => {
+            DbPortForwardRuleValidationError::BindHostRequired
+        }
+    })
+}
+
 /// Start a Rust-driven `-L` local forward listener against the
 /// supplied connection actor. Returns the actual bound port
 /// (matters when the caller passes `0` to let the OS pick).

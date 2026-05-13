@@ -8,6 +8,28 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'ssh.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`, `u16_port`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+
+/// Pre-flight check for a port-forward rule. Returns `None` when
+/// the rule's network params are valid for its kind, else the
+/// matching reject variant. `kind` is the wire string the Dart
+/// `PortForwardKind` enum emits (`"local"` / `"remote"` /
+/// `"dynamic"`); any other value treats the rule as Local for the
+/// validation (matches the prior Dart fallback in
+/// `PortForwardKindExt.fromWireName`).
+DbPortForwardRuleValidationError? portForwardValidateRule({
+  required String kind,
+  required String bindHost,
+  required PlatformInt64 bindPort,
+  required String remoteHost,
+  required PlatformInt64 remotePort,
+}) => RustLib.instance.api.crateApiForwardPortForwardValidateRule(
+  kind: kind,
+  bindHost: bindHost,
+  bindPort: bindPort,
+  remoteHost: remoteHost,
+  remotePort: remotePort,
+);
 
 /// Start a Rust-driven `-L` local forward listener against the
 /// supplied connection actor. Returns the actual bound port
@@ -188,4 +210,15 @@ abstract class SshForwardedConnection implements RustOpaqueInterface {
   /// Send bytes to the originator (to whoever connected to the
   /// server-side listener).
   Future<void> write({required List<int> data});
+}
+
+/// FRB mirror of [`lfs_core::portforward::RuleValidationError`].
+/// The Dart caller maps each variant to the matching localised
+/// message key; the grammar lives Rust-side so the UI pre-flight
+/// + the runtime checks share one source.
+enum DbPortForwardRuleValidationError {
+  bindPortOutOfRange,
+  targetHostRequired,
+  targetPortOutOfRange,
+  bindHostRequired,
 }

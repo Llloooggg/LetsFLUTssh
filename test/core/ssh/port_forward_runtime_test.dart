@@ -4,6 +4,8 @@ import 'package:letsflutssh/core/ssh/port_forward_rule.dart';
 import 'package:letsflutssh/core/ssh/port_forward_runtime.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 Connection _stubConnection() => Connection(
   id: 'c',
   label: 'l',
@@ -29,6 +31,8 @@ PortForwardRule _localRule({
 );
 
 void main() {
+  setUpAll(requireFrbLoaded);
+
   group('PortForwardRuntime', () {
     test('onConnected with no live transport is a no-op', () {
       final runtime = PortForwardRuntime(rules: [_localRule()]);

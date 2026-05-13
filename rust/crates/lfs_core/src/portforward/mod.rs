@@ -14,6 +14,101 @@
 
 pub mod driver;
 
+/// Why a port-forward rule failed pre-flight validation. Returned
+/// from [`validate_rule`] as the discriminator; the Dart caller
+/// formats / localises the message. Kept Rust-side so the driver
+/// (`start_local` / `start_dynamic` / `start_remote`) and the
+/// pre-flight UI / runtime checks share one grammar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleValidationError {
+    /// `bind_port` outside `[1, 65535]`.
+    BindPortOutOfRange,
+    /// `remote_host` is empty for a `Local` / `Remote` rule
+    /// (irrelevant for `Dynamic`).
+    TargetHostRequired,
+    /// `remote_port` outside `[1, 65535]` for a `Local` / `Remote`
+    /// rule (irrelevant for `Dynamic`).
+    TargetPortOutOfRange,
+    /// `bind_host` is empty for every rule kind.
+    BindHostRequired,
+}
+
+/// Pre-flight check: return `None` when the rule's network params
+/// are valid for its kind, else the variant describing the first
+/// rejection. Mirror of the prior Dart-side `PortForwardRule.
+/// validate` body, lifted so the UI and the runtime share one
+/// grammar that does not drift across the FRB boundary.
+pub fn validate_rule(
+    kind: RuleKind,
+    bind_host: &str,
+    bind_port: i64,
+    remote_host: &str,
+    remote_port: i64,
+) -> Option<RuleValidationError> {
+    if !(1..=65535).contains(&bind_port) {
+        return Some(RuleValidationError::BindPortOutOfRange);
+    }
+    if kind != RuleKind::Dynamic {
+        if remote_host.trim().is_empty() {
+            return Some(RuleValidationError::TargetHostRequired);
+        }
+        if !(1..=65535).contains(&remote_port) {
+            return Some(RuleValidationError::TargetPortOutOfRange);
+        }
+    }
+    if bind_host.trim().is_empty() {
+        return Some(RuleValidationError::BindHostRequired);
+    }
+    None
+}
+
+#[cfg(test)]
+mod validate_rule_tests {
+    use super::*;
+
+    #[test]
+    fn valid_local_rule_returns_none() {
+        assert!(validate_rule(RuleKind::Local, "127.0.0.1", 8080, "example.com", 22).is_none());
+    }
+
+    #[test]
+    fn bind_port_zero_is_out_of_range() {
+        let r = validate_rule(RuleKind::Local, "127.0.0.1", 0, "h", 22);
+        assert_eq!(r, Some(RuleValidationError::BindPortOutOfRange));
+    }
+
+    #[test]
+    fn bind_port_above_65535_is_out_of_range() {
+        let r = validate_rule(RuleKind::Local, "127.0.0.1", 70000, "h", 22);
+        assert_eq!(r, Some(RuleValidationError::BindPortOutOfRange));
+    }
+
+    #[test]
+    fn empty_target_host_rejected_for_local() {
+        let r = validate_rule(RuleKind::Local, "127.0.0.1", 8080, "", 22);
+        assert_eq!(r, Some(RuleValidationError::TargetHostRequired));
+    }
+
+    #[test]
+    fn empty_target_host_accepted_for_dynamic() {
+        // Dynamic (SOCKS5) does not name a target host — the
+        // SOCKS protocol carries the destination per-connection.
+        assert!(validate_rule(RuleKind::Dynamic, "127.0.0.1", 1080, "", 0).is_none());
+    }
+
+    #[test]
+    fn target_port_out_of_range_rejected_for_local() {
+        let r = validate_rule(RuleKind::Local, "127.0.0.1", 8080, "h", 70000);
+        assert_eq!(r, Some(RuleValidationError::TargetPortOutOfRange));
+    }
+
+    #[test]
+    fn empty_bind_host_rejected() {
+        let r = validate_rule(RuleKind::Local, "", 8080, "h", 22);
+        assert_eq!(r, Some(RuleValidationError::BindHostRequired));
+    }
+}
+
 use std::collections::HashMap;
 use std::sync::Mutex;
 
