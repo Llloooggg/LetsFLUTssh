@@ -15,31 +15,14 @@ part of 'settings_screen.dart';
 // Android ignore it — only the broker path is viable.
 // ═══════════════════════════════════════════════════════════════════
 
-class _Fido2BrokerSection extends ConsumerStatefulWidget {
+/// Rust-owned dispatcher snapshot. Sync FRB call — invalidated after
+/// every mutation so the next `ref.watch` reads canonical state.
+final _fido2TransportSnapshotProvider = Provider<rust_fido2.DbFido2Transport>(
+  (ref) => rust_fido2.fido2TransportSnapshot(),
+);
+
+class _Fido2BrokerSection extends ConsumerWidget {
   const _Fido2BrokerSection();
-
-  @override
-  ConsumerState<_Fido2BrokerSection> createState() =>
-      _Fido2BrokerSectionState();
-}
-
-class _Fido2BrokerSectionState extends ConsumerState<_Fido2BrokerSection> {
-  rust_fido2.DbFido2Transport? _snapshot;
-
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-  }
-
-  void _refresh() {
-    // Rust owns the dispatcher state — re-read on every rebuild so
-    // a Settings tier change / config reload always renders against
-    // the canonical view.
-    setState(() {
-      _snapshot = rust_fido2.fido2TransportSnapshot();
-    });
-  }
 
   /// Localized label for the OS broker dialog the dispatcher routes
   /// to on the current host. Surfaces "Windows Hello / security key"
@@ -53,7 +36,7 @@ class _Fido2BrokerSectionState extends ConsumerState<_Fido2BrokerSection> {
     return l10n.fido2BrokerWindowsLabel;
   }
 
-  Future<void> _setPrefer(bool prefer) async {
+  Future<void> _setPrefer(WidgetRef ref, bool prefer) async {
     // Sync FRB call — flips the process-wide atomic immediately so
     // the next sk-* assertion picks the right transport. Persistence
     // into config.json runs separately via the config provider.
@@ -65,21 +48,18 @@ class _Fido2BrokerSectionState extends ConsumerState<_Fido2BrokerSection> {
             behavior: c.behavior.copyWith(fido2PreferDirectHid: prefer),
           ),
         );
-    _refresh();
+    ref.invalidate(_fido2TransportSnapshotProvider);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
-    final snap = _snapshot;
+    final snap = ref.watch(_fido2TransportSnapshotProvider);
     // Disable the toggle when only one transport exists on this
     // host. Linux: direct HID only — toggle is irrelevant. iOS /
     // Android: broker only — toggle is irrelevant.
-    final bothPaths =
-        snap != null && snap.brokerAvailable && snap.directHidAvailable;
-    final preferDirect =
-        snap?.preferDirectHid ??
-        ref.watch(configProvider).behavior.fido2PreferDirectHid;
+    final bothPaths = snap.brokerAvailable && snap.directHidAvailable;
+    final preferDirect = snap.preferDirectHid;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -93,7 +73,7 @@ class _Fido2BrokerSectionState extends ConsumerState<_Fido2BrokerSection> {
         _Toggle(
           label: l10n.fido2BrokerPreferDirectHidTitle,
           value: preferDirect,
-          onChanged: bothPaths ? _setPrefer : null,
+          onChanged: bothPaths ? (v) => _setPrefer(ref, v) : null,
         ),
         const SizedBox(height: 4),
         Text(
@@ -108,8 +88,7 @@ class _Fido2BrokerSectionState extends ConsumerState<_Fido2BrokerSection> {
     );
   }
 
-  String _currentTransportText(S l10n, rust_fido2.DbFido2Transport? snap) {
-    if (snap == null) return l10n.fido2BrokerTransportNone;
+  String _currentTransportText(S l10n, rust_fido2.DbFido2Transport snap) {
     switch (snap.kind) {
       case 'broker':
         return _brokerLabel(l10n);

@@ -15,6 +15,13 @@ part of 'settings_screen.dart';
 // affordance.
 // ═══════════════════════════════════════════════════════════════════
 
+/// Rust-owned agent endpoint snapshot. Sync FRB call — invalidated
+/// after every start / stop so the next `ref.watch` reads canonical
+/// state.
+final _sshAgentStatusProvider = Provider<rust_ssh_agent.DbAgentStatus>(
+  (ref) => rust_ssh_agent.sshAgentStatus(),
+);
+
 class _SshAgentSection extends ConsumerStatefulWidget {
   const _SshAgentSection();
 
@@ -23,27 +30,9 @@ class _SshAgentSection extends ConsumerStatefulWidget {
 }
 
 class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
-  /// Cached status snapshot, rendered by the build method. Refreshed
-  /// after every toggle so the UI matches the Rust-side reality.
-  rust_ssh_agent.DbAgentStatus? _status;
-
   /// In-flight flag — disables the toggle while a start / stop call
   /// is mid-flight so a double-tap doesn't enqueue both verbs.
   bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-  }
-
-  /// Always re-fetch the canonical state through FRB. Rust owns the
-  /// data; the Dart side is a thin renderer.
-  void _refresh() {
-    setState(() {
-      _status = rust_ssh_agent.sshAgentStatus();
-    });
-  }
 
   Future<void> _setRunning(bool on) async {
     setState(() => _busy = true);
@@ -69,13 +58,12 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
     } finally {
       if (mounted) {
         setState(() => _busy = false);
-        _refresh();
+        ref.invalidate(_sshAgentStatusProvider);
       }
     }
   }
 
-  Future<void> _copyPath() async {
-    final path = _status?.socketPath;
+  Future<void> _copyPath(String? path) async {
     if (path == null) return;
     final cmd = Platform.isWindows ? path : 'export SSH_AUTH_SOCK="$path"';
     await Clipboard.setData(ClipboardData(text: cmd));
@@ -87,9 +75,9 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    final status = _status;
-    final unsupported = status?.unsupported ?? false;
-    final running = status?.running ?? false;
+    final status = ref.watch(_sshAgentStatusProvider);
+    final unsupported = status.unsupported;
+    final running = status.running;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -106,13 +94,13 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
               : l10n.agentEndpointToggleSubtitle,
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
         ),
-        if (running && status?.socketPath != null) ...[
+        if (running && status.socketPath != null) ...[
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  status!.socketPath!,
+                  status.socketPath!,
                   style: TextStyle(
                     fontSize: AppFonts.xs,
                     fontFamily: 'monospace',
@@ -128,7 +116,7 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
                     : l10n.agentEndpointCopyEnvVar,
                 icon: Icons.copy,
                 dense: true,
-                onTap: _copyPath,
+                onTap: () => _copyPath(status.socketPath),
               ),
             ],
           ),
