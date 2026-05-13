@@ -215,7 +215,31 @@ mod platform_impl {
         .map_err(|e| BiometricUnavailableReason::Probe(format!("CheckAvailability: {e}")))?;
 
         match availability {
-            UserConsentVerifierAvailability::Available => Ok(()),
+            UserConsentVerifierAvailability::Available => {
+                // `UserConsentVerifier::CheckAvailabilityAsync`
+                // returns `Available` whenever Windows Hello is
+                // configured in any form, including a Hello PIN
+                // with no physical biometric sensor attached.
+                // Lighting up the biometric-unlock toggle in that
+                // state forces the user through a PIN prompt
+                // disguised as a biometric unlock. The WinBio
+                // Framework enumerates the actual physical units
+                // (fingerprint readers, IR cameras, iris
+                // scanners); zero units is the ground truth that
+                // overrides the WinRT verdict.
+                //
+                // `count_units` returns `-1` when `winbio.dll`
+                // cannot be loaded (stripped enterprise image,
+                // SDK lib absent); in that case we accept the
+                // original WinRT answer rather than locking out a
+                // user whose hardware we cannot probe.
+                let units = crate::winbio::count_units();
+                if units == 0 {
+                    Err(BiometricUnavailableReason::NoSensor)
+                } else {
+                    Ok(())
+                }
+            }
             UserConsentVerifierAvailability::DeviceNotPresent => {
                 Err(BiometricUnavailableReason::NoSensor)
             }
