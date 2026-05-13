@@ -12,10 +12,12 @@
 //! `String` for the FRB boundary — the caller maps them to
 //! `FileSystemException` shapes Dart-side.
 //!
-//! Windows hidden / system files: a separate helper runs
-//! `cmd /c attrib *` in the directory, parses the output via
-//! [`crate::path::parse_windows_attrib_output`], and returns the
-//! lowercase set of basenames the caller should drop. On
+//! Windows hidden / system files: a separate helper delegates the
+//! `cmd /c attrib *` spawn to
+//! [`lfs_os_security::path::windows_hidden_names_raw`] (the audit
+//! perimeter for subprocess invocation), parses the captured stdout
+//! via [`crate::path::parse_windows_attrib_output`], and returns
+//! the lowercase set of basenames the caller should drop. On
 //! non-Windows targets the function is a compile-time no-op so
 //! callers don't need their own platform gate.
 
@@ -153,39 +155,17 @@ fn walk_size(
 /// `tokio::fs::Metadata` doesn't surface NTFS attrs portably.
 /// Compile-time no-op on every other target.
 ///
-/// `CREATE_NO_WINDOW = 0x08000000` (Win32 process-creation flag) is
-/// load-bearing: without it, every `cmd.exe` spawn flashes a
-/// console window for the duration of `attrib`. The file browser
-/// fires this on every directory listing, so a directory-heavy
-/// session showed dozens of black-window blinks. The flag tells
-/// CreateProcessW to skip console allocation; the spawned process
-/// still has a stdout pipe (we read it) — only the visible
-/// console window is suppressed. Documented at
-/// https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags.
+/// The `cmd /c attrib *` subprocess invocation lives in
+/// [`lfs_os_security::path::windows_hidden_names_raw`] because that
+/// crate is the single audit perimeter for OS-API FFI + subprocess
+/// spawning; this arm is a thin delegate that runs the pure parser
+/// [`crate::path::parse_windows_attrib_output`] over the captured
+/// stdout. Splitting along the parse / spawn seam keeps the parser
+/// unit-testable in lfs_core without dragging subprocess invocation
+/// across the audit-perimeter rule.
 #[cfg(target_os = "windows")]
 pub async fn windows_hidden_names(dir: String) -> Vec<String> {
-    // `tokio::process::Command::creation_flags` is provided as an
-    // inherent method under `cfg_windows!`, not via the std
-    // `CommandExt` trait — no extra `use` needed.
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let output = tokio::process::Command::new("cmd")
-        .args(["/c", "attrib", "*"])
-        .current_dir(&dir)
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .await;
-    let Ok(output) = output else {
-        return Vec::new();
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-    // attrib emits OEM-codepage bytes on Windows. We accept some
-    // mojibake on non-ASCII filenames here — the H/S filter only
-    // needs to match the lowercase basename, which is ASCII for
-    // 99% of dotfiles / system files. Worth revisiting if a real
-    // user trips over a Cyrillic system file.
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = lfs_os_security::path::windows_hidden_names_raw(dir).await;
     crate::path::parse_windows_attrib_output(&stdout)
         .into_iter()
         .collect()
