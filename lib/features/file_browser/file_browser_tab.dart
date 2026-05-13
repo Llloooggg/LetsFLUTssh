@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,7 @@ import '../../utils/logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
+import '../../src/rust/api/local_fs.dart' as rust_local_fs;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
@@ -298,9 +298,9 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
         if (resolver.isCancelled) break;
         if (!mounted) return;
         final name = p.basename(srcPath);
-        final type = FileSystemEntity.typeSync(srcPath, followLinks: false);
-        if (type == FileSystemEntityType.notFound) continue;
-        if (type == FileSystemEntityType.link) {
+        final srcStat = await rust_local_fs.localFsSymlinkStat(path: srcPath);
+        if (srcStat == null) continue;
+        if (srcStat.isSymlink) {
           AppLogger.instance.log(
             'Refusing OS drop of symlink source: <path>',
             name: 'FileBrowser',
@@ -308,7 +308,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
           );
           continue;
         }
-        final isDir = type == FileSystemEntityType.directory;
+        final isDir = srcStat.isDir;
         final initialTarget = p.join(local.currentPath, name);
         final resolvedTarget = await _resolveLocalDropConflict(
           targetPath: initialTarget,
@@ -338,9 +338,9 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
     required bool isDir,
     required BatchConflictResolver resolver,
   }) async {
-    final type = FileSystemEntity.typeSync(targetPath, followLinks: false);
-    if (type == FileSystemEntityType.notFound) return targetPath;
-    if (type == FileSystemEntityType.link) {
+    final targetStat = await rust_local_fs.localFsSymlinkStat(path: targetPath);
+    if (targetStat == null) return targetPath;
+    if (targetStat.isSymlink) {
       AppLogger.instance.log(
         'Refusing local drop onto pre-existing symlink: <path>',
         name: 'FileBrowser',
@@ -357,8 +357,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
         return uniqueSiblingName(
           targetPath,
           (path) async =>
-              FileSystemEntity.typeSync(path, followLinks: false) !=
-              FileSystemEntityType.notFound,
+              (await rust_local_fs.localFsSymlinkStat(path: path)) != null,
         );
       case ConflictAction.replace:
         return targetPath;
@@ -373,9 +372,20 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   }) async {
     try {
       if (isDir) {
-        await _copyDirLocal(Directory(srcPath), Directory(targetPath));
+        // Recursive copy lives in `lfs_core::fs::local`. A symlink
+        // at the root surfaces as `symlink_in_source` (the caller
+        // already filtered those above, so this branch is the
+        // defensive net); symlinks inside the tree are skipped
+        // there, so a hostile link to `/etc` cannot resolve into
+        // the recursion. Depth budget matches the SFTP upload
+        // walker's cycle defence.
+        await rust_local_fs.localFsCopyRecursiveNoSymlinks(
+          src: srcPath,
+          dst: targetPath,
+          maxDepth: 100,
+        );
       } else {
-        await File(srcPath).copy(targetPath);
+        await rust_local_fs.localFsCopyFile(src: srcPath, dst: targetPath);
       }
       _localCtrl?.refresh();
     } catch (e) {
@@ -390,49 +400,20 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   Future<void> _osDropToRemote(List<String> paths) async {
     final entries = <FileEntry>[];
     for (final srcPath in paths) {
-      final stat = FileStat.statSync(srcPath);
-      if (stat.type == FileSystemEntityType.notFound) continue;
+      final stat = await rust_local_fs.localFsStat(path: srcPath);
+      if (stat == null) continue;
       entries.add(
         FileEntry(
           name: p.basename(srcPath),
           path: srcPath,
-          size: stat.size,
-          modTime: stat.modified,
-          isDir: stat.type == FileSystemEntityType.directory,
+          size: stat.size.toInt(),
+          modTime: DateTime.fromMillisecondsSinceEpoch(
+            stat.modTimeUnixMs.toInt(),
+          ),
+          isDir: stat.isDir,
         ),
       );
     }
     await uploadMany(entries);
-  }
-
-  static const _maxCopyDepth = 100;
-
-  Future<void> _copyDirLocal(
-    Directory src,
-    Directory dst, [
-    int depth = 0,
-  ]) async {
-    if (depth >= _maxCopyDepth) {
-      throw StateError('Maximum recursion depth ($_maxCopyDepth) exceeded');
-    }
-    await dst.create(recursive: true);
-    // `followLinks: false` so a symlink-to-directory inside the
-    // dropped tree is NOT traversed — a benign loop or a hostile
-    // link to /etc would otherwise resolve into the recursion. The
-    // SFTP upload walker (`transfer_helpers._enqueueUploadDir`) already
-    // uses the same flag; the OS-drop path was the inconsistent one.
-    await for (final entity in src.list(followLinks: false)) {
-      if (entity is Link) continue;
-      final name = p.basename(entity.path);
-      if (entity is File) {
-        await entity.copy(p.join(dst.path, name));
-      } else if (entity is Directory) {
-        await _copyDirLocal(
-          entity,
-          Directory(p.join(dst.path, name)),
-          depth + 1,
-        );
-      }
-    }
   }
 }

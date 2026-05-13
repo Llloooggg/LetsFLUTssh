@@ -298,6 +298,106 @@ fn walk_size(
     })
 }
 
+/// Copy a single file from `src` to `dst`, replacing `dst` if
+/// it already exists. Mirrors `tokio::fs::copy` 1-to-1; exists as
+/// its own FRB entry point so the file-browser drop path goes
+/// through `lfs_core` for the file branch as well as the
+/// directory branch (kept symmetric with
+/// [`copy_recursive_no_symlinks`]).
+///
+/// `Err` carries the unwrapped `tokio::fs::copy` error message so
+/// the Dart caller can surface it through `FileSystemException`.
+pub async fn copy_file(src: String, dst: String) -> Result<(), String> {
+    tokio::fs::copy(&src, &dst)
+        .await
+        .map(|_| ())
+        .map_err(|e| format!("copy({src} → {dst}): {e}"))
+}
+
+/// Recursively copy `src` to `dst`, refusing to traverse symlinks.
+///
+/// Hard fails with `Err("symlink_in_source")` when the entry at
+/// `src` is itself a symlink so the caller does not accidentally
+/// follow an attacker-supplied link out of the user's chosen
+/// destination. Symlinks encountered inside the tree are silently
+/// skipped (matches the Dart caller's `if (entity is Link) continue;`).
+///
+/// `max_depth` caps recursion so a pathological directory cycle
+/// (e.g. a same-device bind-mount or a junction loop on Windows)
+/// cannot drive the walker to unbounded stack growth. Returns
+/// `Err("max_depth_exceeded")` when the budget is exhausted.
+///
+/// `dst` is created via `create_dir_all` so an intermediate
+/// missing path is fine; an existing `dst` that is a regular file
+/// returns `Err("destination_not_a_directory")`.
+pub async fn copy_recursive_no_symlinks(
+    src: String,
+    dst: String,
+    max_depth: u32,
+) -> Result<(), String> {
+    let src_meta = tokio::fs::symlink_metadata(&src)
+        .await
+        .map_err(map_io_error)?;
+    if src_meta.file_type().is_symlink() {
+        return Err("symlink_in_source".to_string());
+    }
+    if !src_meta.is_dir() {
+        return Err("source_not_a_directory".to_string());
+    }
+    if let Ok(dst_meta) = tokio::fs::symlink_metadata(&dst).await {
+        if !dst_meta.is_dir() {
+            return Err("destination_not_a_directory".to_string());
+        }
+    }
+    copy_dir_recursive_inner(
+        std::path::PathBuf::from(src),
+        std::path::PathBuf::from(dst),
+        0,
+        max_depth,
+    )
+    .await
+}
+
+fn copy_dir_recursive_inner(
+    src: std::path::PathBuf,
+    dst: std::path::PathBuf,
+    depth: u32,
+    max_depth: u32,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> {
+    Box::pin(async move {
+        if depth >= max_depth {
+            return Err("max_depth_exceeded".to_string());
+        }
+        tokio::fs::create_dir_all(&dst)
+            .await
+            .map_err(map_io_error)?;
+        let mut rd = tokio::fs::read_dir(&src).await.map_err(map_io_error)?;
+        while let Some(entry) = rd.next_entry().await.map_err(map_io_error)? {
+            // `DirEntry::file_type` does not follow symlinks on
+            // Unix, so a link target's directory-ness cannot trick
+            // the walker into recursing into a linked tree.
+            let Ok(file_type) = entry.file_type().await else {
+                continue;
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
+            let name = entry.file_name();
+            let child_src = entry.path();
+            let child_dst = dst.join(&name);
+            if file_type.is_dir() {
+                copy_dir_recursive_inner(child_src, child_dst, depth + 1, max_depth).await?;
+            } else if file_type.is_file() {
+                tokio::fs::copy(&child_src, &child_dst)
+                    .await
+                    .map(|_| ())
+                    .map_err(map_io_error)?;
+            }
+        }
+        Ok(())
+    })
+}
+
 /// Lowercase basenames the file browser should hide on Windows
 /// (`H` / `S` attribs). Routes through `cmd /c attrib *` because
 /// `tokio::fs::Metadata` doesn't surface NTFS attrs portably.
@@ -616,5 +716,109 @@ mod tests {
         let result = windows_hidden_names(dir.to_string_lossy().into_owned()).await;
         assert!(result.is_empty());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn copy_recursive_creates_target_tree() {
+        let root = temp_dir("copy_recursive_tree");
+        let src = root.join("src");
+        let dst = root.join("dst");
+        std::fs::create_dir_all(src.join("nested/inner")).unwrap();
+        std::fs::write(src.join("top.txt"), b"hello").unwrap();
+        std::fs::write(src.join("nested/mid.txt"), b"middle").unwrap();
+        std::fs::write(src.join("nested/inner/deep.bin"), b"\x01\x02\x03").unwrap();
+
+        copy_recursive_no_symlinks(
+            src.to_string_lossy().into_owned(),
+            dst.to_string_lossy().into_owned(),
+            100,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(std::fs::read(dst.join("top.txt")).unwrap(), b"hello");
+        assert_eq!(
+            std::fs::read(dst.join("nested/mid.txt")).unwrap(),
+            b"middle"
+        );
+        assert_eq!(
+            std::fs::read(dst.join("nested/inner/deep.bin")).unwrap(),
+            b"\x01\x02\x03"
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn copy_recursive_skips_symlinks_inside_tree() {
+        use std::os::unix::fs::symlink;
+        let root = temp_dir("copy_recursive_skip_link");
+        let src = root.join("src");
+        let dst = root.join("dst");
+        std::fs::create_dir_all(&src).unwrap();
+        let real = src.join("real.txt");
+        std::fs::write(&real, b"real").unwrap();
+        // Both file and directory links land inside the tree —
+        // neither should appear at dst.
+        let target_dir = root.join("link_target_dir");
+        std::fs::create_dir(&target_dir).unwrap();
+        std::fs::write(target_dir.join("inside.txt"), b"x").unwrap();
+        symlink(&real, src.join("link_to_file")).unwrap();
+        symlink(&target_dir, src.join("link_to_dir")).unwrap();
+
+        copy_recursive_no_symlinks(
+            src.to_string_lossy().into_owned(),
+            dst.to_string_lossy().into_owned(),
+            100,
+        )
+        .await
+        .unwrap();
+
+        assert!(dst.join("real.txt").is_file());
+        assert!(!dst.join("link_to_file").exists());
+        assert!(!dst.join("link_to_dir").exists());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn copy_recursive_refuses_symlink_at_root() {
+        use std::os::unix::fs::symlink;
+        let root = temp_dir("copy_recursive_refuse_root_link");
+        let real_dir = root.join("real_dir");
+        std::fs::create_dir(&real_dir).unwrap();
+        let link = root.join("link_to_dir");
+        symlink(&real_dir, &link).unwrap();
+        let dst = root.join("dst");
+
+        let err = copy_recursive_no_symlinks(
+            link.to_string_lossy().into_owned(),
+            dst.to_string_lossy().into_owned(),
+            100,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(err, "symlink_in_source");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[tokio::test]
+    async fn copy_recursive_errors_on_depth_overflow() {
+        let root = temp_dir("copy_recursive_depth");
+        let src = root.join("src");
+        // Three levels deep: src / a / b / c (plus a leaf file).
+        std::fs::create_dir_all(src.join("a/b/c")).unwrap();
+        std::fs::write(src.join("a/b/c/leaf.txt"), b"x").unwrap();
+        let dst = root.join("dst");
+
+        let err = copy_recursive_no_symlinks(
+            src.to_string_lossy().into_owned(),
+            dst.to_string_lossy().into_owned(),
+            1,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(err, "max_depth_exceeded");
+        std::fs::remove_dir_all(&root).ok();
     }
 }

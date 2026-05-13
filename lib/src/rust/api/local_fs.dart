@@ -15,7 +15,7 @@ Future<List<DbLocalFileEntry>> localFsList({required String path}) =>
 /// Stat `path` following symlinks. `None` means "does not
 /// exist"; other I/O failures (permission denied, broken disk)
 /// surface as `Err`. The transfer walker uses this to read size
-/// + mtime for the change-detected replace path; the file pane
+/// and mtime for the change-detected replace path; the file pane
 /// uses it as a one-trip "exists?" probe.
 Future<DbLocalFileEntry?> localFsStat({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsStat(path: path);
@@ -52,6 +52,28 @@ Future<BigInt> localFsDirSize({required String path}) =>
 
 Future<List<String>> localFsWindowsHiddenNames({required String dir}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsWindowsHiddenNames(dir: dir);
+
+/// Copy a single file. Replaces the destination if it exists.
+/// Symmetric with [`local_fs_copy_recursive_no_symlinks`] so the
+/// file-browser drop path stays Rust-side across both branches.
+Future<void> localFsCopyFile({required String src, required String dst}) =>
+    RustLib.instance.api.crateApiLocalFsLocalFsCopyFile(src: src, dst: dst);
+
+/// Recursively copy a directory tree. Refuses to traverse
+/// symlinks: a symlink at the root returns
+/// `Err("symlink_in_source")`, symlinks inside the tree are
+/// silently skipped, and recursion is bounded by `max_depth`.
+/// The Dart file-browser drop path passes 100, matching the
+/// constant it previously enforced inline.
+Future<void> localFsCopyRecursiveNoSymlinks({
+  required String src,
+  required String dst,
+  required int maxDepth,
+}) => RustLib.instance.api.crateApiLocalFsLocalFsCopyRecursiveNoSymlinks(
+  src: src,
+  dst: dst,
+  maxDepth: maxDepth,
+);
 
 class DbLocalFileEntry {
   final String name;

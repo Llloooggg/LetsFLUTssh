@@ -86,6 +86,27 @@ pub async fn local_fs_windows_hidden_names(dir: String) -> Vec<String> {
     lfs_core::fs::local::windows_hidden_names(dir).await
 }
 
+/// Copy a single file. Replaces the destination if it exists.
+/// Symmetric with [`local_fs_copy_recursive_no_symlinks`] so the
+/// file-browser drop path stays Rust-side across both branches.
+pub async fn local_fs_copy_file(src: String, dst: String) -> Result<(), String> {
+    lfs_core::fs::local::copy_file(src, dst).await
+}
+
+/// Recursively copy a directory tree. Refuses to traverse
+/// symlinks: a symlink at the root returns
+/// `Err("symlink_in_source")`, symlinks inside the tree are
+/// silently skipped, and recursion is bounded by `max_depth`.
+/// The Dart file-browser drop path passes 100, matching the
+/// constant it previously enforced inline.
+pub async fn local_fs_copy_recursive_no_symlinks(
+    src: String,
+    dst: String,
+    max_depth: u32,
+) -> Result<(), String> {
+    lfs_core::fs::local::copy_recursive_no_symlinks(src, dst, max_depth).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
