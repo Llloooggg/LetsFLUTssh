@@ -29,11 +29,6 @@ void main() {
 
   setUpAll(() async {
     await requireFrbLoaded();
-    // Production Argon2id (46 MiB / 2 iter) takes ~250 ms per derive
-    // on a fast laptop. Lower for the duration of this file.
-    MasterPasswordManager.debugSetKdfParams(
-      const KdfParams.argon2id(memoryKiB: 8, iterations: 1, parallelism: 1),
-    );
     tmp = await Directory.systemTemp.createTemp('lfs_mp_');
     // Constructor `basePath:` bypasses `_getBasePath`'s init call;
     // pin the support dir manually so every op below routes through
@@ -42,12 +37,20 @@ void main() {
   });
 
   tearDownAll(() async {
-    MasterPasswordManager.debugSetKdfParams(null);
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
   setUp(() async {
-    mp = MasterPasswordManager(basePath: tmp.path);
+    // Production Argon2id (46 MiB / 2 iter) takes ~250 ms per derive
+    // on a fast laptop. Lower for the duration of this file.
+    mp = MasterPasswordManager(
+      basePath: tmp.path,
+      kdfParams: const KdfParams.argon2id(
+        memoryKiB: 8,
+        iterations: 1,
+        parallelism: 1,
+      ),
+    );
     // Wipe any state from the previous test so isEnabled / verify
     // observations are isolated.
     if (await mp.isEnabled()) {
@@ -185,6 +188,11 @@ void main() {
       final mp2 = MasterPasswordManager(
         basePath: tmp.path,
         rateLimiter: limiter,
+        kdfParams: const KdfParams.argon2id(
+          memoryKiB: 8,
+          iterations: 1,
+          parallelism: 1,
+        ),
       );
       await mp2.enable(_b('p'));
       // Limiter is "locked" → unlockAttempt short-circuits.

@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show AnyhowException;
-import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/master_password.dart' as rust_mp;
@@ -32,17 +31,10 @@ import 'tier_unlock_attempt.dart';
 /// ```
 class MasterPasswordManager {
   /// The Argon2id profile used for fresh enable / changePassword calls.
-  /// Tests may lower it via [debugSetKdfParams] so enable / verify
-  /// cycles don't spend seconds each, stretching the full suite into
-  /// minutes.
-  static KdfParams _defaultParams = KdfParams.productionDefaults;
-
-  /// Lower KDF cost for tests. Restores to production defaults when
-  /// called with null. NEVER call from production code.
-  @visibleForTesting
-  static void debugSetKdfParams(KdfParams? params) {
-    _defaultParams = params ?? KdfParams.productionDefaults;
-  }
+  /// Tests pass `kdfParams: KdfParams.testFast` so the enable /
+  /// verify cycles don't spend seconds each. Production passes
+  /// nothing — the default lands on `KdfParams.productionDefaults`.
+  final KdfParams _kdfParams;
 
   String? _basePath;
 
@@ -56,12 +48,19 @@ class MasterPasswordManager {
   /// at the desk poking at the unlock dialog.
   final PasswordRateLimiter _rateLimiter;
 
-  /// Inject base path + rate limiter for testing. Production code
-  /// passes neither; a fresh `InMemoryRateLimiter` lives per
-  /// [MasterPasswordManager] instance.
-  MasterPasswordManager({String? basePath, PasswordRateLimiter? rateLimiter})
-    : _basePath = basePath,
-      _rateLimiter = rateLimiter ?? InMemoryRateLimiter();
+  /// Inject base path + rate limiter + KDF params for testing.
+  /// Production code passes nothing; a fresh `InMemoryRateLimiter`
+  /// lives per [MasterPasswordManager] instance, and `kdfParams`
+  /// defaults to [KdfParams.productionDefaults]. Tests pass
+  /// `kdfParams: KdfParams.testFast` so the Argon2id KDF runs in
+  /// milliseconds instead of seconds.
+  MasterPasswordManager({
+    String? basePath,
+    PasswordRateLimiter? rateLimiter,
+    KdfParams? kdfParams,
+  }) : _basePath = basePath,
+       _rateLimiter = rateLimiter ?? InMemoryRateLimiter(),
+       _kdfParams = kdfParams ?? KdfParams.productionDefaults;
 
   /// Current rate-limit status. UI reads this to render a cooldown
   /// countdown in place of the password field when
@@ -204,7 +203,7 @@ class MasterPasswordManager {
     try {
       final out = await rust_mp.masterPasswordEnable(
         password: password,
-        params: _wireParams(_defaultParams),
+        params: _wireParams(_kdfParams),
       );
       AppLogger.instance.log(
         'Master password enabled (Argon2id)',
@@ -226,7 +225,7 @@ class MasterPasswordManager {
     try {
       await rust_mp.masterPasswordEnableToSecret(
         password: password,
-        params: _wireParams(_defaultParams),
+        params: _wireParams(_kdfParams),
         secretId: secretId,
       );
       AppLogger.instance.log(
@@ -254,7 +253,7 @@ class MasterPasswordManager {
       final out = await rust_mp.masterPasswordChange(
         oldPassword: oldPassword,
         newPassword: newPassword,
-        params: _wireParams(_defaultParams),
+        params: _wireParams(_kdfParams),
       );
       AppLogger.instance.log(
         'Master password changed (Argon2id)',
@@ -283,7 +282,7 @@ class MasterPasswordManager {
       await rust_mp.masterPasswordChangeToSecret(
         oldPassword: oldPassword,
         newPassword: newPassword,
-        params: _wireParams(_defaultParams),
+        params: _wireParams(_kdfParams),
         secretId: secretId,
       );
       AppLogger.instance.log(
