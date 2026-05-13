@@ -407,16 +407,16 @@ fn run_apply(
     }
     if want_sessions {
         if let Some(json) = pending.webdav_session_details_json.as_deref() {
-            apply_webdav_session_details(conn, json, outcome);
+            apply_webdav_session_details(conn, json, mode, now_ms, outcome);
         }
         if let Some(json) = pending.s3_session_details_json.as_deref() {
-            apply_s3_session_details(conn, json, outcome);
+            apply_s3_session_details(conn, json, mode, now_ms, outcome);
         }
         if let Some(json) = pending.sftp_bookmarks_json.as_deref() {
             apply_sftp_bookmarks(conn, json, mode, now_ms, outcome);
         }
         if let Some(json) = pending.port_forward_rules_json.as_deref() {
-            apply_port_forward_rules(conn, json, mode, outcome);
+            apply_port_forward_rules(conn, json, mode, now_ms, outcome);
         }
     }
 }
@@ -1384,6 +1384,8 @@ fn apply_ssh_key_certificates(
 fn apply_webdav_session_details(
     conn: &impl crate::db::DbAccess,
     json: &str,
+    mode: ApplyMode,
+    now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
@@ -1409,11 +1411,45 @@ fn apply_webdav_session_details(
         if session_id.is_empty() {
             continue;
         }
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        // Archive imports never carry tombstones — they're a sync-
+        // protocol concern. Drop the row silently rather than apply
+        // it as a fake revival.
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(now_ms);
+            match webdav_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
+                Ok(_) => outcome.webdav_session_details_applied += 1,
+                Err(e) => outcome.errors.push(format!(
+                    "webdav_session_details {session_id} tombstone: {e}"
+                )),
+            }
+            continue;
+        }
         if !live_sessions.contains(&session_id) {
             outcome.warnings.push(format!(
                 "webdav_session_details {session_id}: parent session absent"
             ));
             continue;
+        }
+        if mode.is_sync() {
+            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
+            // LWW gate: skip when the local stamp is at least as
+            // fresh as the peer's. The tombstone branch above uses
+            // its own gate inside `apply_tombstone`.
+            if let Some(local_updated) = webdav_sessions::get_updated_at(conn, &session_id)
+                .ok()
+                .flatten()
+            {
+                if peer_updated_at <= local_updated {
+                    continue;
+                }
+            }
         }
         let row = webdav_sessions::WebDavSessionRow {
             session_id: session_id.clone(),
@@ -1426,7 +1462,13 @@ fn apply_webdav_session_details(
                 .filter(|s| !s.is_empty())
                 .map(|s| s.to_string()),
         };
-        match webdav_sessions::upsert(conn, &row) {
+        let result = if mode.is_sync() {
+            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
+            webdav_sessions::upsert_with_stamp(conn, &row, peer_updated_at)
+        } else {
+            webdav_sessions::upsert(conn, &row)
+        };
+        match result {
             Ok(_) => outcome.webdav_session_details_applied += 1,
             Err(e) => outcome
                 .errors
@@ -1438,6 +1480,8 @@ fn apply_webdav_session_details(
 fn apply_s3_session_details(
     conn: &impl crate::db::DbAccess,
     json: &str,
+    mode: ApplyMode,
+    now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
@@ -1463,11 +1507,39 @@ fn apply_s3_session_details(
         if session_id.is_empty() {
             continue;
         }
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(now_ms);
+            match s3_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
+                Ok(_) => outcome.s3_session_details_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("s3_session_details {session_id} tombstone: {e}")),
+            }
+            continue;
+        }
         if !live_sessions.contains(&session_id) {
             outcome.warnings.push(format!(
                 "s3_session_details {session_id}: parent session absent"
             ));
             continue;
+        }
+        if mode.is_sync() {
+            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
+            if let Some(local_updated) = s3_sessions::get_updated_at(conn, &session_id)
+                .ok()
+                .flatten()
+            {
+                if peer_updated_at <= local_updated {
+                    continue;
+                }
+            }
         }
         let row = s3_sessions::S3SessionRow {
             session_id: session_id.clone(),
@@ -1481,7 +1553,13 @@ fn apply_s3_session_details(
             default_bucket: json_string(&v, "default_bucket"),
             default_prefix: json_string(&v, "default_prefix"),
         };
-        match s3_sessions::upsert(conn, &row) {
+        let result = if mode.is_sync() {
+            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
+            s3_sessions::upsert_with_stamp(conn, &row, peer_updated_at)
+        } else {
+            s3_sessions::upsert(conn, &row)
+        };
+        match result {
             Ok(_) => outcome.s3_session_details_applied += 1,
             Err(e) => outcome
                 .errors
@@ -1548,7 +1626,8 @@ fn apply_sftp_bookmarks(
 fn apply_port_forward_rules(
     conn: &impl crate::db::DbAccess,
     json: &str,
-    _mode: ApplyMode,
+    mode: ApplyMode,
+    now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
@@ -1569,10 +1648,48 @@ fn apply_port_forward_rules(
             return;
         }
     };
+    // Pre-load local rows for the LWW gate in sync mode. The DAO
+    // does not expose a per-id `get_updated_at` because
+    // `list_all_with_tombstones` already shapes the column for the
+    // composer; reuse it here so the apply path has exactly one
+    // source of truth for the local timestamp.
+    let local_updated_at: HashMap<String, i64> = if mode.is_sync() {
+        match port_forwards::list_all_with_tombstones(conn) {
+            Ok(rows) => rows
+                .into_iter()
+                .map(|(r, _)| (r.id.clone(), r.updated_at_ms))
+                .collect(),
+            Err(e) => {
+                outcome
+                    .errors
+                    .push(format!("port_forward_rules local snapshot: {e}"));
+                return;
+            }
+        }
+    } else {
+        HashMap::new()
+    };
     for v in arr {
         let id = json_string(&v, "id");
         let session_id = json_string(&v, "session_id");
         if id.is_empty() || session_id.is_empty() {
+            continue;
+        }
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(now_ms);
+            match port_forwards::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.port_forward_rules_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("port_forward_rule {id} tombstone: {e}")),
+            }
             continue;
         }
         if !live_sessions.contains(&session_id) {
@@ -1580,6 +1697,18 @@ fn apply_port_forward_rules(
                 "port_forward_rule {id}: parent session {session_id} absent"
             ));
             continue;
+        }
+        let peer_updated_at = if mode.is_sync() {
+            json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms)
+        } else {
+            now_ms
+        };
+        if mode.is_sync() {
+            if let Some(local) = local_updated_at.get(&id) {
+                if peer_updated_at <= *local {
+                    continue;
+                }
+            }
         }
         let row = port_forwards::PortForwardRuleRow {
             id: id.clone(),
@@ -1593,8 +1722,14 @@ fn apply_port_forward_rules(
             enabled: v.get("enabled").and_then(|x| x.as_bool()).unwrap_or(true),
             sort_order: json_i64(&v, "sort_order"),
             created_at_ms: json_i64(&v, "created_at_ms"),
+            updated_at_ms: peer_updated_at,
         };
-        match port_forwards::upsert(conn, &row) {
+        let result = if mode.is_sync() {
+            port_forwards::upsert_with_stamp(conn, &row, peer_updated_at)
+        } else {
+            port_forwards::upsert(conn, &row)
+        };
+        match result {
             Ok(_) => outcome.port_forward_rules_applied += 1,
             Err(e) => outcome
                 .errors

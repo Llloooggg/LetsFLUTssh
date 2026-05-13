@@ -89,17 +89,29 @@ class EnclaveSshDialog extends StatefulWidget {
   /// Backend injection. Defaults to the FRB-backed implementation.
   final EnclaveBackend backend;
 
-  const EnclaveSshDialog({super.key, this.backend = const EnclaveFrbBackend()});
+  /// Initial label to seed the wizard's label field. Used by the
+  /// key-manager stub re-generate flow so the user lands on a form
+  /// that already carries the migrated stub's name; `null` means
+  /// the wizard starts with an empty label.
+  final String? initialLabel;
+
+  const EnclaveSshDialog({
+    super.key,
+    this.backend = const EnclaveFrbBackend(),
+    this.initialLabel,
+  });
 
   /// Convenience opener. Always returns whatever the dialog popped
   /// — `null` when the user dismissed without generating.
   static Future<EnclaveSshResult?> show(
     BuildContext context, {
     EnclaveBackend backend = const EnclaveFrbBackend(),
+    String? initialLabel,
   }) {
     return AppDialog.show<EnclaveSshResult>(
       context,
-      builder: (_) => EnclaveSshDialog(backend: backend),
+      builder: (_) =>
+          EnclaveSshDialog(backend: backend, initialLabel: initialLabel),
     );
   }
 
@@ -119,6 +131,10 @@ class _EnclaveSshDialogState extends State<EnclaveSshDialog> {
   @override
   void initState() {
     super.initState();
+    final seed = widget.initialLabel;
+    if (seed != null && seed.isNotEmpty) {
+      _labelCtrl.text = seed;
+    }
     _kickProbe();
   }
 

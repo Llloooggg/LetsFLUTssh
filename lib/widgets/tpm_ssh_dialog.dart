@@ -97,15 +97,27 @@ enum TpmWizardStep { probing, configure, generating, complete }
 class TpmSshDialog extends StatefulWidget {
   final TpmBackend backend;
 
-  const TpmSshDialog({super.key, this.backend = const TpmFrbBackend()});
+  /// Initial label to seed the wizard's label field. Used by the
+  /// key-manager stub re-generate flow so the user lands on a form
+  /// that already carries the migrated stub's name; `null` means
+  /// the wizard starts with an empty label.
+  final String? initialLabel;
+
+  const TpmSshDialog({
+    super.key,
+    this.backend = const TpmFrbBackend(),
+    this.initialLabel,
+  });
 
   static Future<TpmSshResult?> show(
     BuildContext context, {
     TpmBackend backend = const TpmFrbBackend(),
+    String? initialLabel,
   }) {
     return AppDialog.show<TpmSshResult>(
       context,
-      builder: (_) => TpmSshDialog(backend: backend),
+      builder: (_) =>
+          TpmSshDialog(backend: backend, initialLabel: initialLabel),
     );
   }
 
@@ -131,6 +143,10 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
   @override
   void initState() {
     super.initState();
+    final seed = widget.initialLabel;
+    if (seed != null && seed.isNotEmpty) {
+      _labelCtrl.text = seed;
+    }
     _kickProbe();
   }
 

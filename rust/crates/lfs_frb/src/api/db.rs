@@ -1412,6 +1412,11 @@ impl From<DbPortForwardRule> for lfs_core::db::port_forwards::PortForwardRuleRow
             enabled: r.enabled,
             sort_order: r.sort_order,
             created_at_ms: r.created_at_ms,
+            // `updated_at_ms` is stamped by the DAO at upsert time so
+            // the Dart-visible FRB DTO does not need to carry it. The
+            // sync apply path uses `upsert_with_stamp` with the peer's
+            // timestamp directly.
+            updated_at_ms: 0,
         }
     }
 }

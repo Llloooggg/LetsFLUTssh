@@ -79,15 +79,27 @@ class HelloSshDialog extends StatefulWidget {
   /// Backend injection. Defaults to the FRB-backed implementation.
   final HelloBackend backend;
 
-  const HelloSshDialog({super.key, this.backend = const HelloFrbBackend()});
+  /// Initial label to seed the wizard's label field. Used by the
+  /// key-manager stub re-generate flow so the user lands on a form
+  /// that already carries the migrated stub's name; `null` means
+  /// the wizard starts with an empty label.
+  final String? initialLabel;
+
+  const HelloSshDialog({
+    super.key,
+    this.backend = const HelloFrbBackend(),
+    this.initialLabel,
+  });
 
   static Future<HelloSshResult?> show(
     BuildContext context, {
     HelloBackend backend = const HelloFrbBackend(),
+    String? initialLabel,
   }) {
     return AppDialog.show<HelloSshResult>(
       context,
-      builder: (_) => HelloSshDialog(backend: backend),
+      builder: (_) =>
+          HelloSshDialog(backend: backend, initialLabel: initialLabel),
     );
   }
 
@@ -106,6 +118,10 @@ class _HelloSshDialogState extends State<HelloSshDialog> {
   @override
   void initState() {
     super.initState();
+    final seed = widget.initialLabel;
+    if (seed != null && seed.isNotEmpty) {
+      _labelCtrl.text = seed;
+    }
     _kickProbe();
   }
 

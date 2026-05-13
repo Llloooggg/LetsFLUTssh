@@ -249,18 +249,30 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
             write_json_entry(&mut zw, opts, "ssh_key_certificates.json", &value)?;
         }
     }
+    // Tombstoned rows travel only on the sync wire, not in manual
+    // `.lfs` archive exports. Sync push stamps `sync_origin` on the
+    // manifest; manual exports leave the field absent. Keying
+    // tombstone emission off that flag keeps the archive-import
+    // applier insulated from sync-protocol concerns even when the
+    // user-facing dialog reuses the same composer.
+    let sync_mode = input.sync_origin.as_deref().is_some_and(|s| !s.is_empty());
     if input.options.include_sessions {
-        if let Some(value) = build_webdav_session_details_value(conn, &input.selected_session_ids)?
+        if let Some(value) =
+            build_webdav_session_details_value(conn, &input.selected_session_ids, sync_mode)?
         {
             write_json_entry(&mut zw, opts, "webdav_session_details.json", &value)?;
         }
-        if let Some(value) = build_s3_session_details_value(conn, &input.selected_session_ids)? {
+        if let Some(value) =
+            build_s3_session_details_value(conn, &input.selected_session_ids, sync_mode)?
+        {
             write_json_entry(&mut zw, opts, "s3_session_details.json", &value)?;
         }
         if let Some(value) = build_sftp_bookmarks_value(conn, &input.selected_session_ids)? {
             write_json_entry(&mut zw, opts, "sftp_bookmarks.json", &value)?;
         }
-        if let Some(value) = build_port_forward_rules_value(conn, &input.selected_session_ids)? {
+        if let Some(value) =
+            build_port_forward_rules_value(conn, &input.selected_session_ids, sync_mode)?
+        {
             write_json_entry(&mut zw, opts, "port_forward_rules.json", &value)?;
         }
     }
@@ -551,37 +563,27 @@ fn build_ssh_key_certificates_value(
 fn build_webdav_session_details_value(
     conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
+    sync_mode: bool,
 ) -> Result<Option<Value>, Error> {
-    let all_rows = webdav_sessions::list_all(conn)?;
-    if all_rows.is_empty() {
-        return Ok(None);
-    }
     let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
-    let arr: Vec<Value> = all_rows
-        .into_iter()
-        .filter(|r| want.contains(r.session_id.as_str()))
-        .map(|r| {
-            let mut obj = serde_json::Map::new();
-            obj.insert("session_id".into(), json!(r.session_id));
-            obj.insert("base_url".into(), json!(r.base_url));
-            obj.insert("username".into(), json!(r.username));
-            obj.insert("auth_method".into(), json!(r.auth_method));
-            if let Some(fp) = r.self_signed_fingerprint {
-                obj.insert("self_signed_fingerprint".into(), json!(fp));
+    let mut arr: Vec<Value> = Vec::new();
+    if sync_mode {
+        let rows = webdav_sessions::list_all_with_tombstones(conn)?;
+        for (r, updated_at, deleted_at) in rows {
+            if !want.contains(r.session_id.as_str()) {
+                continue;
             }
-            // Credential bytes stay on the source device. The
-            // canonical SecretStore id is reconstructed by the
-            // receiving device via `webdav_secret_id(session_id)`;
-            // surfacing the id pointer keeps the import path
-            // explicit about "re-enter password" without embedding
-            // any secret material on the wire.
-            obj.insert(
-                "credential_secret_id".into(),
-                json!(webdav_sessions::webdav_secret_id(&r.session_id)),
-            );
-            Value::Object(obj)
-        })
-        .collect();
+            arr.push(webdav_row_to_value(&r, Some(updated_at), deleted_at));
+        }
+    } else {
+        let rows = webdav_sessions::list_all(conn)?;
+        for r in rows {
+            if !want.contains(r.session_id.as_str()) {
+                continue;
+            }
+            arr.push(webdav_row_to_value(&r, None, None));
+        }
+    }
     if arr.is_empty() {
         Ok(None)
     } else {
@@ -589,44 +591,99 @@ fn build_webdav_session_details_value(
     }
 }
 
+fn webdav_row_to_value(
+    r: &webdav_sessions::WebDavSessionRow,
+    updated_at: Option<i64>,
+    deleted_at: Option<i64>,
+) -> Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("session_id".into(), json!(r.session_id));
+    obj.insert("base_url".into(), json!(r.base_url));
+    obj.insert("username".into(), json!(r.username));
+    obj.insert("auth_method".into(), json!(r.auth_method));
+    if let Some(fp) = r.self_signed_fingerprint.as_deref() {
+        obj.insert("self_signed_fingerprint".into(), json!(fp));
+    }
+    // Credential bytes stay on the source device. The canonical
+    // SecretStore id is reconstructed by the receiving device via
+    // `webdav_secret_id(session_id)`; surfacing the id pointer keeps
+    // the import path explicit about "re-enter password" without
+    // embedding any secret material on the wire.
+    obj.insert(
+        "credential_secret_id".into(),
+        json!(webdav_sessions::webdav_secret_id(&r.session_id)),
+    );
+    if let Some(ts) = updated_at {
+        obj.insert("updated_at_ms".into(), json!(ts));
+    }
+    if let Some(ts) = deleted_at {
+        obj.insert("deleted_at_ms".into(), json!(ts));
+        obj.insert("tombstone".into(), json!(true));
+    }
+    Value::Object(obj)
+}
+
 fn build_s3_session_details_value(
     conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
+    sync_mode: bool,
 ) -> Result<Option<Value>, Error> {
-    let all_rows = s3_sessions::list_all(conn)?;
-    if all_rows.is_empty() {
-        return Ok(None);
-    }
     let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
-    let arr: Vec<Value> = all_rows
-        .into_iter()
-        .filter(|r| want.contains(r.session_id.as_str()))
-        .map(|r| {
-            let mut obj = serde_json::Map::new();
-            obj.insert("session_id".into(), json!(r.session_id));
-            obj.insert("access_key_id".into(), json!(r.access_key_id));
-            obj.insert("region".into(), json!(r.region));
-            obj.insert("endpoint".into(), json!(r.endpoint));
-            obj.insert("path_style".into(), json!(r.path_style));
-            obj.insert("default_bucket".into(), json!(r.default_bucket));
-            obj.insert("default_prefix".into(), json!(r.default_prefix));
-            // Same opaque-pointer discipline as WebDAV: the access
-            // key id is the public half of the AWS credential and
-            // travels verbatim; the secret access key bytes don't —
-            // the receiving device finds them missing and surfaces
-            // "re-enter secret access key" on first connect.
-            obj.insert(
-                "secret_access_key_secret_id".into(),
-                json!(s3_sessions::s3_secret_id(&r.session_id)),
-            );
-            Value::Object(obj)
-        })
-        .collect();
+    let mut arr: Vec<Value> = Vec::new();
+    if sync_mode {
+        let rows = s3_sessions::list_all_with_tombstones(conn)?;
+        for (r, updated_at, deleted_at) in rows {
+            if !want.contains(r.session_id.as_str()) {
+                continue;
+            }
+            arr.push(s3_row_to_value(&r, Some(updated_at), deleted_at));
+        }
+    } else {
+        let rows = s3_sessions::list_all(conn)?;
+        for r in rows {
+            if !want.contains(r.session_id.as_str()) {
+                continue;
+            }
+            arr.push(s3_row_to_value(&r, None, None));
+        }
+    }
     if arr.is_empty() {
         Ok(None)
     } else {
         Ok(Some(Value::Array(arr)))
     }
+}
+
+fn s3_row_to_value(
+    r: &s3_sessions::S3SessionRow,
+    updated_at: Option<i64>,
+    deleted_at: Option<i64>,
+) -> Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("session_id".into(), json!(r.session_id));
+    obj.insert("access_key_id".into(), json!(r.access_key_id));
+    obj.insert("region".into(), json!(r.region));
+    obj.insert("endpoint".into(), json!(r.endpoint));
+    obj.insert("path_style".into(), json!(r.path_style));
+    obj.insert("default_bucket".into(), json!(r.default_bucket));
+    obj.insert("default_prefix".into(), json!(r.default_prefix));
+    // Same opaque-pointer discipline as WebDAV: the access key id is
+    // the public half of the AWS credential and travels verbatim;
+    // the secret access key bytes don't — the receiving device finds
+    // them missing and surfaces "re-enter secret access key" on
+    // first connect.
+    obj.insert(
+        "secret_access_key_secret_id".into(),
+        json!(s3_sessions::s3_secret_id(&r.session_id)),
+    );
+    if let Some(ts) = updated_at {
+        obj.insert("updated_at_ms".into(), json!(ts));
+    }
+    if let Some(ts) = deleted_at {
+        obj.insert("deleted_at_ms".into(), json!(ts));
+        obj.insert("tombstone".into(), json!(true));
+    }
+    Value::Object(obj)
 }
 
 fn build_sftp_bookmarks_value(
@@ -661,36 +718,59 @@ fn build_sftp_bookmarks_value(
 fn build_port_forward_rules_value(
     conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
+    sync_mode: bool,
 ) -> Result<Option<Value>, Error> {
-    let all_rows = port_forwards::list_all(conn)?;
-    if all_rows.is_empty() {
-        return Ok(None);
-    }
     let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
-    let arr: Vec<Value> = all_rows
-        .into_iter()
-        .filter(|r| want.contains(r.session_id.as_str()))
-        .map(|r| {
-            json!({
-                "id": r.id,
-                "session_id": r.session_id,
-                "kind": r.kind,
-                "bind_host": r.bind_host,
-                "bind_port": r.bind_port,
-                "remote_host": r.remote_host,
-                "remote_port": r.remote_port,
-                "description": r.description,
-                "enabled": r.enabled,
-                "sort_order": r.sort_order,
-                "created_at_ms": r.created_at_ms,
-            })
-        })
-        .collect();
+    let mut arr: Vec<Value> = Vec::new();
+    if sync_mode {
+        let rows = port_forwards::list_all_with_tombstones(conn)?;
+        for (r, deleted_at) in rows {
+            if !want.contains(r.session_id.as_str()) {
+                continue;
+            }
+            arr.push(port_forward_row_to_value(&r, true, deleted_at));
+        }
+    } else {
+        let rows = port_forwards::list_all(conn)?;
+        for r in rows {
+            if !want.contains(r.session_id.as_str()) {
+                continue;
+            }
+            arr.push(port_forward_row_to_value(&r, false, None));
+        }
+    }
     if arr.is_empty() {
         Ok(None)
     } else {
         Ok(Some(Value::Array(arr)))
     }
+}
+
+fn port_forward_row_to_value(
+    r: &port_forwards::PortForwardRuleRow,
+    include_sync_stamps: bool,
+    deleted_at: Option<i64>,
+) -> Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("id".into(), json!(r.id));
+    obj.insert("session_id".into(), json!(r.session_id));
+    obj.insert("kind".into(), json!(r.kind));
+    obj.insert("bind_host".into(), json!(r.bind_host));
+    obj.insert("bind_port".into(), json!(r.bind_port));
+    obj.insert("remote_host".into(), json!(r.remote_host));
+    obj.insert("remote_port".into(), json!(r.remote_port));
+    obj.insert("description".into(), json!(r.description));
+    obj.insert("enabled".into(), json!(r.enabled));
+    obj.insert("sort_order".into(), json!(r.sort_order));
+    obj.insert("created_at_ms".into(), json!(r.created_at_ms));
+    if include_sync_stamps {
+        obj.insert("updated_at_ms".into(), json!(r.updated_at_ms));
+    }
+    if let Some(ts) = deleted_at {
+        obj.insert("deleted_at_ms".into(), json!(ts));
+        obj.insert("tombstone".into(), json!(true));
+    }
+    Value::Object(obj)
 }
 
 fn build_tags_value(conn: &impl crate::db::DbAccess) -> Result<Option<Value>, Error> {

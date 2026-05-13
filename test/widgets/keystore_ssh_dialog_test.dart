@@ -311,6 +311,32 @@ void main() {
       expect(find.byType(KeystoreSshDialog), findsOneWidget);
       expect(find.textContaining('ECDSA P-256'), findsOneWidget);
     });
+
+    testWidgets('initialLabel pre-fills the label field', (tester) async {
+      final backend = _FakeKeystoreBackend(
+        probeResult: const rust_ks.DbKeystoreProbeResult.available(
+          strongboxAvailable: true,
+        ),
+      );
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => KeystoreSshDialog.show(
+                ctx,
+                backend: backend,
+                initialLabel: 'work-laptop',
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final labelField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(labelField.controller?.text, 'work-laptop');
+    });
   });
 
   group('KeystoreBadge', () {

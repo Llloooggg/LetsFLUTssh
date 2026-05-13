@@ -194,6 +194,35 @@ void main() {
       expect(find.textContaining('fake-hello-error'), findsOneWidget);
       expect(find.text(s.sshKeyGenerateCta), findsOneWidget);
     });
+
+    testWidgets('initialLabel pre-fills the label field', (tester) async {
+      await _widenViewport(tester);
+      final backend = _FakeBackend(
+        probeResult: const rust_hello.DbHelloProbeResult_Available(
+          tier: rust_hello.DbHelloTpmTier.hardware,
+        ),
+      );
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => TextButton(
+              onPressed: () async {
+                await HelloSshDialog.show(
+                  ctx,
+                  backend: backend,
+                  initialLabel: 'work-laptop',
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final labelField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(labelField.controller?.text, 'work-laptop');
+    });
   });
 
   group('HelloBadge', () {

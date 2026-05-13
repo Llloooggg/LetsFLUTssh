@@ -444,18 +444,18 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   /// stub stays in the table until the user removes it explicitly
   /// (the actions live side by side on the row). Dispatch is by
   /// backend: Enclave, Hello, TPM, Keystore each open their own
-  /// wizard dialog. The wizard dialogs do not yet accept an
-  /// `initialLabel` — the user re-types the label they want; the
-  /// hint surface lives in the dialog header.
+  /// wizard dialog seeded with the stub's label so the user does
+  /// not retype the name from the source device.
   Future<void> _regenerateStub(SshKeyMetadata entry) async {
+    final label = entry.label;
     if (entry.isEnclave) {
-      await EnclaveSshDialog.show(context);
+      await EnclaveSshDialog.show(context, initialLabel: label);
     } else if (entry.isHello) {
-      await HelloSshDialog.show(context);
+      await HelloSshDialog.show(context, initialLabel: label);
     } else if (entry.isTpm) {
-      await TpmSshDialog.show(context);
+      await TpmSshDialog.show(context, initialLabel: label);
     } else if (entry.isKeystore) {
-      await KeystoreSshDialog.show(context);
+      await KeystoreSshDialog.show(context, initialLabel: label);
     }
     if (!mounted) return;
     await _loadKeys();

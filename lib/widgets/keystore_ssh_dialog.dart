@@ -88,18 +88,27 @@ enum KeystoreWizardStep { probing, configure, generating, complete }
 class KeystoreSshDialog extends StatefulWidget {
   final KeystoreBackend backend;
 
+  /// Initial label to seed the wizard's label field. Used by the
+  /// key-manager stub re-generate flow so the user lands on a form
+  /// that already carries the migrated stub's name; `null` means
+  /// the wizard starts with an empty label.
+  final String? initialLabel;
+
   const KeystoreSshDialog({
     super.key,
     this.backend = const KeystoreFrbBackend(),
+    this.initialLabel,
   });
 
   static Future<KeystoreSshResult?> show(
     BuildContext context, {
     KeystoreBackend backend = const KeystoreFrbBackend(),
+    String? initialLabel,
   }) {
     return AppDialog.show<KeystoreSshResult>(
       context,
-      builder: (_) => KeystoreSshDialog(backend: backend),
+      builder: (_) =>
+          KeystoreSshDialog(backend: backend, initialLabel: initialLabel),
     );
   }
 
@@ -119,6 +128,10 @@ class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
   @override
   void initState() {
     super.initState();
+    final seed = widget.initialLabel;
+    if (seed != null && seed.isNotEmpty) {
+      _labelCtrl.text = seed;
+    }
     _kickProbe();
   }
 

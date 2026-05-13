@@ -470,18 +470,61 @@ impl Db {
 /// capture-time `Build.MODEL` + Android version string, surfaced
 /// read-only in the badge popover). Every new column is NULL/0 on
 /// existing rows and populated only when `backend = 'keystore'`.
-pub const SCHEMA_VERSION: i32 = 14;
+/// v15 lands tombstones on the three v5/v6/v7-era child tables that
+/// missed them at introduction: `port_forward_rules`,
+/// `webdav_session_details`, `s3_session_details`. Each gets a
+/// nullable `deleted_at INTEGER` column matching the existing
+/// `TOMBSTONE_TABLES` shape, plus a `updated_at INTEGER NOT NULL
+/// DEFAULT 0` column so the sync layer's LWW gate has a strictly-
+/// newer stamp to compare against. Existing rows backfill to
+/// `updated_at = created_at` for `port_forward_rules` (which already
+/// carries `created_at`) and `updated_at = 0` for the detail tables
+/// (which did not). The composer / apply paths emit tombstones in
+/// `ApplyMode::Sync` only; archive imports filter them upstream.
+pub const SCHEMA_VERSION: i32 = 15;
 
-/// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
-/// Single source of truth for the v2 → v3 migration step + the
-/// per-DAO tombstone-filter contract — every SELECT against these
-/// tables filters `WHERE deleted_at IS NULL`, every `delete*`
-/// flips the column to a unix-millis timestamp instead of issuing
-/// a `DELETE FROM`. `known_hosts` is **not** in this list: TOFU
-/// state is per-device and the sync layer (WebDAV) must not leak
-/// host trust across devices — physical removal stays the model
-/// there.
-const TOMBSTONE_TABLES: &[&str] = &["sessions", "ssh_keys", "tags", "snippets", "sftp_bookmarks"];
+/// Tables that gained the `deleted_at INTEGER NULL` tombstone column
+/// on the v2 → v3 hop. Iterated by [`bootstrap_schema`] under the
+/// `(1..3).contains(&current)` gate so v1 / v2 databases pick up the
+/// column without a fresh-install side effect.
+const V3_TOMBSTONE_TABLES: &[&str] =
+    &["sessions", "ssh_keys", "tags", "snippets", "sftp_bookmarks"];
+
+/// Tables that gained the `deleted_at` + `updated_at` columns on the
+/// v14 → v15 hop. The three v5/v6/v7-era child tables
+/// (`port_forward_rules`, `webdav_session_details`,
+/// `s3_session_details`) missed the tombstone column at introduction
+/// because the schema author treated them as per-device config. Cross-
+/// device sync replay needs the same soft-delete contract the v3
+/// tables already carry; v15 backfills it. The production migration
+/// arm (`add_v15_tombstone_columns`) names each table inline so this
+/// list is test-only — it pins the set the rewind fixture must
+/// reset to reproduce a v14 install.
+#[cfg(test)]
+const V15_TOMBSTONE_TABLES: &[&str] = &[
+    "port_forward_rules",
+    "webdav_session_details",
+    "s3_session_details",
+];
+
+/// Every table that carries a `deleted_at INTEGER NULL` tombstone
+/// column once the schema is at HEAD. The per-DAO tombstone-filter
+/// contract — every SELECT filters `WHERE deleted_at IS NULL`,
+/// every `delete*` flips the column to a unix-millis stamp instead
+/// of issuing a `DELETE FROM` — applies to every entry. `known_hosts`
+/// is **not** in this list: TOFU state is per-device and the sync
+/// layer (WebDAV) must not leak host trust across devices — physical
+/// removal stays the model there.
+const TOMBSTONE_TABLES: &[&str] = &[
+    "sessions",
+    "ssh_keys",
+    "tags",
+    "snippets",
+    "sftp_bookmarks",
+    "port_forward_rules",
+    "webdav_session_details",
+    "s3_session_details",
+];
 
 /// Create every table the DAOs expect, idempotently, and stamp
 /// `PRAGMA user_version = SCHEMA_VERSION` when the on-disk value
@@ -523,7 +566,7 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // TABLE already carries `deleted_at`, so the ALTER would
         // surface SQLite's "duplicate column name" error.
         if (1..3).contains(&current) {
-            for table in TOMBSTONE_TABLES {
+            for table in V3_TOMBSTONE_TABLES {
                 add_deleted_at_column(conn, table)?;
             }
         }
@@ -623,6 +666,19 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // action; the first regenerate or remove clears the column.
         if (1..14).contains(&current) {
             add_ssh_keys_imported_as_stub_column(conn)?;
+        }
+        // v14 -> v15: stamp `deleted_at` + `updated_at` on the three
+        // v5/v6/v7-era child tables that missed tombstones at
+        // introduction. Cross-device sync replay (peer ships a row
+        // the source device deleted) needs the soft-delete contract
+        // the older tables already carry. `port_forward_rules`
+        // already had `created_at`, so its `updated_at` backfills to
+        // the same stamp; the two detail tables carried no
+        // timestamps at all, so both columns land fresh and backfill
+        // to `0`. Fresh installs (`current == 0`) get the columns
+        // from `SCHEMA_SQL` and skip this arm.
+        if (1..15).contains(&current) {
+            add_v15_tombstone_columns(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -900,6 +956,117 @@ fn add_ssh_keys_imported_as_stub_column(conn: &Connection) -> Result<(), Error> 
         })
 }
 
+/// Issue the v14 -> v15 column adds for the three child tables that
+/// missed tombstones at introduction. Each table picks up the
+/// `deleted_at INTEGER NULL` column shared with the v3 tombstone
+/// shape plus an `updated_at INTEGER NOT NULL DEFAULT 0` column for
+/// the sync LWW gate. `port_forward_rules` backfills its
+/// `updated_at` from `created_at` so live rows land with a coherent
+/// stamp; the two detail tables had no timestamp columns at all so
+/// existing rows accept the `0` default.
+///
+/// Each ADD COLUMN is gated by a `pragma_table_info` probe: the
+/// `(1..15).contains(&current)` arm fires the function regardless of
+/// whether `SCHEMA_SQL`'s `CREATE TABLE IF NOT EXISTS` already
+/// minted the column (which happens when the table was created on
+/// the same bootstrap pass — every v15-era child table belongs to
+/// `SCHEMA_SQL`, so the path is exercised on both real v14 -> v15
+/// hops and freshly-bootstrapped test fixtures rewound to an older
+/// `user_version`).
+fn add_v15_tombstone_columns(conn: &Connection) -> Result<(), Error> {
+    // `port_forward_rules` already has `created_at`. Add the matching
+    // `updated_at` first when missing, backfill from `created_at`,
+    // then add the tombstone column when missing.
+    if !column_exists(conn, "port_forward_rules", "updated_at")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE port_forward_rules \
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0; \
+                 UPDATE port_forward_rules SET updated_at = created_at \
+                    WHERE updated_at = 0;",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add port_forward_rules.updated_at: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "port_forward_rules", "deleted_at")? {
+        conn.inner()
+            .execute_batch("ALTER TABLE port_forward_rules ADD COLUMN deleted_at INTEGER NULL;")
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add port_forward_rules.deleted_at: {e}"
+                ))
+            })?;
+    }
+    // `webdav_session_details` carries no timestamps today. Both
+    // columns land fresh; existing rows backfill from defaults.
+    if !column_exists(conn, "webdav_session_details", "updated_at")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE webdav_session_details \
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add webdav_session_details.updated_at: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "webdav_session_details", "deleted_at")? {
+        conn.inner()
+            .execute_batch("ALTER TABLE webdav_session_details ADD COLUMN deleted_at INTEGER NULL;")
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add webdav_session_details.deleted_at: {e}"
+                ))
+            })?;
+    }
+    // `s3_session_details` same shape as the WebDAV detail table.
+    if !column_exists(conn, "s3_session_details", "updated_at")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE s3_session_details \
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add s3_session_details.updated_at: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "s3_session_details", "deleted_at")? {
+        conn.inner()
+            .execute_batch("ALTER TABLE s3_session_details ADD COLUMN deleted_at INTEGER NULL;")
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add s3_session_details.deleted_at: {e}"
+                ))
+            })?;
+    }
+    Ok(())
+}
+
+/// `pragma_table_info`-backed column-existence probe. Used by the
+/// v14 -> v15 migration arm so the ADD COLUMN step stays a no-op
+/// when `SCHEMA_SQL` already minted the column on the same bootstrap
+/// pass (the v15-era child tables belong to `SCHEMA_SQL`, so the
+/// fresh-install path lays down the columns before the arm runs).
+fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, Error> {
+    let mut found = false;
+    conn.inner()
+        .pragma(None, "table_info", table, |row| {
+            let name: String = row.get("name")?;
+            if name == column {
+                found = true;
+            }
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("bootstrap schema: probe {table}.{column}: {e}")))?;
+    Ok(found)
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -1077,7 +1244,9 @@ CREATE TABLE IF NOT EXISTS webdav_session_details (
     base_url TEXT NOT NULL,
     username TEXT NOT NULL DEFAULT '',
     auth_method TEXT NOT NULL,
-    self_signed_fingerprint TEXT NULL
+    self_signed_fingerprint TEXT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER NULL
 );
 CREATE INDEX IF NOT EXISTS idx_webdav_session_details_session_id
     ON webdav_session_details(session_id);
@@ -1097,7 +1266,9 @@ CREATE TABLE IF NOT EXISTS s3_session_details (
     endpoint       TEXT NOT NULL DEFAULT '',
     path_style     INTEGER NOT NULL DEFAULT 0,
     default_bucket TEXT NOT NULL DEFAULT '',
-    default_prefix TEXT NOT NULL DEFAULT ''
+    default_prefix TEXT NOT NULL DEFAULT '',
+    updated_at     INTEGER NOT NULL DEFAULT 0,
+    deleted_at     INTEGER NULL
 );
 CREATE INDEX IF NOT EXISTS idx_s3_session_details_session_id
     ON s3_session_details(session_id);
@@ -1173,6 +1344,8 @@ CREATE TABLE IF NOT EXISTS port_forward_rules (
     enabled INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER NULL,
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 
@@ -1311,6 +1484,18 @@ mod tests {
                 .unwrap();
             conn.inner()
                 .execute_batch(&format!("ALTER TABLE {table} DROP COLUMN deleted_at"))
+                .unwrap();
+        }
+        // v15 also added an `updated_at` column on the three child
+        // tables (`port_forward_rules`, `webdav_session_details`,
+        // `s3_session_details`). The replayed v14 -> v15 arm probes
+        // for the column via `pragma_table_info` before ALTERing, so
+        // stripping it here is not load-bearing for the rerun — but
+        // we drop anyway so the post-rerun state matches what a real
+        // v2 -> HEAD walk would observe.
+        for table in V15_TOMBSTONE_TABLES {
+            conn.inner()
+                .execute_batch(&format!("ALTER TABLE {table} DROP COLUMN updated_at"))
                 .unwrap();
         }
         // Drop the v5 `sessions.kind` column too — the rewind below

@@ -135,6 +135,18 @@ void main() {
       // generate() was never called because the label is empty.
       expect(backend.lastLabel, isNull);
     });
+
+    testWidgets('initialLabel pre-fills the label field', (tester) async {
+      final backend = _FakeTpmBackend(
+        probeResult: rust_tpm.DbTpmSshProbeResult.available,
+      );
+      await tester.pumpWidget(
+        _wrap(TpmSshDialog(backend: backend, initialLabel: 'work-laptop')),
+      );
+      await tester.pumpAndSettle();
+      final labelField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(labelField.controller?.text, 'work-laptop');
+    });
   });
 
   group('TpmBadge', () {
