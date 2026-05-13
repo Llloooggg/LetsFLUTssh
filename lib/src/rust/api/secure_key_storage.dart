@@ -11,6 +11,29 @@ part 'secure_key_storage.freezed.dart';
 // These functions are ignored because they are not marked as `pub`: `map_read`, `map_unit`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
+/// Sync getter for [`ALIAS_ENCRYPTION_KEY`] — the T1 / T1+pw DB
+/// encryption-key keychain slot. Used by the Dart `SecureKeyStorage`
+/// to write / read / delete the active DB key.
+String secureStorageAliasEncryptionKey() => RustLib.instance.api
+    .crateApiSecureKeyStorageSecureStorageAliasEncryptionKey();
+
+/// Sync getter for [`ALIAS_BIOMETRIC_ENCRYPTION_KEY`] — the T1+pw
+/// biometric overlay encryption-key slot.
+String secureStorageAliasBiometricEncryptionKey() => RustLib.instance.api
+    .crateApiSecureKeyStorageSecureStorageAliasBiometricEncryptionKey();
+
+/// Sync getter for [`ALIAS_KEYCHAIN_PROBE`] — the transient
+/// keychain-probe sentinel slot. `SecureKeyStorage.probe()` writes,
+/// reads, then deletes a marker here to classify the keychain
+/// outcome.
+String secureStorageAliasKeychainProbe() => RustLib.instance.api
+    .crateApiSecureKeyStorageSecureStorageAliasKeychainProbe();
+
+/// Sync getter for [`ALIAS_BIO_DB_KEY`] — the T2 biometric path's
+/// `BiometricKeyVault` DB-key slot.
+String secureStorageAliasBioDbKey() =>
+    RustLib.instance.api.crateApiSecureKeyStorageSecureStorageAliasBioDbKey();
+
 Future<DbSecureStorageOutcome> secureStorageRead({required String alias}) =>
     RustLib.instance.api.crateApiSecureKeyStorageSecureStorageRead(
       alias: alias,

@@ -24,9 +24,16 @@ import 'linux_keychain_marker.dart';
 /// marker is written on a successful [writeKeyFromSecret] and
 /// cleared by [deleteKey].
 class SecureKeyStorage {
-  static const _keyName = 'letsflutssh_encryption_key';
-  static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
-  static const _probeName = 'letsflutssh_keychain_probe';
+  // Slot names come from `lfs_frb::api::secure_key_storage::
+  // ALIAS_*` so a rename on the Rust side (which also owns
+  // `wipe_keychain::MANAGED_KEYS`) is the single source of truth.
+  // Dart hits the sync FRB getter once per accessor call —
+  // microsecond cost against compile-time-constant Rust statics.
+  static String get _keyName => rust_storage.secureStorageAliasEncryptionKey();
+  static String get _biometricKeyName =>
+      rust_storage.secureStorageAliasBiometricEncryptionKey();
+  static String get _probeName =>
+      rust_storage.secureStorageAliasKeychainProbe();
 
   final LinuxKeychainMarker _marker;
 

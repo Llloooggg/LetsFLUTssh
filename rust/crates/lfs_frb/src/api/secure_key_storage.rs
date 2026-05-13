@@ -5,6 +5,47 @@
 //! the cfg-gated dispatch table in `secure_key_storage.rs` picks
 //! the right backend per `target_os`.
 
+/// Canonical OS-keychain slot aliases owned by the app. Kept in
+/// the same crate as `wipe_keychain::MANAGED_KEYS` so a slot
+/// rename can never drift between the wipe sweep, the Dart
+/// callers, and the per-platform backend writes. Dart reads
+/// each name through the matching sync FRB getter below.
+pub const ALIAS_ENCRYPTION_KEY: &str = "letsflutssh_encryption_key";
+pub const ALIAS_BIOMETRIC_ENCRYPTION_KEY: &str = "letsflutssh_biometric_encryption_key";
+pub const ALIAS_KEYCHAIN_PROBE: &str = "letsflutssh_keychain_probe";
+pub const ALIAS_BIO_DB_KEY: &str = "letsflutssh_bio_db_key";
+
+/// Sync getter for [`ALIAS_ENCRYPTION_KEY`] — the T1 / T1+pw DB
+/// encryption-key keychain slot. Used by the Dart `SecureKeyStorage`
+/// to write / read / delete the active DB key.
+#[flutter_rust_bridge::frb(sync)]
+pub fn secure_storage_alias_encryption_key() -> String {
+    ALIAS_ENCRYPTION_KEY.to_string()
+}
+
+/// Sync getter for [`ALIAS_BIOMETRIC_ENCRYPTION_KEY`] — the T1+pw
+/// biometric overlay encryption-key slot.
+#[flutter_rust_bridge::frb(sync)]
+pub fn secure_storage_alias_biometric_encryption_key() -> String {
+    ALIAS_BIOMETRIC_ENCRYPTION_KEY.to_string()
+}
+
+/// Sync getter for [`ALIAS_KEYCHAIN_PROBE`] — the transient
+/// keychain-probe sentinel slot. `SecureKeyStorage.probe()` writes,
+/// reads, then deletes a marker here to classify the keychain
+/// outcome.
+#[flutter_rust_bridge::frb(sync)]
+pub fn secure_storage_alias_keychain_probe() -> String {
+    ALIAS_KEYCHAIN_PROBE.to_string()
+}
+
+/// Sync getter for [`ALIAS_BIO_DB_KEY`] — the T2 biometric path's
+/// `BiometricKeyVault` DB-key slot.
+#[flutter_rust_bridge::frb(sync)]
+pub fn secure_storage_alias_bio_db_key() -> String {
+    ALIAS_BIO_DB_KEY.to_string()
+}
+
 #[derive(Debug, Clone)]
 pub enum DbSecureStorageOutcome {
     /// Bytes returned. Empty `Vec` means "key existed with

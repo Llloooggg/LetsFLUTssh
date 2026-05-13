@@ -64,7 +64,11 @@ import 'linux_keychain_marker.dart';
 ///   fallback is gated by [LinuxKeychainMarker] so a torn write
 ///   never reads back as "stored but garbage".
 class BiometricKeyVault {
-  static const _keyName = 'letsflutssh_bio_db_key';
+  // Slot name comes from `lfs_frb::api::secure_key_storage::
+  // ALIAS_BIO_DB_KEY` so a rename Rust-side (which also owns the
+  // `wipe_keychain::MANAGED_KEYS` sweep list) is the single
+  // source of truth.
+  static String get _keyName => rust_storage.secureStorageAliasBioDbKey();
 
   final LinuxKeychainMarker _marker;
   final Future<String> Function() _supportDirPath;
