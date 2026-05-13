@@ -107,6 +107,18 @@ pub async fn local_fs_copy_recursive_no_symlinks(
     lfs_core::fs::local::copy_recursive_no_symlinks(src, dst, max_depth).await
 }
 
+/// Android shared-storage initial-dir probe. Stats
+/// `/storage/emulated/0`, then stats and lists `Download` to
+/// detect MANAGE_EXTERNAL_STORAGE (a permissive root listing
+/// succeeds on scoped storage even when the child is locked).
+/// `None` means the probe failed; the Dart caller falls back
+/// to `getExternalStorageDirectory()` (Flutter plugin path,
+/// no Rust analog). `home_dir` is the canonical shared root
+/// (`/storage/emulated/0` on most devices).
+pub async fn local_fs_android_initial_dir(home_dir: String) -> Option<String> {
+    lfs_core::fs::local::android_initial_dir_probe(home_dir).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

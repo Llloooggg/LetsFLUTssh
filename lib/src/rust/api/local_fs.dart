@@ -75,6 +75,19 @@ Future<void> localFsCopyRecursiveNoSymlinks({
   maxDepth: maxDepth,
 );
 
+/// Android shared-storage initial-dir probe. Stats
+/// `/storage/emulated/0`, then stats and lists `Download` to
+/// detect MANAGE_EXTERNAL_STORAGE (a permissive root listing
+/// succeeds on scoped storage even when the child is locked).
+/// `None` means the probe failed; the Dart caller falls back
+/// to `getExternalStorageDirectory()` (Flutter plugin path,
+/// no Rust analog). `home_dir` is the canonical shared root
+/// (`/storage/emulated/0` on most devices).
+Future<String?> localFsAndroidInitialDir({required String homeDir}) => RustLib
+    .instance
+    .api
+    .crateApiLocalFsLocalFsAndroidInitialDir(homeDir: homeDir);
+
 class DbLocalFileEntry {
   final String name;
   final String path;

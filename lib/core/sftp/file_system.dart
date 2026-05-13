@@ -49,29 +49,24 @@ class LocalFS implements FileSystem {
   /// Android: try shared storage first, fall back to app-specific dir
   /// if storage permission is not granted.
   ///
-  /// Uses a deeper probe (listing a subdirectory) because scoped storage
-  /// on Android 11+ lets apps see folder names at the root without actual
-  /// read access to their contents.
+  /// The probe runs Rust-side via `localFsAndroidInitialDir` —
+  /// it stats `/storage/emulated/0`, then stats and lists the
+  /// `Download` subdirectory because scoped storage on Android
+  /// 11+ lets apps see folder names at the root without actual
+  /// read access. `null` here means the probe failed (permission
+  /// denied / not mounted) and the Dart caller pivots to
+  /// `getExternalStorageDirectory()` (Flutter plugin path, no
+  /// Rust analog) for the app-specific fallback.
   Future<String> _androidInitialDir() async {
-    final shared = Directory(homeDirectory); // /storage/emulated/0
-    try {
-      if (await shared.exists()) {
-        // Probe a real subdirectory — the root listing succeeds even
-        // without MANAGE_EXTERNAL_STORAGE on Android 11+.
-        final download = Directory('${shared.path}/Download');
-        if (await download.exists()) {
-          await download.list().first;
-        }
-        return shared.path;
-      }
-    } catch (_) {
-      // Permission denied — fall back to app-specific external storage
-      AppLogger.instance.log(
-        'No shared storage access, falling back to app dir',
-        name: 'LocalFS',
-        level: LogLevel.warn,
-      );
-    }
+    final probed = await rust_local_fs.localFsAndroidInitialDir(
+      homeDir: homeDirectory,
+    );
+    if (probed != null) return probed;
+    AppLogger.instance.log(
+      'No shared storage access, falling back to app dir',
+      name: 'LocalFS',
+      level: LogLevel.warn,
+    );
     final appDir = await getExternalStorageDirectory();
     final fallbackPath = appDir?.path ?? Directory.current.path;
     AppLogger.instance.log('Android fallback dir: <path>', name: 'LocalFS');

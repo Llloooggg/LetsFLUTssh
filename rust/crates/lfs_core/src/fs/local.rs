@@ -230,6 +230,42 @@ pub async fn mkdir(path: String) -> Result<(), String> {
         .map_err(|e| format!("mkdir({path}): {e}"))
 }
 
+/// Android shared-storage initial-dir probe.
+///
+/// Scoped storage on Android 11+ lets apps see folder names at
+/// the `/storage/emulated/0` root without actually granting
+/// read access to the contents — a bare `metadata` call on the
+/// root succeeds even when a subsequent list of any child
+/// raises `EACCES`. Real-world MANAGE_EXTERNAL_STORAGE detection
+/// therefore needs a deeper probe: stat the `Download` child,
+/// then attempt to read its first directory entry.
+///
+/// `home_dir` is the canonical shared root (`/storage/emulated/0`
+/// resolved Dart-side from `Platform.environment['EXTERNAL_STORAGE']`).
+/// Returns `Some(home_dir)` when the deep probe succeeds, `None`
+/// when any step fails. The Dart caller pivots to
+/// `getExternalStorageDirectory()` (Flutter plugin) on `None`.
+pub async fn android_initial_dir_probe(home_dir: String) -> Option<String> {
+    let home_path = std::path::PathBuf::from(&home_dir);
+    if tokio::fs::metadata(&home_path).await.is_err() {
+        return None;
+    }
+    let download = home_path.join("Download");
+    if tokio::fs::metadata(&download).await.is_ok() {
+        // Read one entry — the listing succeeds on root even
+        // without read access, but the entry pull surfaces
+        // EACCES on a scoped-storage host.
+        let mut rd = match tokio::fs::read_dir(&download).await {
+            Ok(rd) => rd,
+            Err(_) => return None,
+        };
+        if rd.next_entry().await.is_err() {
+            return None;
+        }
+    }
+    Some(home_dir)
+}
+
 /// Remove `path`. Routes to `remove_file` or `remove_dir_all`
 /// based on the entity type — same dispatch the Dart side did.
 pub async fn remove(path: String) -> Result<(), String> {
