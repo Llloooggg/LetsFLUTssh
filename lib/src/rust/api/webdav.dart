@@ -7,7 +7,18 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `parse_auth_method`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+
+/// Parse `base_url` and return the WebDAV session's host + port
+/// projection. Explicit `:port` wins; otherwise scheme default
+/// (`https` → 443, `http` → 80); else `0`. Empty / malformed
+/// input returns an empty host + `0` so a benign caller (live
+/// preview, debug log) degrades gracefully.
+DbServerAddressFields webdavServerAddressFromBaseUrl({
+  required String baseUrl,
+}) => RustLib.instance.api.crateApiWebdavWebdavServerAddressFromBaseUrl(
+  baseUrl: baseUrl,
+);
 
 /// Open a WebDAV session.
 ///
@@ -79,6 +90,29 @@ abstract class WebDavConnection implements RustOpaqueInterface {
   /// not exist; callers wanting "exists?" semantics catch and
   /// treat any error as `false`.
   Future<WebDavFileMetadata> stat({required String path});
+}
+
+/// FRB-visible mirror of
+/// [`lfs_core::webdav::ServerAddressFields`]. Flat
+/// `{host, port}` projection of a base URL, used by the
+/// session-edit dialog to populate the legacy `sessions.host` /
+/// `.port` columns so SQL filters keyed on those keep working.
+class DbServerAddressFields {
+  final String host;
+  final int port;
+
+  const DbServerAddressFields({required this.host, required this.port});
+
+  @override
+  int get hashCode => host.hashCode ^ port.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbServerAddressFields &&
+          runtimeType == other.runtimeType &&
+          host == other.host &&
+          port == other.port;
 }
 
 /// One directory entry surfaced by [`WebDavConnection::list`].

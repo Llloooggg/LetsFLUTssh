@@ -860,6 +860,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSeekHit dco_decode_db_seek_hit(dynamic raw);
 
   @protected
+  DbServerAddressFields dco_decode_db_server_address_fields(dynamic raw);
+
+  @protected
   DbSession dco_decode_db_session(dynamic raw);
 
   @protected
@@ -2330,6 +2333,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSeekHit sse_decode_db_seek_hit(SseDeserializer deserializer);
+
+  @protected
+  DbServerAddressFields sse_decode_db_server_address_fields(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer);
@@ -4203,6 +4211,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_seek_hit(DbSeekHit self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_server_address_fields(
+    DbServerAddressFields self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer);

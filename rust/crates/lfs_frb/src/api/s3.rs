@@ -64,6 +64,21 @@ impl From<Metadata> for S3FileMetadata {
     }
 }
 
+/// Parse `endpoint` + `region` and return the S3 session's host
+/// + port projection. Empty `endpoint` falls back to
+/// `s3.<region>.amazonaws.com` (canonical AWS endpoint;
+/// `us-east-1` default when `region` empty). Explicit `:port`
+/// wins; `http://` no-port defaults to 80; everything else to
+/// 443. Used by the session-edit dialog to populate the legacy
+/// `sessions.host` / `.port` columns.
+#[flutter_rust_bridge::frb(sync)]
+pub fn s3_server_address_from_endpoint(
+    endpoint: String,
+    region: String,
+) -> crate::api::webdav::DbServerAddressFields {
+    lfs_core::s3::server_address_from_s3_endpoint(&endpoint, &region).into()
+}
+
 /// Live S3 client tied to a single session. Drop on the Dart side
 /// releases the inner `Arc`; the underlying `reqwest::Client` drops
 /// its connection pool when the last reference goes away.

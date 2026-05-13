@@ -72,6 +72,36 @@ impl From<Metadata> for WebDavFileMetadata {
     }
 }
 
+/// FRB-visible mirror of
+/// [`lfs_core::webdav::ServerAddressFields`]. Flat
+/// `{host, port}` projection of a base URL, used by the
+/// session-edit dialog to populate the legacy `sessions.host` /
+/// `.port` columns so SQL filters keyed on those keep working.
+#[derive(Debug, Clone)]
+pub struct DbServerAddressFields {
+    pub host: String,
+    pub port: u32,
+}
+
+impl From<lfs_core::webdav::ServerAddressFields> for DbServerAddressFields {
+    fn from(value: lfs_core::webdav::ServerAddressFields) -> Self {
+        DbServerAddressFields {
+            host: value.host,
+            port: value.port,
+        }
+    }
+}
+
+/// Parse `base_url` and return the WebDAV session's host + port
+/// projection. Explicit `:port` wins; otherwise scheme default
+/// (`https` → 443, `http` → 80); else `0`. Empty / malformed
+/// input returns an empty host + `0` so a benign caller (live
+/// preview, debug log) degrades gracefully.
+#[flutter_rust_bridge::frb(sync)]
+pub fn webdav_server_address_from_base_url(base_url: String) -> DbServerAddressFields {
+    lfs_core::webdav::server_address_from_base_url(&base_url).into()
+}
+
 /// Live WebDAV client tied to a single session. Drop on the Dart
 /// side releases the inner `Arc`; the underlying `reqwest` client
 /// drops its connection pool when the last reference goes away.

@@ -5,8 +5,24 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'webdav.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+
+/// Parse `endpoint` + `region` and return the S3 session's host
+/// + port projection. Empty `endpoint` falls back to
+/// `s3.<region>.amazonaws.com` (canonical AWS endpoint;
+/// `us-east-1` default when `region` empty). Explicit `:port`
+/// wins; `http://` no-port defaults to 80; everything else to
+/// 443. Used by the session-edit dialog to populate the legacy
+/// `sessions.host` / `.port` columns.
+DbServerAddressFields s3ServerAddressFromEndpoint({
+  required String endpoint,
+  required String region,
+}) => RustLib.instance.api.crateApiS3S3ServerAddressFromEndpoint(
+  endpoint: endpoint,
+  region: region,
+);
 
 /// Open an S3 session.
 ///

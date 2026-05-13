@@ -53,3 +53,84 @@ pub mod signer;
 
 pub use client::{S3Client, S3ObjectMetadata, S3ObjectPage};
 pub use config::S3Config;
+
+/// Server-address projection (host + port) for an S3 session
+/// derived from the user-typed endpoint URL. When `endpoint` is
+/// empty the host falls back to `s3.<region>.amazonaws.com` —
+/// the canonical AWS endpoint for the picked region (`us-east-1`
+/// when `region` is empty). Port defaults to 443; an `http://`
+/// endpoint with no explicit port maps to 80; an explicit
+/// `:port` always wins.
+///
+/// The same `ServerAddressFields` shape WebDAV uses keeps the
+/// session-edit dialog's two endpoint paths uniform Rust-side.
+pub fn server_address_from_s3_endpoint(
+    endpoint: &str,
+    region: &str,
+) -> crate::webdav::ServerAddressFields {
+    let trimmed = endpoint.trim();
+    if trimmed.is_empty() {
+        let r = region.trim();
+        let region_label = if r.is_empty() { "us-east-1" } else { r };
+        return crate::webdav::ServerAddressFields {
+            host: format!("s3.{region_label}.amazonaws.com"),
+            port: 443,
+        };
+    }
+    let parsed = match url::Url::parse(trimmed) {
+        Ok(u) => u,
+        Err(_) => {
+            return crate::webdav::ServerAddressFields {
+                host: String::new(),
+                port: 443,
+            };
+        }
+    };
+    let host = parsed.host_str().unwrap_or("").to_string();
+    let port = if let Some(p) = parsed.port() {
+        u32::from(p)
+    } else if parsed.scheme().eq_ignore_ascii_case("http") {
+        80
+    } else {
+        443
+    };
+    crate::webdav::ServerAddressFields { host, port }
+}
+
+#[cfg(test)]
+mod server_address_tests {
+    use super::*;
+
+    #[test]
+    fn empty_endpoint_falls_back_to_aws_region_host() {
+        let r = server_address_from_s3_endpoint("", "eu-west-1");
+        assert_eq!(r.host, "s3.eu-west-1.amazonaws.com");
+        assert_eq!(r.port, 443);
+    }
+
+    #[test]
+    fn empty_endpoint_empty_region_defaults_us_east_1() {
+        let r = server_address_from_s3_endpoint("", "");
+        assert_eq!(r.host, "s3.us-east-1.amazonaws.com");
+    }
+
+    #[test]
+    fn https_endpoint_defaults_443() {
+        let r = server_address_from_s3_endpoint("https://minio.local", "");
+        assert_eq!(r.host, "minio.local");
+        assert_eq!(r.port, 443);
+    }
+
+    #[test]
+    fn http_endpoint_defaults_80() {
+        let r = server_address_from_s3_endpoint("http://minio.local", "");
+        assert_eq!(r.host, "minio.local");
+        assert_eq!(r.port, 80);
+    }
+
+    #[test]
+    fn explicit_port_wins() {
+        let r = server_address_from_s3_endpoint("https://minio.local:9000", "");
+        assert_eq!(r.port, 9000);
+    }
+}

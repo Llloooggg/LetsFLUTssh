@@ -16,6 +16,8 @@ import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/s3.dart' as rust_s3;
+import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
@@ -633,69 +635,36 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   }
 
   /// Derive the SSH-shaped [ServerAddress] for a WebDAV session.
-  /// The host/port columns on `sessions` stay populated so legacy
-  /// SQL filters keep working; the live transport routes off
-  /// `kind = 'webdav'` and reads the full URL from
-  /// `webdav_session_details`. `Uri.parse` accepts malformed input —
-  /// the validator catches that ahead of save, this helper just
-  /// degrades gracefully when called from a benign code path.
+  /// Host/port come from the Rust-side
+  /// `webdav::server_address_from_base_url`; user is the Dart-side
+  /// form-draft credential. The host/port columns on `sessions`
+  /// stay populated so legacy SQL filters keep working; the live
+  /// transport routes off `kind = 'webdav'` and reads the full URL
+  /// from `webdav_session_details`.
   ServerAddress _serverFromBaseUrl() {
-    final raw = _baseUrlCtrl.text.trim();
-    Uri? parsed;
-    try {
-      parsed = Uri.parse(raw);
-    } on FormatException {
-      parsed = null;
-    }
-    final host = parsed?.host ?? '';
-    final hasPort = (parsed?.hasPort ?? false);
-    final scheme = parsed?.scheme.toLowerCase() ?? '';
-    final int port;
-    if (hasPort) {
-      port = parsed!.port;
-    } else if (scheme == 'https') {
-      port = 443;
-    } else if (scheme == 'http') {
-      port = 80;
-    } else {
-      port = 0;
-    }
-    return ServerAddress(host: host, port: port, user: _userCtrl.text.trim());
+    final fields = rust_webdav.webdavServerAddressFromBaseUrl(
+      baseUrl: _baseUrlCtrl.text,
+    );
+    return ServerAddress(
+      host: fields.host,
+      port: fields.port,
+      user: _userCtrl.text.trim(),
+    );
   }
 
   /// Derive the SSH-shaped [ServerAddress] for an S3 session.
-  /// `host` carries the endpoint host (or `s3.<region>.amazonaws.com`
-  /// when no explicit endpoint is set) and `port` carries the
-  /// scheme-default port. The live transport routes off
-  /// `kind = 's3'` and reads the full tuple from
-  /// `s3_session_details`; this projection keeps legacy SQL
-  /// filters working.
+  /// Host/port come from the Rust-side
+  /// `s3::server_address_from_s3_endpoint` (canonical AWS endpoint
+  /// when the user did not supply an explicit `endpoint`); the
+  /// live transport reads the full tuple from `s3_session_details`.
   ServerAddress _serverFromS3Endpoint() {
-    final raw = _endpointCtrl.text.trim();
-    String host = '';
-    int port = 443;
-    if (raw.isNotEmpty) {
-      Uri? parsed;
-      try {
-        parsed = Uri.parse(raw);
-      } on FormatException {
-        parsed = null;
-      }
-      host = parsed?.host ?? '';
-      if (parsed?.hasPort ?? false) {
-        port = parsed!.port;
-      } else if (parsed?.scheme.toLowerCase() == 'http') {
-        port = 80;
-      }
-    } else {
-      final region = _regionCtrl.text.trim().isEmpty
-          ? 'us-east-1'
-          : _regionCtrl.text.trim();
-      host = 's3.$region.amazonaws.com';
-    }
+    final fields = rust_s3.s3ServerAddressFromEndpoint(
+      endpoint: _endpointCtrl.text,
+      region: _regionCtrl.text,
+    );
     return ServerAddress(
-      host: host,
-      port: port,
+      host: fields.host,
+      port: fields.port,
       user: _accessKeyIdCtrl.text.trim(),
     );
   }
