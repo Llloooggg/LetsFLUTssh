@@ -7125,7 +7125,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_db_import_open_result,
-          decodeErrorData: sse_decode_String,
+          decodeErrorData: sse_decode_db_import_open_error,
         ),
         constMeta: kCrateApiArchiveDbImportOpenConstMeta,
         argValues: [path, password],
@@ -24262,6 +24262,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbImportOpenError dco_decode_db_import_open_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return DbImportOpenError_FutureVersion(
+          found: dco_decode_i_64(raw[1]),
+          supported: dco_decode_i_32(raw[2]),
+        );
+      case 1:
+        return DbImportOpenError_Generic(dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   DbImportOpenResult dco_decode_db_import_open_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -28661,6 +28677,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return DbImportMode.values[inner];
+  }
+
+  @protected
+  DbImportOpenError sse_decode_db_import_open_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_found = sse_decode_i_64(deserializer);
+        var var_supported = sse_decode_i_32(deserializer);
+        return DbImportOpenError_FutureVersion(
+          found: var_found,
+          supported: var_supported,
+        );
+      case 1:
+        var var_field0 = sse_decode_String(deserializer);
+        return DbImportOpenError_Generic(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -34108,6 +34147,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_db_import_mode(DbImportMode self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_import_open_error(
+    DbImportOpenError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case DbImportOpenError_FutureVersion(
+        found: final found,
+        supported: final supported,
+      ):
+        sse_encode_i_32(0, serializer);
+        sse_encode_i_64(found, serializer);
+        sse_encode_i_32(supported, serializer);
+      case DbImportOpenError_Generic(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(field0, serializer);
+    }
   }
 
   @protected

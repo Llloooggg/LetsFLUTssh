@@ -2,8 +2,6 @@ import 'dart:convert' show utf8;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
-    show AnyhowException;
 
 import '../core/import/import_service.dart';
 import '../core/progress/progress_reporter.dart';
@@ -92,11 +90,12 @@ class ImportFlowSeams {
 }
 
 /// Wraps [rust_archive.dbImportOpen] so the Rust-side
-/// `Error::ArchiveFutureVersion` (formatted as
-/// `unsupported_archive_version: found=N, supported=M`) surfaces as
-/// the typed [UnsupportedLfsVersionException] the import dialog
-/// chain already maps to a localized message via
-/// `lib/utils/format.dart`.
+/// `DbImportOpenError::FutureVersion { found, supported }` lands
+/// as the typed [UnsupportedLfsVersionException] the import
+/// dialog chain already maps to a localized message via
+/// `lib/utils/format.dart`. Every other failure (wrong password,
+/// malformed envelope, IO) propagates as the Rust error string
+/// inside `DbImportOpenError::Generic`.
 Future<rust_archive.DbImportOpenResult> openArchiveWithTypedErrors({
   required String path,
   required String password,
@@ -106,29 +105,12 @@ Future<rust_archive.DbImportOpenResult> openArchiveWithTypedErrors({
       path: path,
       password: utf8.encode(password),
     );
-  } on AnyhowException catch (e) {
-    final parsed = _parseUnsupportedArchiveVersion(e.message);
-    if (parsed != null) {
-      throw UnsupportedLfsVersionException(
-        found: parsed.$1,
-        supported: parsed.$2,
-      );
-    }
-    rethrow;
+  } on rust_archive.DbImportOpenError_FutureVersion catch (e) {
+    throw UnsupportedLfsVersionException(
+      found: e.found.toInt(),
+      supported: e.supported,
+    );
   }
-}
-
-/// Parse the `Error::ArchiveFutureVersion` Display format. Returns
-/// `(found, supported)` when the message matches, `null` otherwise.
-(int, int)? _parseUnsupportedArchiveVersion(String message) {
-  final m = RegExp(
-    r'unsupported_archive_version: found=(-?\d+), supported=(-?\d+)',
-  ).firstMatch(message);
-  if (m == null) return null;
-  final found = int.tryParse(m.group(1)!);
-  final supported = int.tryParse(m.group(2)!);
-  if (found == null || supported == null) return null;
-  return (found, supported);
 }
 
 ImportFlowSeams _seams = ImportFlowSeams.production();

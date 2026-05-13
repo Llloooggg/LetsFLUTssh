@@ -6092,7 +6092,7 @@ fn wire__crate__api__archive__db_import_open_impl(
             let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
-                transform_result_sse::<_, String>(
+                transform_result_sse::<_, crate::api::archive::DbImportOpenError>(
                     (move || async move {
                         let output_ok =
                             crate::api::archive::db_import_open(api_path, api_password).await?;
@@ -24357,6 +24357,30 @@ impl SseDecode for crate::api::archive::DbImportMode {
     }
 }
 
+impl SseDecode for crate::api::archive::DbImportOpenError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_found = <i64>::sse_decode(deserializer);
+                let mut var_supported = <i32>::sse_decode(deserializer);
+                return crate::api::archive::DbImportOpenError::FutureVersion {
+                    found: var_found,
+                    supported: var_supported,
+                };
+            }
+            1 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::archive::DbImportOpenError::Generic(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::archive::DbImportOpenResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -30307,6 +30331,36 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::archive::DbImportMode>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::archive::DbImportOpenError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::archive::DbImportOpenError::FutureVersion { found, supported } => [
+                0.into_dart(),
+                found.into_into_dart().into_dart(),
+                supported.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::archive::DbImportOpenError::Generic(field0) => {
+                [1.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::archive::DbImportOpenError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::archive::DbImportOpenError>
+    for crate::api::archive::DbImportOpenError
+{
+    fn into_into_dart(self) -> crate::api::archive::DbImportOpenError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::archive::DbImportOpenResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -34720,6 +34774,26 @@ impl SseEncode for crate::api::archive::DbImportMode {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::archive::DbImportOpenError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::archive::DbImportOpenError::FutureVersion { found, supported } => {
+                <i32>::sse_encode(0, serializer);
+                <i64>::sse_encode(found, serializer);
+                <i32>::sse_encode(supported, serializer);
+            }
+            crate::api::archive::DbImportOpenError::Generic(field0) => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

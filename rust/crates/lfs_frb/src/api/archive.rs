@@ -295,6 +295,36 @@ pub struct DbImportOpenResult {
     pub preview: DbImportPreview,
 }
 
+/// Typed failure shape for [`db_import_open`]. Surfaces the
+/// `ArchiveFutureVersion` discriminator as a typed variant so
+/// Dart's `UnsupportedLfsVersionException` translation no longer
+/// regex-parses the Rust `Display` string. Every other failure
+/// (wrong password, malformed envelope, IO, etc.) lands in
+/// `Generic` with the original error message.
+#[derive(Debug, Clone)]
+pub enum DbImportOpenError {
+    /// The archive's manifest schema version is newer than this
+    /// build supports. Dart caller renders the
+    /// "update the app to open this archive" toast and refuses
+    /// import.
+    FutureVersion { found: i64, supported: i32 },
+    /// Any other open / decrypt / parse failure. Dart caller
+    /// renders the localized "import failed" toast.
+    Generic(String),
+}
+
+fn map_open_err(e: &lfs_core::error::Error) -> DbImportOpenError {
+    match e {
+        lfs_core::error::Error::ArchiveFutureVersion { found, supported } => {
+            DbImportOpenError::FutureVersion {
+                found: *found,
+                supported: *supported,
+            }
+        }
+        other => DbImportOpenError::Generic(crate::api::frb_err::from_core(other)),
+    }
+}
+
 /// Decode a QR / paste-link payload (deflated + base64url JSON;
 /// also accepts v1 raw base64url JSON without the deflate wrapper
 /// for round-trip compat with payloads emitted before the
@@ -377,12 +407,15 @@ pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, Strin
 /// `password` empty → assumes a raw-ZIP archive (matches the
 /// "no encryption" export branch). Wrong password / malformed
 /// envelope surfaces as an error and no handle is registered.
-pub async fn db_import_open(path: String, password: Vec<u8>) -> Result<DbImportOpenResult, String> {
+pub async fn db_import_open(
+    path: String,
+    password: Vec<u8>,
+) -> Result<DbImportOpenResult, DbImportOpenError> {
     tokio::task::spawn_blocking(move || {
         let pw = std::str::from_utf8(&password)
-            .map_err(|_| "password is not valid UTF-8".to_string())?;
-        let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, pw)
-            .map_err(|e| crate::api::frb_err::from_core(&e))?;
+            .map_err(|_| DbImportOpenError::Generic("password is not valid UTF-8".to_string()))?;
+        let (pending, preview) =
+            lfs_core::archive::read_archive_to_pending(&path, pw).map_err(|e| map_open_err(&e))?;
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();
         app.imports.insert(handle_id.clone(), pending);
@@ -392,7 +425,7 @@ pub async fn db_import_open(path: String, password: Vec<u8>) -> Result<DbImportO
         })
     })
     .await
-    .map_err(|e| format!("import open task: {e}"))?
+    .map_err(|e| DbImportOpenError::Generic(format!("import open task: {e}")))?
 }
 
 /// Pre-parsed JSON entries staged directly in the import

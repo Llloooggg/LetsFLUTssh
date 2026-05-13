@@ -5,8 +5,11 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'archive.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `map_open_err`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Compose, (optionally) encrypt, and atomically write the `.lfs`
 /// archive entirely inside Rust. Plaintext credentials never cross
@@ -395,6 +398,27 @@ class DbExportOptions {
 
 /// Mirror of `lfs_core::archive::ImportMode`.
 enum DbImportMode { merge, replace }
+
+@freezed
+sealed class DbImportOpenError
+    with _$DbImportOpenError
+    implements FrbException {
+  const DbImportOpenError._();
+
+  /// The archive's manifest schema version is newer than this
+  /// build supports. Dart caller renders the
+  /// "update the app to open this archive" toast and refuses
+  /// import.
+  const factory DbImportOpenError.futureVersion({
+    required PlatformInt64 found,
+    required int supported,
+  }) = DbImportOpenError_FutureVersion;
+
+  /// Any other open / decrypt / parse failure. Dart caller
+  /// renders the localized "import failed" toast.
+  const factory DbImportOpenError.generic(String field0) =
+      DbImportOpenError_Generic;
+}
 
 /// Result of a successful preview — the registered handle id
 /// the Dart caller passes back to the apply / drop endpoints,
