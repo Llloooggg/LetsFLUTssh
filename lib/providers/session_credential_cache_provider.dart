@@ -6,8 +6,9 @@ import '../core/security/session_credential_cache.dart';
 ///
 /// Scoped to the Riverpod container so test harnesses using
 /// `ProviderContainer` + dispose get a clean slate, and so the app's
-/// container teardown (app shutdown) zeroes every SecretBuffer via
-/// [SessionCredentialCache.evictAll].
+/// container teardown (app shutdown) drops every cached SecretStore
+/// slot via [SessionCredentialCache.evictAll] — the Rust side zeros
+/// the bytes inside `lfs_core::secrets::SecretStore` on each evict.
 ///
 /// Consumed by:
 ///   * `ConnectionsNotifier` — populate on successful auth, evict on

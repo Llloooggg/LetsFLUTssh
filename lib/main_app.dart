@@ -68,13 +68,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 
   /// Re-open the rusqlite handle after a lock → unlock transition.
-  /// `AutoLockDetector._triggerLock` now always closes the DB (so
+  /// `AutoLockDetector._triggerLock` always closes the DB so
   /// SQLCipher's C-layer page-cipher state is zeroed alongside the
-  /// Dart-side `SecretBuffer`), so every unlock needs a fresh
-  /// `_injectDatabase` under the key the lock-screen unlock flow
-  /// just pushed back into `securityStateProvider`. Previous-state
-  /// gate filters the initial false → false emission plus any
-  /// redundant lock→lock transitions.
+  /// Rust-side `SecretStore` slot that held the DB key; every
+  /// unlock therefore needs a fresh `_injectDatabase` under the
+  /// key the lock-screen unlock flow just pushed back into
+  /// `securityStateProvider`. Previous-state gate filters the
+  /// initial false → false emission plus any redundant lock→lock
+  /// transitions.
   void _wireLockStateListener() {
     ref.listenManual<bool>(lockStateProvider, (prev, next) {
       if (prev == true && next == false) {
