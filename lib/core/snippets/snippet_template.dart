@@ -55,18 +55,16 @@ SnippetRender renderSnippet(Snippet snippet, Map<String, String> context) {
 
 /// Substitute the user-supplied [values] for `{{name}}` tokens left
 /// behind by [renderSnippet]. Used by the picker after the prompt
-/// dialog collects values for each unresolved token. Honours the same
-/// `{{{{` escape and "no recursion" rules as the first pass.
+/// dialog collects values for each unresolved token. Honours the
+/// same `{{{{` escape and "no recursion" rules as the first pass —
+/// Rust-side `snippetTemplateFillUnresolved` runs the same render
+/// machine against a partially-rendered string.
 String fillSnippetUnresolved(
   String partiallyRendered,
   Map<String, String> values,
 ) {
-  // Re-run the same machine; values for previously unresolved keys
-  // now resolve, anything still missing stays intact.
-  final fakeSnippet = Snippet(
-    id: 'fill',
-    title: '',
-    command: partiallyRendered,
+  return rust_snip.snippetTemplateFillUnresolved(
+    partiallyRendered: partiallyRendered,
+    values: values.entries.map((e) => (e.key, e.value)).toList(),
   );
-  return renderSnippet(fakeSnippet, values).rendered;
 }
