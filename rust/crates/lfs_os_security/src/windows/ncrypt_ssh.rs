@@ -556,10 +556,10 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
                 NCRYPT_FLAGS(0),
             )
         };
-        if result.is_err() {
+        if let Err(err) = result {
             // `NTE_NO_MORE_ITEMS` (0x8009002A) — end of enumeration.
             // Anything else propagates.
-            let code = win_error_code(&result.unwrap_err());
+            let code = win_error_code(&err);
             if code == 0x8009_002A {
                 break;
             } else {
@@ -747,8 +747,8 @@ pub fn list_silent() -> Result<Vec<TpmSilentKeyHandle>, Error> {
                 NCRYPT_FLAGS(0),
             )
         };
-        if result.is_err() {
-            let code = win_error_code(&result.unwrap_err());
+        if let Err(err) = result {
+            let code = win_error_code(&err);
             if code == 0x8009_002A {
                 break;
             } else {

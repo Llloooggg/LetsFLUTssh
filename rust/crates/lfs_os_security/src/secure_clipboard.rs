@@ -187,33 +187,16 @@ fn windows_set_secure_text(text: &str) -> Result<(), String> {
     // OpenClipboard session as the text; a second session leaves a
     // window where a clipboard-history watcher can read the text
     // before the opt-out flags arrive.
-    use std::ffi::c_void;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
+    };
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
 
-    // ── Win32 FFI surface ────────────────────────────────────
-    type HWND = *mut c_void;
-    type HANDLE = *mut c_void;
-    type HGLOBAL = *mut c_void;
-    type DWORD = u32;
-    type UINT = u32;
-    type WCHAR = u16;
-    type BOOL = i32;
+    const CF_UNICODETEXT: u32 = 13;
 
-    const CF_UNICODETEXT: UINT = 13;
-    const GMEM_MOVEABLE: UINT = 0x0002;
-
-    extern "system" {
-        fn OpenClipboard(hWndNewOwner: HWND) -> BOOL;
-        fn CloseClipboard() -> BOOL;
-        fn EmptyClipboard() -> BOOL;
-        fn SetClipboardData(uFormat: UINT, hMem: HANDLE) -> HANDLE;
-        fn RegisterClipboardFormatW(lpszFormat: *const WCHAR) -> UINT;
-        fn GlobalAlloc(uFlags: UINT, dwBytes: usize) -> HGLOBAL;
-        fn GlobalLock(hMem: HGLOBAL) -> *mut c_void;
-        fn GlobalUnlock(hMem: HGLOBAL) -> BOOL;
-        fn GlobalFree(hMem: HGLOBAL) -> HGLOBAL;
-    }
-
-    fn write_format(format: UINT, src: &[u8]) -> bool {
+    fn write_format(format: u32, src: &[u8]) -> bool {
         if format == 0 || src.is_empty() {
             return false;
         }
@@ -222,19 +205,23 @@ fn windows_set_secure_text(text: &str) -> Result<(), String> {
         // HGLOBAL transfers to the system; on any sub-step failure
         // we free the allocation here.
         unsafe {
-            let mem = GlobalAlloc(GMEM_MOVEABLE, src.len());
-            if mem.is_null() {
-                return false;
-            }
+            let mem: HGLOBAL = match GlobalAlloc(GMEM_MOVEABLE, src.len()) {
+                Ok(h) if !h.0.is_null() => h,
+                _ => return false,
+            };
             let dst = GlobalLock(mem);
             if dst.is_null() {
-                GlobalFree(mem);
+                let _ = GlobalFree(Some(mem));
                 return false;
             }
-            std::ptr::copy_nonoverlapping(src.as_ptr(), dst as *mut u8, src.len());
-            GlobalUnlock(mem);
-            if SetClipboardData(format, mem).is_null() {
-                GlobalFree(mem);
+            std::ptr::copy_nonoverlapping(src.as_ptr(), dst.cast::<u8>(), src.len());
+            let _ = GlobalUnlock(mem);
+            // `SetClipboardData` accepts the HGLOBAL via the
+            // `HANDLE` newtype — both wrap `*mut c_void` so the
+            // raw-pointer cast preserves the kernel handle.
+            let handle = HANDLE(mem.0);
+            if SetClipboardData(format, Some(handle)).is_err() {
+                let _ = GlobalFree(Some(mem));
                 return false;
             }
             true
@@ -244,33 +231,29 @@ fn windows_set_secure_text(text: &str) -> Result<(), String> {
     // SAFETY: OpenClipboard / EmptyClipboard / CloseClipboard form
     // the documented session pattern. We always close.
     unsafe {
-        if OpenClipboard(std::ptr::null_mut()) == 0 {
+        if OpenClipboard(None).is_err() {
             return Err("OpenClipboard failed".to_string());
         }
-        let mut wide: Vec<WCHAR> = text.encode_utf16().collect();
+        let mut wide: Vec<u16> = text.encode_utf16().collect();
         wide.push(0); // NUL terminator for CF_UNICODETEXT
-        let bytes_per_wchar = std::mem::size_of::<WCHAR>();
+        let bytes_per_wchar = std::mem::size_of::<u16>();
         let text_bytes_len = wide.len() * bytes_per_wchar;
         let text_bytes_slice =
-            std::slice::from_raw_parts(wide.as_ptr() as *const u8, text_bytes_len);
+            std::slice::from_raw_parts(wide.as_ptr().cast::<u8>(), text_bytes_len);
 
-        let mut ok = false;
-        loop {
-            if EmptyClipboard() == 0 {
-                break;
-            }
-            if !write_format(CF_UNICODETEXT, text_bytes_slice) {
-                break;
-            }
-            // Cloud / history opt-outs.
+        let ok = EmptyClipboard().is_ok() && write_format(CF_UNICODETEXT, text_bytes_slice) && {
+            // Cloud / history opt-outs. Failures here are
+            // tolerated — the text already landed; we logged the
+            // intent by registering the formats but the OS may
+            // refuse the side payloads on older builds.
             let history_name = wide_string("CanIncludeInClipboardHistory");
             let cloud_name = wide_string("CanUploadToCloudClipboard");
-            let history_fmt = RegisterClipboardFormatW(history_name.as_ptr());
-            let cloud_fmt = RegisterClipboardFormatW(cloud_name.as_ptr());
-            let deny: DWORD = 0;
+            let history_fmt = RegisterClipboardFormatW(PCWSTR::from_raw(history_name.as_ptr()));
+            let cloud_fmt = RegisterClipboardFormatW(PCWSTR::from_raw(cloud_name.as_ptr()));
+            let deny: u32 = 0;
             let deny_bytes = std::slice::from_raw_parts(
-                &deny as *const DWORD as *const u8,
-                std::mem::size_of::<DWORD>(),
+                std::ptr::from_ref(&deny).cast::<u8>(),
+                std::mem::size_of::<u32>(),
             );
             if history_fmt != 0 {
                 let _ = write_format(history_fmt, deny_bytes);
@@ -278,11 +261,10 @@ fn windows_set_secure_text(text: &str) -> Result<(), String> {
             if cloud_fmt != 0 {
                 let _ = write_format(cloud_fmt, deny_bytes);
             }
-            ok = true;
-            break;
-        }
+            true
+        };
 
-        CloseClipboard();
+        let _ = CloseClipboard();
         if ok {
             Ok(())
         } else {

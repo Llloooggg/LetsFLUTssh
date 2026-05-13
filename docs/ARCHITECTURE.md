@@ -3138,7 +3138,7 @@ Two complementary Rust jobs run on every PR and push, alongside the existing Dar
 | Step (in `make check`) | Gate |
 |---|---|
 | `make rust-format-check` (`cargo fmt --all -- --check`) | Style drift |
-| `make rust-lint` (`cargo clippy --workspace --all-targets --locked -- -D warnings`) | Lint, deny warnings |
+| `make rust-lint` (host + Android + Windows-GNU clippy umbrella; Apple targets added on macOS hosts) | Lint, deny warnings — host + every cross-target whose stdlib ships with `rustup` |
 | `make rust-test` (`cargo test --workspace --locked` + `--doc --locked`) | Unit, integration, doc tests; `--locked` enforces Cargo.lock parity |
 | `make rust-machete` (`cargo machete --with-metadata`) | Unused dependency detector |
 
@@ -3146,10 +3146,10 @@ Supply-chain advisories are not gated by the canonical host job — Dependabot t
 
 `make rust-coverage` (`cargo llvm-cov --workspace --all-features --locked --lcov`) runs in the same `ci` job after `make check` to feed Rust coverage to SonarCloud; it is heavier (instrumented rebuild) and not part of the gate.
 
-**`rust-cross-check` (matrix)** — cfg-gated compile + lint validation across every target the workspace ships to. Without this, code under `cfg(any(target_os = "macos", target_os = "ios"))` (Apple Secure Enclave, LAContext, NSPasteboard) or `cfg(target_os = "windows")` (CredWriteW, UserConsentVerifier) only compiles at release-tag time through `build-release.yml` — meaning a dependency bump that breaks one of those paths would auto-merge into `main` and surface only when cutting a release. Each matrix entry runs two steps in order:
+**`rust-cross-check` (matrix)** — cfg-gated compile + lint validation across every target the workspace ships to. The local `make rust-lint` umbrella now covers Android + Windows-GNU directly (rustup-hosted stdlibs make those checkable from any host), so the CI matrix mainly catches Apple-target regressions on non-macOS contributors' PRs and exercises every target on the native runner end-to-end. Without this matrix, code under `cfg(any(target_os = "macos", target_os = "ios"))` (Apple Secure Enclave, LAContext, NSPasteboard) only compiles at release-tag time through `build-release.yml` — meaning a dependency bump that breaks one of those paths would auto-merge into `main` and surface only when cutting a release. Each matrix entry runs two steps in order:
 
 1. `cargo check --workspace --all-targets --target <T> --locked` — type-checks every crate including dev-deps / test modules. Catches FFI / cfg-gated symbol drift across the whole workspace.
-2. `cargo clippy -p lfs_os_security --target <T> --all-targets --locked -- -D warnings` — lints the per-OS FFI surface. Scoped to `lfs_os_security` because that crate is the single OS-FFI perimeter and its cfg-gated modules (`apple_se_ssh`, `fido2_broker::platform_impl`, `winbio`, `android::*`, `macos::*`) are the only ones whose lints actually diverge per target. The same flags are exposed locally via `make rust-lint-{android,ios,macos-arm}` so contributors can reproduce a CI lint failure without pushing first.
+2. `cargo clippy -p lfs_os_security --target <T> --all-targets --locked -- -D warnings` — lints the per-OS FFI surface. Scoped to `lfs_os_security` because that crate is the single OS-FFI perimeter and its cfg-gated modules (`apple_se_ssh`, `fido2_broker::platform_impl`, `winbio`, `windows::*`, `android::*`, `macos::*`) are the only ones whose lints actually diverge per target. The same flags are exposed locally via `make rust-lint-{android,windows-gnu,ios,macos-arm}` (and the umbrella `make rust-lint`) so contributors can reproduce a CI lint failure without pushing first.
 
 | Target | Runner | Why |
 |---|---|---|
@@ -6588,8 +6588,10 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | `make rust-test` | `cargo test --workspace --locked` + `--doc --locked` | Unit + integration + doc tests; `--locked` enforces Cargo.lock parity |
 | `make rust-format` | `cargo fmt --all` | Format Rust sources |
 | `make rust-format-check` | `cargo fmt --all -- --check` | Format verification (used by `make check`) |
-| `make rust-lint` | `cargo clippy --workspace --all-targets --locked -- -D warnings` | Clippy, deny warnings (host target) |
-| `make rust-lint-android` | `cargo clippy -p lfs_os_security --target aarch64-linux-android --all-targets --locked -- -D warnings` | Cross-target clippy for Android; ad-hoc local check before pushing — CI's `rust-cross-check` runs the same flags on every PR |
+| `make rust-lint` | Umbrella: `rust-lint-host` + `rust-lint-android` + `rust-lint-windows-gnu` (+ `rust-lint-ios` + `rust-lint-macos-arm` on macOS hosts) | Host + every cross-target whose stdlib ships with rustup; catches cfg-gated regressions before push |
+| `make rust-lint-host` | `cargo clippy --workspace --all-targets --locked -- -D warnings` | Host-target-only clippy for fast iteration when only host-target code changed |
+| `make rust-lint-android` | `cargo clippy -p lfs_os_security --target aarch64-linux-android --all-targets --locked -- -D warnings` | Cross-target clippy for Android (every host) |
+| `make rust-lint-windows-gnu` | `cargo clippy -p lfs_os_security --target x86_64-pc-windows-gnu --all-targets --locked -- -D warnings` | Cross-target clippy for Windows (every host; rustup mingw stdlib) |
 | `make rust-lint-ios` | `cargo clippy -p lfs_os_security --target aarch64-apple-ios --all-targets --locked -- -D warnings` | Cross-target clippy for iOS; requires a macOS host (no Linux-hosted Apple stdlib) |
 | `make rust-lint-macos-arm` | `cargo clippy -p lfs_os_security --target aarch64-apple-darwin --all-targets --locked -- -D warnings` | Cross-target clippy for Apple Silicon Mac; requires a macOS host |
 | `make rust-machete` | `cargo machete --with-metadata` | Detect unused dependencies (used by `make check`) |

@@ -23,8 +23,8 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         deps-linux deps-macos deps-windows fuzz-build hooks help setup setup-rust-tools \
         lint-workflows lint-release-hardening rust-mutants \
         dart-test dart-lint dart-format dart-format-check \
-        rust-format rust-format-check rust-lint rust-test rust-build rust-codegen rust-clean rust-machete rust-coverage \
-        rust-lint-android rust-lint-ios rust-lint-macos-arm
+        rust-format rust-format-check rust-lint rust-lint-host rust-test rust-build rust-codegen rust-clean rust-machete rust-coverage \
+        rust-lint-android rust-lint-windows-gnu rust-lint-ios rust-lint-macos-arm
 
 all: build
 
@@ -335,29 +335,42 @@ rust-format: ## Format Rust code (cargo fmt)
 rust-format-check: ## Verify Rust formatting (exit non-zero if changes needed)
 	cd $(RUST_DIR) && cargo fmt --all -- --check
 
-rust-lint: ## Run clippy (deny warnings)
+# `rust-lint` umbrella — host clippy plus every cross-target whose
+# std ships with `rustup` (Android, Windows-GNU). Apple targets
+# need a real SDK for the link step and are gated to macOS hosts.
+# Any feature-branch push that introduces a cfg-gated regression
+# trips here before the operator commits, not on the CI matrix
+# after push.
+rust-lint: rust-lint-host rust-lint-android rust-lint-windows-gnu ## Run clippy (host + Android + Windows-GNU; Apple targets added on macOS hosts)
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		$(MAKE) rust-lint-ios rust-lint-macos-arm; \
+	fi
+
+rust-lint-host: ## clippy lint for the host target (whole workspace, deny warnings)
 	cd $(RUST_DIR) && cargo clippy --workspace --all-targets --locked -- -D warnings
 
 # Cross-target clippy gates — catch regressions in cfg-gated code
-# that the host-target `rust-lint` above never sees
-# (`lfs_os_security::{android,ios,macos}` and the Apple-cfg blocks
-# under `apple_se_ssh`, `fido2_broker`, `backup_exclusion`). Scoped
-# to `lfs_os_security` because that crate owns every OS-FFI module;
+# that host-only clippy never sees (`lfs_os_security::{android,
+# windows, ios, macos}` and the Apple-cfg blocks under
+# `apple_se_ssh`, `fido2_broker`, `backup_exclusion`). Scoped to
+# `lfs_os_security` because that crate owns every OS-FFI module;
 # the rest of the workspace is target-agnostic and falls under the
-# host-target `make rust-lint`.
+# host-target `rust-lint-host`.
 #
-# NOT wired into the `make rust-lint` umbrella on purpose — local
-# `make check` stays fast (a single host-target clippy run) while
-# CI's `rust-cross-clippy` job picks these up per-PR on the native
-# runner for each target. Local dev runs them ad-hoc only when
-# touching the relevant cfg-gated module.
+# Android + Windows-GNU std ships via rustup on every host, so
+# they're wired into the `rust-lint` umbrella above. Apple targets
+# require an Apple SDK for the link step (rustc short-circuits
+# before link so clippy still type-checks the bodies), so they
+# stay opt-in via the macOS-host guard and the standalone targets
+# below.
 #
-# Requires `rustup target add aarch64-linux-android aarch64-apple-ios
-# aarch64-apple-darwin` (Apple targets ignored on non-macOS hosts —
-# they need an Apple SDK for the link step; clippy short-circuits
-# before link so the type-check still surfaces).
+# Requires `rustup target add aarch64-linux-android
+# x86_64-pc-windows-gnu aarch64-apple-ios aarch64-apple-darwin`.
 rust-lint-android: ## clippy lint for aarch64-linux-android (lfs_os_security only)
 	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-linux-android --all-targets --locked -- -D warnings
+
+rust-lint-windows-gnu: ## clippy lint for x86_64-pc-windows-gnu (lfs_os_security only)
+	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target x86_64-pc-windows-gnu --all-targets --locked -- -D warnings
 
 rust-lint-ios: ## clippy lint for aarch64-apple-ios (lfs_os_security only)
 	cd $(RUST_DIR) && cargo clippy -p lfs_os_security --target aarch64-apple-ios --all-targets --locked -- -D warnings

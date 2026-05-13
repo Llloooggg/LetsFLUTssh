@@ -254,15 +254,17 @@ mod platform_impl {
             pCredentials: &mut credential as *mut _,
         };
 
-        let mut options = WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS::default();
-        options.dwVersion = WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_1;
-        options.dwTimeoutMilliseconds = 60_000;
-        options.CredentialList = cred_list;
-        options.dwAuthenticatorAttachment = WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM;
-        options.dwUserVerificationRequirement = if require_uv {
-            WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED
-        } else {
-            WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED
+        let options = WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS {
+            dwVersion: WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_1,
+            dwTimeoutMilliseconds: 60_000,
+            CredentialList: cred_list,
+            dwAuthenticatorAttachment: WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM,
+            dwUserVerificationRequirement: if require_uv {
+                WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED
+            } else {
+                WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED
+            },
+            ..Default::default()
         };
 
         let hwnd = unsafe { foreground_window() };

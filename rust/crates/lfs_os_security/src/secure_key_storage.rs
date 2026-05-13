@@ -647,43 +647,12 @@ mod platform_impl {
 mod platform_impl {
     use super::{SecureStorageError, SERVICE_NAME};
     use std::ffi::c_void;
-
-    type DWORD = u32;
-    type BOOL = i32;
-    type LPCWSTR = *const u16;
-    type LPWSTR = *mut u16;
-
-    const CRED_TYPE_GENERIC: DWORD = 1;
-    const CRED_PERSIST_LOCAL_MACHINE: DWORD = 2;
-
-    #[repr(C)]
-    struct Credential {
-        flags: DWORD,
-        cred_type: DWORD,
-        target_name: LPWSTR,
-        comment: LPWSTR,
-        last_written: u64,
-        credential_blob_size: DWORD,
-        credential_blob: *mut u8,
-        persist: DWORD,
-        attribute_count: DWORD,
-        attributes: *mut c_void,
-        target_alias: LPWSTR,
-        user_name: LPWSTR,
-    }
-
-    extern "system" {
-        fn CredReadW(
-            target: LPCWSTR,
-            cred_type: DWORD,
-            flags: DWORD,
-            out: *mut *mut Credential,
-        ) -> BOOL;
-        fn CredWriteW(cred: *const Credential, flags: DWORD) -> BOOL;
-        fn CredDeleteW(target: LPCWSTR, cred_type: DWORD, flags: DWORD) -> BOOL;
-        fn CredFree(buf: *mut c_void);
-        fn GetLastError() -> DWORD;
-    }
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{GetLastError, ERROR_NOT_FOUND};
+    use windows::Win32::Security::Credentials::{
+        CredDeleteW, CredFree, CredReadW, CredWriteW, CREDENTIALW, CRED_PERSIST_LOCAL_MACHINE,
+        CRED_TYPE_GENERIC,
+    };
 
     fn target_for(alias: &str, biometric: bool) -> Vec<u16> {
         let suffix = if biometric { ".biometric" } else { "" };
@@ -691,30 +660,45 @@ mod platform_impl {
         s.encode_utf16().chain(std::iter::once(0)).collect()
     }
 
+    // `CredReadW`/`CredDeleteW`/`CredWriteW` set the Win32 last-error
+    // code on failure; the `windows`-crate `Error` carries the HRESULT
+    // form, which complicates the `ERROR_NOT_FOUND` fast path. Read
+    // `GetLastError` directly to keep the existing "missing ↔ Ok(None)"
+    // semantics intact.
+    unsafe fn last_error_code() -> u32 {
+        unsafe { GetLastError().0 }
+    }
+
     pub(super) async fn read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
         let target = target_for(alias, false);
         tokio::task::spawn_blocking(move || unsafe {
-            let mut out: *mut Credential = std::ptr::null_mut();
-            if CredReadW(target.as_ptr(), CRED_TYPE_GENERIC, 0, &mut out) == 0 {
-                let err = GetLastError();
-                // ERROR_NOT_FOUND = 1168.
-                if err == 1168 {
+            let mut out: *mut CREDENTIALW = std::ptr::null_mut();
+            if CredReadW(
+                PCWSTR::from_raw(target.as_ptr()),
+                CRED_TYPE_GENERIC,
+                None,
+                &mut out,
+            )
+            .is_err()
+            {
+                let err = last_error_code();
+                if err == ERROR_NOT_FOUND.0 {
                     return Ok(None);
                 }
                 return Err(SecureStorageError::Backend(format!("CredReadW err={err}")));
             }
             let cred = &*out;
-            let len = cred.credential_blob_size as usize;
+            let len = cred.CredentialBlobSize as usize;
             // SAFETY: CredReadW MAY return a zero-length blob with a NULL
-            // `credential_blob` pointer; `slice::from_raw_parts` requires a
+            // `CredentialBlob` pointer; `slice::from_raw_parts` requires a
             // non-null pointer regardless of length. Treat a NULL or zero-length
             // blob as an empty value rather than constructing a UB slice.
-            let bytes = if cred.credential_blob.is_null() || len == 0 {
+            let bytes = if cred.CredentialBlob.is_null() || len == 0 {
                 Vec::new()
             } else {
-                std::slice::from_raw_parts(cred.credential_blob, len).to_vec()
+                std::slice::from_raw_parts(cred.CredentialBlob, len).to_vec()
             };
-            CredFree(out as *mut c_void);
+            CredFree(out.cast::<c_void>());
             Ok(Some(bytes))
         })
         .await
@@ -727,24 +711,31 @@ mod platform_impl {
         // with a separate biometric prompt.
         let target = target_for(alias, true);
         tokio::task::spawn_blocking(move || unsafe {
-            let mut out: *mut Credential = std::ptr::null_mut();
-            if CredReadW(target.as_ptr(), CRED_TYPE_GENERIC, 0, &mut out) == 0 {
-                let err = GetLastError();
-                if err == 1168 {
+            let mut out: *mut CREDENTIALW = std::ptr::null_mut();
+            if CredReadW(
+                PCWSTR::from_raw(target.as_ptr()),
+                CRED_TYPE_GENERIC,
+                None,
+                &mut out,
+            )
+            .is_err()
+            {
+                let err = last_error_code();
+                if err == ERROR_NOT_FOUND.0 {
                     return Ok(None);
                 }
                 return Err(SecureStorageError::Backend(format!("CredReadW err={err}")));
             }
             let cred = &*out;
-            let len = cred.credential_blob_size as usize;
+            let len = cred.CredentialBlobSize as usize;
             // SAFETY: see `read()` above — CredReadW NULL/zero-length
             // blob fast path before `slice::from_raw_parts`.
-            let bytes = if cred.credential_blob.is_null() || len == 0 {
+            let bytes = if cred.CredentialBlob.is_null() || len == 0 {
                 Vec::new()
             } else {
-                std::slice::from_raw_parts(cred.credential_blob, len).to_vec()
+                std::slice::from_raw_parts(cred.CredentialBlob, len).to_vec()
             };
-            CredFree(out as *mut c_void);
+            CredFree(out.cast::<c_void>());
             Ok(Some(bytes))
         })
         .await
@@ -758,24 +749,18 @@ mod platform_impl {
     ) -> Result<(), SecureStorageError> {
         let mut target = target_for(alias, biometric);
         let mut blob = value.to_vec();
-        let blob_len = blob.len() as DWORD;
+        let blob_len = blob.len() as u32;
         tokio::task::spawn_blocking(move || unsafe {
-            let cred = Credential {
-                flags: 0,
-                cred_type: CRED_TYPE_GENERIC,
-                target_name: target.as_mut_ptr(),
-                comment: std::ptr::null_mut(),
-                last_written: 0,
-                credential_blob_size: blob_len,
-                credential_blob: blob.as_mut_ptr(),
-                persist: CRED_PERSIST_LOCAL_MACHINE,
-                attribute_count: 0,
-                attributes: std::ptr::null_mut(),
-                target_alias: std::ptr::null_mut(),
-                user_name: std::ptr::null_mut(),
+            let cred = CREDENTIALW {
+                TargetName: windows::core::PWSTR::from_raw(target.as_mut_ptr()),
+                Type: CRED_TYPE_GENERIC,
+                Persist: CRED_PERSIST_LOCAL_MACHINE,
+                CredentialBlobSize: blob_len,
+                CredentialBlob: blob.as_mut_ptr(),
+                ..Default::default()
             };
-            if CredWriteW(&cred as *const Credential, 0) == 0 {
-                let err = GetLastError();
+            if CredWriteW(&cred, 0).is_err() {
+                let err = last_error_code();
                 return Err(SecureStorageError::Backend(format!("CredWriteW err={err}")));
             }
             // `target` and `blob` stay alive until this closure
@@ -791,9 +776,9 @@ mod platform_impl {
     pub(super) async fn delete(alias: &str, biometric: bool) -> Result<(), SecureStorageError> {
         let target = target_for(alias, biometric);
         tokio::task::spawn_blocking(move || unsafe {
-            if CredDeleteW(target.as_ptr(), CRED_TYPE_GENERIC, 0) == 0 {
-                let err = GetLastError();
-                if err == 1168 {
+            if CredDeleteW(PCWSTR::from_raw(target.as_ptr()), CRED_TYPE_GENERIC, None).is_err() {
+                let err = last_error_code();
+                if err == ERROR_NOT_FOUND.0 {
                     return Ok(());
                 }
                 return Err(SecureStorageError::Backend(format!(
