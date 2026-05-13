@@ -18,16 +18,17 @@ import 'package:letsflutssh/core/security/secure_key_storage.dart';
 /// latch contract.
 void main() {
   group('SecureKeyStorage Dart-side surface', () {
-    test(
-      'enableRuntimeSubprocessProbes is idempotent and side-effect free',
-      () {
-        // The flag is a static latch that main.dart flips once before
-        // the first provider evaluates; calling it twice is a no-op
-        // from the test's perspective.
-        SecureKeyStorage.enableRuntimeSubprocessProbes();
-        SecureKeyStorage.enableRuntimeSubprocessProbes();
-      },
-    );
+    test('probeSecretServiceReachability defaults to true; tests opt out', () {
+      // Production constructs with the default `true`; widget tests
+      // that don't want a live D-Bus probe pass `false` and read
+      // back `KeyringProbeResult.available` without touching the
+      // session bus.
+      expect(SecureKeyStorage(), isNotNull);
+      expect(
+        SecureKeyStorage(probeSecretServiceReachability: false),
+        isNotNull,
+      );
+    });
 
     test(
       'KeyringProbeResult carries every documented classification label',

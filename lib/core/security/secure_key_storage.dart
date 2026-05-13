@@ -28,19 +28,21 @@ class SecureKeyStorage {
   static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
   static const _probeName = 'letsflutssh_keychain_probe';
 
-  /// Production flag flipped by `main.dart` at startup. Widget
-  /// tests don't set it, so the Linux subprocess probe inside
-  /// [probe] stays off in them.
-  static bool _runtimeSubprocessProbesEnabled = false;
-
-  static void enableRuntimeSubprocessProbes() {
-    _runtimeSubprocessProbesEnabled = true;
-  }
-
   final LinuxKeychainMarker _marker;
 
-  SecureKeyStorage({LinuxKeychainMarker? marker})
-    : _marker = marker ?? LinuxKeychainMarker.defaultInstance;
+  /// Whether [probe] should hit the Linux secret-service reachability
+  /// check (zbus connect against `org.freedesktop.secrets`). Production
+  /// (`main.dart`) constructs the storage with the default `true`;
+  /// widget tests that don't want a live D-Bus probe pass `false` and
+  /// read back `KeyringProbeResult.available` without touching the
+  /// session bus.
+  final bool _probeSecretServiceReachability;
+
+  SecureKeyStorage({
+    LinuxKeychainMarker? marker,
+    bool probeSecretServiceReachability = true,
+  }) : _marker = marker ?? LinuxKeychainMarker.defaultInstance,
+       _probeSecretServiceReachability = probeSecretServiceReachability;
 
   Future<bool> _linuxGatePass() async {
     if (!Platform.isLinux) return true;
@@ -54,12 +56,13 @@ class SecureKeyStorage {
   /// Classified keyring probe.
   ///
   /// Non-Linux: write/read/delete a sentinel via the Rust path
-  /// and report the round-trip outcome. Linux: gdbus ping the
-  /// secret-service to distinguish "no daemon" from "probe failed".
-  /// The gdbus ping only runs when [enableRuntimeSubprocessProbes]
-  /// has been called by main.dart — under flutter_test the flag
-  /// stays off so a missing `gdbus` binary cannot pollute test
-  /// output with classification noise.
+  /// and report the round-trip outcome. Linux: zbus connect to the
+  /// session secret-service to distinguish "no daemon" from "probe
+  /// failed". The reachability check only runs when the storage is
+  /// constructed with `probeSecretServiceReachability: true` (the
+  /// default); widget tests that pass `false` bypass it so a
+  /// missing session bus cannot pollute test output with
+  /// classification noise.
   Future<KeyringProbeResult> probe() async {
     if (!Platform.isLinux) {
       try {
@@ -85,7 +88,7 @@ class SecureKeyStorage {
       }
     }
 
-    if (!_runtimeSubprocessProbesEnabled) {
+    if (!_probeSecretServiceReachability) {
       return KeyringProbeResult.available;
     }
     try {

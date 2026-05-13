@@ -30,7 +30,6 @@ import 'core/security/backup_exclusion.dart';
 import 'core/session/session.dart';
 import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
-import 'core/security/secure_key_storage.dart';
 import 'core/security/session_lock_listener.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'features/session_manager/session_connect.dart';
@@ -285,15 +284,6 @@ Future<void> _mainBody() async {
   // file pane. `initializeDateFormatting()` with no args loads every
   // locale's symbols (~80 KB) — runs once at startup, sub-millisecond.
   await initializeDateFormatting();
-
-  // Unlock the Linux-only subprocess probe (gdbus Peer.Ping against
-  // org.freedesktop.secrets) used by SecureKeyStorage.probe. Widget
-  // tests do not run this entry point, so the flag stays false for
-  // them and the subprocess path is skipped — necessary because
-  // Process.run under FakeAsync leaks Timers onto the pending-timer
-  // list and breaks unrelated widget tests. Production app sets it
-  // here before the first provider evaluates.
-  SecureKeyStorage.enableRuntimeSubprocessProbes();
 
   // Start logger init early — runs in parallel with config/lock I/O below.
   // `init()` only resolves `<app_support>/logs/letsflutssh.log` via
