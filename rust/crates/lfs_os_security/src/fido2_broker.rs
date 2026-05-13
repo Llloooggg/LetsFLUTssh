@@ -402,10 +402,12 @@ mod platform_impl {
                 // executable; dlopen with the special null name
                 // resolves against the running process so the
                 // `lfs_security_key_broker_*` symbols are visible.
-                // SAFETY: `Library::this` is a wrapper around
-                // `dlopen(NULL)` / `GetModuleHandle(NULL)`; the
-                // returned handle's lifetime is process-wide.
-                Library::new("").ok()
+                // SAFETY: `Library::new("")` wraps `dlopen(NULL)` /
+                // `GetModuleHandle(NULL)`; the handle resolves to the
+                // currently-loaded executable so no external library
+                // initialisers can fire as a side effect of the load.
+                // The returned handle's lifetime is process-wide.
+                unsafe { Library::new("") }.ok()
             })
             .as_ref()
     }
