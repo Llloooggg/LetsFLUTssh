@@ -28,6 +28,8 @@ class _NoopSftpFs implements RemoteSftpFs {
   @override
   Future<List<FileEntry>> list(String path) async => [];
   @override
+  Future<int> dirSizeRecursive(String path, int maxDepth) async => 0;
+  @override
   Future<bool> exists(String path) async => false;
   @override
   Future<void> mkdir(String path) async {}

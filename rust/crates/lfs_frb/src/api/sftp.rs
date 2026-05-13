@@ -200,6 +200,22 @@ impl SshSftp {
             .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
+    /// Recursive directory-size walk over the remote tree at
+    /// `path`. Sums every non-directory entry's byte count,
+    /// descending through subdirectories up to `max_depth`
+    /// levels. Symlinks are NOT followed.
+    ///
+    /// The walk runs Rust-side over the live SFTP session — N
+    /// `read_dir` round-trips through one channel pair instead
+    /// of N FRB hops per directory. Match the prior Dart caller's
+    /// guard of 64 by passing `max_depth: 64`.
+    pub async fn dir_size_recursive(&self, path: String, max_depth: u32) -> Result<u64, String> {
+        self.inner
+            .dir_size_recursive(&path, max_depth)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    }
+
     /// Stat a path without resolving symlinks.
     pub async fn stat_symlink(&self, path: String) -> Result<SftpFileMetadata, String> {
         self.inner

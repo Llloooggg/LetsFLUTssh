@@ -20,6 +20,7 @@ import 'sftp_models.dart';
 abstract class RemoteSftpFs {
   Future<String> getwd();
   Future<List<FileEntry>> list(String path);
+  Future<int> dirSizeRecursive(String path, int maxDepth);
 
   /// Cheap existence check. Implementations stat the path and
   /// return true on success, false on any error.
@@ -110,6 +111,12 @@ class RustSftpFs extends RemoteSftpFs {
     } catch (e) {
       throw SFTPError.wrap(e, 'getwd');
     }
+  }
+
+  @override
+  Future<int> dirSizeRecursive(String path, int maxDepth) async {
+    final total = await _sftp.dirSizeRecursive(path: path, maxDepth: maxDepth);
+    return total.toInt();
   }
 
   @override
@@ -368,20 +375,12 @@ class RemoteFS implements FileSystem {
       sftp.rename(oldPath, newPath);
 
   /// Maximum directory recursion depth to prevent runaway traversals.
+  /// Matches the Rust-side `dir_size_recursive` cap; the FRB call
+  /// runs the entire walk over one SFTP channel pair instead of
+  /// paying N FRB hops per subdirectory.
   static const _maxRecursionDepth = 64;
 
   @override
-  Future<int> dirSize(String path, [int depth = 0]) async {
-    if (depth >= _maxRecursionDepth) return 0;
-    int total = 0;
-    final entries = await sftp.list(path);
-    for (final entry in entries) {
-      if (entry.isDir) {
-        total += await dirSize(entry.path, depth + 1);
-      } else {
-        total += entry.size;
-      }
-    }
-    return total;
-  }
+  Future<int> dirSize(String path, [int depth = 0]) =>
+      sftp.dirSizeRecursive(path, _maxRecursionDepth);
 }

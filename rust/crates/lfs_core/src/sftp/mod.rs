@@ -67,6 +67,60 @@ impl Sftp {
         Ok(entries)
     }
 
+    /// Recursive directory-size walk over the remote tree rooted
+    /// at `path`. Sums every non-directory entry's byte count,
+    /// recursing through every subdirectory up to `max_depth`
+    /// levels deep. Symlinks are NOT followed.
+    ///
+    /// `max_depth = 0` returns the immediate children's size
+    /// without descending; `max_depth = 64` matches the prior
+    /// Dart-side `_maxRecursionDepth` guard against runaway
+    /// traversals.
+    ///
+    /// Runs the entire walk Rust-side so the SFTP `read_dir`
+    /// round-trips pay one channel turnaround each instead of N
+    /// FRB hops per directory. The Dart caller's previous Dart-
+    /// recursive `dirSize` did N FRB hops for a tree with N
+    /// directories.
+    pub async fn dir_size_recursive(&self, path: &str, max_depth: u32) -> Result<u64, Error> {
+        // Async recursion in Rust requires indirection — use a
+        // Box::pin'd inner future. Mirrors the pattern in
+        // `lfs_core::fs::local::copy_recursive_no_symlinks`.
+        fn walk<'a>(
+            sftp: &'a Sftp,
+            path: &'a str,
+            depth: u32,
+            max_depth: u32,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<u64, Error>> + Send + 'a>>
+        {
+            Box::pin(async move {
+                let entries = sftp.list(path).await?;
+                let mut total: u64 = 0;
+                for entry in entries {
+                    if entry.is_symlink {
+                        continue;
+                    }
+                    if entry.is_dir {
+                        if depth >= max_depth {
+                            continue;
+                        }
+                        let child = if path.ends_with('/') {
+                            format!("{path}{}", entry.name)
+                        } else {
+                            format!("{path}/{}", entry.name)
+                        };
+                        total =
+                            total.saturating_add(walk(sftp, &child, depth + 1, max_depth).await?);
+                    } else {
+                        total = total.saturating_add(entry.size);
+                    }
+                }
+                Ok(total)
+            })
+        }
+        walk(self, path, 0, max_depth).await
+    }
+
     /// Read a small file fully into memory. Suitable for config /
     /// dotfile-sized reads; large files (≥ a few MB) should go
     /// through the streaming surface (`open` + `read_chunk`).

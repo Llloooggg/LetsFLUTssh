@@ -35,6 +35,20 @@ abstract class SshSftp implements RustOpaqueInterface {
   /// Expands `~` / relative paths the remote shell would resolve.
   Future<String> canonicalize({required String path});
 
+  /// Recursive directory-size walk over the remote tree at
+  /// `path`. Sums every non-directory entry's byte count,
+  /// descending through subdirectories up to `max_depth`
+  /// levels. Symlinks are NOT followed.
+  ///
+  /// The walk runs Rust-side over the live SFTP session — N
+  /// `read_dir` round-trips through one channel pair instead
+  /// of N FRB hops per directory. Match the prior Dart caller's
+  /// guard of 64 by passing `max_depth: 64`.
+  Future<BigInt> dirSizeRecursive({
+    required String path,
+    required int maxDepth,
+  });
+
   /// Recursively download a remote directory tree into a local
   /// path. Mirror of [`upload_dir`] — same cancellation +
   /// progress contract.
