@@ -236,7 +236,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     // `dbSessionToSession(.., withCredentials: false)`).
     state = [...state, session.withoutCredentials()];
     try {
-      final folderId = await resolveFolderPath(session.folder, _folderMap);
+      final folderId = await resolveFolderPath(session.folder);
       await rust_db.dbSessionsUpsert(
         row: sessionToRustRow(session, folderId: folderId),
       );
@@ -260,7 +260,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     next[idx] = session.withoutCredentials();
     state = next;
     try {
-      final folderId = await resolveFolderPath(session.folder, _folderMap);
+      final folderId = await resolveFolderPath(session.folder);
       await rust_db.dbSessionsUpsert(
         row: sessionToRustRow(session, folderId: folderId),
       );
@@ -292,7 +292,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     try {
-      final folderId = await resolveFolderPath(session.folder, _folderMap);
+      final folderId = await resolveFolderPath(session.folder);
       await rust_db.dbSessionsUpdateMetadata(
         metadata: rust_db.DbSessionMetadata(
           id: session.id,
@@ -445,7 +445,7 @@ class SessionNotifier extends Notifier<List<Session>> {
         next[idx] = next[idx].copyWith(folder: newFolder);
         state = next;
         try {
-          final folderId = await resolveFolderPath(newFolder, _folderMap);
+          final folderId = await resolveFolderPath(newFolder);
           await rust_db.dbSessionsMoveToFolder(
             sessionId: sessionId,
             folderId: folderId,
@@ -469,7 +469,7 @@ class SessionNotifier extends Notifier<List<Session>> {
         }
         state = next;
         try {
-          final folderId = await resolveFolderPath(newFolder, _folderMap);
+          final folderId = await resolveFolderPath(newFolder);
           await rust_db.dbSessionsMoveMultiple(
             ids: ids.toList(),
             folderId: folderId,
@@ -495,7 +495,7 @@ class SessionNotifier extends Notifier<List<Session>> {
       name: 'SessionNotifier',
     );
     try {
-      await resolveFolderPath(folderPath, _folderMap);
+      await resolveFolderPath(folderPath);
     } catch (e) {
       AppLogger.instance.log(
         'addEmptyFolder failed: $e',

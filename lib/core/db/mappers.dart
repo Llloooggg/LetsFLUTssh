@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:uuid/uuid.dart';
-
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../session/session.dart';
@@ -140,60 +138,21 @@ String _buildFolderPath(
   return folderBuildPathCompat(folderId, folderMap);
 }
 
-/// Resolve a folder path string to a folderId, creating missing folders.
+/// Resolve a folder path string to a folderId, creating missing
+/// folders. Returns `null` for empty paths (root-level session).
 ///
-/// Returns null for empty paths (root-level session).
-///
-/// [cache] is treated as the authoritative view of the folder tree —
-/// the caller (`SessionStore`) keeps it in sync with the DB on load and
-/// on every mutation. Lookups walk the cache in memory instead of
-/// issuing a folder-list round-trip per path segment, so a 50-session
-/// import across deep folders no longer fans out into hundreds of
-/// awaited reads. Only folder **inserts** still hit the DB.
-Future<String?> resolveFolderPath(
-  String path,
-  Map<String, rust_db.DbFolder> cache,
-) async {
+/// Routes through `lfs_core::db::folders::resolve_or_create_path`,
+/// which walks every `/`-separated segment inside a single
+/// transaction — a crash mid-walk leaves no partially-resolved
+/// subtree. The Rust side reads the `folders` table by
+/// `(parent_id, name)`, so callers don't need to maintain a folder
+/// cache; the DB is the source of truth for the tree.
+Future<String?> resolveFolderPath(String path) async {
   if (path.isEmpty) return null;
-  final parts = path.split('/');
-  String? parentId;
-  for (final name in parts) {
-    final existing = _findChildByName(cache, parentId, name);
-    if (existing != null) {
-      parentId = existing.id;
-      continue;
-    }
-    final id = const Uuid().v4();
-    final now = DateTime.now();
-    final row = rust_db.DbFolder(
-      id: id,
-      name: name,
-      parentId: parentId,
-      sortOrder: 0,
-      collapsed: false,
-      createdAtMs: now.millisecondsSinceEpoch,
-    );
-    await rust_db.dbFoldersUpsert(row: row);
-    cache[id] = row;
-    parentId = id;
-  }
-  return parentId;
-}
-
-/// Linear scan over [cache] for the child of [parentId] named [name].
-/// Typical folder trees have ≤100 entries, so an O(N) scan per segment
-/// is ~1000× faster than the DB round-trip it replaces. If that ever
-/// stops being true, switch to a `(parentId, name) → DbFolder`
-/// secondary index maintained alongside [cache].
-rust_db.DbFolder? _findChildByName(
-  Map<String, rust_db.DbFolder> cache,
-  String? parentId,
-  String name,
-) {
-  for (final folder in cache.values) {
-    if (folder.parentId == parentId && folder.name == name) return folder;
-  }
-  return null;
+  return rust_db.dbFoldersResolveOrCreatePath(
+    path: path,
+    nowMs: DateTime.now().millisecondsSinceEpoch,
+  );
 }
 
 /// Build a complete folder map (id → DbFolder) from a flat list.

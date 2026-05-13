@@ -597,6 +597,27 @@ pub async fn db_folders_upsert(row: DbFolder) -> Result<(), String> {
     run_db_writing_sessions(move |c| lfs_core::db::folders::upsert(c, &row)).await
 }
 
+/// Resolve a `/`-separated `path` to a folder id, creating any
+/// missing intermediate folders inside one transaction. Empty
+/// `path` returns `Ok(None)` (root-level). Always emits
+/// `SessionsChanged` on success so the Dart subscriber rehydrates
+/// the folder map; redundant fires on no-op (path already exists)
+/// are cheap and keep the call site symmetric with
+/// `db_folders_upsert`.
+///
+/// `now_ms` is supplied by the caller so the FRB layer doesn't
+/// pull `SystemTime` directly — same pattern as the other
+/// `db_folders_*` / `db_sessions_*` write shims.
+pub async fn db_folders_resolve_or_create_path(
+    path: String,
+    now_ms: i64,
+) -> Result<Option<String>, String> {
+    run_db_mut_writing_sessions(move |c| {
+        lfs_core::db::folders::resolve_or_create_path(c, &path, now_ms)
+    })
+    .await
+}
+
 pub async fn db_folders_delete(id: String) -> Result<u32, String> {
     run_db_writing_sessions_when(move |c| lfs_core::db::folders::delete(c, &id), |n| *n > 0)
         .await

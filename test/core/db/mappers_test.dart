@@ -9,8 +9,10 @@ import '../../helpers/frb_bootstrap.dart';
 // Mappers operate on FRB DTO types instead of drift's row classes.
 // The folder-path resolution helpers route through `lfs_core::
 // folder_path` — bootstrap FRB so the canonical Rust path is what
-// the unit tests exercise. The cache-first `resolveFolderPath` does
-// call FRB when it has to insert, which moves to integration_test.
+// the unit tests exercise. The `resolveFolderPath` mapper is now
+// a one-line FRB shim into
+// `lfs_core::db::folders::resolve_or_create_path`; its behaviour is
+// pinned by the Rust unit tests in `db::folders::resolve_tests`.
 
 rust_db.DbFolder _folder(String id, String name, String? parentId) =>
     rust_db.DbFolder(

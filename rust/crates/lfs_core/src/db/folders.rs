@@ -135,6 +135,33 @@ pub fn ensure_folder_path(
     Ok(parent_id)
 }
 
+/// Transactional wrapper around [`ensure_folder_path`] for FRB
+/// callers. Walks `path` segment-by-segment inside a single
+/// `rusqlite::Transaction` so a crash or panic mid-walk leaves no
+/// partially-resolved subtree — either every missing segment is
+/// committed together with the leaf id, or none of them are.
+///
+/// Returns the leaf folder id, or `None` when `path` is empty
+/// (root-level). The wall-clock time stamp is supplied by the
+/// caller so test fixtures can pin `created_at`.
+pub fn resolve_or_create_path(
+    conn: &mut Connection,
+    path: &str,
+    now_ms: i64,
+) -> Result<Option<String>, Error> {
+    if path.is_empty() {
+        return Ok(None);
+    }
+    let tx = conn
+        .inner_mut()
+        .transaction()
+        .map_err(|e| Error::Db(format!("folders resolve_or_create_path tx: {e}")))?;
+    let leaf = ensure_folder_path(&tx, path, now_ms)?;
+    tx.commit()
+        .map_err(|e| Error::Db(format!("folders resolve_or_create_path commit: {e}")))?;
+    Ok(leaf)
+}
+
 /// Flip the `collapsed` flag on a single folder. Returns the new
 /// value (true = now collapsed) so the caller can update its cache
 /// without a follow-up read. Empty `Ok(0)` if the row is missing.
@@ -482,5 +509,75 @@ mod rename_tests {
         // `UNION ALL` body).
         let n = db.with_conn(|c| delete_recursive(c, &a_id)).unwrap();
         assert_eq!(n, 2, "both rows of the cycle should be deleted");
+    }
+}
+
+#[cfg(test)]
+mod resolve_tests {
+    use super::*;
+    use crate::db::{bootstrap_schema, Db};
+
+    fn db() -> Db {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    fn resolve(db: &Db, path: &str) -> Option<String> {
+        db.with_conn_mut(|c| resolve_or_create_path(c, path, 0))
+            .unwrap()
+    }
+
+    #[test]
+    fn resolve_empty_path_returns_none() {
+        let db = db();
+        assert!(resolve(&db, "").is_none());
+        assert!(db.with_conn(list_all).unwrap().is_empty());
+    }
+
+    #[test]
+    fn resolve_single_segment_creates_one_row() {
+        let db = db();
+        let id = resolve(&db, "infra").expect("leaf id");
+        let folders = db.with_conn(list_all).unwrap();
+        assert_eq!(folders.len(), 1);
+        let row = &folders[0];
+        assert_eq!(row.id, id);
+        assert_eq!(row.name, "infra");
+        assert!(row.parent_id.is_none());
+    }
+
+    #[test]
+    fn resolve_multi_segment_creates_parent_chain() {
+        let db = db();
+        let leaf_id = resolve(&db, "infra/prod/web").expect("leaf id");
+        let folders = db.with_conn(list_all).unwrap();
+        assert_eq!(folders.len(), 3);
+        let leaf = folders.iter().find(|f| f.id == leaf_id).unwrap();
+        assert_eq!(leaf.name, "web");
+        let prod = folders
+            .iter()
+            .find(|f| f.id == *leaf.parent_id.as_ref().unwrap())
+            .unwrap();
+        assert_eq!(prod.name, "prod");
+        let infra = folders
+            .iter()
+            .find(|f| f.id == *prod.parent_id.as_ref().unwrap())
+            .unwrap();
+        assert_eq!(infra.name, "infra");
+        assert!(infra.parent_id.is_none());
+    }
+
+    #[test]
+    fn resolve_is_idempotent() {
+        let db = db();
+        let first = resolve(&db, "infra/prod").expect("first leaf");
+        let second = resolve(&db, "infra/prod").expect("second leaf");
+        assert_eq!(first, second);
+        // The second call must not have created a duplicate row pair.
+        assert_eq!(db.with_conn(list_all).unwrap().len(), 2);
     }
 }

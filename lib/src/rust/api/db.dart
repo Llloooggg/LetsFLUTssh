@@ -90,6 +90,25 @@ Future<List<DbFolder>> dbFoldersListAll() =>
 Future<void> dbFoldersUpsert({required DbFolder row}) =>
     RustLib.instance.api.crateApiDbDbFoldersUpsert(row: row);
 
+/// Resolve a `/`-separated `path` to a folder id, creating any
+/// missing intermediate folders inside one transaction. Empty
+/// `path` returns `Ok(None)` (root-level). Always emits
+/// `SessionsChanged` on success so the Dart subscriber rehydrates
+/// the folder map; redundant fires on no-op (path already exists)
+/// are cheap and keep the call site symmetric with
+/// `db_folders_upsert`.
+///
+/// `now_ms` is supplied by the caller so the FRB layer doesn't
+/// pull `SystemTime` directly — same pattern as the other
+/// `db_folders_*` / `db_sessions_*` write shims.
+Future<String?> dbFoldersResolveOrCreatePath({
+  required String path,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbFoldersResolveOrCreatePath(
+  path: path,
+  nowMs: nowMs,
+);
+
 Future<int> dbFoldersDelete({required String id}) =>
     RustLib.instance.api.crateApiDbDbFoldersDelete(id: id);
 
