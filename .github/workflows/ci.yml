@@ -3,7 +3,7 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'feat/**', 'fix/**']
     paths-ignore:
       - '*.md'
       - 'docs/**'
@@ -13,6 +13,15 @@ on:
       # ignoring workflow-only changes makes the preflight fail
       # because the CI check-run never appears, breaking
       # `workflow_dispatch` of build-release on those commits.
+      #
+      # Branch coverage: main is the release line; feat/** + fix/**
+      # are the convention for in-flight feature work. Pushing
+      # straight to a feature branch (no PR yet) still runs the
+      # rust-cross-check matrix so Apple / Windows / Android cfg
+      # regressions surface before the release-build workflow trips
+      # over them. Branches outside that pattern are usually
+      # personal scratch; their first PR to main / dev catches the
+      # matrix via `pull_request:` below.
   pull_request:
     branches: [main, dev]
 

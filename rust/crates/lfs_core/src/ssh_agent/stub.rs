@@ -19,14 +19,9 @@ pub struct AgentStatus {
     pub unsupported: bool,
 }
 
-/// Mobile-side handle. Never constructed; included so the FRB API
-/// surface compiles cross-platform without per-platform shims at
-/// every call site.
-#[derive(Debug)]
-pub struct AgentHandle;
-
-/// Always returns `Err(Error::Unsupported)` on mobile.
-pub fn start_endpoint() -> Result<AgentHandle, Error> {
+/// Always returns `Err(Error::Unsupported)` on mobile. Signature
+/// mirrors `endpoint::start_endpoint` so the FRB shim is single-arm.
+pub fn start_endpoint() -> Result<String, Error> {
     Err(Error::Unsupported(
         "ssh-agent endpoint is not available on mobile targets".into(),
     ))

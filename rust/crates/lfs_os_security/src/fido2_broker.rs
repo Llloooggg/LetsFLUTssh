@@ -319,7 +319,7 @@ mod platform_impl {
     /// Map a WebAuthn HRESULT to the typed broker error. Windows
     /// surfaces HRESULTs from the `NTE_*` / `WEBAUTHN_*` ranges;
     /// the official error names live in `winerror.h`.
-    fn map_hresult(err: windows_core::Error) -> BrokerError {
+    fn map_hresult(err: windows::core::Error) -> BrokerError {
         // HRESULTs we route to typed reasons. Values are stable
         // across Windows revisions (documented in winerror.h).
         const NTE_USER_CANCELLED: i32 = 0x8009_0036u32 as i32;

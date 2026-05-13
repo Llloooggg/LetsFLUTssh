@@ -33,6 +33,13 @@ subtle = { workspace = true }
 # because cfg-gated imports compile on every host even when their
 # bodies never run.
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+# `thiserror::Error` derive used by every OS-side error envelope
+# that surfaces typed variants — `apple_se_ssh::Error`,
+# `windows::ncrypt_ssh::Error`, and any future per-platform Error
+# enum. Workspace-pinned for one-source-of-truth versioning;
+# zero-cost at runtime so we ship it on every target rather than
+# gating per-cfg.
+thiserror = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
@@ -153,10 +160,6 @@ tss-esapi = "7"
 objc2 = "0.6"
 # `thiserror::Error` derive used by `apple_se_ssh::Error` (and the
 # upcoming Apple-side broker error envelopes). Declared as workspace
-# dep for one-source-of-truth versioning across the workspace; pulled
-# in only for Apple targets here because `lfs_os_security`'s non-Apple
-# code stitches its errors manually rather than via `thiserror`.
-thiserror = { workspace = true }
 # `fido2_broker::platform_impl` on Apple dynamically loads the Swift
 # `ASAuthorizationController` glue via `dlopen` — same `libloading`
 # pattern the Windows path uses for `webauthn.dll`. We keep the

@@ -118,4 +118,4 @@ pub use endpoint::{start_endpoint, status, stop, AgentHandle, AgentStatus, Endpo
 mod stub;
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-pub use stub::{start_endpoint, stop, AgentHandle, AgentStatus};
+pub use stub::{start_endpoint, stop, AgentStatus};

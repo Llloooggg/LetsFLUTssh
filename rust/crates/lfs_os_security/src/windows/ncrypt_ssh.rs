@@ -76,7 +76,7 @@ use windows::Win32::Security::Cryptography::{
     NCryptOpenStorageProvider, NCryptSetProperty, NCryptSignHash, BCRYPT_ECCKEY_BLOB,
     BCRYPT_ECCPUBLIC_BLOB, BCRYPT_ECDSA_PUBLIC_P256_MAGIC, BCRYPT_ECDSA_PUBLIC_P384_MAGIC,
     BCRYPT_PAD_PKCS1, BCRYPT_PKCS1_PADDING_INFO, BCRYPT_RSAKEY_BLOB, BCRYPT_RSAPUBLIC_BLOB,
-    BCRYPT_SHA256_ALGORITHM, BCRYPT_SHA384_ALGORITHM, BCRYPT_SHA512_ALGORITHM, CERT_KEY_SPEC,
+    BCRYPT_SHA256_ALGORITHM, BCRYPT_SHA512_ALGORITHM, CERT_KEY_SPEC,
     MS_PLATFORM_KEY_STORAGE_PROVIDER, NCRYPT_ECDSA_P256_ALGORITHM, NCRYPT_ECDSA_P384_ALGORITHM,
     NCRYPT_FLAGS, NCRYPT_HANDLE, NCRYPT_KEY_HANDLE, NCRYPT_LENGTH_PROPERTY, NCRYPT_PROV_HANDLE,
     NCRYPT_RSA_ALGORITHM, NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG, NCRYPT_UI_POLICY,
@@ -570,8 +570,13 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
             break;
         }
         let entry = unsafe { &*key_name_ptr };
-        let name = pwstr_to_string(entry.pszName);
-        let alg_name = pwstr_to_string(entry.pszAlgid);
+        // SAFETY: `entry` came from NCryptEnumKeys which guarantees
+        // both `pszName` and `pszAlgid` point at NUL-terminated wide
+        // strings owned by the allocator behind the same handle. The
+        // `NCryptFreeBuffer` below tears the whole entry down — we
+        // copy out before that fires.
+        let name = unsafe { pwstr_to_string(entry.pszName) };
+        let alg_name = unsafe { pwstr_to_string(entry.pszAlgid) };
         if name.starts_with(CNG_NAME_PREFIX) {
             if let Some(algo) = algo_from_alg_name(&alg_name) {
                 out.push(HelloKeyHandle {
