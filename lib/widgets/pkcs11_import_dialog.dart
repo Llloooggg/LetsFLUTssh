@@ -138,44 +138,13 @@ class Pkcs11FrbBackend extends Pkcs11Backend {
     required String objectLabel,
     required Uint8List objectId,
     required String modulePath,
-  }) {
-    // RFC 7512 attributes. We pct-encode every value that may carry
-    // delimiter chars; `Uri.encodeQueryComponent` happens to escape
-    // exactly the right characters (`;`, `=`, `?`, `/`, `:`, space).
-    final parts = <String>[
-      'token=${Uri.encodeQueryComponent(tokenLabel)}',
-      'serial=${Uri.encodeQueryComponent(serial)}',
-      'object=${Uri.encodeQueryComponent(objectLabel)}',
-      'id=${_encodeIdAttribute(objectId)}',
-    ];
-    if (modulePath.isNotEmpty) {
-      parts.add('module-path=${Uri.encodeQueryComponent(modulePath)}');
-    }
-    return 'pkcs11:${parts.join(';')}';
-  }
-
-  /// RFC 7512 `id` attribute — opaque byte string, pct-encoded.
-  /// `pk11-attr-chars` accepts alphanumerics + `-._~` unescaped;
-  /// everything else is `%XX`. The Rust parser does the symmetric
-  /// inverse in `lfs_os_security::pkcs11::uri`.
-  static String _encodeIdAttribute(Uint8List bytes) {
-    final buf = StringBuffer();
-    for (final b in bytes) {
-      if ((b >= 0x30 && b <= 0x39) ||
-          (b >= 0x41 && b <= 0x5A) ||
-          (b >= 0x61 && b <= 0x7A) ||
-          b == 0x2D ||
-          b == 0x2E ||
-          b == 0x5F ||
-          b == 0x7E) {
-        buf.writeCharCode(b);
-      } else {
-        buf.write('%');
-        buf.write(b.toRadixString(16).padLeft(2, '0').toUpperCase());
-      }
-    }
-    return buf.toString();
-  }
+  }) => rust_pkcs11.pkcs11ComposeUri(
+    tokenLabel: tokenLabel,
+    serial: serial,
+    objectLabel: objectLabel,
+    ckaId: objectId,
+    modulePath: modulePath,
+  );
 }
 
 /// Per-module probe outcome. Drives the small status dot in

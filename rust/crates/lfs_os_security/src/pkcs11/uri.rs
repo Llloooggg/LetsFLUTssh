@@ -71,6 +71,70 @@ pub struct Pkcs11Uri {
     pub other_query: BTreeMap<String, String>,
 }
 
+/// Build the canonical `pkcs11:` URI the import wizard captures on
+/// disk. Emits `token`, `serial`, `object`, `id` as path attributes
+/// (in that order — RFC 7512 §2.3 allows any order, but a stable
+/// shape keeps DB rows comparable), then `?module-path=...` as a
+/// query attribute when non-empty.
+///
+/// Path-attribute values are percent-encoded against
+/// `is_unreserved_path` — RFC 3986 §2.3 unreserved (alphanumerics
+/// plus `-._~`). The `cka_id` byte stream is encoded against the
+/// same classification rather than the all-percent rule
+/// `Display` uses for the parsed `Pkcs11Uri` round-trip, so
+/// binary IDs that happen to be ASCII (the YubiKey PIV slot tags
+/// `9a` / `9c` / `9d` / `9e` are byte pairs `0x9A..0x9E` —
+/// wholly non-printable — but a custom applet may pick a
+/// printable byte run) survive without inflating every literal
+/// byte. The parser decodes both shapes identically.
+/// `module-path` rides query rules (`is_unreserved_query`).
+pub fn compose(
+    token_label: &str,
+    serial: &str,
+    object_label: &str,
+    cka_id: &[u8],
+    module_path: &str,
+) -> String {
+    let mut out = String::with_capacity(
+        8 + token_label.len() + serial.len() + object_label.len() + cka_id.len() * 3,
+    );
+    out.push_str("pkcs11:");
+    let mut first = true;
+    push_path_attr(&mut out, "token", token_label.as_bytes(), &mut first);
+    push_path_attr(&mut out, "serial", serial.as_bytes(), &mut first);
+    push_path_attr(&mut out, "object", object_label.as_bytes(), &mut first);
+    // `id=` is always emitted (including the empty-bytes case as
+    // `id=`) so the parser observes the same path-attribute set the
+    // wizard captured.
+    push_path_attr(&mut out, "id", cka_id, &mut first);
+    if !module_path.is_empty() {
+        out.push_str("?module-path=");
+        write_percent_into(&mut out, module_path.as_bytes(), is_unreserved_query);
+    }
+    out
+}
+
+fn push_path_attr(buf: &mut String, name: &str, bytes: &[u8], first: &mut bool) {
+    if !*first {
+        buf.push(';');
+    }
+    *first = false;
+    buf.push_str(name);
+    buf.push('=');
+    write_percent_into(buf, bytes, is_unreserved_path);
+}
+
+fn write_percent_into(buf: &mut String, bytes: &[u8], safe: fn(u8) -> bool) {
+    use std::fmt::Write as _;
+    for &b in bytes {
+        if safe(b) {
+            buf.push(b as char);
+        } else {
+            let _ = write!(buf, "%{:02X}", b);
+        }
+    }
+}
+
 impl Pkcs11Uri {
     /// Parse `text` as an RFC 7512 `pkcs11:` URI. Returns
     /// `Err(UriError)` for any structural issue; empty path /
@@ -389,6 +453,79 @@ mod tests {
             uri.other_path.get("vendor-flag").map(String::as_str),
             Some("on")
         );
+    }
+
+    #[test]
+    fn compose_emits_all_path_attrs_then_query_in_canonical_order() {
+        let uri = compose(
+            "Yubico PIV",
+            "00000001",
+            "SSH",
+            &[0x01, 0x02, 0xff],
+            "/usr/lib/ykcs11.so",
+        );
+        assert_eq!(
+            uri,
+            "pkcs11:token=Yubico%20PIV;serial=00000001;object=SSH;id=%01%02%FF?module-path=%2Fusr%2Flib%2Fykcs11.so"
+        );
+    }
+
+    #[test]
+    fn compose_then_parse_round_trips_every_field() {
+        let token = "Mañana — 한글";
+        let serial = "SN/0001";
+        let object = "key #1";
+        let id: Vec<u8> = (0u8..=255).collect();
+        let module_path = "/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so";
+        let uri = compose(token, serial, object, &id, module_path);
+        let parsed = Pkcs11Uri::parse(&uri).unwrap();
+        assert_eq!(parsed.token.as_deref(), Some(token));
+        assert_eq!(parsed.serial.as_deref(), Some(serial));
+        assert_eq!(parsed.object.as_deref(), Some(object));
+        assert_eq!(parsed.id.as_deref(), Some(id.as_slice()));
+        assert_eq!(parsed.module_path.as_deref(), Some(module_path));
+    }
+
+    #[test]
+    fn compose_pct_encodes_reserved_delimiters_in_path_attrs() {
+        // `;`, `?`, `&`, `=`, `%`, ` ` must all percent-encode so the
+        // parser doesn't mistake them for structural separators.
+        let uri = compose("a;b?c&d=e%f g", "x", "y", &[], "z");
+        let body = uri.strip_prefix("pkcs11:").unwrap();
+        // The first attribute carries the danger chars — verify each
+        // delimiter byte is in the %XX form.
+        assert!(body.starts_with("token=a%3Bb%3Fc%26d%3De%25f%20g;",));
+        // Round-trip back through the parser to confirm decoding.
+        let parsed = Pkcs11Uri::parse(&uri).unwrap();
+        assert_eq!(parsed.token.as_deref(), Some("a;b?c&d=e%f g"));
+    }
+
+    #[test]
+    fn compose_pct_encodes_every_non_unreserved_id_byte() {
+        // Sweep every byte value 0..=255 in `cka_id`, then re-parse to
+        // confirm the byte stream survives lossless.
+        let id: Vec<u8> = (0u8..=255).collect();
+        let uri = compose("t", "s", "o", &id, "");
+        let parsed = Pkcs11Uri::parse(&uri).unwrap();
+        assert_eq!(parsed.id.unwrap(), id);
+    }
+
+    #[test]
+    fn compose_omits_query_when_module_path_empty() {
+        let uri = compose("t", "s", "o", &[0x01], "");
+        assert!(!uri.contains('?'), "query separator must not appear: {uri}");
+        assert!(uri.ends_with("id=%01"));
+    }
+
+    #[test]
+    fn compose_handles_empty_cka_id_as_literal_id_equals() {
+        // The wizard never picks a key with empty CKA_ID in practice,
+        // but the encoder must not panic and must round-trip an empty
+        // byte run as `id=` (decoded to `Vec::new`).
+        let uri = compose("t", "s", "o", &[], "");
+        assert!(uri.ends_with(";id="));
+        let parsed = Pkcs11Uri::parse(&uri).unwrap();
+        assert_eq!(parsed.id, Some(Vec::new()));
     }
 
     #[test]

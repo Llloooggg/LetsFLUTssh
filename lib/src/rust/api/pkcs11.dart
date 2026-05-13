@@ -70,6 +70,25 @@ Future<List<DbPkcs11KeyMeta>> pkcs11ListKeys({
 Future<String> pkcs11ImportKey({required DbPkcs11ImportArgs args}) =>
     RustLib.instance.api.crateApiPkcs11Pkcs11ImportKey(args: args);
 
+/// Compose the canonical `pkcs11:` URI the import wizard persists
+/// onto an `ssh_keys` row. Mirrors RFC 7512 §2.3 path-attribute and
+/// §2.4 query-attribute pct-encoding so [`pkcs11_parse_uri`] decodes
+/// the result byte-for-byte. Sync because the composer is pure
+/// in-process string work.
+String pkcs11ComposeUri({
+  required String tokenLabel,
+  required String serial,
+  required String objectLabel,
+  required List<int> ckaId,
+  required String modulePath,
+}) => RustLib.instance.api.crateApiPkcs11Pkcs11ComposeUri(
+  tokenLabel: tokenLabel,
+  serial: serial,
+  objectLabel: objectLabel,
+  ckaId: ckaId,
+  modulePath: modulePath,
+);
+
 /// Parse a `pkcs11:` URI per RFC 7512. Vendored parser; surfaces a
 /// typed PKCS#11 error for malformed input so the import wizard's
 /// "Paste URI" affordance can route the user back into the picker

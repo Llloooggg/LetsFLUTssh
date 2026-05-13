@@ -401,6 +401,29 @@ fn now_unix_ms() -> i64 {
         .unwrap_or(0)
 }
 
+/// Compose the canonical `pkcs11:` URI the import wizard persists
+/// onto an `ssh_keys` row. Mirrors RFC 7512 §2.3 path-attribute and
+/// §2.4 query-attribute pct-encoding so [`pkcs11_parse_uri`] decodes
+/// the result byte-for-byte. Sync because the composer is pure
+/// in-process string work.
+#[flutter_rust_bridge::frb(sync)]
+#[must_use]
+pub fn pkcs11_compose_uri(
+    token_label: String,
+    serial: String,
+    object_label: String,
+    cka_id: Vec<u8>,
+    module_path: String,
+) -> String {
+    lfs_os_security::pkcs11::uri::compose(
+        &token_label,
+        &serial,
+        &object_label,
+        &cka_id,
+        &module_path,
+    )
+}
+
 /// Parse a `pkcs11:` URI per RFC 7512. Vendored parser; surfaces a
 /// typed PKCS#11 error for malformed input so the import wizard's
 /// "Paste URI" affordance can route the user back into the picker
