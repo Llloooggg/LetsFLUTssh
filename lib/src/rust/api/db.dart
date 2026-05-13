@@ -1268,6 +1268,14 @@ class DbSshKey {
   /// phone holds the key. `None` for non-Keystore rows.
   final String? keystorePlatform;
 
+  /// `true` when the row landed via `.lfs` archive import / WebDAV
+  /// sync pull as a public-half-only stub for a device-bound
+  /// backend (Apple Secure Enclave / Windows Hello / TPM / Android
+  /// Keystore). The key manager renders such rows desaturated; the
+  /// session-edit "Key from manager" picker disables them. See
+  /// the lfs_core docstring for the full contract.
+  final bool importedAsStub;
+
   const DbSshKey({
     required this.id,
     required this.label,
@@ -1297,6 +1305,7 @@ class DbSshKey {
     required this.keystoreStrongbox,
     required this.keystoreUserAuthRequired,
     this.keystorePlatform,
+    required this.importedAsStub,
   });
 
   @override
@@ -1328,7 +1337,8 @@ class DbSshKey {
       keystoreAlias.hashCode ^
       keystoreStrongbox.hashCode ^
       keystoreUserAuthRequired.hashCode ^
-      keystorePlatform.hashCode;
+      keystorePlatform.hashCode ^
+      importedAsStub.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1362,7 +1372,8 @@ class DbSshKey {
           keystoreAlias == other.keystoreAlias &&
           keystoreStrongbox == other.keystoreStrongbox &&
           keystoreUserAuthRequired == other.keystoreUserAuthRequired &&
-          keystorePlatform == other.keystorePlatform;
+          keystorePlatform == other.keystorePlatform &&
+          importedAsStub == other.importedAsStub;
 }
 
 /// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
@@ -1477,6 +1488,14 @@ class DbSshKeyMetadata {
   final bool keystoreUserAuthRequired;
   final String? keystorePlatform;
 
+  /// `true` when the row is a public-half-only stub from a
+  /// device-bound backend that travelled through `.lfs` import or
+  /// WebDAV sync. The key manager renders the row desaturated +
+  /// surfaces "Re-generate here" / "Remove" actions; the
+  /// session-edit picker disables stub rows. `false` for every
+  /// locally generated row.
+  final bool importedAsStub;
+
   const DbSshKeyMetadata({
     required this.id,
     required this.label,
@@ -1499,6 +1518,7 @@ class DbSshKeyMetadata {
     required this.keystoreStrongbox,
     required this.keystoreUserAuthRequired,
     this.keystorePlatform,
+    required this.importedAsStub,
   });
 
   @override
@@ -1523,7 +1543,8 @@ class DbSshKeyMetadata {
       keystoreAlias.hashCode ^
       keystoreStrongbox.hashCode ^
       keystoreUserAuthRequired.hashCode ^
-      keystorePlatform.hashCode;
+      keystorePlatform.hashCode ^
+      importedAsStub.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1550,7 +1571,8 @@ class DbSshKeyMetadata {
           keystoreAlias == other.keystoreAlias &&
           keystoreStrongbox == other.keystoreStrongbox &&
           keystoreUserAuthRequired == other.keystoreUserAuthRequired &&
-          keystorePlatform == other.keystorePlatform;
+          keystorePlatform == other.keystorePlatform &&
+          importedAsStub == other.importedAsStub;
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.

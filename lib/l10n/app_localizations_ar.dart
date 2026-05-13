@@ -3521,4 +3521,26 @@ class SAr extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'فقط $transport متاح على هذا الجهاز؛ التبديل معطّل.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'بدل مستورد';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'كان على جهاز آخر — أعد التوليد هنا لاستخدامه';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'أعد التوليد هنا';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'إزالة البدل';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'أعد توليد هذا المفتاح على هذا الجهاز قبل الاستخدام';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'حدد مسار وحدة PKCS#11 للرمز \"$token\"';
+  }
 }

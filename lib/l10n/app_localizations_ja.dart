@@ -3430,4 +3430,24 @@ class SJa extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'このデバイスでは $transport のみ利用可能です。トグルは無効化されています。';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'インポート済みスタブ';
+
+  @override
+  String get hardwareKeyStubSubtitle => '別のデバイスにあったため、ここで再生成して使用してください';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'ここで再生成';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'スタブを削除';
+
+  @override
+  String get hardwareKeyStubPickerTooltip => '使用前にこのデバイスでこのキーを再生成してください';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'トークン \"$token\" の PKCS#11 モジュールを指定してください';
+  }
 }

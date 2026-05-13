@@ -218,6 +218,13 @@ pub struct DbSshKey {
     /// badge popover so multi-device users can identify which
     /// phone holds the key. `None` for non-Keystore rows.
     pub keystore_platform: Option<String>,
+    /// `true` when the row landed via `.lfs` archive import / WebDAV
+    /// sync pull as a public-half-only stub for a device-bound
+    /// backend (Apple Secure Enclave / Windows Hello / TPM / Android
+    /// Keystore). The key manager renders such rows desaturated; the
+    /// session-edit "Key from manager" picker disables them. See
+    /// the lfs_core docstring for the full contract.
+    pub imported_as_stub: bool,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
@@ -251,6 +258,7 @@ impl From<lfs_core::db::ssh_keys::SshKeyRow> for DbSshKey {
             keystore_strongbox: r.keystore_strongbox,
             keystore_user_auth_required: r.keystore_user_auth_required,
             keystore_platform: r.keystore_platform,
+            imported_as_stub: r.imported_as_stub,
         }
     }
 }
@@ -286,6 +294,7 @@ impl From<DbSshKey> for lfs_core::db::ssh_keys::SshKeyRow {
             keystore_strongbox: r.keystore_strongbox,
             keystore_user_auth_required: r.keystore_user_auth_required,
             keystore_platform: r.keystore_platform,
+            imported_as_stub: r.imported_as_stub,
         }
     }
 }
@@ -401,6 +410,13 @@ pub struct DbSshKeyMetadata {
     pub keystore_strongbox: bool,
     pub keystore_user_auth_required: bool,
     pub keystore_platform: Option<String>,
+    /// `true` when the row is a public-half-only stub from a
+    /// device-bound backend that travelled through `.lfs` import or
+    /// WebDAV sync. The key manager renders the row desaturated +
+    /// surfaces "Re-generate here" / "Remove" actions; the
+    /// session-edit picker disables stub rows. `false` for every
+    /// locally generated row.
+    pub imported_as_stub: bool,
 }
 
 impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
@@ -427,6 +443,7 @@ impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
             keystore_strongbox: m.keystore_strongbox,
             keystore_user_auth_required: m.keystore_user_auth_required,
             keystore_platform: m.keystore_platform,
+            imported_as_stub: m.imported_as_stub,
         }
     }
 }
@@ -1810,6 +1827,7 @@ mod tests {
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         };
         let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
         let back: DbSshKey = core.into();

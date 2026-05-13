@@ -176,6 +176,7 @@ pub async fn hello_ssh_generate(args: DbHelloGenerateArgs) -> Result<DbHelloImpo
                 keystore_strongbox: false,
                 keystore_user_auth_required: false,
                 keystore_platform: None,
+                imported_as_stub: false,
             };
             lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
         })

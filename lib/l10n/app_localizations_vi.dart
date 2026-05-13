@@ -3506,4 +3506,26 @@ class SVi extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Thiết bị này chỉ có $transport; toggle bị vô hiệu.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub đã nhập';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Ở thiết bị khác — tạo lại tại đây để dùng';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Tạo lại tại đây';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Xoá stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Tạo lại key này trên thiết bị này trước khi dùng';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Chọn module PKCS#11 cho token \"$token\"';
+  }
 }

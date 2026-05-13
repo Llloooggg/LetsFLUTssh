@@ -3524,4 +3524,26 @@ class STr extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Bu cihazda yalnızca $transport mevcut; toggle devre dışı.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'İçe aktarılmış stub';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Başka bir cihazdaydı — kullanmak için burada yeniden üret';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Burada yeniden üret';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Stub\'ı kaldır';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Kullanmadan önce bu key\'i bu cihazda yeniden üret';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return '\"$token\" token\'ı için PKCS#11 modülünü bul';
+  }
 }

@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "استاب وارد شده",
+  "hardwareKeyStubSubtitle": "روی دستگاه دیگری بود — اینجا مجدداً تولید کنید تا قابل استفاده شود",
+  "hardwareKeyStubRegenerateAction": "اینجا مجدداً تولید کن",
+  "hardwareKeyStubRemoveAction": "حذف استاب",
+  "hardwareKeyStubPickerTooltip": "این کلید را روی این دستگاه قبل از استفاده مجدداً تولید کنید",
+  "pkcs11ModuleResolveOnFirstUse": "ماژول PKCS#11 برای توکن «{token}» را پیدا کنید",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

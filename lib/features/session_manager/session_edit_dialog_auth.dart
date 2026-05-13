@@ -311,20 +311,36 @@ extension _AuthTab on _SessionEditDialogState {
     SshKeyMetadata? meta,
   ) {
     final s = S.of(context);
+    // Stub rows are imported public-half-only stubs for device-bound
+    // backends — the private side lives on the originating device.
+    // Disable the picker option with a tooltip so the user notices
+    // the row exists but understands why it cannot be picked.
+    final isStub = meta?.importedAsStub ?? false;
+    final tile = ListTile(
+      leading: Icon(
+        Icons.vpn_key,
+        size: 16,
+        color: k.isGenerated ? AppTheme.accent : AppTheme.fgDim,
+      ),
+      title: Text(k.label),
+      subtitle: Text(
+        isStub ? s.hardwareKeyStubSubtitle : k.keyType,
+        style: TextStyle(fontSize: AppFonts.xs),
+      ),
+      trailing: _keyPickerBadge(s, meta),
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      enabled: !isStub,
+    );
+    if (isStub) {
+      return Tooltip(
+        message: s.hardwareKeyStubPickerTooltip,
+        child: Opacity(opacity: 0.55, child: tile),
+      );
+    }
     return SimpleDialogOption(
       onPressed: () => Navigator.pop(ctx, k),
-      child: ListTile(
-        leading: Icon(
-          Icons.vpn_key,
-          size: 16,
-          color: k.isGenerated ? AppTheme.accent : AppTheme.fgDim,
-        ),
-        title: Text(k.label),
-        subtitle: Text(k.keyType, style: TextStyle(fontSize: AppFonts.xs)),
-        trailing: _keyPickerBadge(s, meta),
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-      ),
+      child: tile,
     );
   }
 

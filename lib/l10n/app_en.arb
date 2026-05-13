@@ -1873,5 +1873,32 @@
     "placeholders": {
       "transport": { "type": "String" }
     }
+  },
+  "hardwareKeyStubBadge": "Imported stub",
+  "@hardwareKeyStubBadge": {
+    "description": "Key Manager row badge for a device-bound key that was imported from another device's .lfs / WebDAV sync — only the public half landed. Sits next to the backend badge (Apple Secure Enclave / Windows Hello / TPM / Android Keystore)."
+  },
+  "hardwareKeyStubSubtitle": "Was on another device — re-generate here to use",
+  "@hardwareKeyStubSubtitle": {
+    "description": "Secondary line under a stub-key row in the Key Manager. Explains the row cannot sign on this device until the user re-generates."
+  },
+  "hardwareKeyStubRegenerateAction": "Re-generate here",
+  "@hardwareKeyStubRegenerateAction": {
+    "description": "Trailing-action label on a stub-key row. Opens the per-backend wizard pre-filled with the stub's label."
+  },
+  "hardwareKeyStubRemoveAction": "Remove stub",
+  "@hardwareKeyStubRemoveAction": {
+    "description": "Trailing-action label on a stub-key row. Drops the row from the key manager — useful when the user wants to clear stubs from a device they will never re-generate on."
+  },
+  "hardwareKeyStubPickerTooltip": "Re-generate this key on this device before using",
+  "@hardwareKeyStubPickerTooltip": {
+    "description": "Tooltip on a disabled stub row inside the session-edit Key picker. Stubs cannot be selected because the private half lives on the original device."
+  },
+  "pkcs11ModuleResolveOnFirstUse": "Locate the PKCS#11 module for token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "description": "Title of the one-shot dialog the connect path opens on first use of an imported PKCS#11 row whose module path could not be re-discovered locally via the well-known-paths scan.",
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

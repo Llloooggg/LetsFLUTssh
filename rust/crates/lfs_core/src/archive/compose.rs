@@ -29,7 +29,10 @@ use std::io::{Cursor, Write};
 use serde_json::{json, Value};
 use zip::write::SimpleFileOptions;
 
-use crate::db::{folders, sessions, snippets, ssh_keys, tags};
+use crate::db::{
+    folders, port_forwards, s3_sessions, sessions, sftp_bookmarks, snippets, ssh_key_certificates,
+    ssh_keys, tags, webdav_sessions,
+};
 use crate::error::Error;
 
 use super::envelope::encrypt_with_password;
@@ -195,7 +198,11 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
     if input.options.include_known_hosts {
         let kh = build_known_hosts(conn)?;
         if !kh.is_empty() {
-            write_text_entry(&mut zw, opts, "known_hosts", &kh)?;
+            // Entry name must match `parse_pending_import`'s reader
+            // (`archive/mod.rs::parse_pending_import` keys on
+            // `"known_hosts.txt"`); writing the bare name silently
+            // dropped every known-hosts payload at import time.
+            write_text_entry(&mut zw, opts, "known_hosts.txt", &kh)?;
         }
     }
 
@@ -222,6 +229,39 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
             {
                 write_json_entry(&mut zw, opts, "session_snippets.json", &session_snippets)?;
             }
+        }
+    }
+
+    // v3 child-table entries. Each piggy-backs on an existing
+    // include toggle so the user does not need a separate checkbox
+    // for every newly-portable table:
+    // - `ssh_key_certificates` follows `has_manager_keys` (a cert
+    //   without its parent key is meaningless).
+    // - `webdav_session_details`, `s3_session_details`,
+    //   `sftp_bookmarks`, `port_forward_rules` follow `include_sessions`
+    //   (each row is keyed by `session_id`).
+    if input.options.has_manager_keys {
+        if let Some(value) = build_ssh_key_certificates_value(
+            conn,
+            &input.selected_session_ids,
+            input.options.include_all_manager_keys,
+        )? {
+            write_json_entry(&mut zw, opts, "ssh_key_certificates.json", &value)?;
+        }
+    }
+    if input.options.include_sessions {
+        if let Some(value) = build_webdav_session_details_value(conn, &input.selected_session_ids)?
+        {
+            write_json_entry(&mut zw, opts, "webdav_session_details.json", &value)?;
+        }
+        if let Some(value) = build_s3_session_details_value(conn, &input.selected_session_ids)? {
+            write_json_entry(&mut zw, opts, "s3_session_details.json", &value)?;
+        }
+        if let Some(value) = build_sftp_bookmarks_value(conn, &input.selected_session_ids)? {
+            write_json_entry(&mut zw, opts, "sftp_bookmarks.json", &value)?;
+        }
+        if let Some(value) = build_port_forward_rules_value(conn, &input.selected_session_ids)? {
+            write_json_entry(&mut zw, opts, "port_forward_rules.json", &value)?;
         }
     }
 
@@ -375,31 +415,275 @@ fn build_manager_keys_value(
     let arr: Vec<Value> = all_keys
         .into_iter()
         .filter(|k| include_all || used_ids.contains(&k.id))
-        .map(|k| {
-            let mut obj = serde_json::Map::new();
-            obj.insert("id".into(), json!(k.id));
-            obj.insert("label".into(), json!(k.label));
+        .map(|k| build_key_value(&k))
+        .collect();
+    if arr.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Value::Array(arr)))
+    }
+}
+
+/// Build the per-row JSON for a single `ssh_keys` row. Always emits
+/// the `backend` discriminator (`software` / `fido2` / `pkcs11` /
+/// `enclave` / `hello` / `tpm` / `keystore`). Per-backend payload:
+///
+/// | Backend | Fields | Rationale |
+/// |---|---|---|
+/// | `software` | private_key, public_key, key_type, label | full export today |
+/// | `fido2` | public_key, key_type, label, credential_id, application_string, has_user_verification | YubiKey portable across hosts |
+/// | `pkcs11` | public_key, key_type, label, pkcs11_uri, pkcs11_token_serial, pkcs11_object_id, pkcs11_object_label | hardware token plugs into new host; module path re-discovered locally |
+/// | `enclave`, `hello`, `tpm`, `keystore` | public_key, key_type, label | stub — private side is device-bound |
+///
+/// `pkcs11_module_path` is NEVER emitted (per-host install location);
+/// re-discovered on first use via the well-known-paths scan keyed on
+/// `pkcs11_token_serial`.
+fn build_key_value(k: &ssh_keys::SshKeyRow) -> Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("id".into(), json!(k.id));
+    obj.insert("label".into(), json!(k.label));
+    obj.insert("public_key".into(), json!(k.public_key));
+    obj.insert("key_type".into(), json!(k.key_type));
+    obj.insert("is_generated".into(), json!(k.is_generated));
+    obj.insert(
+        "created_at".into(),
+        json!(format_iso8601_utc(k.created_at_ms)),
+    );
+    obj.insert("backend".into(), json!(k.backend.as_db_str()));
+    match k.backend {
+        ssh_keys::KeyBackend::Software => {
             obj.insert("private_key".into(), json!(k.private_key));
-            obj.insert("public_key".into(), json!(k.public_key));
-            obj.insert("key_type".into(), json!(k.key_type));
-            obj.insert("is_generated".into(), json!(k.is_generated));
-            obj.insert(
-                "created_at".into(),
-                json!(format_iso8601_utc(k.created_at_ms)),
-            );
-            // FIDO2 hardware-key fields. Emitted only when populated
-            // so a non-sk-* export does not bloat the manifest with
-            // null fields the peer's older build won't understand.
+        }
+        ssh_keys::KeyBackend::Fido2 => {
             if let Some(ref cid) = k.credential_id {
                 obj.insert("credential_id".into(), json!(cid));
             }
             if let Some(ref app) = k.application_string {
                 obj.insert("application_string".into(), json!(app));
             }
-            if k.has_user_verification {
-                obj.insert("has_user_verification".into(), json!(true));
+            obj.insert(
+                "has_user_verification".into(),
+                json!(k.has_user_verification),
+            );
+        }
+        ssh_keys::KeyBackend::Pkcs11 => {
+            if let Some(ref uri) = k.pkcs11_uri {
+                obj.insert("pkcs11_uri".into(), json!(uri));
             }
+            if let Some(ref serial) = k.pkcs11_token_serial {
+                obj.insert("pkcs11_token_serial".into(), json!(serial));
+            }
+            if let Some(ref oid) = k.pkcs11_object_id {
+                obj.insert("pkcs11_object_id".into(), json!(oid));
+            }
+            if let Some(ref olabel) = k.pkcs11_object_label {
+                obj.insert("pkcs11_object_label".into(), json!(olabel));
+            }
+        }
+        ssh_keys::KeyBackend::Enclave
+        | ssh_keys::KeyBackend::Hello
+        | ssh_keys::KeyBackend::Tpm
+        | ssh_keys::KeyBackend::Keystore => {
+            // Stub backends — only the label + public_key + key_type
+            // + backend discriminator travel. Device-bound material
+            // (enclave_tag / hello_credential_name / tpm_* /
+            // keystore_*) stays on the source device's hardware.
+        }
+    }
+    Value::Object(obj)
+}
+
+// ── v3 child-table composers ─────────────────────────────────────
+
+fn build_ssh_key_certificates_value(
+    conn: &impl crate::db::DbAccess,
+    selected_session_ids: &[String],
+    include_all_keys: bool,
+) -> Result<Option<Value>, Error> {
+    let all_certs = ssh_key_certificates::list_all(conn)?;
+    if all_certs.is_empty() {
+        return Ok(None);
+    }
+    // Filter to the cert rows whose parent key actually travels
+    // through this export. When `include_all_keys` is true every
+    // cert ships; otherwise we keep only certs whose `key_id`
+    // appears in the keys-from-selected-sessions cone.
+    let allowed_keys: Option<HashSet<String>> = if include_all_keys {
+        None
+    } else {
+        let want_sessions: HashSet<&str> =
+            selected_session_ids.iter().map(|s| s.as_str()).collect();
+        let session_rows = sessions::list_all(conn)?;
+        Some(
+            session_rows
+                .into_iter()
+                .filter(|s| want_sessions.contains(s.id.as_str()))
+                .filter_map(|s| s.key_id.filter(|k| !k.is_empty()))
+                .collect(),
+        )
+    };
+    let arr: Vec<Value> = all_certs
+        .into_iter()
+        .filter(|c| {
+            allowed_keys
+                .as_ref()
+                .is_none_or(|set| set.contains(&c.key_id))
+        })
+        .map(|c| {
+            json!({
+                "key_id": c.key_id,
+                "certificate": c.certificate,
+                "valid_after": c.valid_after,
+                "valid_before": c.valid_before,
+                "principals": c.principals,
+                "critical_options": c.critical_options,
+                "fingerprint": c.fingerprint,
+            })
+        })
+        .collect();
+    if arr.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Value::Array(arr)))
+    }
+}
+
+fn build_webdav_session_details_value(
+    conn: &impl crate::db::DbAccess,
+    selected_session_ids: &[String],
+) -> Result<Option<Value>, Error> {
+    let all_rows = webdav_sessions::list_all(conn)?;
+    if all_rows.is_empty() {
+        return Ok(None);
+    }
+    let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
+    let arr: Vec<Value> = all_rows
+        .into_iter()
+        .filter(|r| want.contains(r.session_id.as_str()))
+        .map(|r| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("session_id".into(), json!(r.session_id));
+            obj.insert("base_url".into(), json!(r.base_url));
+            obj.insert("username".into(), json!(r.username));
+            obj.insert("auth_method".into(), json!(r.auth_method));
+            if let Some(fp) = r.self_signed_fingerprint {
+                obj.insert("self_signed_fingerprint".into(), json!(fp));
+            }
+            // Credential bytes stay on the source device. The
+            // canonical SecretStore id is reconstructed by the
+            // receiving device via `webdav_secret_id(session_id)`;
+            // surfacing the id pointer keeps the import path
+            // explicit about "re-enter password" without embedding
+            // any secret material on the wire.
+            obj.insert(
+                "credential_secret_id".into(),
+                json!(webdav_sessions::webdav_secret_id(&r.session_id)),
+            );
             Value::Object(obj)
+        })
+        .collect();
+    if arr.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Value::Array(arr)))
+    }
+}
+
+fn build_s3_session_details_value(
+    conn: &impl crate::db::DbAccess,
+    selected_session_ids: &[String],
+) -> Result<Option<Value>, Error> {
+    let all_rows = s3_sessions::list_all(conn)?;
+    if all_rows.is_empty() {
+        return Ok(None);
+    }
+    let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
+    let arr: Vec<Value> = all_rows
+        .into_iter()
+        .filter(|r| want.contains(r.session_id.as_str()))
+        .map(|r| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("session_id".into(), json!(r.session_id));
+            obj.insert("access_key_id".into(), json!(r.access_key_id));
+            obj.insert("region".into(), json!(r.region));
+            obj.insert("endpoint".into(), json!(r.endpoint));
+            obj.insert("path_style".into(), json!(r.path_style));
+            obj.insert("default_bucket".into(), json!(r.default_bucket));
+            obj.insert("default_prefix".into(), json!(r.default_prefix));
+            // Same opaque-pointer discipline as WebDAV: the access
+            // key id is the public half of the AWS credential and
+            // travels verbatim; the secret access key bytes don't —
+            // the receiving device finds them missing and surfaces
+            // "re-enter secret access key" on first connect.
+            obj.insert(
+                "secret_access_key_secret_id".into(),
+                json!(s3_sessions::s3_secret_id(&r.session_id)),
+            );
+            Value::Object(obj)
+        })
+        .collect();
+    if arr.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Value::Array(arr)))
+    }
+}
+
+fn build_sftp_bookmarks_value(
+    conn: &impl crate::db::DbAccess,
+    selected_session_ids: &[String],
+) -> Result<Option<Value>, Error> {
+    let all_rows = sftp_bookmarks::list_all(conn)?;
+    if all_rows.is_empty() {
+        return Ok(None);
+    }
+    let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
+    let arr: Vec<Value> = all_rows
+        .into_iter()
+        .filter(|r| want.contains(r.session_id.as_str()))
+        .map(|r| {
+            json!({
+                "id": r.id,
+                "session_id": r.session_id,
+                "remote_path": r.remote_path,
+                "label": r.label,
+                "created_at": format_iso8601_utc(r.created_at_ms),
+            })
+        })
+        .collect();
+    if arr.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Value::Array(arr)))
+    }
+}
+
+fn build_port_forward_rules_value(
+    conn: &impl crate::db::DbAccess,
+    selected_session_ids: &[String],
+) -> Result<Option<Value>, Error> {
+    let all_rows = port_forwards::list_all(conn)?;
+    if all_rows.is_empty() {
+        return Ok(None);
+    }
+    let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
+    let arr: Vec<Value> = all_rows
+        .into_iter()
+        .filter(|r| want.contains(r.session_id.as_str()))
+        .map(|r| {
+            json!({
+                "id": r.id,
+                "session_id": r.session_id,
+                "kind": r.kind,
+                "bind_host": r.bind_host,
+                "bind_port": r.bind_port,
+                "remote_host": r.remote_host,
+                "remote_port": r.remote_port,
+                "description": r.description,
+                "enabled": r.enabled,
+                "sort_order": r.sort_order,
+                "created_at_ms": r.created_at_ms,
+            })
         })
         .collect();
     if arr.is_empty() {
@@ -952,6 +1236,7 @@ mod tests {
                 keystore_strongbox: false,
                 keystore_user_auth_required: false,
                 keystore_platform: None,
+                imported_as_stub: false,
             },
         )
         .unwrap();
@@ -1188,7 +1473,7 @@ mod tests {
         input.options.include_known_hosts = true;
         let bytes = export_archive(&conn, &input).unwrap();
         let zip = read_zip(&bytes);
-        assert!(text_entry(&zip, "known_hosts").is_none());
+        assert!(text_entry(&zip, "known_hosts.txt").is_none());
     }
 
     #[test]
@@ -1207,7 +1492,7 @@ mod tests {
         input.options.include_known_hosts = true;
         let bytes = export_archive(&conn, &input).unwrap();
         let zip = read_zip(&bytes);
-        let body = text_entry(&zip, "known_hosts").expect("known_hosts entry");
+        let body = text_entry(&zip, "known_hosts.txt").expect("known_hosts entry");
         let s = std::str::from_utf8(body).unwrap();
         assert!(s.contains("example.com"));
         assert!(s.contains("ssh-ed25519"));

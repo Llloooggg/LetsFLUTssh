@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `encode_authorized_keys_line`, `now_unix_ms`, `scan_native`
+// These functions are ignored because they are not marked as `pub`: `encode_authorized_keys_line`, `now_unix_ms`, `resolve_native`, `scan_native`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// True when PKCS#11 tokens are reachable on this build target.
@@ -14,6 +14,20 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// scan happens via [`pkcs11_scan_well_known_paths`].
 bool pkcs11IsAvailable() =>
     RustLib.instance.api.crateApiPkcs11Pkcs11IsAvailable();
+
+/// Auto-resolve `pkcs11_module_path` for an imported `backend='pkcs11'`
+/// row whose `pkcs11_module_path` field is `None`. Walks the
+/// well-known-paths table and probes each module's slots for one
+/// whose token serial matches `pkcs11_token_serial`; on hit
+/// persists the resolved path back onto the row and returns the
+/// path string. On miss returns `None` — the caller (connect path)
+/// surfaces the one-shot "Choose PKCS#11 module" picker so the
+/// user can point the row at the right library.
+///
+/// Read-only against the token (no `C_Login`, no PIN). Mobile
+/// builds always return `None` — PKCS#11 is desktop-only.
+Future<String?> pkcs11ResolveModuleForKey({required String keyId}) =>
+    RustLib.instance.api.crateApiPkcs11Pkcs11ResolveModuleForKey(keyId: keyId);
 
 /// Walk the well-known PKCS#11 module paths and return every
 /// candidate whose file exists on disk. Mobile builds always

@@ -57,15 +57,9 @@
 //! commits the whole fold or rolls back to the pre-merge
 //! state.
 
-use std::collections::HashMap;
-
-use serde_json::Value;
-
-use crate::archive::PendingImport;
-use crate::db::{folders, sessions, snippets, ssh_keys, tags, Connection};
+use crate::archive::{apply_pending_to_db, ApplyMode, ApplyOptions, ApplyOutcome, PendingImport};
+use crate::db::Connection;
 use crate::error::Error;
-
-use crate::archive::iso8601::parse_iso8601_or_now;
 
 /// Per-kind counters the orchestrator surfaces to the UI after
 /// a successful pull. Each counter increments only when the
@@ -89,472 +83,68 @@ pub struct MergeOutcome {
     pub errors: Vec<String>,
 }
 
-/// Fold `pending` into `conn`'s live tables under LWW. See the
-/// module doc for the per-table rules. Runs inside a single
-/// rusqlite transaction; on any catastrophic DB error
-/// (transaction-level failure, schema mismatch) the merge
-/// rolls back and the function returns `Err`. Per-row parse
-/// failures land in [`MergeOutcome::errors`] and the rest of
-/// the merge continues.
+/// Fold `pending` into `conn`'s live tables under LWW. Thin wrapper
+/// around [`apply_pending_to_db`] with [`ApplyMode::Sync`]; the
+/// unified driver runs the merge inside one transaction and routes
+/// every per-kind branch through the same helper set the archive-
+/// import path uses (LWW gates inside each helper guard the
+/// peer-newer-wins contract).
+///
+/// Per-row parse failures land in [`MergeOutcome::errors`]; the
+/// transaction still commits so a single corrupt entry in a 500-row
+/// pull does not abort the whole merge. Catastrophic DB errors
+/// (transaction begin/commit failure, schema mismatch) bubble up as
+/// `Err`.
 pub fn merge_pending_into_local(
     conn: &mut Connection,
     pending: &PendingImport,
 ) -> Result<MergeOutcome, Error> {
-    let tx = conn
-        .inner_mut()
-        .transaction()
-        .map_err(|e| Error::Db(format!("sync merge: tx begin: {e}")))?;
-
-    let mut outcome = MergeOutcome::default();
-    let now_ms = now_unix_ms();
-
-    if let Some(json) = pending.keys_json.as_deref() {
-        merge_keys(&tx, json, &mut outcome);
-    }
-    // Sessions also need the imported folder tree so a peer's
-    // `folder` path resolves to a stable local folder id. The
-    // archive's folder names get re-used (a peer's "Production"
-    // ends up under the same Production folder on this device);
-    // import-apply does the same.
-    let mut folder_path_to_id: HashMap<String, String> = HashMap::new();
-    if let Some(json) = pending.sessions_json.as_deref() {
-        folder_path_to_id = ensure_folder_tree(&tx, json, now_ms, &mut outcome);
-        merge_sessions(&tx, json, &folder_path_to_id, &mut outcome);
-    }
-    if let Some(json) = pending.tags_json.as_deref() {
-        merge_tags(&tx, json, &mut outcome);
-    }
-    if let Some(json) = pending.snippets_json.as_deref() {
-        merge_snippets(&tx, json, &mut outcome);
-    }
-    if let Some(json) = pending.session_tags_json.as_deref() {
-        merge_session_tag_edges(&tx, json, &mut outcome);
-    }
-    if let Some(json) = pending.folder_tags_json.as_deref() {
-        merge_folder_tag_edges(&tx, json, &folder_path_to_id, &mut outcome);
-    }
-    if let Some(json) = pending.session_snippets_json.as_deref() {
-        merge_session_snippet_edges(&tx, json, &mut outcome);
-    }
-    // SFTP bookmarks travel inside the manifest under a future
-    // wire-format extension. The v2 archive shape does not emit
-    // `sftp_bookmarks` entries today; when the export pipeline
-    // grows the field, this is the slot the merge wires the new
-    // counter through. The `MergeOutcome::bookmarks_merged`
-    // counter stays at zero in the meantime.
-
-    tx.commit()
-        .map_err(|e| Error::Db(format!("sync merge: tx commit: {e}")))?;
-    Ok(outcome)
-}
-
-fn now_unix_ms() -> i64 {
-    std::time::SystemTime::now()
+    let mut outcome = ApplyOutcome::default();
+    // ApplyOptions is ignored under Sync mode (the orchestrator
+    // always applies every entry the peer carried); supply a default
+    // for the unified entry's signature.
+    let options = ApplyOptions::default();
+    let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+        .unwrap_or(0);
+    apply_pending_to_db(
+        conn,
+        pending,
+        ApplyMode::Sync,
+        &options,
+        now_ms,
+        &mut outcome,
+    )?;
+    Ok(MergeOutcome::from_apply_outcome(outcome))
 }
 
-fn parse_array(json: &str, label: &str, errors: &mut Vec<String>) -> Vec<Value> {
-    match serde_json::from_str::<Vec<Value>>(json) {
-        Ok(a) => a,
-        Err(e) => {
-            errors.push(format!("sync merge {label} parse: {e}"));
-            Vec::new()
+impl MergeOutcome {
+    /// Project the unified [`ApplyOutcome`] onto the sync-shape
+    /// counters Dart's `lfs_frb::api::sync` adapter consumes. The
+    /// per-kind shape matches the pre-unification fields one-for-one;
+    /// new v3 child-table counters land on
+    /// [`MergeOutcome::bookmarks_merged`] (SFTP bookmarks) and stay
+    /// projected straight from the unified outcome.
+    pub fn from_apply_outcome(o: ApplyOutcome) -> Self {
+        Self {
+            sessions_merged: o.sessions_applied as u32,
+            keys_merged: o.keys_applied as u32,
+            tags_merged: o.tags_applied as u32,
+            snippets_merged: o.snippets_applied as u32,
+            bookmarks_merged: o.sftp_bookmarks_applied as u32,
+            session_tag_edges_merged: o.session_tags_applied as u32,
+            folder_tag_edges_merged: o.folder_tags_applied as u32,
+            session_snippet_edges_merged: o.session_snippets_applied as u32,
+            errors: o.errors,
         }
     }
 }
-
-fn json_string(v: &Value, key: &str) -> String {
-    v.get(key)
-        .and_then(|x| x.as_str())
-        .map(String::from)
-        .unwrap_or_default()
-}
-
-fn json_i64(v: &Value, key: &str) -> Option<i64> {
-    v.get(key).and_then(|x| x.as_i64())
-}
-
-fn iso_to_ms(v: &Value, key: &str, now_ms: i64) -> i64 {
-    let s = v.get(key).and_then(|x| x.as_str()).unwrap_or("");
-    if s.is_empty() {
-        now_ms
-    } else {
-        parse_iso8601_or_now(s, now_ms)
-    }
-}
-
-// ── sessions ──────────────────────────────────────────────────────
-
-fn ensure_folder_tree(
-    conn: &impl crate::db::DbAccess,
-    sessions_json: &str,
-    now_ms: i64,
-    outcome: &mut MergeOutcome,
-) -> HashMap<String, String> {
-    let arr = match serde_json::from_str::<Vec<Value>>(sessions_json) {
-        Ok(a) => a,
-        Err(_) => return HashMap::new(),
-    };
-    // Reuse existing folders by path so the merge does not mint a
-    // second "Production" folder on each pull. `ensure_folder_path`
-    // walks the existing tree segment-by-segment and inserts only
-    // the missing levels.
-    let mut out: HashMap<String, String> = HashMap::new();
-    for v in arr.iter() {
-        let path = json_string(v, "folder");
-        if path.is_empty() || out.contains_key(&path) {
-            continue;
-        }
-        match folders::ensure_folder_path(conn, &path, now_ms) {
-            Ok(Some(id)) => {
-                out.insert(path, id);
-            }
-            Ok(None) => {
-                // Empty path — already filtered above; defensive
-                // branch keeps the loop walk explicit.
-            }
-            Err(e) => outcome
-                .errors
-                .push(format!("sync merge folder ensure: {e}")),
-        }
-    }
-    out
-}
-
-fn merge_sessions(
-    conn: &impl crate::db::DbAccess,
-    json: &str,
-    folder_path_to_id: &HashMap<String, String>,
-    outcome: &mut MergeOutcome,
-) {
-    let arr = parse_array(json, "sessions", &mut outcome.errors);
-    let local: HashMap<String, sessions::SessionRow> = match sessions::list_all(conn) {
-        Ok(rows) => rows.into_iter().map(|r| (r.id.clone(), r)).collect(),
-        Err(e) => {
-            outcome
-                .errors
-                .push(format!("sync merge sessions list: {e}"));
-            return;
-        }
-    };
-    let now_ms = now_unix_ms();
-    for v in arr {
-        let id = json_string(&v, "id");
-        if id.is_empty() {
-            continue;
-        }
-        let peer_updated_at = iso_to_ms(&v, "updated_at", now_ms);
-        if let Some(local_row) = local.get(&id) {
-            // Skip when the peer's row is not strictly newer than
-            // the local one — LWW with strict-greater so a tie
-            // breaks toward keeping local state. The local row's
-            // tombstone counts as part of the LWW timestamp; a
-            // peer's live row from before the local tombstone
-            // does not resurrect the row.
-            let local_effective = local_row.updated_at_ms;
-            if peer_updated_at <= local_effective {
-                continue;
-            }
-        }
-        let folder_path = json_string(&v, "folder");
-        let folder_id = if folder_path.is_empty() {
-            None
-        } else {
-            folder_path_to_id.get(&folder_path).cloned()
-        };
-        let row = sessions::SessionRow {
-            id: id.clone(),
-            label: json_string(&v, "label"),
-            folder_id,
-            kind: json_string(&v, "kind"),
-            host: json_string(&v, "host"),
-            port: json_i64(&v, "port").unwrap_or(22),
-            user: json_string(&v, "user"),
-            auth_type: json_string(&v, "auth_type"),
-            password: json_string(&v, "password"),
-            key_path: json_string(&v, "key_path"),
-            key_data: json_string(&v, "key_data"),
-            key_id: v
-                .get("key_id")
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.is_empty())
-                .map(String::from),
-            passphrase: json_string(&v, "passphrase"),
-            sort_order: 0,
-            notes: String::new(),
-            last_connected_at_ms: None,
-            extras: v
-                .get("extras")
-                .map(|e| e.to_string())
-                .unwrap_or_else(|| "{}".into()),
-            via_session_id: v
-                .get("via_session_id")
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.is_empty())
-                .map(String::from),
-            via_host: v
-                .get("via_override")
-                .and_then(|o| o.get("host"))
-                .and_then(|x| x.as_str())
-                .map(String::from),
-            via_port: v
-                .get("via_override")
-                .and_then(|o| o.get("port"))
-                .and_then(|x| x.as_i64()),
-            via_user: v
-                .get("via_override")
-                .and_then(|o| o.get("user"))
-                .and_then(|x| x.as_str())
-                .map(String::from),
-            created_at_ms: iso_to_ms(&v, "created_at", now_ms),
-            updated_at_ms: peer_updated_at,
-        };
-        match sessions::upsert(conn, &row) {
-            Ok(_) => outcome.sessions_merged += 1,
-            Err(e) => outcome.errors.push(format!("sync merge session {id}: {e}")),
-        }
-    }
-}
-
-// ── ssh_keys ──────────────────────────────────────────────────────
-
-fn merge_keys(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOutcome) {
-    let arr = parse_array(json, "keys", &mut outcome.errors);
-    let local: HashMap<String, ssh_keys::SshKeyRow> = match ssh_keys::list_all(conn) {
-        Ok(rows) => rows.into_iter().map(|r| (r.id.clone(), r)).collect(),
-        Err(e) => {
-            outcome.errors.push(format!("sync merge keys list: {e}"));
-            return;
-        }
-    };
-    let now_ms = now_unix_ms();
-    for v in arr {
-        let id = json_string(&v, "id");
-        if id.is_empty() {
-            continue;
-        }
-        let peer_ts = iso_to_ms(&v, "created_at", now_ms);
-        if let Some(local_row) = local.get(&id) {
-            if peer_ts <= local_row.created_at_ms {
-                continue;
-            }
-        }
-        let row = ssh_keys::SshKeyRow {
-            id: id.clone(),
-            label: json_string(&v, "label"),
-            private_key: json_string(&v, "private_key"),
-            public_key: json_string(&v, "public_key"),
-            key_type: json_string(&v, "key_type"),
-            is_generated: v
-                .get("is_generated")
-                .and_then(|x| x.as_bool())
-                .unwrap_or(false),
-            created_at_ms: peer_ts,
-            credential_id: v
-                .get("credential_id")
-                .and_then(|x| x.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|b| b.as_u64().map(|n| n as u8))
-                        .collect()
-                }),
-            application_string: v
-                .get("application_string")
-                .and_then(|x| x.as_str())
-                .map(|s| s.to_string()),
-            has_user_verification: v
-                .get("has_user_verification")
-                .and_then(|x| x.as_bool())
-                .unwrap_or(false),
-            // Sync merges carry no `agent_policy` field across the wire
-            // today — the column is a per-device preference. Land
-            // `'ask'` on every incoming peer row so the receiving
-            // device routes new merges through the confirmation
-            // dialog until the operator opts in locally.
-            agent_policy: ssh_keys::AgentPolicy::Ask,
-            // Backend + PKCS#11 fields are per-device (the module path,
-            // token serial, object id are tied to the physical
-            // hardware on this host); sync merges always land the
-            // incoming row as `software` and clear every pkcs11 hint.
-            // A hardware-bound row that needs to ride sync goes through
-            // the explicit re-import flow on the receiving device.
-            backend: ssh_keys::KeyBackend::Software,
-            pkcs11_uri: None,
-            pkcs11_module_path: None,
-            pkcs11_token_serial: None,
-            pkcs11_object_id: None,
-            pkcs11_object_label: None,
-            enclave_tag: None,
-            hello_credential_name: None,
-            tpm_blob: None,
-            tpm_handle: None,
-            tpm_provider: None,
-            tpm_pin_required: false,
-            cng_key_name: None,
-            keystore_alias: None,
-            keystore_strongbox: false,
-            keystore_user_auth_required: false,
-            keystore_platform: None,
-        };
-        match ssh_keys::upsert(conn, &row) {
-            Ok(_) => outcome.keys_merged += 1,
-            Err(e) => outcome.errors.push(format!("sync merge key {id}: {e}")),
-        }
-    }
-}
-
-// ── tags ──────────────────────────────────────────────────────────
-
-fn merge_tags(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOutcome) {
-    let arr = parse_array(json, "tags", &mut outcome.errors);
-    let local: HashMap<String, tags::TagRow> = match tags::list_all(conn) {
-        Ok(rows) => rows.into_iter().map(|r| (r.id.clone(), r)).collect(),
-        Err(e) => {
-            outcome.errors.push(format!("sync merge tags list: {e}"));
-            return;
-        }
-    };
-    let now_ms = now_unix_ms();
-    for v in arr {
-        let id = json_string(&v, "id");
-        if id.is_empty() {
-            continue;
-        }
-        let peer_ts = iso_to_ms(&v, "created_at", now_ms);
-        if let Some(local_row) = local.get(&id) {
-            if peer_ts <= local_row.created_at_ms {
-                continue;
-            }
-        }
-        let row = tags::TagRow {
-            id: id.clone(),
-            name: json_string(&v, "name"),
-            color: v.get("color").and_then(|x| x.as_str()).map(String::from),
-            created_at_ms: peer_ts,
-        };
-        match tags::upsert(conn, &row) {
-            Ok(_) => outcome.tags_merged += 1,
-            Err(e) => outcome.errors.push(format!("sync merge tag {id}: {e}")),
-        }
-    }
-}
-
-// ── snippets ──────────────────────────────────────────────────────
-
-fn merge_snippets(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut MergeOutcome) {
-    let arr = parse_array(json, "snippets", &mut outcome.errors);
-    let local: HashMap<String, snippets::SnippetRow> = match snippets::list_all(conn) {
-        Ok(rows) => rows.into_iter().map(|r| (r.id.clone(), r)).collect(),
-        Err(e) => {
-            outcome
-                .errors
-                .push(format!("sync merge snippets list: {e}"));
-            return;
-        }
-    };
-    let now_ms = now_unix_ms();
-    for v in arr {
-        let id = json_string(&v, "id");
-        if id.is_empty() {
-            continue;
-        }
-        let peer_updated = iso_to_ms(&v, "updated_at", now_ms);
-        if let Some(local_row) = local.get(&id) {
-            if peer_updated <= local_row.updated_at_ms {
-                continue;
-            }
-        }
-        let row = snippets::SnippetRow {
-            id: id.clone(),
-            title: json_string(&v, "title"),
-            command: json_string(&v, "command"),
-            description: json_string(&v, "description"),
-            created_at_ms: iso_to_ms(&v, "created_at", now_ms),
-            updated_at_ms: peer_updated,
-        };
-        match snippets::upsert(conn, &row) {
-            Ok(_) => outcome.snippets_merged += 1,
-            Err(e) => outcome.errors.push(format!("sync merge snippet {id}: {e}")),
-        }
-    }
-}
-
-// ── M2M edges (session_tags, folder_tags, session_snippets) ──────
-
-fn merge_session_tag_edges(
-    conn: &impl crate::db::DbAccess,
-    json: &str,
-    outcome: &mut MergeOutcome,
-) {
-    let arr = parse_array(json, "session_tags", &mut outcome.errors);
-    for v in arr {
-        let sid = json_string(&v, "session_id");
-        let tid = json_string(&v, "tag_id");
-        if sid.is_empty() || tid.is_empty() {
-            continue;
-        }
-        match tags::link_session_tag(conn, &sid, &tid) {
-            Ok(_) => outcome.session_tag_edges_merged += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("sync merge session_tag {sid}↔{tid}: {e}")),
-        }
-    }
-}
-
-fn merge_folder_tag_edges(
-    conn: &impl crate::db::DbAccess,
-    json: &str,
-    folder_path_to_id: &HashMap<String, String>,
-    outcome: &mut MergeOutcome,
-) {
-    let arr = parse_array(json, "folder_tags", &mut outcome.errors);
-    for v in arr {
-        let path = json_string(&v, "folder_path");
-        let tid = json_string(&v, "tag_id");
-        if path.is_empty() || tid.is_empty() {
-            continue;
-        }
-        let Some(fid) = folder_path_to_id.get(&path) else {
-            continue;
-        };
-        match tags::link_folder_tag(conn, fid, &tid) {
-            Ok(_) => outcome.folder_tag_edges_merged += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("sync merge folder_tag {path}↔{tid}: {e}")),
-        }
-    }
-}
-
-fn merge_session_snippet_edges(
-    conn: &impl crate::db::DbAccess,
-    json: &str,
-    outcome: &mut MergeOutcome,
-) {
-    let arr = parse_array(json, "session_snippets", &mut outcome.errors);
-    for v in arr {
-        let sid = json_string(&v, "session_id");
-        let snid = json_string(&v, "snippet_id");
-        if sid.is_empty() || snid.is_empty() {
-            continue;
-        }
-        match snippets::link_session_snippet(conn, &sid, &snid) {
-            Ok(_) => outcome.session_snippet_edges_merged += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("sync merge session_snippet {sid}↔{snid}: {e}")),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::archive::PendingImport;
-    use crate::db::{bootstrap_schema, Connection, Db};
+    use crate::db::{bootstrap_schema, sessions, snippets, ssh_keys, tags, Connection, Db};
 
     fn fresh_db() -> Db {
         let conn = Connection::open_in_memory().unwrap();
@@ -578,6 +168,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         }
     }
 
@@ -741,6 +336,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         };
         let outcome = db
             .with_conn_mut(|c| merge_pending_into_local(c, &pending))
@@ -785,6 +385,7 @@ mod tests {
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         };
         db.with_conn(|c| ssh_keys::upsert(c, &row)).unwrap();
         let peer = r#"[{
@@ -804,6 +405,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         };
         let outcome = db
             .with_conn_mut(|c| merge_pending_into_local(c, &pending))
@@ -842,6 +448,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         };
         let outcome = db
             .with_conn_mut(|c| merge_pending_into_local(c, &pending))

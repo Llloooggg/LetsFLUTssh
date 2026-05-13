@@ -3425,4 +3425,24 @@ class SKo extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return '이 기기에서는 $transport만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => '임포트 스텁';
+
+  @override
+  String get hardwareKeyStubSubtitle => '다른 기기에 있었음 — 사용하려면 여기서 재생성하세요';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => '여기서 재생성';
+
+  @override
+  String get hardwareKeyStubRemoveAction => '스텁 제거';
+
+  @override
+  String get hardwareKeyStubPickerTooltip => '사용하기 전에 이 기기에서 키를 재생성하세요';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return '토큰 \"$token\"의 PKCS#11 모듈을 지정하세요';
+  }
 }

@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "Stub importé",
+  "hardwareKeyStubSubtitle": "Était sur un autre appareil — régénérez ici pour l'utiliser",
+  "hardwareKeyStubRegenerateAction": "Régénérer ici",
+  "hardwareKeyStubRemoveAction": "Supprimer le stub",
+  "hardwareKeyStubPickerTooltip": "Régénérez cette clé sur cet appareil avant utilisation",
+  "pkcs11ModuleResolveOnFirstUse": "Localisez le module PKCS#11 pour le token « {token} »",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

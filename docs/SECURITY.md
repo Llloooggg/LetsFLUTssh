@@ -532,13 +532,62 @@ or crypto wallet on consumer hardware.
 ## Import / export
 
 `.lfs` archives carry portable user data — sessions, SSH keys,
-known_hosts, snippets, tags, and user preferences. They **never
-carry** `security_tier` or `security_modifiers`. Security
-configuration is strictly per-install: importing on a device B an
-archive made on device A does not try to adopt device A's
-hardware-vault setup; device B's existing security setup is
-preserved. Users re-run the wizard only when setting up a new device
-from scratch.
+known_hosts, snippets, tags, user preferences, paired OpenSSH
+certificates, WebDAV / S3 per-session config, SFTP bookmarks, and
+port-forward rules. They **never carry** `security_tier` or
+`security_modifiers`. Security configuration is strictly
+per-install: importing on a device B an archive made on device A
+does not try to adopt device A's hardware-vault setup; device B's
+existing security setup is preserved. Users re-run the wizard only
+when setting up a new device from scratch.
+
+### Per-row secret discipline
+
+Several per-session secrets stay on the source device by design.
+The archive ships only an opaque SecretStore-id pointer for each;
+the receiving device finds the pointer missing in its own
+SecretStore and surfaces a "re-enter password" / "re-enter access
+key" prompt on first connect:
+
+| Travels (sensitive part) | Travels (opaque pointer) | Stays on source device |
+|---|---|---|
+| Session passwords (inside AES-GCM envelope) | `webdav_session_details.credential_secret_id` | WebDAV password / bearer token bytes |
+| Software SSH key PEM (inside AES-GCM envelope) | `s3_session_details.secret_access_key_secret_id` | S3 secret access key bytes |
+| Session passphrases (inside AES-GCM envelope) | — | — |
+
+The opaque-pointer pattern keeps the wire format honest: a peer
+who decrypts the archive sees the user knows the secret exists,
+not what the secret is.
+
+### PKCS#11 token metadata sensitivity
+
+`.lfs` archives include the PKCS#11 token serial number, the
+`CKA_ID` bytes of the private-key object, and the
+RFC 7512 `pkcs11:` URI for every `backend = 'pkcs11'` row. The
+sensitivity rating is **low**:
+
+- The token serial + object id let a peer device probe its own
+  inserted tokens and ask "is the same hardware in my reader?".
+  They do not reveal anything an attacker who already has the
+  physical token would not also have via vendor tooling.
+- The matching private key material lives on the token's secure
+  element; the bytes never leave the chip. The serial / object id
+  identify which key to call into, not how to compute its
+  signatures.
+- The `pkcs11_module_path` field — the per-host install location
+  of the vendor library — is **never on the wire**. The receiving
+  device re-discovers it locally via the well-known-paths scan
+  keyed on the token serial. A peer who saw the path would learn
+  nothing useful (it points at a vendor `.so` / `.dll` / `.dylib`
+  that the well-known-paths scan finds anyway).
+
+Device-bound key backends — Apple Secure Enclave, Windows Hello,
+TPM 2.0, Android Hardware Keystore / StrongBox — ship as
+public-half-only stubs. The wrapped private blobs (`tpm_blob`,
+`enclave_tag`, `hello_credential_name`, `keystore_alias`) never
+travel; only the row's label + public key + backend discriminator
+do. The user picks "Re-generate here" on the stub to mint a fresh
+hardware-backed key on the receiving device.
 
 The encryption format is AES-256-GCM under an Argon2id-derived key,
 with the `LFSE 0x03` header carrying the KDF parameters. The pre-IV

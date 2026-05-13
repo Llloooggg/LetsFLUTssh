@@ -2635,17 +2635,22 @@ class DeepLinkHandler {
 [salt 32B] [IV 12B] [encrypted payload + GCM tag 16B]
 
 payload = ZIP archive:
-  manifest.json           ← schema_version, app_version, created_at (see below)
-  sessions.json           ← session metadata with credentials (toJsonWithCredentials)
-  empty_folders.json      ← list of empty folder paths
-  keys.json               ← manager SSH keys (label, type, public/private key)
-  config.json             ← app configuration
-  known_hosts             ← TOFU host key database (LetsFLUTssh wire format, not real OpenSSH)
-  tags.json               ← tag definitions (id, name, color)
-  session_tags.json       ← session→tag assignments
-  folder_tags.json        ← folder→tag assignments
-  snippets.json           ← snippet definitions (id, title, command, description)
-  session_snippets.json   ← session→snippet links
+  manifest.json              ← schema_version (now v3), app_version, created_at, optional sync_origin (v2+)
+  sessions.json              ← session metadata with credentials (toJsonWithCredentials)
+  empty_folders.json         ← list of empty folder paths
+  keys.json                  ← manager SSH keys + per-backend payload (see table below)
+  config.json                ← app configuration
+  known_hosts                ← TOFU host key database (LetsFLUTssh wire format, not real OpenSSH)
+  tags.json                  ← tag definitions (id, name, color)
+  session_tags.json          ← session→tag assignments
+  folder_tags.json           ← folder→tag assignments
+  snippets.json              ← snippet definitions (id, title, command, description)
+  session_snippets.json      ← session→snippet links
+  ssh_key_certificates.json  ← v3: paired OpenSSH certs (key_id, blob, validity, principals, options, fingerprint)
+  webdav_session_details.json ← v3: per-WebDAV-session config (base_url, username, auth_method, secret-id pointer)
+  s3_session_details.json    ← v3: per-S3-session config (access_key_id, region, endpoint, secret-id pointer)
+  sftp_bookmarks.json        ← v3: per-session SFTP bookmarks (id, session_id, remote_path, label, created_at)
+  port_forward_rules.json    ← v3: per-session port-forward rules (Local / Remote / Dynamic)
 
 Encryption: AES-256-GCM
 Key: Argon2id(password, salt, m=46 MiB, t=2, p=1) — see
@@ -2729,16 +2734,50 @@ password prompt:
     check inside `_decryptAndParseArchive` is the final arbiter.
 ```
 
-Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**)
-reads `lfs_core::migration::SchemaVersions::ARCHIVE` through a sync FRB
-getter so the constant lives one place across the workspace. The
-manifest is written on every export and validated on import: when
+Schema versioning: `ExportImport.currentSchemaVersion` reads
+`lfs_core::migration::SchemaVersions::ARCHIVE` (currently **v3**) through
+a sync FRB getter so the constant lives one place across the workspace.
+The manifest is written on every export and validated on import: when
 `read_archive_to_pending` parses a `schema_version` greater than the
 build's `SchemaVersions::ARCHIVE` it returns `Error::ArchiveFutureVersion`,
 which the Dart `openArchiveWithTypedErrors` wrapper translates into
 `UnsupportedLfsVersionException`. GCM's auth tag already protects
 archive integrity end-to-end, so no separate content hash is stored
 in the manifest.
+
+##### What travels — per backend / per child table
+
+The keys composer always emits a `backend` discriminator on each row;
+the payload that travels depends on it. Device-bound backends ship a
+public-half-only stub so the receiving device can see "a key with
+this label was on the other host" without the private side leaking:
+
+| Backend | Travels | Survives on the receiving device? | Notes |
+|---|---|---|---|
+| `software` | private_key, public_key, key_type, label | Yes — full round-trip | The classic case; private PEM rides inside the GCM-encrypted envelope. |
+| `fido2` (sk-*) | public_key, key_type, label, credential_id, application_string, has_user_verification | Yes — token portable across hosts | Plug the same YubiKey / Solo / Nitrokey into the new device and sign works without re-import. |
+| `pkcs11` | public_key, key_type, label, pkcs11_uri, pkcs11_token_serial, pkcs11_object_id, pkcs11_object_label | Yes — token portable | Module path is the per-host install location and is NEVER on the wire; resolved locally on first use via the well-known-paths scan keyed on `pkcs11_token_serial`. Miss surfaces a one-shot "Choose PKCS#11 module" picker. |
+| `enclave` | public_key, key_type, label (stub) | No — re-generate on this device | Apple Secure Enclave; private key is bound to one Mac / iPhone. The imported row lands with `imported_as_stub=1`; Key Manager renders desaturated with "Re-generate here" / "Remove" actions. |
+| `hello` | public_key, key_type, label (stub) | No — re-generate on this device | Windows Hello / NCrypt; private key is bound to one PC's TPM. Same stub UX as `enclave`. |
+| `tpm` | public_key, key_type, label (stub) | No — re-generate on this device | TPM 2.0 (Linux ESAPI or Windows PCP silent); the wrapped blob is per-TPM. |
+| `keystore` | public_key, key_type, label (stub) | No — re-generate on this device | Android Hardware Keystore / StrongBox; private key is bound to one phone's TEE. |
+
+Child-table portability — every child row is keyed by its parent's id
+(session_id or key_id) and rides with the parent's row:
+
+| Table | Wire fields | Secret discipline |
+|---|---|---|
+| `ssh_key_certificates` | key_id, certificate, valid_after, valid_before, principals, critical_options, fingerprint | Cert blob is the public half of a CA-signed pair; safe to travel verbatim. Apply drops the row with a warning when the parent key didn't land. |
+| `webdav_session_details` | session_id, base_url, username, auth_method, self_signed_fingerprint, credential_secret_id | The password / bearer token stays in the source device's SecretStore. Only the opaque pointer (`session.webdav.<session_id>`) travels; the receiving device finds it missing and surfaces "re-enter password" on first connect. |
+| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes stay in SecretStore. Same opaque-pointer discipline as WebDAV. |
+| `sftp_bookmarks` | id, session_id, remote_path, label, created_at | Full round-trip; tombstone-aware. |
+| `port_forward_rules` | id, session_id, kind, bind_host, bind_port, remote_host, remote_port, description, enabled, sort_order, created_at_ms | Full round-trip. |
+
+Backward compatibility for v1 / v2 archives is automatic: every v3
+field is `Option<String>` on `PendingImport`, so a v2 reader sees an
+absent slot. The reverse — an older client (v2) reading a v3
+archive — hits the future-version rejection in
+`read_archive_to_pending`.
 
 #### Import modes
 
@@ -5652,6 +5691,41 @@ same column shape. Future bumps:
   `backend = 'pkcs11'` rows only; every other backend leaves them
   NULL. See the PKCS#11 subsection of §3 above for the wire shape
   the columns carry.
+- **v14** — adds `imported_as_stub INTEGER NOT NULL DEFAULT 0` on
+  `ssh_keys`. Flips to `1` when a row landed via `.lfs` import /
+  WebDAV sync pull for a device-bound backend (`enclave` / `hello`
+  / `tpm` / `keystore`) — the public half travelled, the private
+  side stayed on the source device's hardware. Drives the Key
+  Manager's desaturated render + the "Re-generate here" / "Remove"
+  action set; the session-edit "Key from manager" picker disables
+  stub rows with a tooltip. The first local "Re-generate" via the
+  per-backend wizard upserts a full row over the stub (the id
+  collides; `imported_as_stub` clears via the upsert). Existing
+  v13 installs backfill to `0` via the additive `ALTER` gated by
+  `(1..14).contains(&current)`.
+
+### Export portability per table
+
+The `.lfs` archive + WebDAV sync ship a per-table subset. Every
+table below either round-trips in full, ships an opaque secret-id
+pointer in place of secret bytes, or stays per-device. The full
+"what travels" table per backend lives in §3.9; the column below
+is a quick reference.
+
+| Table | Export portability | Notes |
+|---|---|---|
+| `folders` | Full | Path-keyed reconstruction on apply. |
+| `sessions` | Full (passwords inside GCM envelope) | LWW on `updated_at` for sync. |
+| `ssh_keys` | Backend-dependent | `software` + `fido2` + `pkcs11` round-trip; `enclave` / `hello` / `tpm` / `keystore` ship as stubs. See §3.9. |
+| `ssh_key_certificates` | Full | Cert blob is the public half; safe verbatim. |
+| `webdav_session_details` | Opaque-pointer | Endpoint config + secret-id pointer travels; password bytes stay in source device's SecretStore. |
+| `s3_session_details` | Opaque-pointer | Access key id travels; secret access key bytes stay in source device's SecretStore. |
+| `known_hosts` | Full | Per-device TOFU; archive import unions rows. Sync explicitly does NOT replicate host trust between devices. |
+| `tags` / `session_tags` / `folder_tags` | Full | M2M edges union via `INSERT OR IGNORE`. |
+| `snippets` / `session_snippets` | Full | LWW on `updated_at` for sync. |
+| `sftp_bookmarks` | Full | Tombstone-aware; LWW on `created_at`. |
+| `port_forward_rules` | Full | No tombstone column; replace-mode clears. |
+| `app_configs` | Per-device | Not exported via `.lfs` / sync (UI theme, locale, log threshold etc. stay local). |
 
 ### Soft-delete contract (v3+)
 

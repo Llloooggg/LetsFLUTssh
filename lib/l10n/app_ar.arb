@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "بدل مستورد",
+  "hardwareKeyStubSubtitle": "كان على جهاز آخر — أعد التوليد هنا لاستخدامه",
+  "hardwareKeyStubRegenerateAction": "أعد التوليد هنا",
+  "hardwareKeyStubRemoveAction": "إزالة البدل",
+  "hardwareKeyStubPickerTooltip": "أعد توليد هذا المفتاح على هذا الجهاز قبل الاستخدام",
+  "pkcs11ModuleResolveOnFirstUse": "حدد مسار وحدة PKCS#11 للرمز \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

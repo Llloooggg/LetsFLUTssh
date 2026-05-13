@@ -420,6 +420,14 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
             empty_folders_json,
             config_json,
             known_hosts_text,
+            // QR / paste-link payloads are bandwidth-bound and ship
+            // only the legacy archive subset; v3-only child tables
+            // do not travel through the QR envelope.
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         },
         schema_version: version,
     })

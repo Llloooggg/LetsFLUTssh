@@ -3591,4 +3591,26 @@ class SPt extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Apenas $transport está disponível neste dispositivo; o toggle está desativado.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub importado';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Estava em outro dispositivo — regenere aqui para usar';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Regenerar aqui';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Remover stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Regenere esta chave neste dispositivo antes de usar';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Localize o módulo PKCS#11 para o token \"$token\"';
+  }
 }

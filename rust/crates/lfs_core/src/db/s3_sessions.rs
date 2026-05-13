@@ -117,6 +117,14 @@ pub fn upsert(conn: &impl DbAccess, row: &S3SessionRow) -> Result<(), Error> {
     Ok(())
 }
 
+/// Physically remove every row. Used by the archive-import replace
+/// mode before re-populating. No tombstone column today.
+pub fn delete_all(conn: &impl DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM s3_session_details", [])
+        .map_err(|e| Error::Db(format!("s3_session_details delete_all: {e}")))
+}
+
 /// Remove the S3 detail row for `session_id`. Returns the number
 /// of rows affected — `0` is the idempotent no-op when the session
 /// was never an S3 kind. The session row itself is not touched.

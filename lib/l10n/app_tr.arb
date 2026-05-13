@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "İçe aktarılmış stub",
+  "hardwareKeyStubSubtitle": "Başka bir cihazdaydı — kullanmak için burada yeniden üret",
+  "hardwareKeyStubRegenerateAction": "Burada yeniden üret",
+  "hardwareKeyStubRemoveAction": "Stub'ı kaldır",
+  "hardwareKeyStubPickerTooltip": "Kullanmadan önce bu key'i bu cihazda yeniden üret",
+  "pkcs11ModuleResolveOnFirstUse": "\"{token}\" token'ı için PKCS#11 modülünü bul",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

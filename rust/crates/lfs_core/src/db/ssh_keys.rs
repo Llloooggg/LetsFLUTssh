@@ -156,6 +156,19 @@ pub struct SshKeyRow {
     /// connect path does NOT use it for routing (key resolution
     /// goes via `keystore_alias` alone).
     pub keystore_platform: Option<String>,
+    /// `true` when the row landed as a public-half-only stub via
+    /// `.lfs` archive import or WebDAV sync pull for a device-bound
+    /// backend (Apple Secure Enclave / Windows Hello / TPM / Android
+    /// Keystore). The private side cannot travel between devices for
+    /// those backends; the stub carries label + public key + backend
+    /// discriminator so the key manager renders "this is the key
+    /// that was on the other device, re-generate it here". The
+    /// session-edit "Key from manager" picker disables stub rows.
+    /// Cleared when the user picks "Re-generate here" / "Remove" on
+    /// the stub row. `false` for every locally generated row and for
+    /// every backend that travels its portable subset across the
+    /// wire (software / FIDO2 / PKCS#11).
+    pub imported_as_stub: bool,
 }
 
 /// Backend discriminator on `ssh_keys.backend` (schema v9). Drives
@@ -298,6 +311,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
         keystore_strongbox: row.get::<_, i64>("keystore_strongbox")? != 0,
         keystore_user_auth_required: row.get::<_, i64>("keystore_user_auth_required")? != 0,
         keystore_platform: row.get("keystore_platform")?,
+        imported_as_stub: row.get::<_, i64>("imported_as_stub")? != 0,
     })
 }
 
@@ -311,7 +325,8 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                     hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
                     tpm_pin_required, cng_key_name, keystore_alias, \
-                    keystore_strongbox, keystore_user_auth_required, keystore_platform \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform, \
+                    imported_as_stub \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC",
         )
         .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
@@ -335,7 +350,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                     hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
                     tpm_pin_required, cng_key_name, keystore_alias, \
-                    keystore_strongbox, keystore_user_auth_required, keystore_platform \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform, \
+                    imported_as_stub \
              FROM ssh_keys WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
@@ -357,8 +373,9 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
                                pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                                hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
                                tpm_pin_required, cng_key_name, keystore_alias, \
-                               keystore_strongbox, keystore_user_auth_required, keystore_platform) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28) \
+                               keystore_strongbox, keystore_user_auth_required, keystore_platform, \
+                               imported_as_stub) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            private_key = excluded.private_key, \
@@ -387,6 +404,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
            keystore_strongbox = excluded.keystore_strongbox, \
            keystore_user_auth_required = excluded.keystore_user_auth_required, \
            keystore_platform = excluded.keystore_platform, \
+           imported_as_stub = excluded.imported_as_stub, \
            deleted_at = NULL",
         params![
             row.id,
@@ -417,6 +435,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Er
             if row.keystore_strongbox { 1 } else { 0 },
             if row.keystore_user_auth_required { 1 } else { 0 },
             row.keystore_platform,
+            if row.imported_as_stub { 1 } else { 0 },
         ],
     )
     .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
@@ -491,6 +510,12 @@ pub struct SshKeyMetadata {
     /// popover so users on multi-device deployments can identify
     /// which phone holds the key.
     pub keystore_platform: Option<String>,
+    /// `true` when the row landed via `.lfs` archive import / WebDAV
+    /// sync pull as a public-half-only stub for a device-bound
+    /// backend. Drives the key manager's desaturated render + the
+    /// session-edit picker disable. See [`SshKeyRow::imported_as_stub`]
+    /// for the full contract.
+    pub imported_as_stub: bool,
 }
 
 pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetadata>, Error> {
@@ -503,7 +528,8 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                     pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                     hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
                     tpm_pin_required, cng_key_name, keystore_alias, \
-                    keystore_strongbox, keystore_user_auth_required, keystore_platform \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform, \
+                    imported_as_stub \
              FROM ssh_keys WHERE deleted_at IS NULL ORDER BY created_at DESC \
              /* list_metadata */",
         )
@@ -537,6 +563,7 @@ pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetada
                 keystore_strongbox: row.get::<_, i64>("keystore_strongbox")? != 0,
                 keystore_user_auth_required: row.get::<_, i64>("keystore_user_auth_required")? != 0,
                 keystore_platform: row.get("keystore_platform")?,
+                imported_as_stub: row.get::<_, i64>("imported_as_stub")? != 0,
             })
         })
         .map_err(|e| Error::Db(format!("ssh_keys list_metadata query: {e}")))?;
@@ -606,8 +633,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                                        pkcs11_object_id, pkcs11_object_label, enclave_tag, \
                                        hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
                                        tpm_pin_required, cng_key_name, keystore_alias, \
-                                       keystore_strongbox, keystore_user_auth_required, keystore_platform) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28) \
+                                       keystore_strongbox, keystore_user_auth_required, keystore_platform, \
+                                       imported_as_stub) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29) \
                  ON CONFLICT(id) DO UPDATE SET \
                    label = excluded.label, \
                    private_key = excluded.private_key, \
@@ -636,6 +664,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                    keystore_strongbox = excluded.keystore_strongbox, \
                    keystore_user_auth_required = excluded.keystore_user_auth_required, \
                    keystore_platform = excluded.keystore_platform, \
+                   imported_as_stub = excluded.imported_as_stub, \
                    deleted_at = NULL",
             )
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
@@ -673,6 +702,7 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
                     0
                 },
                 row.keystore_platform,
+                if row.imported_as_stub { 1 } else { 0 },
             ])
             .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
         }
@@ -812,11 +842,51 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
             keystore_strongbox: proposed.keystore_strongbox,
             keystore_user_auth_required: proposed.keystore_user_auth_required,
             keystore_platform: proposed.keystore_platform.clone(),
+            imported_as_stub: proposed.imported_as_stub,
         },
     )?;
     tx.commit()
         .map_err(|e| Error::Db(format!("ssh_keys import_for_merge commit: {e}")))?;
     Ok(new_id)
+}
+
+/// Persist resolved PKCS#11 module path back onto the row after a
+/// first-use re-bind. The Signer scans `well_known_paths` keyed by
+/// `pkcs11_token_serial`; on hit it calls this helper so the next
+/// connect short-circuits the scan. No-op when the row is not a
+/// PKCS#11 backend or the new path equals what is already stored.
+pub fn set_pkcs11_module_path(
+    conn: &impl crate::db::DbAccess,
+    key_id: &str,
+    module_path: &str,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE ssh_keys SET pkcs11_module_path = ?1 \
+             WHERE id = ?2 AND deleted_at IS NULL AND backend = 'pkcs11'",
+            params![module_path, key_id],
+        )
+        .map_err(|e| Error::Db(format!("ssh_keys set_pkcs11_module_path: {e}")))
+}
+
+/// Clear the `imported_as_stub` flag on `key_id`. Called when the
+/// user picks "Re-generate here" on a stub row (the regenerate
+/// path writes a fresh hardware-backed row over the public-half) or
+/// confirms "Remove stub" (the delete path soft-tombstones the row,
+/// at which point the flag is irrelevant — clearing keeps the
+/// semantics consistent with a refresh of the row). The wizard's
+/// regenerate flow upserts a full row in one shot today, which
+/// implicitly clears the column via the upsert; this helper is the
+/// targeted path the UI uses when the user wants to manually
+/// "promote" the row to live status without regenerating.
+pub fn clear_stub_flag(conn: &impl crate::db::DbAccess, key_id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE ssh_keys SET imported_as_stub = 0 \
+             WHERE id = ?1 AND deleted_at IS NULL",
+            params![key_id],
+        )
+        .map_err(|e| Error::Db(format!("ssh_keys clear_stub_flag: {e}")))
 }
 
 /// Canonical secret-store id for a stored key's private PEM bytes.
@@ -896,6 +966,7 @@ mod import_for_merge_tests {
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         }
     }
 
@@ -1015,6 +1086,7 @@ mod tombstone_tests {
                     keystore_strongbox: false,
                     keystore_user_auth_required: false,
                     keystore_platform: None,
+                    imported_as_stub: false,
                 },
             )
         })
@@ -1118,6 +1190,7 @@ mod tombstone_tests {
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         }];
         db.with_conn_mut(|c| replace_all(c, &new_set)).unwrap();
         let rows = db.with_conn(list_all).unwrap();

@@ -145,18 +145,43 @@ impl SchemaVersions {
 
     /// `.lfs` archive schema carried in `manifest.json`.
     ///
-    /// v2 (current): manifest carries an optional `sync_origin`
-    /// field stamping a unique `<install-id>:<unix_ms>` token on
-    /// every push from the sync orchestrator
-    /// (`crate::sync`). A peer device's pull keys the "this is my
-    /// own push echoing back" check off this field so a fresh
-    /// PROPFIND that returns our last archive does not re-apply
-    /// it. v1 manifests have no field; the v1→v2 migration is a
-    /// no-op for archive contents (manifests are not on-disk
-    /// registry artefacts — `read_archive_to_pending` rejects
-    /// out-of-range values and the field defaults to `None` on
-    /// any v1 manifest at read time).
-    pub const ARCHIVE: i32 = 2;
+    /// v3 (current): manifest payload grows five optional child-table
+    /// entries — `ssh_key_certificates.json`,
+    /// `webdav_session_details.json`, `s3_session_details.json`,
+    /// `sftp_bookmarks.json`, `port_forward_rules.json` — and the
+    /// `keys.json` shape gains an explicit `backend` discriminator
+    /// per row plus per-backend payload (FIDO2 `credential_id` +
+    /// `application_string`; PKCS#11 `pkcs11_uri` +
+    /// `pkcs11_token_serial` + `pkcs11_object_id` +
+    /// `pkcs11_object_label`; device-bound backends
+    /// `enclave` / `hello` / `tpm` / `keystore` travel as stubs with
+    /// label + public key only). The `pkcs11_module_path` column is
+    /// NEVER on the wire (per-host install location, resolved
+    /// locally on first use). Credential bytes for WebDAV / S3 stay
+    /// on the source device — only the opaque SecretStore id
+    /// pointer (`credential_secret_id` / `secret_access_key_secret_id`)
+    /// travels. The apply driver tolerates v2 archives because every
+    /// new field is `Option<String>` on `PendingImport`; older
+    /// builds (v2 client reading a v3 archive) reject the manifest
+    /// via `read_archive_to_pending`'s future-version gate.
+    ///
+    /// v2: manifest carries an optional `sync_origin` field stamping
+    /// a unique `<install-id>:<unix_ms>` token on every push from
+    /// the sync orchestrator (`crate::sync`). A peer device's pull
+    /// keys the "this is my own push echoing back" check off this
+    /// field so a fresh PROPFIND that returns our last archive does
+    /// not re-apply it.
+    ///
+    /// v1: original archive payload (no `sync_origin`, no per-backend
+    /// key payload, no v3 child tables).
+    ///
+    /// No `Migration` ships in the registry for ARCHIVE — `.lfs`
+    /// files are user-supplied import payloads that never persist
+    /// under app-support. Forward-version archives are rejected by
+    /// `read_archive_to_pending`; backward-compat for older shapes
+    /// is handled inline in the apply driver (new fields default to
+    /// `None` on `PendingImport`).
+    pub const ARCHIVE: i32 = 3;
 
     /// QR / paste-link payload schema (the `v` field inside the
     /// deflated JSON envelope). Same future-version-rejection shape

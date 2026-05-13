@@ -3556,4 +3556,26 @@ class SEn extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Only $transport is available on this device; the toggle is disabled.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Imported stub';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Was on another device — re-generate here to use';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Re-generate here';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Remove stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Re-generate this key on this device before using';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Locate the PKCS#11 module for token \"$token\"';
+  }
 }

@@ -195,6 +195,7 @@ pub async fn keystore_ssh_generate(
                 keystore_strongbox: actual_sb,
                 keystore_user_auth_required: true,
                 keystore_platform: platform.clone(),
+                imported_as_stub: false,
             };
             lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
         })

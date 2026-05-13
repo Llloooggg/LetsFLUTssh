@@ -3543,4 +3543,26 @@ class SRu extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'На этом устройстве доступен только $transport; переключатель отключён.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Импортированный стаб';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Импортирован с другого устройства — сгенерируйте здесь, чтобы использовать';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Сгенерировать здесь';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Удалить стаб';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Сгенерируйте этот ключ на этом устройстве перед использованием';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Укажите путь к модулю PKCS#11 для токена «$token»';
+  }
 }

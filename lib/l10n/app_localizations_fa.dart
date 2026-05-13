@@ -3510,4 +3510,26 @@ class SFa extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'فقط $transport روی این دستگاه در دسترس است؛ کلید غیرفعال است.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'استاب وارد شده';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'روی دستگاه دیگری بود — اینجا مجدداً تولید کنید تا قابل استفاده شود';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'اینجا مجدداً تولید کن';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'حذف استاب';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'این کلید را روی این دستگاه قبل از استفاده مجدداً تولید کنید';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'ماژول PKCS#11 برای توکن «$token» را پیدا کنید';
+  }
 }

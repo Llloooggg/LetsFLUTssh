@@ -440,6 +440,14 @@ pub async fn db_import_stage(input: DbStagedImport) -> Result<String, String> {
             empty_folders_json: input.empty_folders_json,
             config_json: input.config_json,
             known_hosts_text: input.known_hosts_text,
+            // Staged-import callers (QR / paste-link / OpenSSH-config
+            // path) ship the v2 archive subset only; v3-only child
+            // tables travel through full `.lfs` import.
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         };
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();

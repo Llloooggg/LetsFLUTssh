@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "Stub impor",
+  "hardwareKeyStubSubtitle": "Ada di perangkat lain — regenerasi di sini untuk dipakai",
+  "hardwareKeyStubRegenerateAction": "Regenerasi di sini",
+  "hardwareKeyStubRemoveAction": "Hapus stub",
+  "hardwareKeyStubPickerTooltip": "Regenerasi key ini di perangkat ini sebelum dipakai",
+  "pkcs11ModuleResolveOnFirstUse": "Temukan modul PKCS#11 untuk token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

@@ -470,7 +470,7 @@ impl Db {
 /// capture-time `Build.MODEL` + Android version string, surfaced
 /// read-only in the badge popover). Every new column is NULL/0 on
 /// existing rows and populated only when `backend = 'keystore'`.
-pub const SCHEMA_VERSION: i32 = 13;
+pub const SCHEMA_VERSION: i32 = 14;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -613,6 +613,16 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // skip this arm.
         if (1..13).contains(&current) {
             add_ssh_keys_keystore_columns(conn)?;
+        }
+        // v13 -> v14: stamp `imported_as_stub` on `ssh_keys`. Existing
+        // rows backfill to `0` (default); the import-apply driver flips
+        // the column to `1` for device-bound backends (`enclave` /
+        // `hello` / `tpm` / `keystore`) that travel through `.lfs`
+        // archives or WebDAV sync as public-half-only rows. The key
+        // manager renders such rows desaturated with a "Re-generate"
+        // action; the first regenerate or remove clears the column.
+        if (1..14).contains(&current) {
+            add_ssh_keys_imported_as_stub_column(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -869,6 +879,27 @@ fn add_ssh_keys_keystore_columns(conn: &Connection) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys keystore cols: {e}")))
 }
 
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN imported_as_stub INTEGER
+/// NOT NULL DEFAULT 0` on the v13 -> v14 hop. Same shape contract as
+/// the older ALTER helpers: a one-shot batch gated by the version
+/// range inside `bootstrap_schema`. Existing rows backfill to `0`
+/// from the column default; the import-apply driver sets the column
+/// to `1` when a device-bound backend (`enclave` / `hello` / `tpm` /
+/// `keystore`) lands as a public-half-only stub row from a `.lfs`
+/// archive or a WebDAV sync pull. The first local re-generate or
+/// remove against such a row clears the column.
+fn add_ssh_keys_imported_as_stub_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN imported_as_stub INTEGER NOT NULL DEFAULT 0",
+        )
+        .map_err(|e| {
+            Error::Db(format!(
+                "bootstrap schema: add ssh_keys.imported_as_stub: {e}"
+            ))
+        })
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -954,7 +985,17 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     keystore_alias TEXT NULL,
     keystore_strongbox INTEGER NOT NULL DEFAULT 0,
     keystore_user_auth_required INTEGER NOT NULL DEFAULT 0,
-    keystore_platform TEXT NULL
+    keystore_platform TEXT NULL,
+    -- Stub flag (v14). `1` when the row landed as a public-half-only
+    -- import (`.lfs` archive or WebDAV sync pull) for a device-bound
+    -- backend (`enclave` / `hello` / `tpm` / `keystore`). The key
+    -- manager renders such rows desaturated with a "Re-generate
+    -- here" / "Remove" action; the session-edit "Key from manager"
+    -- picker disables them with a tooltip. The first local
+    -- regenerate or remove clears the column. Stays `0` for every
+    -- software / FIDO2 / PKCS#11 row (those carry their portable
+    -- subset across the wire).
+    imported_as_stub INTEGER NOT NULL DEFAULT 0
 );
 -- Android Hardware Keystore / StrongBox ingredients (v13).
 -- Populated only when `backend = 'keystore'`. `keystore_alias` is
@@ -1307,6 +1348,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
                  ",
             )
             .unwrap();
@@ -1383,6 +1425,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
                  ",
             )
             .unwrap();
@@ -1442,6 +1485,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
                  ",
             )
             .unwrap();
@@ -1517,6 +1561,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
                  ",
             )
             .unwrap();
@@ -1852,6 +1897,9 @@ mod tests {
             .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_platform;")
             .unwrap();
         conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN imported_as_stub;")
+            .unwrap();
+        conn.inner()
             .execute(
                 "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
                                        is_generated, created_at, agent_policy, backend) \
@@ -1904,6 +1952,67 @@ mod tests {
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
+    /// v13 -> v14 upgrade hop. A database stamped at v13 with the
+    /// pre-v14 ssh_keys shape (no `imported_as_stub` column) must
+    /// pick the column up on bootstrap. The helper is gated behind
+    /// the `(1..14).contains(&current)` arm so the second bootstrap
+    /// is a no-op.
+    #[test]
+    fn bootstrap_v13_to_v14_adds_imported_as_stub_column_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN imported_as_stub;")
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v14', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 13)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_col = false;
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                if name == "imported_as_stub" {
+                    has_col = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            has_col,
+            "ssh_keys.imported_as_stub missing after v13 -> v14"
+        );
+
+        // Backfill: the pre-existing row keeps the schema default `0`.
+        let stub: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT imported_as_stub FROM ssh_keys WHERE id = 'pre-v14'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            stub, 0,
+            "pre-existing row must backfill imported_as_stub to 0"
+        );
+
+        // Idempotent re-run — second bootstrap is a no-op.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
     /// v4 → v5 upgrade hop. A database stamped at v4 with the
     /// pre-v5 sessions shape (no `kind` column) must pick up the
     /// column on bootstrap. Webdav_session_details lands via
@@ -1946,6 +2055,7 @@ mod tests {
                  ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
                  ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
                  ",
             )
             .unwrap();
@@ -2012,6 +2122,7 @@ mod tests {
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         };
         ssh_keys::upsert(&conn, &row).unwrap();
         let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();

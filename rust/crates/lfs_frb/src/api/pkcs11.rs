@@ -73,6 +73,70 @@ pub fn pkcs11_is_available() -> bool {
     ))
 }
 
+/// Auto-resolve `pkcs11_module_path` for an imported `backend='pkcs11'`
+/// row whose `pkcs11_module_path` field is `None`. Walks the
+/// well-known-paths table and probes each module's slots for one
+/// whose token serial matches `pkcs11_token_serial`; on hit
+/// persists the resolved path back onto the row and returns the
+/// path string. On miss returns `None` — the caller (connect path)
+/// surfaces the one-shot "Choose PKCS#11 module" picker so the
+/// user can point the row at the right library.
+///
+/// Read-only against the token (no `C_Login`, no PIN). Mobile
+/// builds always return `None` — PKCS#11 is desktop-only.
+pub async fn pkcs11_resolve_module_for_key(key_id: String) -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || -> Result<Option<String>, String> {
+        let db = lfs_core::app::instance()
+            .db()
+            .ok_or_else(|| frb_err::wire(frb_err::kind::PKCS11, "db not initialised"))?;
+        // Pull the row's token serial.
+        let row = db
+            .with_conn(|c| lfs_core::db::ssh_keys::get(c, &key_id))
+            .map_err(|e| frb_err::wire(frb_err::kind::PKCS11, &e.to_string()))?
+            .ok_or_else(|| frb_err::wire(frb_err::kind::PKCS11, "key row not found"))?;
+        let Some(token_serial) = row.pkcs11_token_serial.as_deref() else {
+            return Ok(None);
+        };
+        // Already resolved — short-circuit so the caller doesn't
+        // rescan on every connect.
+        if row.pkcs11_module_path.is_some() {
+            return Ok(row.pkcs11_module_path);
+        }
+        let Some(candidate) = resolve_native(token_serial) else {
+            return Ok(None);
+        };
+        let path_str = candidate.path.to_string_lossy().into_owned();
+        let path_for_persist = path_str.clone();
+        let key_id_for_persist = key_id.clone();
+        db.with_conn(move |c| {
+            lfs_core::db::ssh_keys::set_pkcs11_module_path(
+                c,
+                &key_id_for_persist,
+                &path_for_persist,
+            )
+            .map(|_| ())
+        })
+        .map_err(|e| frb_err::wire(frb_err::kind::PKCS11, &e.to_string()))?;
+        Ok(Some(path_str))
+    })
+    .await
+    .map_err(|e| frb_err::wire(frb_err::kind::PKCS11, &format!("spawn_blocking: {e}")))?
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+fn resolve_native(
+    token_serial: &str,
+) -> Option<lfs_os_security::pkcs11::discovery::ModuleCandidate> {
+    lfs_os_security::pkcs11::discovery::find_module_for_token_serial(token_serial)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+fn resolve_native(
+    _token_serial: &str,
+) -> Option<lfs_os_security::pkcs11::discovery::ModuleCandidate> {
+    None
+}
+
 /// Walk the well-known PKCS#11 module paths and return every
 /// candidate whose file exists on disk. Mobile builds always
 /// return an empty list.
@@ -304,6 +368,7 @@ pub async fn pkcs11_import_key(args: DbPkcs11ImportArgs) -> Result<String, Strin
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         };
         lfs_core::db::ssh_keys::import_key_for_merge(conn, &row)
     })

@@ -31,9 +31,11 @@ Future<DbTpmProbeResult> tpmProbe({
 
 /// Seal `secret` (≤ 128 bytes — TPM2 direct-seal spec ceiling)
 /// under a freshly-created primary with `auth_value` as the
-/// unseal password. Returns the packed
-/// `[u32 BE pub_len][pub][u32 BE priv_len][priv]` blob the Dart
-/// vault writes verbatim to `hardware_vault.bin`.
+/// unseal password. Returns the
+/// `LFHV[…|platform_id_linux] || TCG_ASN1_DER` envelope the Dart
+/// vault writes verbatim to `hardware_vault.bin`; the DER body
+/// follows the `id-loadablekey` arm of
+/// `draft-bottomley-tpm2-keys-asn1`.
 ///
 /// Plaintext discipline — `secret` and `auth_value` cross FRB
 /// once per seal, get written to 0600 temp files inside an RAII

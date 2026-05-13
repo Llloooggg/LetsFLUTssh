@@ -3604,4 +3604,26 @@ class SDe extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Auf diesem Gerät ist nur $transport verfügbar; der Schalter ist deaktiviert.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Importierter Stub';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'War auf einem anderen Gerät — hier neu generieren, um ihn zu nutzen';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Hier neu generieren';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Stub entfernen';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Diesen Schlüssel auf diesem Gerät vor der Nutzung neu generieren';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'PKCS#11-Modul für Token \"$token\" auswählen';
+  }
 }

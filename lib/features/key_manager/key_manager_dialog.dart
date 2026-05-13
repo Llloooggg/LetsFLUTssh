@@ -293,6 +293,13 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final isHello = entry.isHello;
     final isTpm = entry.isTpm;
     final isKeystore = entry.isKeystore;
+    // Stub rows landed via `.lfs` import / WebDAV sync for a
+    // device-bound backend — only the public half travelled. The
+    // row renders desaturated, the secondary line carries the
+    // "re-generate here" hint, and the action set swaps to
+    // [Re-generate, Remove] (no copy / cert / delete because the
+    // private side is bound to the original device).
+    final isStub = entry.importedAsStub;
     final iconData = isFido2
         ? Icons.usb
         : (isPkcs11
@@ -306,103 +313,152 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
                                 : (isKeystore
                                       ? Icons.security
                                       : Icons.vpn_key)))));
-    return AppDataRow(
-      icon: iconData,
-      iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
-      title: entry.label,
-      secondary:
-          '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
-          '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
-      secondaryMono: true,
-      tertiary: hasCert ? _certTertiary(s, entry) : null,
-      trailing: [
-        if (isFido2)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: HardwareKeyBadge(label: s.hardwareKeyBadge),
-          ),
-        if (isPkcs11)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: Pkcs11Badge(
-              label: s.pkcs11Badge,
-              modulePath: entry.pkcs11ModulePath,
-              tokenSerial: entry.pkcs11TokenSerial,
-              objectLabel: entry.pkcs11ObjectLabel,
+    return Opacity(
+      opacity: isStub ? 0.55 : 1.0,
+      child: AppDataRow(
+        icon: iconData,
+        iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
+        title: entry.label,
+        secondary: isStub
+            ? s.hardwareKeyStubSubtitle
+            : '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
+                  '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
+        secondaryMono: !isStub,
+        tertiary: hasCert ? _certTertiary(s, entry) : null,
+        trailing: [
+          if (isFido2)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: HardwareKeyBadge(label: s.hardwareKeyBadge),
             ),
-          ),
-        if (isEnclave)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: EnclaveBadge(label: s.sshKeyEnclaveBadge),
-          ),
-        if (isHello)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: HelloBadge(
-              label: s.helloBadge,
-              credentialName: entry.helloCredentialName,
+          if (isPkcs11)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: Pkcs11Badge(
+                label: s.pkcs11Badge,
+                modulePath: entry.pkcs11ModulePath,
+                tokenSerial: entry.pkcs11TokenSerial,
+                objectLabel: entry.pkcs11ObjectLabel,
+              ),
             ),
-          ),
-        if (isTpm)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: TpmBadge(
-              label: s.tpmSshBadge,
-              provider: entry.tpmProvider,
-              persistentHandle: entry.tpmHandle,
-              pinRequired: entry.tpmPinRequired,
-              // Windows-side TPM rows route through the PCP silent
-              // path — surface the silent-warning copy in the badge
-              // popover. Linux rows do not have a Hello-prompt
-              // analogue so the warning is Windows-specific.
-              silent: entry.tpmProvider == 'cng-pcp',
+          if (isEnclave)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: EnclaveBadge(label: s.sshKeyEnclaveBadge),
             ),
-          ),
-        if (isKeystore)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: KeystoreBadge(
-              label: s.keystoreBadge,
-              strongbox: entry.keystoreStrongBox,
-              platform: entry.keystorePlatform,
+          if (isHello)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: HelloBadge(
+                label: s.helloBadge,
+                credentialName: entry.helloCredentialName,
+              ),
             ),
-          ),
-        if (expired)
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: _ExpiredBadge(label: s.certExpired),
-          ),
-        AppIconButton(
-          icon: Icons.content_copy,
-          tooltip: s.publicKey,
-          dense: true,
-          onTap: () => _copyPublicKey(entry),
-        ),
-        if (hasCert)
-          AppIconButton(
-            icon: Icons.workspace_premium_outlined,
-            tooltip: s.certRemove,
-            dense: true,
-            color: AppTheme.orange,
-            onTap: () => _removeCertificate(entry),
-          )
-        else
-          AppIconButton(
-            icon: Icons.workspace_premium_outlined,
-            tooltip: s.certImport,
-            dense: true,
-            onTap: () => _importCertificate(entry),
-          ),
-        AppIconButton(
-          icon: Icons.delete_outline,
-          tooltip: s.deleteKey,
-          dense: true,
-          color: AppTheme.red,
-          onTap: () => _deleteKey(entry),
-        ),
-      ],
+          if (isTpm)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: TpmBadge(
+                label: s.tpmSshBadge,
+                provider: entry.tpmProvider,
+                persistentHandle: entry.tpmHandle,
+                pinRequired: entry.tpmPinRequired,
+                // Windows-side TPM rows route through the PCP silent
+                // path — surface the silent-warning copy in the badge
+                // popover. Linux rows do not have a Hello-prompt
+                // analogue so the warning is Windows-specific.
+                silent: entry.tpmProvider == 'cng-pcp',
+              ),
+            ),
+          if (isKeystore)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: KeystoreBadge(
+                label: s.keystoreBadge,
+                strongbox: entry.keystoreStrongBox,
+                platform: entry.keystorePlatform,
+              ),
+            ),
+          if (isStub)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: _StubBadge(label: s.hardwareKeyStubBadge),
+            ),
+          if (expired)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: _ExpiredBadge(label: s.certExpired),
+            ),
+          if (isStub) ...[
+            AppIconButton(
+              icon: Icons.autorenew,
+              tooltip: s.hardwareKeyStubRegenerateAction,
+              dense: true,
+              color: AppTheme.accent,
+              onTap: () => _regenerateStub(entry),
+            ),
+            AppIconButton(
+              icon: Icons.delete_outline,
+              tooltip: s.hardwareKeyStubRemoveAction,
+              dense: true,
+              color: AppTheme.red,
+              onTap: () => _deleteKey(entry),
+            ),
+          ] else ...[
+            AppIconButton(
+              icon: Icons.content_copy,
+              tooltip: s.publicKey,
+              dense: true,
+              onTap: () => _copyPublicKey(entry),
+            ),
+            if (hasCert)
+              AppIconButton(
+                icon: Icons.workspace_premium_outlined,
+                tooltip: s.certRemove,
+                dense: true,
+                color: AppTheme.orange,
+                onTap: () => _removeCertificate(entry),
+              )
+            else
+              AppIconButton(
+                icon: Icons.workspace_premium_outlined,
+                tooltip: s.certImport,
+                dense: true,
+                onTap: () => _importCertificate(entry),
+              ),
+            AppIconButton(
+              icon: Icons.delete_outline,
+              tooltip: s.deleteKey,
+              dense: true,
+              color: AppTheme.red,
+              onTap: () => _deleteKey(entry),
+            ),
+          ],
+        ],
+      ),
     );
+  }
+
+  /// Open the per-backend wizard so the user mints a fresh
+  /// hardware-backed key. On wizard success the wizard upserts a
+  /// full row whose label / id is the user's choice; the original
+  /// stub stays in the table until the user removes it explicitly
+  /// (the actions live side by side on the row). Dispatch is by
+  /// backend: Enclave, Hello, TPM, Keystore each open their own
+  /// wizard dialog. The wizard dialogs do not yet accept an
+  /// `initialLabel` — the user re-types the label they want; the
+  /// hint surface lives in the dialog header.
+  Future<void> _regenerateStub(SshKeyMetadata entry) async {
+    if (entry.isEnclave) {
+      await EnclaveSshDialog.show(context);
+    } else if (entry.isHello) {
+      await HelloSshDialog.show(context);
+    } else if (entry.isTpm) {
+      await TpmSshDialog.show(context);
+    } else if (entry.isKeystore) {
+      await KeystoreSshDialog.show(context);
+    }
+    if (!mounted) return;
+    await _loadKeys();
   }
 
   /// Compose the cert tertiary line via the pure helper in
@@ -1409,6 +1465,39 @@ class _ExpiredBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pill rendered in a stub row's trailing slot. Sits alongside the
+/// backend badge (Apple Secure Enclave / Windows Hello / TPM /
+/// Android Keystore) to mark a row whose private half lives on
+/// another device. Muted colour intentionally — the row already
+/// renders at reduced opacity; the badge is a label, not an alarm.
+class _StubBadge extends StatelessWidget {
+  final String label;
+  const _StubBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.fgDim.withValues(alpha: 0.16),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.fgDim.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: AppFonts.inter(
+          fontSize: AppFonts.xxs,
+          color: AppTheme.fgDim,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

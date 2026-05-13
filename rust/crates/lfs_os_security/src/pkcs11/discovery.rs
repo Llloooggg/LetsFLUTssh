@@ -128,6 +128,51 @@ fn well_known_table() -> &'static [(&'static str, &'static str)] {
     &[]
 }
 
+/// Try to re-bind a `(token_serial)` pair to a module path by
+/// walking [`scan_well_known_paths`] and probing each candidate's
+/// slots for a matching token serial. Returns the candidate that
+/// holds the matching token, or `None` when no module on this host
+/// can see a token with that serial. Used by the connect path to
+/// auto-resolve `pkcs11_module_path` for `.lfs`-imported rows whose
+/// original module path lived on the source device.
+///
+/// The scan is read-only — no `C_Login`, no PIN; only slot
+/// enumeration + `C_GetTokenInfo`. Cost is O(candidates × slots);
+/// each candidate dlopen is cached by the loader so repeat scans
+/// are cheap.
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+pub fn find_module_for_token_serial(token_serial: &str) -> Option<ModuleCandidate> {
+    if token_serial.is_empty() {
+        return None;
+    }
+    let target = token_serial.trim();
+    for candidate in scan_well_known_paths() {
+        let Ok(module) = crate::pkcs11::module::load(&candidate.path) else {
+            continue;
+        };
+        let Ok(slots) = module.pkcs11().get_slots_with_token() else {
+            continue;
+        };
+        for slot in slots {
+            if let Ok(info) = module.pkcs11().get_token_info(slot) {
+                if info.serial_number().to_string().trim() == target {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Non-desktop stub. Mobile targets do not expose a PKCS#11 surface
+/// (the sandbox / vendor-ABI mismatch is per the capability ladder
+/// rung 4 — "honestly hide"); the function returns `None` so a
+/// hypothetical caller behaves the same as desktop-with-no-match.
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+pub fn find_module_for_token_serial(_token_serial: &str) -> Option<ModuleCandidate> {
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

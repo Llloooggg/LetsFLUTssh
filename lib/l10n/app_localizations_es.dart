@@ -3605,4 +3605,26 @@ class SEs extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Solo $transport está disponible en este dispositivo; el switch está deshabilitado.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub importado';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Estaba en otro dispositivo — regenera aquí para usarlo';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Regenerar aquí';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Eliminar stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Regenera esta clave en este dispositivo antes de usarla';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Ubica el módulo PKCS#11 para el token \"$token\"';
+  }
 }

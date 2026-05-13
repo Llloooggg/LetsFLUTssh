@@ -6176,6 +6176,42 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Only {transport} is available on this device; the toggle is disabled.'**
   String fido2BrokerSinglePathSubtitle(String transport);
+
+  /// Key Manager row badge for a device-bound key that was imported from another device's .lfs / WebDAV sync — only the public half landed. Sits next to the backend badge (Apple Secure Enclave / Windows Hello / TPM / Android Keystore).
+  ///
+  /// In en, this message translates to:
+  /// **'Imported stub'**
+  String get hardwareKeyStubBadge;
+
+  /// Secondary line under a stub-key row in the Key Manager. Explains the row cannot sign on this device until the user re-generates.
+  ///
+  /// In en, this message translates to:
+  /// **'Was on another device — re-generate here to use'**
+  String get hardwareKeyStubSubtitle;
+
+  /// Trailing-action label on a stub-key row. Opens the per-backend wizard pre-filled with the stub's label.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-generate here'**
+  String get hardwareKeyStubRegenerateAction;
+
+  /// Trailing-action label on a stub-key row. Drops the row from the key manager — useful when the user wants to clear stubs from a device they will never re-generate on.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove stub'**
+  String get hardwareKeyStubRemoveAction;
+
+  /// Tooltip on a disabled stub row inside the session-edit Key picker. Stubs cannot be selected because the private half lives on the original device.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-generate this key on this device before using'**
+  String get hardwareKeyStubPickerTooltip;
+
+  /// Title of the one-shot dialog the connect path opens on first use of an imported PKCS#11 row whose module path could not be re-discovered locally via the well-known-paths scan.
+  ///
+  /// In en, this message translates to:
+  /// **'Locate the PKCS#11 module for token \"{token}\"'**
+  String pkcs11ModuleResolveOnFirstUse(String token);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

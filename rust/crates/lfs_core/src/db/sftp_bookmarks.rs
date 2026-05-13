@@ -67,6 +67,42 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SftpBookmarkRow) -> Result<
     Ok(())
 }
 
+/// List every live bookmark across every session, ordered by
+/// `session_id` then `remote_path`. Used by the archive composer to
+/// fold every bookmark into one JSON payload.
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SftpBookmarkRow>, Error> {
+    let mut stmt = conn
+        .raw()
+        .prepare_cached(
+            "SELECT id, session_id, remote_path, label, created_at \
+             FROM sftp_bookmarks WHERE deleted_at IS NULL \
+             ORDER BY session_id ASC, remote_path ASC",
+        )
+        .map_err(|e| Error::Db(format!("sftp_bookmarks list_all prepare: {e}")))?;
+    let rows = stmt
+        .query_map([], row_from)
+        .map_err(|e| Error::Db(format!("sftp_bookmarks list_all query: {e}")))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| Error::Db(format!("sftp_bookmarks list_all row: {e}")))?);
+    }
+    Ok(out)
+}
+
+/// Soft-delete every live row in one shot. Shares the
+/// `now_unix_ms()` stamp across the bulk so a sync replay sees a
+/// single tombstone moment. Used by the archive-import replace mode
+/// to clear the table before re-populating.
+pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    let now_ms = now_unix_ms();
+    conn.raw()
+        .execute(
+            "UPDATE sftp_bookmarks SET deleted_at = ?1 WHERE deleted_at IS NULL",
+            params![now_ms],
+        )
+        .map_err(|e| Error::Db(format!("sftp_bookmarks delete_all: {e}")))
+}
+
 /// Soft-delete a single bookmark by id. Flips `deleted_at` to
 /// `now_unix_ms()`; the row survives so a sync-merge (`§8b`) can
 /// replay the removal across devices.

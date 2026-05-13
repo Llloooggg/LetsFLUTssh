@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "임포트 스텁",
+  "hardwareKeyStubSubtitle": "다른 기기에 있었음 — 사용하려면 여기서 재생성하세요",
+  "hardwareKeyStubRegenerateAction": "여기서 재생성",
+  "hardwareKeyStubRemoveAction": "스텁 제거",
+  "hardwareKeyStubPickerTooltip": "사용하기 전에 이 기기에서 키를 재생성하세요",
+  "pkcs11ModuleResolveOnFirstUse": "토큰 \"{token}\"의 PKCS#11 모듈을 지정하세요",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

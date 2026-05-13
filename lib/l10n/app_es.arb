@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "Stub importado",
+  "hardwareKeyStubSubtitle": "Estaba en otro dispositivo — regenera aquí para usarlo",
+  "hardwareKeyStubRegenerateAction": "Regenerar aquí",
+  "hardwareKeyStubRemoveAction": "Eliminar stub",
+  "hardwareKeyStubPickerTooltip": "Regenera esta clave en este dispositivo antes de usarla",
+  "pkcs11ModuleResolveOnFirstUse": "Ubica el módulo PKCS#11 para el token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

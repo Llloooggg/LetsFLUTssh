@@ -312,6 +312,16 @@ class SshKeyMetadata {
   /// `"Pixel 8 (Android 14)"`). Surfaced inside the badge popover.
   final String? keystorePlatform;
 
+  /// `true` when the row landed via `.lfs` archive import / WebDAV
+  /// sync pull as a public-half-only stub for a device-bound backend
+  /// (Apple Secure Enclave / Windows Hello / TPM / Android Keystore).
+  /// The key manager renders the row desaturated; the session-edit
+  /// "Key from manager" picker disables the row with a tooltip. The
+  /// user picks "Re-generate here" on the stub to mint a fresh
+  /// hardware-backed key with the same label. `false` for every
+  /// locally generated row.
+  final bool importedAsStub;
+
   const SshKeyMetadata({
     required this.id,
     required this.label,
@@ -338,6 +348,7 @@ class SshKeyMetadata {
     this.keystoreStrongBox = false,
     this.keystoreUserAuthRequired = false,
     this.keystorePlatform,
+    this.importedAsStub = false,
   });
 
   bool get hasCertificate => certFingerprint.isNotEmpty;

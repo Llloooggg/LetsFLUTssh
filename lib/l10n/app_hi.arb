@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "इम्पोर्टेड स्टब",
+  "hardwareKeyStubSubtitle": "दूसरे डिवाइस पर था — उपयोग के लिए यहाँ रीजेनरेट करें",
+  "hardwareKeyStubRegenerateAction": "यहाँ रीजेनरेट करें",
+  "hardwareKeyStubRemoveAction": "स्टब हटाएँ",
+  "hardwareKeyStubPickerTooltip": "उपयोग से पहले इस डिवाइस पर इस कुंजी को रीजेनरेट करें",
+  "pkcs11ModuleResolveOnFirstUse": "टोकन \"{token}\" के लिए PKCS#11 मॉड्यूल खोजें",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

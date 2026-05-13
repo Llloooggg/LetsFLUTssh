@@ -100,3 +100,35 @@ pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error>
         .execute("DELETE FROM port_forward_rules WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("port_forwards delete: {e}")))
 }
+
+/// Physically remove every row. Used by the archive-import replace
+/// mode before re-populating. `port_forward_rules` has no tombstone
+/// column today (the table is per-device and the sync layer upserts
+/// by id rather than relaying explicit removals), so the bulk clear
+/// is a straight `DELETE FROM`.
+pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM port_forward_rules", [])
+        .map_err(|e| Error::Db(format!("port_forwards delete_all: {e}")))
+}
+
+/// List every rule across every session, ordered by `session_id`
+/// then `sort_order` then `created_at`. Used by the archive composer
+/// to fold every rule into one JSON payload.
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<PortForwardRuleRow>, Error> {
+    let mut stmt = conn
+        .raw()
+        .prepare_cached(&format!(
+            "SELECT {SELECT_COLS} FROM port_forward_rules \
+             ORDER BY session_id ASC, sort_order ASC, created_at ASC"
+        ))
+        .map_err(|e| Error::Db(format!("port_forwards list_all prepare: {e}")))?;
+    let rows = stmt
+        .query_map([], row_from)
+        .map_err(|e| Error::Db(format!("port_forwards list_all query: {e}")))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| Error::Db(format!("port_forwards list_all row: {e}")))?);
+    }
+    Ok(out)
+}

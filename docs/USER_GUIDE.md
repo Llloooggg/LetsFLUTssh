@@ -1119,6 +1119,76 @@ If another device pushed between your last pull and your push, the server reject
 
 ---
 
+## 14c. Moving between devices
+
+When you reinstall the app on a fresh device — new laptop, new
+phone, restored backup — you can carry your library across with
+`.lfs` import or WebDAV sync. Most data round-trips automatically;
+a few items need a one-time action on the new device.
+
+### What comes back automatically
+
+- Every session — host, port, user, auth shape, ProxyJump / via,
+  notes, extras, port-forward rules, SFTP bookmarks.
+- Folder hierarchy + every tag / snippet assignment.
+- Software SSH keys — the private PEM rides inside the GCM
+  envelope and lands directly.
+- FIDO2 (`sk-*`) hardware keys — the credential id, application
+  string, and user-verification bit travel; plug the same
+  YubiKey / Solo / Nitrokey into the new device and sign works.
+- PKCS#11 smart cards / tokens — the token serial, object id,
+  object label, and PKCS#11 URI travel. The library path on disk
+  is per-host and is re-discovered automatically from the
+  well-known-paths table on first connect.
+- Paired OpenSSH certificates — the cert blob is the public half
+  of a CA-signed pair and rides verbatim.
+- Known-hosts (TOFU) database.
+- All preferences except theme / locale / log threshold (those
+  are per-device on purpose).
+
+### What you re-enter on the new device
+
+- **WebDAV password** for any WebDAV-kind session you carried.
+  The secret stayed on the source device; the imported row
+  surfaces "missing credential — re-enter password" on first
+  connect.
+- **S3 secret access key** for any S3-kind session. Same
+  discipline — the access key id (the public half) travels, the
+  secret bytes don't.
+- The **sync passphrase** when you pull from WebDAV on the new
+  device — the new install has no passphrase staged yet, so the
+  Settings → Sync card prompts for it the first time.
+
+### What you re-insert
+
+- FIDO2 / PKCS#11 hardware tokens — physically plug them into the
+  new device. SSH-key rows already point at them by
+  `application_string` / `pkcs11_token_serial` / `pkcs11_object_id`.
+- PKCS#11 module path on a vendor / OS combination where the
+  well-known-paths scan does not find the library. The connect
+  flow surfaces a one-shot "Locate the PKCS#11 module for token
+  `<token>`" dialog; pick the library once and the row remembers
+  it.
+
+### What you re-generate
+
+Device-bound keys — Apple Secure Enclave / Windows Hello / TPM /
+Android Keystore — cannot leave the original device's hardware.
+The imported row lands in Key Manager as a desaturated **stub**
+with an **Imported stub** badge and a "Re-generate here" action.
+Pick it to mint a fresh hardware-backed key with the same label;
+the wizard runs through the per-backend confirmation flow.
+"Remove stub" is also available when you want to clear the row
+without regenerating (e.g. you no longer use that identity on
+this device).
+
+The session-edit "Key from manager" picker disables stub rows
+with the tooltip **"Re-generate this key on this device before
+using"** so you cannot accidentally bind a session to a key whose
+private half lives on another machine.
+
+---
+
 ## 15. Updates
 
 - Settings → Updates → **Check for updates**.

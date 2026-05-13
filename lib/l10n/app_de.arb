@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "Importierter Stub",
+  "hardwareKeyStubSubtitle": "War auf einem anderen Gerät — hier neu generieren, um ihn zu nutzen",
+  "hardwareKeyStubRegenerateAction": "Hier neu generieren",
+  "hardwareKeyStubRemoveAction": "Stub entfernen",
+  "hardwareKeyStubPickerTooltip": "Diesen Schlüssel auf diesem Gerät vor der Nutzung neu generieren",
+  "pkcs11ModuleResolveOnFirstUse": "PKCS#11-Modul für Token \"{token}\" auswählen",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

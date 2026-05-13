@@ -214,6 +214,11 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     tpmPinRequired: false,
     keystoreStrongbox: false,
     keystoreUserAuthRequired: false,
+    // `SshKeyEntry` carries the live local row; `imported_as_stub`
+    // is per-import metadata that never lives on the typed entry.
+    // A row built from this helper is always a software / FIDO2
+    // row the user actively edits.
+    importedAsStub: false,
   );
 
   /// Project the `ssh_keys` row + optional `ssh_key_certificates`
@@ -275,6 +280,7 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
       keystoreStrongBox: r.keystoreStrongbox,
       keystoreUserAuthRequired: r.keystoreUserAuthRequired,
       keystorePlatform: r.keystorePlatform,
+      importedAsStub: r.importedAsStub,
     );
   }
 

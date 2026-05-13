@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "Stub đã nhập",
+  "hardwareKeyStubSubtitle": "Ở thiết bị khác — tạo lại tại đây để dùng",
+  "hardwareKeyStubRegenerateAction": "Tạo lại tại đây",
+  "hardwareKeyStubRemoveAction": "Xoá stub",
+  "hardwareKeyStubPickerTooltip": "Tạo lại key này trên thiết bị này trước khi dùng",
+  "pkcs11ModuleResolveOnFirstUse": "Chọn module PKCS#11 cho token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

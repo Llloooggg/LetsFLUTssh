@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "インポート済みスタブ",
+  "hardwareKeyStubSubtitle": "別のデバイスにあったため、ここで再生成して使用してください",
+  "hardwareKeyStubRegenerateAction": "ここで再生成",
+  "hardwareKeyStubRemoveAction": "スタブを削除",
+  "hardwareKeyStubPickerTooltip": "使用前にこのデバイスでこのキーを再生成してください",
+  "pkcs11ModuleResolveOnFirstUse": "トークン \"{token}\" の PKCS#11 モジュールを指定してください",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

@@ -58,7 +58,8 @@ pub mod probe;
 pub mod qr_compose;
 
 pub use apply::{
-    apply_pending_import, apply_pending_import_merge, ApplyOptions, ApplyResult, ImportMode,
+    apply_pending_import, apply_pending_import_merge, apply_pending_to_db, ApplyMode, ApplyOptions,
+    ApplyOutcome, ApplyResult, ImportMode,
 };
 pub use compose::{export_archive, export_archive_size, ExportInput, ExportOptions};
 pub use envelope::decrypt_archive_with_password;
@@ -119,6 +120,24 @@ pub struct PendingImport {
     pub empty_folders_json: Option<String>,
     pub config_json: Option<String>,
     pub known_hosts_text: Option<String>,
+    /// Paired OpenSSH certificate rows (`ssh_key_certificates`).
+    /// Available since `SchemaVersions::ARCHIVE` v3. Absent for v1 / v2
+    /// archives.
+    pub ssh_key_certificates_json: Option<String>,
+    /// WebDAV per-session config (`webdav_session_details`). The
+    /// credential bytes stay in the source device's SecretStore;
+    /// only the opaque secret-id pointer travels. v3+.
+    pub webdav_session_details_json: Option<String>,
+    /// S3 per-session config (`s3_session_details`). Same
+    /// opaque-secret-id discipline as WebDAV — access key id
+    /// travels, secret access key bytes don't. v3+.
+    pub s3_session_details_json: Option<String>,
+    /// Per-session SFTP bookmarks (`sftp_bookmarks`). Tombstone-aware.
+    /// v3+.
+    pub sftp_bookmarks_json: Option<String>,
+    /// Local / Remote / Dynamic port-forward rules
+    /// (`port_forward_rules`). v3+.
+    pub port_forward_rules_json: Option<String>,
 }
 
 impl PendingImport {
@@ -300,6 +319,11 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
         empty_folders_json: None,
         config_json: None,
         known_hosts_text: None,
+        ssh_key_certificates_json: None,
+        webdav_session_details_json: None,
+        s3_session_details_json: None,
+        sftp_bookmarks_json: None,
+        port_forward_rules_json: None,
     };
 
     for i in 0..zip.len() {
@@ -335,6 +359,11 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
             "empty_folders.json" => pending.empty_folders_json = Some(buf),
             "config.json" => pending.config_json = Some(buf),
             "known_hosts.txt" => pending.known_hosts_text = Some(buf),
+            "ssh_key_certificates.json" => pending.ssh_key_certificates_json = Some(buf),
+            "webdav_session_details.json" => pending.webdav_session_details_json = Some(buf),
+            "s3_session_details.json" => pending.s3_session_details_json = Some(buf),
+            "sftp_bookmarks.json" => pending.sftp_bookmarks_json = Some(buf),
+            "port_forward_rules.json" => pending.port_forward_rules_json = Some(buf),
             other => {
                 // Unknown entry — log so a forward-compat archive
                 // (a future build that ships an extra payload like
@@ -455,6 +484,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         }
     }
 
@@ -621,7 +655,7 @@ mod tests {
     fn read_archive_to_pending_accepts_legacy_v1_manifest() {
         // v1 archives written before the sync_origin field existed
         // must still import — `1..=ARCHIVE` is the supported range
-        // and the v2 manifest is a superset of the v1 wire shape.
+        // and the v3 manifest is a superset of the v1 wire shape.
         let zip = build_test_zip(&[
             ("manifest.json", r#"{"schema_version":1}"#),
             ("sessions.json", "[]"),
@@ -632,6 +666,69 @@ mod tests {
         let (_pending, preview) =
             read_archive_to_pending(path.to_str().unwrap(), "").expect("legacy v1");
         assert_eq!(preview.schema_version, 1);
+    }
+
+    /// Chain test pinning the v1 → v2 → v3 archive-shape compat —
+    /// each older version's archive parses cleanly through the v3
+    /// reader without surfacing unknown-entry warnings or
+    /// future-version rejection. The reader treats every version in
+    /// `1..=SchemaVersions::ARCHIVE` as supported; new fields land
+    /// as `Option<String>` on `PendingImport` so the v1/v2 entries
+    /// stay `None` after parse. The forward-version gate
+    /// (v3-version archive vs an older client) is covered by the
+    /// `rejects_future_version` test above.
+    #[test]
+    fn read_archive_to_pending_chain_v1_v2_v3_all_parse() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cases: &[(i32, &[(&str, &str)])] = &[
+            // v1: manifest only.
+            (1, &[("manifest.json", r#"{"schema_version":1}"#)]),
+            // v2: manifest + sync_origin field.
+            (
+                2,
+                &[(
+                    "manifest.json",
+                    r#"{"schema_version":2,"sync_origin":"install-x:42"}"#,
+                )],
+            ),
+            // v3: manifest + child-table entries. The reader keeps
+            // them in PendingImport's typed slots.
+            (
+                3,
+                &[
+                    ("manifest.json", r#"{"schema_version":3}"#),
+                    ("sessions.json", "[]"),
+                    ("ssh_key_certificates.json", "[]"),
+                    ("webdav_session_details.json", "[]"),
+                    ("s3_session_details.json", "[]"),
+                    ("sftp_bookmarks.json", "[]"),
+                    ("port_forward_rules.json", "[]"),
+                ],
+            ),
+        ];
+        for (version, entries) in cases {
+            let zip = build_test_zip(entries);
+            let path = dir.path().join(format!("v{version}.lfs"));
+            std::fs::write(&path, &zip).unwrap();
+            let (pending, preview) = read_archive_to_pending(path.to_str().unwrap(), "")
+                .unwrap_or_else(|e| panic!("v{version} parse: {e:?}"));
+            assert_eq!(preview.schema_version, i64::from(*version));
+            // v3-only child tables only show up when explicitly
+            // shipped — v1/v2 leave the slots as `None`.
+            if *version == 3 {
+                assert!(pending.ssh_key_certificates_json.is_some());
+                assert!(pending.webdav_session_details_json.is_some());
+                assert!(pending.s3_session_details_json.is_some());
+                assert!(pending.sftp_bookmarks_json.is_some());
+                assert!(pending.port_forward_rules_json.is_some());
+            } else {
+                assert!(pending.ssh_key_certificates_json.is_none());
+                assert!(pending.webdav_session_details_json.is_none());
+                assert!(pending.s3_session_details_json.is_none());
+                assert!(pending.sftp_bookmarks_json.is_none());
+                assert!(pending.port_forward_rules_json.is_none());
+            }
+        }
     }
 
     #[test]
@@ -648,6 +745,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         };
         assert_eq!(parse_sync_origin(&pending).as_deref(), Some("inst-1:42"));
     }
@@ -666,6 +768,11 @@ mod tests {
             empty_folders_json: None,
             config_json: None,
             known_hosts_text: None,
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
         };
         assert!(parse_sync_origin(&pending).is_none());
         pending.manifest_json = Some(r#"{"schema_version":2,"sync_origin":""}"#.into());

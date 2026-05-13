@@ -3521,4 +3521,26 @@ class SId extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Hanya $transport yang tersedia di device ini; toggle dinonaktifkan.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub impor';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Ada di perangkat lain — regenerasi di sini untuk dipakai';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Regenerasi di sini';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Hapus stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Regenerasi key ini di perangkat ini sebelum dipakai';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Temukan modul PKCS#11 untuk token \"$token\"';
+  }
 }

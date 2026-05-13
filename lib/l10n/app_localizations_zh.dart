@@ -3390,4 +3390,24 @@ class SZh extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return '此设备仅支持 $transport；开关已禁用。';
   }
+
+  @override
+  String get hardwareKeyStubBadge => '已导入存根';
+
+  @override
+  String get hardwareKeyStubSubtitle => '在另一台设备上 — 在此重新生成以便使用';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => '在此重新生成';
+
+  @override
+  String get hardwareKeyStubRemoveAction => '移除存根';
+
+  @override
+  String get hardwareKeyStubPickerTooltip => '使用前请在此设备上重新生成此密钥';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return '为令牌 \"$token\" 选择 PKCS#11 模块';
+  }
 }

@@ -3622,4 +3622,26 @@ class SFr extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Seul $transport est disponible sur cet appareil ; le toggle est désactivé.';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub importé';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Était sur un autre appareil — régénérez ici pour l\'utiliser';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Régénérer ici';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Supprimer le stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Régénérez cette clé sur cet appareil avant utilisation';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Localisez le module PKCS#11 pour le token « $token »';
+  }
 }

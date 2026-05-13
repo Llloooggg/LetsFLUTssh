@@ -3523,4 +3523,26 @@ class SHi extends S {
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'इस डिवाइस पर सिर्फ़ $transport उपलब्ध है; toggle disabled है।';
   }
+
+  @override
+  String get hardwareKeyStubBadge => 'इम्पोर्टेड स्टब';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'दूसरे डिवाइस पर था — उपयोग के लिए यहाँ रीजेनरेट करें';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'यहाँ रीजेनरेट करें';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'स्टब हटाएँ';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'उपयोग से पहले इस डिवाइस पर इस कुंजी को रीजेनरेट करें';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'टोकन \"$token\" के लिए PKCS#11 मॉड्यूल खोजें';
+  }
 }

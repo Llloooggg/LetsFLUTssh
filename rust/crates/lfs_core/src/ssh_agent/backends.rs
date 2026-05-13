@@ -722,6 +722,7 @@ mod tests {
             keystore_strongbox: false,
             keystore_user_auth_required: false,
             keystore_platform: None,
+            imported_as_stub: false,
         }
     }
 

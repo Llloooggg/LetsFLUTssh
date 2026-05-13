@@ -1310,5 +1310,16 @@
         "type": "String"
       }
     }
+  },
+  "hardwareKeyStubBadge": "已导入存根",
+  "hardwareKeyStubSubtitle": "在另一台设备上 — 在此重新生成以便使用",
+  "hardwareKeyStubRegenerateAction": "在此重新生成",
+  "hardwareKeyStubRemoveAction": "移除存根",
+  "hardwareKeyStubPickerTooltip": "使用前请在此设备上重新生成此密钥",
+  "pkcs11ModuleResolveOnFirstUse": "为令牌 \"{token}\" 选择 PKCS#11 模块",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": { "type": "String" }
+    }
   }
 }

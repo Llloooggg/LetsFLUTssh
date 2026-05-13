@@ -97,6 +97,7 @@ Future<void> _populateDb({
         tpmPinRequired: false,
         keystoreStrongbox: false,
         keystoreUserAuthRequired: false,
+        importedAsStub: false,
       ),
     );
   }
