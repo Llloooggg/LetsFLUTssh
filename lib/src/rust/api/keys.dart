@@ -115,6 +115,15 @@ Future<String?> keysTryReadPemFromPath({required String path}) =>
 Future<String> keysReadTextForManualImport({required String path}) =>
     RustLib.instance.api.crateApiKeysKeysReadTextForManualImport(path: path);
 
+/// Read `path` as raw bytes for OpenSSH cert import, capped at
+/// 16 KiB. The Dart key-manager dialog wired this to replace the
+/// `File(path).readAsBytes()` shape — the size ceiling, regular-
+/// file gate, and I/O error envelope now live Rust-side. Returned
+/// bytes feed `keys_parse_openssh_cert` + `keys_cert_matches_key`
+/// without crossing the FRB boundary a second time.
+Future<Uint8List> keysReadCertBytesForImport({required String path}) =>
+    RustLib.instance.api.crateApiKeysKeysReadCertBytesForImport(path: path);
+
 /// Parse an OpenSSH-armored `sk-*` private key file and surface
 /// the metadata the connect path needs. Sync — the parse is a
 /// single OpenSSH PEM decode + base64 walk, no I/O.

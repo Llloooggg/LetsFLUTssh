@@ -475,6 +475,31 @@ pub fn read_text_for_manual_import(path: &std::path::Path) -> Result<String, Err
     std::fs::read_to_string(path).map_err(|e| Error::KeyParse(format!("read: {e}")))
 }
 
+/// Read `path` as raw bytes for OpenSSH certificate import,
+/// capped at 16 KiB. Real certificates are ~1-2 KiB; the
+/// ceiling protects against picking up a misnamed multi-MB
+/// file (binary, video, archive) the user mistook for a `.pub`
+/// cert blob. Returns `Err` for missing files, oversize input,
+/// non-regular entries (symlink targets that resolve to a
+/// directory, /dev/* nodes), and I/O failures. The caller
+/// surfaces the error as the dialog's "couldn't read cert"
+/// toast and pivots to the manual-paste path.
+pub fn read_cert_bytes_for_import(path: &std::path::Path) -> Result<Vec<u8>, Error> {
+    const MAX_CERT_FILE_SIZE: u64 = 16 * 1024;
+    let meta = std::fs::metadata(path).map_err(|e| Error::KeyParse(format!("stat: {e}")))?;
+    if !meta.is_file() {
+        return Err(Error::KeyParse(String::from("not a regular file")));
+    }
+    if meta.len() > MAX_CERT_FILE_SIZE {
+        return Err(Error::KeyParse(format!(
+            "file too large ({} bytes, max {})",
+            meta.len(),
+            MAX_CERT_FILE_SIZE
+        )));
+    }
+    std::fs::read(path).map_err(|e| Error::KeyParse(format!("read: {e}")))
+}
+
 /// True when [`pem`] is a password-protected private key.
 ///
 /// Covers the three encoding families the importer cares about:

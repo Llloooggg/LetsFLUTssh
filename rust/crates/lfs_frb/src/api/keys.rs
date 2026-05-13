@@ -167,6 +167,22 @@ pub async fn keys_read_text_for_manual_import(path: String) -> Result<String, St
     .map_err(|e| format!("read text task: {e}"))?
 }
 
+/// Read `path` as raw bytes for OpenSSH cert import, capped at
+/// 16 KiB. The Dart key-manager dialog wired this to replace the
+/// `File(path).readAsBytes()` shape — the size ceiling, regular-
+/// file gate, and I/O error envelope now live Rust-side. Returned
+/// bytes feed `keys_parse_openssh_cert` + `keys_cert_matches_key`
+/// without crossing the FRB boundary a second time.
+pub async fn keys_read_cert_bytes_for_import(path: String) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(path);
+        lfs_core::keys::read_cert_bytes_for_import(&p)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    })
+    .await
+    .map_err(|e| format!("read cert task: {e}"))?
+}
+
 /// FRB mirror of [`lfs_core::keys::SkKeyMetadata`]. Returned by
 /// [`keys_parse_sk_private_key`] to the Dart key-manager when the
 /// user imports an OpenSSH `sk-*` private key file

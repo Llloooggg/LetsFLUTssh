@@ -565,7 +565,9 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
 
     Uint8List bytes;
     try {
-      bytes = await File(path).readAsBytes();
+      bytes = Uint8List.fromList(
+        await rust_keys.keysReadCertBytesForImport(path: path),
+      );
     } catch (e) {
       AppLogger.instance.log(
         'Cert read failed for <label>',
