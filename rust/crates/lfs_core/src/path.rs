@@ -188,10 +188,15 @@ pub fn expand_tilde(path: &str) -> String {
 ///
 /// * Unix (Linux / macOS / Android / iOS) — `chmod 0600`. Matches
 ///   the OpenSSH expectation for every file under `~/.ssh/`.
-/// * Windows — best-effort `icacls /inheritance:r /grant:r
-///   <user>:(F)` shell-out. Removes inherited ACLs and grants the
-///   current user full control. No-op when `USERNAME` is empty
-///   (CI / service-account contexts that don't carry the env var).
+/// * Windows — delegates to
+///   [`lfs_os_security::path::harden_file_perms_windows`], which
+///   shells out to `icacls /inheritance:r /grant:r <user>:(F)`.
+///   Removes inherited ACLs and grants the current user full
+///   control. No-op when `USERNAME` is empty (CI / service-account
+///   contexts that do not carry the env var). The subprocess
+///   invocation lives in `lfs_os_security` because that crate is
+///   the single audit perimeter for OS-API FFI + subprocess
+///   spawning.
 /// * Other targets — no-op (iOS / Android already sandbox per-app
 ///   storage tighter than `chmod 600`).
 ///
@@ -208,28 +213,13 @@ pub fn harden_file_perms(path: &std::path::Path) -> Result<(), String> {
 
 #[cfg(windows)]
 pub fn harden_file_perms(path: &std::path::Path) -> Result<(), String> {
-    // `windows::*` would need a new dep; mirror the Dart shape
-    // (icacls shell-out) instead. Same syscalls icacls itself wraps,
-    // no extra crate surface to audit.
-    let user = std::env::var("USERNAME").unwrap_or_default();
-    if user.is_empty() {
-        return Ok(());
-    }
-    let status = std::process::Command::new("icacls")
-        .arg(path)
-        .arg("/inheritance:r")
-        .arg("/grant:r")
-        .arg(format!("{user}:(F)"))
-        .status()
-        .map_err(|e| format!("spawn icacls: {e}"))?;
-    if !status.success() {
-        return Err(format!(
-            "icacls {} exited with {:?}",
-            path.display(),
-            status.code()
-        ));
-    }
-    Ok(())
+    // Subprocess invocation lives in `lfs_os_security` (the single
+    // audit perimeter for OS-API FFI / subprocess spawning); this
+    // arm is a thin delegate. The `chmod(2)` syscall the Unix arm
+    // wraps stays in `lfs_core` because `std::fs::set_permissions`
+    // is not subprocess-bound and the audit-perimeter rule only
+    // governs OS-API FFI + subprocess spawning.
+    lfs_os_security::path::harden_file_perms_windows(path)
 }
 
 #[cfg(not(any(unix, windows)))]
