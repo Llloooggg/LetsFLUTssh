@@ -57,42 +57,24 @@ class UnifiedExportController extends ChangeNotifier {
   List<Session> get selectedSessions =>
       data.sessions.where((s) => _selectedIds.contains(s.id)).toList();
 
+  /// Thin forward over `lfs_core::archive::resolve_relevant_empty_folders`.
+  /// The folder-tree union rule (ancestor expansion + descendant /
+  /// ancestor / equal source-set entries + full-tree on all-selected)
+  /// lives Rust-side so Dart and the archive composer agree on the
+  /// shape byte-for-byte. The dialog still owns the inputs (selected
+  /// sessions' folders + `all_selected` flag) since they're trivial
+  /// to derive from Dart-side selection state.
   Set<String> get relevantEmptyFolders {
-    final selectedFolders = selectedSessions.map((s) => s.folder).toSet();
+    final selectedFolders = selectedSessions
+        .map((s) => s.folder)
+        .toList(growable: false);
     final all = _selectedIds.length == data.sessions.length;
-    final result = <String>{};
-
-    // Explicitly record every ancestor path of each selected session's
-    // folder. Resolving a session's folder on import already creates
-    // ancestors, but including them here keeps the export payload
-    // self-describing and robust against future import flows that rely
-    // on the emptyFolders set for hierarchy.
-    for (final folder in selectedFolders) {
-      if (folder.isEmpty) continue;
-      final parts = folder.split('/');
-      for (var i = 1; i < parts.length; i++) {
-        result.add(parts.take(i).join('/'));
-      }
-    }
-
-    // Include an empty folder from the source set if:
-    //   1. Any selected session belongs to it or a subfolder, OR
-    //   2. The folder is an ancestor of a selected session's folder, OR
-    //   3. All sessions are selected (export full structure).
-    for (final folder in data.emptyFolders) {
-      if (all) {
-        result.add(folder);
-        continue;
-      }
-      final related = selectedFolders.any(
-        (selected) =>
-            selected == folder ||
-            selected.startsWith('$folder/') ||
-            folder.startsWith('$selected/'),
-      );
-      if (related) result.add(folder);
-    }
-    return result;
+    final resolved = rust_archive.archiveResolveRelevantEmptyFolders(
+      selectedSessionFolders: selectedFolders,
+      sourceEmptyFolders: data.emptyFolders.toList(growable: false),
+      allSelected: all,
+    );
+    return resolved.toSet();
   }
 
   bool get allSelected => _selectedIds.length == data.sessions.length;

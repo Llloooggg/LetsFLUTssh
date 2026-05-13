@@ -65,6 +65,72 @@ pub use compose::{export_archive, export_archive_size, ExportInput, ExportOption
 pub use envelope::decrypt_archive_with_password;
 pub use qr_compose::{qr_export_payload, qr_export_payload_size, QrExportInput, QrExportOptions};
 
+/// Compute the set of "relevant" empty-folder paths for an
+/// archive export selection. The export dialog gates which
+/// folders ride along with a partial selection so the receiving
+/// side can rebuild the same hierarchy without leaking unrelated
+/// branches of the user's folder tree.
+///
+/// The caller passes the selected sessions' folder paths
+/// (deduplicated by the caller is fine but not required), the
+/// source set of currently-empty folders from the live tree, and
+/// an `all_selected` flag set when every session is in the
+/// selection.
+///
+/// Result is the union of:
+///   1. every ancestor path of each selected session's folder
+///      (`a/b/c` -> `a`, `a/b`),
+///   2. every entry in `source_empty_folders` that is the
+///      selected folder itself, an ancestor of a selected
+///      folder, or a descendant of a selected folder,
+///   3. every entry in `source_empty_folders` unconditionally
+///      when `all_selected` is true (export the full structure).
+///
+/// Returned vector is deduplicated and sorted lexicographically
+/// so callers comparing two results don't have to re-sort.
+pub fn resolve_relevant_empty_folders(
+    selected_session_folders: &[String],
+    source_empty_folders: &[String],
+    all_selected: bool,
+) -> Vec<String> {
+    let mut result: HashSet<String> = HashSet::new();
+
+    // Ancestor expansion: every prefix of every selected folder.
+    // Keeps the export payload self-describing for receivers that
+    // rely on the emptyFolders set to reconstruct hierarchy.
+    for folder in selected_session_folders {
+        if folder.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = folder.split('/').collect();
+        for i in 1..parts.len() {
+            result.insert(parts[..i].join("/"));
+        }
+    }
+
+    let selected: Vec<&str> = selected_session_folders
+        .iter()
+        .map(String::as_str)
+        .collect();
+    for folder in source_empty_folders {
+        if all_selected {
+            result.insert(folder.clone());
+            continue;
+        }
+        let related = selected.iter().any(|sel| {
+            *sel == folder.as_str()
+                || sel.starts_with(&format!("{folder}/"))
+                || folder.starts_with(&format!("{sel}/"))
+        });
+        if related {
+            result.insert(folder.clone());
+        }
+    }
+    let mut out: Vec<String> = result.into_iter().collect();
+    out.sort();
+    out
+}
+
 use envelope::ENC_HEADER_MAGIC;
 
 // ---- 5.6 import handle scaffolding -------------------------------
@@ -779,6 +845,40 @@ mod tests {
         assert!(parse_sync_origin(&pending).is_none());
         pending.manifest_json = None;
         assert!(parse_sync_origin(&pending).is_none());
+    }
+
+    #[test]
+    fn resolve_relevant_empty_folders_empty_selection_returns_empty() {
+        let out = resolve_relevant_empty_folders(&[], &[], false);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn resolve_relevant_empty_folders_pulls_in_ancestors_of_selected_folders() {
+        let selected = vec!["a/b/c".to_string()];
+        let source: Vec<String> = vec![];
+        let out = resolve_relevant_empty_folders(&selected, &source, false);
+        assert_eq!(out, vec!["a".to_string(), "a/b".to_string()]);
+    }
+
+    #[test]
+    fn resolve_relevant_empty_folders_includes_descendants_skips_unrelated() {
+        let selected = vec!["a".to_string()];
+        let source = vec!["a/x".to_string(), "b".to_string(), "root".to_string()];
+        let out = resolve_relevant_empty_folders(&selected, &source, false);
+        assert!(out.contains(&"a/x".to_string()));
+        assert!(!out.contains(&"b".to_string()));
+        assert!(!out.contains(&"root".to_string()));
+    }
+
+    #[test]
+    fn resolve_relevant_empty_folders_all_selected_includes_every_source_folder() {
+        let selected = vec!["prod/web".to_string()];
+        let source = vec!["prod".to_string(), "stg".to_string(), "archive".to_string()];
+        let out = resolve_relevant_empty_folders(&selected, &source, true);
+        assert!(out.contains(&"prod".to_string()));
+        assert!(out.contains(&"stg".to_string()));
+        assert!(out.contains(&"archive".to_string()));
     }
 
     #[test]

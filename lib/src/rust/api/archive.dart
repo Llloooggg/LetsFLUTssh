@@ -11,6 +11,24 @@ part 'archive.freezed.dart';
 // These functions are ignored because they are not marked as `pub`: `map_open_err`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
+/// Resolve the empty-folder set that should ride along with an
+/// archive export for the current selection. The Dart export
+/// dialog hands in the selected sessions' folder paths plus the
+/// live tree's currently-empty folders; Rust returns the union
+/// of ancestor expansions, related source-set entries, and (when
+/// `all_selected` is true) the full source set. Pure
+/// CPU-bound — runs sync to keep the dialog's per-checkbox
+/// rebuild path off the async hop.
+List<String> archiveResolveRelevantEmptyFolders({
+  required List<String> selectedSessionFolders,
+  required List<String> sourceEmptyFolders,
+  required bool allSelected,
+}) => RustLib.instance.api.crateApiArchiveArchiveResolveRelevantEmptyFolders(
+  selectedSessionFolders: selectedSessionFolders,
+  sourceEmptyFolders: sourceEmptyFolders,
+  allSelected: allSelected,
+);
+
 /// Compose, (optionally) encrypt, and atomically write the `.lfs`
 /// archive entirely inside Rust. Plaintext credentials never cross
 /// the FRB boundary outbound: the bytes flow DB → JSON → ZIP →

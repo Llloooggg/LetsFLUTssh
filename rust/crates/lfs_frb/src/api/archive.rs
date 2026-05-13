@@ -5,10 +5,32 @@
 //! bytes ready to write atomically.
 
 use lfs_core::archive::{
-    export_archive_size, ExportInput, ExportOptions, QrExportInput, QrExportOptions,
+    export_archive_size, resolve_relevant_empty_folders, ExportInput, ExportOptions, QrExportInput,
+    QrExportOptions,
 };
 
 use crate::api::db::require_db;
+
+/// Resolve the empty-folder set that should ride along with an
+/// archive export for the current selection. The Dart export
+/// dialog hands in the selected sessions' folder paths plus the
+/// live tree's currently-empty folders; Rust returns the union
+/// of ancestor expansions, related source-set entries, and (when
+/// `all_selected` is true) the full source set. Pure
+/// CPU-bound — runs sync to keep the dialog's per-checkbox
+/// rebuild path off the async hop.
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_resolve_relevant_empty_folders(
+    selected_session_folders: Vec<String>,
+    source_empty_folders: Vec<String>,
+    all_selected: bool,
+) -> Vec<String> {
+    resolve_relevant_empty_folders(
+        &selected_session_folders,
+        &source_empty_folders,
+        all_selected,
+    )
+}
 
 /// Mirror of `ExportOptions` over the FRB boundary. Field-for-field
 /// copy of the Dart `ExportOptions` toggle bag.
