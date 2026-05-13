@@ -43,6 +43,63 @@ pub struct LocalFileEntry {
     pub is_dir: bool,
 }
 
+/// Enumerate immediate sub-directories of `path`. Returns
+/// absolute paths of every direct child whose `is_dir()` is
+/// true; symlinks are NOT followed (matches the Dart caller's
+/// `followLinks: false`). Results are sorted by lowercased
+/// basename so the picker UI does not need a second pass.
+///
+/// Errors are pinned to fixed keys so [`crate::fs::local`]'s
+/// Dart caller can localise them through `localizeError`:
+/// - `"no_such_file_or_directory"` when `path` does not exist.
+/// - `"permission_denied"` when the `read_dir` syscall fails
+///   with `EACCES`.
+/// - `"io: <kind>"` for every other I/O failure.
+///
+/// Per-entry stat failures inside the directory (broken
+/// symlinks, individual entries we cannot type) are skipped
+/// silently; only an unreadable parent surfaces.
+pub async fn list_directories(path: String) -> Result<Vec<String>, String> {
+    let mut rd = tokio::fs::read_dir(&path).await.map_err(map_io_error)?;
+    let mut dirs: Vec<String> = Vec::new();
+    while let Some(entry) = rd
+        .next_entry()
+        .await
+        .map_err(|e| format!("io: {}", e.kind().to_string().to_lowercase()))?
+    {
+        // `file_type` does not follow symlinks, so a symlinked
+        // directory is reported as a symlink and filtered out
+        // here without recursing into it.
+        let Ok(file_type) = entry.file_type().await else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        dirs.push(entry.path().to_string_lossy().into_owned());
+    }
+    dirs.sort_by(|a, b| {
+        let an = std::path::Path::new(a)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        let bn = std::path::Path::new(b)
+            .file_name()
+            .map(|s| s.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        an.cmp(&bn)
+    });
+    Ok(dirs)
+}
+
+fn map_io_error(e: std::io::Error) -> String {
+    match e.kind() {
+        std::io::ErrorKind::NotFound => "no_such_file_or_directory".to_string(),
+        std::io::ErrorKind::PermissionDenied => "permission_denied".to_string(),
+        other => format!("io: {}", other.to_string().to_lowercase()),
+    }
+}
+
 /// List `path` and return one entry per direct child. Errors on
 /// missing / unreadable directories so the Dart caller surfaces
 /// `FileSystemException("Directory not found", path)` instead
@@ -298,6 +355,54 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(total, 0);
+    }
+
+    #[tokio::test]
+    async fn list_directories_returns_only_dirs() {
+        let dir = temp_dir("list_dirs_only");
+        std::fs::create_dir(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("file.txt"), b"x").unwrap();
+        let out = list_directories(dir.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(
+            std::path::Path::new(&out[0])
+                .file_name()
+                .unwrap()
+                .to_string_lossy(),
+            "sub"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn list_directories_nonexistent_returns_no_such_file_or_directory() {
+        let result = list_directories("/path/that/does/not/exist/lfs_test_pick".to_string()).await;
+        assert_eq!(result.unwrap_err(), "no_such_file_or_directory");
+    }
+
+    #[tokio::test]
+    async fn list_directories_sorts_by_basename_case_insensitive() {
+        let dir = temp_dir("list_dirs_sort");
+        std::fs::create_dir(dir.join("Banana")).unwrap();
+        std::fs::create_dir(dir.join("apple")).unwrap();
+        std::fs::create_dir(dir.join("Cherry")).unwrap();
+        let out = list_directories(dir.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        let basenames: Vec<String> = out
+            .iter()
+            .map(|p| {
+                std::path::Path::new(p)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        assert_eq!(basenames, vec!["apple", "Banana", "Cherry"]);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[cfg(not(target_os = "windows"))]

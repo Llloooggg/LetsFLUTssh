@@ -30,6 +30,10 @@ pub async fn local_fs_list(path: String) -> Result<Vec<DbLocalFileEntry>, String
         .collect())
 }
 
+pub async fn local_fs_list_directories(path: String) -> Result<Vec<String>, String> {
+    lfs_core::fs::local::list_directories(path).await
+}
+
 pub async fn local_fs_mkdir(path: String) -> Result<(), String> {
     lfs_core::fs::local::mkdir(path).await
 }

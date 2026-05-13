@@ -11,6 +11,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<List<DbLocalFileEntry>> localFsList({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsList(path: path);
 
+Future<List<String>> localFsListDirectories({required String path}) =>
+    RustLib.instance.api.crateApiLocalFsLocalFsListDirectories(path: path);
+
 Future<void> localFsMkdir({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsMkdir(path: path);
 

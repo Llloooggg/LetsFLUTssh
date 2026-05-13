@@ -195,6 +195,20 @@ String localizeError(S l10n, Object error) {
 
   if (error is TimeoutException) return _localizeTimeout(l10n, error);
 
+  // Pinned FRB error keys from `lfs_core::fs::local`. These are
+  // flat strings (no JSON envelope) so they bypass
+  // `_localizeFrbKind` — match them here so every caller of a
+  // local-fs Rust op renders the same localised toast as the
+  // matching errno path.
+  if (error is String) {
+    if (error == 'no_such_file_or_directory') {
+      return l10n.errNoSuchFileOrDirectory;
+    }
+    if (error == 'permission_denied') {
+      return l10n.errPermissionDenied;
+    }
+  }
+
   // OS errors: extract errno and map to localized message.
   return _localizeOsError(l10n, error);
 }
