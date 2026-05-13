@@ -100,21 +100,24 @@ class KeychainPasswordGate {
   /// rate-limit state file would need to also have both disk-hash +
   /// keychain-pepper, i.e. already enough to decrypt the DB.
   ///
+  /// Routes through `lfs_core::security::keychain_password_gate_actor::
+  /// build_persisted_rate_limiter` (FRB async): the read + actor
+  /// registration happen inside the same Rust process, so the HMAC
+  /// bytes never cross the FRB boundary. Dart receives only the
+  /// opaque limiter id which threads through the existing
+  /// `persisted_rate_limit_actor_*` ops.
+  ///
   /// Returns null when the gate has never been configured — caller
   /// should fall through to "wrong password" without rate-limiting
   /// (there is nothing to guard).
   Future<PasswordRateLimiter?> rateLimiter() async {
     try {
       final file = await _hashFile();
-      final decoded = await rust_actor.keychainPasswordGateReadDecoded(
+      final id = await rust_actor.keychainPasswordGateBuildPersistedRateLimiter(
         supportDir: file.parent.path,
       );
-      if (decoded == null) return null;
-      final stateFile = File(p.join(file.parent.path, 'rate_limit_state.bin'));
-      return PersistedRateLimiter(
-        hmacKey: decoded.hmac,
-        stateFileFactory: () async => stateFile,
-      );
+      if (id == null) return null;
+      return PersistedRateLimiter.fromPrebuiltId(id);
     } catch (e) {
       AppLogger.instance.log(
         'KeychainPasswordGate.rateLimiter failed: $e',

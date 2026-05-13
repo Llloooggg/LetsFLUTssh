@@ -178,6 +178,14 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
 /// façade — `init_or_get` registers the limiter under [_id] with
 /// the on-disk path + HMAC key; subsequent ops snapshot / mutate
 /// that registered slot.
+///
+/// The production path uses [`PersistedRateLimiter.fromPrebuiltId`]:
+/// `lfs_core::security::keychain_password_gate_actor::
+/// build_persisted_rate_limiter` reads the gate envelope and
+/// registers the slot inside Rust, so the HMAC bytes never cross
+/// the FRB boundary. The default constructor stays for tests that
+/// need to drive the limiter against an explicit HMAC + state
+/// file path without going through the gate actor.
 class PersistedRateLimiter extends PasswordRateLimiter {
   PersistedRateLimiter({
     required Uint8List hmacKey,
@@ -185,11 +193,31 @@ class PersistedRateLimiter extends PasswordRateLimiter {
     String? id,
   }) : _hmacKey = hmacKey,
        _stateFile = stateFileFactory ?? _defaultStateFile,
-       _id = id ?? const Uuid().v4();
+       _id = id ?? const Uuid().v4(),
+       _initialised = false;
+
+  /// Build a limiter against an id whose Rust-side slot is already
+  /// registered (via `keychain_password_gate_actor::
+  /// build_persisted_rate_limiter`). The HMAC + state-file path
+  /// live entirely in the Rust actor under `id`; this Dart wrapper
+  /// only forwards status / record ops to that slot. Skips the
+  /// `_ensureInit` round-trip — the actor is already wired.
+  PersistedRateLimiter.fromPrebuiltId(String id)
+    : _hmacKey = Uint8List(0),
+      _stateFile = _defaultStateFile,
+      _id = id,
+      _initialised = true;
 
   static const _fileName = 'rate_limit_state.bin';
 
+  /// Only consulted by the explicit-constructor path; the
+  /// `fromPrebuiltId` factory leaves this empty because the actor
+  /// is already wired with the HMAC inside Rust.
   final Uint8List _hmacKey;
+
+  /// Only consulted by the explicit-constructor path; the
+  /// `fromPrebuiltId` factory leaves this at the default because
+  /// the actor already owns the path inside Rust.
   final Future<File> Function() _stateFile;
 
   /// Per-instance id under which the Rust
@@ -199,11 +227,12 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   /// singleton registry.
   final String _id;
 
-  /// True once `_ensureInit` has wired the actor for [_id]. Sync
-  /// status / recordFailure paths return the safe baseline /
-  /// silently skip until this flips to true via `statusAsync` or
-  /// the recorded ops below auto-init on first call.
-  bool _initialised = false;
+  /// True once the Rust actor has a registered slot for [_id]. The
+  /// `fromPrebuiltId` factory starts true because Rust already
+  /// registered the slot before handing the id over; the default
+  /// constructor starts false and flips via `statusAsync` /
+  /// `_ensureInit` on first call.
+  bool _initialised;
 
   /// Force a re-read on next status call. Clears the actor's slot
   /// and the local init flag so the next operation re-initialises.

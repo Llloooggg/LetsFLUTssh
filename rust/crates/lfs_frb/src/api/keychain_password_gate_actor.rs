@@ -72,6 +72,23 @@ pub async fn keychain_password_gate_read_decoded(
     )
 }
 
+/// Read the gate envelope under `support_dir` and register a
+/// `persisted_rate_limit_actor` slot under a freshly-minted handle
+/// id using the gate's HMAC as the rate-limit seed + the canonical
+/// `rate_limit_state.bin` path. Returns the id, or `Ok(None)` when
+/// the gate has never been configured (every "no recoverable HMAC"
+/// outcome collapses to one branch the Dart caller maps to "no
+/// rate limiter for this install").
+///
+/// The HMAC bytes never cross the FRB boundary — read + register
+/// happen inside the same Rust process. Dart threads the returned
+/// id through the existing `persisted_rate_limit_actor_*` ops.
+pub async fn keychain_password_gate_build_persisted_rate_limiter(
+    support_dir: String,
+) -> Result<Option<String>, String> {
+    actor::build_persisted_rate_limiter(Path::new(&support_dir)).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,6 +117,21 @@ mod tests {
             Ok(true) => panic!("fresh tempdir cannot be already-configured"),
             Err(_) => (),
         }
+    }
+
+    #[tokio::test]
+    async fn build_persisted_rate_limiter_returns_none_when_unconfigured() {
+        // Fresh tempdir → no `security_pass_hash.bin` → the Dart
+        // caller should see `None` (= no rate limiter for this
+        // install) rather than an `Err` it has to map back to the
+        // same null branch.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let res = keychain_password_gate_build_persisted_rate_limiter(
+            dir.path().to_string_lossy().into_owned(),
+        )
+        .await
+        .expect("build limiter does not surface infra error on fresh dir");
+        assert!(res.is_none());
     }
 
     #[tokio::test]

@@ -71,3 +71,21 @@ Future<DbKeychainGateBlob?> keychainPasswordGateReadDecoded({
     .crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded(
       supportDir: supportDir,
     );
+
+/// Read the gate envelope under `support_dir` and register a
+/// `persisted_rate_limit_actor` slot under a freshly-minted handle
+/// id using the gate's HMAC as the rate-limit seed + the canonical
+/// `rate_limit_state.bin` path. Returns the id, or `Ok(None)` when
+/// the gate has never been configured (every "no recoverable HMAC"
+/// outcome collapses to one branch the Dart caller maps to "no
+/// rate limiter for this install").
+///
+/// The HMAC bytes never cross the FRB boundary — read + register
+/// happen inside the same Rust process. Dart threads the returned
+/// id through the existing `persisted_rate_limit_actor_*` ops.
+Future<String?> keychainPasswordGateBuildPersistedRateLimiter({
+  required String supportDir,
+}) => RustLib.instance.api
+    .crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter(
+      supportDir: supportDir,
+    );

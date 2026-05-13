@@ -20,9 +20,11 @@
 
 use std::path::Path;
 
+use crate::id::random_uuid_v4;
 use crate::security::keychain_password_gate::{
     compute_gate_hmac, decode_disk_blob, encode_disk_blob, random_salt_and_pepper, DiskBlob,
 };
+use crate::security::persisted_rate_limit_actor as rl_actor;
 
 /// Storage key for the keychain pepper. Mirrors the Dart-era
 /// `KeychainPasswordGate._pepperKey` const — both implementations
@@ -143,6 +145,43 @@ pub async fn read_decoded_blob(support_dir: &Path) -> Result<Option<DiskBlob>, S
         Err(_) => return Ok(None),
     };
     Ok(decode_disk_blob(blob_str).ok())
+}
+
+/// Read the on-disk gate envelope under `support_dir` and register
+/// a fresh slot in
+/// [`crate::security::persisted_rate_limit_actor::instance`] keyed
+/// to a freshly-minted handle id, using the decoded HMAC as the
+/// rate-limit signing seed and the canonical
+/// `rate_limit_state.bin` path under the same support dir. Returns
+/// the handle, or `Ok(None)` when the gate has never been
+/// configured (no disk hash or unparsable blob — every "no
+/// recoverable HMAC" outcome collapses to one branch).
+///
+/// The HMAC bytes never leave Rust — caller receives only an
+/// opaque id which it threads through the existing
+/// `persisted_rate_limit_actor_*` FRB ops. Replaces the earlier
+/// `read_decoded_blob → Dart → init_or_get` round-trip where the
+/// secret crossed FRB twice.
+pub async fn build_persisted_rate_limiter(support_dir: &Path) -> Result<Option<String>, String> {
+    let decoded = match read_decoded_blob(support_dir).await? {
+        Some(b) => b,
+        None => return Ok(None),
+    };
+    let state_path = support_dir.join(RATE_LIMIT_STATE_FILE);
+    // Create the parent dir on the same blocking pool the actor
+    // would otherwise touch lazily on first write — keeps the
+    // `init_or_get` synchronous call free of a directory miss
+    // that would later surface as a swallowed write error.
+    if let Some(parent) = state_path.parent() {
+        let parent_owned = parent.to_path_buf();
+        tokio::task::spawn_blocking(move || crate::path::create_dir_all_secure(&parent_owned))
+            .await
+            .map_err(|e| format!("build persisted rate limiter: blocking task: {e}"))?
+            .map_err(|e| format!("build persisted rate limiter: create support dir: {e}"))?;
+    }
+    let id = random_uuid_v4();
+    rl_actor::instance().init_or_get(&id, state_path, decoded.hmac);
+    Ok(Some(id))
 }
 
 /// Configure the gate with `password`. Generates a fresh salt +
@@ -315,5 +354,35 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let result = is_configured(dir.path()).await.unwrap();
         assert!(!result);
+    }
+
+    /// `build_persisted_rate_limiter` collapses an unconfigured
+    /// gate to `Ok(None)` so the Dart caller treats it as "no
+    /// rate limiter for this install" without needing to inspect
+    /// errors.
+    #[tokio::test]
+    async fn build_persisted_rate_limiter_returns_none_when_gate_absent() {
+        let dir = TempDir::new().unwrap();
+        let res = build_persisted_rate_limiter(dir.path()).await.unwrap();
+        assert!(res.is_none());
+    }
+
+    /// On a configured gate the function mints a fresh id +
+    /// registers a slot in the `persisted_rate_limit_actor` so
+    /// the FRB status ops resolve against the registered limiter.
+    /// The HMAC bytes stay Rust-side — the test only observes the
+    /// id round-trip + a zero-baseline status snapshot.
+    #[tokio::test]
+    async fn build_persisted_rate_limiter_registers_slot_for_configured_gate() {
+        let dir = TempDir::new().unwrap();
+        let _pepper = setup_gate(dir.path(), b"hunter2");
+        let id = build_persisted_rate_limiter(dir.path())
+            .await
+            .unwrap()
+            .expect("configured gate yields an id");
+        let snap = rl_actor::instance().status(&id);
+        assert_eq!(snap.failure_count, 0);
+        assert_eq!(snap.cooldown_remaining_ms, 0);
+        rl_actor::instance().clear(&id);
     }
 }
