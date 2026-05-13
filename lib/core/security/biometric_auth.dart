@@ -162,11 +162,11 @@ class BiometricAuth {
       rust_fprintd.fprintdVerify(timeoutMs: _fprintdVerifyTimeoutMs);
 
   static Future<bool> _defaultTpmAvailable() async {
-    final result = await rust_tpm.tpmProbe(
-      binary: 'tpm2',
-      device: '/dev/tpmrm0',
-      timeoutMs: BigInt.from(15000),
-    );
+    // `tpmProbe` accepts `null` for binary / device / timeoutMs and
+    // applies the canonical lfs_core defaults; passing Dart-side
+    // literals would duplicate the platform defaults across the FRB
+    // boundary.
+    final result = await rust_tpm.tpmProbe();
     return result == rust_tpm.DbTpmProbeResult.available;
   }
 

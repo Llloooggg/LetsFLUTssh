@@ -373,9 +373,6 @@ extension _FirstLaunchFlows on SecurityInitController {
           FirstLaunchBannerData(
             activeTier: SecurityTier.keychain,
             hardwareUpgradeAvailable: caps.hardwareVaultAvailable,
-            hardwareUnavailableReason: caps.hardwareVaultAvailable
-                ? null
-                : defaultHardwareUnavailableReason(),
           ),
         );
   }

@@ -242,11 +242,11 @@ final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
   // ran in series).
   final caps = await ref.watch(securityCapabilitiesProvider.future);
   if (Platform.isLinux) {
-    final result = await rust_tpm.tpmProbe(
-      binary: 'tpm2',
-      device: '/dev/tpmrm0',
-      timeoutMs: BigInt.from(15000),
-    );
+    // `tpmProbe` accepts `null` for binary / device / timeoutMs and
+    // applies the canonical lfs_core defaults itself; passing
+    // Dart-side literals would duplicate the platform defaults
+    // across the FRB boundary.
+    final result = await rust_tpm.tpmProbe();
     switch (result) {
       case rust_tpm.DbTpmProbeResult.available:
         return HardwareProbeDetail.available;
