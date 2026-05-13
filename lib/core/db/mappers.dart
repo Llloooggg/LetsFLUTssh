@@ -4,7 +4,7 @@ import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../session/session.dart';
 import '../ssh/ssh_config.dart';
-import '_folder_path_compat.dart';
+import '../../src/rust/api/folder_path.dart' as rust_fp;
 
 // ---------------------------------------------------------------------------
 // Session ↔ DB mapping
@@ -135,7 +135,10 @@ String _buildFolderPath(
   String? folderId,
   Map<String, rust_db.DbFolder> folderMap,
 ) {
-  return folderBuildPathCompat(folderId, folderMap);
+  return rust_fp.folderBuildPath(
+    folderId: folderId ?? '',
+    folders: folderMap.values.toList(growable: false),
+  );
 }
 
 /// Resolve a folder path string to a folderId, creating missing
@@ -164,7 +167,9 @@ Map<String, rust_db.DbFolder> buildFolderMap(List<rust_db.DbFolder> folders) {
 /// `lfs_core::folder_path::all_folder_paths` so the Rust + Dart paths agree
 /// on the orphan-marker grammar by construction.
 Set<String> allFolderPaths(Map<String, rust_db.DbFolder> folderMap) {
-  return folderAllPathsCompat(folderMap);
+  return rust_fp
+      .folderAllPaths(folders: folderMap.values.toList(growable: false))
+      .toSet();
 }
 
 /// Find folderId by exact path string (returns null if not found). Routes
@@ -173,5 +178,8 @@ String? findFolderIdByPath(
   String path,
   Map<String, rust_db.DbFolder> folderMap,
 ) {
-  return folderFindIdByPathCompat(path, folderMap);
+  return rust_fp.folderFindIdByPath(
+    path: path,
+    folders: folderMap.values.toList(growable: false),
+  );
 }
