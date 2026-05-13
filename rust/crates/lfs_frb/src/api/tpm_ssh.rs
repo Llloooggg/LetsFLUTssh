@@ -397,6 +397,43 @@ async fn persist_row(outcome: GenerateOutcome) -> Result<DbTpmSshImportResult, S
     })
 }
 
+/// Hard cap on the size of a wrapped TPM blob accepted by
+/// [`tpm_ssh_import_blob_from_path`]. TSS2 PRIVATE KEY envelopes
+/// for the algorithms this wizard mints are ~2-4 KiB; 64 KiB
+/// leaves ample headroom while pinning a DoS limit on
+/// user-supplied paths.
+const TPM_BLOB_MAX_BYTES: u64 = 64 * 1024;
+
+/// Path-variant entry point for the desktop file picker. The
+/// picker returns an OS path (mobile picker returns in-memory
+/// bytes — that branch keeps using [`tpm_ssh_import_blob`]).
+/// Reading the file Rust-side keeps the blob bytes out of the
+/// Dart heap and lets the size cap enforce a single fixed
+/// rejection point.
+///
+/// Errors are pinned to fixed keys so the Dart caller can
+/// localise them through `localizeError`:
+/// - `"file_too_large"` when the file exceeds [`TPM_BLOB_MAX_BYTES`].
+/// - `"no_such_file_or_directory"` when `path` does not exist.
+/// - `"permission_denied"` when the read syscall fails with EACCES.
+/// - `"io: <kind>"` for every other I/O failure.
+pub async fn tpm_ssh_import_blob_from_path(path: String, label: String) -> Result<String, String> {
+    let meta = tokio::fs::metadata(&path).await.map_err(map_io_error)?;
+    if meta.len() > TPM_BLOB_MAX_BYTES {
+        return Err("file_too_large".to_string());
+    }
+    let blob = tokio::fs::read(&path).await.map_err(map_io_error)?;
+    tpm_ssh_import_blob(blob, label).await
+}
+
+fn map_io_error(e: std::io::Error) -> String {
+    match e.kind() {
+        std::io::ErrorKind::NotFound => "no_such_file_or_directory".to_string(),
+        std::io::ErrorKind::PermissionDenied => "permission_denied".to_string(),
+        other => format!("io: {}", other.to_string().to_lowercase()),
+    }
+}
+
 /// Import a wrapped TPM blob (`.tpm` file, TSS2 PRIVATE KEY format),
 /// then persist it as an `ssh_keys` row. Linux only — Windows CNG
 /// owns its own keystore and there's no portable import shape.
@@ -685,5 +722,37 @@ mod tests {
     #[test]
     fn db_tpm_ssh_algorithm_variants_distinct() {
         assert_ne!(DbTpmSshAlgorithm::EcdsaP256, DbTpmSshAlgorithm::Rsa2048);
+    }
+
+    #[test]
+    fn import_blob_from_path_too_large() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("oversize.tpm");
+        // One byte past the cap — any single excess byte must trip
+        // the `file_too_large` short-circuit before the read fires.
+        let payload = vec![0u8; (TPM_BLOB_MAX_BYTES as usize) + 1];
+        std::fs::write(&path, &payload).expect("write oversize blob");
+        let rt = tokio::runtime::Runtime::new().expect("runtime");
+        let err = rt
+            .block_on(tpm_ssh_import_blob_from_path(
+                path.to_string_lossy().into_owned(),
+                "label".to_string(),
+            ))
+            .expect_err("oversize blob must be rejected");
+        assert_eq!(err, "file_too_large");
+    }
+
+    #[test]
+    fn import_blob_from_path_missing() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("does-not-exist.tpm");
+        let rt = tokio::runtime::Runtime::new().expect("runtime");
+        let err = rt
+            .block_on(tpm_ssh_import_blob_from_path(
+                path.to_string_lossy().into_owned(),
+                "label".to_string(),
+            ))
+            .expect_err("missing path must be rejected");
+        assert_eq!(err, "no_such_file_or_directory");
     }
 }

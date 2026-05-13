@@ -48,6 +48,11 @@ abstract class TpmBackend {
   });
 
   Future<String> importBlob({required List<int> blob, required String label});
+
+  Future<String> importBlobFromPath({
+    required String path,
+    required String label,
+  });
 }
 
 class TpmFrbBackend extends TpmBackend {
@@ -80,6 +85,12 @@ class TpmFrbBackend extends TpmBackend {
   @override
   Future<String> importBlob({required List<int> blob, required String label}) =>
       rust_tpm.tpmSshImportBlob(blob: blob, label: label);
+
+  @override
+  Future<String> importBlobFromPath({
+    required String path,
+    required String label,
+  }) => rust_tpm.tpmSshImportBlobFromPath(path: path, label: label);
 }
 
 /// Linear wizard step ladder.
@@ -599,12 +610,18 @@ class TpmImportHelper {
     );
     if (picked == null || picked.files.isEmpty) return null;
     final file = picked.files.single;
-    final bytes =
-        file.bytes ??
-        (file.path != null ? await File(file.path!).readAsBytes() : null);
-    if (bytes == null) return null;
     final label = file.name.replaceAll(RegExp(r'\.tpm$'), '');
-    return backend.importBlob(blob: bytes, label: label);
+    // Prefer the path variant when available — keeps the blob
+    // bytes Rust-side under the FRB size cap. Mobile pickers
+    // surface only in-memory bytes (no `path`), so the byte
+    // variant remains the fallback there.
+    if (file.path != null) {
+      return backend.importBlobFromPath(path: file.path!, label: label);
+    }
+    if (file.bytes != null) {
+      return backend.importBlob(blob: file.bytes!, label: label);
+    }
+    return null;
   }
 }
 

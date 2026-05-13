@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `evict_native_linux`, `generate_native_linux`, `import_native_linux`, `make_persistent_native_linux`, `now_unix_ms`, `persist_row`, `probe_native_linux`
+// These functions are ignored because they are not marked as `pub`: `evict_native_linux`, `generate_native_linux`, `import_native_linux`, `make_persistent_native_linux`, `map_io_error`, `now_unix_ms`, `persist_row`, `probe_native_linux`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackendColumns`, `GenerateOutcome`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
@@ -20,6 +20,27 @@ Future<DbTpmSshProbeResult> tpmSshProbe() =>
 Future<DbTpmSshImportResult> tpmSshGenerate({
   required DbTpmSshGenerateArgs args,
 }) => RustLib.instance.api.crateApiTpmSshTpmSshGenerate(args: args);
+
+/// Path-variant entry point for the desktop file picker. The
+/// picker returns an OS path (mobile picker returns in-memory
+/// bytes — that branch keeps using [`tpm_ssh_import_blob`]).
+/// Reading the file Rust-side keeps the blob bytes out of the
+/// Dart heap and lets the size cap enforce a single fixed
+/// rejection point.
+///
+/// Errors are pinned to fixed keys so the Dart caller can
+/// localise them through `localizeError`:
+/// - `"file_too_large"` when the file exceeds [`TPM_BLOB_MAX_BYTES`].
+/// - `"no_such_file_or_directory"` when `path` does not exist.
+/// - `"permission_denied"` when the read syscall fails with EACCES.
+/// - `"io: <kind>"` for every other I/O failure.
+Future<String> tpmSshImportBlobFromPath({
+  required String path,
+  required String label,
+}) => RustLib.instance.api.crateApiTpmSshTpmSshImportBlobFromPath(
+  path: path,
+  label: label,
+);
 
 /// Import a wrapped TPM blob (`.tpm` file, TSS2 PRIVATE KEY format),
 /// then persist it as an `ssh_keys` row. Linux only — Windows CNG

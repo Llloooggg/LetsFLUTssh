@@ -44,11 +44,29 @@ class _FakeTpmBackend extends TpmBackend {
         );
   }
 
+  List<int>? lastImportBlob;
+  String? lastImportLabel;
+  String? lastImportPath;
+
   @override
   Future<String> importBlob({
     required List<int> blob,
     required String label,
-  }) async => 'imported-k1';
+  }) async {
+    lastImportBlob = blob;
+    lastImportLabel = label;
+    return 'imported-k1';
+  }
+
+  @override
+  Future<String> importBlobFromPath({
+    required String path,
+    required String label,
+  }) async {
+    lastImportPath = path;
+    lastImportLabel = label;
+    return 'imported-k1';
+  }
 }
 
 Widget _silentBadgeBuilder(BuildContext ctx) => const Center(
