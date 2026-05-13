@@ -8,7 +8,6 @@ import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/frb_generated.dart' show RustLib;
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
-import 'early_wipe.dart';
 
 /// Minimal `MaterialApp` shown when an unrecoverable startup failure
 /// stops the app before it can hand control to the normal UI.
@@ -22,17 +21,15 @@ import 'early_wipe.dart';
 /// button calls `WipeAllService.wipeAll()` — destroying their on-disk
 /// data over what is usually a transient bundle / packaging issue.
 ///
-/// The "Wipe all data and quit" button tries the canonical Rust-side
-/// [WipeAllService.wipeAll] first — it loads the Rust core lazily on
-/// click (the cost lands AFTER the user explicitly decides to wipe,
-/// not on the dialog open) so a clean wipe covers files + keychain +
-/// hardware-vault entries. Only when `RustLib.init` itself fails
-/// (broken bundle, missing native blob — the `_initRustCoreOrFatal`
-/// case) does the handler fall through to the Dart-only sweep in
-/// [earlyWipeAppSupportFiles], which enumerates the immediate
-/// children of `<app_support>` and deletes each. Keychain /
-/// hardware-vault orphans left behind resurface on the next launch
-/// and route through the normal tier-reset dialog.
+/// The "Wipe all data and quit" button runs the canonical Rust-side
+/// [WipeAllService.wipeAll] — it loads the Rust core lazily on click
+/// (the cost lands AFTER the user explicitly decides to wipe, not on
+/// the dialog open) so a clean wipe covers files + keychain +
+/// hardware-vault entries in one transaction. When the Rust init
+/// retry itself fails (broken bundle, missing native blob persisting
+/// across the retry), the handler logs critical and exits — at that
+/// point the bundle is corrupted in a way the in-process wipe cannot
+/// recover from and the user has to reinstall.
 ///
 /// Runs *before* `LetsFLUTsshApp` resolves its theme + widget
 /// registry, so shared primitives like `AppButton` / `AppDialog` are
@@ -79,30 +76,23 @@ class _FatalErrorAppState extends State<FatalErrorApp> {
     );
     if (confirmed != true) return;
     setState(() => _wiping = true);
-    // Prefer the canonical Rust path: it covers keychain + hardware
-    // vault + writes the `.wipe-pending` crash-safety marker. We only
-    // reach this dialog before `_initRustCoreOrFatal` runs, so try
-    // initialising the core lazily here. If that succeeds we hand off
-    // to `WipeAllService.wipeAll`; if it fails (the native blob is
-    // the actual broken artefact), fall through to the Dart-only
-    // file sweep — partial but still removes every managed file under
-    // app-support, with the next launch's `_handleLegacyStateIfPresent`
-    // mopping up keychain / hw-vault orphans.
-    var ranCanonical = false;
+    // Lazy Rust-core init runs here so the cost lands AFTER the
+    // user explicitly committed to wiping. The canonical
+    // `WipeAllService.wipeAll` covers files + keychain + hardware
+    // vault + the `.wipe-pending` crash-safety marker in one
+    // transaction. If the retry init fails the bundle is corrupted
+    // in a way an in-process wipe cannot recover from — log
+    // critical and exit so the user knows to reinstall.
     try {
       await RustLib.init();
       await rust_app.appInit();
       await WipeAllService().wipeAll();
-      ranCanonical = true;
     } catch (e) {
       await AppLogger.instance.logCritical(
-        'FatalErrorApp wipe: Rust path failed, falling back to Dart-only sweep',
+        'FatalErrorApp wipe: Rust init / wipe failed; exiting',
         name: 'FatalErrorApp',
         error: e,
       );
-    }
-    if (!ranCanonical) {
-      await earlyWipeAppSupportFiles();
     }
     exit(0);
   }
