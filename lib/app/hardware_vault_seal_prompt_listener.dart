@@ -63,13 +63,16 @@ class HardwareVaultSealPromptListener {
     rust_bus.BusEvent_HardwareVaultSealPromptRequest event,
   ) async {
     final id = event.promptId;
-    // PIN bytes still come Dart-side because `_deriveAuth` HMAC's
-    // them under a fresh per-install salt before handing the
-    // computed auth value to the platform vault — that derivation
-    // is Dart-only, so a PIN String must materialise here.
-    // The DB key, by contrast, never crosses the FRB boundary as
-    // bytes: `storeFromSecret` reads it from `SecretStore` server-
-    // side and feeds the platform vault directly. The orchestrator
+    // PIN bytes still come Dart-side because the orchestrator
+    // stages the user-typed string in `SecretStore` for this
+    // listener to pick up; the combined
+    // `hardwareTierVaultStoreFromSecretWithPin` call HMACs the
+    // String Rust-side under a fresh per-install salt, so the
+    // PIN crosses FRB once into the combined call and the derived
+    // auth value never leaves Rust. The DB key never crosses the
+    // FRB boundary either: `storeFromSecret` reads it from
+    // `SecretStore` server-side and feeds the platform vault
+    // directly. The orchestrator
     // (`tier_unlock_orchestrator::first_launch_hardware`) drains
     // the SecretStore slot after we resolve, regardless of which
     // branch fires.

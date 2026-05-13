@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/logger.dart';
 
@@ -41,13 +39,16 @@ import '../../utils/logger.dart';
 /// The PIN itself cannot be the auth value on Apple / Android /
 /// Windows because those APIs do not accept arbitrary secrets —
 /// they gate on biometrics / Hello. The PIN is therefore an
-/// **external HMAC gate**: Dart computes `HMAC(pin, salt)` and hands
-/// it to the native side, which refuses to unseal unless the gate
-/// matches the value saved on `store`. Wrong PIN fails locally
-/// without waking the biometric prompt. On Apple / Android / Windows
-/// the salt lives in `hardware_vault_salt.bin` next to the wrapped
-/// key; on Linux it's co-located inside `hardware_vault.bin` since
-/// the entire envelope is one file.
+/// **external HMAC gate**: the user-typed PIN crosses FRB once into
+/// the combined `hardwareTierVaultStoreWithPin` /
+/// `hardwareTierVaultReadWithPin` / `…StoreFromSecretWithPin` call,
+/// Rust HMACs it under the per-install salt, and the native side
+/// refuses to unseal unless the gate matches the value saved on
+/// `store`. Wrong PIN fails locally without waking the biometric
+/// prompt. On Apple / Android / Windows the salt lives in
+/// `hardware_vault_salt.bin` next to the wrapped key; on Linux it's
+/// co-located inside `hardware_vault.bin` since the entire envelope
+/// is one file.
 class HardwareTierVault {
   HardwareTierVault();
 
@@ -121,24 +122,19 @@ class HardwareTierVault {
       if (!await isAvailable()) return false;
       try {
         final dir = await getApplicationSupportDirectory();
-        // Provision-then-vault: a fresh salt lands on disk
-        // (sibling file on Apple / Windows / Android, no-op on
-        // Linux where the salt embeds inside the envelope) BEFORE
-        // the platform vault is touched. A crash between the two
-        // would otherwise leave the native side wrapping bytes
-        // against a salt that no longer exists on disk →
-        // permanent lockout because the next read re-derives
-        // `_deriveAuth(pin, fresh_salt)` and the chip refuses to
-        // unwrap.
-        final salt = await rust_vault.hardwareTierVaultProvisionSalt(
-          supportDir: dir.path,
-        );
-        final authValue = _deriveAuth(pin, salt);
-        await rust_vault.hardwareTierVaultStore(
+        // Salt provision, HMAC, and platform-vault store all run
+        // inside the same Rust task — the PIN crosses FRB once
+        // into `hardwareTierVaultStoreWithPin` and the derived
+        // auth value never leaves Rust. Salt-then-vault ordering
+        // still applies: a crash between the salt write and the
+        // vault store leaves the next launch with a sibling salt
+        // and no wrapped key, which `is_stored` surfaces as
+        // "not configured" and the next attempt re-provisions
+        // cleanly.
+        await rust_vault.hardwareTierVaultStoreWithPin(
           supportDir: dir.path,
           dbKey: dbKey,
-          salt: salt,
-          pinHmac: authValue,
+          pin: pin ?? '',
         );
         return true;
       } catch (e) {
@@ -160,8 +156,8 @@ class HardwareTierVault {
   /// SecretRef variant — pulls the DB key from the Rust-side
   /// `SecretStore` under [secretId] instead of materialising it as
   /// `Uint8List` Dart-side. Routes through
-  /// `hardware_tier_vault_store_from_secret` so the bytes never
-  /// cross the FRB boundary.
+  /// `hardware_tier_vault_store_from_secret_with_pin` so neither the
+  /// DB-key bytes nor the derived auth value cross the FRB boundary.
   Future<bool> storeFromSecret({required String secretId, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
@@ -174,16 +170,12 @@ class HardwareTierVault {
         // and the next attempt re-derives a fresh salt cleanly.
         // On Linux the salt rides inside `hardware_vault.bin`,
         // so the provision call returns the bytes without writing
-        // a sibling file.
-        final salt = await rust_vault.hardwareTierVaultProvisionSalt(
-          supportDir: dir.path,
-        );
-        final authValue = _deriveAuth(pin, salt);
-        await rust_vault.hardwareTierVaultStoreFromSecret(
+        // a sibling file. The PIN crosses FRB once into the
+        // combined call and the HMAC happens Rust-side.
+        await rust_vault.hardwareTierVaultStoreFromSecretWithPin(
           supportDir: dir.path,
           secretId: secretId,
-          salt: salt,
-          pinHmac: authValue,
+          pin: pin ?? '',
         );
         return true;
       } catch (e) {
@@ -214,19 +206,16 @@ class HardwareTierVault {
       if (!await isAvailable()) return null;
       try {
         final dir = await getApplicationSupportDirectory();
-        // Linux co-locates salt inside `hardware_vault.bin` and
-        // exposes it via `hardwareTierVaultReadBlobSalt`. Apple /
-        // Android / Windows keep it on disk in the sibling
-        // `hardware_vault_salt.bin` read via
-        // `hardwareTierVaultReadSalt`.
-        final salt = Platform.isLinux
-            ? rust_vault.hardwareTierVaultReadBlobSalt(supportDir: dir.path)
-            : await rust_vault.hardwareTierVaultReadSalt(supportDir: dir.path);
-        if (salt == null) return null;
-        final authValue = _deriveAuth(pin, salt);
-        return await rust_vault.hardwareTierVaultRead(
+        // Combined read: salt resolution (Linux co-located inside
+        // `hardware_vault.bin`, others sibling
+        // `hardware_vault_salt.bin`), HMAC under that salt, and
+        // platform-vault unwrap all run inside the same Rust
+        // task. The PIN crosses FRB once into
+        // `hardwareTierVaultReadWithPin` and the derived auth
+        // value never leaves Rust.
+        return await rust_vault.hardwareTierVaultReadWithPin(
           supportDir: dir.path,
-          pinHmac: authValue,
+          pin: pin ?? '',
         );
       } catch (e) {
         AppLogger.instance.log(
@@ -311,26 +300,6 @@ class HardwareTierVault {
         name: 'HardwareTierVault',
       );
     }
-  }
-
-  /// Derive a 32-byte auth value from the user's PIN + the
-  /// per-install salt. HMAC-SHA256 rather than Argon2id because the
-  /// hardware lockout is the rate limiter; slowing this derivation
-  /// would only slow the legitimate user. Salting still matters —
-  /// it keeps the sealed blob device-specific even when two users
-  /// pick the same PIN.
-  ///
-  /// HMAC the typed pin under the per-install [salt], or return an
-  /// empty auth value when the caller passed null / empty — the
-  /// "passwordless T2" path. The empty value is a stable choice:
-  /// every store / read pair derived this way agrees byte-for-byte,
-  /// so a vault sealed passwordless always unseals passwordless.
-  Uint8List _deriveAuth(String? pin, Uint8List salt) {
-    if (pin == null || pin.isEmpty) return Uint8List(0);
-    return rust_crypto.cryptoHmacSha256(
-      key: salt,
-      message: Uint8List.fromList(utf8.encode(pin)),
-    );
   }
 
   /// Resolve the TPM / hw-vault auth value for a (password, biometric)

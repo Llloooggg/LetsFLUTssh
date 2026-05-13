@@ -228,6 +228,36 @@ pub async fn hardware_tier_vault_store(
         .map_err(|e| format!("hw_vault store join: {e}"))?
 }
 
+/// Combined provision-salt + derive-auth + store. Keeps the PIN
+/// String inside the Rust process — it crosses FRB once into this
+/// call, the HMAC happens here under the freshly provisioned salt,
+/// and the auth value never leaves Rust. Mirrors the salt-then-vault
+/// ordering documented on [`hardware_tier_vault_provision_salt`]:
+/// a crash between the salt write and the platform store leaves the
+/// `is_stored` probe surfacing "not configured" so the next attempt
+/// re-provisions cleanly.
+///
+/// Empty `pin` resolves to an empty auth value — the passwordless
+/// arm preserved for the bank-style modifier model. An attacker
+/// still needs TPM / Secure Enclave access to unseal (cold-disk
+/// theft is still mitigated); there is simply no user-typed gate
+/// on top.
+pub async fn hardware_tier_vault_store_with_pin(
+    support_dir: String,
+    db_key: Vec<u8>,
+    pin: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let dir = std::path::Path::new(&support_dir);
+        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir)
+            .map_err(|e| format!("hw_vault salt provision: {e}"))?;
+        let auth = derive_auth_for_pin(&pin, &salt);
+        dispatch_store(&support_dir, &db_key, &salt, &auth)
+    })
+    .await
+    .map_err(|e| format!("hw_vault store_with_pin join: {e}"))?
+}
+
 /// Variant of [`hardware_tier_vault_store`] that pulls `db_key` from
 /// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead of
 /// taking it across the FRB boundary. Same SecretRef shape as
@@ -251,6 +281,31 @@ pub async fn hardware_tier_vault_store_from_secret(
     })
     .await
     .map_err(|e| format!("hw_vault store_from_secret join: {e}"))?
+}
+
+/// SecretRef + combined-PIN variant of [`hardware_tier_vault_store`].
+/// Pulls the DB key from [`lfs_core::secrets::SecretStore`] under
+/// `secret_id` and HMACs the typed `pin` under a freshly provisioned
+/// salt — both the DB-key bytes and the auth value stay Rust-side.
+/// PIN crosses FRB once into this call and never returns.
+pub async fn hardware_tier_vault_store_from_secret_with_pin(
+    support_dir: String,
+    secret_id: String,
+    pin: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let dir = std::path::Path::new(&support_dir);
+        let bytes = lfs_core::app::instance()
+            .secrets
+            .get(&secret_id)
+            .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir)
+            .map_err(|e| format!("hw_vault salt provision: {e}"))?;
+        let auth = derive_auth_for_pin(&pin, &salt);
+        dispatch_store(&support_dir, &bytes, &salt, &auth)
+    })
+    .await
+    .map_err(|e| format!("hw_vault store_from_secret_with_pin join: {e}"))?
 }
 
 /// Generate a fresh 32-byte salt via `OsRng` and write it
@@ -322,6 +377,56 @@ pub async fn hardware_tier_vault_read(
     tokio::task::spawn_blocking(move || dispatch_read(&support_dir, &pin_hmac))
         .await
         .map_err(|e| format!("hw_vault read join: {e}"))?
+}
+
+/// Combined read-salt + derive-auth + unseal. Resolves the on-disk
+/// salt for the current target (Linux pulls it from inside
+/// `hardware_vault.bin`; Apple / Android / Windows read the sibling
+/// `hardware_vault_salt.bin`), HMACs `pin` under that salt, and asks
+/// the platform vault to unwrap the DB key. PIN crosses FRB once
+/// into this call and never returns.
+///
+/// `Ok(None)` covers every miss the existing
+/// [`hardware_tier_vault_read`] returns `Ok(None)` for (missing
+/// salt / vault, wrong PIN). Empty `pin` derives the empty
+/// auth value — a vault sealed under the passwordless arm unseals
+/// the same way.
+pub async fn hardware_tier_vault_read_with_pin(
+    support_dir: String,
+    pin: String,
+) -> Result<Option<Vec<u8>>, String> {
+    tokio::task::spawn_blocking(move || {
+        let Some(salt) = read_existing_salt(&support_dir)? else {
+            return Ok(None);
+        };
+        let auth = derive_auth_for_pin(&pin, &salt);
+        dispatch_read(&support_dir, &auth)
+    })
+    .await
+    .map_err(|e| format!("hw_vault read_with_pin join: {e}"))?
+}
+
+/// Derive the platform-vault auth value from a user-typed PIN +
+/// per-install salt. Routes the non-empty path through
+/// [`lfs_core::security::hardware_tier_vault::resolve_auth_value`]
+/// so the HMAC composition lives one place across the password-only
+/// and combined-PIN paths. Empty PIN short-circuits to an empty
+/// auth value — the passwordless arm; `resolve_auth_value` rejects
+/// an empty `AuthIntent::Password` payload as "modifier resolution
+/// failed", and the combined call needs the stable empty-bytes
+/// shape so a vault sealed passwordless unseals passwordless.
+fn derive_auth_for_pin(pin: &str, salt: &[u8]) -> Vec<u8> {
+    if pin.is_empty() {
+        return Vec::new();
+    }
+    lfs_core::security::hardware_tier_vault::resolve_auth_value(
+        lfs_core::security::hardware_tier_vault::AuthIntent::Password(pin),
+        salt,
+    )
+    // The empty-payload arm is unreachable above; resolve falls
+    // through to the password HMAC and returns `Some`.
+    .map(|z| z.to_vec())
+    .unwrap_or_default()
 }
 
 /// SecretRef variant of [`hardware_tier_vault_read`]. Unwraps the
@@ -739,5 +844,50 @@ mod tests {
             .await
             .unwrap_err();
         assert!(err.contains("empty"));
+    }
+
+    #[test]
+    fn derive_auth_for_empty_pin_returns_empty_bytes() {
+        // Combined-PIN store / read keeps the passwordless arm of
+        // the bank-style modifier model: a vault sealed under an
+        // empty user-typed PIN must unseal under the same empty
+        // auth value. `resolve_auth_value` rejects empty payloads
+        // as "modifier resolution failed" (None); the combined
+        // call short-circuits to empty bytes instead so the
+        // store / read pair agrees byte-for-byte.
+        let salt = vec![0x11; 32];
+        let auth = derive_auth_for_pin("", &salt);
+        assert!(auth.is_empty());
+    }
+
+    #[test]
+    fn derive_auth_for_pin_matches_resolve_auth_value() {
+        // Non-empty PIN routes through
+        // `lfs_core::security::hardware_tier_vault::resolve_auth_value`
+        // so the HMAC composition lives one place across the
+        // password-only and combined-PIN paths. Pin equality so a
+        // future refactor that re-implements the HMAC inline would
+        // surface as a test failure.
+        let salt = vec![0x22; 32];
+        let pin = "hunter2";
+        let combined = derive_auth_for_pin(pin, &salt);
+        let expected = lfs_core::security::hardware_tier_vault::resolve_auth_value(
+            lfs_core::security::hardware_tier_vault::AuthIntent::Password(pin),
+            &salt,
+        )
+        .expect("non-empty password resolves")
+        .to_vec();
+        assert_eq!(combined, expected);
+    }
+
+    #[test]
+    fn derive_auth_for_pin_is_salt_sensitive() {
+        // Different salts produce different auth values for the
+        // same typed PIN — the salt is what keeps the sealed blob
+        // device-specific even when two users pick the same PIN.
+        let pin = "1234";
+        let a = derive_auth_for_pin(pin, &[0x00; 32]);
+        let b = derive_auth_for_pin(pin, &[0x01; 32]);
+        assert_ne!(a, b);
     }
 }

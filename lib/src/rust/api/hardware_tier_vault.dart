@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_linux_vault_error`, `read_existing_salt`, `reseal_blocking`
+// These functions are ignored because they are not marked as `pub`: `derive_auth_for_pin`, `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_linux_vault_error`, `read_existing_salt`, `reseal_blocking`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Encode the salt + sealed-blob pair as the JSON envelope written
@@ -93,6 +93,31 @@ Future<void> hardwareTierVaultStore({
   pinHmac: pinHmac,
 );
 
+/// Combined provision-salt + derive-auth + store. Keeps the PIN
+/// String inside the Rust process — it crosses FRB once into this
+/// call, the HMAC happens here under the freshly provisioned salt,
+/// and the auth value never leaves Rust. Mirrors the salt-then-vault
+/// ordering documented on [`hardware_tier_vault_provision_salt`]:
+/// a crash between the salt write and the platform store leaves the
+/// `is_stored` probe surfacing "not configured" so the next attempt
+/// re-provisions cleanly.
+///
+/// Empty `pin` resolves to an empty auth value — the passwordless
+/// arm preserved for the bank-style modifier model. An attacker
+/// still needs TPM / Secure Enclave access to unseal (cold-disk
+/// theft is still mitigated); there is simply no user-typed gate
+/// on top.
+Future<void> hardwareTierVaultStoreWithPin({
+  required String supportDir,
+  required List<int> dbKey,
+  required String pin,
+}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultStoreWithPin(
+      supportDir: supportDir,
+      dbKey: dbKey,
+      pin: pin,
+    );
+
 /// Variant of [`hardware_tier_vault_store`] that pulls `db_key` from
 /// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead of
 /// taking it across the FRB boundary. Same SecretRef shape as
@@ -112,6 +137,22 @@ Future<void> hardwareTierVaultStoreFromSecret({
       secretId: secretId,
       salt: salt,
       pinHmac: pinHmac,
+    );
+
+/// SecretRef + combined-PIN variant of [`hardware_tier_vault_store`].
+/// Pulls the DB key from [`lfs_core::secrets::SecretStore`] under
+/// `secret_id` and HMACs the typed `pin` under a freshly provisioned
+/// salt — both the DB-key bytes and the auth value stay Rust-side.
+/// PIN crosses FRB once into this call and never returns.
+Future<void> hardwareTierVaultStoreFromSecretWithPin({
+  required String supportDir,
+  required String secretId,
+  required String pin,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultStoreFromSecretWithPin(
+      supportDir: supportDir,
+      secretId: secretId,
+      pin: pin,
     );
 
 /// Generate a fresh 32-byte salt via `OsRng` and write it
@@ -163,6 +204,27 @@ Future<Uint8List?> hardwareTierVaultRead({
   supportDir: supportDir,
   pinHmac: pinHmac,
 );
+
+/// Combined read-salt + derive-auth + unseal. Resolves the on-disk
+/// salt for the current target (Linux pulls it from inside
+/// `hardware_vault.bin`; Apple / Android / Windows read the sibling
+/// `hardware_vault_salt.bin`), HMACs `pin` under that salt, and asks
+/// the platform vault to unwrap the DB key. PIN crosses FRB once
+/// into this call and never returns.
+///
+/// `Ok(None)` covers every miss the existing
+/// [`hardware_tier_vault_read`] returns `Ok(None)` for (missing
+/// salt / vault, wrong PIN). Empty `pin` derives the empty
+/// auth value — a vault sealed under the passwordless arm unseals
+/// the same way.
+Future<Uint8List?> hardwareTierVaultReadWithPin({
+  required String supportDir,
+  required String pin,
+}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadWithPin(
+      supportDir: supportDir,
+      pin: pin,
+    );
 
 /// SecretRef variant of [`hardware_tier_vault_read`]. Unwraps the
 /// hardware-bound DB key and stages it in
