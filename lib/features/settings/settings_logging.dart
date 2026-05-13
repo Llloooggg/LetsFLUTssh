@@ -82,7 +82,7 @@ class _LoggingSection extends ConsumerWidget {
 
       if (outputPath == null || !context.mounted) return;
 
-      await File(outputPath).writeAsString(content);
+      await rust_logger.loggerExportTo(targetPath: outputPath);
       if (context.mounted) {
         Toast.show(
           context,
@@ -142,14 +142,7 @@ class _LogViewerHost extends StatelessWidget {
   });
 
   bool _logFileHasContent() {
-    final path = AppLogger.instance.logPath;
-    if (path == null) return false;
-    try {
-      final file = File(path);
-      return file.existsSync() && file.lengthSync() > 0;
-    } catch (_) {
-      return false;
-    }
+    return rust_logger.loggerLogFileHasContent();
   }
 
   @override

@@ -110,3 +110,28 @@ pub async fn logger_clear_all(max_rotated: u32) -> Result<(), String> {
 pub fn logger_close_sink() -> Result<(), String> {
     lfs_core::logger::file_sink::close_sink()
 }
+
+/// Copy the current log file's contents to the user-picked
+/// `target_path`. Returns the number of bytes written; `0`
+/// when there is no log to export (empty file or no sink open).
+/// The Dart settings-screen "Export log" action wires this to
+/// the platform file-picker's selected destination so the log
+/// content never crosses the FRB boundary on the Dart-write
+/// side.
+pub async fn logger_export_to(target_path: String) -> Result<u64, String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_core::logger::file_sink::export_to(std::path::Path::new(&target_path))
+    })
+    .await
+    .map_err(|e| format!("logger_export_to join: {e}"))?
+}
+
+/// `true` when the held log path exists and is non-empty.
+/// Sync because the Settings → Logs widget probes this on every
+/// rebuild to decide whether to render the viewer block;
+/// `FutureBuilder` on every frame would be the wrong shape for
+/// what is one `stat` syscall.
+#[flutter_rust_bridge::frb(sync)]
+pub fn logger_log_file_has_content() -> bool {
+    lfs_core::logger::file_sink::log_file_has_content()
+}

@@ -87,3 +87,21 @@ Future<void> loggerClearAll({required int maxRotated}) =>
 /// both of which the caller awaits inline so blocking the FRB
 /// worker through a sync hop is the cheaper shape.
 void loggerCloseSink() => RustLib.instance.api.crateApiLoggerLoggerCloseSink();
+
+/// Copy the current log file's contents to the user-picked
+/// `target_path`. Returns the number of bytes written; `0`
+/// when there is no log to export (empty file or no sink open).
+/// The Dart settings-screen "Export log" action wires this to
+/// the platform file-picker's selected destination so the log
+/// content never crosses the FRB boundary on the Dart-write
+/// side.
+Future<BigInt> loggerExportTo({required String targetPath}) =>
+    RustLib.instance.api.crateApiLoggerLoggerExportTo(targetPath: targetPath);
+
+/// `true` when the held log path exists and is non-empty.
+/// Sync because the Settings → Logs widget probes this on every
+/// rebuild to decide whether to render the viewer block;
+/// `FutureBuilder` on every frame would be the wrong shape for
+/// what is one `stat` syscall.
+bool loggerLogFileHasContent() =>
+    RustLib.instance.api.crateApiLoggerLoggerLogFileHasContent();

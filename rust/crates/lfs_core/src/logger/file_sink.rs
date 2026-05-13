@@ -253,6 +253,45 @@ pub fn read_all() -> Result<String, String> {
     Ok(buf)
 }
 
+/// Copy the current log file's contents to `target_path`. The
+/// Dart-side log-export action lets the user pick a destination
+/// path through the platform file picker; the actual read +
+/// write now runs Rust-side so `dart:io File.writeAsString`
+/// never participates. Returns the number of bytes written, or
+/// `Ok(0)` if no log is open / the source file is missing
+/// (matches `read_all`'s "no log" sentinel).
+///
+/// Errors surface as a single `String` (FRB boundary). The
+/// caller renders these as the "log export failed" toast.
+pub fn export_to(target_path: &std::path::Path) -> Result<u64, String> {
+    let content = read_all()?;
+    if content.is_empty() {
+        return Ok(0);
+    }
+    std::fs::write(target_path, content.as_bytes())
+        .map_err(|e| format!("write {}: {e}", target_path.display()))?;
+    Ok(content.len() as u64)
+}
+
+/// True when the held log path exists and is non-empty. Sync
+/// because the `_LogViewerHost` widget calls this from `build()`
+/// to decide whether to render the viewer at all; routing
+/// through an async FRB hop would force a `FutureBuilder` on
+/// every rebuild for what is a single `stat` syscall.
+pub fn log_file_has_content() -> bool {
+    let guard = match STATE.lock() {
+        Ok(g) => g,
+        Err(_) => return false,
+    };
+    let Some(path) = guard.log_path.as_ref() else {
+        return false;
+    };
+    match std::fs::metadata(path) {
+        Ok(meta) => meta.is_file() && meta.len() > 0,
+        Err(_) => false,
+    }
+}
+
 /// Rotate the current log file if it exceeds [`max_bytes`].
 ///
 /// The on-disk chain is `<log>` → `<log>.1` → `<log>.2` → … →

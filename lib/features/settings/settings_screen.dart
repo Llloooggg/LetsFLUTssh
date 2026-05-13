@@ -23,6 +23,7 @@ import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/fido2.dart' as rust_fido2;
 import '../../src/rust/api/format.dart' as rust_format;
+import '../../src/rust/api/logger.dart' as rust_logger;
 import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
 import '../../src/rust/api/ssh_agent.dart' as rust_ssh_agent;
