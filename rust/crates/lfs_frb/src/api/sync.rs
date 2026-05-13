@@ -180,6 +180,8 @@ pub struct DbSyncConfig {
     pub last_pulled_at_ms: i64,
     pub last_pushed_sha256: String,
     pub last_pushed_etag: String,
+    pub last_pulled_etag: String,
+    pub last_pulled_sha256: String,
 }
 
 impl From<lfs_core::config::SyncConfig> for DbSyncConfig {
@@ -196,6 +198,8 @@ impl From<lfs_core::config::SyncConfig> for DbSyncConfig {
             last_pulled_at_ms: c.last_pulled_at_ms,
             last_pushed_sha256: c.last_pushed_sha256,
             last_pushed_etag: c.last_pushed_etag,
+            last_pulled_etag: c.last_pulled_etag,
+            last_pulled_sha256: c.last_pulled_sha256,
         }
     }
 }
@@ -214,6 +218,8 @@ impl From<DbSyncConfig> for lfs_core::config::SyncConfig {
             last_pulled_at_ms: c.last_pulled_at_ms,
             last_pushed_sha256: c.last_pushed_sha256,
             last_pushed_etag: c.last_pushed_etag,
+            last_pulled_etag: c.last_pulled_etag,
+            last_pulled_sha256: c.last_pulled_sha256,
         }
     }
 }

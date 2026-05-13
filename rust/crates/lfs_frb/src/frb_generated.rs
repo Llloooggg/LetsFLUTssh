@@ -25680,6 +25680,8 @@ impl SseDecode for crate::api::sync::DbSyncConfig {
         let mut var_lastPulledAtMs = <i64>::sse_decode(deserializer);
         let mut var_lastPushedSha256 = <String>::sse_decode(deserializer);
         let mut var_lastPushedEtag = <String>::sse_decode(deserializer);
+        let mut var_lastPulledEtag = <String>::sse_decode(deserializer);
+        let mut var_lastPulledSha256 = <String>::sse_decode(deserializer);
         return crate::api::sync::DbSyncConfig {
             enabled: var_enabled,
             webdav_url: var_webdavUrl,
@@ -25692,6 +25694,8 @@ impl SseDecode for crate::api::sync::DbSyncConfig {
             last_pulled_at_ms: var_lastPulledAtMs,
             last_pushed_sha256: var_lastPushedSha256,
             last_pushed_etag: var_lastPushedEtag,
+            last_pulled_etag: var_lastPulledEtag,
+            last_pulled_sha256: var_lastPulledSha256,
         };
     }
 }
@@ -31960,6 +31964,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::DbSyncConfig {
             self.last_pulled_at_ms.into_into_dart().into_dart(),
             self.last_pushed_sha256.into_into_dart().into_dart(),
             self.last_pushed_etag.into_into_dart().into_dart(),
+            self.last_pulled_etag.into_into_dart().into_dart(),
+            self.last_pulled_sha256.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -35382,6 +35388,8 @@ impl SseEncode for crate::api::sync::DbSyncConfig {
         <i64>::sse_encode(self.last_pulled_at_ms, serializer);
         <String>::sse_encode(self.last_pushed_sha256, serializer);
         <String>::sse_encode(self.last_pushed_etag, serializer);
+        <String>::sse_encode(self.last_pulled_etag, serializer);
+        <String>::sse_encode(self.last_pulled_sha256, serializer);
     }
 }
 

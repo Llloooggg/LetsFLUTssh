@@ -2560,7 +2560,7 @@ class ConfigNotifier {
 | **v3** | The security-tier model is fully bank-style: `security_tier` carries one of `{plaintext, keychain, hardware, paranoid}` and the `password` / `biometric` switches live in `security_modifiers`. v2 still carried `keychain_with_password` as its own tier value alongside the modifiers — half-finished migration from the per-combination enum shape. v3 finishes the collapse. | `ConfigV2ToV3` (`lfs_core::migration::artefacts`): rewrites `security_tier == "keychain_with_password"` to `tier == "keychain"` + `modifiers.password = true`, stamps `config_schema_version: 3`, writes via `path::write_bytes_atomic`. |
 | **v4** | Drops the legacy `biometric_shortcut` / `pin_length` fields from `security_modifiers`. Both were retained as backward-compat aliases after the bank-style password modifier landed; v4 retires them entirely (no runtime caller, deprecated 1:1 alias). | `ConfigV3ToV4` (`lfs_core::migration::artefacts`): removes the two fields from `security_modifiers` if present, stamps `config_schema_version: 4`, writes via `path::write_bytes_atomic`. Idempotent on already-stripped configs. |
 | **v5** | Adds `recordings_storage_cap_bytes` at the top level (default 500 MiB) so the recorder's LRU eviction sweep has a user-configurable byte ceiling persisted alongside the rest of the preferences. v4 readers had no such field — without the cutover the cap would key off the runtime default every launch and a hand-edited value could never persist. Sanitiser clamps zero / above 1 TiB to the default. | `ConfigV4ToV5` (`lfs_core::migration::artefacts`): inserts `recordings_storage_cap_bytes: 524288000` when missing, stamps `config_schema_version: 5`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
-| **v6** | Adds the `sync_*` family of fields (`sync_enabled`, `sync_webdav_url`, `sync_webdav_username`, `sync_webdav_password_ref`, `sync_webdav_auth_method`, `sync_passphrase_ref`, `sync_remote_path`, `sync_last_pushed_at_ms`, `sync_last_pulled_at_ms`, `sync_last_pushed_sha256`, `sync_last_pushed_etag`) so the WebDAV sync orchestrator ([§3.15](#315-sync-via-webdav-rustcrateslfs_coresrcsync)) has a place to persist endpoint config + last-push state alongside the rest of `AppConfig`. Plaintext credentials live in `lfs_core::secrets::SecretStore`; only the two ref-ids land here. `strip_for_export` drops every `sync_*` key before the JSON enters an `.lfs` archive — sync state is per-install, not portable. | `ConfigV5ToV6` (`lfs_core::migration::artefacts`): stamps the defaults from `SyncConfig::default` for every missing `sync_*` key, stamps `config_schema_version: 6`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
+| **v6** | Adds the `sync_*` family of fields (`sync_enabled`, `sync_webdav_url`, `sync_webdav_username`, `sync_webdav_password_ref`, `sync_webdav_auth_method`, `sync_passphrase_ref`, `sync_remote_path`, `sync_last_pushed_at_ms`, `sync_last_pulled_at_ms`, `sync_last_pushed_sha256`, `sync_last_pushed_etag`) so the WebDAV sync orchestrator ([§3.15](#315-sync-via-webdav-rustcrateslfs_coresrcsync)) has a place to persist endpoint config + last-push state alongside the rest of `AppConfig`. Plaintext credentials live in `lfs_core::secrets::SecretStore`; only the two ref-ids land here. `strip_for_export` drops every `sync_*` key before the JSON enters an `.lfs` archive — sync state is per-install, not portable. The `sync_last_pulled_etag` and `sync_last_pulled_sha256` slots were added additively after v6 shipped — the reader defaults missing fields to empty string per the `SyncConfig::from_json_object` shape, so existing v6/v7 configs round-trip without a schema bump. | `ConfigV5ToV6` (`lfs_core::migration::artefacts`): stamps the defaults from `SyncConfig::default` for every missing `sync_*` key, stamps `config_schema_version: 6`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
 | **v7** (current) | Hardware (T2) tier is mandatory-password: `security_modifiers.password = true` is the only valid shape for `security_tier == "hardware"`. v6 still allowed `password = false` (the "passwordless T2" arm) but the wrapped DB key on disk was sealed under the empty PIN-HMAC — wrong threat model, biometric was acting as the primary unlock instead of the optional shortcut. v7 flips the modifier on every existing Hardware install. Pre-flip configs leave a sibling `.hardware_v7_password_set_pending` marker so the next bootstrap routes the password-set wizard ahead of the regular unlock path (the empty-PIN seal cannot be unsealed once the unlock dispatcher requires a typed secret). | `ConfigV6ToV7` (`lfs_core::migration::artefacts`): rewrites `security_modifiers.password = true` for Hardware-tier configs (no-op when already true), writes `.hardware_v7_password_set_pending` for any v6 install that had `password = false`, stamps `config_schema_version: 7`, writes via `path::write_bytes_atomic`. The config rewrite + marker write are sibling atomic writes — a crash between them surfaces as "v7 config + no marker" on the next bootstrap, which the unlock orchestrator handles by short-circuiting to `hardware_password_required` so the user notices instead of looping on wrong-password. The bootstrap wizard ([`HardwarePasswordSetupWizard`](../lib/widgets/hardware_password_setup_wizard.dart)) reads the existing vault under the empty PIN-HMAC, re-seals the same DB key under `HMAC(new_salt, typed_password)`, then clears the marker so the regular unlock path resumes — user data is preserved, only the auth value changes. A wipe-and-restart escape sits on every screen of the wizard for the edge case where the user does not have a usable password to type. |
 
 Bumping further follows the framework's [§3.6 → Bumping an existing artefact's format](#bumping-an-existing-artefacts-format) checklist — every step lives in one place so the next bump doesn't have to re-derive the contract.
@@ -3264,21 +3264,37 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[pull request] --> B[PROPFIND depth=0]
+    A[pull request] --> B[GET with If-None-Match: last_pushed_etag, last_pulled_etag]
+    B -- 304 --> Z3[Ok UpToDate, no body]
     B -- 404 --> Z1[Ok Skipped: no remote archive]
     B -- 401 --> Z2[Err Unauthorized]
-    B -- 2xx --> C{etag == last_pushed_etag?}
-    C -- yes --> Z3[Ok UpToDate]
-    C -- no --> D[GET full body]
-    D --> E[decrypt + parse via read_archive_to_pending]
-    E -- future version --> Z4[Err ArchiveFutureVersion]
-    E -- ok --> F[parse_sync_origin]
-    F --> G{origin starts with our install id?}
-    G -- yes --> Z3
-    G -- no --> H[merge_pending_into_local single tx]
-    H --> I[stamp last_pulled_at_ms]
-    I --> Z5[Ok PullApplied]
+    B -- 200 --> C[read body + ETag header]
+    C --> D[SHA-256 over body bytes]
+    D --> E{sha matches last_pushed_sha256 or last_pulled_sha256?}
+    E -- yes --> Z6[Ok UpToDate, stamp new last_pulled_etag+sha]
+    E -- no --> F[decrypt + parse via parse_archive_bytes]
+    F -- future version --> Z4[Err ArchiveFutureVersion]
+    F -- ok --> G[parse_sync_origin]
+    G --> H{origin starts with our install id?}
+    H -- yes --> Z6
+    H -- no --> I[merge_pending_into_local single tx]
+    I --> J[stamp last_pulled_at_ms + last_pulled_etag + last_pulled_sha256]
+    J --> Z5[Ok PullApplied]
 ```
+
+The pull's hot path is one conditional GET. The `If-None-Match`
+header carries a comma-separated list of the most recent push and
+pull ETags (quoted per RFC 7232); the server returns 304 with no
+body when neither has rotated. PROPFIND is reserved for callers
+that genuinely need the multistatus body (file-browser walk); the
+sync orchestrator does not call it.
+
+The SHA-256 gate is the second-tier short-circuit: a server that
+rotates ETags without changing the body (nginx restart, weak ETags)
+still produces 200, but the plaintext hash compares against the
+caches and skips the decrypt + merge work when either side already
+saw the same bytes. The new ETag is persisted alongside the
+unchanged SHA so the next pull's `If-None-Match` hits 304.
 
 #### LWW merge rules
 
@@ -3320,8 +3336,9 @@ launch and observes its own bytes back"). The pull path strips
 the field via `archive::parse_sync_origin` and skips the merge
 when the origin matches our own id.
 
-The ETag check is the fast-path equivalent: when the remote ETag
-matches `last_pushed_etag`, no body fetch happens.
+The conditional-GET path is the fast-path equivalent: when the
+remote ETag matches either `last_pushed_etag` or `last_pulled_etag`,
+the server replies 304 with no body and no decrypt work runs.
 
 #### ETag conflict resolution
 

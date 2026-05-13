@@ -5,7 +5,8 @@
 //! - [`WebDavClient::propfind`] — list a collection (`depth=1`) or
 //!   stat a single resource (`depth=0`).
 //! - [`WebDavClient::get`] — fetch a resource body, with optional
-//!   byte range (HTTP `Range: bytes=START-END`).
+//!   byte range (HTTP `Range: bytes=START-END`) and optional
+//!   conditional `If-None-Match` for a 304-short-circuit GET.
 //! - [`WebDavClient::put`] — upload, with optional `If-Match`
 //!   ETag for conditional update.
 //! - [`WebDavClient::delete`] — remove.
@@ -40,6 +41,7 @@
 //! | Status | Maps to |
 //! |---|---|
 //! | 2xx | success |
+//! | 304 (GET only) | success (caller branches on `status() == 304`) |
 //! | 401 (Digest) | retry once with parsed challenge |
 //! | 401 (other) | `Error::WebDav("authentication failed")` |
 //! | 403 | `Error::WebDav("forbidden")` |
@@ -175,22 +177,42 @@ impl WebDavClient {
     /// stamps an inclusive `Range: bytes=start-end` header per
     /// HTTP/1.1; the server responds with 206. When `range` is
     /// `None`, requests the full body and expects 200.
+    ///
+    /// `if_none_match` carries an RFC 7232 `If-None-Match` header
+    /// value when the caller wants a conditional GET. The header
+    /// accepts a comma-separated list of quoted ETags or `*` and
+    /// is forwarded verbatim — callers assemble the list. A 304
+    /// response is returned to the caller (NOT mapped to an
+    /// `Error`) so the conditional-GET path can branch on
+    /// `response.status() == 304` without losing the headers.
     pub async fn get(
         &self,
         path: &str,
         range: Option<(u64, u64)>,
+        if_none_match: Option<&str>,
     ) -> Result<reqwest::Response, Error> {
         let url = self.join(path)?;
         let response = self
             .send(Method::GET, &url, |rb| {
-                if let Some((start, end)) = range {
+                let rb = if let Some((start, end)) = range {
                     rb.header("Range", format!("bytes={start}-{end}"))
+                } else {
+                    rb
+                };
+                if let Some(inm) = if_none_match {
+                    rb.header("If-None-Match", inm)
                 } else {
                     rb
                 }
             })
             .await?;
         let status = response.status();
+        // 304 is a successful conditional outcome — surface it to
+        // the caller with the response intact so headers (ETag,
+        // Last-Modified) round-trip without a body read.
+        if status.as_u16() == 304 {
+            return Ok(response);
+        }
         if !status.is_success() {
             return Err(map_status_error(status, "get"));
         }
@@ -436,7 +458,7 @@ async fn response_body_capped(response: reqwest::Response) -> Result<Vec<u8>, Er
 /// Wrap an ETag in double quotes for `If-Match` regardless of
 /// whether the caller stripped them. Servers expect the quoted
 /// form per RFC 7232.
-fn quote_etag(etag: &str) -> String {
+pub(crate) fn quote_etag(etag: &str) -> String {
     let trimmed = etag.trim();
     if trimmed.starts_with('"') && trimmed.ends_with('"') {
         return trimmed.to_string();
@@ -448,7 +470,7 @@ fn quote_etag(etag: &str) -> String {
 /// Same logic as the parser but accepts the value as raw header
 /// bytes rather than re-using the parser-internal helper (kept
 /// inline to avoid a `pub` widen on the parser fn).
-fn normalise_etag_header(raw: &str) -> String {
+pub(crate) fn normalise_etag_header(raw: &str) -> String {
     let trimmed = raw.trim();
     let stripped = trimmed
         .strip_prefix("W/")
@@ -610,9 +632,44 @@ mod tests {
             .await;
         let base = format!("{}/dav/", server.uri());
         let client = make_client(&base);
-        let response = client.get("data.bin", Some((10, 19))).await.unwrap();
+        let response = client.get("data.bin", Some((10, 19)), None).await.unwrap();
         let bytes = response.bytes().await.unwrap();
         assert_eq!(&bytes[..], b"0123456789");
+    }
+
+    #[tokio::test]
+    async fn get_with_if_none_match_304_returns_response_without_error() {
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/file.lfs"))
+            .and(wiremock::matchers::header_exists("if-none-match"))
+            .respond_with(ResponseTemplate::new(304))
+            .mount(&server)
+            .await;
+        let base = format!("{}/dav/", server.uri());
+        let client = make_client(&base);
+        let response = client
+            .get("file.lfs", None, Some("\"e1\", \"e2\""))
+            .await
+            .expect("304 is not an error");
+        assert_eq!(response.status().as_u16(), 304);
+    }
+
+    #[tokio::test]
+    async fn get_without_if_none_match_omits_the_header() {
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/file"))
+            .and(wiremock::matchers::header_exists("authorization"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"ok".to_vec()))
+            .mount(&server)
+            .await;
+        let base = format!("{}/dav/", server.uri());
+        let client = make_client(&base);
+        let response = client.get("file", None, None).await.unwrap();
+        assert!(response.headers().get("if-none-match").is_none());
+        let body = response.bytes().await.unwrap();
+        assert_eq!(&body[..], b"ok");
     }
 
     #[tokio::test]
@@ -641,7 +698,7 @@ mod tests {
         };
         let base = format!("{}/dav/", server.uri());
         let client = WebDavClient::new(&base, creds).unwrap();
-        let response = client.get("file", None).await.unwrap();
+        let response = client.get("file", None, None).await.unwrap();
         let body = response.bytes().await.unwrap();
         assert_eq!(&body[..], b"ok");
     }

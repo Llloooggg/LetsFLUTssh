@@ -81,7 +81,7 @@ impl Provider for WebDavProvider {
         range: Option<(u64, u64)>,
     ) -> ProviderFuture<'a, ByteStream> {
         Box::pin(async move {
-            let response = self.client.get(path, range).await?;
+            let response = self.client.get(path, range, None).await?;
             // `bytes_stream` yields `Result<Bytes, reqwest::Error>`;
             // map the error onto the project's typed `Error::WebDav`
             // so the trait's `ByteStream = BoxStream<Result<Bytes, Error>>`

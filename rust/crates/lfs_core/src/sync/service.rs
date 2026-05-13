@@ -45,6 +45,7 @@ use crate::archive::{self, parse_sync_origin, ExportInput, ExportOptions, Pendin
 use crate::config::{strip_for_export, SyncConfig};
 use crate::error::Error;
 use crate::migration::SchemaVersions;
+use crate::webdav::client::{normalise_etag_header, quote_etag};
 use crate::webdav::{AuthMethod, Credentials, WebDavClient};
 
 use super::merge::merge_pending_into_local;
@@ -222,41 +223,81 @@ pub async fn push() -> Result<SyncResult, SyncError> {
 }
 
 /// Pull the latest `.lfs` from the remote and merge it into the
-/// local DB. Skips the body fetch when the remote ETag matches the
-/// last push (this is our own push echoing back).
+/// local DB. The fast path is a conditional GET: the orchestrator
+/// stamps `If-None-Match` with the union of `last_pushed_etag` +
+/// `last_pulled_etag` and the server replies 304 (no body) when
+/// neither side has touched the resource since the last sync.
 pub async fn pull() -> Result<SyncResult, SyncError> {
     let (cfg, install_id) = prepare()?;
     let pw = read_secret(&cfg.webdav_password_ref)?;
     let passphrase = read_secret(&cfg.passphrase_ref)?;
     let client = build_client(&cfg, &pw)?;
+    let db = require_db()?;
 
-    // PROPFIND depth=0 to read the remote ETag. 404 is the
-    // "no remote archive yet" case (first pull on a fresh
-    // WebDAV root); the Dart UI surfaces this as a soft skip.
-    let entries = match client.propfind(&cfg.remote_path, 0).await {
-        Ok(e) => e,
+    let outcome = pull_with_client(&client, &cfg, &passphrase, &install_id, db).await?;
+    if let Some(updated) = outcome.updated_cfg {
+        persist_sync(&updated)?;
+    }
+    Ok(outcome.result)
+}
+
+/// Result envelope for the pure pull seam. Carries the typed
+/// [`SyncResult`] alongside an optional updated [`SyncConfig`]
+/// the caller writes back via [`persist_sync`]. `updated_cfg`
+/// is `None` when the verb made no state change worth persisting
+/// (disabled / 404 / 304 with no etag drift).
+struct PullOutcome {
+    result: SyncResult,
+    updated_cfg: Option<SyncConfig>,
+}
+
+/// Pure pull pipeline, parameterised on the live actors so the
+/// hot path can run end-to-end against a wiremock'd WebDAV server
+/// and an in-memory DB. The public [`pull`] is the thin shell
+/// that pulls the actors out of the process-singleton stores.
+async fn pull_with_client(
+    client: &WebDavClient,
+    cfg: &SyncConfig,
+    passphrase: &str,
+    install_id: &str,
+    db: Arc<crate::db::Db>,
+) -> Result<PullOutcome, SyncError> {
+    let if_none_match = build_if_none_match(cfg);
+
+    // Conditional GET. 304 returns no body and short-circuits
+    // before the decrypt + merge work; 404 surfaces as a typed
+    // soft-skip; 2xx flows into the decrypt + sha-gate + merge
+    // path below.
+    let response = match client
+        .get(&cfg.remote_path, None, if_none_match.as_deref())
+        .await
+    {
+        Ok(r) => r,
         Err(Error::WebDav(s)) if s.contains("not found") => {
-            return Ok(SyncResult::Skipped {
-                reason: "no remote archive".to_string(),
+            return Ok(PullOutcome {
+                result: SyncResult::Skipped {
+                    reason: "no remote archive".to_string(),
+                },
+                updated_cfg: None,
             });
         }
         Err(e) => return Err(SyncError::from(e)),
     };
-    let remote_etag = entries
-        .first()
-        .and_then(|e| e.etag.clone())
-        .unwrap_or_default();
-    if !remote_etag.is_empty() && remote_etag == cfg.last_pushed_etag {
-        return Ok(SyncResult::UpToDate);
+
+    if response.status().as_u16() == 304 {
+        return Ok(PullOutcome {
+            result: SyncResult::UpToDate,
+            updated_cfg: None,
+        });
     }
 
-    // GET the body. The WebDAV client buffers the body for us;
-    // the cap (256 MiB) matches the archive parser's
-    // [`crate::archive::MAX_ARCHIVE_BYTES`].
-    let response = client
-        .get(&cfg.remote_path, None)
-        .await
-        .map_err(SyncError::from)?;
+    let remote_etag = response
+        .headers()
+        .get(reqwest::header::ETAG)
+        .and_then(|v| v.to_str().ok())
+        .map(normalise_etag_header)
+        .unwrap_or_default();
+
     let body = response
         .bytes()
         .await
@@ -270,24 +311,66 @@ pub async fn pull() -> Result<SyncResult, SyncError> {
     }
     let body_vec = body.to_vec();
 
-    // Decrypt + parse against the user's sync passphrase. The
-    // routine routes through `read_archive_to_pending` after a
-    // tmp-file detour because that function takes a path; we
-    // write to a temp file so the existing cap + future-version
-    // check pipeline stays canonical.
-    let pending = parse_archive_bytes(&body_vec, &passphrase)?;
+    // Plaintext SHA-256 of the encrypted-envelope bytes — same
+    // hash shape `push` stamps into `last_pushed_sha256` so a
+    // pull whose payload matches our own last push (or our last
+    // pull's payload after a server-side ETag rotation) skips
+    // the decrypt + merge work.
+    let body_sha256 = sha256_hex(&body_vec);
+    let matches_pushed =
+        !cfg.last_pushed_sha256.is_empty() && body_sha256 == cfg.last_pushed_sha256;
+    let matches_pulled =
+        !cfg.last_pulled_sha256.is_empty() && body_sha256 == cfg.last_pulled_sha256;
+    if matches_pushed || matches_pulled {
+        // Body is identical to a side we've already merged — only
+        // the server-rotated ETag needs persisting so the next
+        // conditional GET hits 304.
+        let mut updated = cfg.clone();
+        let cfg_changed = if !remote_etag.is_empty() && remote_etag != updated.last_pulled_etag {
+            updated.last_pulled_etag = remote_etag;
+            updated.last_pulled_sha256 = body_sha256;
+            true
+        } else {
+            false
+        };
+        return Ok(PullOutcome {
+            result: SyncResult::UpToDate,
+            updated_cfg: if cfg_changed { Some(updated) } else { None },
+        });
+    }
+
+    // Decrypt + parse against the user's sync passphrase.
+    // `parse_archive_bytes` mirrors the cap + future-version
+    // check pipeline `read_archive_to_pending` enforces for
+    // user-driven imports.
+    let pending = parse_archive_bytes(&body_vec, passphrase)?;
     if let Some(origin) = parse_sync_origin(&pending) {
-        // If the manifest's origin starts with our own install id,
-        // the archive we just pulled is one we pushed (the server
-        // round-tripped it without a peer device touching it).
-        // Skip applying so we don't churn the local DB.
+        // Manifest's origin starts with our own install id ⇒ the
+        // archive we just pulled is one we pushed (server
+        // round-tripped without a peer touching it). Persist the
+        // observed ETag + body hash so the next conditional GET
+        // can short-circuit at 304 even when the local
+        // `last_pushed_etag` rotated server-side.
         if origin.starts_with(&format!("{install_id}:")) {
-            return Ok(SyncResult::UpToDate);
+            let mut updated = cfg.clone();
+            let cfg_changed = if !remote_etag.is_empty()
+                && (remote_etag != updated.last_pulled_etag
+                    || body_sha256 != updated.last_pulled_sha256)
+            {
+                updated.last_pulled_etag = remote_etag;
+                updated.last_pulled_sha256 = body_sha256;
+                true
+            } else {
+                false
+            };
+            return Ok(PullOutcome {
+                result: SyncResult::UpToDate,
+                updated_cfg: if cfg_changed { Some(updated) } else { None },
+            });
         }
     }
 
-    let db = require_db()?;
-    let outcome =
+    let merge_outcome =
         tokio::task::spawn_blocking(move || -> Result<super::merge::MergeOutcome, SyncError> {
             db.with_conn_mut(|c| merge_pending_into_local(c, &pending))
                 .map_err(SyncError::from)
@@ -298,15 +381,51 @@ pub async fn pull() -> Result<SyncResult, SyncError> {
     let now_ms = now_unix_ms();
     let mut updated = cfg.clone();
     updated.last_pulled_at_ms = now_ms;
-    persist_sync(&updated)?;
+    updated.last_pulled_etag = remote_etag;
+    updated.last_pulled_sha256 = body_sha256;
 
-    Ok(SyncResult::PullApplied {
-        sessions_merged: outcome.sessions_merged,
-        keys_merged: outcome.keys_merged,
-        tags_merged: outcome.tags_merged,
-        snippets_merged: outcome.snippets_merged,
-        bookmarks_merged: outcome.bookmarks_merged,
+    Ok(PullOutcome {
+        result: SyncResult::PullApplied {
+            sessions_merged: merge_outcome.sessions_merged,
+            keys_merged: merge_outcome.keys_merged,
+            tags_merged: merge_outcome.tags_merged,
+            snippets_merged: merge_outcome.snippets_merged,
+            bookmarks_merged: merge_outcome.bookmarks_merged,
+        },
+        updated_cfg: Some(updated),
     })
+}
+
+/// Assemble the `If-None-Match` header value from the cached push
+/// and pull ETags. Returns `None` when both are empty so the
+/// caller omits the header entirely and the server answers 200
+/// unconditionally. RFC 7232 allows a comma-separated list of
+/// quoted ETags; the value is also forwarded with `*` when the
+/// caller wants "any existing resource", but the sync orchestrator
+/// only emits explicit etags so it can branch on which side won.
+fn build_if_none_match(cfg: &SyncConfig) -> Option<String> {
+    let mut parts: Vec<String> = Vec::new();
+    if !cfg.last_pushed_etag.is_empty() {
+        parts.push(quote_etag(&cfg.last_pushed_etag));
+    }
+    if !cfg.last_pulled_etag.is_empty() {
+        let quoted = quote_etag(&cfg.last_pulled_etag);
+        if !parts.contains(&quoted) {
+            parts.push(quoted);
+        }
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(", "))
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    let digest = hasher.finalize();
+    digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 // ── plumbing helpers ─────────────────────────────────────────────
@@ -374,25 +493,19 @@ fn compose_archive(
         .with_conn(|c| archive::export_archive(c, &input))
         .map_err(SyncError::from)?;
 
-    // For the SHA-256 we hash the encrypted envelope bytes —
-    // hashing the plaintext would force a second compose pass
-    // just to recompute the digest, and the envelope hash is
-    // equally suitable for the "did anything change" check
-    // because the inner ZIP is stored-mode + deterministic
-    // (manifest carries the input timestamp; the rest of the
-    // ZIP is the DB snapshot byte-for-byte). The envelope adds
-    // fresh salt + IV on every encrypt so different push
-    // attempts of the same DB state will not collide on hash —
-    // which is fine because the "skip identical push" check
-    // is an optimisation, not a correctness invariant.
-    let mut hasher = Sha256::new();
-    hasher.update(&bytes);
-    let digest = hasher.finalize();
-    let hex_digest: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    // SHA-256 of the encrypted envelope bytes. Same hash shape
+    // the pull path computes off the body it receives so the
+    // "did anything change" check round-trips cleanly across
+    // devices. The envelope freshly salts + IVs on every
+    // encrypt so different push attempts of the same DB state
+    // collide on plaintext but not on this hash — which is
+    // fine because the "skip identical push" check is an
+    // optimisation, not a correctness invariant.
+    let plaintext_sha256 = sha256_hex(&bytes);
 
     Ok(ComposedArchive {
         bytes,
-        plaintext_sha256: hex_digest,
+        plaintext_sha256,
     })
 }
 
@@ -523,6 +636,346 @@ fn read_install_id() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::archive::{export_archive, ExportInput, ExportOptions};
+    use crate::db::{bootstrap_schema, Connection, Db};
+    use crate::migration::SchemaVersions;
+    use crate::webdav::{AuthMethod, Credentials, WebDavClient};
+    use wiremock::matchers::{header_exists, method as match_method, path as match_path};
+    use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
+
+    const TEST_PASSPHRASE: &str = "test-sync-passphrase";
+
+    fn fresh_db() -> Arc<Db> {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Arc::new(Db::from_raw_for_tests(conn))
+    }
+
+    fn build_test_client(server: &MockServer) -> WebDavClient {
+        let base = format!("{}/dav/", server.uri());
+        WebDavClient::new(
+            &base,
+            Credentials {
+                method: AuthMethod::Basic,
+                username: Some("alice".into()),
+                password_or_token: zeroize::Zeroizing::new("p".into()),
+            },
+        )
+        .unwrap()
+    }
+
+    fn base_cfg() -> SyncConfig {
+        SyncConfig {
+            enabled: true,
+            webdav_url: "https://dav.example.com/dav/".into(),
+            webdav_username: "alice".into(),
+            webdav_password_ref: crate::config::SYNC_PASSWORD_SECRET_ID.into(),
+            webdav_auth_method: "basic".into(),
+            passphrase_ref: crate::config::SYNC_PASSPHRASE_SECRET_ID.into(),
+            remote_path: "letsflutssh.lfs".into(),
+            ..SyncConfig::default()
+        }
+    }
+
+    fn build_archive_bytes(sync_origin: Option<&str>) -> Vec<u8> {
+        // A separate Db so the producer-side state never contaminates
+        // the consumer-side merge target.
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        let input = ExportInput {
+            options: ExportOptions {
+                include_sessions: true,
+                include_known_hosts: true,
+                include_config: true,
+                include_tags: true,
+                include_snippets: true,
+                include_all_manager_keys: true,
+                has_manager_keys: true,
+            },
+            selected_session_ids: Vec::new(),
+            selected_empty_folders: Vec::new(),
+            config_json: "{}".into(),
+            schema_version: i64::from(SchemaVersions::ARCHIVE),
+            app_version: Some("0.0.0-test".into()),
+            master_password: Some(TEST_PASSPHRASE.into()),
+            kdf_memory_kib: 8,
+            kdf_iterations: 1,
+            kdf_parallelism: 1,
+            created_at_ms: 1_700_000_000_000,
+            sync_origin: sync_origin.map(String::from),
+        };
+        export_archive(&conn, &input).expect("compose archive")
+    }
+
+    /// Wiremock responder that captures the inbound `If-None-Match`
+    /// header on every request so tests can assert the exact value
+    /// the sync orchestrator stamped without an extra round-trip.
+    struct CapturingResponder {
+        captured: Arc<std::sync::Mutex<Vec<Option<String>>>>,
+        body: Vec<u8>,
+        etag: String,
+    }
+
+    impl Respond for CapturingResponder {
+        fn respond(&self, req: &Request) -> ResponseTemplate {
+            let header_value = req
+                .headers
+                .get("if-none-match")
+                .and_then(|v| v.to_str().ok())
+                .map(String::from);
+            self.captured.lock().unwrap().push(header_value);
+            ResponseTemplate::new(200)
+                .insert_header("ETag", self.etag.as_str())
+                .set_body_bytes(self.body.clone())
+        }
+    }
+
+    #[tokio::test]
+    async fn pull_304_returns_uptodate_without_persisting() {
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .and(header_exists("if-none-match"))
+            .respond_with(ResponseTemplate::new(304))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = SyncConfig {
+            last_pushed_etag: "etag-pushed".into(),
+            last_pulled_etag: "etag-pulled".into(),
+            last_pulled_sha256: "deadbeef".into(),
+            ..base_cfg()
+        };
+        let outcome = pull_with_client(&client, &cfg, TEST_PASSPHRASE, "install-x", db)
+            .await
+            .unwrap();
+        assert!(matches!(outcome.result, SyncResult::UpToDate));
+        assert!(outcome.updated_cfg.is_none());
+    }
+
+    #[tokio::test]
+    async fn pull_200_with_self_origin_returns_uptodate_and_persists_pull_etag() {
+        // Server returns a body whose manifest carries the local
+        // install id as origin. The echo guard must short-circuit
+        // before the merge runs, but the new ETag should be stamped
+        // into `last_pulled_etag` so the next pull's conditional
+        // GET hits 304.
+        let install_id = "self-install";
+        let body = build_archive_bytes(Some(&format!("{install_id}:1700000000000")));
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("ETag", "\"fresh\"")
+                    .set_body_bytes(body),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = base_cfg();
+        let outcome = pull_with_client(&client, &cfg, TEST_PASSPHRASE, install_id, db.clone())
+            .await
+            .unwrap();
+        assert!(matches!(outcome.result, SyncResult::UpToDate));
+        let updated = outcome.updated_cfg.expect("etag must be persisted");
+        assert_eq!(updated.last_pulled_etag, "fresh");
+        assert!(!updated.last_pulled_sha256.is_empty());
+        // Sanity: no rows merged into the local DB.
+        let rows = db
+            .with_conn(crate::db::sessions::list_all)
+            .expect("sessions list");
+        assert!(rows.is_empty());
+    }
+
+    #[tokio::test]
+    async fn pull_200_with_sha256_matching_last_pulled_skips_merge() {
+        // Server rotated the ETag but the body hash matches what we
+        // pulled last time. The plaintext gate must short-circuit
+        // the decrypt + merge and persist the new ETag so the next
+        // pull short-circuits at 304.
+        let install_id = "self-install";
+        let body = build_archive_bytes(Some(&format!("{install_id}:1700000000000")));
+        let body_sha = sha256_hex(&body);
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("ETag", "\"rotated\"")
+                    .set_body_bytes(body),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = SyncConfig {
+            last_pulled_etag: "stale".into(),
+            last_pulled_sha256: body_sha.clone(),
+            ..base_cfg()
+        };
+        let outcome = pull_with_client(&client, &cfg, TEST_PASSPHRASE, install_id, db)
+            .await
+            .unwrap();
+        assert!(matches!(outcome.result, SyncResult::UpToDate));
+        let updated = outcome.updated_cfg.expect("etag rotation must persist");
+        assert_eq!(updated.last_pulled_etag, "rotated");
+        assert_eq!(updated.last_pulled_sha256, body_sha);
+    }
+
+    #[tokio::test]
+    async fn pull_200_with_sha256_matching_last_pushed_skips_merge() {
+        // Body hash matches `last_pushed_sha256` (a peer's pull of
+        // our own push echoing back without the sync_origin gate
+        // catching it — the gate runs only after we observe the
+        // payload differs from what we last pushed).
+        let body = build_archive_bytes(Some("peer-install:1700000000000"));
+        let body_sha = sha256_hex(&body);
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("ETag", "\"peer-etag\"")
+                    .set_body_bytes(body),
+            )
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = SyncConfig {
+            last_pushed_sha256: body_sha,
+            ..base_cfg()
+        };
+        let outcome = pull_with_client(&client, &cfg, TEST_PASSPHRASE, "self-install", db)
+            .await
+            .unwrap();
+        assert!(matches!(outcome.result, SyncResult::UpToDate));
+        let updated = outcome.updated_cfg.expect("etag must persist");
+        assert_eq!(updated.last_pulled_etag, "peer-etag");
+    }
+
+    #[tokio::test]
+    async fn pull_200_with_peer_body_runs_merge_and_persists_both_caches() {
+        let body = build_archive_bytes(Some("peer-install:1700000000000"));
+        let body_sha = sha256_hex(&body);
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("ETag", "\"peer-etag\"")
+                    .set_body_bytes(body),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = base_cfg();
+        let outcome = pull_with_client(&client, &cfg, TEST_PASSPHRASE, "self-install", db)
+            .await
+            .unwrap();
+        assert!(matches!(outcome.result, SyncResult::PullApplied { .. }));
+        let updated = outcome.updated_cfg.expect("merge must persist");
+        assert_eq!(updated.last_pulled_etag, "peer-etag");
+        assert_eq!(updated.last_pulled_sha256, body_sha);
+        assert!(updated.last_pulled_at_ms > 0);
+    }
+
+    #[tokio::test]
+    async fn pull_404_returns_skipped_no_remote_archive() {
+        let server = MockServer::start().await;
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = base_cfg();
+        let outcome = pull_with_client(&client, &cfg, TEST_PASSPHRASE, "self-install", db)
+            .await
+            .unwrap();
+        match outcome.result {
+            SyncResult::Skipped { reason } => assert_eq!(reason, "no remote archive"),
+            other => panic!("expected Skipped, got {other:?}"),
+        }
+        assert!(outcome.updated_cfg.is_none());
+    }
+
+    #[tokio::test]
+    async fn pull_stamps_comma_separated_if_none_match_with_both_etags() {
+        let captured: Arc<std::sync::Mutex<Vec<Option<String>>>> = Arc::default();
+        let server = MockServer::start().await;
+        let body = build_archive_bytes(Some("peer-install:1700000000000"));
+        Mock::given(match_method("GET"))
+            .and(match_path("/dav/letsflutssh.lfs"))
+            .respond_with(CapturingResponder {
+                captured: captured.clone(),
+                body: body.clone(),
+                etag: "\"fresh-etag\"".into(),
+            })
+            .mount(&server)
+            .await;
+        let client = build_test_client(&server);
+        let db = fresh_db();
+        let cfg = SyncConfig {
+            last_pushed_etag: "etag-pushed".into(),
+            last_pulled_etag: "etag-pulled".into(),
+            ..base_cfg()
+        };
+        let _ = pull_with_client(&client, &cfg, TEST_PASSPHRASE, "self-install", db)
+            .await
+            .unwrap();
+        let captured = captured.lock().unwrap();
+        assert_eq!(captured.len(), 1);
+        assert_eq!(
+            captured[0].as_deref(),
+            Some("\"etag-pushed\", \"etag-pulled\"")
+        );
+    }
+
+    #[test]
+    fn build_if_none_match_returns_none_when_both_etags_empty() {
+        let cfg = base_cfg();
+        assert!(build_if_none_match(&cfg).is_none());
+    }
+
+    #[test]
+    fn build_if_none_match_returns_single_quoted_etag_when_only_one_present() {
+        let cfg = SyncConfig {
+            last_pushed_etag: "p1".into(),
+            ..base_cfg()
+        };
+        assert_eq!(build_if_none_match(&cfg).as_deref(), Some("\"p1\""));
+    }
+
+    #[test]
+    fn build_if_none_match_deduplicates_when_pushed_equals_pulled() {
+        // After a 200-with-body pull, `last_pushed_etag` and
+        // `last_pulled_etag` can end up equal (when a peer pushes
+        // back exactly what we just pushed). The header value
+        // collapses to a single token rather than emitting a
+        // duplicate.
+        let cfg = SyncConfig {
+            last_pushed_etag: "shared".into(),
+            last_pulled_etag: "shared".into(),
+            ..base_cfg()
+        };
+        assert_eq!(build_if_none_match(&cfg).as_deref(), Some("\"shared\""));
+    }
 
     #[test]
     fn sync_error_from_webdav_etag_string_maps_to_etag_mismatch() {

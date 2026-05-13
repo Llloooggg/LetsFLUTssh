@@ -1097,7 +1097,7 @@ Argon2id + AES-256-GCM crypto, same wire-version contract.
 ### Push and Pull
 
 - **Push now** — packs your current session library into an encrypted `.lfs` and uploads it. The button is disabled while a sync is in flight; tapping it twice does not enqueue two uploads.
-- **Pull now** — fetches the remote archive, decrypts it with the sync passphrase, and merges the peer's rows into your local library. Per-row last-write-wins: a session whose `updated_at` on the remote is newer than yours overwrites yours; older rows leave yours untouched.
+- **Pull now** — fetches the remote archive, decrypts it with the sync passphrase, and merges the peer's rows into your local library. Per-row last-write-wins: a session whose `updated_at` on the remote is newer than yours overwrites yours; older rows leave yours untouched. **Re-pulling unchanged state is free** — the request stamps an `If-None-Match` for the ETag you last pushed or pulled, the server replies 304 with no body, and no decrypt work runs. A second tier compares the SHA-256 of the downloaded body against the last push / pull when the server rotates the ETag without changing the content (nginx restart, weak ETags), so the merge step still short-circuits.
 - **Last push** / **Last pull** rows show when each verb last succeeded, or **Never** if the action has not run.
 
 ### ETag conflict — pull first, then push

@@ -457,7 +457,8 @@ pub const SYNC_DEFAULT_REMOTE_PATH: &str = "letsflutssh.lfs";
 /// `sync_webdav_password_ref`, `sync_webdav_auth_method`,
 /// `sync_passphrase_ref`, `sync_remote_path`,
 /// `sync_last_pushed_at_ms`, `sync_last_pulled_at_ms`,
-/// `sync_last_pushed_sha256`, `sync_last_pushed_etag`.
+/// `sync_last_pushed_sha256`, `sync_last_pushed_etag`,
+/// `sync_last_pulled_etag`, `sync_last_pulled_sha256`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyncConfig {
     pub enabled: bool,
@@ -491,6 +492,17 @@ pub struct SyncConfig {
     /// overwrite a more recent remote without observing the change
     /// first.
     pub last_pushed_etag: String,
+    /// Server-supplied ETag from the most recent successful pull.
+    /// Combined with `last_pushed_etag` on the next pull's
+    /// `If-None-Match` header so a server that hasn't changed since
+    /// either side last touched the resource replies 304 with no body.
+    pub last_pulled_etag: String,
+    /// Lowercase-hex SHA-256 of the encrypted-envelope bytes from the
+    /// most recent successful pull. Used as a second-tier "did the
+    /// plaintext actually change" gate when the server rotates the
+    /// ETag without changing the body (nginx restart, weak-ETag
+    /// servers).
+    pub last_pulled_sha256: String,
 }
 
 const SYNC_VALID_AUTH_METHODS: &[&str] = &["basic", "digest", "bearer"];
@@ -509,6 +521,8 @@ impl Default for SyncConfig {
             last_pulled_at_ms: 0,
             last_pushed_sha256: String::new(),
             last_pushed_etag: String::new(),
+            last_pulled_etag: String::new(),
+            last_pulled_sha256: String::new(),
         }
     }
 }
@@ -555,6 +569,8 @@ impl SyncConfig {
             last_pulled_at_ms: self.last_pulled_at_ms.max(0),
             last_pushed_sha256: self.last_pushed_sha256,
             last_pushed_etag: self.last_pushed_etag,
+            last_pulled_etag: self.last_pulled_etag,
+            last_pulled_sha256: self.last_pulled_sha256,
         }
     }
 
@@ -586,6 +602,11 @@ impl SyncConfig {
             json!(self.last_pushed_sha256),
         );
         m.insert("sync_last_pushed_etag".into(), json!(self.last_pushed_etag));
+        m.insert("sync_last_pulled_etag".into(), json!(self.last_pulled_etag));
+        m.insert(
+            "sync_last_pulled_sha256".into(),
+            json!(self.last_pulled_sha256),
+        );
         m
     }
 
@@ -644,6 +665,16 @@ impl SyncConfig {
                 .and_then(|v| v.as_str())
                 .map(String::from)
                 .unwrap_or(d.last_pushed_etag),
+            last_pulled_etag: json
+                .get("sync_last_pulled_etag")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.last_pulled_etag),
+            last_pulled_sha256: json
+                .get("sync_last_pulled_sha256")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.last_pulled_sha256),
         }
         .sanitized()
     }
@@ -909,6 +940,8 @@ pub fn strip_for_export(value: &mut Value) {
     obj.remove("sync_last_pulled_at_ms");
     obj.remove("sync_last_pushed_sha256");
     obj.remove("sync_last_pushed_etag");
+    obj.remove("sync_last_pulled_etag");
+    obj.remove("sync_last_pulled_sha256");
 }
 
 fn read_security_config(json: &serde_json::Map<String, Value>) -> Option<SecurityConfig> {
@@ -1322,6 +1355,8 @@ mod tests {
         assert_eq!(s.last_pulled_at_ms, 0);
         assert!(s.last_pushed_sha256.is_empty());
         assert!(s.last_pushed_etag.is_empty());
+        assert!(s.last_pulled_etag.is_empty());
+        assert!(s.last_pulled_sha256.is_empty());
     }
 
     #[test]
@@ -1338,6 +1373,8 @@ mod tests {
             last_pulled_at_ms: 1_700_000_001_000,
             last_pushed_sha256: "abc123".into(),
             last_pushed_etag: "etag-1".into(),
+            last_pulled_etag: "etag-pulled".into(),
+            last_pulled_sha256: "deadbeef-pulled".into(),
         };
         let obj = s.to_json_object();
         let parsed = SyncConfig::from_json_object(&obj);
@@ -1391,6 +1428,8 @@ mod tests {
                 last_pulled_at_ms: 0,
                 last_pushed_sha256: "deadbeef".into(),
                 last_pushed_etag: "etag-7".into(),
+                last_pulled_etag: "etag-pulled-7".into(),
+                last_pulled_sha256: "deadbeef-pulled-7".into(),
             },
             ..AppConfig::default()
         };
@@ -1429,6 +1468,8 @@ mod tests {
         assert!(!obj.contains_key("sync_last_pulled_at_ms"));
         assert!(!obj.contains_key("sync_last_pushed_sha256"));
         assert!(!obj.contains_key("sync_last_pushed_etag"));
+        assert!(!obj.contains_key("sync_last_pulled_etag"));
+        assert!(!obj.contains_key("sync_last_pulled_sha256"));
     }
 
     #[test]

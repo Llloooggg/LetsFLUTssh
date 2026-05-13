@@ -75,6 +75,8 @@ class DbSyncConfig {
   final PlatformInt64 lastPulledAtMs;
   final String lastPushedSha256;
   final String lastPushedEtag;
+  final String lastPulledEtag;
+  final String lastPulledSha256;
 
   const DbSyncConfig({
     required this.enabled,
@@ -88,6 +90,8 @@ class DbSyncConfig {
     required this.lastPulledAtMs,
     required this.lastPushedSha256,
     required this.lastPushedEtag,
+    required this.lastPulledEtag,
+    required this.lastPulledSha256,
   });
 
   static Future<DbSyncConfig> default_() =>
@@ -105,7 +109,9 @@ class DbSyncConfig {
       lastPushedAtMs.hashCode ^
       lastPulledAtMs.hashCode ^
       lastPushedSha256.hashCode ^
-      lastPushedEtag.hashCode;
+      lastPushedEtag.hashCode ^
+      lastPulledEtag.hashCode ^
+      lastPulledSha256.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -122,7 +128,9 @@ class DbSyncConfig {
           lastPushedAtMs == other.lastPushedAtMs &&
           lastPulledAtMs == other.lastPulledAtMs &&
           lastPushedSha256 == other.lastPushedSha256 &&
-          lastPushedEtag == other.lastPushedEtag;
+          lastPushedEtag == other.lastPushedEtag &&
+          lastPulledEtag == other.lastPulledEtag &&
+          lastPulledSha256 == other.lastPulledSha256;
 }
 
 /// Mirror of [`SyncResult`]. The variant tag rides in `kind` so

@@ -25159,8 +25159,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbSyncConfig dco_decode_db_sync_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return DbSyncConfig(
       enabled: dco_decode_bool(arr[0]),
       webdavUrl: dco_decode_String(arr[1]),
@@ -25173,6 +25173,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       lastPulledAtMs: dco_decode_i_64(arr[8]),
       lastPushedSha256: dco_decode_String(arr[9]),
       lastPushedEtag: dco_decode_String(arr[10]),
+      lastPulledEtag: dco_decode_String(arr[11]),
+      lastPulledSha256: dco_decode_String(arr[12]),
     );
   }
 
@@ -29898,6 +29900,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_lastPulledAtMs = sse_decode_i_64(deserializer);
     var var_lastPushedSha256 = sse_decode_String(deserializer);
     var var_lastPushedEtag = sse_decode_String(deserializer);
+    var var_lastPulledEtag = sse_decode_String(deserializer);
+    var var_lastPulledSha256 = sse_decode_String(deserializer);
     return DbSyncConfig(
       enabled: var_enabled,
       webdavUrl: var_webdavUrl,
@@ -29910,6 +29914,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       lastPulledAtMs: var_lastPulledAtMs,
       lastPushedSha256: var_lastPushedSha256,
       lastPushedEtag: var_lastPushedEtag,
+      lastPulledEtag: var_lastPulledEtag,
+      lastPulledSha256: var_lastPulledSha256,
     );
   }
 
@@ -34821,6 +34827,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.lastPulledAtMs, serializer);
     sse_encode_String(self.lastPushedSha256, serializer);
     sse_encode_String(self.lastPushedEtag, serializer);
+    sse_encode_String(self.lastPulledEtag, serializer);
+    sse_encode_String(self.lastPulledSha256, serializer);
   }
 
   @protected

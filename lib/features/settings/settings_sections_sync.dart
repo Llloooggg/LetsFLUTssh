@@ -85,6 +85,8 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
       lastPulledAtMs: c.lastPulledAtMs,
       lastPushedSha256: c.lastPushedSha256,
       lastPushedEtag: c.lastPushedEtag,
+      lastPulledEtag: c.lastPulledEtag,
+      lastPulledSha256: c.lastPulledSha256,
     );
     try {
       await rust_sync.syncConfigSet(value: updated);
