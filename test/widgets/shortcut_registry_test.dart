@@ -314,7 +314,6 @@ void main() {
     group('macOS Cmd rewrite', () {
       tearDown(() {
         plat.debugIsMacosOverride = null;
-        plat.debugResetPlatformCache();
       });
 
       test('control:true binding becomes meta:true on macOS', () {

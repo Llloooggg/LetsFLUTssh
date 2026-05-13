@@ -8,14 +8,25 @@ import '../src/rust/api/host_info.dart' as rust_host;
 ///
 /// Resolution lives in `lfs_core::host_info::home_directory`. The
 /// Rust side reads `EXTERNAL_STORAGE` (Android), then `HOME`,
-/// then `USERPROFILE` (Windows). Same rules the Dart code used
-/// to inline; centralising in Rust keeps the answer consistent
-/// for any future `lfs_cli` / `lfs_tauri` consumer.
+/// then `USERPROFILE` (Windows). The Rust call is a sync FRB
+/// getter against an `OnceLock`-pinned value, so repeat calls are
+/// nanoseconds — no Dart-side cache needed.
 ///
-/// Cached after first read since the env never changes for the
-/// life of the process.
-String get homeDirectory => _homeCached ??= rust_host.hostInfoHomeDirectory();
-String? _homeCached;
+/// Falls back to the env vars directly on `StateError` (FRB not
+/// yet initialised in widget-test contexts).
+String get homeDirectory {
+  try {
+    return rust_host.hostInfoHomeDirectory();
+  } on StateError {
+    if (Platform.isAndroid) {
+      final ext = Platform.environment['EXTERNAL_STORAGE'];
+      if (ext != null && ext.isNotEmpty) return ext;
+    }
+    return Platform.environment['HOME'] ??
+        Platform.environment['USERPROFILE'] ??
+        '';
+  }
+}
 
 /// Override for testing — when non-null, [isMobilePlatform] returns this value.
 @visibleForTesting
@@ -44,53 +55,34 @@ bool? debugIsAppleOverride;
 @visibleForTesting
 bool? debugIsWindowsOverride;
 
-/// Drop the FRB-cached results so the next read re-queries the
-/// native lib. Used by the test harness when toggling FRB load
-/// state mid-suite; callers in production never need this.
-@visibleForTesting
-void debugResetPlatformCache() {
-  _homeCached = null;
-  _isMobileCached = null;
-  _isDesktopCached = null;
-  _isMacosCached = null;
-  _isAppleCached = null;
-  _isWindowsCached = null;
-}
-
 /// True on Android or iOS.
 ///
-/// Routes through `lfs_core::host_info::is_mobile`. Cached after
-/// first read. Falls back to `dart:io` `Platform.isXyz` when FRB
-/// is not initialised — both forms compile down to the same
-/// constant for a given binary target, so the fallback never
-/// disagrees with Rust; it just lets widget tests that haven't
-/// bootstrapped FRB still execute.
+/// Routes through `lfs_core::host_info::is_mobile` (sync FRB
+/// getter against a compile-time constant). Falls back to
+/// `dart:io` `Platform.isXyz` when FRB is not initialised — both
+/// forms compile down to the same constant for a given binary
+/// target, so the fallback never disagrees with Rust; it just
+/// lets widget tests that haven't bootstrapped FRB still execute.
 bool get isMobilePlatform =>
     debugMobilePlatformOverride ??
-    (_isMobileCached ??= _readBool(
+    _readBool(
       rust_host.hostInfoIsMobile,
       () => Platform.isAndroid || Platform.isIOS,
-    ));
-bool? _isMobileCached;
+    );
 
 /// True on Linux, macOS, or Windows. See [isMobilePlatform] for
-/// caching + fallback rationale.
+/// fallback rationale.
 bool get isDesktopPlatform =>
     debugDesktopPlatformOverride ??
-    (_isDesktopCached ??= _readBool(
+    _readBool(
       rust_host.hostInfoIsDesktop,
       () => Platform.isLinux || Platform.isMacOS || Platform.isWindows,
-    ));
-bool? _isDesktopCached;
+    );
 
-/// True on macOS. See [isMobilePlatform] for caching + fallback rationale.
+/// True on macOS. See [isMobilePlatform] for fallback rationale.
 bool get isMacosPlatform =>
     debugIsMacosOverride ??
-    (_isMacosCached ??= _readBool(
-      rust_host.hostInfoIsMacos,
-      () => Platform.isMacOS,
-    ));
-bool? _isMacosCached;
+    _readBool(rust_host.hostInfoIsMacos, () => Platform.isMacOS);
 
 /// True on macOS or iOS — the Apple-target umbrella. Drives the
 /// Apple Secure Enclave SSH-key toolbar action's visibility (the
@@ -98,13 +90,8 @@ bool? _isMacosCached;
 /// on `target_os = "macos"` or `target_os = "ios"`; the toolbar
 /// action stays hidden on Linux / Windows / Android per the
 /// capability ladder's rung-4 "honestly hide" rule).
-///
-/// Cached after the first read; falls back to `dart:io` when FRB
-/// hasn't bootstrapped yet, same shape as the sibling helpers.
 bool get isApplePlatform =>
-    debugIsAppleOverride ??
-    (_isAppleCached ??= Platform.isMacOS || Platform.isIOS);
-bool? _isAppleCached;
+    debugIsAppleOverride ?? (Platform.isMacOS || Platform.isIOS);
 
 /// True on Windows. Drives the Windows Hello (NCrypt) key-manager
 /// toolbar action's visibility (the underlying
@@ -112,9 +99,7 @@ bool? _isAppleCached;
 /// `target_os = "windows"`; the toolbar action stays hidden on every
 /// other platform per the capability ladder's rung-4 "honestly hide"
 /// rule).
-bool get isWindowsPlatform =>
-    debugIsWindowsOverride ?? (_isWindowsCached ??= Platform.isWindows);
-bool? _isWindowsCached;
+bool get isWindowsPlatform => debugIsWindowsOverride ?? Platform.isWindows;
 
 /// Try the FRB call; on `StateError` (RustLib not initialised in
 /// flutter_test contexts) fall back to the Dart `Platform.isXyz`
