@@ -116,17 +116,29 @@ impl SchemaVersions {
 
     /// `hardware_vault_*.bin` — per-platform hw vault blob.
     ///
-    /// v2: every platform's blob now carries a `LFHV` magic + version
+    /// v2: every platform's blob carries a `LFHV` magic + version
     ///     + platform-id prefix so format evolution can be sniffed
     ///     without per-platform header probes. v1 had no magic; v2
     ///     readers reject v1 files outright (no migration ships in
     ///     this revision — existing installs hit
     ///     `HardwareVaultError::Corrupt` and route through the
     ///     documented tier-reset cascade).
+    ///
+    /// v3 (Linux only): body switched from the custom
+    ///     `[u32 BE pub_len][pub][u32 BE priv_len][priv]` shape to a
+    ///     TCG ASN.1 DER blob per `draft-bottomley-tpm2-keys-asn1`
+    ///     (`id-loadablekey`) — same wire format `openssl-tpm2-engine`
+    ///     and `ssh-tpm-agent` consume. Decouples the envelope from
+    ///     `tss-esapi` builder defaults so the workspace can carry a
+    ///     caret-major declaration. No migration ships: pre-rev
+    ///     envelopes hit `HardwareVaultError::Corrupt` via the typed
+    ///     "unsupported envelope version: this build expects TCG
+    ///     ASN.1 PEM body" rejection and route through the existing
+    ///     tier-reset cascade.
     pub const HW_VAULT_ANDROID: i32 = 2;
     pub const HW_VAULT_APPLE: i32 = 2;
     pub const HW_VAULT_WINDOWS: i32 = 2;
-    pub const HW_VAULT_LINUX: i32 = 2;
+    pub const HW_VAULT_LINUX: i32 = 3;
 
     /// `hardware_vault_salt.bin` — raw 32-byte salt.
     pub const HW_SALT: i32 = 1;

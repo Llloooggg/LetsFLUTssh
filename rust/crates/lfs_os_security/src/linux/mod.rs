@@ -31,3 +31,4 @@ impl std::error::Error for TpmError {}
 pub mod tpm;
 pub mod tpm_native;
 pub mod tpm_ssh;
+pub mod tpm_tcg_pem;

@@ -130,13 +130,19 @@ zbus = { workspace = true }
 futures-util = { workspace = true }
 secret-service = { version = "5", default-features = false, features = ["rt-tokio-crypto-rust"] }
 # Direct TSS2 ESAPI bindings — moved here from `lfs_core` so the
-# OS-FFI perimeter stays single-edge. Pinned to a specific minor:
-# tss-esapi's API has churned across major versions, and pinning
-# here keeps a future minor bump from silently changing the seal
-# template's marshalled bytes (which would brick existing users'
-# T2 hardware-tier envelopes). When bumping, re-verify round-trip
-# seal/unseal against an envelope sealed under the previous minor.
-tss-esapi = "7.5"
+# OS-FFI perimeter stays single-edge. Caret-major: the on-disk
+# envelope is TCG ASN.1 PEM per `draft-bottomley-tpm2-keys-asn1`
+# (`linux::tpm_tcg_pem`), decoupled from `tss-esapi`'s builder
+# defaults — a minor bump can no longer brick users by reshuffling
+# how `Tss2_MU_*` marshalls fields, because the marshalled bytes
+# only ride inside the DER `pubkey`/`privkey` OCTET STRINGs and the
+# chip itself produces them. The major version is the only API-churn
+# guard; a major bump still warrants a one-pass review for trait
+# / type renames (`Marshall`, `PublicBuffer`, builder field order).
+# Defence-in-depth: `tpm_native::tests::storage_primary_template_marshalls_to_fixture`
+# pins the storage-primary template bytes across upgrades so a
+# silent default flip in a minor bump surfaces at CI time.
+tss-esapi = "7"
 
 # Apple-only deps for `backup_exclusion` (NSURL.setResourceValues:
 # isExcludedFromBackup), `secure_clipboard` (NSPasteboard /

@@ -3,11 +3,14 @@
 //! backend in `tpm.rs`; selectable via `LFS_TPM_BACKEND=native`.
 //! Stays opt-in until real-device verification flips the default.
 //!
-//! **Envelope format** — `[u32 BE pub_len][pub][u32 BE priv_len][priv]`,
-//! holding `TPM2B_PUBLIC` + `TPM2B_PRIVATE` marshalled via
-//! `Tss2_MU_TPM2B_*`. tss-esapi's `PublicBuffer::marshall` /
-//! `PrivateBuffer::marshall` call the same `Tss2_MU_*` so envelopes
-//! round-trip byte-identically with the subprocess backend.
+//! **Envelope format** — `LFHV[magic|version|platform_id=linux]
+//! || TCG_ASN1_DER` per [`super::tpm_tcg_pem`]. The DER body wraps
+//! a marshalled `(TPM2B_PUBLIC, TPM2B_PRIVATE)` pair inside the
+//! TCG draft `draft-bottomley-tpm2-keys-asn1` `id-loadablekey`
+//! shape, byte-compatible with `openssl-tpm2-engine` and
+//! `ssh-tpm-agent`. The shared encoder makes envelopes round-trip
+//! across the T2 vault path and the T-4 SSH-signing path that
+//! [`super::tpm_ssh`] owns.
 //!
 //! **Primary template** — [`build_primary_template`] mirrors
 //! `tpm2 createprimary -C o`'s default storage-primary template
@@ -39,10 +42,27 @@ use std::path::Path;
 use std::str::FromStr;
 
 use super::tpm::{TpmConfig, TpmProbeResult, MAX_SEAL_BYTES};
+use super::tpm_tcg_pem::{self, TpmKey, TPM_RH_OWNER};
 use crate::linux::TpmError as Error;
 
 /// TPM2B size prefix is two bytes, big-endian per TCG spec.
 const TPM2B_SIZE_PREFIX: usize = 2;
+
+/// Per-platform tag the LFHV outer envelope stamps for the Linux
+/// T2 path. Matches the shared platform-id table in
+/// [`crate::hardware_tier_vault::HW_VAULT_PLATFORM_LINUX`] —
+/// re-declared here so the seal/unseal pair can build the
+/// envelope without importing the higher-level vault module
+/// (audit boundary: `tpm_native` stays focused on the chip side).
+const HW_VAULT_PLATFORM_LINUX: u8 = 4;
+
+/// LFHV magic + version + platform-id prefix the outer envelope
+/// carries. Six bytes total — `b"LFHV" || version_byte ||
+/// platform_id_byte`. Mirrors
+/// [`crate::hardware_tier_vault::prepend_envelope_header`].
+const LFHV_MAGIC: &[u8; 4] = b"LFHV";
+const LFHV_VERSION: u8 = 2;
+const LFHV_HEADER_LEN: usize = 6;
 
 /// Probe the TPM via a real `Esys_Startup` + `CreatePrimary`
 /// round-trip — `Available` here gives the same strict guarantee
@@ -81,8 +101,7 @@ pub fn probe(cfg: &TpmConfig) -> TpmProbeResult {
 
 /// Seal `secret` under a freshly-derived primary in the OWNER
 /// hierarchy with `auth_value` as the unseal password. Returns
-/// the same `[u32 BE pub_len][pub][u32 BE priv_len][priv]`
-/// blob shape the subprocess path produces.
+/// an `LFHV[…|platform_id_linux] || TCG_ASN1_DER` envelope.
 pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
     if secret.len() > MAX_SEAL_BYTES {
         return Err(Error::Crypto(format!(
@@ -96,6 +115,7 @@ pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>
     let sealed_template = build_sealed_template().map_err(map_tss_err("sealed template"))?;
     let auth = Auth::try_from(auth_value.to_vec()).map_err(map_tss_err("auth"))?;
     let secret_data = SensitiveData::try_from(secret.to_vec()).map_err(map_tss_err("secret"))?;
+    let empty_auth_flag = auth_value.is_empty();
 
     let (pub_bytes, priv_bytes) = ctx
         .execute_with_nullauth_session(|c| -> Result<(Vec<u8>, Vec<u8>), tss_esapi::Error> {
@@ -124,23 +144,29 @@ pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>
         })
         .map_err(map_tss_err("seal"))?;
 
-    pack(&pub_bytes, &priv_bytes)
+    Ok(wrap_envelope(&TpmKey {
+        empty_auth: Some(empty_auth_flag),
+        parent: TPM_RH_OWNER,
+        public: pub_bytes,
+        private: priv_bytes,
+    }))
 }
 
-/// Inverse of [`seal`]. Recreates the primary, loads the sealed
-/// `(pub, priv)` pair, sets the auth value on the loaded handle,
-/// and unseals. Returns the original secret bytes; format
-/// mismatch / wrong auth / TPM-side failure all surface as `Err`.
+/// Inverse of [`seal`]. Strips the LFHV header, decodes the TCG
+/// ASN.1 DER body to recover the `(TPM2B_PUBLIC, TPM2B_PRIVATE)`
+/// pair, recreates the primary, loads the sealed pair, sets the
+/// auth value on the loaded handle, and unseals. Format mismatch
+/// / wrong auth / TPM-side failure all surface as `Err`.
 pub fn unseal(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
-    let (pub_bytes, priv_bytes) =
-        unpack(blob).ok_or_else(|| Error::Crypto("tpm unseal: malformed blob".to_string()))?;
+    let key = unwrap_envelope(blob)?;
     let mut ctx = open_context(&cfg.device).map_err(map_tss_err("open"))?;
     let primary_template = build_primary_template().map_err(map_tss_err("primary template"))?;
-    let pub_buffer = PublicBuffer::unmarshall(pub_bytes).map_err(map_tss_err("unmarshall pub"))?;
+    let pub_buffer =
+        PublicBuffer::unmarshall(&key.public).map_err(map_tss_err("unmarshall pub"))?;
     let public_struct = Public::try_from(pub_buffer).map_err(map_tss_err("decode pub"))?;
     // Inverse of the seal-side hand-marshall: read TPM2B size
     // header, take that many bytes, hand to `Private::try_from`.
-    let priv_inner = unmarshall_tpm2b(priv_bytes)
+    let priv_inner = unmarshall_tpm2b(&key.private)
         .ok_or_else(|| Error::Crypto("tpm-native: malformed TPM2B_PRIVATE".to_string()))?;
     let private_struct =
         Private::try_from(priv_inner.to_vec()).map_err(map_tss_err("decode priv"))?;
@@ -179,7 +205,7 @@ fn open_context(device: &str) -> Result<Context, tss_esapi::Error> {
 /// guidance. Constructed field-for-field so the marshalled
 /// `TPMT_PUBLIC` bytes (and therefore the TPM's primary-key
 /// derivation) are byte-identical to what tpm2-tools produces.
-pub(super) fn build_primary_template() -> Result<Public, tss_esapi::Error> {
+pub fn build_primary_template() -> Result<Public, tss_esapi::Error> {
     let object_attributes = ObjectAttributesBuilder::new()
         .with_fixed_tpm(true)
         .with_fixed_parent(true)
@@ -242,45 +268,40 @@ fn build_sealed_template() -> Result<Public, tss_esapi::Error> {
         .build()
 }
 
-fn pack(pub_bytes: &[u8], priv_bytes: &[u8]) -> Result<Vec<u8>, Error> {
-    // Same length-prefix-fits-u32 invariant as the CLI variant in
-    // `tpm.rs`. TPM2B blobs are spec-bounded but `as u32` would
-    // silently truncate any future TPM that returned more —
-    // `try_from` surfaces the overflow as a typed Crypto error.
-    let pub_len = u32::try_from(pub_bytes.len())
-        .map_err(|_| Error::Crypto("tpm pack: pub_bytes length exceeds u32".into()))?;
-    let priv_len = u32::try_from(priv_bytes.len())
-        .map_err(|_| Error::Crypto("tpm pack: priv_bytes length exceeds u32".into()))?;
-    let mut out = Vec::with_capacity(8 + pub_bytes.len() + priv_bytes.len());
-    out.extend_from_slice(&pub_len.to_be_bytes());
-    out.extend_from_slice(pub_bytes);
-    out.extend_from_slice(&priv_len.to_be_bytes());
-    out.extend_from_slice(priv_bytes);
-    Ok(out)
+/// Build `LFHV[magic|version|platform_id_linux] || TCG_ASN1_DER`
+/// from a marshalled `(public, private)` pair. The DER body
+/// follows the `id-loadablekey` arm of
+/// `draft-bottomley-tpm2-keys-asn1` — same shape `ssh-tpm-agent`
+/// and `openssl-tpm2-engine` consume.
+fn wrap_envelope(key: &TpmKey) -> Vec<u8> {
+    let der = tpm_tcg_pem::encode(key);
+    let mut out = Vec::with_capacity(LFHV_HEADER_LEN + der.len());
+    out.extend_from_slice(LFHV_MAGIC);
+    out.push(LFHV_VERSION);
+    out.push(HW_VAULT_PLATFORM_LINUX);
+    out.extend_from_slice(&der);
+    out
 }
 
-fn unpack(blob: &[u8]) -> Option<(&[u8], &[u8])> {
-    // Same `checked_add` invariant as `tpm.rs::unpack`. A hostile
-    // length prefix would otherwise wrap the offset calculation
-    // and slip past the in-bounds check.
-    if blob.len() < 8 {
-        return None;
+/// Inverse of [`wrap_envelope`]. Rejects anything that does not
+/// carry the expected magic + version + platform-id, then hands
+/// the trailing body to the TCG ASN.1 decoder. A v1 / v2 custom
+/// binary envelope (the pre-rev shape this build retired) will
+/// not parse — the ASN.1 decoder refuses the leading `0x00…`
+/// length prefix as a tag mismatch — and the typed error carries
+/// the "expects TCG ASN.1 PEM body" wording the caller routes to
+/// the tier-reset cascade.
+fn unwrap_envelope(blob: &[u8]) -> Result<TpmKey, Error> {
+    if blob.len() < LFHV_HEADER_LEN
+        || &blob[0..4] != LFHV_MAGIC
+        || blob[4] != LFHV_VERSION
+        || blob[5] != HW_VAULT_PLATFORM_LINUX
+    {
+        return Err(Error::Crypto(
+            "unsupported envelope version: this build expects TCG ASN.1 PEM body".to_string(),
+        ));
     }
-    let pub_len = u32::from_be_bytes(blob[..4].try_into().ok()?) as usize;
-    let priv_len_off = 4usize.checked_add(pub_len)?;
-    let priv_len_end = priv_len_off.checked_add(4)?;
-    if priv_len_end > blob.len() {
-        return None;
-    }
-    let pub_bytes = &blob[4..priv_len_off];
-    let priv_len = u32::from_be_bytes(blob[priv_len_off..priv_len_end].try_into().ok()?) as usize;
-    let priv_off = priv_len_end;
-    let priv_end = priv_off.checked_add(priv_len)?;
-    if priv_end > blob.len() {
-        return None;
-    }
-    let priv_bytes = &blob[priv_off..priv_end];
-    Some((pub_bytes, priv_bytes))
+    tpm_tcg_pem::decode(&blob[LFHV_HEADER_LEN..])
 }
 
 fn map_tss_err(label: &'static str) -> impl Fn(tss_esapi::Error) -> Error {
@@ -318,11 +339,30 @@ fn unmarshall_tpm2b(buf: &[u8]) -> Option<&[u8]> {
 mod tests {
     use super::*;
 
+    /// Defence-in-depth fixture for the storage-primary template
+    /// marshalled bytes. The TPM derives the primary key from
+    /// these bytes; a silent change (tss-esapi minor bump that
+    /// reorders fields, switches a default, reshuffles attribute
+    /// flags) would brick every existing user's T2 envelope. The
+    /// fixture below pins the byte sequence at the workspace
+    /// `tss-esapi` version; a mismatch surfaces loud at CI time
+    /// so a future bump that changes builder defaults is caught
+    /// before users hit it.
+    ///
+    /// The fixture lives next to the test in
+    /// `tests/fixtures/storage_primary_template_v1.bin`. The "v1"
+    /// suffix tags the contents, not the file format — the day a
+    /// genuine template change ships, mint a new fixture (`v2`)
+    /// alongside the documented reason in the schema-versions
+    /// table rather than overwriting `v1`.
+    const STORAGE_PRIMARY_TEMPLATE_FIXTURE: &[u8] =
+        include_bytes!("../../tests/fixtures/storage_primary_template_v1.bin");
+
     #[test]
     fn primary_template_builds() {
         // No TPM needed — purely tests that the template builder
         // accepts our parameter combination. Real-device
-        // verification is the NI-2 gate.
+        // verification is the swtpm integration test.
         let _ = build_primary_template().expect("primary template");
     }
 
@@ -332,13 +372,104 @@ mod tests {
     }
 
     #[test]
-    fn pack_unpack_round_trips() {
-        let pub_bytes = vec![1, 2, 3, 4];
-        let priv_bytes = vec![5, 6, 7, 8, 9];
-        let packed = pack(&pub_bytes, &priv_bytes).expect("pack");
-        let (got_pub, got_priv) = unpack(&packed).expect("unpack");
-        assert_eq!(got_pub, pub_bytes.as_slice());
-        assert_eq!(got_priv, priv_bytes.as_slice());
+    fn storage_primary_template_marshalls_to_fixture() {
+        // Pins the builder's output across tss-esapi bumps. If
+        // this fails after a dep upgrade, the upstream changed a
+        // default for the primary template — re-mint the fixture
+        // intentionally and ship a HW_VAULT_LINUX schema bump in
+        // the same commit.
+        let template = build_primary_template().expect("primary template");
+        let buffer = PublicBuffer::try_from(template).expect("PublicBuffer::try_from");
+        let bytes = buffer.marshall().expect("marshall");
+        assert_eq!(
+            bytes.as_slice(),
+            STORAGE_PRIMARY_TEMPLATE_FIXTURE,
+            "storage-primary template bytes drifted from fixture — \
+             tss-esapi defaults changed for the storage primary; \
+             mint a new fixture + bump SchemaVersions::HW_VAULT_LINUX"
+        );
+    }
+
+    #[test]
+    fn seal_envelope_starts_with_lfhv_header() {
+        // Cannot exercise the full TPM round trip without a chip,
+        // but the envelope-build half is testable in isolation
+        // via `wrap_envelope`. Pins the LFHV magic + version +
+        // platform-id triplet so a future refactor cannot
+        // silently flip the platform byte and brick cross-host
+        // sync replay.
+        let key = TpmKey {
+            empty_auth: Some(false),
+            parent: TPM_RH_OWNER,
+            public: vec![1, 2, 3, 4],
+            private: vec![5, 6, 7, 8],
+        };
+        let wrapped = wrap_envelope(&key);
+        assert_eq!(&wrapped[0..4], LFHV_MAGIC);
+        assert_eq!(wrapped[4], LFHV_VERSION);
+        assert_eq!(wrapped[5], HW_VAULT_PLATFORM_LINUX);
+    }
+
+    #[test]
+    fn wrap_unwrap_envelope_round_trips() {
+        let key = TpmKey {
+            empty_auth: Some(true),
+            parent: TPM_RH_OWNER,
+            public: vec![0xAA; 16],
+            private: vec![0xBB; 32],
+        };
+        let wrapped = wrap_envelope(&key);
+        let recovered = unwrap_envelope(&wrapped).expect("unwrap");
+        assert_eq!(recovered, key);
+    }
+
+    #[test]
+    fn unwrap_rejects_pre_rev_custom_binary_envelope() {
+        // Pre-rev shape: `[u32 BE pub_len][pub][u32 BE priv_len][priv]`.
+        // The first byte is the high byte of `pub_len`, almost always
+        // 0x00 for a real envelope (pub blocks fit well under 16 MiB),
+        // which is neither `L`/0x4C nor part of any LFHV-prefixed
+        // shape — the magic check refuses the input with the typed
+        // error the tier-reset cascade routes on.
+        let mut legacy = Vec::new();
+        legacy.extend_from_slice(&123u32.to_be_bytes());
+        legacy.extend_from_slice(&[0u8; 123]);
+        legacy.extend_from_slice(&456u32.to_be_bytes());
+        legacy.extend_from_slice(&[0u8; 456]);
+        let err = unwrap_envelope(&legacy).unwrap_err();
+        match err {
+            Error::Crypto(msg) => {
+                assert!(
+                    msg.contains("unsupported envelope version") && msg.contains("TCG ASN.1 PEM"),
+                    "expected the typed rejection message, got: {msg}"
+                );
+            }
+            other => panic!("expected Crypto error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unwrap_rejects_short_blob() {
+        let err = unwrap_envelope(&[]).unwrap_err();
+        assert!(matches!(err, Error::Crypto(_)));
+        let err = unwrap_envelope(b"LFH").unwrap_err();
+        assert!(matches!(err, Error::Crypto(_)));
+    }
+
+    #[test]
+    fn unwrap_rejects_wrong_platform_byte() {
+        // LFHV magic + version match but the platform byte is
+        // Apple (1), not Linux (4). Caller's tier-reset cascade
+        // expects a cross-platform envelope to fail loud rather
+        // than silently produce garbage on an unseal attempt.
+        let mut blob = Vec::with_capacity(8);
+        blob.extend_from_slice(LFHV_MAGIC);
+        blob.push(LFHV_VERSION);
+        blob.push(1);
+        blob.push(0x30);
+        blob.push(0x00);
+        let err = unwrap_envelope(&blob).unwrap_err();
+        assert!(matches!(err, Error::Crypto(_)));
     }
 
     #[test]

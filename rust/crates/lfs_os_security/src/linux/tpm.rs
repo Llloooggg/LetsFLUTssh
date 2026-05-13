@@ -7,9 +7,16 @@
 //!    zero-overwritten on unlink.
 //! 2. **Native (opt-in via `LFS_TPM_BACKEND=native`)** —
 //!    direct `libtss2-esys` calls through `tss-esapi`, see
-//!    [`super::tpm_native`]. Envelope bytes are identical to
-//!    the subprocess path so envelopes round-trip between
-//!    backends.
+//!    [`super::tpm_native`].
+//!
+//! Both backends emit the same envelope: an `LFHV[magic|version|
+//! platform_id=linux]` header followed by a TCG ASN.1 DER
+//! `id-loadablekey` body per [`super::tpm_tcg_pem`]
+//! (`draft-bottomley-tpm2-keys-asn1`). The chip-side `(public,
+//! private)` bytes round-trip across backends because they ride
+//! inside the DER `pubkey` / `privkey` OCTET STRINGs — the
+//! marshalled bytes themselves come from the TPM, not the
+//! backend.
 //!
 //! Backend selection: [`TpmConfig::default`] reads
 //! `LFS_TPM_BACKEND`; callers may also set `cfg.backend`
@@ -22,10 +29,22 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+use super::tpm_tcg_pem::{self, TpmKey, TPM_RH_OWNER};
 use crate::linux::TpmError as Error;
 
 const DEFAULT_BINARY: &str = "tpm2";
 const DEFAULT_DEVICE: &str = "/dev/tpmrm0";
+
+/// LFHV outer-envelope shape, mirrored from the shared
+/// [`crate::hardware_tier_vault`] header so the subprocess path
+/// emits byte-identical bytes to the native path. Re-declared
+/// here (not imported) to keep `linux::tpm` self-contained — the
+/// chip-side modules under `linux/*.rs` are the audit perimeter
+/// for the OS-FFI surface and pull no higher-level crate deps.
+const LFHV_MAGIC: &[u8; 4] = b"LFHV";
+const LFHV_VERSION: u8 = 2;
+const HW_VAULT_PLATFORM_LINUX: u8 = 4;
+const LFHV_HEADER_LEN: usize = 6;
 /// Hard upper bound on a single seal / unseal step.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
 /// TPM2 spec direct-seal limit. Mirrors the Dart guardrail.
@@ -141,8 +160,8 @@ fn probe_subprocess(cfg: &TpmConfig) -> TpmProbeResult {
 }
 
 /// Seal `secret` under a freshly-created primary with
-/// `auth_value` as the unseal password. Returns the packed
-/// `[u32 BE pub_len][pub][u32 BE priv_len][priv]` blob.
+/// `auth_value` as the unseal password. Returns the
+/// `LFHV[…|platform_id_linux] || TCG_ASN1_DER` envelope.
 pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
     if cfg.backend == TpmBackend::Native {
         return super::tpm_native::seal(cfg, secret, auth_value);
@@ -194,7 +213,12 @@ fn seal_subprocess(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<
 
     let pub_bytes = read_all(&pub_path)?;
     let priv_bytes = read_all(&priv_path)?;
-    pack(&pub_bytes, &priv_bytes)
+    Ok(wrap_envelope(&TpmKey {
+        empty_auth: Some(auth_value.is_empty()),
+        parent: TPM_RH_OWNER,
+        public: pub_bytes,
+        private: priv_bytes,
+    }))
 }
 
 /// Inverse of [`seal`]. Returns the original secret on
@@ -208,15 +232,14 @@ pub fn unseal(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>
 }
 
 fn unseal_subprocess(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
-    let (pub_bytes, priv_bytes) =
-        unpack(blob).ok_or_else(|| Error::Crypto("tpm unseal: malformed blob".to_string()))?;
+    let key = unwrap_envelope(blob)?;
     let work = WorkDir::new("lfs-tpm-unseal-")?;
     let primary = work.path().join("primary.ctx");
     let pub_path = work.path().join("sealed.pub");
     let priv_path = work.path().join("sealed.priv");
     let loaded_ctx = work.path().join("loaded.ctx");
-    write_0600(&pub_path, pub_bytes)?;
-    write_0600(&priv_path, priv_bytes)?;
+    write_0600(&pub_path, &key.public)?;
+    write_0600(&priv_path, &key.private)?;
     let auth_arg = write_auth_file(&work, auth_value)?;
 
     let primary_str = primary.to_string_lossy().into_owned();
@@ -349,48 +372,38 @@ fn write_auth_file(work: &WorkDir, auth_value: &[u8]) -> Result<String, Error> {
     Ok(format!("file:{}", path.display()))
 }
 
-fn pack(pub_bytes: &[u8], priv_bytes: &[u8]) -> Result<Vec<u8>, Error> {
-    // TPM2B blobs are bounded at ~64 KiB by the TPM spec; the
-    // length prefix here is `u32` so a TPM that returned more than
-    // `u32::MAX` would silently truncate under `as u32`. `try_from`
-    // surfaces the (theoretically-impossible) overflow as our typed
-    // error rather than emitting a corrupt envelope.
-    let pub_len = u32::try_from(pub_bytes.len())
-        .map_err(|_| Error::Crypto("tpm pack: pub_bytes length exceeds u32".into()))?;
-    let priv_len = u32::try_from(priv_bytes.len())
-        .map_err(|_| Error::Crypto("tpm pack: priv_bytes length exceeds u32".into()))?;
-    let mut out = Vec::with_capacity(8 + pub_bytes.len() + priv_bytes.len());
-    out.extend_from_slice(&pub_len.to_be_bytes());
-    out.extend_from_slice(pub_bytes);
-    out.extend_from_slice(&priv_len.to_be_bytes());
-    out.extend_from_slice(priv_bytes);
-    Ok(out)
+/// Build `LFHV[magic|version|platform_id_linux] || TCG_ASN1_DER`
+/// from a marshalled `(public, private)` pair. Shared envelope
+/// shape with [`super::tpm_native`] — the native backend can
+/// round-trip a subprocess-sealed envelope and vice versa.
+fn wrap_envelope(key: &TpmKey) -> Vec<u8> {
+    let der = tpm_tcg_pem::encode(key);
+    let mut out = Vec::with_capacity(LFHV_HEADER_LEN + der.len());
+    out.extend_from_slice(LFHV_MAGIC);
+    out.push(LFHV_VERSION);
+    out.push(HW_VAULT_PLATFORM_LINUX);
+    out.extend_from_slice(&der);
+    out
 }
 
-fn unpack(blob: &[u8]) -> Option<(&[u8], &[u8])> {
-    // `checked_add` everywhere — a hostile blob with
-    // `pub_len = u32::MAX - 3` would otherwise wrap the calculation
-    // around to a small `priv_len_off`, slipping past the bounds
-    // check and slicing attacker-controlled bytes out of the
-    // trailing region.
-    if blob.len() < 8 {
-        return None;
+/// Inverse of [`wrap_envelope`]. Refuses anything that does not
+/// carry the expected LFHV header + a parseable TCG ASN.1 body
+/// with the typed "unsupported envelope version: this build
+/// expects TCG ASN.1 PEM body" rejection the tier-reset cascade
+/// routes on. A pre-rev custom-binary envelope fails the magic
+/// check; a `.tpm` file from `openssl-tpm2-engine` / `ssh-tpm-agent`
+/// fails because the LFHV header is missing.
+fn unwrap_envelope(blob: &[u8]) -> Result<TpmKey, Error> {
+    if blob.len() < LFHV_HEADER_LEN
+        || &blob[0..4] != LFHV_MAGIC
+        || blob[4] != LFHV_VERSION
+        || blob[5] != HW_VAULT_PLATFORM_LINUX
+    {
+        return Err(Error::Crypto(
+            "unsupported envelope version: this build expects TCG ASN.1 PEM body".to_string(),
+        ));
     }
-    let pub_len = u32::from_be_bytes(blob[..4].try_into().ok()?) as usize;
-    let priv_len_off = 4usize.checked_add(pub_len)?;
-    let priv_len_end = priv_len_off.checked_add(4)?;
-    if priv_len_end > blob.len() {
-        return None;
-    }
-    let pub_bytes = &blob[4..priv_len_off];
-    let priv_len = u32::from_be_bytes(blob[priv_len_off..priv_len_end].try_into().ok()?) as usize;
-    let priv_off = priv_len_end;
-    let priv_end = priv_off.checked_add(priv_len)?;
-    if priv_end > blob.len() {
-        return None;
-    }
-    let priv_bytes = &blob[priv_off..priv_end];
-    Some((pub_bytes, priv_bytes))
+    tpm_tcg_pem::decode(&blob[LFHV_HEADER_LEN..])
 }
 
 /// RAII temp dir — Drop wipes every file (zero-overwrite then
@@ -456,28 +469,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pack_unpack_round_trips() {
-        let pub_bytes = vec![1, 2, 3, 4];
-        let priv_bytes = vec![5, 6, 7, 8, 9];
-        let packed = pack(&pub_bytes, &priv_bytes).expect("pack");
-        let (got_pub, got_priv) = unpack(&packed).expect("unpack");
-        assert_eq!(got_pub, pub_bytes.as_slice());
-        assert_eq!(got_priv, priv_bytes.as_slice());
+    fn wrap_unwrap_envelope_round_trips() {
+        let key = TpmKey {
+            empty_auth: Some(false),
+            parent: TPM_RH_OWNER,
+            public: vec![1, 2, 3, 4],
+            private: vec![5, 6, 7, 8, 9],
+        };
+        let wrapped = wrap_envelope(&key);
+        let unwrapped = unwrap_envelope(&wrapped).expect("unwrap");
+        assert_eq!(unwrapped, key);
     }
 
     #[test]
-    fn unpack_rejects_short_blob() {
-        assert!(unpack(&[0u8; 7]).is_none());
-        assert!(unpack(&[]).is_none());
+    fn unwrap_rejects_short_blob() {
+        assert!(unwrap_envelope(&[]).is_err());
+        assert!(unwrap_envelope(b"LFHV").is_err());
     }
 
     #[test]
-    fn unpack_rejects_truncated_priv_section() {
-        // pub_len=2, pub=[0xaa,0xbb], priv_len=10 (way beyond
-        // remaining bytes) → must reject without panicking.
-        let mut blob = vec![0, 0, 0, 2, 0xaa, 0xbb, 0, 0, 0, 10];
-        blob.extend_from_slice(&[0xcc, 0xcc]);
-        assert!(unpack(&blob).is_none());
+    fn unwrap_rejects_pre_rev_custom_binary_envelope() {
+        // The pre-rev shape `[u32 BE pub_len][pub][u32 BE priv_len][priv]`
+        // starts with the high byte of `pub_len` (almost always 0x00
+        // for a real envelope), which does not match the LFHV magic
+        // — the magic check refuses with the typed error the tier-
+        // reset cascade routes on.
+        let mut legacy = Vec::new();
+        legacy.extend_from_slice(&2u32.to_be_bytes());
+        legacy.extend_from_slice(&[0xaa, 0xbb]);
+        legacy.extend_from_slice(&2u32.to_be_bytes());
+        legacy.extend_from_slice(&[0xcc, 0xdd]);
+        let err = unwrap_envelope(&legacy).unwrap_err();
+        match err {
+            Error::Crypto(msg) => {
+                assert!(
+                    msg.contains("unsupported envelope version") && msg.contains("TCG ASN.1 PEM"),
+                    "expected the typed rejection message, got: {msg}"
+                );
+            }
+            other => panic!("expected Crypto error, got {other:?}"),
+        }
     }
 
     #[test]

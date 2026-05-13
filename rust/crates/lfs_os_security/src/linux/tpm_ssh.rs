@@ -77,13 +77,17 @@
 //! reason — the TPM-side policy session machinery needs more UX
 //! than v1 affords.
 //!
-//! ## tss-esapi pin
+//! ## tss-esapi declaration
 //!
-//! The crate is pinned at the workspace level. Minor bumps change
-//! how `Tss2_MU_*` marshals certain envelopes; the SSH path uses a
-//! different template from the T2 seal envelope, but the pin still
-//! applies — re-verify a generate/sign round trip on a real TPM
-//! before any bump.
+//! The crate is declared caret-major at the workspace level. The
+//! on-disk envelope is the TCG ASN.1 DER body from
+//! [`super::tpm_tcg_pem`] — wire-format stability is decoupled
+//! from `tss_esapi` builder defaults, so a minor bump can no
+//! longer brick existing user envelopes. The major version is the
+//! only API-churn guard. A storage-primary-template fixture test
+//! in [`super::tpm_native::tests`] still pins the marshalled bytes
+//! across upgrades so a future bump that changes a primary
+//! attribute default surfaces at CI time.
 
 #![cfg(target_os = "linux")]
 
@@ -113,6 +117,7 @@ use tss_esapi::{
 
 use super::tpm::{TpmConfig, TpmProbeResult};
 use super::tpm_native;
+use super::tpm_tcg_pem::{self, TpmKey, TPM_RH_OWNER};
 use crate::linux::TpmError as Error;
 
 /// TPM2B size prefix is two bytes, big-endian per TCG spec.
@@ -279,9 +284,10 @@ pub fn generate(
 /// `Error::Crypto("policy = pcr-binding-not-supported")`; v2 will
 /// surface the policy ingredients to the wizard.
 pub fn import_blob(blob: &[u8]) -> Result<TpmSshKey, Error> {
-    let (pub_bytes, priv_bytes) =
-        unpack(blob).ok_or_else(|| Error::Crypto("tpm-ssh import: malformed envelope".into()))?;
-    let pub_buffer = PublicBuffer::unmarshall(pub_bytes).map_err(map_tss_err("unmarshall pub"))?;
+    let envelope =
+        tpm_tcg_pem::decode(blob).map_err(|e| Error::Crypto(format!("tpm-ssh import: {e}")))?;
+    let pub_buffer =
+        PublicBuffer::unmarshall(&envelope.public).map_err(map_tss_err("unmarshall pub"))?;
     let public_struct = Public::try_from(pub_buffer).map_err(map_tss_err("decode pub"))?;
     let alg = match &public_struct {
         Public::Ecc { .. } => TpmSshAlgorithm::EcdsaP256,
@@ -296,8 +302,8 @@ pub fn import_blob(blob: &[u8]) -> Result<TpmSshKey, Error> {
     Ok(TpmSshKey {
         algorithm: alg,
         storage: TpmSshStorage::Blob {
-            private: priv_bytes.to_vec(),
-            public: pub_bytes.to_vec(),
+            private: envelope.private,
+            public: envelope.public,
         },
         public,
     })
@@ -732,44 +738,27 @@ fn sha256(data: &[u8]) -> Vec<u8> {
 
 // ── TSS2 PRIVATE KEY envelope (TCG draft) ───────────────────────
 
-/// Pack a `(public, private)` blob pair into the
-/// `[u32 BE pub_len][pub][u32 BE priv_len][priv]` envelope shape
-/// (same as the T2 seal-path's `pack`). The on-disk file wraps
-/// THIS in the TCG-draft TSS2 PRIVATE KEY ASN.1 envelope (one
-/// outer layer above what this module emits) — the
-/// `lfs_core::archive::tpm_ssh` helper does the ASN.1 wrap so the
-/// FFI perimeter here stays focused on the chip side.
+/// Pack a `(public, private)` blob pair into the TCG ASN.1 DER
+/// shape per `draft-bottomley-tpm2-keys-asn1` `id-loadablekey`.
+/// Byte-compatible with `openssl-tpm2-engine` and
+/// `ssh-tpm-agent` (modulo the PEM armour the caller wraps the
+/// result in — `.tpm` files in this repo persist the raw DER
+/// inside `ssh_keys.tpm_blob`, the import path strips/applies
+/// the armour as needed).
 pub fn pack_envelope(public: &[u8], private: &[u8]) -> Result<Vec<u8>, Error> {
-    let pub_len = u32::try_from(public.len())
-        .map_err(|_| Error::Crypto("tpm-ssh pack: pub_bytes length exceeds u32".into()))?;
-    let priv_len = u32::try_from(private.len())
-        .map_err(|_| Error::Crypto("tpm-ssh pack: priv_bytes length exceeds u32".into()))?;
-    let mut out = Vec::with_capacity(8 + public.len() + private.len());
-    out.extend_from_slice(&pub_len.to_be_bytes());
-    out.extend_from_slice(public);
-    out.extend_from_slice(&priv_len.to_be_bytes());
-    out.extend_from_slice(private);
-    Ok(out)
-}
-
-fn unpack(blob: &[u8]) -> Option<(&[u8], &[u8])> {
-    if blob.len() < 8 {
-        return None;
-    }
-    let pub_len = u32::from_be_bytes(blob[..4].try_into().ok()?) as usize;
-    let priv_len_off = 4usize.checked_add(pub_len)?;
-    let priv_len_end = priv_len_off.checked_add(4)?;
-    if priv_len_end > blob.len() {
-        return None;
-    }
-    let pub_bytes = &blob[4..priv_len_off];
-    let priv_len = u32::from_be_bytes(blob[priv_len_off..priv_len_end].try_into().ok()?) as usize;
-    let priv_off = priv_len_end;
-    let priv_end = priv_off.checked_add(priv_len)?;
-    if priv_end > blob.len() {
-        return None;
-    }
-    Some((pub_bytes, &blob[priv_off..priv_end]))
+    Ok(tpm_tcg_pem::encode(&TpmKey {
+        // `ssh-tpm-agent` keys default `emptyAuth = TRUE` for the
+        // no-PIN flow; the bool is per-key, but the caller of
+        // pack_envelope no longer has the PIN context here.
+        // Stamp `None` so the DER never lies about the auth
+        // posture — the chip side (`tpm_ssh::sign`) carries the
+        // PIN-required bit on a separate `ssh_keys.tpm_pin_required`
+        // column.
+        empty_auth: None,
+        parent: TPM_RH_OWNER,
+        public: public.to_vec(),
+        private: private.to_vec(),
+    }))
 }
 
 /// TCG TPM2B wire shape: `[u16 BE size][bytes]`. Mirrors the helper
@@ -815,28 +804,32 @@ mod tests {
     }
 
     #[test]
-    fn envelope_round_trips() {
+    fn envelope_round_trips_through_tcg_decoder() {
         let pub_bytes = vec![1u8, 2, 3, 4, 5];
         let priv_bytes = vec![6u8, 7, 8];
         let envelope = pack_envelope(&pub_bytes, &priv_bytes).unwrap();
-        let (got_pub, got_priv) = unpack(&envelope).unwrap();
-        assert_eq!(got_pub, pub_bytes.as_slice());
-        assert_eq!(got_priv, priv_bytes.as_slice());
+        let decoded = tpm_tcg_pem::decode(&envelope).expect("decode");
+        assert_eq!(decoded.public, pub_bytes);
+        assert_eq!(decoded.private, priv_bytes);
+        assert_eq!(decoded.parent, TPM_RH_OWNER);
     }
 
     #[test]
-    fn envelope_rejects_short_blob() {
-        assert!(unpack(&[0u8; 7]).is_none());
-        assert!(unpack(&[]).is_none());
+    fn import_blob_rejects_pre_rev_custom_binary() {
+        // Pre-rev shape: `[u32 BE pub_len][pub][u32 BE priv_len][priv]`.
+        // No SEQUENCE tag at offset 0, so the ASN.1 decoder refuses.
+        let mut legacy = Vec::new();
+        legacy.extend_from_slice(&8u32.to_be_bytes());
+        legacy.extend_from_slice(&[0u8; 8]);
+        legacy.extend_from_slice(&8u32.to_be_bytes());
+        legacy.extend_from_slice(&[0u8; 8]);
+        assert!(import_blob(&legacy).is_err());
     }
 
     #[test]
-    fn envelope_rejects_truncated_priv_section() {
-        // pub_len=2, pub=[0xaa,0xbb], priv_len=10 (way beyond
-        // remaining bytes) — must reject without panicking.
-        let mut blob = vec![0, 0, 0, 2, 0xaa, 0xbb, 0, 0, 0, 10];
-        blob.extend_from_slice(&[0xcc, 0xcc]);
-        assert!(unpack(&blob).is_none());
+    fn import_blob_rejects_short_blob() {
+        assert!(import_blob(&[]).is_err());
+        assert!(import_blob(&[0x30]).is_err());
     }
 
     #[test]
