@@ -192,6 +192,42 @@ where
     res
 }
 
+/// `run_db` + always-fire `KnownHostsChanged` on Ok. Symmetric
+/// with [`run_db_writing_sessions`] / [`run_db_writing_keys`] —
+/// every known_hosts write routes through here so the Dart
+/// `knownHostsStreamProvider` re-fetches in one microtask-coalesced
+/// refresh rather than per-call.
+pub(crate) async fn run_db_writing_known_hosts<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+{
+    let res = run_db(f).await;
+    if res.is_ok() {
+        lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
+    }
+    res
+}
+
+/// `run_db` + conditional `KnownHostsChanged` on Ok + predicate.
+/// Used by DAO endpoints that return `0 / N rows affected` —
+/// `n > 0` is the typical predicate so a no-op delete (host:port
+/// resolves to nothing) doesn't waste a bus event.
+pub(crate) async fn run_db_writing_known_hosts_when<F, R, W>(f: F, when: W) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+    W: Fn(&R) -> bool,
+{
+    let res = run_db(f).await;
+    if let Ok(v) = &res {
+        if when(v) {
+            lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
+        }
+    }
+    res
+}
+
 // ---- ssh_keys ----------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -1227,7 +1263,7 @@ pub async fn db_known_hosts_upsert_by_host_port(
     key_base64: String,
     added_at_ms: i64,
 ) -> Result<i64, String> {
-    let row_id = run_db(move |c| {
+    run_db_writing_known_hosts(move |c| {
         lfs_core::db::known_hosts::upsert_by_host_port(
             c,
             &host,
@@ -1237,29 +1273,22 @@ pub async fn db_known_hosts_upsert_by_host_port(
             added_at_ms,
         )
     })
-    .await?;
-    lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
-    Ok(row_id)
+    .await
 }
 
 pub async fn db_known_hosts_delete_by_host_port(host: String, port: i64) -> Result<u32, String> {
-    let n = run_db(move |c| lfs_core::db::known_hosts::delete_by_host_port(c, &host, port))
-        .await
-        .map(|n| n as u32)?;
-    if n > 0 {
-        lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
-    }
-    Ok(n)
+    run_db_writing_known_hosts_when(
+        move |c| lfs_core::db::known_hosts::delete_by_host_port(c, &host, port),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
 
 pub async fn db_known_hosts_clear_all() -> Result<u32, String> {
-    let n = run_db(lfs_core::db::known_hosts::clear_all)
+    run_db_writing_known_hosts_when(lfs_core::db::known_hosts::clear_all, |n| *n > 0)
         .await
-        .map(|n| n as u32)?;
-    if n > 0 {
-        lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
-    }
-    Ok(n)
+        .map(|n| n as u32)
 }
 
 /// FRB mirror of `lfs_core::known_hosts::ImportSummary`.

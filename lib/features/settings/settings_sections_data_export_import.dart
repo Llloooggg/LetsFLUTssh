@@ -217,7 +217,7 @@ class _ExportImportTile extends ConsumerWidget {
     if (!context.mounted) return;
 
     final knownHostsContent = await ref
-        .read(knownHostsProvider.notifier)
+        .read(knownHostsMutatorProvider)
         .exportToString();
     if (!context.mounted) return;
 

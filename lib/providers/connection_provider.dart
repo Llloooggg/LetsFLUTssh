@@ -12,7 +12,11 @@ import '../l10n/app_localizations.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import 'locale_provider.dart';
 
-export 'known_hosts_provider.dart' show knownHostsProvider;
+export 'known_hosts_provider.dart'
+    show
+        knownHostsMutatorProvider,
+        knownHostsProvider,
+        knownHostsStreamProvider;
 
 /// Foreground service manager — singleton (Android only, no-op on
 /// other platforms).

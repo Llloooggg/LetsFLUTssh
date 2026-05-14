@@ -6,7 +6,6 @@ import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/providers/known_hosts_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
@@ -134,7 +133,9 @@ void main() {
         overrides: [
           ...FakeSessionNotifier().overrides(),
           sessionsLoadingProvider.overrideWithValue(false),
-          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
           connectionsProvider.overrideWith(
             () => StaticConnectionsNotifier(<Connection>[]),
           ),
@@ -212,7 +213,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -255,7 +258,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -298,7 +303,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -413,7 +420,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -475,7 +484,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -534,7 +545,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -595,7 +608,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -651,7 +666,9 @@ void main() {
             overrides: [
               ...FakeSessionNotifier().overrides(),
               sessionsLoadingProvider.overrideWithValue(false),
-              knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier(<Connection>[]),
               ),
@@ -692,7 +709,9 @@ void main() {
         overrides: [
           ...FakeSessionNotifier(sessions: [session]).overrides(),
           sessionsLoadingProvider.overrideWithValue(false),
-          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
           connectionsProvider.overrideWith(() => manager),
         ],
         child: MaterialApp(
@@ -839,7 +858,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -884,7 +905,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -927,7 +950,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -972,7 +997,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1017,7 +1044,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1069,7 +1098,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1106,7 +1137,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1165,7 +1198,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1222,7 +1257,9 @@ void main() {
             overrides: [
               ...FakeSessionNotifier(sessions: sessions).overrides(),
               sessionsLoadingProvider.overrideWithValue(false),
-              knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier(<Connection>[]),
               ),
@@ -1284,7 +1321,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier([conn]),
             ),
@@ -1326,7 +1365,9 @@ void main() {
             overrides: [
               ...FakeSessionNotifier().overrides(),
               sessionsLoadingProvider.overrideWithValue(false),
-              knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier([conn]),
               ),
@@ -1366,7 +1407,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1412,7 +1455,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1479,7 +1524,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1538,7 +1585,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1626,7 +1675,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1713,7 +1764,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1770,7 +1823,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1827,7 +1882,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1880,7 +1937,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),

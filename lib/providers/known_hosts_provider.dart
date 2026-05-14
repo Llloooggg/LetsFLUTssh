@@ -9,124 +9,63 @@ import '../src/rust/api/db.dart' as rust_db;
 import '../src/rust/api/ssh.dart' as rust_ssh;
 import '../utils/logger.dart';
 
-/// TOFU (Trust On First Use) host key state — keys are `host:port`,
-/// values are `keytype base64key`. Mirrors the FRB-side
-/// `lfs_core::known_hosts` registry; mutations route through the
-/// Rust DAO and the resulting `KnownHostsChanged` bus event refreshes
-/// the local cache.
+/// Stream of the latest known-hosts listing keyed by `host:port` →
+/// `keytype base64key`. Yields:
+///   1. An initial snapshot pulled via FRB on first watch.
+///   2. A fresh snapshot on every `BusEvent::KnownHostsChanged` tick
+///      the Rust side publishes after every `known_hosts` write.
 ///
-/// Replaces the prior two-tier `Provider<KnownHostsManager>` shape
-/// with a single `NotifierProvider<KnownHostsNotifier, Map<String,
-/// String>>`. The notifier owns the bus subscription, the FRB
-/// pipeline, and the in-memory snapshot directly.
-final knownHostsProvider =
-    NotifierProvider<KnownHostsNotifier, Map<String, String>>(
-      KnownHostsNotifier.new,
-    );
-
-class KnownHostsNotifier extends Notifier<Map<String, String>> {
-  StreamSubscription<rust_bus.BusEvent>? _busSub;
-  Future<void>? _loadFuture;
-  bool _loaded = false;
-
-  @override
-  Map<String, String> build() {
-    // Subscribe to the global KnownHosts topic so any mutation
-    // (including the FRB layer's bulk-import path) refreshes the
-    // cache. The subscribe call hits the FRB native lib at
-    // construction time; flutter_test contexts that don't load the
-    // lib raise synchronously. Catch + log so the notifier stays
-    // usable in tests with mocked FRB DAOs.
-    try {
-      _busSub = AppBus.instance.subscribe(rust_bus.BusTopic.knownHosts).listen((
-        event,
-      ) {
-        if (event is rust_bus.BusEvent_KnownHostsChanged) {
-          unawaited(reload());
-        }
-      });
-    } catch (e) {
-      AppLogger.instance.log(
-        'KnownHostsNotifier bus subscribe failed: $e',
-        name: 'KnownHosts',
-        level: LogLevel.warn,
-      );
-    }
-    ref.onDispose(() {
-      unawaited(_busSub?.cancel());
-      _busSub = null;
-    });
-    return const {};
-  }
-
-  /// Read-only view of all known host entries.
-  Map<String, String> get entries => Map.unmodifiable(state);
-
-  /// Number of known hosts.
-  int get count => state.length;
-
-  /// Drop the in-memory cache so the next [load] re-reads. Called
-  /// from the unlock handshake.
-  void invalidateCache() {
-    state = const {};
-    _loaded = false;
-    _loadFuture = null;
-  }
-
-  /// Initialize and load known hosts from database.
-  ///
-  /// Safe to call concurrently — the first call does the actual I/O,
-  /// subsequent calls await the same future. If the underlying I/O
-  /// fails the failure is logged (not rethrown) and the cached future
-  /// is cleared, so the next call retries instead of returning
-  /// instantly with a stale empty cache.
-  Future<void> load() {
-    if (_loaded) return Future.value();
-    return _loadFuture ??= _runLoad();
-  }
-
-  /// Force a re-fetch from the database, discarding the cached state.
-  /// Use after operations that mutate the underlying table outside of
-  /// this notifier (e.g. import, settings reset).
-  Future<void> reload() {
-    _loaded = false;
-    _loadFuture = null;
-    return load();
-  }
-
-  Future<void> _runLoad() async {
-    try {
-      await _doLoad();
-    } finally {
-      if (!_loaded) _loadFuture = null;
+/// The Rust side is the single source of truth: every mutation goes
+/// through FRB (`db_known_hosts_upsert_by_host_port` /
+/// `db_known_hosts_delete_by_host_port` / `db_known_hosts_clear_all`
+/// / `db_known_hosts_import_from_string` /
+/// `db_known_hosts_import_from_path`), Rust publishes
+/// `KnownHostsChanged`, this stream re-fetches. No Dart-cached
+/// state.
+///
+/// Cold-start: the first `_loadEntries` call runs lazily on first
+/// watch. Pre-FRB-init contexts catch the `StateError` and yield an
+/// empty map so the known-hosts manager paints without crashing.
+final knownHostsStreamProvider = StreamProvider<Map<String, String>>((
+  ref,
+) async* {
+  yield await _loadEntries();
+  await for (final event in AppBus.instance.subscribe(
+    rust_bus.BusTopic.knownHosts,
+  )) {
+    if (event is rust_bus.BusEvent_KnownHostsChanged) {
+      yield await _loadEntries();
     }
   }
+});
 
-  Future<void> _doLoad() async {
-    try {
-      final entries = await rust_db.dbKnownHostsListAll();
-      final next = <String, String>{};
-      for (final e in entries) {
-        next['${e.host}:${e.port}'] = '${e.keyType} ${e.keyBase64}';
-      }
-      state = next;
-      _loaded = true;
-      AppLogger.instance.log(
-        'Loaded ${next.length} known hosts',
-        name: 'KnownHosts',
-      );
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to load known hosts',
-        name: 'KnownHosts',
-        error: e,
-      );
-    }
-  }
+/// Synchronous view of the latest known-hosts map. Yields an empty
+/// map while the first stream emission is in flight or the stream
+/// is in an error state — consumers that need the loading / error
+/// discriminant watch [knownHostsStreamProvider] directly.
+///
+/// Back-compat alias: every existing `ref.watch(knownHostsProvider)`
+/// keeps working while the data flow itself goes Rust → stream →
+/// derived Provider. Same shape, zero Dart-cached state.
+final knownHostsProvider = Provider<Map<String, String>>((ref) {
+  final async = ref.watch(knownHostsStreamProvider);
+  return async.hasValue
+      ? async.value as Map<String, String>
+      : const <String, String>{};
+});
+
+/// Pure-FRB mutator surface for known hosts. No Dart-cached state —
+/// every method is a thin pass-through to the FRB write paths.
+/// After each successful FRB write, Rust publishes
+/// `BusEvent::KnownHostsChanged` on the global bus;
+/// [knownHostsStreamProvider] re-fetches the listing, the derived
+/// [knownHostsProvider] re-emits, every widget consumer rebuilds.
+class KnownHostsMutator {
+  const KnownHostsMutator();
 
   /// Insert or update a single host entry. Routes through the FRB
   /// upsert; the resulting `KnownHostsChanged` bus event refreshes
-  /// the cache.
+  /// the stream.
   Future<void> upsert(
     String host,
     int port,
@@ -143,14 +82,17 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
       );
     } catch (e) {
       AppLogger.instance.log(
-        'upsert FRB write failed: $e',
-        name: 'KnownHosts',
+        'KnownHostsMutator.upsert failed: $e',
+        name: 'KnownHostsMutator',
         level: LogLevel.warn,
       );
     }
   }
 
-  /// Remove a single known host entry.
+  /// Remove a single known host entry. `hostPort` is the canonical
+  /// `host:port` key the stream emits; the helper splits it back
+  /// into the FRB DAO's `(host, port)` shape, defaulting to port 22
+  /// when no colon is present.
   Future<void> removeHost(String hostPort) async {
     final parts = hostPort.split(':');
     if (parts.isEmpty) return;
@@ -158,37 +100,22 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
     final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
     try {
       await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
-      AppLogger.instance.log(
-        'Removed known host: $hostPort',
-        name: 'KnownHosts',
-      );
     } catch (e) {
       AppLogger.instance.log(
-        'removeHost FRB delete failed: $e',
-        name: 'KnownHosts',
+        'KnownHostsMutator.removeHost failed: $e',
+        name: 'KnownHostsMutator',
         level: LogLevel.warn,
       );
     }
   }
 
-  /// Remove multiple known host entries. The cache refresh fires
-  /// once per row's bus event, but the listeners (settings UI) only
-  /// re-render once per microtask so the cost is bounded.
+  /// Remove multiple known host entries. Rust publishes one
+  /// `KnownHostsChanged` per row but the Dart stream coalesces
+  /// re-fetches inside one microtask so the workspace re-renders
+  /// once per burst, not per delete.
   Future<void> removeMultiple(Set<String> hostPorts) async {
     for (final hp in hostPorts) {
-      final parts = hp.split(':');
-      if (parts.isEmpty) continue;
-      final host = parts[0];
-      final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
-      try {
-        await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
-      } catch (e) {
-        AppLogger.instance.log(
-          'removeMultiple FRB delete failed for $hp: $e',
-          name: 'KnownHosts',
-          level: LogLevel.warn,
-        );
-      }
+      await removeHost(hp);
     }
   }
 
@@ -196,21 +123,22 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
   Future<void> clearAll() async {
     try {
       await rust_db.dbKnownHostsClearAll();
-      AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
     } catch (e) {
       AppLogger.instance.log(
-        'clearAll FRB write failed: $e',
-        name: 'KnownHosts',
+        'KnownHostsMutator.clearAll failed: $e',
+        name: 'KnownHostsMutator',
         level: LogLevel.warn,
       );
     }
   }
 
-  /// Import entries from a LetsFLUTssh-format known_hosts file.
+  /// Import entries from a known_hosts file at `path`. The Rust I/O
+  /// keeps the raw bytes out of the Dart heap on the way to the
+  /// parser, so a curl-piped `~/.ssh/known_hosts` import never
+  /// materialises in the FRB layer twice.
   ///
   /// Returns the number of new entries added (existing hosts are
-  /// skipped). The file read happens Rust-side so the raw bytes
-  /// never cross the FRB boundary into the Dart heap.
+  /// skipped).
   Future<int> importFromFile(String path) async {
     try {
       final summary = await rust_db.dbKnownHostsImportFromPath(
@@ -220,21 +148,21 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
       if (summary.added > 0) {
         AppLogger.instance.log(
           'Imported ${summary.added} known hosts',
-          name: 'KnownHosts',
+          name: 'KnownHostsMutator',
         );
       }
       if (summary.skippedHashed > 0) {
         AppLogger.instance.log(
           'Skipped ${summary.skippedHashed} hashed known_hosts entries',
-          name: 'KnownHosts',
+          name: 'KnownHostsMutator',
           level: LogLevel.warn,
         );
       }
       return summary.added;
     } catch (e) {
       AppLogger.instance.log(
-        'importFromFile failed: $e',
-        name: 'KnownHosts',
+        'KnownHostsMutator.importFromFile failed: $e',
+        name: 'KnownHostsMutator',
         level: LogLevel.warn,
       );
       return 0;
@@ -242,11 +170,12 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
   }
 
   /// Import entries from a multi-line known_hosts blob. Routes
-  /// through the Rust importer (`lfs_core::known_hosts::
-  /// import_from_string`) so the parser walk + per-line dedup + DB
-  /// upserts run inside one task. Skipped hashed-hostname rows are
-  /// surfaced via the warning log so the user knows their
-  /// `HashKnownHosts yes` lines were not silently swallowed.
+  /// through the Rust importer
+  /// (`lfs_core::known_hosts::import_from_string`) so the parser
+  /// walk + per-line dedup + DB upserts run inside one task.
+  /// Skipped hashed-hostname rows are surfaced via the warning log
+  /// so the user knows their `HashKnownHosts yes` lines were not
+  /// silently swallowed.
   ///
   /// Returns the number of new entries added.
   Future<int> importFromString(String content) async {
@@ -258,7 +187,7 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
       if (summary.added > 0) {
         AppLogger.instance.log(
           'Imported ${summary.added} known hosts',
-          name: 'KnownHosts',
+          name: 'KnownHostsMutator',
         );
       }
       if (summary.skippedHashed > 0) {
@@ -266,15 +195,15 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
           'Skipped ${summary.skippedHashed} hashed known-hosts entries '
           '(HashKnownHosts) — we cannot reverse the HMAC-SHA1 hash back '
           'to a hostname for storage',
-          name: 'KnownHosts',
+          name: 'KnownHostsMutator',
           level: LogLevel.warn,
         );
       }
       return summary.added.toInt();
     } catch (e) {
       AppLogger.instance.log(
-        'importFromString FRB call failed: $e',
-        name: 'KnownHosts',
+        'KnownHostsMutator.importFromString failed: $e',
+        name: 'KnownHostsMutator',
         level: LogLevel.warn,
       );
       return 0;
@@ -291,12 +220,45 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
       return await rust_db.dbKnownHostsExportToString();
     } catch (e) {
       AppLogger.instance.log(
-        'exportToString FRB call failed: $e',
-        name: 'KnownHosts',
+        'KnownHostsMutator.exportToString failed: $e',
+        name: 'KnownHostsMutator',
         level: LogLevel.warn,
       );
       return '';
     }
+  }
+}
+
+/// Process-singleton mutator handle. Stateless — every method
+/// pass-throughs to FRB. Tests override the provider directly with
+/// a fake mutator subclass when they need to assert call counts or
+/// seed responses.
+final knownHostsMutatorProvider = Provider<KnownHostsMutator>(
+  (ref) => const KnownHostsMutator(),
+);
+
+/// Fetch the current known-hosts listing from the Rust DB. All
+/// failure modes degrade to an empty map — the known-hosts manager
+/// stays usable on pre-FRB / DB-missing / locked-tier reads.
+Future<Map<String, String>> _loadEntries() async {
+  try {
+    final entries = await rust_db.dbKnownHostsListAll();
+    final next = <String, String>{};
+    for (final e in entries) {
+      next['${e.host}:${e.port}'] = '${e.keyType} ${e.keyBase64}';
+    }
+    AppLogger.instance.log(
+      'Loaded ${next.length} known hosts',
+      name: 'KnownHostsStream',
+    );
+    return next;
+  } catch (e) {
+    AppLogger.instance.log(
+      'Failed to load known hosts',
+      name: 'KnownHostsStream',
+      error: e,
+    );
+    return const <String, String>{};
   }
 }
 

@@ -5,7 +5,6 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
-import 'package:letsflutssh/providers/known_hosts_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
@@ -49,7 +48,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
           connectionsProvider.overrideWith(
             () => _StubConnectionManager(const []),
           ),
@@ -85,7 +86,9 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => _StubConnectionManager(const []),
             ),
@@ -117,7 +120,9 @@ void main() {
           overrides: [
             // 1-minute timeout so the test only advances wall-clock once.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => _StubConnectionManager(const []),
             ),
@@ -177,7 +182,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
           connectionsProvider.overrideWith(
             () => _StubConnectionManager([liveConn]),
           ),
@@ -219,7 +226,9 @@ void main() {
           overrides: [
             // Timer OFF — auto-lock disabled entirely.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => _StubConnectionManager(const []),
             ),
@@ -256,7 +265,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(15)),
-          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
           connectionsProvider.overrideWith(
             () => _StubConnectionManager(const []),
           ),
@@ -297,7 +308,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
           connectionsProvider.overrideWith(
             () => _StubConnectionManager(const []),
           ),
@@ -351,7 +364,9 @@ void main() {
           overrides: [
             preloadedAppConfigProvider.overrideWithValue(cfgWithPassword),
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => _StubConnectionManager(const []),
             ),

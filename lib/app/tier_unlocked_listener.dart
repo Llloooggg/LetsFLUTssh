@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
 import '../core/security/security_tier.dart';
-import '../providers/connection_provider.dart' show knownHostsProvider;
 import '../providers/security_provider.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../utils/logger.dart';
@@ -157,13 +156,10 @@ class TierUnlockedListener {
   void _handleCascadeReady(rust_bus.BusEvent_UnlockCascadeReady event) {
     try {
       final tier = SecurityTierWireName.fromWireName(event.tierWire);
-      // Sessions + ssh_keys streams re-fetch off the
-      // `SessionsChanged` / `KeysChanged` bus events the Rust
-      // orchestrator publishes right before `UnlockCascadeReady`
-      // — no Dart-side cache to invalidate. known_hosts still
-      // owns Dart-cached state today; its B2 migration drops
-      // this invalidate the same way.
-      _ref.read(knownHostsProvider.notifier).invalidateCache();
+      // Sessions + ssh_keys + known_hosts streams re-fetch off the
+      // `SessionsChanged` / `KeysChanged` / `KnownHostsChanged` bus
+      // events the Rust orchestrator publishes right before
+      // `UnlockCascadeReady` — no Dart-side cache to invalidate.
       _ref
           .read(securityStateProvider.notifier)
           .setActive(tier, hasKey: event.hasKey);

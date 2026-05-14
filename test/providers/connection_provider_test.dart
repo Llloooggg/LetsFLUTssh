@@ -2,16 +2,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
-import 'package:letsflutssh/providers/known_hosts_provider.dart';
 
 void main() {
   group('connection providers', () {
-    test('knownHostsProvider exposes a KnownHostsNotifier', () {
-      final container = ProviderContainer();
+    test('knownHostsProvider yields an empty map before the stream emits', () {
+      final container = ProviderContainer(
+        overrides: [
+          // The live `knownHostsStreamProvider` reads through FRB.
+          // flutter_test has no native bridge — override with a
+          // never-emitting stream so the derived sync Provider falls
+          // back to its `const {}` default deterministically.
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
-      final notifier = container.read(knownHostsProvider.notifier);
-      expect(notifier, isA<KnownHostsNotifier>());
-      expect(notifier.entries, isEmpty);
+      expect(container.read(knownHostsProvider), isEmpty);
     });
 
     test('connectionsProvider exposes a ConnectionsNotifier', () {

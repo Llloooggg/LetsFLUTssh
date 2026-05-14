@@ -40,7 +40,6 @@ import '../features/settings/security_tier_switcher.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
-import '../providers/connection_provider.dart';
 import '../providers/first_launch_banner_provider.dart';
 import '../providers/master_password_provider.dart';
 import '../providers/security_provider.dart';
@@ -883,11 +882,10 @@ class SecurityInitController {
     ref
         .read(securityStateProvider.notifier)
         .setActive(level, hasKey: secretId != null);
-    // Sessions + ssh_keys streams re-fetch off the
-    // `SessionsChanged` / `KeysChanged` bus events the Rust
-    // orchestrator publishes once the new DB key is staged.
-    // known_hosts still owns Dart-cached state today.
-    ref.read(knownHostsProvider.notifier).invalidateCache();
+    // Sessions + ssh_keys + known_hosts streams re-fetch off the
+    // `SessionsChanged` / `KeysChanged` / `KnownHostsChanged` bus
+    // events the Rust orchestrator publishes once the new DB key
+    // is staged.
     await _persistSecurityTier(level, modifiers);
   }
 

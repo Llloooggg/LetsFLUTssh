@@ -5,9 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../providers/connection_provider.dart';
 import '../../providers/known_hosts_provider.dart'
-    show KnownHostsNotifier, knownHostFingerprint;
+    show
+        KnownHostsMutator,
+        knownHostFingerprint,
+        knownHostsMutatorProvider,
+        knownHostsStreamProvider;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_search_bar.dart';
@@ -31,56 +34,49 @@ class KnownHostsManagerPanel extends ConsumerStatefulWidget {
 class _KnownHostsManagerPanelState
     extends ConsumerState<KnownHostsManagerPanel> {
   String _filter = '';
-  bool _loading = true;
 
-  KnownHostsNotifier get _manager => ref.read(knownHostsProvider.notifier);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHosts();
-  }
-
-  Future<void> _loadHosts() async {
-    await _manager.load();
-    if (mounted) setState(() => _loading = false);
-  }
-
-  List<MapEntry<String, String>> get _filteredEntries =>
-      filterKnownHostEntries(_manager.entries, _filter);
+  KnownHostsMutator get _mutator => ref.read(knownHostsMutatorProvider);
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final entries = _filteredEntries;
-    final totalCount = _manager.count;
+    // Stream-driven: the first frame paints the spinner while the
+    // initial FRB fetch is in flight; every subsequent
+    // `KnownHostsChanged` bus event (TOFU accept, settings clear,
+    // .lfs import) re-emits a fresh snapshot here without an
+    // explicit `setState` round-trip.
+    final async = ref.watch(knownHostsStreamProvider);
+    final all = async.hasValue
+        ? async.value as Map<String, String>
+        : const <String, String>{};
 
     return Column(
       children: [
-        _buildToolbar(s, totalCount),
+        _buildToolbar(s, all.length),
         const Divider(height: 1),
-        Expanded(child: _buildBody(s, entries, totalCount)),
+        Expanded(
+          child: async.when(
+            data: (entries) => _buildBody(s, entries),
+            loading: () =>
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            error: (_, _) => _buildBody(s, all),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildBody(
-    S s,
-    List<MapEntry<String, String>> entries,
-    int totalCount,
-  ) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (entries.isEmpty) {
+  Widget _buildBody(S s, Map<String, String> all) {
+    final filtered = filterKnownHostEntries(all, _filter);
+    if (filtered.isEmpty) {
       return AppEmptyState(
-        message: totalCount == 0 ? s.knownHostsEmpty : s.knownHostsCount(0),
+        message: all.isEmpty ? s.knownHostsEmpty : s.knownHostsCount(0),
       );
     }
     return ListView.separated(
-      itemCount: entries.length,
+      itemCount: filtered.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(s, entries[index]),
+      itemBuilder: (context, index) => _buildEntry(s, filtered[index]),
     );
   }
 
@@ -188,9 +184,8 @@ class _KnownHostsManagerPanelState
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _manager.removeHost(hostPort);
+    await _mutator.removeHost(hostPort);
     if (mounted) {
-      setState(() {});
       Toast.show(context, message: s.removedHost(hostPort));
     }
   }
@@ -212,9 +207,8 @@ class _KnownHostsManagerPanelState
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _manager.clearAll();
+    await _mutator.clearAll();
     if (mounted) {
-      setState(() {});
       Toast.show(context, message: s.clearedAllHosts);
     }
   }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/providers/known_hosts_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/tabs/welcome_screen.dart';
@@ -67,7 +66,9 @@ void main() {
       overrides: [
         ...FakeSessionNotifier().overrides(),
         sessionsLoadingProvider.overrideWithValue(false),
-        knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+        knownHostsStreamProvider.overrideWith(
+          (_) => const Stream<Map<String, String>>.empty(),
+        ),
         connectionsProvider.overrideWith(
           () => StaticConnectionsNotifier(<Connection>[]),
         ),
@@ -359,7 +360,9 @@ void main() {
           overrides: [
             ...FakeSessionNotifier().overrides(),
             sessionsLoadingProvider.overrideWithValue(false),
-            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),

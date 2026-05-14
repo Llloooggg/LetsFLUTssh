@@ -1,6 +1,6 @@
 /// Pure helpers for the [`KnownHostsManagerPanel`] state — extracted
 /// so the search / filter rules can be exercised against fixed
-/// payloads without a Riverpod scope or a `KnownHostsNotifier`
+/// payloads without a Riverpod scope or a `KnownHostsMutator`
 /// instance.
 library;
 

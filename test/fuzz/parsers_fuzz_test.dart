@@ -52,20 +52,20 @@ void main() {
 
   final rng = Random(_seed);
 
-  group('Fuzz: KnownHostsNotifier.importFromString', () {
+  group('Fuzz: KnownHostsMutator.importFromString', () {
     test(
       'never throws on $_iterations random byte-shape inputs (seed=$_seed)',
       () async {
         final container = ProviderContainer();
         addTearDown(container.dispose);
-        final notifier = container.read(knownHostsProvider.notifier);
+        final mutator = container.read(knownHostsMutatorProvider);
         for (var i = 0; i < _iterations; i++) {
           final input = _rngString(rng, 4096);
           // Returns the count of new entries added (or 0). Anything that
           // throws here — including a stack frame from inside split/regex —
           // is a parser defect, even on garbage input.
           await expectLater(
-            () => notifier.importFromString(input),
+            () => mutator.importFromString(input),
             returnsNormally,
             reason: 'iteration=$i input.length=${input.length}',
           );

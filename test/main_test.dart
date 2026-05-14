@@ -5,7 +5,6 @@ import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/foreground_service.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/providers/known_hosts_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
@@ -75,7 +74,9 @@ void main() {
       overrides: [
         ...FakeSessionNotifier(sessions: sessions).overrides(),
         sessionsLoadingProvider.overrideWithValue(false),
-        knownHostsProvider.overrideWith(KnownHostsNotifier.new),
+        knownHostsStreamProvider.overrideWith(
+          (_) => const Stream<Map<String, String>>.empty(),
+        ),
         connectionsProvider.overrideWith(
           () => StaticConnectionsNotifier(<Connection>[]),
         ),
