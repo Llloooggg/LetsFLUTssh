@@ -21,6 +21,7 @@ pub mod biometric_key_vault;
 pub mod capabilities;
 pub mod capabilities_cache;
 pub mod capabilities_orchestrator;
+pub mod capabilities_persister;
 pub mod credential_prompt;
 pub mod hardware_tier_vault;
 pub mod hardware_vault_probe_prompt;

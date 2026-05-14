@@ -231,6 +231,38 @@ impl Store {
         Ok(())
     }
 
+    /// Replace just the `security_probe_cache` slice of the
+    /// current [`AppConfig`] and arm the debounce timer. Same
+    /// atomic-write contract as [`update_sync`]. `None` clears the
+    /// slot — mirrors the wizard "Re-check tier support" path that
+    /// publishes an empty [`Event::SecurityCapabilitiesChanged`]
+    /// after [`crate::security::capabilities_cache::Cache::clear`].
+    ///
+    /// Returns `Err` when the actor has not been [`init`]-ed yet —
+    /// the Rust-side persister actor that wires Cache → Store
+    /// starts only after [`crate::config_store::start_background_ticker`],
+    /// so the order-of-operations invariant in
+    /// `lfs_frb::api::config::config_store_init` keeps this branch
+    /// structurally unreachable in production.
+    pub fn update_security_probe_cache(
+        &self,
+        caps: Option<crate::security::capabilities::SecurityCapabilities>,
+    ) -> Result<(), String> {
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if g.file_path.is_none() {
+            return Err("config_store: not initialised".into());
+        }
+        let Some(current) = g.current.as_ref() else {
+            return Err("config_store: no current state".into());
+        };
+        let mut updated = current.clone();
+        updated.security_probe_cache = caps;
+        g.current = Some(updated.clone());
+        g.pending = Some(updated);
+        g.pending_at = Some(Instant::now() + DEBOUNCE);
+        Ok(())
+    }
+
     /// Force any pending state to disk synchronously, return the
     /// JSON written (or the current state when nothing was
     /// pending). Used at app shutdown / test teardown so the last
@@ -623,5 +655,43 @@ mod tests {
         store.init(dir2.path().to_path_buf()).unwrap();
         // Original dir never received the 99.0 write.
         assert!(!dir1.path().join("config.json").exists());
+    }
+
+    #[test]
+    fn update_security_probe_cache_round_trips_some_then_none() {
+        // The Rust-side persister actor (security::capabilities_persister)
+        // is the only caller in production; this pin guards the
+        // partial-update contract — value lands in `get_app_config`,
+        // None clears the slot — without going through the bus.
+        use crate::security::capabilities::{KeyringProbeResult, SecurityCapabilities};
+        let dir = fresh_dir();
+        let store = Store::for_tests();
+        store.init(dir.path().to_path_buf()).unwrap();
+
+        let snapshot = SecurityCapabilities {
+            keychain_available: true,
+            hardware_vault_available: true,
+            biometric_available: false,
+            fprintd_available: false,
+            is_linux_host: true,
+            keychain_probe: KeyringProbeResult::Available,
+            hardware_probe_code: "linuxTpmReady".into(),
+        };
+        store
+            .update_security_probe_cache(Some(snapshot.clone()))
+            .unwrap();
+        let after_set = store.get_app_config().unwrap();
+        assert_eq!(after_set.security_probe_cache, Some(snapshot));
+
+        store.update_security_probe_cache(None).unwrap();
+        let after_clear = store.get_app_config().unwrap();
+        assert_eq!(after_clear.security_probe_cache, None);
+    }
+
+    #[test]
+    fn update_security_probe_cache_errors_when_not_initialised() {
+        let store = Store::for_tests();
+        let r = store.update_security_probe_cache(None);
+        assert!(r.is_err(), "expected init-required error");
     }
 }

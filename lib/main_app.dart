@@ -249,12 +249,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // above — the provider's body re-fires on every locale flip
     // and keeps the static in lockstep.
     ref.watch(intlDefaultLocaleSyncProvider);
-    // Same pattern: install the `securityCapabilitiesProvider` →
-    // `config.security_probe_cache` listener for the process
-    // lifetime. The capabilities provider itself is now pure (no
-    // side-effects in its async build); this listener is the
-    // single writer for the persisted cache slot.
-    ref.read(securityProbeCachePersisterProvider);
     // Prime the in-memory log Terminal from the on-disk log file
     // so opening Settings → Logs is instant. Fire-and-forget —
     // a slow / failing read just means the seed is empty;

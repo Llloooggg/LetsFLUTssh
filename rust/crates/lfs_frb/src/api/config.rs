@@ -98,13 +98,27 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
 /// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
 /// subscriber + `set_json` calls.
 ///
-/// Also spawns the singleton background ticker that drives the
-/// debounce flush — production calls this once at startup; tests
-/// drive ticks manually via `config_store_tick_if_due`.
+/// Wires three actors in a load-bearing order:
+///   1. [`lfs_core::config_store::Store::init`] — populate the
+///      in-memory snapshot from disk so the actor's update calls
+///      have somewhere to land.
+///   2. [`lfs_core::config_store::start_background_ticker`] —
+///      drive the debounced atomic write so partial-update
+///      calls (sync, security probe cache) flush within
+///      `DEBOUNCE`.
+///   3. [`lfs_core::security::capabilities_persister::start`] —
+///      subscribe to `Event::SecurityCapabilitiesChanged` and
+///      mirror every fresh snapshot back into the
+///      `security_probe_cache` slot of `config.json`. Must
+///      attach AFTER the store init so its update calls don't
+///      hit the "not initialised" branch, and BEFORE the
+///      capabilities orchestrator runs its first probe so no
+///      startup snapshot evaporates on the broadcast channel.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_store_init(support_dir: String) -> Result<String, String> {
     let json = lfs_core::config_store::instance().init(std::path::PathBuf::from(support_dir))?;
     lfs_core::config_store::start_background_ticker();
+    lfs_core::security::capabilities_persister::start();
     Ok(json)
 }
 

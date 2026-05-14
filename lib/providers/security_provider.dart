@@ -1,4 +1,3 @@
-import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,50 +59,21 @@ final hardwareTierVaultProvider = Provider<HardwareTierVault>(
 /// install (or never, if the user imports a per-host config that
 /// already carries a cache — which we strip on export to prevent
 /// exactly that stale-positive case).
+///
+/// The cache-miss write-back is Rust-side: `probeCapabilities()`
+/// routes into `capabilities_orchestrator::run` which calls
+/// `capabilities_cache::Cache::set`, which fires
+/// `Event::SecurityCapabilitiesChanged`. The
+/// `lfs_core::security::capabilities_persister` actor subscribes
+/// and mirrors the snapshot back into the
+/// `security_probe_cache` slot of `config.json`. Dart no longer
+/// holds the persistence side-effect.
 final securityCapabilitiesProvider = FutureProvider<DbSecurityCapabilities>((
   ref,
 ) async {
-  // Pure-functional build: cache hit → return the cached snapshot,
-  // cache miss → run the probe. The persistence side-effect lives
-  // in [securityProbeCachePersisterProvider]; the build never
-  // mutates `configProvider`. The earlier inline `await ref.read(
-  // configProvider.notifier).update(…)` was race-free by ordering
-  // but gave Riverpod's dependency tracker no signal that this
-  // provider mutates `configProvider`, so a future caller adding
-  // `ref.watch(configProvider)` here would loop on its own writes.
   final cached = ref.read(configProvider).securityProbeCache;
   if (cached != null) return cached;
   return probeCapabilities();
-});
-
-/// Side-effect provider that mirrors every fresh
-/// [securityCapabilitiesProvider] result back into `config.json`'s
-/// `security_probe_cache` slot. Watched from the bootstrap path so
-/// the listener stays alive for the process lifetime; cache hits
-/// (where the snapshot already matches the persisted value) are
-/// short-circuited via equality so a startup probe that confirms
-/// the cached snapshot doesn't trigger a redundant `configProvider`
-/// write.
-///
-/// The Settings "Re-check tier support" button still works the
-/// same way: clear the cache → invalidate the capabilities
-/// provider → re-await it. The fresh probe lands in the listener
-/// here exactly once, which writes the new snapshot.
-final securityProbeCachePersisterProvider = Provider<void>((ref) {
-  ref.listen<AsyncValue<DbSecurityCapabilities>>(securityCapabilitiesProvider, (
-    _,
-    next,
-  ) {
-    next.whenData((caps) {
-      final cached = ref.read(configProvider).securityProbeCache;
-      if (cached == caps) return;
-      unawaited(
-        ref
-            .read(configProvider.notifier)
-            .update((c) => c.copyWithSecurity(securityProbeCache: caps)),
-      );
-    });
-  });
 });
 
 /// Classified reason the hardware tier is unavailable on this host.
