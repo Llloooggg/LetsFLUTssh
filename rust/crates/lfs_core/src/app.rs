@@ -164,6 +164,18 @@ impl AppState {
         *g = Some(Arc::new(db));
     }
 
+    /// Canonical accessor for the platform support directory
+    /// (`getApplicationSupportDirectory()` Dart-side). Reads through
+    /// the `master_password` pin — the only place the path is held —
+    /// so per-FRB-endpoint `support_dir: String` arguments retire in
+    /// favour of a single Rust-side lookup. `Err` only when no pin
+    /// has been set yet (cold-start window before
+    /// `config_store_init` lands); FRB callers surface the typed
+    /// error rather than panicking.
+    pub fn support_dir(&self) -> Result<&'static Path, Error> {
+        crate::security::master_password::try_pinned_support_dir()
+    }
+
     /// Drop the running DB handle. Idempotent — calling twice is a
     /// no-op. Used by the auto-lock path to release the rusqlite
     /// connection (and SQLCipher's C-layer page-cipher state) when

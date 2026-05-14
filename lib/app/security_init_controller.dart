@@ -110,17 +110,16 @@ typedef MigrationRunnerFn = Future<DbMigrationReport> Function();
 /// Signature of the v6 → v7 Hardware-tier password-set wizard probe.
 /// Injectable so tests can flip "marker present" / "marker absent"
 /// without touching the filesystem or loading the FRB native lib.
-typedef HardwarePasswordSetWizardProbe = bool Function(String supportDir);
+typedef HardwarePasswordSetWizardProbe = bool Function();
 
 /// Default production probe — routes through the FRB sync shim and
 /// returns false on any FRB failure (flutter_test contexts that
 /// haven't loaded the native bundle), so the wizard never fires
-/// without an actual marker on disk.
-bool _defaultPasswordSetWizardProbe(String supportDir) {
+/// without an actual marker on disk. Rust resolves the support_dir
+/// from the singleton pinned by `configStoreInit` at startup.
+bool _defaultPasswordSetWizardProbe() {
   try {
-    return rust_vault.hardwareTierVaultPasswordSetWizardRequired(
-      supportDir: supportDir,
-    );
+    return rust_vault.hardwareTierVaultPasswordSetWizardRequired();
   } catch (e) {
     AppLogger.instance.log(
       'hardware_tier_vault_password_set_wizard_required FRB '
@@ -527,9 +526,9 @@ class SecurityInitController {
     if (security == null || security.tier != SecurityTier.hardware) {
       return false;
     }
-    final supportDir = await getApplicationSupportDirectory();
-    final required = _passwordSetWizardRequired(supportDir.path);
+    final required = _passwordSetWizardRequired();
     if (!required) return false;
+    final supportDir = await getApplicationSupportDirectory();
     AppLogger.instance.log(
       'Hardware-tier v7 password-set marker present — surfacing '
       'bootstrap wizard before the regular unlock path',
@@ -572,8 +571,7 @@ class SecurityInitController {
     return true;
   }
 
-  bool _passwordSetWizardRequired(String supportDirPath) =>
-      _hardwarePasswordWizardProbe(supportDirPath);
+  bool _passwordSetWizardRequired() => _hardwarePasswordWizardProbe();
 
   Future<void> _clearPendingTierTransition() async {
     final pendingTransition = await SecurityTierSwitcher().readPendingMarker();

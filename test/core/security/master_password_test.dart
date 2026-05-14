@@ -8,7 +8,7 @@ import 'package:letsflutssh/core/security/kdf_params.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
-import 'package:letsflutssh/src/rust/api/master_password.dart' as rust_mp;
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -20,20 +20,23 @@ Uint8List _b(String s) => Uint8List.fromList(utf8.encode(s));
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // Single tmp for the whole file — `masterPasswordInit` pins the
-  // support dir in a Rust OnceLock, so the first test wins. Per-test
-  // tmp would silently route every later test through the first
-  // tmp's state.
+  // Single tmp for the whole file — `configStoreInit` pins the
+  // support dir in a Rust OnceLock (via the master_password
+  // singleton it forwards into), so the first test binary wins.
+  // Per-test tmp would silently route every later test through the
+  // first tmp's state.
   late Directory tmp;
   late MasterPasswordManager mp;
 
   setUpAll(() async {
     await requireFrbLoaded();
     tmp = await Directory.systemTemp.createTemp('lfs_mp_');
-    // Constructor `basePath:` bypasses `_getBasePath`'s init call;
-    // pin the support dir manually so every op below routes through
-    // the Rust singleton.
-    rust_mp.masterPasswordInit(supportDir: tmp.path);
+    // `configStoreInit` is the canonical pin point — it forwards
+    // into `master_password::pin_support_dir` so every downstream
+    // FRB endpoint that reads `app::instance().support_dir()`
+    // resolves to the same temp directory for the test binary.
+    // Idempotent; subsequent test files share the first pin.
+    rust_config.configStoreInit(supportDir: tmp.path);
   });
 
   tearDownAll(() async {
@@ -44,7 +47,6 @@ void main() {
     // Production Argon2id (46 MiB / 2 iter) takes ~250 ms per derive
     // on a fast laptop. Lower for the duration of this file.
     mp = MasterPasswordManager(
-      basePath: tmp.path,
       kdfParams: const KdfParams.argon2id(
         memoryKiB: 8,
         iterations: 1,
@@ -186,7 +188,6 @@ void main() {
       // orchestrator. Verifies the gate fires before FRB is touched.
       final limiter = _LockedRateLimiter();
       final mp2 = MasterPasswordManager(
-        basePath: tmp.path,
         rateLimiter: limiter,
         kdfParams: const KdfParams.argon2id(
           memoryKiB: 8,

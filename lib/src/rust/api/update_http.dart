@@ -85,14 +85,19 @@ Future<DbDownloadResult> updateDownloadWithVerification({
 );
 
 /// Walk `dir` and remove every previous-version installer whose
-/// filename shares a platform-suffix with the asset at
-/// `asset_url`. Wraps
-/// [`lfs_core::update_orchestrator::cleanup_stale_downloads`] —
+/// filename shares a platform-suffix with the asset at `asset_url`.
+/// Wraps [`lfs_core::update_orchestrator::cleanup_stale_downloads`] —
 /// caller invokes it just before kicking off a fresh download so
 /// the new installer is the only file with that suffix on disk.
 /// Returns the count of files actually removed; both a missing
 /// directory and an asset URL with too few dashes to extract a
 /// suffix surface as `Ok(0)`.
+///
+/// `dir` is an explicit parameter rather than a pinned singleton
+/// read because "where to scan" is semantically a caller concern
+/// (downloads might land elsewhere than the support dir on a
+/// future platform; tests pass per-case temp directories that
+/// the support-dir OnceLock can't model since it's first-call-wins).
 Future<int> updateCleanupStaleDownloads({
   required String dir,
   required String assetUrl,

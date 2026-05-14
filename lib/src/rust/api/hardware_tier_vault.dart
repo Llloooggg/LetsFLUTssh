@@ -273,14 +273,14 @@ Future<void> hardwareTierVaultClearBiometricPassword({
 
 /// True when the v6 → v7 password-set wizard needs to run before
 /// the regular Hardware-tier unlock path. Sync because the probe is
-/// a pure path-stat on the `support_dir` — bootstrap calls this
-/// once before `unlock_hardware` to avoid a rate-limited round-trip
-/// against a vault that no live password can unseal.
-bool hardwareTierVaultPasswordSetWizardRequired({required String supportDir}) =>
-    RustLib.instance.api
-        .crateApiHardwareTierVaultHardwareTierVaultPasswordSetWizardRequired(
-          supportDir: supportDir,
-        );
+/// a pure path-stat under the pinned support_dir — bootstrap calls
+/// this once before `unlock_hardware` to avoid a rate-limited
+/// round-trip against a vault that no live password can unseal.
+/// Returns `false` when the pin is missing (cold-start ordering
+/// misorder), mirroring the path-absent shape so a misordered call
+/// never spuriously kicks off the wizard.
+bool hardwareTierVaultPasswordSetWizardRequired() => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultPasswordSetWizardRequired();
 
 /// Clear the v6 → v7 password-set marker. Idempotent — a missing
 /// target is treated as success. Caller fires this only after the

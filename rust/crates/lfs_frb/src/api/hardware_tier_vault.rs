@@ -613,12 +613,18 @@ pub async fn hardware_tier_vault_clear_biometric_password(
 
 /// True when the v6 → v7 password-set wizard needs to run before
 /// the regular Hardware-tier unlock path. Sync because the probe is
-/// a pure path-stat on the `support_dir` — bootstrap calls this
-/// once before `unlock_hardware` to avoid a rate-limited round-trip
-/// against a vault that no live password can unseal.
+/// a pure path-stat under the pinned support_dir — bootstrap calls
+/// this once before `unlock_hardware` to avoid a rate-limited
+/// round-trip against a vault that no live password can unseal.
+/// Returns `false` when the pin is missing (cold-start ordering
+/// misorder), mirroring the path-absent shape so a misordered call
+/// never spuriously kicks off the wizard.
 #[flutter_rust_bridge::frb(sync)]
-pub fn hardware_tier_vault_password_set_wizard_required(support_dir: String) -> bool {
-    vault::hardware_password_set_wizard_required(std::path::Path::new(&support_dir))
+pub fn hardware_tier_vault_password_set_wizard_required() -> bool {
+    let Ok(dir) = lfs_core::app::instance().support_dir() else {
+        return false;
+    };
+    vault::hardware_password_set_wizard_required(dir)
 }
 
 /// Clear the v6 → v7 password-set marker. Idempotent — a missing
@@ -788,35 +794,36 @@ mod tests {
 
     #[test]
     fn wizard_required_probe_keys_off_marker_file() {
-        // Sync FRB probe — the wizard fires only when the marker
-        // sibling sits next to `config.json`. Absent file → no
-        // wizard; present file → wizard.
+        // The FRB shim is now a thin "read pinned support_dir →
+        // delegate" wrapper; the marker-on-disk contract lives in
+        // `vault::hardware_password_set_wizard_required` and the
+        // `OnceLock`-based pin can only adopt one path per test
+        // binary. Pin the contract on the core function directly
+        // so per-test tempdirs work without colliding through the
+        // shared singleton.
         let dir = tempfile::TempDir::new().unwrap();
-        let path = dir.path().to_str().unwrap().to_string();
-        assert!(!hardware_tier_vault_password_set_wizard_required(
-            path.clone()
-        ));
+        assert!(!vault::hardware_password_set_wizard_required(dir.path()));
         lfs_core::security::hardware_tier_vault::write_v6_v7_password_set_marker(dir.path())
             .unwrap();
-        assert!(hardware_tier_vault_password_set_wizard_required(path));
+        assert!(vault::hardware_password_set_wizard_required(dir.path()));
     }
 
     #[tokio::test]
     async fn clear_password_set_marker_drops_the_file() {
         // The wizard's success path is "re-seal + clear marker".
         // The clear shim is the second half; pin its semantics
-        // (idempotent on missing, removes when present).
+        // (idempotent on missing, removes when present). Marker
+        // probe runs through the core function — see the
+        // wizard_required_probe_keys_off_marker_file comment.
         let dir = tempfile::TempDir::new().unwrap();
         let path = dir.path().to_str().unwrap().to_string();
         lfs_core::security::hardware_tier_vault::write_v6_v7_password_set_marker(dir.path())
             .unwrap();
-        assert!(hardware_tier_vault_password_set_wizard_required(
-            path.clone()
-        ));
-        hardware_tier_vault_clear_password_set_marker(path.clone())
+        assert!(vault::hardware_password_set_wizard_required(dir.path()));
+        hardware_tier_vault_clear_password_set_marker(path)
             .await
             .expect("clear");
-        assert!(!hardware_tier_vault_password_set_wizard_required(path));
+        assert!(!vault::hardware_password_set_wizard_required(dir.path()));
     }
 
     #[tokio::test]

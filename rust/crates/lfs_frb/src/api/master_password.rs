@@ -8,35 +8,15 @@
 //!
 //! `support_dir` is the platform `getApplicationSupportDirectory()`
 //! path. Dart resolves it once at startup (via the `path_provider`
-//! plugin) and pins it Rust-side via [`master_password_init`]; every
-//! subsequent op reads it from the FRB-layer singleton instead of
-//! re-passing the string per call. Path resolution stays Dart's
-//! responsibility (the plugin contract is platform-bound), but the
-//! lifetime concern shrinks to "init once, use everywhere".
-
-use std::path::PathBuf;
+//! plugin) and pins it Rust-side through `config_store_init`; every
+//! subsequent FRB op in this module reads the pin via
+//! `lfs_core::app::instance().support_dir()` (which delegates to
+//! the `master_password::try_pinned_support_dir` singleton). Path
+//! resolution stays Dart's responsibility (the plugin contract is
+//! platform-bound), but the threading concern shrinks to a single
+//! pin call inside `config_store_init`.
 
 use lfs_core::security::master_password::{self, KdfParams};
-
-/// Pin the support directory inside the
-/// `lfs_core::security::master_password` singleton; subsequent
-/// per-call FRB shims read from the pin instead of taking the
-/// path per call. The pin lives in core so per-tier unlock
-/// orchestrators (`tier_unlock_orchestrator`) can share the
-/// same lookup without crossing crate boundaries through a
-/// re-export hack.
-///
-/// Production callers resolve the path once via Dart's
-/// `getApplicationSupportDirectory()` plugin call at app
-/// startup and forward it here; subsequent inits are no-ops
-/// (the first pin wins). Returns the canonical path the actor
-/// adopted so a caller can confirm the bind without a re-read.
-#[flutter_rust_bridge::frb(sync)]
-pub fn master_password_init(support_dir: String) -> String {
-    master_password::pin_support_dir(PathBuf::from(support_dir))
-        .to_string_lossy()
-        .into_owned()
-}
 
 /// FRB-safe re-export of `master_password::try_pinned_support_dir`.
 /// Returns a typed `Result` so a misordered FRB call (the pin set

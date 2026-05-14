@@ -59,7 +59,9 @@ Future<DbUnlockOutcome> tierUnlockKeychainWithPassword({
 /// cascade. Returns the outcome.
 ///
 /// Reads the support dir from the pinned singleton — caller
-/// must have invoked `master_password_init` at app startup.
+/// must have invoked `config_store_init` at app startup (which
+/// pins the canonical support_dir for every downstream
+/// `app::instance().support_dir()` reader).
 Future<DbUnlockOutcome> tierUnlockParanoid({required List<int> password}) =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockParanoid(
       password: password,

@@ -76,9 +76,29 @@ String? configAppConfigValidateJson({required String inputJson}) => RustLib
 /// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
 /// subscriber + `set_json` calls.
 ///
-/// Also spawns the singleton background ticker that drives the
-/// debounce flush — production calls this once at startup; tests
-/// drive ticks manually via `config_store_tick_if_due`.
+/// Wires four actors in a load-bearing order:
+///   1. [`lfs_core::security::master_password::pin_support_dir`]
+///      — pin the process-singleton support-dir so every other
+///      FRB endpoint that needs `<support_dir>/...` paths
+///      (master_password, hardware vault wizard probe, recorder
+///      browser root, update cleanup) resolves through one
+///      canonical accessor. `OnceLock` first wins; subsequent
+///      calls under the same path are no-ops.
+///   2. [`lfs_core::config_store::Store::init`] — populate the
+///      in-memory snapshot from disk so the actor's update calls
+///      have somewhere to land.
+///   3. [`lfs_core::config_store::start_background_ticker`] —
+///      drive the debounced atomic write so partial-update
+///      calls (sync, security probe cache) flush within
+///      `DEBOUNCE`.
+///   4. [`lfs_core::security::capabilities_persister::start`] —
+///      subscribe to `Event::SecurityCapabilitiesChanged` and
+///      mirror every fresh snapshot back into the
+///      `security_probe_cache` slot of `config.json`. Must
+///      attach AFTER the store init so its update calls don't
+///      hit the "not initialised" branch, and BEFORE the
+///      capabilities orchestrator runs its first probe so no
+///      startup snapshot evaporates on the broadcast channel.
 String configStoreInit({required String supportDir}) =>
     RustLib.instance.api.crateApiConfigConfigStoreInit(supportDir: supportDir);
 

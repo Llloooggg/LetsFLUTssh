@@ -98,7 +98,7 @@ void main() {
             ),
           ),
           prompter: prompter,
-          probe: (_) {
+          probe: () {
             probed++;
             return true;
           },
@@ -136,7 +136,7 @@ void main() {
             ),
           ),
           prompter: prompter,
-          probe: (_) {
+          probe: () {
             probed++;
             return false;
           },
@@ -171,7 +171,7 @@ void main() {
             ),
           ),
           prompter: prompter,
-          probe: (_) => true,
+          probe: () => true,
         );
         final manager = built.ct.read(masterPasswordProvider);
         final storage = built.ct.read(secureKeyStorageProvider);
@@ -205,7 +205,7 @@ void main() {
           ),
         ),
         prompter: prompter,
-        probe: (_) => true,
+        probe: () => true,
       );
       final manager = built.ct.read(masterPasswordProvider);
       final storage = built.ct.read(secureKeyStorageProvider);

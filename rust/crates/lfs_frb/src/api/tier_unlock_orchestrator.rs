@@ -98,7 +98,9 @@ pub async fn tier_unlock_keychain_with_password(password: Vec<u8>) -> DbUnlockOu
 /// cascade. Returns the outcome.
 ///
 /// Reads the support dir from the pinned singleton — caller
-/// must have invoked `master_password_init` at app startup.
+/// must have invoked `config_store_init` at app startup (which
+/// pins the canonical support_dir for every downstream
+/// `app::instance().support_dir()` reader).
 pub async fn tier_unlock_paranoid(password: Vec<u8>) -> DbUnlockOutcome {
     tier_unlock_orchestrator::unlock_paranoid(password)
         .await

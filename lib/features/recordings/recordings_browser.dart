@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/security/active_dbkey.dart';
@@ -73,17 +72,16 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
     _scan();
   }
 
-  /// Resolve `<appSupport>/recordings` once per scan. The Rust
-  /// browser walks from this root; a missing directory returns an
-  /// empty list, so the fresh-install case lands here without a
-  /// sentinel branch.
-  Future<String> _recordingsRoot() async {
-    final base = await getApplicationSupportDirectory();
-    return p.join(base.path, 'recordings');
-  }
+  /// Resolve `<appSupport>/recordings` through the canonical Rust
+  /// getter. The Rust browser walks from this root; a missing
+  /// directory returns an empty list, so the fresh-install case
+  /// lands here without a sentinel branch. Sync FRB hop — the path
+  /// resolution lives entirely on the singleton pinned by
+  /// `configStoreInit` at startup.
+  String _recordingsRoot() => rust_recorder.recorderRecordingsRoot();
 
   Future<void> _scan() async {
-    final root = await _recordingsRoot();
+    final root = _recordingsRoot();
     final list = <_RecordingEntry>[];
     try {
       final entries = await rust_recorder.recorderListRecordings(
@@ -144,7 +142,7 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
       content: Text('$label\n$timestamp'),
     );
     if (!confirmed) return;
-    final root = await _recordingsRoot();
+    final root = _recordingsRoot();
     try {
       await rust_recorder.recorderDeleteRecording(
         recordingsRoot: root,
@@ -171,7 +169,7 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
       // The user would need to unlock first.
       return;
     }
-    final root = await _recordingsRoot();
+    final root = _recordingsRoot();
     final filePath = p.join(root, entry.sessionId, entry.fileName);
     if (!mounted) return;
     await RecordingPlaybackDialog.show(

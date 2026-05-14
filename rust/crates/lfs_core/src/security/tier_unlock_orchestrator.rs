@@ -190,7 +190,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
 /// emission in one FRB hop.
 ///
 /// Reads the support dir from the pinned singleton — caller
-/// must have invoked `master_password_init` at app startup
+/// must have invoked `config_store_init` at app startup
 /// (the T1+pw gate shares the same support-dir pin since both
 /// store on-disk state under the same root).
 pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
@@ -293,7 +293,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
 /// cascade emission in one FRB hop.
 ///
 /// `support_dir` is read from the pinned singleton inside the
-/// `master_password` FRB layer (see `master_password_init`).
+/// `master_password` layer (pinned at `config_store_init` time).
 /// `password` crosses FRB once on the way in; the key bytes
 /// cross once on the way out for the Dart caller to hand to
 /// drift.

@@ -225,9 +225,9 @@ class UpdateNotifier extends Notifier<UpdateState> {
     }
   }
 
-  /// Delete previously downloaded update files in [dir] before starting a
-  /// fresh download. Matches any file whose name ends with the same suffix
-  /// as the incoming [assetUrl] (e.g. `-windows-x64-setup.exe`).
+  /// Delete previously downloaded update files in [dir] before starting
+  /// a fresh download. Matches any file whose name ends with the same
+  /// suffix as the incoming [assetUrl] (e.g. `-windows-x64-setup.exe`).
   Future<void> _cleanupStaleDownloads(String dir, String assetUrl) async {
     try {
       final removed = await rust_update.updateCleanupStaleDownloads(

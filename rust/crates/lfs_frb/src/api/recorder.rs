@@ -650,6 +650,23 @@ impl From<lfs_core::recorder::browser::RecordingEntry> for DbRecordingEntry {
     }
 }
 
+/// Canonical `<support_dir>/recordings` path. Rust resolves the
+/// pinned support directory and joins `recordings/` once so every
+/// Dart caller (recordings browser, settings storage tile) reads
+/// the same canonical root through one FRB sync hop instead of
+/// re-running `path_provider.getApplicationSupportDirectory() +
+/// path.join('recordings')` per surface. `Err` only when no pin
+/// has been set yet — the cold-start ordering invariant ensures
+/// `config_store_init` lands before any UI surface that needs the
+/// root.
+#[flutter_rust_bridge::frb(sync)]
+pub fn recorder_recordings_root() -> Result<String, String> {
+    let dir = lfs_core::app::instance()
+        .support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(dir.join("recordings").to_string_lossy().into_owned())
+}
+
 /// List every recording under `<recordings_root>/<sessionId>/`.
 /// `recordings_root` is the platform-specific
 /// `getApplicationSupportDirectory() + "/recordings"` resolved

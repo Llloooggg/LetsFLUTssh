@@ -46,11 +46,6 @@ class _RecordingsStorageTile extends ConsumerStatefulWidget {
 
 class _RecordingsStorageTileState
     extends ConsumerState<_RecordingsStorageTile> {
-  /// Cached `<appSupport>/recordings` so a follow-up clear-all / cap
-  /// change does not pay for a fresh `path_provider` round-trip. The
-  /// value is stable for the app lifetime.
-  String? _recordingsRoot;
-
   /// Latest `recorder_storage_used()` reading; null while the first
   /// snapshot is in flight. Refreshes after cap changes + clear-all
   /// so the row reflects the actual on-disk total, not a stale
@@ -68,18 +63,15 @@ class _RecordingsStorageTileState
     unawaited(_refreshUsage());
   }
 
-  Future<String> _resolveRoot() async {
-    final cached = _recordingsRoot;
-    if (cached != null) return cached;
-    final base = await getApplicationSupportDirectory();
-    final root = p.join(base.path, 'recordings');
-    _recordingsRoot = root;
-    return root;
-  }
+  /// Resolve the recordings root through the canonical Rust getter
+  /// — the support_dir + `recordings/` join lives one place
+  /// Rust-side, so the Settings tile stays in lock-step with the
+  /// recordings browser and the storage-cap sweep.
+  String _resolveRoot() => rust_recorder.recorderRecordingsRoot();
 
   Future<void> _refreshUsage() async {
     try {
-      final root = await _resolveRoot();
+      final root = _resolveRoot();
       final used = await rust_recorder.recorderStorageUsed(
         recordingsRoot: root,
       );
@@ -106,7 +98,7 @@ class _RecordingsStorageTileState
   Future<void> _onCapChanged(int newCapBytes) async {
     final l10n = S.of(context);
     try {
-      final root = await _resolveRoot();
+      final root = _resolveRoot();
       // Persist the new cap through the Rust config_store actor so
       // the next launch already sees the new value. `update` on
       // the Notifier debounces the disk write; `recorder_set_storage_cap`
@@ -155,7 +147,7 @@ class _RecordingsStorageTileState
     );
     if (!confirmed || !mounted) return;
     try {
-      final root = await _resolveRoot();
+      final root = _resolveRoot();
       final removed = await rust_recorder.recorderClearAllRecordings(
         recordingsRoot: root,
       );

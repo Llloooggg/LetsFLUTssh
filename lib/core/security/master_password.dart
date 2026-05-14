@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show AnyhowException;
-import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/master_password.dart' as rust_mp;
 import '../../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
@@ -15,10 +14,10 @@ import 'tier_unlock_attempt.dart';
 ///
 /// Thin façade over `lfs_core::security::master_password`. The Rust
 /// side owns the on-disk file format (`credentials.kdf` /
-/// `credentials.verify`), the Argon2id wall-clock cost, and the
-/// AES-GCM verifier round-trip. This class translates the platform
-/// app-support path into FRB calls and hands the rate-limiter wrapper
-/// to the unlock UI.
+/// `credentials.verify`), the Argon2id wall-clock cost, the AES-GCM
+/// verifier round-trip, **and** the support-dir resolution (pinned
+/// at `configStoreInit` time in main.dart). This class is a thin FRB
+/// shim plus the rate-limiter wrapper for the unlock UI.
 ///
 /// **File format** (owned Rust-side, mirror in `lfs_core::security::
 /// master_password::decode_kdf_record`):
@@ -36,8 +35,6 @@ class MasterPasswordManager {
   /// nothing — the default lands on `KdfParams.productionDefaults`.
   final KdfParams _kdfParams;
 
-  String? _basePath;
-
   /// Per-instance rate limiter for [verifyAndDerive] attempts. In-
   /// memory by design — the real brake against offline brute-force is
   /// the Argon2id KDF's wall-clock cost; a persisted counter here
@@ -48,44 +45,22 @@ class MasterPasswordManager {
   /// at the desk poking at the unlock dialog.
   final PasswordRateLimiter _rateLimiter;
 
-  /// Inject base path + rate limiter + KDF params for testing.
-  /// Production code passes nothing; a fresh `InMemoryRateLimiter`
-  /// lives per [MasterPasswordManager] instance, and `kdfParams`
-  /// defaults to [KdfParams.productionDefaults]. Tests pass
-  /// `kdfParams: KdfParams.testFast` so the Argon2id KDF runs in
-  /// milliseconds instead of seconds.
+  /// Inject rate limiter + KDF params for testing. Production code
+  /// passes nothing; a fresh `InMemoryRateLimiter` lives per
+  /// [MasterPasswordManager] instance, and `kdfParams` defaults to
+  /// [KdfParams.productionDefaults]. Tests pass `kdfParams:
+  /// KdfParams.testFast` so the Argon2id KDF runs in milliseconds
+  /// instead of seconds.
   MasterPasswordManager({
-    String? basePath,
     PasswordRateLimiter? rateLimiter,
     KdfParams? kdfParams,
-  }) : _basePath = basePath,
-       _rateLimiter = rateLimiter ?? InMemoryRateLimiter(),
+  }) : _rateLimiter = rateLimiter ?? InMemoryRateLimiter(),
        _kdfParams = kdfParams ?? KdfParams.productionDefaults;
 
   /// Current rate-limit status. UI reads this to render a cooldown
   /// countdown in place of the password field when
   /// [RateLimitStatus.isLocked] is true.
   RateLimitStatus rateLimitStatus() => _rateLimiter.status();
-
-  /// Resolve the support dir once via path_provider, then pin it
-  /// inside the Rust shim so subsequent calls don't repeat the
-  /// per-call passing. The pin is process-wide
-  /// (`OnceLock<PathBuf>` Rust-side); first init wins, repeated
-  /// inits are no-ops.
-  Future<String> _getBasePath() async {
-    if (_basePath != null) return _basePath!;
-    final dir = await getApplicationSupportDirectory();
-    _basePath = dir.path;
-    try {
-      rust_mp.masterPasswordInit(supportDir: _basePath!);
-    } catch (e) {
-      AppLogger.instance.log(
-        'masterPasswordInit unreachable (FRB native lib not loaded?): $e',
-        name: 'MasterPassword',
-      );
-    }
-    return _basePath!;
-  }
 
   static rust_mp.DbKdfParams _wireParams(KdfParams params) {
     // The Rust file-format reader rejects non-Argon2id algorithm ids,
@@ -101,7 +76,6 @@ class MasterPasswordManager {
   /// Whether master password protection is enabled — the Argon2id
   /// KDF file exists.
   Future<bool> isEnabled() async {
-    await _getBasePath();
     return rust_mp.masterPasswordIsEnabled();
   }
 
@@ -128,7 +102,6 @@ class MasterPasswordManager {
   /// orchestrator (stages key + emits cascade) so the listener
   /// pattern owns the post-unlock cascade.
   Future<Uint8List?> verifyAndDerive(Uint8List password) async {
-    await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordVerifyAndDerive(
         password: password,
@@ -149,7 +122,6 @@ class MasterPasswordManager {
     Uint8List password,
     String secretId,
   ) async {
-    await _getBasePath();
     try {
       return await rust_mp.masterPasswordVerifyAndDeriveToSecret(
         password: password,
@@ -178,7 +150,6 @@ class MasterPasswordManager {
     if (_rateLimiter.status().isLocked) {
       return TierUnlockAttempt.wrongSecret;
     }
-    await _getBasePath();
     final outcome = await rust_orch.tierUnlockParanoid(password: password);
     final attempt = mapUnlockOutcome(outcome);
     if (attempt == TierUnlockAttempt.staged) {
@@ -199,7 +170,6 @@ class MasterPasswordManager {
   /// The caller is responsible for re-encrypting SessionStore,
   /// KeyStore, and KnownHostsManager with the returned key.
   Future<Uint8List> enable(Uint8List password) async {
-    await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordEnable(
         password: password,
@@ -221,7 +191,6 @@ class MasterPasswordManager {
   /// `dbRekeyFromSecret` / `setFromSecret` so the AES bytes never
   /// touch the Dart heap.
   Future<void> enableToSecret(Uint8List password, String secretId) async {
-    await _getBasePath();
     try {
       await rust_mp.masterPasswordEnableToSecret(
         password: password,
@@ -248,7 +217,6 @@ class MasterPasswordManager {
     Uint8List oldPassword,
     Uint8List newPassword,
   ) async {
-    await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordChange(
         oldPassword: oldPassword,
@@ -277,7 +245,6 @@ class MasterPasswordManager {
     Uint8List newPassword,
     String secretId,
   ) async {
-    await _getBasePath();
     try {
       await rust_mp.masterPasswordChangeToSecret(
         oldPassword: oldPassword,
@@ -300,7 +267,6 @@ class MasterPasswordManager {
   /// re-encrypting stores with a new random key and saving it to
   /// `credentials.key`.
   Future<void> disable() async {
-    await _getBasePath();
     try {
       rust_mp.masterPasswordDisable();
       AppLogger.instance.log(
@@ -317,7 +283,6 @@ class MasterPasswordManager {
   /// Deletes KDF salt, verifier, and key files. Destructive — all
   /// saved passwords and keys are lost.
   Future<void> reset() async {
-    await _getBasePath();
     try {
       rust_mp.masterPasswordReset();
       AppLogger.instance.log(

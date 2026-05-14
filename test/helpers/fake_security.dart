@@ -62,8 +62,7 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
     ),
     this.statusAfterFailure,
   }) : unlockOutcomes = unlockOutcomes ?? [],
-       _status = initialStatus,
-       super(basePath: '/tmp/fake-master-password');
+       _status = initialStatus;
 
   @override
   Future<bool> isEnabled() async => enabled;

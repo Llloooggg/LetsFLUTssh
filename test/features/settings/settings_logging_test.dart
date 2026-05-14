@@ -52,8 +52,7 @@ class _FakeBiometricAuth implements BiometricAuth {
 class _MockMasterPasswordManager extends MasterPasswordManager {
   bool _enabled = false;
 
-  _MockMasterPasswordManager({required String basePath})
-    : super(basePath: basePath);
+  _MockMasterPasswordManager();
 
   @override
   Future<Uint8List> enable(Uint8List password) async {
@@ -171,9 +170,7 @@ void main() {
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
-        masterPasswordProvider.overrideWithValue(
-          _MockMasterPasswordManager(basePath: tempDir.path),
-        ),
+        masterPasswordProvider.overrideWithValue(_MockMasterPasswordManager()),
         // _SecuritySection probes these on initState — let them resolve
         // instantly to "not available" instead of running the real
         // FRB round-trip / biometric prompt.

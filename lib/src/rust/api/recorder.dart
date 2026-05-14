@@ -256,6 +256,18 @@ Future<void> recorderQueueEnqueueRotate({
 Future<void> recorderQueueEnqueueClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueClose(id: id);
 
+/// Canonical `<support_dir>/recordings` path. Rust resolves the
+/// pinned support directory and joins `recordings/` once so every
+/// Dart caller (recordings browser, settings storage tile) reads
+/// the same canonical root through one FRB sync hop instead of
+/// re-running `path_provider.getApplicationSupportDirectory() +
+/// path.join('recordings')` per surface. `Err` only when no pin
+/// has been set yet — the cold-start ordering invariant ensures
+/// `config_store_init` lands before any UI surface that needs the
+/// root.
+String recorderRecordingsRoot() =>
+    RustLib.instance.api.crateApiRecorderRecorderRecordingsRoot();
+
 /// List every recording under `<recordings_root>/<sessionId>/`.
 /// `recordings_root` is the platform-specific
 /// `getApplicationSupportDirectory() + "/recordings"` resolved

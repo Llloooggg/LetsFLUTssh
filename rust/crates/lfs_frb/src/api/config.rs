@@ -98,15 +98,22 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
 /// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
 /// subscriber + `set_json` calls.
 ///
-/// Wires three actors in a load-bearing order:
-///   1. [`lfs_core::config_store::Store::init`] — populate the
+/// Wires four actors in a load-bearing order:
+///   1. [`lfs_core::security::master_password::pin_support_dir`]
+///      — pin the process-singleton support-dir so every other
+///      FRB endpoint that needs `<support_dir>/...` paths
+///      (master_password, hardware vault wizard probe, recorder
+///      browser root, update cleanup) resolves through one
+///      canonical accessor. `OnceLock` first wins; subsequent
+///      calls under the same path are no-ops.
+///   2. [`lfs_core::config_store::Store::init`] — populate the
 ///      in-memory snapshot from disk so the actor's update calls
 ///      have somewhere to land.
-///   2. [`lfs_core::config_store::start_background_ticker`] —
+///   3. [`lfs_core::config_store::start_background_ticker`] —
 ///      drive the debounced atomic write so partial-update
 ///      calls (sync, security probe cache) flush within
 ///      `DEBOUNCE`.
-///   3. [`lfs_core::security::capabilities_persister::start`] —
+///   4. [`lfs_core::security::capabilities_persister::start`] —
 ///      subscribe to `Event::SecurityCapabilitiesChanged` and
 ///      mirror every fresh snapshot back into the
 ///      `security_probe_cache` slot of `config.json`. Must
@@ -116,7 +123,9 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
 ///      startup snapshot evaporates on the broadcast channel.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_store_init(support_dir: String) -> Result<String, String> {
-    let json = lfs_core::config_store::instance().init(std::path::PathBuf::from(support_dir))?;
+    let dir = std::path::PathBuf::from(support_dir);
+    lfs_core::security::master_password::pin_support_dir(dir.clone());
+    let json = lfs_core::config_store::instance().init(dir)?;
     lfs_core::config_store::start_background_ticker();
     lfs_core::security::capabilities_persister::start();
     Ok(json)

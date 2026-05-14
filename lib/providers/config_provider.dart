@@ -156,8 +156,6 @@ Future<void> bootstrapRustConfigStore() async {
 }
 
 Future<void> _saveAppConfigToDisk(AppConfig config) async {
-  final dir = await getApplicationSupportDirectory();
-  rust_config.configStoreInit(supportDir: dir.path);
   // `config.toJson()` already routes through the Rust canonicaliser
   // (`config_app_config_to_json`), which stamps `config_schema_version`
   // from `SchemaVersions::CONFIG` on the way out. Persisting goes
@@ -167,6 +165,15 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
   // `flush()` after `set_json` forces the pending state to disk on
   // an explicit save semantic ("save now") rather than letting the
   // actor's own debounce window absorb it.
+  //
+  // `configStoreInit` is idempotent — the Rust singleton's
+  // `OnceLock<PathBuf>` adopts the first path and ignores the rest.
+  // Production runs `bootstrapRustConfigStore` once at startup so
+  // this call is a no-op there; widget tests + unit tests construct
+  // a fresh `ConfigNotifier` per case and rely on this defensive
+  // init to pin the singleton against the test's temp support dir.
+  final dir = await getApplicationSupportDirectory();
+  rust_config.configStoreInit(supportDir: dir.path);
   rust_config.configStoreSetJson(newJson: jsonEncode(config.toJson()));
   rust_config.configStoreFlush();
 }
