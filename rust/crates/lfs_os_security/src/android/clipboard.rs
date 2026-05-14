@@ -149,6 +149,108 @@ pub fn set_secure_text(text: &str) -> Result<(), String> {
     })
 }
 
+/// Read the current primary clipboard text.
+///
+/// Walks `ClipboardManager.getPrimaryClip().getItemAt(0).coerceToText(ctx)`
+/// — the documented "give me the plain-text projection of whatever
+/// the user copied" path. `coerceToText` handles plain-text,
+/// HTML, and styled-text items by extracting / flattening, and
+/// returns the empty string for non-text items (files, URIs that
+/// don't carry a text projection) without throwing.
+///
+/// Returns:
+/// - `Some(text)` when the clipboard holds non-empty text or
+///   text-coercible content.
+/// - `None` when the JNI bootstrap is missing, the clipboard
+///   service is absent, `getPrimaryClip` returns null (clipboard
+///   empty), the clip has zero items, or `coerceToText` returns
+///   an empty / null charsequence.
+///
+/// The wipe orchestrator treats every `None` as "drifted" — no
+/// clear runs, no error surfaces. Pre-existing `EXTRA_IS_SENSITIVE`
+/// hint on the description is irrelevant for the read path; we
+/// just want the text projection.
+pub fn current_text() -> Option<String> {
+    h::with_env(|env| {
+        let context = jni_bootstrap::app_context()
+            .ok_or_else(|| "clipboard: app context not bootstrapped".to_string())?;
+
+        let service_name = h::jstring(env, "clipboard")?;
+        let clipboard = h::call_obj(
+            env,
+            context.as_obj(),
+            "getSystemService",
+            "(Ljava/lang/String;)Ljava/lang/Object;",
+            &[(&service_name).into()],
+        )?;
+        if clipboard.is_null() {
+            return Err("clipboard: getSystemService(CLIPBOARD_SERVICE) returned null".to_string());
+        }
+
+        // ClipData clip = cb.getPrimaryClip();
+        let clip = h::call_obj(
+            env,
+            &clipboard,
+            "getPrimaryClip",
+            "()Landroid/content/ClipData;",
+            &[],
+        )?;
+        if clip.is_null() {
+            return Err("clipboard: primary clip is null".to_string());
+        }
+
+        // int n = clip.getItemCount();
+        let item_count = env
+            .call_method(&clip, "getItemCount", "()I", &[])
+            .and_then(|v| v.i())
+            .map_err(|e| format!("jni: getItemCount: {e}"))?;
+        if item_count <= 0 {
+            return Err("clipboard: primary clip has no items".to_string());
+        }
+
+        // ClipData.Item item = clip.getItemAt(0);
+        let item = h::call_obj(
+            env,
+            &clip,
+            "getItemAt",
+            "(I)Landroid/content/ClipData$Item;",
+            &[jni::objects::JValue::Int(0)],
+        )?;
+        if item.is_null() {
+            return Err("clipboard: getItemAt(0) returned null".to_string());
+        }
+
+        // CharSequence cs = item.coerceToText(ctx);
+        let cs = h::call_obj(
+            env,
+            &item,
+            "coerceToText",
+            "(Landroid/content/Context;)Ljava/lang/CharSequence;",
+            &[context.as_obj().into()],
+        )?;
+        if cs.is_null() {
+            return Err("clipboard: coerceToText returned null".to_string());
+        }
+
+        // String s = cs.toString();
+        let s_obj = h::call_obj(env, &cs, "toString", "()Ljava/lang/String;", &[])?;
+        if s_obj.is_null() {
+            return Err("clipboard: toString returned null".to_string());
+        }
+        let jstr = jni::objects::JString::from(s_obj);
+        let s: String = env
+            .get_string(&jstr)
+            .map(|s| s.into())
+            .map_err(|e| format!("jni: get_string clipboard text: {e}"))?;
+        Ok(s)
+    })
+    // Every error branch is "couldn't read text from the clipboard"
+    // for the wipe-gate caller, so fold to `None`. JNI exceptions
+    // were drained by the helpers along the way.
+    .ok()
+    .filter(|s| !s.is_empty())
+}
+
 /// Read the runtime value of `ClipDescription.EXTRA_IS_SENSITIVE`
 /// (a `public static final String` on API 33+). Returns `None` on
 /// any JNI failure so the caller can substitute the well-known

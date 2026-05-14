@@ -7,6 +7,7 @@ import 'package:xterm/xterm.dart';
 
 import '../core/security/secure_clipboard.dart';
 import '../src/rust/api/crypto.dart' as rust_crypto;
+import '../src/rust/api/os_security.dart' as rust_os;
 import 'sanitize.dart' show looksSensitive;
 
 /// Shared clipboard operations for terminal views (desktop + mobile).
@@ -27,6 +28,21 @@ class TerminalClipboard {
     _secureClipboard = SecureClipboard();
   }
 
+  /// Test seam — installed by widget tests that exercise the auto-wipe
+  /// path without an FRB runtime. Production leaves this `null`; the
+  /// timer body then routes through
+  /// [rust_os.osSecuritySecureClipboardCompareAndClear]. Tests inject
+  /// a fake that simulates "drifted" or "still ours" outcomes against
+  /// an in-memory clipboard backend.
+  @visibleForTesting
+  static bool Function(String expectedSha256Hex)?
+  debugRustCompareAndClearOverride;
+
+  @visibleForTesting
+  static void debugResetRustCompareAndClear() {
+    debugRustCompareAndClearOverride = null;
+  }
+
   /// Time to keep a copied secret on the clipboard before overwriting it.
   /// Long enough to paste it once into another window; short enough that
   /// a careless `Ctrl+V` minutes later can't surface a private key.
@@ -37,12 +53,13 @@ class TerminalClipboard {
   /// don't trigger an early wipe of the latest content.
   static Timer? _wipeTimer;
 
-  /// SHA-256 hex of the text we last wrote to the clipboard. The
-  /// wipe only clears the slot when the current clipboard content
-  /// hashes back to this value AND nothing has been copied since.
-  /// Hashing instead of caching the raw text means a stale 30-second
-  /// reference to a freshly-copied PEM does not sit in this
-  /// process-wide `static` slot.
+  /// SHA-256 hex of the text we last wrote to the clipboard. Acts as
+  /// the "newer-arm-overrides" gate — a fresh `copy` of a different
+  /// secret bumps this value, and when the older timer body runs it
+  /// sees the slot has changed and bails before crossing FRB. The
+  /// digest itself is also the payload of the
+  /// `compare_and_clear` FRB call, so the Rust side has the same
+  /// reference to gate the actual read+wipe.
   static String? _lastSecretHash;
 
   /// Copy the current selection text to clipboard and clear selection.
@@ -117,19 +134,32 @@ class TerminalClipboard {
     _wipeTimer = Timer(secretClipboardLifetime, () => _wipeIfStillOurs(hash));
   }
 
-  static Future<void> _wipeIfStillOurs(String expectedHash) async {
-    final current = await Clipboard.getData('text/plain');
-    final currentText = current?.text;
-    if (currentText == null || currentText.isEmpty) {
+  static void _wipeIfStillOurs(String expectedHash) {
+    // Process-local gate: a later sensitive `copy` bumps
+    // `_lastSecretHash` to a different value, so an earlier timer
+    // that fires after the newer arm sees its expected hash no
+    // longer matches the "current" hash and bails before crossing
+    // FRB. The Rust side has its own clipboard-state compare; this
+    // check just avoids the FRB hop in the "we know we replaced it
+    // ourselves" case.
+    if (_lastSecretHash != expectedHash) {
       _wipeTimer = null;
-      _lastSecretHash = null;
       return;
     }
-    // Only wipe if the clipboard still holds *our* secret. If the user
-    // (or another app) has copied something else in the meantime, leave
-    // it alone.
-    if (_hash(currentText) == expectedHash && _lastSecretHash == expectedHash) {
-      await Clipboard.setData(const ClipboardData(text: ''));
+    try {
+      final hook = debugRustCompareAndClearOverride;
+      if (hook != null) {
+        hook(expectedHash);
+      } else {
+        rust_os.osSecuritySecureClipboardCompareAndClear(
+          expectedSha256Hex: expectedHash,
+        );
+      }
+    } catch (_) {
+      // Wipe is best-effort — the SecureClipboard tag already logs
+      // FRB-side failures. Suppressing here keeps the timer body
+      // from surfacing a noisy stack trace on every headless test
+      // host where the system clipboard is unreachable.
     }
     _wipeTimer = null;
     _lastSecretHash = null;

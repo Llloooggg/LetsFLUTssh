@@ -40,6 +40,14 @@ rand = { version = "0.8", default-features = false, features = ["std", "std_rng"
 # zero-cost at runtime so we ship it on every target rather than
 # gating per-cfg.
 thiserror = { workspace = true }
+# SHA-256 for the cross-platform `secure_clipboard::compare_and_clear`
+# digest gate. Pure-Rust, no system deps — the desktop-only pkcs11
+# module also pulls it through its cfg-gated block below, but the
+# clipboard wipe orchestrator fires on every target (Android +
+# iOS terminal copies arm the same gate), so the dep lives in
+# the cross-target list. Workspace pin keeps a single source of
+# truth for the version.
+sha2 = "0.10"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
@@ -57,12 +65,6 @@ libc = { version = "0.2", default-features = false }
 # the module compiles to its no-op stub there.
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 cryptoki = "0.12"
-# SHA-256 for the `pkcs11::module::ModuleKey` content-hash used as
-# the pool dedup key. RustCrypto's `sha2` is already in the workspace
-# tree via `lfs_core`; we pull it directly here so the desktop-only
-# pkcs11 module compiles without a feature-gate gymnastic on the
-# cross-target dep list.
-sha2 = "0.10"
 # `zeroize::Zeroizing` for the per-call PIN buffer in
 # `pkcs11::session::Session`. The PIN crosses FRB as a transient
 # SecretStore entry on the Rust side; we re-wrap it in `Zeroizing`

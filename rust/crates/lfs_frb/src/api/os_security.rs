@@ -72,6 +72,32 @@ pub fn os_security_set_secure_clipboard(text: String) -> Result<(), String> {
     lfs_os_security::secure_clipboard::set_secure_text(&text)
 }
 
+/// Compare-and-clear orchestrator for the auto-wipe contract. Read
+/// the current clipboard; if its SHA-256 hex digest equals
+/// `expected_sha256_hex`, overwrite the slot with an empty string
+/// through the same audit perimeter as
+/// [`os_security_set_secure_clipboard`] (so the empty payload still
+/// carries the per-platform "do not sync, do not history" markers);
+/// otherwise no-op.
+///
+/// Plaintext never crosses FRB on the wipe path — the Dart caller
+/// stages only the digest. The single audit perimeter for clipboard
+/// reads + writes is in `lfs_os_security`; the FRB layer marshals
+/// the hex string in and the bool out.
+///
+/// Returns `Ok(true)` when the clear ran; `Ok(false)` when the
+/// clipboard drifted (user copied something else, contents were
+/// non-text, or the system clipboard was unreachable — every
+/// non-clear branch maps to `false`). `Err` surfaces only on a
+/// Rust-side write failure during the follow-up empty-string
+/// write — the read itself never errors out.
+#[flutter_rust_bridge::frb(sync)]
+pub fn os_security_secure_clipboard_compare_and_clear(
+    expected_sha256_hex: String,
+) -> Result<bool, String> {
+    lfs_os_security::secure_clipboard::compare_and_clear(&expected_sha256_hex)
+}
+
 #[derive(Debug, Clone)]
 pub enum DbBiometricAvailability {
     /// `Ok` mapped to this variant — biometrics ready.

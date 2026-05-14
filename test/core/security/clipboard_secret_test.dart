@@ -1,52 +1,54 @@
-import 'package:flutter/services.dart';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/clipboard_secret.dart';
 import 'package:letsflutssh/core/security/secure_clipboard.dart';
+import 'package:letsflutssh/src/rust/api/crypto.dart' as rust_crypto;
 
-/// Mock the Flutter clipboard channel so tests can simulate writes /
-/// reads / user-pasted-over scenarios without touching the host
-/// clipboard.
-class _FakeClipboardBackend {
-  // Direct public field so tests can both read and inject values
-  // (simulating the user pasting in something else mid-wipe-window).
+import '../../helpers/frb_bootstrap.dart';
+
+/// In-memory clipboard backend driven through the `SecureClipboard`
+/// + `ClipboardSecret` test seams. Production routes both the write
+/// and the compare-and-clear through Rust; the seams let widget tests
+/// exercise the auto-wipe contract end-to-end without an FRB runtime
+/// touching the host clipboard.
+class _FakeBackend {
   String? text;
-
-  Future<dynamic> handle(MethodCall call) async {
-    switch (call.method) {
-      case 'Clipboard.setData':
-        text = (call.arguments as Map?)?['text'] as String?;
-        return null;
-      case 'Clipboard.getData':
-        return {'text': text};
-      default:
-        return null;
-    }
-  }
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // `ClipboardSecret.copySecret` hashes the plaintext via the
+  // FRB-backed `cryptoSha256Hex`. The seam in the production
+  // `ClipboardSecret.debugRustCompareAndClearOverride` slot below
+  // re-hashes the in-memory clipboard contents through the same
+  // helper, so both sides of the wipe gate share one digest format.
+  setUpAll(requireFrbLoaded);
 
-  late _FakeClipboardBackend backend;
+  late _FakeBackend backend;
 
   setUp(() {
-    backend = _FakeClipboardBackend();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, backend.handle);
-    // Route SecureClipboard's FRB writer through the fake backend so
-    // the auto-wipe contract can be exercised end-to-end without an
-    // FRB runtime. Mirrors what production does: every "write" lands
-    // through the secure path, the timer reads back via
-    // `Clipboard.getData` (which the same backend serves).
+    backend = _FakeBackend();
     SecureClipboard.debugRustWriterOverride = (text) {
       backend.text = text;
+    };
+    ClipboardSecret.debugRustCompareAndClearOverride = (expectedSha256Hex) {
+      // Simulates the Rust-side compare-and-clear orchestrator:
+      // read the current clipboard, hash it, and clear only when
+      // the digest matches what the timer staged. Production runs
+      // the equivalent dance in `lfs_os_security::secure_clipboard`.
+      final current = backend.text;
+      if (current == null || current.isEmpty) return false;
+      final liveHex = rust_crypto.cryptoSha256Hex(bytes: utf8.encode(current));
+      if (liveHex != expectedSha256Hex) return false;
+      backend.text = '';
+      return true;
     };
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null);
     SecureClipboard.debugResetRustWriter();
+    ClipboardSecret.debugResetRustCompareAndClear();
   });
 
   // Short wipe window so tests stay fast; the production default is
