@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
@@ -224,12 +223,11 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         if (_disposed) return;
         if (!sawHeader) {
           sawHeader = true;
-          try {
-            final v = jsonDecode(line.value);
-            if (v is Map<String, Object?>) return;
-          } catch (_) {
-            // Not a header — fall through and treat as event.
-          }
+          // The Rust-side `decodeHeaderLine` returns non-null only
+          // for the asciinema-v2 header object (first record of
+          // every cast); event tuples and malformed lines fall
+          // through to the event-decode path below.
+          if (decodeHeaderLine(line.value) != null) return;
         }
         final frame = decodeEventLine(line.value);
         if (frame == null) return;

@@ -129,6 +129,59 @@ pub fn decode_event_line(line: &str) -> Option<DecodedEvent> {
     })
 }
 
+/// Decoded asciinema-v2 header — carries the dimensions the
+/// recorded shell ran at so playback can resize xterm to match,
+/// plus the wall-clock origin and the optional `$SHELL` label the
+/// recorder captured at start time. Mirror of the Dart-side
+/// `RecordingHeader` value class.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DecodedHeader {
+    pub width: u32,
+    pub height: u32,
+    pub wall_clock_epoch_seconds: i64,
+    pub shell_label: Option<String>,
+}
+
+/// Parse one JSON-Lines record as an asciinema-v2 header. Returns
+/// `Some(header)` when the line is a JSON object carrying the
+/// dimensions, `None` for an event tuple (array) or any malformed
+/// shape. Missing fields fall back to the asciinema defaults
+/// (80×24, epoch=0, no `$SHELL`) so a hand-edited cast that omits
+/// `timestamp` still plays back.
+///
+/// Lives next to [`decode_event_line`] so the v2 wire-shape
+/// grammar (header = object, event = 3-tuple array) is single-
+/// source-of-truth in `lfs_core::recorder::reader`.
+pub fn decode_header_line(line: &str) -> Option<DecodedHeader> {
+    let value: serde_json::Value = serde_json::from_str(line).ok()?;
+    let obj = value.as_object()?;
+    let width = obj
+        .get("width")
+        .and_then(serde_json::Value::as_u64)
+        .map(|w| w as u32)
+        .unwrap_or(80);
+    let height = obj
+        .get("height")
+        .and_then(serde_json::Value::as_u64)
+        .map(|h| h as u32)
+        .unwrap_or(24);
+    let wall_clock_epoch_seconds = obj
+        .get("timestamp")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    let shell_label = obj
+        .get("env")
+        .and_then(serde_json::Value::as_object)
+        .and_then(|env| env.get("SHELL").and_then(serde_json::Value::as_str))
+        .map(str::to_string);
+    Some(DecodedHeader {
+        width,
+        height,
+        wall_clock_epoch_seconds,
+        shell_label,
+    })
+}
+
 #[cfg(test)]
 mod decode_event_line_tests {
     use super::*;
@@ -156,6 +209,50 @@ mod decode_event_line_tests {
     #[test]
     fn two_tuple_returns_none() {
         assert!(decode_event_line(r#"[1.5,"o"]"#).is_none());
+    }
+}
+
+#[cfg(test)]
+mod decode_header_line_tests {
+    use super::*;
+
+    #[test]
+    fn header_object_decodes_each_field() {
+        let h = decode_header_line(
+            r#"{"version":2,"width":120,"height":40,"timestamp":1700000000,"env":{"SHELL":"/bin/zsh"}}"#,
+        )
+        .unwrap();
+        assert_eq!(h.width, 120);
+        assert_eq!(h.height, 40);
+        assert_eq!(h.wall_clock_epoch_seconds, 1_700_000_000);
+        assert_eq!(h.shell_label.as_deref(), Some("/bin/zsh"));
+    }
+
+    #[test]
+    fn missing_fields_fall_back_to_defaults() {
+        let h = decode_header_line(r#"{"version":2}"#).unwrap();
+        assert_eq!(h.width, 80);
+        assert_eq!(h.height, 24);
+        assert_eq!(h.wall_clock_epoch_seconds, 0);
+        assert!(h.shell_label.is_none());
+    }
+
+    #[test]
+    fn event_tuple_returns_none() {
+        // Event lines are arrays — the header decoder must reject so
+        // the playback loop can dispatch correctly.
+        assert!(decode_header_line(r#"[1.5,"o","hello"]"#).is_none());
+    }
+
+    #[test]
+    fn malformed_json_returns_none() {
+        assert!(decode_header_line("not json").is_none());
+    }
+
+    #[test]
+    fn env_without_shell_yields_none_shell_label() {
+        let h = decode_header_line(r#"{"version":2,"env":{"TERM":"xterm"}}"#).unwrap();
+        assert!(h.shell_label.is_none());
     }
 }
 

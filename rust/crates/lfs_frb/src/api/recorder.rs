@@ -426,6 +426,79 @@ pub fn recorder_decode_event_line(line: String) -> Option<DbRecordingEvent> {
     })
 }
 
+/// FRB mirror of [`lfs_core::recorder::reader::DecodedHeader`]:
+/// asciinema-v2 header carrying width/height (so playback can
+/// resize xterm to match), the wall-clock origin timestamp, and
+/// the optional `$SHELL` label captured at start time.
+#[derive(Debug, Clone)]
+pub struct DbRecordingHeader {
+    pub width: u32,
+    pub height: u32,
+    pub wall_clock_epoch_seconds: i64,
+    pub shell_label: Option<String>,
+}
+
+/// Parse one JSON-Lines record as an asciinema-v2 header. Returns
+/// `Some(header)` when the line is the header object (first
+/// JSON-Lines record of every cast), `None` for an event tuple or
+/// any malformed shape. Missing per-field values fall back to the
+/// asciinema defaults (80×24, epoch=0, no shell label).
+///
+/// Sync — same rationale as [`recorder_decode_event_line`]: the
+/// playback dialog hits this once per stream open (or once per
+/// browser-list row during the read-meta walk) and async overhead
+/// on a serde parse would dwarf the work itself.
+#[flutter_rust_bridge::frb(sync)]
+pub fn recorder_decode_header_line(line: String) -> Option<DbRecordingHeader> {
+    lfs_core::recorder::reader::decode_header_line(&line).map(|h| DbRecordingHeader {
+        width: h.width,
+        height: h.height,
+        wall_clock_epoch_seconds: h.wall_clock_epoch_seconds,
+        shell_label: h.shell_label,
+    })
+}
+
+/// Tagged-union mirror of one decoded JSON-Lines record. Routes the
+/// asciinema v2 dispatch (header object vs event tuple) Rust-side so
+/// the Dart playback loop never re-runs `jsonDecode` to peek the
+/// shape. `None` lands on the `other` variant and the Dart consumer
+/// drops the record — matches the prior `jsonDecode` + `is Map` /
+/// `is List` triage behaviour exactly.
+#[derive(Debug, Clone)]
+pub enum DbRecordingLine {
+    Header(DbRecordingHeader),
+    Event(DbRecordingEvent),
+    Other,
+}
+
+/// Decode one JSON-Lines record into either the header struct, the
+/// event tuple, or `Other` for any malformed / non-conforming shape.
+/// Combines the two leaf decoders so the playback dialog (and the
+/// `readMeta` walk) hand one line in and pattern-match on the
+/// returned enum instead of running its own JSON triage.
+///
+/// Sync for the same reason the underlying leaf decoders are sync:
+/// per-frame cost on a microsecond serde parse.
+#[flutter_rust_bridge::frb(sync)]
+pub fn recorder_decode_line(line: String) -> DbRecordingLine {
+    if let Some(h) = lfs_core::recorder::reader::decode_header_line(&line) {
+        return DbRecordingLine::Header(DbRecordingHeader {
+            width: h.width,
+            height: h.height,
+            wall_clock_epoch_seconds: h.wall_clock_epoch_seconds,
+            shell_label: h.shell_label,
+        });
+    }
+    if let Some(e) = lfs_core::recorder::reader::decode_event_line(&line) {
+        return DbRecordingLine::Event(DbRecordingEvent {
+            timestamp: e.timestamp,
+            direction: e.direction,
+            data: e.data,
+        });
+    }
+    DbRecordingLine::Other
+}
+
 /// FRB mirror of [`lfs_core::recorder::RecordDirection`].
 pub enum DbRecordDirection {
     Output,

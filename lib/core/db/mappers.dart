@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/folder_path.dart' as rust_fp;
 import '../../src/rust/api/sessions.dart' as rust_sess;
@@ -99,7 +97,7 @@ rust_db.DbSession sessionToRustRow(Session s, {required String? folderId}) {
     sortOrder: s.sortOrder,
     notes: s.notes,
     lastConnectedAtMs: s.lastConnectedAtMs,
-    extras: jsonEncode(s.extras),
+    extras: extrasMapToJson(s.extras),
     viaSessionId: s.viaSessionId,
     viaHost: usingSavedBastion ? null : s.viaOverride?.host,
     viaPort: usingSavedBastion ? null : s.viaOverride?.port,

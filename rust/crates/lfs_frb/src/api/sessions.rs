@@ -138,10 +138,13 @@ pub fn sessions_filter(items: Vec<DbSearchableSession>, query: String) -> Vec<St
 
 /// Validate a session's storable-field set: host non-empty, port in
 /// 1..=65535, user non-empty. Returns the user-facing error message
-/// or `None` when the session is storable. Same grammar as
-/// `Session.validate` Dart-side.
+/// or `None` when the session is storable. Sole owner of the
+/// storable-field grammar — the Dart `Session.validate` wrapper is
+/// gone, callers route here directly. `port` rides as `i32` so the
+/// out-of-range branch fires Rust-side instead of the Dart caller
+/// clamping the value before the call.
 #[flutter_rust_bridge::frb(sync)]
-pub fn sessions_validate_fields(host: String, port: u16, user: String) -> Option<String> {
+pub fn sessions_validate_fields(host: String, port: i32, user: String) -> Option<String> {
     sessions::validate_session_fields(&host, port, &user)
 }
 
@@ -217,6 +220,19 @@ mod tests {
     #[test]
     fn validate_fields_rejects_blank_user() {
         assert!(sessions_validate_fields("h".into(), 22, String::new()).is_some());
+    }
+
+    #[test]
+    fn validate_fields_rejects_negative_port() {
+        // The Dart `Session.validate` wrapper is gone; callers now
+        // pass the raw `int` port through, so the negative-port
+        // branch must fire here instead of Dart-side clamping.
+        assert!(sessions_validate_fields("h".into(), -1, "u".into()).is_some());
+    }
+
+    #[test]
+    fn validate_fields_rejects_port_above_max() {
+        assert!(sessions_validate_fields("h".into(), 70_000, "u".into()).is_some());
     }
 
     #[test]
@@ -542,4 +558,97 @@ pub fn session_extras_decode(json: String) -> Vec<DbSessionJsonExtra> {
             value: value.into(),
         })
         .collect()
+}
+
+/// Encode an `extras` list (the typed `{key, value}` shape) into the
+/// JSON-text wire form persisted in `Sessions.extras`. Symmetric
+/// counterpart of [`session_extras_decode`] — the Dart mapper drops
+/// its `jsonEncode(s.extras)` call when this lands so the column
+/// grammar (typed leaves, key ordering) lives in
+/// `lfs_core::session_json::encode_extras_string` only.
+///
+/// An empty list yields the empty string — same convention as the
+/// DB column default + the decoder's empty-input branch — so a
+/// session with no extras stages a clean row.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_extras_encode(extras: Vec<DbSessionJsonExtra>) -> Result<String, String> {
+    let pairs: Vec<(String, lfs_core::session_json::SessionJsonValue)> = extras
+        .into_iter()
+        .map(|e| (e.key, db_session_json_value_to_core(e.value)))
+        .collect();
+    lfs_core::session_json::encode_extras_string(&pairs)
+}
+
+/// Translate the FRB-typed value tree back into the
+/// `lfs_core::session_json::SessionJsonValue` it mirrors. Used by
+/// [`session_extras_encode`] — the Dart encoder hands the typed
+/// payload in via [`DbSessionJsonExtra`], we re-key it into the
+/// core type, then run the canonical encoder.
+fn db_session_json_value_to_core(
+    v: DbSessionJsonValue,
+) -> lfs_core::session_json::SessionJsonValue {
+    use lfs_core::session_json::SessionJsonValue as Core;
+    match v {
+        DbSessionJsonValue::Null => Core::Null,
+        DbSessionJsonValue::Bool(b) => Core::Bool(b),
+        DbSessionJsonValue::Int(i) => Core::Int(i),
+        DbSessionJsonValue::Double(d) => Core::Double(d),
+        DbSessionJsonValue::Text(s) => Core::Text(s),
+        DbSessionJsonValue::Array(items) => Core::Array(
+            items
+                .into_iter()
+                .map(db_session_json_value_to_core)
+                .collect(),
+        ),
+        DbSessionJsonValue::Object(pairs) => Core::Object(
+            pairs
+                .into_iter()
+                .map(|e| (e.key, db_session_json_value_to_core(e.value)))
+                .collect(),
+        ),
+    }
+}
+
+/// Encode a session-history snapshot envelope:
+/// `{"sessions": [...], "emptyFolders": [...], "description": "..."}`.
+/// The Dart `SessionHistory._encode` helper hands the typed inputs
+/// in, the Rust side emits a single byte buffer the per-handle
+/// undo actor stores opaquely — no `jsonEncode` / `jsonDecode`
+/// sandwich stays Dart-side.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_history_encode_snapshot_envelope(
+    sessions: Vec<DbSessionJsonInput>,
+    empty_folders: Vec<String>,
+    description: String,
+) -> Result<String, String> {
+    let typed: Vec<lfs_core::session_json::SessionJsonInput> =
+        sessions.into_iter().map(Into::into).collect();
+    lfs_core::session_json::encode_snapshot_envelope(&typed, &empty_folders, &description)
+}
+
+/// Decoded snapshot envelope mirror — `SnapshotEnvelope` rendered
+/// across the FRB boundary as a flat struct. The Dart caller in
+/// `SessionHistory._decode` consumes this directly to rehydrate a
+/// `SessionSnapshot` without re-running JSON parses.
+#[derive(Debug, Clone)]
+pub struct DbSessionHistoryEnvelope {
+    pub sessions: Vec<DbSessionJsonOutput>,
+    pub empty_folders: Vec<String>,
+    pub description: String,
+}
+
+/// Decode a session-history snapshot envelope. Inverse of
+/// [`session_history_encode_snapshot_envelope`] — routes through
+/// the core decoder, then maps the typed `SessionJsonOutput` /
+/// `String` fields into the FRB-visible struct.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_history_decode_snapshot_envelope(
+    json: String,
+) -> Result<DbSessionHistoryEnvelope, String> {
+    let env = lfs_core::session_json::decode_snapshot_envelope(&json)?;
+    Ok(DbSessionHistoryEnvelope {
+        sessions: env.sessions.into_iter().map(Into::into).collect(),
+        empty_folders: env.empty_folders,
+        description: env.description,
+    })
 }

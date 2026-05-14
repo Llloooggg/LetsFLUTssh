@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show PlatformInt64Util;
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/path.dart' as rust_path;
@@ -337,22 +339,11 @@ class Session {
       user.trim().isNotEmpty &&
       hasCredentials;
 
-  /// Validate minimum required fields for storage via
-  /// `lfs_core::sessions::validate_session_fields` — the storable-field
-  /// grammar (host / port-range / user) lives in Rust. Returns error
-  /// message or null.
-  ///
-  /// Unlike [isValid], this does NOT require credentials — a session can be
-  /// stored without credentials and completed later. Use [isValid] to check
-  /// if the session is ready to connect.
-  String? validate() {
-    final port16 = (port < 0 || port > 65535) ? 0 : port;
-    return rust_sess.sessionsValidateFields(
-      host: host,
-      port: port16,
-      user: user,
-    );
-  }
+  // Session.validate has retired — callers route through
+  // `rust_sess.sessionsValidateFields(host:, port:, user:)` directly
+  // so the storable-field grammar (host non-empty, port 1..=65535,
+  // user non-empty) lives Rust-side with no Dart-side wrapper.
+  // [isValid] above stays as the connect-time credential check.
 
   /// Sanitised copy of this session — plaintext credentials cleared,
   /// `hasStoredX` markers preserved (or computed from the live
@@ -549,7 +540,7 @@ rust_sess.DbSessionJsonInput sessionToJsonInput(
     keyPath: session.keyPath,
     createdAtIso: session.createdAt.toIso8601String(),
     updatedAtIso: session.updatedAt.toIso8601String(),
-    extrasJson: session.extras.isEmpty ? '' : jsonEncode(session.extras),
+    extrasJson: extrasMapToJson(session.extras),
     viaSessionId: session.viaSessionId,
     viaOverride: via == null
         ? null
@@ -634,4 +625,75 @@ Object? _extrasLeafToDart(rust_sess.DbSessionJsonValue v) {
     array: (a) => a.field0.map(_extrasLeafToDart).toList(growable: false),
     object: (o) => extrasListToMap(o.field0),
   );
+}
+
+/// Encode a `Session.extras` map (`Map<String, Object?>`) into the
+/// canonical JSON-text wire form persisted in `Sessions.extras`.
+/// Routes through `lfs_core::session_json::encode_extras_string` via
+/// the FRB sync shim `session_extras_encode` — symmetric counterpart
+/// of [`rust_sess.sessionExtrasDecode`]. Empty input yields the
+/// empty string (DB column default) so a session without extras
+/// stages a clean row.
+///
+/// The wire grammar (typed leaves, nested arrays / objects)
+/// lives Rust-side; the Dart caller only walks its native value
+/// tree into the typed `DbSessionJsonExtra` carrier.
+String extrasMapToJson(Map<String, Object?> extras) {
+  if (extras.isEmpty) return '';
+  final list = extras.entries
+      .map(
+        (e) => rust_sess.DbSessionJsonExtra(
+          key: e.key,
+          value: _extrasLeafToRust(e.value),
+        ),
+      )
+      .toList(growable: false);
+  return rust_sess.sessionExtrasEncode(extras: list);
+}
+
+/// Inverse of [`_extrasLeafToDart`]: walk a Dart value tree into
+/// the FRB-typed [`DbSessionJsonValue`] mirror. The grammar tracks
+/// `Session.extras`'s declared element types (`bool` / `int` /
+/// `double` / `String` / `List<Object?>` / `Map<String, Object?>`).
+/// Anything outside that set folds to `Null` rather than panicking
+/// — the typed accessors on [Session] only read primitives, so a
+/// leaf that round-trips as null is functionally identical to a
+/// missing key.
+rust_sess.DbSessionJsonValue _extrasLeafToRust(Object? value) {
+  if (value == null) {
+    return const rust_sess.DbSessionJsonValue.null_();
+  }
+  if (value is bool) {
+    return rust_sess.DbSessionJsonValue.bool(value);
+  }
+  if (value is int) {
+    // `PlatformInt64` is `int` on io and `BigInt` on web — the
+    // `for_generated` Util routes the value through whichever
+    // platform-specific constructor the FRB runtime uses.
+    return rust_sess.DbSessionJsonValue.int(PlatformInt64Util.from(value));
+  }
+  if (value is double) {
+    return rust_sess.DbSessionJsonValue.double(value);
+  }
+  if (value is String) {
+    return rust_sess.DbSessionJsonValue.text(value);
+  }
+  if (value is List) {
+    return rust_sess.DbSessionJsonValue.array(
+      value.map(_extrasLeafToRust).toList(growable: false),
+    );
+  }
+  if (value is Map<String, Object?>) {
+    return rust_sess.DbSessionJsonValue.object(
+      value.entries
+          .map(
+            (e) => rust_sess.DbSessionJsonExtra(
+              key: e.key,
+              value: _extrasLeafToRust(e.value),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+  return const rust_sess.DbSessionJsonValue.null_();
 }

@@ -28,9 +28,11 @@ class SessionSnapshot {
 /// State machine ownership lives in `lfs_core::session_history`
 /// (FRB sync). This Dart class is a thin handle wrapper:
 /// `SessionHistory()` mints a Rust-side actor on construction;
-/// method calls round-trip through FRB; the only Dart-side
-/// concern is `SessionSnapshot` ↔ JSON-bytes serialisation since
-/// the Rust actor stores opaque blobs.
+/// method calls round-trip through FRB; the snapshot envelope
+/// (`{sessions: [...], emptyFolders: [...], description: ...}`)
+/// codec also lives Rust-side under
+/// `lfs_core::session_json::{encode,decode}_snapshot_envelope` so
+/// the Dart class never opens the blob.
 ///
 /// Pair every `SessionHistory()` with a [dispose] when the owning
 /// notifier tears down — otherwise the actor handle leaks for the
@@ -120,39 +122,32 @@ class SessionHistory {
     // empty Strings; routing through `includeCredentials: false`
     // keeps the blob structurally credential-clean by construction.
     //
-    // The session array is encoded Rust-side
-    // (`session_history_encode_snapshot`) so the wire shape stays
-    // byte-identical with the retired Dart pair (`jsonEncode([for s
-    // toJson()])`); the `emptyFolders` + `description` wrapper stays
-    // Dart-side because it carries no Session JSON shape.
+    // Both the per-session canonical encode and the outer
+    // `{sessions, emptyFolders, description}` envelope wrap live
+    // Rust-side in `lfs_core::session_json` — the Dart caller only
+    // builds the typed input list and reads back the wire bytes.
     final inputs = snapshot.sessions
         .map((s) => sessionToJsonInput(s, includeCredentials: false))
         .toList(growable: false);
-    final sessionsJson = rust_sess.sessionHistoryEncodeSnapshot(
+    final encoded = rust_sess.sessionHistoryEncodeSnapshotEnvelope(
       sessions: inputs,
+      emptyFolders: snapshot.emptyFolders.toList(growable: false),
+      description: snapshot.description,
     );
-    final wrapped = jsonEncode({
-      'sessions': jsonDecode(sessionsJson),
-      'emptyFolders': snapshot.emptyFolders.toList(),
-      'description': snapshot.description,
-    });
-    return Uint8List.fromList(utf8.encode(wrapped));
+    return Uint8List.fromList(utf8.encode(encoded));
   }
 
   static SessionSnapshot _decode(Uint8List blob, String description) {
     final raw = utf8.decode(blob);
-    final json = jsonDecode(raw) as Map<String, dynamic>;
-    final sessionsArrayJson = jsonEncode(json['sessions']);
-    final decoded = rust_sess.sessionHistoryDecodeSnapshot(
-      json: sessionsArrayJson,
-    );
-    final sessions = decoded.map(sessionFromJsonOutput).toList();
-    final folders = (json['emptyFolders'] as List<dynamic>)
-        .map((e) => e as String)
-        .toSet();
+    final envelope = rust_sess.sessionHistoryDecodeSnapshotEnvelope(json: raw);
+    final sessions = envelope.sessions.map(sessionFromJsonOutput).toList();
     return SessionSnapshot(
       sessions: sessions,
-      emptyFolders: folders,
+      emptyFolders: envelope.emptyFolders.toSet(),
+      // The description in the envelope is informational only —
+      // the registry hands the authoritative description back as a
+      // sibling string argument so the Dart caller can preserve
+      // its existing undo/redo menu-label contract.
       description: description,
     );
   }

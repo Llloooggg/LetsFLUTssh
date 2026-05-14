@@ -269,6 +269,69 @@ pub(crate) fn from_core(err: &CoreError) -> String {
     }
 }
 
+/// FRB-visible typed mirror of the wire envelope. The Dart-side
+/// `FrbError.fromWire` wrapper used to do the JSON parse itself
+/// — that grammar lives here now and the Dart caller passes the
+/// raw wire string in through [`frb_error_from_wire`] to receive
+/// this struct back, removing the last Dart-side parser on the
+/// FRB error channel.
+#[derive(Debug, Clone)]
+pub struct DbFrbError {
+    pub kind: String,
+    pub detail: String,
+}
+
+/// Parse an FRB error string into the typed [`DbFrbError`] envelope.
+/// JSON-shaped payloads land with their `kind` + `detail` fields;
+/// non-JSON strings (plain `e.to_string()` callsites that have not
+/// migrated yet) fall back to `kind = "generic"` with the original
+/// text as detail. Malformed JSON also lands in the generic bucket
+/// — never returns an error so untrusted input still routes safely.
+///
+/// Sync because the only work is one `serde_json::from_str` + two
+/// `as_str` reads; the Dart caller hits this on every UI toast
+/// path and a per-render async hop would tax the rebuild.
+#[flutter_rust_bridge::frb(sync)]
+#[must_use]
+pub fn frb_error_from_wire(wire: String) -> DbFrbError {
+    if wire.is_empty() {
+        return DbFrbError {
+            kind: kind::GENERIC.to_string(),
+            detail: String::new(),
+        };
+    }
+    if !wire.starts_with('{') {
+        return DbFrbError {
+            kind: kind::GENERIC.to_string(),
+            detail: wire,
+        };
+    }
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&wire) else {
+        return DbFrbError {
+            kind: kind::GENERIC.to_string(),
+            detail: wire,
+        };
+    };
+    let Some(obj) = value.as_object() else {
+        return DbFrbError {
+            kind: kind::GENERIC.to_string(),
+            detail: wire,
+        };
+    };
+    let kind_str = obj.get("kind").and_then(serde_json::Value::as_str);
+    let detail_str = obj.get("detail").and_then(serde_json::Value::as_str);
+    match (kind_str, detail_str) {
+        (Some(k), Some(d)) => DbFrbError {
+            kind: k.to_string(),
+            detail: d.to_string(),
+        },
+        _ => DbFrbError {
+            kind: kind::GENERIC.to_string(),
+            detail: wire,
+        },
+    }
+}
+
 fn json_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     for c in s.chars() {
@@ -304,6 +367,42 @@ mod tests {
             envelope,
             r#"{"kind":"k","detail":"with \"quote\" and\nnewline"}"#
         );
+    }
+
+    #[test]
+    fn from_wire_parses_canonical_envelope() {
+        let e = frb_error_from_wire(r#"{"kind":"auth_failed","detail":"bad pw"}"#.to_string());
+        assert_eq!(e.kind, "auth_failed");
+        assert_eq!(e.detail, "bad pw");
+    }
+
+    #[test]
+    fn from_wire_falls_back_to_generic_for_non_json() {
+        let e = frb_error_from_wire("no such host".to_string());
+        assert_eq!(e.kind, "generic");
+        assert_eq!(e.detail, "no such host");
+    }
+
+    #[test]
+    fn from_wire_falls_back_to_generic_for_malformed_json() {
+        let e = frb_error_from_wire("{not json".to_string());
+        assert_eq!(e.kind, "generic");
+        assert_eq!(e.detail, "{not json");
+    }
+
+    #[test]
+    fn from_wire_empty_string_yields_generic_empty() {
+        let e = frb_error_from_wire(String::new());
+        assert_eq!(e.kind, "generic");
+        assert_eq!(e.detail, "");
+    }
+
+    #[test]
+    fn from_wire_missing_kind_or_detail_folds_to_generic() {
+        let e = frb_error_from_wire(r#"{"kind":"auth_failed"}"#.to_string());
+        assert_eq!(e.kind, "generic");
+        let e = frb_error_from_wire(r#"{"detail":"x"}"#.to_string());
+        assert_eq!(e.kind, "generic");
     }
 
     #[test]

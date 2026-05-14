@@ -8,7 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sessions.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `hash`, `hash`
+// These functions are ignored because they are not marked as `pub`: `db_session_json_value_to_core`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `hash`, `hash`
 
 /// Parse a stored `auth_type` wire-string into the typed enum. The
 /// FRB sync shim around [`AuthType::from_wire_name`] — used by the
@@ -39,8 +40,11 @@ List<String> sessionsFilter({
 
 /// Validate a session's storable-field set: host non-empty, port in
 /// 1..=65535, user non-empty. Returns the user-facing error message
-/// or `None` when the session is storable. Same grammar as
-/// `Session.validate` Dart-side.
+/// or `None` when the session is storable. Sole owner of the
+/// storable-field grammar — the Dart `Session.validate` wrapper is
+/// gone, callers route here directly. `port` rides as `i32` so the
+/// out-of-range branch fires Rust-side instead of the Dart caller
+/// clamping the value before the call.
 String? sessionsValidateFields({
   required String host,
   required int port,
@@ -125,6 +129,45 @@ String sessionHistoryEncodeSnapshot({
 List<DbSessionJsonExtra> sessionExtrasDecode({required String json}) =>
     RustLib.instance.api.crateApiSessionsSessionExtrasDecode(json: json);
 
+/// Encode an `extras` list (the typed `{key, value}` shape) into the
+/// JSON-text wire form persisted in `Sessions.extras`. Symmetric
+/// counterpart of [`session_extras_decode`] — the Dart mapper drops
+/// its `jsonEncode(s.extras)` call when this lands so the column
+/// grammar (typed leaves, key ordering) lives in
+/// `lfs_core::session_json::encode_extras_string` only.
+///
+/// An empty list yields the empty string — same convention as the
+/// DB column default + the decoder's empty-input branch — so a
+/// session with no extras stages a clean row.
+String sessionExtrasEncode({required List<DbSessionJsonExtra> extras}) =>
+    RustLib.instance.api.crateApiSessionsSessionExtrasEncode(extras: extras);
+
+/// Encode a session-history snapshot envelope:
+/// `{"sessions": [...], "emptyFolders": [...], "description": "..."}`.
+/// The Dart `SessionHistory._encode` helper hands the typed inputs
+/// in, the Rust side emits a single byte buffer the per-handle
+/// undo actor stores opaquely — no `jsonEncode` / `jsonDecode`
+/// sandwich stays Dart-side.
+String sessionHistoryEncodeSnapshotEnvelope({
+  required List<DbSessionJsonInput> sessions,
+  required List<String> emptyFolders,
+  required String description,
+}) => RustLib.instance.api.crateApiSessionsSessionHistoryEncodeSnapshotEnvelope(
+  sessions: sessions,
+  emptyFolders: emptyFolders,
+  description: description,
+);
+
+/// Decode a session-history snapshot envelope. Inverse of
+/// [`session_history_encode_snapshot_envelope`] — routes through
+/// the core decoder, then maps the typed `SessionJsonOutput` /
+/// `String` fields into the FRB-visible struct.
+DbSessionHistoryEnvelope sessionHistoryDecodeSnapshotEnvelope({
+  required String json,
+}) => RustLib.instance.api.crateApiSessionsSessionHistoryDecodeSnapshotEnvelope(
+  json: json,
+);
+
 /// FRB-visible mirror of [`lfs_core::sessions::AuthType`]. Carries
 /// the four app-side authentication methods across the boundary as
 /// a typed enum; Dart consumers pattern-match directly rather than
@@ -172,6 +215,35 @@ class DbSearchableSession {
           folder == other.folder &&
           host == other.host &&
           user == other.user;
+}
+
+/// Decoded snapshot envelope mirror — `SnapshotEnvelope` rendered
+/// across the FRB boundary as a flat struct. The Dart caller in
+/// `SessionHistory._decode` consumes this directly to rehydrate a
+/// `SessionSnapshot` without re-running JSON parses.
+class DbSessionHistoryEnvelope {
+  final List<DbSessionJsonOutput> sessions;
+  final List<String> emptyFolders;
+  final String description;
+
+  const DbSessionHistoryEnvelope({
+    required this.sessions,
+    required this.emptyFolders,
+    required this.description,
+  });
+
+  @override
+  int get hashCode =>
+      sessions.hashCode ^ emptyFolders.hashCode ^ description.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionHistoryEnvelope &&
+          runtimeType == other.runtimeType &&
+          sessions == other.sessions &&
+          emptyFolders == other.emptyFolders &&
+          description == other.description;
 }
 
 /// One entry of the decoded `extras` map. FRB does not support

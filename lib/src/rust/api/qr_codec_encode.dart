@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+
 /// Deflate + base64url encode the JSON payload, returning the
 /// `?d=` query value ready to embed in a `letsflutssh://import?d=…`
 /// deeplink. Caller composes the surrounding URI Dart-side.
@@ -18,6 +20,17 @@ String qrCodecCompressToPayload({required String json}) => RustLib.instance.api
 /// the caller only renders a "fits in QR" gauge against a length.
 int qrCodecCompressToPayloadSize({required String json}) => RustLib.instance.api
     .crateApiQrCodecEncodeQrCodecCompressToPayloadSize(json: json);
+
+/// Typed variant of [`qr_codec_encode_session_compact`]. Routes
+/// through the same canonical encoder
+/// (`lfs_core::qr_codec_encode::encode_session_compact`) so the
+/// field-name grammar lives one place; on the way back out the
+/// `Value` map decomposes into the typed struct rather than a JSON
+/// string the Dart caller has to re-parse.
+DbQrSessionCompact qrCodecEncodeSessionCompactTyped({
+  required QrSessionCompactInputs inputs,
+}) => RustLib.instance.api
+    .crateApiQrCodecEncodeQrCodecEncodeSessionCompactTyped(inputs: inputs);
 
 /// Build the v4 QR per-session compact map and return it as a
 /// JSON-encoded string. The Dart caller decodes it into a
@@ -37,6 +50,89 @@ String qrCodecEncodeSessionCompact({required QrSessionCompactInputs inputs}) =>
     RustLib.instance.api.crateApiQrCodecEncodeQrCodecEncodeSessionCompact(
       inputs: inputs,
     );
+
+/// Flat-struct mirror of the v4 QR per-session compact map. Every
+/// optional field that the JSON encoder collapses out of the map
+/// (`p` / `g` / `a` / `ki` / `mg` / `pw`) rides as `Option<…>`
+/// here so the Dart caller pattern-matches typed presence instead
+/// of running its own `jsonDecode` + key probe.
+///
+/// Mirrors the `lfs_core::qr_codec_encode::encode_session_compact`
+/// grammar; the JSON-string variant in
+/// [`qr_codec_encode_session_compact`] stays in place for callers
+/// (production export payload) that splice the map into an outer
+/// document. New / pure-test callers should prefer this typed
+/// surface.
+class DbQrSessionCompact {
+  /// `l` — session label (always present).
+  final String label;
+
+  /// `h` — host.
+  final String host;
+
+  /// `u` — user.
+  final String user;
+
+  /// `p` — non-default port (omitted when 22).
+  final int? port;
+
+  /// `g` — folder path (omitted when empty).
+  final String? folder;
+
+  /// `a` — non-default auth type wire-string (omitted for
+  /// `"password"`).
+  final String? authType;
+
+  /// `ki` — manager-key short id when the session resolved to one.
+  final String? keyShort;
+
+  /// `mg` — `Some(1)` flag when the keyed session points at a
+  /// manager key.
+  final int? isManager;
+
+  /// `pw` — plaintext password (only when the caller opted in
+  /// via `include_passwords` and the password is non-empty).
+  final String? password;
+
+  const DbQrSessionCompact({
+    required this.label,
+    required this.host,
+    required this.user,
+    this.port,
+    this.folder,
+    this.authType,
+    this.keyShort,
+    this.isManager,
+    this.password,
+  });
+
+  @override
+  int get hashCode =>
+      label.hashCode ^
+      host.hashCode ^
+      user.hashCode ^
+      port.hashCode ^
+      folder.hashCode ^
+      authType.hashCode ^
+      keyShort.hashCode ^
+      isManager.hashCode ^
+      password.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbQrSessionCompact &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          host == other.host &&
+          user == other.user &&
+          port == other.port &&
+          folder == other.folder &&
+          authType == other.authType &&
+          keyShort == other.keyShort &&
+          isManager == other.isManager &&
+          password == other.password;
+}
 
 /// FRB-mirror of [`lfs_core::qr_codec_encode::SessionCompactInputs`].
 /// Owned-string fields cross the FRB boundary one copy each — the

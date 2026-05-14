@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import '../../core/security/active_dbkey.dart';
 import '../../src/rust/api/app.dart' as rust_secrets;
@@ -20,6 +19,12 @@ class RecordingFrame {
 
 /// Decoded asciinema-v2 header — carries the dimensions the
 /// recorded shell ran at so playback can resize xterm to match.
+///
+/// Parsed Rust-side via `lfs_core::recorder::reader::decode_header_line`
+/// over the FRB sync shim `recorder_decode_header_line`. The Dart
+/// class is a thin value holder around the FRB-typed mirror so the
+/// asciinema-v2 wire-shape grammar (field set, default fallbacks,
+/// `env.SHELL` extraction) stays in one place Rust-side.
 class RecordingHeader {
   final int width;
   final int height;
@@ -33,14 +38,16 @@ class RecordingHeader {
     this.shellLabel,
   });
 
-  static RecordingHeader fromJson(Map<String, Object?> json) => RecordingHeader(
-    width: (json['width'] as num?)?.toInt() ?? 80,
-    height: (json['height'] as num?)?.toInt() ?? 24,
-    wallClockEpochSeconds: (json['timestamp'] as num?)?.toInt() ?? 0,
-    shellLabel: (json['env'] is Map<String, Object?>)
-        ? ((json['env'] as Map<String, Object?>)['SHELL'] as String?)
-        : null,
-  );
+  /// Lift the FRB-typed mirror into the Dart value class. Sole
+  /// constructor used by the readers — `RecordingHeader.fromJson`
+  /// no longer exists because the JSON parse runs Rust-side.
+  factory RecordingHeader.fromRust(rust_recorder.DbRecordingHeader header) =>
+      RecordingHeader(
+        width: header.width,
+        height: header.height,
+        wallClockEpochSeconds: header.wallClockEpochSeconds,
+        shellLabel: header.shellLabel,
+      );
 }
 
 /// Pure decoder for the recording files the [SessionRecorder] writes.
@@ -183,18 +190,27 @@ class RecordingReader {
       var lastTimestamp = 0.0;
       var eventCount = 0;
       await for (final line in open(filePath)) {
-        final json = jsonDecode(line.value);
-        if (header == null && json is Map<String, Object?>) {
-          header = RecordingHeader.fromJson(json);
-        } else if (json is List && json.length >= 3) {
-          eventCount++;
-          final ts = (json[0] as num).toDouble();
-          if (ts > lastTimestamp) lastTimestamp = ts;
-        }
+        // Dispatch on the typed `DbRecordingLine` enum the Rust
+        // decoder returns — header (object) lands on `Header`,
+        // event (3-tuple) lands on `Event`, malformed lines and
+        // unrelated shapes collapse to `Other` and are skipped.
+        // No Dart-side `jsonDecode` lives in this loop.
+        final decoded = rust_recorder.recorderDecodeLine(line: line.value);
+        decoded.when(
+          header: (h) {
+            header ??= RecordingHeader.fromRust(h);
+          },
+          event: (e) {
+            eventCount++;
+            if (e.timestamp > lastTimestamp) lastTimestamp = e.timestamp;
+          },
+          other: () {},
+        );
       }
-      if (header == null) return null;
+      final resolvedHeader = header;
+      if (resolvedHeader == null) return null;
       return RecordingMeta(
-        header: header,
+        header: resolvedHeader,
         durationSeconds: lastTimestamp,
         eventCount: eventCount,
       );
@@ -219,6 +235,17 @@ RecordingFrame? decodeEventLine(String line) {
   final event = rust_recorder.recorderDecodeEventLine(line: line);
   if (event == null) return null;
   return RecordingFrame(event.timestamp, event.direction, event.data);
+}
+
+/// Parse a raw JSON-Lines record as the asciinema-v2 header object.
+/// Routes through the Rust-side `recorder_decode_header_line` FRB
+/// sync helper — same wire-shape ownership as [`decodeEventLine`].
+/// Returns `null` for event tuples and any malformed shape so the
+/// caller can fall through to the event-decode path.
+RecordingHeader? decodeHeaderLine(String line) {
+  final header = rust_recorder.recorderDecodeHeaderLine(line: line);
+  if (header == null) return null;
+  return RecordingHeader.fromRust(header);
 }
 
 /// Thin wrapper around a single JSON-Lines record yielded by the

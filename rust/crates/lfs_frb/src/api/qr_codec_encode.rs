@@ -44,6 +44,113 @@ pub struct QrSessionCompactInputs {
     pub password: Vec<u8>,
 }
 
+/// Flat-struct mirror of the v4 QR per-session compact map. Every
+/// optional field that the JSON encoder collapses out of the map
+/// (`p` / `g` / `a` / `ki` / `mg` / `pw`) rides as `Option<…>`
+/// here so the Dart caller pattern-matches typed presence instead
+/// of running its own `jsonDecode` + key probe.
+///
+/// Mirrors the `lfs_core::qr_codec_encode::encode_session_compact`
+/// grammar; the JSON-string variant in
+/// [`qr_codec_encode_session_compact`] stays in place for callers
+/// (production export payload) that splice the map into an outer
+/// document. New / pure-test callers should prefer this typed
+/// surface.
+#[derive(Debug, Clone)]
+pub struct DbQrSessionCompact {
+    /// `l` — session label (always present).
+    pub label: String,
+    /// `h` — host.
+    pub host: String,
+    /// `u` — user.
+    pub user: String,
+    /// `p` — non-default port (omitted when 22).
+    pub port: Option<u16>,
+    /// `g` — folder path (omitted when empty).
+    pub folder: Option<String>,
+    /// `a` — non-default auth type wire-string (omitted for
+    /// `"password"`).
+    pub auth_type: Option<String>,
+    /// `ki` — manager-key short id when the session resolved to one.
+    pub key_short: Option<String>,
+    /// `mg` — `Some(1)` flag when the keyed session points at a
+    /// manager key.
+    pub is_manager: Option<u32>,
+    /// `pw` — plaintext password (only when the caller opted in
+    /// via `include_passwords` and the password is non-empty).
+    pub password: Option<String>,
+}
+
+/// Typed variant of [`qr_codec_encode_session_compact`]. Routes
+/// through the same canonical encoder
+/// (`lfs_core::qr_codec_encode::encode_session_compact`) so the
+/// field-name grammar lives one place; on the way back out the
+/// `Value` map decomposes into the typed struct rather than a JSON
+/// string the Dart caller has to re-parse.
+#[flutter_rust_bridge::frb(sync)]
+pub fn qr_codec_encode_session_compact_typed(inputs: QrSessionCompactInputs) -> DbQrSessionCompact {
+    let password = String::from_utf8_lossy(&inputs.password);
+    let value = qr_codec_encode::encode_session_compact(&qr_codec_encode::SessionCompactInputs {
+        label: &inputs.label,
+        host: &inputs.host,
+        user: &inputs.user,
+        port: inputs.port,
+        folder: &inputs.folder,
+        auth_type: &inputs.auth_type,
+        key_short: inputs.key_short.as_deref(),
+        is_manager: inputs.is_manager,
+        include_passwords: inputs.include_passwords,
+        password: &password,
+    });
+    let obj = value
+        .as_object()
+        .expect("encode_session_compact yields object");
+    DbQrSessionCompact {
+        // `l` / `h` / `u` are always present per the encoder
+        // contract — fall back to empty rather than panic if the
+        // upstream ever drops one.
+        label: obj
+            .get("l")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        host: obj
+            .get("h")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        user: obj
+            .get("u")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        port: obj
+            .get("p")
+            .and_then(serde_json::Value::as_u64)
+            .map(|p| p as u16),
+        folder: obj
+            .get("g")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        auth_type: obj
+            .get("a")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        key_short: obj
+            .get("ki")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        is_manager: obj
+            .get("mg")
+            .and_then(serde_json::Value::as_u64)
+            .map(|n| n as u32),
+        password: obj
+            .get("pw")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+    }
+}
+
 /// Build the v4 QR per-session compact map and return it as a
 /// JSON-encoded string. The Dart caller decodes it into a
 /// `Map<String, dynamic>` and inserts it under the outer

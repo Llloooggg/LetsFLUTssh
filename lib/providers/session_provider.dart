@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -261,7 +260,11 @@ class SessionMutator {
   // ── CRUD ─────────────────────────────────────────────────────────
 
   Future<void> add(Session session) async {
-    final error = session.validate();
+    final error = rust_sess.sessionsValidateFields(
+      host: session.host,
+      port: session.port,
+      user: session.user,
+    );
     if (error != null) throw ArgumentError(error);
     try {
       final folderId = await resolveFolderPath(session.folder);
@@ -278,7 +281,11 @@ class SessionMutator {
   }
 
   Future<void> update(Session session) async {
-    final error = session.validate();
+    final error = rust_sess.sessionsValidateFields(
+      host: session.host,
+      port: session.port,
+      user: session.user,
+    );
     if (error != null) throw ArgumentError(error);
     if (get(session.id) == null) {
       throw ArgumentError('Session not found: ${session.id}');
@@ -306,7 +313,11 @@ class SessionMutator {
     bool keyDataDirty = false,
     bool passphraseDirty = false,
   }) async {
-    final error = session.validate();
+    final error = rust_sess.sessionsValidateFields(
+      host: session.host,
+      port: session.port,
+      user: session.user,
+    );
     if (error != null) throw ArgumentError(error);
     if (get(session.id) == null) {
       throw ArgumentError('Session not found: ${session.id}');
@@ -327,7 +338,7 @@ class SessionMutator {
           keyId: session.keyId.isEmpty ? null : session.keyId,
           sortOrder: session.sortOrder,
           notes: session.notes,
-          extras: jsonEncode(session.extras),
+          extras: extrasMapToJson(session.extras),
           viaSessionId: session.viaSessionId,
           viaHost: session.viaSessionId != null
               ? null
@@ -724,7 +735,7 @@ class SessionMutator {
               sortOrder: s.sortOrder,
               notes: s.notes,
               lastConnectedAtMs: s.lastConnectedAtMs,
-              extras: s.extras.isEmpty ? '' : jsonEncode(s.extras),
+              extras: extrasMapToJson(s.extras),
               viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
                   ? null
                   : s.viaSessionId,

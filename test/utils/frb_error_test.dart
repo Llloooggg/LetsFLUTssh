@@ -1,7 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/utils/frb_error.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // `FrbError.fromWire` routes the envelope-parse grammar through
+  // the typed `frbErrorFromWire` FRB sync helper. Bootstrap the
+  // native lib so the call doesn't throw `flutter_rust_bridge has
+  // not been initialized`.
+  setUpAll(requireFrbLoaded);
+
   group('FrbError.fromWire', () {
     test('empty string surfaces as generic with empty detail', () {
       final err = FrbError.fromWire('');

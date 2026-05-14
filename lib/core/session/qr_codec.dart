@@ -3,6 +3,10 @@ import 'dart:convert';
 import '../../src/rust/api/qr_codec_encode.dart' as rust_qr;
 import 'session.dart';
 
+// `dart:convert` stays for `utf8.encode` on the password byte path;
+// the JSON decoder is no longer needed since `encodeSessionCompact`
+// routes through the typed FRB return shape.
+
 /// Maximum payload size in bytes (before deep link wrapping).
 ///
 /// QR version 40 with error correction L holds 2953 bytes in binary mode.
@@ -222,6 +226,11 @@ class ExportOptions {
 /// (`l`/`h`/`u`/`p`/`g`/`a`/`ki`/`mg`/`pw`) lives one place across
 /// the in-memory encoder and the DB-backed
 /// `lfs_core::archive::qr_export_payload` writer.
+///
+/// The FRB return rides as a typed `DbQrSessionCompact` struct — no
+/// Dart-side `jsonDecode` lives on this path. The Dart wrapper just
+/// re-keys typed-presence into the `Map<String, dynamic>` shape the
+/// outer export payload composes.
 Map<String, dynamic> encodeSessionCompact(
   Session s, {
   String? keyId,
@@ -233,7 +242,7 @@ Map<String, dynamic> encodeSessionCompact(
   // codes can be scanned by anyone with camera access to the
   // screen. The opt-in gate lives Rust-side in
   // `lfs_core::qr_codec::encode_session_compact`.
-  final json = rust_qr.qrCodecEncodeSessionCompact(
+  final typed = rust_qr.qrCodecEncodeSessionCompactTyped(
     inputs: rust_qr.QrSessionCompactInputs(
       label: s.label,
       host: s.host,
@@ -247,7 +256,18 @@ Map<String, dynamic> encodeSessionCompact(
       password: utf8.encode(s.password),
     ),
   );
-  return jsonDecode(json) as Map<String, dynamic>;
+  final out = <String, dynamic>{
+    'l': typed.label,
+    'h': typed.host,
+    'u': typed.user,
+  };
+  if (typed.port != null) out['p'] = typed.port;
+  if (typed.folder != null) out['g'] = typed.folder;
+  if (typed.authType != null) out['a'] = typed.authType;
+  if (typed.keyShort != null) out['ki'] = typed.keyShort;
+  if (typed.isManager != null) out['mg'] = typed.isManager;
+  if (typed.password != null) out['pw'] = typed.password;
+  return out;
 }
 
 /// A session→tag or session→snippet link from the export payload.

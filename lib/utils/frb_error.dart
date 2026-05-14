@@ -4,15 +4,18 @@
 /// callsites encode the error as JSON `{kind, detail}` so the Dart
 /// side can switch on `kind` instead of substring-matching the
 /// English `detail` text. Older callsites still emit plain strings;
-/// [`FrbError.fromWire`] falls back to `kind = generic` for those
-/// so adoption is incremental — no flag day required.
+/// the Rust-side parser [`rust_frb_err.frbErrorFromWire`] folds those
+/// onto `kind = generic` so adoption is incremental — no flag day
+/// required.
 ///
-/// Closes the substring-matching loop the audit found in
-/// `lib/utils/format.dart` (auth-error / connect-error / sftp-error
-/// classification by `msg.startsWith(...) / contains(...)`).
+/// The grammar (envelope shape, fallback rules, control-character
+/// handling) lives Rust-side in `lfs_frb::api::frb_err`. This Dart
+/// class is a thin handle around the FRB-typed [`DbFrbError`] struct
+/// so legacy call sites keep their `wire.kind` / `wire.isAuthFailed`
+/// shape without a flag-day rename.
 library;
 
-import 'dart:convert';
+import '../src/rust/api/frb_err.dart' as rust_frb_err;
 
 class FrbError {
   /// Stable wire-name discriminator. Switch on this for UI
@@ -26,32 +29,14 @@ class FrbError {
 
   const FrbError({required this.kind, required this.detail});
 
-  /// Parse an FRB error string. JSON-shaped envelopes land as
-  /// `FrbError(kind, detail)`; non-JSON strings fall through to
-  /// `kind = "generic"` with the original text as detail. Invalid
-  /// JSON also lands in the generic bucket — never throws on
-  /// untrusted input.
+  /// Parse an FRB error string. Delegates the grammar to the
+  /// Rust-side [`frb_error_from_wire`] FRB sync helper — JSON
+  /// envelopes land as `FrbError(kind, detail)`; non-JSON or
+  /// malformed strings fall through to `kind = "generic"` with the
+  /// original text as detail. Never throws on untrusted input.
   factory FrbError.fromWire(String wire) {
-    if (wire.isEmpty) {
-      return const FrbError(kind: 'generic', detail: '');
-    }
-    if (!wire.startsWith('{')) {
-      return FrbError(kind: 'generic', detail: wire);
-    }
-    try {
-      final decoded = jsonDecode(wire);
-      if (decoded is Map &&
-          decoded['kind'] is String &&
-          decoded['detail'] is String) {
-        return FrbError(
-          kind: decoded['kind'] as String,
-          detail: decoded['detail'] as String,
-        );
-      }
-      return FrbError(kind: 'generic', detail: wire);
-    } on FormatException {
-      return FrbError(kind: 'generic', detail: wire);
-    }
+    final db = rust_frb_err.frbErrorFromWire(wire: wire);
+    return FrbError(kind: db.kind, detail: db.detail);
   }
 
   /// Lift any caught error into [FrbError]. FRB throws strings

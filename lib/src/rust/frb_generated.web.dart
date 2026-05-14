@@ -26,6 +26,7 @@ import 'api/folder_path.dart';
 import 'api/format.dart';
 import 'api/forward.dart';
 import 'api/fprintd.dart';
+import 'api/frb_err.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/hello.dart';
 import 'api/host_info.dart';
@@ -443,6 +444,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRecordingEvent dco_decode_box_autoadd_db_recording_event(dynamic raw);
 
   @protected
+  DbRecordingHeader dco_decode_box_autoadd_db_recording_header(dynamic raw);
+
+  @protected
   DbS3SessionDetails dco_decode_box_autoadd_db_s_3_session_details(dynamic raw);
 
   @protected
@@ -547,6 +551,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent dco_decode_box_autoadd_ssh_shell_event(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_16(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -688,6 +695,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbFolder dco_decode_db_folder(dynamic raw);
+
+  @protected
+  DbFrbError dco_decode_db_frb_error(dynamic raw);
 
   @protected
   DbHardeningStep dco_decode_db_hardening_step(dynamic raw);
@@ -851,6 +861,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbQrExportOptions dco_decode_db_qr_export_options(dynamic raw);
 
   @protected
+  DbQrSessionCompact dco_decode_db_qr_session_compact(dynamic raw);
+
+  @protected
   DbRateLimitStatus dco_decode_db_rate_limit_status(dynamic raw);
 
   @protected
@@ -864,6 +877,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecordingEvent dco_decode_db_recording_event(dynamic raw);
+
+  @protected
+  DbRecordingHeader dco_decode_db_recording_header(dynamic raw);
+
+  @protected
+  DbRecordingLine dco_decode_db_recording_line(dynamic raw);
 
   @protected
   DbRecoveryOutcome dco_decode_db_recovery_outcome(dynamic raw);
@@ -912,6 +931,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession dco_decode_db_session(dynamic raw);
+
+  @protected
+  DbSessionHistoryEnvelope dco_decode_db_session_history_envelope(dynamic raw);
 
   @protected
   DbSessionHistorySnapshot dco_decode_db_session_history_snapshot(dynamic raw);
@@ -1375,6 +1397,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRecordingEvent? dco_decode_opt_box_autoadd_db_recording_event(dynamic raw);
 
   @protected
+  DbRecordingHeader? dco_decode_opt_box_autoadd_db_recording_header(
+    dynamic raw,
+  );
+
+  @protected
   DbS3SessionDetails? dco_decode_opt_box_autoadd_db_s_3_session_details(
     dynamic raw,
   );
@@ -1438,6 +1465,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent? dco_decode_opt_box_autoadd_ssh_shell_event(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -1865,6 +1895,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbRecordingHeader sse_decode_box_autoadd_db_recording_header(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbS3SessionDetails sse_decode_box_autoadd_db_s_3_session_details(
     SseDeserializer deserializer,
   );
@@ -1997,6 +2032,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshShellEvent sse_decode_box_autoadd_ssh_shell_event(
     SseDeserializer deserializer,
   );
+
+  @protected
+  int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
@@ -2176,6 +2214,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
+
+  @protected
+  DbFrbError sse_decode_db_frb_error(SseDeserializer deserializer);
 
   @protected
   DbHardeningStep sse_decode_db_hardening_step(SseDeserializer deserializer);
@@ -2409,6 +2450,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbQrSessionCompact sse_decode_db_qr_session_compact(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbRateLimitStatus sse_decode_db_rate_limit_status(
     SseDeserializer deserializer,
   );
@@ -2428,6 +2474,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecordingEvent sse_decode_db_recording_event(SseDeserializer deserializer);
+
+  @protected
+  DbRecordingHeader sse_decode_db_recording_header(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbRecordingLine sse_decode_db_recording_line(SseDeserializer deserializer);
 
   @protected
   DbRecoveryOutcome sse_decode_db_recovery_outcome(
@@ -2494,6 +2548,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer);
+
+  @protected
+  DbSessionHistoryEnvelope sse_decode_db_session_history_envelope(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbSessionHistorySnapshot sse_decode_db_session_history_snapshot(
@@ -3107,6 +3166,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbRecordingHeader? sse_decode_opt_box_autoadd_db_recording_header(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbS3SessionDetails? sse_decode_opt_box_autoadd_db_s_3_session_details(
     SseDeserializer deserializer,
   );
@@ -3188,6 +3252,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshShellEvent? sse_decode_opt_box_autoadd_ssh_shell_event(
     SseDeserializer deserializer,
   );
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -3694,6 +3761,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_recording_header(
+    DbRecordingHeader self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_s_3_session_details(
     DbS3SessionDetails self,
     SseSerializer serializer,
@@ -3863,6 +3936,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SshShellEvent self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
@@ -4097,6 +4173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_folder(DbFolder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_frb_error(DbFrbError self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_hardening_step(
@@ -4396,6 +4475,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_qr_session_compact(
+    DbQrSessionCompact self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_rate_limit_status(
     DbRateLimitStatus self,
     SseSerializer serializer,
@@ -4422,6 +4507,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_recording_event(
     DbRecordingEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_recording_header(
+    DbRecordingHeader self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_recording_line(
+    DbRecordingLine self,
     SseSerializer serializer,
   );
 
@@ -4511,6 +4608,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_session_history_envelope(
+    DbSessionHistoryEnvelope self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_session_history_snapshot(
@@ -5280,6 +5383,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_db_recording_header(
+    DbRecordingHeader? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_db_s_3_session_details(
     DbS3SessionDetails? self,
     SseSerializer serializer,
@@ -5380,6 +5489,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SshShellEvent? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);

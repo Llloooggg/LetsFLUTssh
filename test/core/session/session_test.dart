@@ -1,15 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/src/rust/api/sessions.dart' as rust_sess;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
-  // Session.validate routes through `lfs_core::sessions` —
-  // bootstrap FRB so the canonical Rust field-validation grammar is
-  // exercised.
+  // The storable-field validator lives Rust-side in
+  // `lfs_core::sessions::validate_session_fields` — bootstrap FRB
+  // so the canonical Rust grammar is exercised and the retired
+  // Dart `Session.validate` wrapper does not regress.
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(requireFrbLoaded);
+
+  String? validate(Session s) => rust_sess.sessionsValidateFields(
+    host: s.host,
+    port: s.port,
+    user: s.user,
+  );
 
   group('Session', () {
     test('validate requires host', () {
@@ -17,7 +25,7 @@ void main() {
         label: 'test',
         server: const ServerAddress(host: '', user: 'root'),
       );
-      expect(s.validate(), 'Host is required');
+      expect(validate(s), 'Host is required');
     });
 
     test('validate requires user', () {
@@ -25,7 +33,7 @@ void main() {
         label: 'test',
         server: const ServerAddress(host: 'example.com', user: ''),
       );
-      expect(s.validate(), 'Username is required');
+      expect(validate(s), 'Username is required');
     });
 
     test('validate checks port range', () {
@@ -33,7 +41,7 @@ void main() {
         label: 'test',
         server: const ServerAddress(host: 'x', port: 0, user: 'r'),
       );
-      expect(s.validate(), 'Port must be 1-65535');
+      expect(validate(s), 'Port must be 1-65535');
     });
 
     test('validate passes with valid data', () {
@@ -41,7 +49,18 @@ void main() {
         label: 'test',
         server: const ServerAddress(host: 'example.com', user: 'root'),
       );
-      expect(s.validate(), isNull);
+      expect(validate(s), isNull);
+    });
+
+    test('validate rejects negative port directly', () {
+      // The grammar now lives Rust-side and accepts the full i32
+      // range; the historical Dart-side wrapper used to clamp the
+      // value before the call, but the FRB takes the raw port.
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'x', port: -1, user: 'r'),
+      );
+      expect(validate(s), 'Port must be 1-65535');
     });
 
     test('displayName with label', () {

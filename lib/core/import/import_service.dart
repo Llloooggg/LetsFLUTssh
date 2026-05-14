@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/archive_stage.dart' as rust_stage;
 import '../../src/rust/api/config.dart' as rust_config;
@@ -269,7 +267,7 @@ String? _stageSessionsJson(List<Session> sessions) {
           keyData: s.keyData,
           passphrase: s.passphrase,
           keyId: s.keyId.isEmpty ? null : s.keyId,
-          extrasJson: s.extras.isEmpty ? '' : jsonEncode(s.extras),
+          extrasJson: extrasMapToJson(s.extras),
           viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
               ? null
               : s.viaSessionId,

@@ -466,6 +466,127 @@ pub fn decode_session_array(json: &str) -> Result<Vec<SessionJsonOutput>, String
         .collect()
 }
 
+/// Decoded snapshot envelope yielded by [`decode_snapshot_envelope`].
+/// Mirrors the Dart `SessionSnapshot` field set (sessions /
+/// `emptyFolders` / description) — the description rides through
+/// the envelope so a single byte-buffer hands the Rust-side undo
+/// actor everything it needs to label menu entries.
+#[derive(Debug, Clone)]
+pub struct SnapshotEnvelope {
+    pub sessions: Vec<SessionJsonOutput>,
+    pub empty_folders: Vec<String>,
+    pub description: String,
+}
+
+/// Encode an undo-history snapshot envelope: a JSON object wrapping
+/// the per-session array, the `emptyFolders` list, and the
+/// description label. The Dart side hands typed inputs in and
+/// receives a single byte buffer to push through the registry —
+/// no `jsonEncode` / `jsonDecode` round-trip stays Dart-side.
+///
+/// Wire shape — pinned by `test/utils/session_json_drift_test.dart`:
+/// `{"sessions": [<canonical session>...], "emptyFolders": [...],
+/// "description": "..."}`.
+pub fn encode_snapshot_envelope(
+    sessions: &[SessionJsonInput],
+    empty_folders: &[String],
+    description: &str,
+) -> Result<String, String> {
+    let array_str = encode_session_array(sessions)?;
+    let array: Value =
+        serde_json::from_str(&array_str).map_err(|e| format!("re-parse sessions array: {e}"))?;
+    let mut obj = Map::new();
+    obj.insert("sessions".into(), array);
+    obj.insert(
+        "emptyFolders".into(),
+        Value::Array(empty_folders.iter().cloned().map(Value::String).collect()),
+    );
+    obj.insert("description".into(), Value::String(description.to_owned()));
+    serde_json::to_string(&Value::Object(obj))
+        .map_err(|e| format!("snapshot envelope serialise: {e}"))
+}
+
+/// Decode an undo-history snapshot envelope produced by
+/// [`encode_snapshot_envelope`]. Tolerant on missing keys —
+/// `sessions` falls back to empty, `emptyFolders` to empty, the
+/// `description` to the empty string (the wrapper caller carries
+/// the live description in `current_description` for the registry
+/// API so the inner blob's value is informational only).
+pub fn decode_snapshot_envelope(json: &str) -> Result<SnapshotEnvelope, String> {
+    let value: Value = serde_json::from_str(json).map_err(|e| format!("parse: {e}"))?;
+    let obj = value
+        .as_object()
+        .ok_or_else(|| "top-level value is not a JSON object".to_string())?;
+    let sessions = match obj.get("sessions") {
+        Some(v) => {
+            let s = serde_json::to_string(v).map_err(|e| format!("re-serialise sessions: {e}"))?;
+            decode_session_array(&s)?
+        }
+        None => Vec::new(),
+    };
+    let empty_folders = obj
+        .get("emptyFolders")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let description = obj
+        .get("description")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_default();
+    Ok(SnapshotEnvelope {
+        sessions,
+        empty_folders,
+        description,
+    })
+}
+
+/// Encode an `extras` map (DB column shape) into the JSON-text wire
+/// form. Symmetric counterpart of [`decode_extras_string`] so the
+/// mapper layer can drop its Dart-side `jsonEncode` and stage the
+/// row through one Rust-owned grammar instead. Empty input yields
+/// an empty string (the DB column default), matching the decode
+/// side's tolerance.
+pub fn encode_extras_string(extras: &[(String, SessionJsonValue)]) -> Result<String, String> {
+    if extras.is_empty() {
+        return Ok(String::new());
+    }
+    let map: Map<String, Value> = extras
+        .iter()
+        .map(|(k, v)| (k.clone(), session_json_value_to_value(v)))
+        .collect();
+    serde_json::to_string(&Value::Object(map)).map_err(|e| format!("encode_extras_string: {e}"))
+}
+
+/// Convert a typed [`SessionJsonValue`] tree back into a raw
+/// [`serde_json::Value`] for re-serialisation. Inverse of
+/// [`SessionJsonValue::from_value`].
+fn session_json_value_to_value(v: &SessionJsonValue) -> Value {
+    match v {
+        SessionJsonValue::Null => Value::Null,
+        SessionJsonValue::Bool(b) => Value::Bool(*b),
+        SessionJsonValue::Int(i) => Value::Number((*i).into()),
+        SessionJsonValue::Double(f) => serde_json::Number::from_f64(*f)
+            .map(Value::Number)
+            .unwrap_or(Value::Null),
+        SessionJsonValue::Text(s) => Value::String(s.clone()),
+        SessionJsonValue::Array(items) => {
+            Value::Array(items.iter().map(session_json_value_to_value).collect())
+        }
+        SessionJsonValue::Object(pairs) => Value::Object(
+            pairs
+                .iter()
+                .map(|(k, val)| (k.clone(), session_json_value_to_value(val)))
+                .collect(),
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -768,5 +889,78 @@ mod tests {
         assert_eq!(m.get("flag"), Some(&SessionJsonValue::Bool(true)));
         assert_eq!(m.get("name"), Some(&SessionJsonValue::Text("r".into())));
         assert_eq!(m.get("count"), Some(&SessionJsonValue::Int(7)));
+    }
+
+    #[test]
+    fn encode_extras_string_empty_yields_empty_string() {
+        // Mirrors the DB column default — the upsert path inserts
+        // `''` for sessions with no extras and the decode side
+        // tolerates an empty blob.
+        assert_eq!(encode_extras_string(&[]).unwrap(), "");
+    }
+
+    #[test]
+    fn encode_extras_string_round_trips_through_decode() {
+        let extras = vec![
+            ("flag".to_string(), SessionJsonValue::Bool(true)),
+            ("count".to_string(), SessionJsonValue::Int(7)),
+            ("name".to_string(), SessionJsonValue::Text("edge".into())),
+            (
+                "nested".to_string(),
+                SessionJsonValue::Object(vec![(
+                    "k".to_string(),
+                    SessionJsonValue::Text("v".into()),
+                )]),
+            ),
+        ];
+        let encoded = encode_extras_string(&extras).unwrap();
+        let decoded = decode_extras_string(&encoded);
+        assert_eq!(decoded.get("flag"), Some(&SessionJsonValue::Bool(true)));
+        assert_eq!(decoded.get("count"), Some(&SessionJsonValue::Int(7)));
+        assert_eq!(
+            decoded.get("name"),
+            Some(&SessionJsonValue::Text("edge".into()))
+        );
+        // Nested object round-trips intact.
+        let SessionJsonValue::Object(pairs) = decoded.get("nested").cloned().unwrap() else {
+            panic!("expected nested object");
+        };
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].0, "k");
+        assert_eq!(pairs[0].1, SessionJsonValue::Text("v".into()));
+    }
+
+    #[test]
+    fn snapshot_envelope_round_trips_sessions_folders_description() {
+        let a = populated_input();
+        let envelope = encode_snapshot_envelope(
+            std::slice::from_ref(&a),
+            &["empty/folder".to_string()],
+            "delete session",
+        )
+        .unwrap();
+        let decoded = decode_snapshot_envelope(&envelope).unwrap();
+        assert_eq!(decoded.sessions.len(), 1);
+        assert_eq!(decoded.sessions[0].id, "sess-1");
+        assert_eq!(decoded.empty_folders, vec!["empty/folder".to_string()]);
+        assert_eq!(decoded.description, "delete session");
+    }
+
+    #[test]
+    fn snapshot_envelope_decode_tolerates_missing_fields() {
+        // Mirrors the prior Dart `_decode` shape — a malformed
+        // envelope with a missing `emptyFolders` or `description`
+        // still round-trips so a partial blob from a future build
+        // doesn't poison the undo stack.
+        let envelope = decode_snapshot_envelope(r#"{"sessions":[]}"#).unwrap();
+        assert!(envelope.sessions.is_empty());
+        assert!(envelope.empty_folders.is_empty());
+        assert_eq!(envelope.description, "");
+    }
+
+    #[test]
+    fn snapshot_envelope_decode_rejects_non_object_root() {
+        let err = decode_snapshot_envelope("[]").unwrap_err();
+        assert!(err.contains("not a JSON object"), "got: {err}");
     }
 }

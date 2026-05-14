@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import '../../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
@@ -13,8 +12,8 @@ import 'security_tier.dart';
 /// Conveniences on top of the FRB-generated [DbSecurityCapabilities]
 /// snapshot so the wizard / Settings consumers can call into the
 /// same Rust-side rules ([canOfferBiometricModifier]) and JSON
-/// codec ([toJsonMap] / [securityCapabilitiesFromJsonMap]) without
-/// repeating boilerplate at every call site.
+/// codec ([toJsonString] / [securityCapabilitiesFromJsonString])
+/// without repeating boilerplate at every call site.
 ///
 /// One struct, one wire format — the snapshot ships across the FRB
 /// boundary as the generated [DbSecurityCapabilities] and lives in
@@ -54,15 +53,12 @@ extension DbSecurityCapabilitiesExt on DbSecurityCapabilities {
     );
   }
 
-  /// Render to the JSON shape `config.json`'s `security_probe_cache`
-  /// block expects. Wire-format owner is
-  /// `lfs_core::security::capabilities` — this getter just decodes
-  /// the canonical Rust-emitted string into a Dart map for the
-  /// existing `app_config.dart` consumers.
-  Map<String, dynamic> get toJsonMap {
-    final str = rust_caps.securityCapabilitiesToJson(caps: this);
-    return jsonDecode(str) as Map<String, dynamic>;
-  }
+  /// Render to the canonical JSON wire shape `config.json`'s
+  /// `security_probe_cache` block expects. The wire-format owner is
+  /// `lfs_core::security::capabilities`; this getter is a direct
+  /// pass-through to the Rust-side encoder so the Dart consumer
+  /// never builds the map shape itself.
+  String get toJsonString => rust_caps.securityCapabilitiesToJson(caps: this);
 }
 
 /// Parse a `security_probe_cache` JSON snapshot. Returns `null`
@@ -70,13 +66,12 @@ extension DbSecurityCapabilitiesExt on DbSecurityCapabilities {
 /// missing required strings) so the Dart caller falls through to
 /// "no cache" and reprobes.
 ///
-/// Routes through `rust_caps.securityCapabilitiesFromJson` — the
-/// wire-format-owning crate's canonical decoder.
-DbSecurityCapabilities? securityCapabilitiesFromJsonMap(
-  Map<String, dynamic>? json,
-) {
-  if (json == null) return null;
-  return rust_caps.securityCapabilitiesFromJson(json: jsonEncode(json));
+/// Pass-through to `rust_caps.securityCapabilitiesFromJson` — the
+/// wire-format-owning crate's canonical decoder. No Dart-side
+/// `jsonEncode` / `jsonDecode` sandwich lives on this path.
+DbSecurityCapabilities? securityCapabilitiesFromJsonString(String? json) {
+  if (json == null || json.isEmpty) return null;
+  return rust_caps.securityCapabilitiesFromJson(json: json);
 }
 
 /// Asynchronously probe every OS / hardware capability the wizard

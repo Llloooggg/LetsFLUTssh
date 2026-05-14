@@ -237,33 +237,31 @@ void main() {
           keychainProbe: DbKeyringProbeResult.linuxNoSecretService,
           hardwareProbeCode: 'available',
         );
-        final round = securityCapabilitiesFromJsonMap(caps.toJsonMap)!;
+        final round = securityCapabilitiesFromJsonString(caps.toJsonString)!;
         expect(round, caps);
-        expect(securityCapabilitiesFromJsonMap(null), isNull);
+        expect(securityCapabilitiesFromJsonString(null), isNull);
+        expect(securityCapabilitiesFromJsonString(''), isNull);
         // Missing keychain_probe → treated as corrupt cache (null).
-        expect(securityCapabilitiesFromJsonMap(<String, dynamic>{}), isNull);
+        expect(securityCapabilitiesFromJsonString('{}'), isNull);
         // Non-string keychain_probe → corrupt.
         expect(
-          securityCapabilitiesFromJsonMap(const {
-            'keychain_probe': 42,
-            'hardware_probe_code': 'available',
-          }),
+          securityCapabilitiesFromJsonString(
+            '{"keychain_probe":42,"hardware_probe_code":"available"}',
+          ),
           isNull,
         );
         // Unknown enum value for keychain_probe → corrupt.
         expect(
-          securityCapabilitiesFromJsonMap(const {
-            'keychain_probe': 'nonsense',
-            'hardware_probe_code': 'available',
-          }),
+          securityCapabilitiesFromJsonString(
+            '{"keychain_probe":"nonsense","hardware_probe_code":"available"}',
+          ),
           isNull,
         );
         // Non-string hardware_probe_code → corrupt.
         expect(
-          securityCapabilitiesFromJsonMap(const {
-            'keychain_probe': 'available',
-            'hardware_probe_code': 7,
-          }),
+          securityCapabilitiesFromJsonString(
+            '{"keychain_probe":"available","hardware_probe_code":7}',
+          ),
           isNull,
         );
       },

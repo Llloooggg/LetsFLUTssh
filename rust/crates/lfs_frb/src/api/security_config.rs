@@ -109,6 +109,43 @@ pub fn security_tier_modifiers_to_json(password: bool, biometric: bool) -> Strin
     serde_json::Value::Object(value).to_string()
 }
 
+/// Compose the JSON payload every tier-apply method writes into the
+/// crash-recovery marker file before driving
+/// `SecurityTierSwitcher::switch_tier_from_secret`. Bundles the
+/// snake-case tier wire-name + modifier object so a crash-recovery
+/// path at next launch reconstructs the target config and picks the
+/// matching unlock prompt.
+///
+/// Wire shape: `{"tier": <wire>, "mods": {"password": …, "biometric": …}}`.
+/// Single source of truth for the marker grammar — the Dart caller
+/// hands the typed tier + modifier flags in, the Rust side emits the
+/// canonical string, no Dart-side `jsonEncode` / `jsonDecode` round-
+/// trip on the apply path.
+#[flutter_rust_bridge::frb(sync)]
+pub fn security_tier_marker_payload(
+    tier: DbSecurityTier,
+    password: bool,
+    biometric: bool,
+) -> String {
+    let core: SecurityTier = tier.into();
+    let m = SecurityTierModifiers {
+        password,
+        biometric,
+    };
+    let mods_map: serde_json::Map<String, serde_json::Value> = m
+        .to_json_map()
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+    let mut obj = serde_json::Map::new();
+    obj.insert(
+        "tier".into(),
+        serde_json::Value::String(core.wire_name().to_owned()),
+    );
+    obj.insert("mods".into(), serde_json::Value::Object(mods_map));
+    serde_json::Value::Object(obj).to_string()
+}
+
 /// Flat DTO for a parsed `SecurityConfig` — typed tier + per-modifier
 /// scalars, returned across the FRB boundary so the Dart caller can
 /// rebuild its own `SecurityConfig` instance without re-importing
@@ -228,5 +265,34 @@ mod tests {
         let json = security_tier_modifiers_to_json(false, true);
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert!(parsed.is_object());
+    }
+
+    #[test]
+    fn tier_marker_payload_bundles_tier_and_modifiers() {
+        let payload = security_tier_marker_payload(DbSecurityTier::Hardware, true, true);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).expect("payload must parse");
+        let obj = parsed.as_object().expect("object root");
+        assert_eq!(obj.get("tier").and_then(|v| v.as_str()), Some("hardware"));
+        let mods = obj
+            .get("mods")
+            .and_then(|v| v.as_object())
+            .expect("mods sub-object");
+        assert_eq!(mods.get("password").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(mods.get("biometric").and_then(|v| v.as_bool()), Some(true));
+    }
+
+    #[test]
+    fn tier_marker_payload_omits_no_keys() {
+        // Even when both flags are false the modifier sub-object
+        // carries the explicit `false` fields — the crash-recovery
+        // parser keys off presence, not truthiness.
+        let payload = security_tier_marker_payload(DbSecurityTier::Plaintext, false, false);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).expect("payload must parse");
+        let mods = parsed
+            .get("mods")
+            .and_then(|v| v.as_object())
+            .expect("mods sub-object");
+        assert_eq!(mods.get("password").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(mods.get("biometric").and_then(|v| v.as_bool()), Some(false));
     }
 }

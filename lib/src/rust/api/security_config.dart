@@ -57,6 +57,28 @@ String securityTierModifiersToJson({
   biometric: biometric,
 );
 
+/// Compose the JSON payload every tier-apply method writes into the
+/// crash-recovery marker file before driving
+/// `SecurityTierSwitcher::switch_tier_from_secret`. Bundles the
+/// snake-case tier wire-name + modifier object so a crash-recovery
+/// path at next launch reconstructs the target config and picks the
+/// matching unlock prompt.
+///
+/// Wire shape: `{"tier": <wire>, "mods": {"password": …, "biometric": …}}`.
+/// Single source of truth for the marker grammar — the Dart caller
+/// hands the typed tier + modifier flags in, the Rust side emits the
+/// canonical string, no Dart-side `jsonEncode` / `jsonDecode` round-
+/// trip on the apply path.
+String securityTierMarkerPayload({
+  required DbSecurityTier tier,
+  required bool password,
+  required bool biometric,
+}) => RustLib.instance.api.crateApiSecurityConfigSecurityTierMarkerPayload(
+  tier: tier,
+  password: password,
+  biometric: biometric,
+);
+
 /// Parse the `security` JSON object. Mirrors `SecurityConfig.fromJson`
 /// Dart-side: an unknown / missing tier string falls through to
 /// `plaintext` so the caller routes into the wizard rather than

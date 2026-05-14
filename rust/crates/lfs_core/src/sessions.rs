@@ -368,11 +368,14 @@ impl SessionKind {
 /// human-readable error message string when the session is not
 /// storable, `None` when it is.
 ///
-/// Mirrors `Session.validate` Dart-side. Credentials are not part
-/// of the check — a session can be stored without a password and
-/// completed later (the UI's `isValid` is the connect-time check).
+/// Sole owner of the storable-field grammar — the Dart caller
+/// passes its `Session.port` (`int`) in verbatim and Rust handles
+/// the full 1..=65535 range check including out-of-range negatives
+/// / overflows. Credentials are not part of the check; a session
+/// can be stored without a password and completed later (the UI's
+/// `isValid` is the connect-time check).
 #[must_use]
-pub fn validate_session_fields(host: &str, port: u16, user: &str) -> Option<String> {
+pub fn validate_session_fields(host: &str, port: i32, user: &str) -> Option<String> {
     if host.trim().is_empty() {
         return Some("Host is required".to_string());
     }
@@ -647,6 +650,26 @@ mod tests {
     #[test]
     fn validate_accepts_port_at_max_boundary() {
         assert!(validate_session_fields("h", 65535, "u").is_none());
+    }
+
+    #[test]
+    fn validate_rejects_negative_port() {
+        // Out-of-range negatives surface the same message a zero
+        // port does — the grammar tolerates the full `i32` range
+        // and the user sees one consistent verdict regardless of
+        // how the misuse got there.
+        assert_eq!(
+            validate_session_fields("h", -1, "u").as_deref(),
+            Some("Port must be 1-65535")
+        );
+    }
+
+    #[test]
+    fn validate_rejects_port_above_max() {
+        assert_eq!(
+            validate_session_fields("h", 70_000, "u").as_deref(),
+            Some("Port must be 1-65535")
+        );
     }
 
     #[test]

@@ -5,9 +5,11 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'recorder.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `read_cap_from_store`, `recorder_open_for_playback_inner`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -140,6 +142,30 @@ Future<DbRecorderSnapshot> recorderRegisterFromActive({
 /// `serde_json` path runs in microseconds.
 DbRecordingEvent? recorderDecodeEventLine({required String line}) =>
     RustLib.instance.api.crateApiRecorderRecorderDecodeEventLine(line: line);
+
+/// Parse one JSON-Lines record as an asciinema-v2 header. Returns
+/// `Some(header)` when the line is the header object (first
+/// JSON-Lines record of every cast), `None` for an event tuple or
+/// any malformed shape. Missing per-field values fall back to the
+/// asciinema defaults (80×24, epoch=0, no shell label).
+///
+/// Sync — same rationale as [`recorder_decode_event_line`]: the
+/// playback dialog hits this once per stream open (or once per
+/// browser-list row during the read-meta walk) and async overhead
+/// on a serde parse would dwarf the work itself.
+DbRecordingHeader? recorderDecodeHeaderLine({required String line}) =>
+    RustLib.instance.api.crateApiRecorderRecorderDecodeHeaderLine(line: line);
+
+/// Decode one JSON-Lines record into either the header struct, the
+/// event tuple, or `Other` for any malformed / non-conforming shape.
+/// Combines the two leaf decoders so the playback dialog (and the
+/// `readMeta` walk) hand one line in and pattern-match on the
+/// returned enum instead of running its own JSON triage.
+///
+/// Sync for the same reason the underlying leaf decoders are sync:
+/// per-frame cost on a microsecond serde parse.
+DbRecordingLine recorderDecodeLine({required String line}) =>
+    RustLib.instance.api.crateApiRecorderRecorderDecodeLine(line: line);
 
 /// Compose the asciinema v2 header line for the registered
 /// recording (`{"version": 2, "width": …, "height": …,
@@ -505,6 +531,52 @@ class DbRecordingEvent {
           timestamp == other.timestamp &&
           direction == other.direction &&
           data == other.data;
+}
+
+/// FRB mirror of [`lfs_core::recorder::reader::DecodedHeader`]:
+/// asciinema-v2 header carrying width/height (so playback can
+/// resize xterm to match), the wall-clock origin timestamp, and
+/// the optional `$SHELL` label captured at start time.
+class DbRecordingHeader {
+  final int width;
+  final int height;
+  final PlatformInt64 wallClockEpochSeconds;
+  final String? shellLabel;
+
+  const DbRecordingHeader({
+    required this.width,
+    required this.height,
+    required this.wallClockEpochSeconds,
+    this.shellLabel,
+  });
+
+  @override
+  int get hashCode =>
+      width.hashCode ^
+      height.hashCode ^
+      wallClockEpochSeconds.hashCode ^
+      shellLabel.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbRecordingHeader &&
+          runtimeType == other.runtimeType &&
+          width == other.width &&
+          height == other.height &&
+          wallClockEpochSeconds == other.wallClockEpochSeconds &&
+          shellLabel == other.shellLabel;
+}
+
+@freezed
+sealed class DbRecordingLine with _$DbRecordingLine {
+  const DbRecordingLine._();
+
+  const factory DbRecordingLine.header(DbRecordingHeader field0) =
+      DbRecordingLine_Header;
+  const factory DbRecordingLine.event(DbRecordingEvent field0) =
+      DbRecordingLine_Event;
+  const factory DbRecordingLine.other() = DbRecordingLine_Other;
 }
 
 /// FRB mirror of [`lfs_core::recorder::index_sidecar::SeekHit`].

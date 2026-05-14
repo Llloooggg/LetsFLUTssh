@@ -364,25 +364,20 @@ BiometricKeySource biometricKeySourceFor({
 /// reconstruct the target config and drive the right unlock prompt
 /// (password? biometric? no gate?) at next launch.
 ///
-/// Pure JSON — no rekey side-effects, no provider reads — so the
-/// payload shape can be unit-tested directly against the Rust-side
-/// recovery path's parser.
+/// Routes through `lfs_frb::api::security_config::security_tier_marker_payload`
+/// — the marker grammar (tier wire-name + modifier sub-object) lives
+/// Rust-side, so the Dart caller hands the typed enum + flag pair in
+/// and receives the canonical bytes back without a Dart-side
+/// `jsonEncode` / `jsonDecode` sandwich.
 String buildTierMarkerPayload(
   SecurityTier tier,
   SecurityTierModifiers modifiers,
 ) {
-  // Modifier codec lives Rust-side in
-  // `lfs_core::security::SecurityTierModifiers::to_json_map`; decode
-  // the canonical Rust-emitted string into a map for the composite
-  // log payload.
-  final modsStr = rust_sec_cfg.securityTierModifiersToJson(
+  return rust_sec_cfg.securityTierMarkerPayload(
+    tier: tier,
     password: modifiers.password,
     biometric: modifiers.biometric,
   );
-  return jsonEncode({
-    'tier': securityTierLogName(tier),
-    'mods': jsonDecode(modsStr),
-  });
 }
 
 /// Decision matrix for which tier vaults the apply pipeline must
