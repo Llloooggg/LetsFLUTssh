@@ -156,7 +156,7 @@ class SessionConnect {
       // path stage secrets directly from the DB into the
       // SecretStore.
       bastionSession = ref
-          .read(sessionProvider.notifier)
+          .read(sessionMutatorProvider)
           .get(current.viaSessionId!);
       if (bastionSession == null) {
         throw ProxyJumpBastionError(

@@ -58,7 +58,7 @@ extension _FolderActions on SessionPanelState {
             context,
             onTap: () {
               final folderId = ref
-                  .read(sessionProvider.notifier)
+                  .read(sessionMutatorProvider)
                   .folderIdByPath(folderPath);
               if (folderId != null) {
                 TagAssignDialog.showForFolder(context, folderId: folderId);
@@ -206,7 +206,7 @@ extension _FolderActions on SessionPanelState {
     final newFolder = parentFolder.isEmpty
         ? result.trim()
         : '$parentFolder/${result.trim()}';
-    await ref.read(sessionProvider.notifier).addEmptyFolder(newFolder);
+    await ref.read(sessionMutatorProvider).addEmptyFolder(newFolder);
   }
 
   Future<void> _renameFolder(
@@ -242,15 +242,16 @@ extension _FolderActions on SessionPanelState {
     final newPath = parentPath.isEmpty
         ? result.trim()
         : '$parentPath/${result.trim()}';
-    await ref.read(sessionProvider.notifier).renameFolder(folderPath, newPath);
+    await ref.read(sessionMutatorProvider).renameFolder(folderPath, newPath);
   }
 
   /// Collects all existing folder paths including implicit parent segments.
   /// E.g. "A/B/C" implies "A" and "A/B" also exist.
   Set<String> _collectAllFolderPaths(WidgetRef ref) {
-    final notifier = ref.read(sessionProvider.notifier);
+    final mutator = ref.read(sessionMutatorProvider);
+    final empties = ref.read(emptyFoldersProvider);
     final result = <String>{};
-    for (final g in [...notifier.folders(), ...notifier.emptyFolders]) {
+    for (final g in [...mutator.folders(), ...empties]) {
       final parts = g.split('/');
       for (var i = 1; i <= parts.length; i++) {
         result.add(parts.sublist(0, i).join('/'));
@@ -402,7 +403,7 @@ extension _FolderActions on SessionPanelState {
     String folderPath,
   ) async {
     final sessionCount = ref
-        .read(sessionProvider.notifier)
+        .read(sessionMutatorProvider)
         .countSessionsInFolder(folderPath);
     final folderName = folderPath.split('/').last;
 
@@ -428,7 +429,7 @@ extension _FolderActions on SessionPanelState {
       ),
     );
     if (confirmed) {
-      await ref.read(sessionProvider.notifier).deleteFolder(folderPath);
+      await ref.read(sessionMutatorProvider).deleteFolder(folderPath);
     }
   }
 }

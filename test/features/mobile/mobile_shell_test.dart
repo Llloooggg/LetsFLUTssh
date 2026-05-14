@@ -132,8 +132,8 @@ void main() {
     }) {
       return ProviderScope(
         overrides: [
-          sessionProvider.overrideWith(() => FakeSessionNotifier()),
-          sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+          ...FakeSessionNotifier().overrides(),
+          sessionsLoadingProvider.overrideWithValue(false),
           knownHostsProvider.overrideWith(KnownHostsNotifier.new),
           connectionsProvider.overrideWith(
             () => StaticConnectionsNotifier(<Connection>[]),
@@ -210,10 +210,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -255,10 +253,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -300,10 +296,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -417,10 +411,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -481,10 +473,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -542,10 +532,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -605,10 +593,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -663,10 +649,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              sessionProvider.overrideWith(() => FakeSessionNotifier()),
-              sessionsLoadingProvider.overrideWith(
-                IdleSessionsLoadingNotifier.new,
-              ),
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
               knownHostsProvider.overrideWith(KnownHostsNotifier.new),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier(<Connection>[]),
@@ -706,10 +690,8 @@ void main() {
     }) {
       return ProviderScope(
         overrides: [
-          sessionProvider.overrideWith(
-            () => FakeSessionNotifier(sessions: [session]),
-          ),
-          sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+          ...FakeSessionNotifier(sessions: [session]).overrides(),
+          sessionsLoadingProvider.overrideWithValue(false),
           knownHostsProvider.overrideWith(KnownHostsNotifier.new),
           connectionsProvider.overrideWith(() => manager),
         ],
@@ -855,10 +837,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -902,10 +882,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -947,10 +925,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -994,10 +970,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1041,10 +1015,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1095,10 +1067,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1134,10 +1104,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1195,10 +1163,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1254,12 +1220,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              sessionProvider.overrideWith(
-                () => FakeSessionNotifier(sessions: sessions),
-              ),
-              sessionsLoadingProvider.overrideWith(
-                IdleSessionsLoadingNotifier.new,
-              ),
+              ...FakeSessionNotifier(sessions: sessions).overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
               knownHostsProvider.overrideWith(KnownHostsNotifier.new),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier(<Connection>[]),
@@ -1320,10 +1282,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier([conn]),
@@ -1364,10 +1324,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              sessionProvider.overrideWith(() => FakeSessionNotifier()),
-              sessionsLoadingProvider.overrideWith(
-                IdleSessionsLoadingNotifier.new,
-              ),
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
               knownHostsProvider.overrideWith(KnownHostsNotifier.new),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier([conn]),
@@ -1406,10 +1364,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1454,10 +1410,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1523,10 +1477,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1584,10 +1536,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1674,10 +1624,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1763,10 +1711,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1822,10 +1768,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1881,10 +1825,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
@@ -1936,10 +1878,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
-            ),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),

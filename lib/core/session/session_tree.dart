@@ -49,11 +49,11 @@ class SessionTree {
   /// Pre-FRB-init callers (Riverpod providers that build during the
   /// first runApp pass — e.g. `filteredSessionTreeProvider` watched
   /// by SessionPanel under the splash) get an empty list back.
-  /// `sessions` is empty in that window anyway because the data
-  /// providers also gate on FRB, so the empty tree matches the empty
-  /// session list. Once `_initRustCoreOrFatal` resolves and
-  /// `sessionProvider` reloads, Riverpod re-runs the dependent
-  /// providers and the real tree lands.
+  /// `sessions` is empty in that window anyway because the workspace
+  /// stream Provider also gates on FRB, so the empty tree matches
+  /// the empty session list. Once `_initRustCoreOrFatal` resolves
+  /// and the workspace stream emits its first snapshot, Riverpod
+  /// re-runs the dependent providers and the real tree lands.
   static List<SessionTreeNode> build(
     List<Session> sessions, {
     Set<String> emptyFolders = const {},

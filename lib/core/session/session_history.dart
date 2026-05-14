@@ -115,7 +115,7 @@ class SessionHistory {
 
   static Uint8List _encode(SessionSnapshot snapshot) {
     // Plaintext credentials never enter the undo blob.
-    // [SessionNotifier] only ever stores `withoutCredentials()`
+    // [SessionMutator] only ever stores `withoutCredentials()`
     // shapes in `state`, so the credential-bearing fields are
     // empty Strings; routing through `includeCredentials: false`
     // keeps the blob structurally credential-clean by construction.

@@ -5,7 +5,6 @@ import '../../core/security/secure_clipboard.dart';
 import '../../core/snippets/snippet.dart';
 import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_collection_toolbar.dart';
@@ -207,9 +206,9 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     );
     if (confirmed != true || !mounted) return;
     await ref.read(snippetsProvider.notifier).delete(snippet.id);
-    // SessionSnippets cascades on FK; reload so the in-memory session list
-    // doesn't hold stale snippet links in its derived UI state.
-    await ref.read(sessionProvider.notifier).load();
+    // SessionSnippets cascades on FK; `dbSnippetsDelete` Rust-side
+    // publishes `SessionsChanged` so the workspace stream re-fetches
+    // and the derived UI drops the dead snippet link.
     await _load();
     if (mounted) {
       Toast.show(context, message: s.snippetDeleted(snippet.title));

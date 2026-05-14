@@ -254,12 +254,11 @@ class SecurityInitController {
     // overlap the warm-up and save roughly that window on plaintext
     // tiers where DB unlock itself is trivial. If corruption fires,
     // the reset dialog takes over regardless of load outcome.
-    final corruptFuture = handleCorruption();
-    // `sessionsLoadingProvider` defaults to `true` so the sidebar
-    // already shows the blank placeholder; `load()` flips it back to
-    // idle in its `finally` block.
-    final loadFuture = ref.read(sessionProvider.notifier).load();
-    await Future.wait([corruptFuture, loadFuture]);
+    // Sessions hydrate off `sessionsWorkspaceStreamProvider`, which
+    // reacts to the `SessionsChanged` event the Rust post-unlock
+    // cascade publishes once the DB handle is open. No explicit
+    // `load()` here — the stream is the single source of truth.
+    await handleCorruption();
   }
 
   /// Re-open the drift / MC handle after a lock → unlock transition.
@@ -292,7 +291,12 @@ class SecurityInitController {
       modifiers: modifiers,
     );
     if (!isMounted()) return;
-    await ref.read(sessionProvider.notifier).load();
+    // Force the workspace stream to re-pull the snapshot under the
+    // freshly-injected DB key. The Rust orchestrator only re-publishes
+    // `SessionsChanged` on the keyed unlock paths; this re-open route
+    // skips the orchestrator (no tier dispatch), so the stream has
+    // to be nudged explicitly.
+    ref.invalidate(sessionsWorkspaceStreamProvider);
   }
 
   /// Re-enter the first-launch provisioning path after a user-driven
@@ -314,7 +318,11 @@ class SecurityInitController {
     if (!isMounted()) return;
     await handleCorruption();
     if (!isMounted()) return;
-    await ref.read(sessionProvider.notifier).load();
+    // Reset wiped the DB and re-ran first-launch under a fresh
+    // tier; force the workspace stream to re-fetch off the new
+    // (empty) DB so the sidebar drops any stale rows from the
+    // pre-reset snapshot.
+    ref.invalidate(sessionsWorkspaceStreamProvider);
   }
 
   /// Post-[bootstrap] integrity probe. Runs one trivial SELECT
@@ -876,10 +884,10 @@ class SecurityInitController {
     ref
         .read(securityStateProvider.notifier)
         .setActive(level, hasKey: secretId != null);
-    // Stores read/write through FRB into `letsflutssh.db`; the unlock
-    // handshake invalidates each store's in-memory cache so the next
-    // read pulls fresh rows after the engine swap.
-    ref.read(sessionProvider.notifier).invalidateCache();
+    // SSH keys + known_hosts still own Dart-cached state; the
+    // sessions stream re-fetches off the `SessionsChanged` bus
+    // event the Rust orchestrator publishes once the new DB key
+    // is staged.
     ref.read(sshKeysProvider.notifier).invalidateCache();
     ref.read(knownHostsProvider.notifier).invalidateCache();
     await _persistSecurityTier(level, modifiers);

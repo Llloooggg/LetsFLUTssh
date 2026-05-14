@@ -7,7 +7,6 @@ import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
 import 'fake_security.dart';
-import 'fake_session_notifier.dart';
 import 'test_providers.dart';
 
 void main() {
@@ -25,7 +24,10 @@ void main() {
         final c = makeTestProviderContainer();
         addTearDown(c.dispose);
 
-        expect(c.read(sessionProvider.notifier), isA<FakeSessionNotifier>());
+        // SessionMutator is wired via the fake's overrides() helper;
+        // the workspace stream + mutator surface ride off the same
+        // in-memory FakeSessionNotifier instance.
+        expect(c.read(sessionMutatorProvider), isA<SessionMutator>());
         expect(
           c.read(masterPasswordProvider),
           isA<FakeMasterPasswordManager>(),

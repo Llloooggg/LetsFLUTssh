@@ -7,7 +7,7 @@ import 'package:letsflutssh/providers/session_provider.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 
-// SessionNotifier reads/writes through FRB (`lfs_core.db`). flutter_test
+// SessionMutator reads/writes through FRB (`lfs_core.db`). flutter_test
 // does not load the native bridge, so the persistence-asserting unit
 // tests that round-tripped through drift's in-memory DB no longer
 // apply — equivalent coverage moves to integration_test. Same
@@ -28,17 +28,26 @@ Session _makeSession({
 }
 
 void main() {
-  // Session.validate (called by SessionNotifier.add) routes through
+  // Session.validate (called by SessionMutator.add) routes through
   // `lfs_core::sessions` — bootstrap FRB so the validation path runs.
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(requireFrbLoaded);
 
-  group('SessionNotifier (no-DB sentinels)', () {
-    test('load resolves to empty when DB is unreachable', () async {
+  group('SessionMutator (no-DB sentinels)', () {
+    test('workspace stream yields empty when DB is unreachable', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final notifier = container.read(sessionProvider.notifier);
-      await notifier.load();
+      // The stream's initial load falls back to the empty snapshot
+      // when FRB has no DB to read from. The derived `sessionProvider`
+      // exposes the empty list. The persistent listener pins the
+      // stream subscription past the await — without it the next
+      // tearDown disposes the provider mid-loading.
+      container.listen<AsyncValue<SessionWorkspaceSnapshot>>(
+        sessionsWorkspaceStreamProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      await container.read(sessionsWorkspaceStreamProvider.future);
       expect(container.read(sessionProvider), isEmpty);
     });
 
@@ -49,11 +58,11 @@ void main() {
     test('add validates input even without a DB', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final notifier = container.read(sessionProvider.notifier);
+      final mutator = container.read(sessionMutatorProvider);
       // Empty host / user fails validate(); the throw should fire
       // before any FRB call so the test runner can observe it.
       expect(
-        () => notifier.add(
+        () => mutator.add(
           Session(
             id: 's1',
             label: 'broken',

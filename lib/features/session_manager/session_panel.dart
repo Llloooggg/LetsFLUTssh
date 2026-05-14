@@ -142,7 +142,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       ),
     );
     if (confirmed) {
-      final notifier = ref.read(sessionProvider.notifier);
+      final mutator = ref.read(sessionMutatorProvider);
       if (_ctrl.selectedIds.isNotEmpty) {
         // Drop WebDAV SecretStore entries first so a same-id session
         // recreated afterwards starts from a clean slot. The DB row
@@ -158,10 +158,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             );
           }
         }
-        await notifier.deleteMultiple(Set.of(_ctrl.selectedIds));
+        await mutator.deleteMultiple(Set.of(_ctrl.selectedIds));
       }
       for (final folderPath in _ctrl.selectedFolderPaths) {
-        await notifier.deleteFolder(folderPath);
+        await mutator.deleteFolder(folderPath);
       }
       if (_ctrl.selectMode) {
         _ctrl.exitSelectMode();
@@ -173,11 +173,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   Future<void> _moveSelected(BuildContext context) async {
     if (!_ctrl.hasSelection) return;
-    final notifier = ref.read(sessionProvider.notifier);
+    final mutator = ref.read(sessionMutatorProvider);
     final allFolders = <String>{
       '',
-      ...notifier.folders(),
-      ...notifier.emptyFolders,
+      ...mutator.folders(),
+      ...ref.read(emptyFoldersProvider),
     };
 
     final selected = await AppDialog.show<String>(
@@ -211,12 +211,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   Future<void> _applyMove(String target) async {
-    final notifier = ref.read(sessionProvider.notifier);
+    final mutator = ref.read(sessionMutatorProvider);
     if (_ctrl.selectedIds.isNotEmpty) {
-      await notifier.moveMultiple(Set.of(_ctrl.selectedIds), target);
+      await mutator.moveMultiple(Set.of(_ctrl.selectedIds), target);
     }
     for (final folderPath in _ctrl.selectedFolderPaths) {
-      await notifier.moveFolder(folderPath, target);
+      await mutator.moveFolder(folderPath, target);
     }
     if (_ctrl.selectMode) {
       _ctrl.exitSelectMode();
@@ -261,8 +261,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   ///
   /// Clipboard slot can be either a session id or a folder path
   /// (mutually exclusive — see [SessionPanelController.copyFolderPath]).
-  /// Cut on a folder paths becomes [SessionNotifier.moveFolder]; copy
-  /// becomes [SessionNotifier.duplicateFolder] (deep duplicate of the
+  /// Cut on a folder paths becomes [SessionMutator.moveFolder]; copy
+  /// becomes [SessionMutator.duplicateFolder] (deep duplicate of the
   /// folder + every session and subfolder inside).
   @visibleForTesting
   void pasteCopiedSession({String? explicitTarget}) {
@@ -270,23 +270,23 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final folderPath = _ctrl.copiedFolderPath;
     if (id == null && folderPath == null) return;
     final target = explicitTarget ?? _resolvePasteTargetFolder();
-    final notifier = ref.read(sessionProvider.notifier);
+    final mutator = ref.read(sessionMutatorProvider);
     if (id != null) {
       if (_ctrl.cutPending) {
-        notifier.moveSession(id, target);
+        mutator.moveSession(id, target);
         _ctrl.clearClipboard();
         return;
       }
-      notifier.duplicate(id, targetFolder: target);
+      mutator.duplicate(id, targetFolder: target);
       return;
     }
     // Folder-path branch.
     if (_ctrl.cutPending) {
-      notifier.moveFolder(folderPath!, target);
+      mutator.moveFolder(folderPath!, target);
       _ctrl.clearClipboard();
       return;
     }
-    notifier.duplicateFolder(folderPath!, target);
+    mutator.duplicateFolder(folderPath!, target);
   }
 
   /// Resolve where a paste should land. Focused folder wins, then
@@ -369,8 +369,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   Map<ShortcutActivator, VoidCallback> _buildShortcutBindings() {
     return AppShortcutRegistry.instance.buildCallbackMap({
-      AppShortcut.sessionUndo: () => ref.read(sessionProvider.notifier).undo(),
-      AppShortcut.sessionRedo: () => ref.read(sessionProvider.notifier).redo(),
+      AppShortcut.sessionUndo: () => ref.read(sessionMutatorProvider).undo(),
+      AppShortcut.sessionRedo: () => ref.read(sessionMutatorProvider).redo(),
       AppShortcut.sessionCopy: copyFocusedSession,
       AppShortcut.sessionCut: cutFocusedSession,
       AppShortcut.sessionPaste: pasteCopiedSession,
@@ -604,14 +604,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       tree: tree,
       connectedSessionIds: connState.connected,
       connectingSessionIds: connState.connecting,
-      collapsedFolders: () {
-        // Watch sessionProvider so emptyFolders / collapsedFolders
-        // mutations (which bump state) re-trigger this builder.
-        ref.watch(sessionProvider);
-        return ref.read(sessionProvider.notifier).collapsedFolders;
-      }(),
+      collapsedFolders: ref.watch(collapsedFoldersProvider),
       onToggleFolderCollapsed: (path) =>
-          ref.read(sessionProvider.notifier).toggleFolderCollapsed(path),
+          ref.read(sessionMutatorProvider).toggleFolderCollapsed(path),
       selectMode: mobile && _ctrl.selectMode,
       selectedIds: _ctrl.selectedIds,
       onToggleSelected: _ctrl.toggleSelected,
@@ -648,18 +643,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         _showFolderContextMenu(context, ref, '', position);
       },
       onSessionMoved: (sessionId, targetFolder) {
-        ref.read(sessionProvider.notifier).moveSession(sessionId, targetFolder);
+        ref.read(sessionMutatorProvider).moveSession(sessionId, targetFolder);
       },
       onFolderMoved: (folderPath, targetParent) {
-        ref.read(sessionProvider.notifier).moveFolder(folderPath, targetParent);
+        ref.read(sessionMutatorProvider).moveFolder(folderPath, targetParent);
       },
       onBulkMoved: (sessionIds, folderPaths, targetFolder) async {
-        final notifier = ref.read(sessionProvider.notifier);
+        final mutator = ref.read(sessionMutatorProvider);
         if (sessionIds.isNotEmpty) {
-          await notifier.moveMultiple(sessionIds, targetFolder);
+          await mutator.moveMultiple(sessionIds, targetFolder);
         }
         for (final gp in folderPaths) {
-          await notifier.moveFolder(gp, targetFolder);
+          await mutator.moveFolder(gp, targetFolder);
         }
         _ctrl.clearDesktopSelection();
       },

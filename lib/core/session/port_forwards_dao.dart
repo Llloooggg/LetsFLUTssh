@@ -3,9 +3,9 @@ import '../../utils/logger.dart';
 import '../ssh/port_forward_rule.dart';
 
 /// Standalone DAO helpers for the per-session port-forward rule
-/// table. Sit outside `SessionNotifier` because none of the three
-/// methods touch the in-memory session cache — they're 1-line
-/// FRB wrappers that the editing UI calls directly.
+/// table. Sit outside `SessionMutator` because none of the three
+/// methods touch the workspace snapshot — they're 1-line FRB
+/// wrappers that the editing UI calls directly.
 ///
 /// Failure semantics: FRB-unreachable contexts (flutter_test
 /// without `RustLib`) log + return empty / no-op so the UI does

@@ -206,7 +206,7 @@ class _ExportImportTile extends ConsumerWidget {
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
-    final notifier = ref.read(sessionProvider.notifier);
+    final emptyFolders = ref.read(emptyFoldersProvider);
 
     // Load counts for export dialog. The size estimator + the
     // submit path both pull manager-key bytes Rust-side from
@@ -225,7 +225,7 @@ class _ExportImportTile extends ConsumerWidget {
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
-        emptyFolders: notifier.emptyFolders,
+        emptyFolders: emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
         tags: allTags,
@@ -554,7 +554,8 @@ class _ExportImportTile extends ConsumerWidget {
         applySnippets: options.includeSnippets,
         applyKnownHosts: options.includeKnownHosts,
         refreshAfterImport: () async {
-          await ref.read(sessionProvider.notifier).load();
+          // Sessions ride the workspace stream — the Rust apply
+          // publishes `SessionsChanged` and the stream re-fetches.
           await ref.read(tagsProvider.notifier).loadAll();
           await ref.read(snippetsProvider.notifier).loadAll();
         },
@@ -640,7 +641,8 @@ class _ExportImportTile extends ConsumerWidget {
       final apply = await applyResultViaRust(
         importResult,
         refreshAfterImport: () async {
-          await ref.read(sessionProvider.notifier).load();
+          // Sessions ride the workspace stream — the Rust apply
+          // publishes `SessionsChanged` and the stream re-fetches.
           await ref.read(tagsProvider.notifier).loadAll();
           await ref.read(snippetsProvider.notifier).loadAll();
         },

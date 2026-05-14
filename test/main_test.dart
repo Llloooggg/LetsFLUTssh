@@ -73,10 +73,8 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        sessionProvider.overrideWith(
-          () => FakeSessionNotifier(sessions: sessions),
-        ),
-        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+        ...FakeSessionNotifier(sessions: sessions).overrides(),
+        sessionsLoadingProvider.overrideWithValue(false),
         knownHostsProvider.overrideWith(KnownHostsNotifier.new),
         connectionsProvider.overrideWith(
           () => StaticConnectionsNotifier(<Connection>[]),

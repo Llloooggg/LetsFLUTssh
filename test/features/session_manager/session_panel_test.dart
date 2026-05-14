@@ -20,7 +20,6 @@ import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/fake_session_notifier.dart';
 import '../../helpers/frb_bootstrap.dart';
-import '../../helpers/test_notifiers.dart';
 
 void main() {
   // SessionTree.build now routes through `lfs_core::session_tree`
@@ -69,13 +68,11 @@ void main() {
 
     return ProviderScope(
       overrides: [
-        sessionProvider.overrideWith(
-          () => FakeSessionNotifier(
-            sessions: sessionList,
-            emptyFolders: emptyFolders,
-          ),
-        ),
-        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+        ...FakeSessionNotifier(
+          sessions: sessionList,
+          emptyFolders: emptyFolders,
+        ).overrides(),
+        sessionsLoadingProvider.overrideWithValue(false),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
         // SessionEditDialog watches these via FRB / DB. With FRB
@@ -246,11 +243,14 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionProvider.overrideWith(() => FakeSessionNotifier()),
+            ...FakeSessionNotifier().overrides(),
             // Default for sessionsLoadingProvider is already `true`,
             // but state the intent so the test fails loudly if that
             // default ever changes.
-            sessionsLoadingProvider.overrideWith(SessionsLoadingNotifier.new),
+            // Default value is `true` for the loading flag — matches
+            // the cold-start state the production sidebar paints
+            // before the workspace stream emits its first snapshot.
+            sessionsLoadingProvider.overrideWithValue(true),
             sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
             filteredSessionTreeProvider.overrideWithValue(tree),
           ],

@@ -20,7 +20,7 @@ extension _SessionActions on SessionPanelState {
         :final webdavData,
         :final s3Data,
       ):
-        await ref.read(sessionProvider.notifier).add(session);
+        await ref.read(sessionMutatorProvider).add(session);
         await _syncForwards(ref, session.id, forwards);
         if (webdavData != null) {
           await _syncWebDavDetails(session.id, webdavData);
@@ -166,7 +166,7 @@ extension _SessionActions on SessionPanelState {
         ),
         StandardMenuAction.duplicate.item(
           context,
-          onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
+          onTap: () => ref.read(sessionMutatorProvider).duplicate(session.id),
         ),
         const ContextMenuItem.divider(),
         StandardMenuAction.delete.item(
@@ -249,7 +249,7 @@ extension _SessionActions on SessionPanelState {
                 title: Text(S.of(ctx).duplicate),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ref.read(sessionProvider.notifier).duplicate(session.id);
+                  ref.read(sessionMutatorProvider).duplicate(session.id);
                 },
               ),
               ListTile(
@@ -293,11 +293,11 @@ extension _SessionActions on SessionPanelState {
     WidgetRef ref,
     Session session,
   ) async {
-    final notifier = ref.read(sessionProvider.notifier);
+    final mutator = ref.read(sessionMutatorProvider);
     final allFolders = <String>{
       '',
-      ...notifier.folders(),
-      ...notifier.emptyFolders,
+      ...mutator.folders(),
+      ...ref.read(emptyFoldersProvider),
     };
 
     final selected = await AppDialog.show<String>(
@@ -323,7 +323,7 @@ extension _SessionActions on SessionPanelState {
     );
 
     if (selected != null) {
-      ref.read(sessionProvider.notifier).moveSession(session.id, selected);
+      ref.read(sessionMutatorProvider).moveSession(session.id, selected);
     }
   }
 
@@ -362,7 +362,7 @@ extension _SessionActions on SessionPanelState {
     if (result == null) return;
     if (result is SaveResult) {
       await ref
-          .read(sessionProvider.notifier)
+          .read(sessionMutatorProvider)
           .updatePartial(
             result.session,
             passwordDirty: result.passwordDirty,
@@ -413,7 +413,7 @@ extension _SessionActions on SessionPanelState {
           id: rust_db.dbS3SessionDetailsSecretId(sessionId: session.id),
         );
       }
-      await ref.read(sessionProvider.notifier).delete(session.id);
+      await ref.read(sessionMutatorProvider).delete(session.id);
     }
   }
 }

@@ -13,7 +13,6 @@ import '../../core/security/ssh_key.dart';
 import 'key_manager_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
-import '../../providers/session_provider.dart';
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/fido2.dart' as rust_fido2;
 import '../../src/rust/api/format.dart' as rust_format;
@@ -507,11 +506,10 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final store = ref.read(sshKeysProvider.notifier);
     await store.delete(entry.id);
     ref.invalidate(sshKeysProvider);
-    // DB cascades `Sessions.keyId → NULL` on key deletion, but the in-memory
-    // session list still holds the stale id. Reload so the tree picks up the
-    // cleared keyId (and the invalid-session warning icon appears without
-    // needing a second interaction).
-    await ref.read(sessionProvider.notifier).load();
+    // DB cascades `Sessions.keyId → NULL` on key deletion;
+    // `dbSshKeysDelete` Rust-side publishes `SessionsChanged` so
+    // the workspace stream re-fetches and the tree picks up the
+    // cleared keyId without a Dart-side reload.
     await _loadKeys();
     if (mounted) {
       Toast.show(context, message: s.keyDeleted(entry.label));

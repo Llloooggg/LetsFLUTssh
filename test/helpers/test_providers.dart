@@ -39,8 +39,6 @@ import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
-import 'package:letsflutssh/providers/session_provider.dart';
-
 import 'fake_security.dart';
 import 'fake_session_notifier.dart';
 
@@ -96,9 +94,7 @@ List<Override> securityProviderOverrides({
   FakeAutoLockNotifier? autoLockNotifier,
 }) {
   return [
-    sessionProvider.overrideWith(
-      () => sessionNotifier ?? FakeSessionNotifier(),
-    ),
+    ...(sessionNotifier ?? FakeSessionNotifier()).overrides(),
     masterPasswordProvider.overrideWithValue(
       masterPassword ?? FakeMasterPasswordManager(),
     ),

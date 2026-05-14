@@ -350,7 +350,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     if (result == null || !context.mounted) return;
     switch (result) {
       case SaveResult(:final session, :final connect):
-        await ref.read(sessionProvider.notifier).add(session);
+        await ref.read(sessionMutatorProvider).add(session);
         if (connect && context.mounted) {
           await SessionConnect.connectTerminal(context, ref, session);
         }

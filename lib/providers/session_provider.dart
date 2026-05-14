@@ -14,214 +14,248 @@ import '../src/rust/api/sessions.dart' as rust_sess;
 import '../src/rust/api/sessions_registry.dart' as rust_registry;
 import '../utils/logger.dart';
 
-/// Single source of truth for session state. Owns the in-memory cache
-/// (sessions, emptyFolders, collapsedFolders, folder map), the FRB
-/// `letsflutssh.db` write pipeline, the bus subscription that re-hydrates
-/// the cache after Rust-side mutations (bulk import etc.), and the
-/// undo/redo history.
-///
-/// Replaces the prior two-tier `Provider<SessionStore>` +
-/// `NotifierProvider<SessionNotifier>` split. The data layer is FRB
-/// (rusqlite + `sessions::Registry`); this Notifier is the thin Dart
-/// cache + writeback adapter.
-///
-/// Failures from FRB calls (DB locked / native lib missing in unit
-/// tests) are caught at every entry point and degrade to the same
-/// empty-result / no-op semantics the legacy `_db == null` branch
-/// used to expose. Live persistence coverage moves to integration_test.
-final sessionProvider = NotifierProvider<SessionNotifier, List<Session>>(
-  SessionNotifier.new,
-);
+/// Typed payload broadcast by [_sessionsWorkspaceStreamProvider]: the
+/// flat session list, the materialised empty-folder set, the
+/// folder-collapsed set, and the id→DbFolder map. One snapshot per
+/// `BusEvent::SessionsChanged` Rust-side tick — no Dart-cached drift.
+class SessionWorkspaceSnapshot {
+  const SessionWorkspaceSnapshot({
+    required this.sessions,
+    required this.emptyFolders,
+    required this.collapsedFolders,
+    required this.folderMap,
+  });
 
-/// Derived O(1)-by-id session map. Rebuilds whenever
-/// [sessionProvider] mutates; consumers should use
+  /// Sentinel for pre-FRB / pre-first-load / test contexts.
+  static const empty = SessionWorkspaceSnapshot(
+    sessions: <Session>[],
+    emptyFolders: <String>{},
+    collapsedFolders: <String>{},
+    folderMap: <String, rust_db.DbFolder>{},
+  );
+
+  final List<Session> sessions;
+  final Set<String> emptyFolders;
+  final Set<String> collapsedFolders;
+  final Map<String, rust_db.DbFolder> folderMap;
+}
+
+/// Stream of [SessionWorkspaceSnapshot]s. Yields:
+///   1. An initial snapshot pulled via FRB from the Rust registry.
+///   2. A fresh snapshot on every `BusEvent::SessionsChanged` tick.
+///
+/// The Rust side is the single source of truth: every mutation goes
+/// through FRB (`db_sessions_*`, `db_folders_*`), Rust publishes
+/// `SessionsChanged`, this stream re-fetches. No Dart-cached state.
+///
+/// Cold-start: the first `_loadSnapshot` call runs lazily on first
+/// watch. Pre-FRB-init contexts (Riverpod provider mounted during
+/// the first runApp frame, flutter_test without the native lib
+/// loaded) catch the `StateError` and yield [SessionWorkspaceSnapshot.empty]
+/// so the sidebar paints its empty / loading state without crashing.
+final sessionsWorkspaceStreamProvider =
+    StreamProvider<SessionWorkspaceSnapshot>((ref) async* {
+      yield await _loadSnapshot();
+      await for (final event in AppBus.instance.subscribe(
+        rust_bus.BusTopic.sessions,
+      )) {
+        if (event is rust_bus.BusEvent_SessionsChanged) {
+          yield await _loadSnapshot();
+        }
+      }
+    });
+
+/// Fetch the current snapshot from the Rust `sessions::Registry` view.
+/// All failure modes degrade to [SessionWorkspaceSnapshot.empty] — the
+/// sidebar stays usable on pre-FRB / DB-missing / locked-tier reads.
+Future<SessionWorkspaceSnapshot> _loadSnapshot() async {
+  try {
+    await rust_registry.sessionsRegistryReload();
+    final view = rust_registry.sessionsRegistrySnapshot();
+    final folderMap = buildFolderMap(view.folders);
+    final sessions = view.sessions
+        .map((s) => dbSessionToSession(s, folderMap))
+        .toList(growable: false);
+    AppLogger.instance.log(
+      'Loaded ${sessions.length} sessions, ${folderMap.length} folders',
+      name: 'SessionWorkspace',
+    );
+    return SessionWorkspaceSnapshot(
+      sessions: sessions,
+      emptyFolders: view.emptyFolders.toSet(),
+      collapsedFolders: view.collapsedFolders.toSet(),
+      folderMap: folderMap,
+    );
+  } catch (e) {
+    AppLogger.instance.log(
+      'Failed to load sessions snapshot',
+      name: 'SessionWorkspace',
+      error: e,
+    );
+    return SessionWorkspaceSnapshot.empty;
+  }
+}
+
+/// Synchronous view of the latest [SessionWorkspaceSnapshot]. Yields
+/// [SessionWorkspaceSnapshot.empty] while the first stream emission
+/// is in flight or the stream is in an error state — consumers that
+/// need the loading / error discriminant watch
+/// [sessionsWorkspaceStreamProvider] directly.
+final sessionWorkspaceProvider = Provider<SessionWorkspaceSnapshot>((ref) {
+  final async = ref.watch(sessionsWorkspaceStreamProvider);
+  return async.hasValue
+      ? async.value as SessionWorkspaceSnapshot
+      : SessionWorkspaceSnapshot.empty;
+});
+
+/// Backwards-compatible flat session list — derived from the
+/// workspace snapshot so every `ref.watch(sessionProvider)` keeps
+/// working while the data flow itself goes Rust → stream → derived
+/// Provider. Same shape, zero Dart-cached state.
+final sessionProvider = Provider<List<Session>>((ref) {
+  return ref.watch(sessionWorkspaceProvider).sessions;
+});
+
+/// Folder paths the user has materialised without a session inside —
+/// `_emptyFolders` set in the previous Dart-cached store, now a
+/// derived slice of the Rust-owned snapshot.
+final emptyFoldersProvider = Provider<Set<String>>((ref) {
+  return ref.watch(sessionWorkspaceProvider).emptyFolders;
+});
+
+/// Folder paths the user has collapsed in the sidebar — derived
+/// from the Rust-owned `folders.collapsed` column via the workspace
+/// snapshot. UI toggles route through [SessionMutator.toggleFolderCollapsed],
+/// which calls `dbFoldersToggleCollapsed` Rust-side; the publish on
+/// success re-flows the stream.
+final collapsedFoldersProvider = Provider<Set<String>>((ref) {
+  return ref.watch(sessionWorkspaceProvider).collapsedFolders;
+});
+
+/// Derived O(1)-by-id session map. Rebuilds whenever the snapshot
+/// stream emits; consumers should use
 /// `ref.watch(sessionsByIdProvider.select((m) => m[id]))` so the
 /// dependent widget rebuilds only when *its specific* session
 /// changes — instead of every list-mutation forcing every
 /// `firstWhere`-scanning consumer to rebuild + re-scan O(N).
-///
-/// Replaces the O(N²) pattern where every per-row widget
-/// (`SessionViaBadge`, anything resolving `via_session_id` →
-/// label) ran a fresh `firstWhere` on every parent list
-/// rebuild — at 1000 sessions that's 1 000 000 string compares
-/// per refresh, visible as a sidebar lag.
 final sessionsByIdProvider = Provider<Map<String, Session>>((ref) {
   final list = ref.watch(sessionProvider);
   return {for (final s in list) s.id: s};
 });
 
-/// True while the very first [SessionNotifier.load] is in flight and
-/// has not completed yet. The sidebar treats this as "render a blank
+/// True while the workspace stream has not produced its first
+/// emission yet. The sidebar treats this as "render a blank
 /// placeholder instead of the empty-state" so cold-start doesn't
 /// flash "No sessions" for ~1 s before the rows paint.
+final sessionsLoadingProvider = Provider<bool>((ref) {
+  final async = ref.watch(sessionsWorkspaceStreamProvider);
+  // `isLoading` is false once the first emission lands (success or
+  // error). `hasError` paths still flip the loading flag off so the
+  // sidebar drops the placeholder and renders the empty state — more
+  // honest than a permanent placeholder.
+  return async.isLoading && !async.hasValue && !async.hasError;
+});
+
+/// Pure-FRB mutator surface. No Dart-cached state — every method is a
+/// thin pass-through to `letsflutssh.db` write paths. After each
+/// successful FRB write, Rust publishes `BusEvent::SessionsChanged`
+/// on the global bus; [sessionsWorkspaceStreamProvider] re-fetches
+/// the snapshot, every derived provider re-emits, every widget
+/// consumer rebuilds.
 ///
-/// Default is `true` (loading) so the very first frame shows the
-/// blank placeholder even before [_bootstrap] reaches `load()` on its
-/// post-frame callback. [SessionNotifier.load] flips the flag back to
-/// `false` in its `finally` block (success or failure — the empty
-/// state is more honest than a permanent placeholder).
-final sessionsLoadingProvider = NotifierProvider<SessionsLoadingNotifier, bool>(
-  SessionsLoadingNotifier.new,
-);
+/// Undo/redo handle the Rust-side `session_history` actor; the
+/// handle is minted lazily on first use and torn down when the
+/// Provider tears down.
+class SessionMutator {
+  SessionMutator(this._ref);
 
-class SessionsLoadingNotifier extends Notifier<bool> {
-  @override
-  bool build() => true;
-
-  void markLoading() => state = true;
-  void markIdle() => state = false;
-}
-
-class SessionNotifier extends Notifier<List<Session>> {
-  // Lazy — `SessionHistory()` constructor calls into the Rust
-  // actor, which requires `RustLib` to be initialised. Test seams
-  // (`FakeSessionNotifier`) override `build()` and never read the
-  // history surface, so they avoid the FRB hop entirely. The
-  // production path lazily mints the actor on first access via
-  // [_historyOrInit].
+  final Ref _ref;
   SessionHistory? _history;
-  final Set<String> _emptyFolders = {};
-  final Set<String> _collapsedFolders = {};
-  Map<String, rust_db.DbFolder> _folderMap = {};
-  Future<List<Session>>? _loadFuture;
-  StreamSubscription<rust_bus.BusEvent>? _busSub;
-
-  @override
-  List<Session> build() {
-    // Subscribe to the global Sessions topic so any FRB-side
-    // mutation (including bulk-import paths) refreshes the cache.
-    // The subscribe call hits the FRB native lib at construction
-    // time; flutter_test contexts that don't load the lib raise
-    // synchronously. Catch + log so the notifier stays usable in
-    // tests with mocked DAOs.
-    try {
-      _busSub = AppBus.instance.subscribe(rust_bus.BusTopic.sessions).listen((
-        event,
-      ) {
-        if (event is rust_bus.BusEvent_SessionsChanged) {
-          unawaited(reload());
-        }
-      });
-    } catch (e) {
-      AppLogger.instance.log(
-        'SessionNotifier bus subscribe failed: $e',
-        name: 'SessionNotifier',
-        level: LogLevel.warn,
-      );
-    }
-    ref.onDispose(() {
-      unawaited(_busSub?.cancel());
-      _busSub = null;
-      _history?.dispose();
-      _history = null;
-    });
-    return [];
-  }
 
   /// Lazily mint the Rust-side history actor. First call hits the
   /// FRB boundary; subsequent calls reuse the handle. Test seams
-  /// that override `build` without touching undo/redo never reach
-  /// this getter, so they don't need FRB loaded.
+  /// override [SessionMutator] entirely so they never hit this path.
   SessionHistory _historyOrInit() => _history ??= SessionHistory();
 
-  // ── Public read accessors ────────────────────────────────────────
+  /// Read the current snapshot. Sync — backed by the Provider derived
+  /// from the stream. Used internally by mutator paths that need to
+  /// short-circuit on a missing row (`delete` / `moveSession`) or
+  /// compute a transactional input (`_restoreSnapshot`,
+  /// `duplicateFolder`).
+  SessionWorkspaceSnapshot get _snap => _ref.read(sessionWorkspaceProvider);
 
-  Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
-  Set<String> get collapsedFolders => Set.unmodifiable(_collapsedFolders);
+  // ── Public read accessors (notifier-style passthrough) ──────────
 
   bool get canUndo => _history?.canUndo ?? false;
   bool get canRedo => _history?.canRedo ?? false;
 
-  /// Resolve a folder path string to its DB folder ID.
-  /// Returns null if the path is empty or not found.
-  String? folderIdByPath(String path) => findFolderIdByPath(path, _folderMap);
+  /// Resolve a folder path string to its DB folder ID. Returns null
+  /// if the path is empty or not found.
+  String? folderIdByPath(String path) =>
+      findFolderIdByPath(path, _snap.folderMap);
 
+  /// Lookup a session by id from the current snapshot. Returns null
+  /// when the session is not present (already deleted, snapshot
+  /// pre-load).
   Session? get(String id) {
-    for (final s in state) {
+    for (final s in _snap.sessions) {
       if (s.id == id) return s;
     }
     return null;
   }
 
-  // ── Cache lifecycle ──────────────────────────────────────────────
-
-  /// Force a reload from the DB on the next [load] call. Used by the
-  /// bus subscriber (above) to drop the cached future after a
-  /// `SessionsChanged` event so the next read picks up the new state.
-  Future<void> reload() async {
-    invalidateCache();
-    await load();
-  }
-
-  /// Drop the in-memory cache so the next [load] re-reads. Called
-  /// from the unlock handshake.
-  void invalidateCache() {
-    state = const [];
-    _emptyFolders.clear();
-    _collapsedFolders.clear();
-    _folderMap = {};
-    _loadFuture = null;
-  }
-
-  Future<void> load() async {
-    if (_loadFuture != null) {
-      await _loadFuture;
-      return;
-    }
-    final future = _doLoad();
-    _loadFuture = future;
+  /// Distinct, sorted list of named folders referenced by any
+  /// session in the snapshot. Routes through the Rust registry's
+  /// `sessions_registry_distinct_folders` first (cache read, no
+  /// per-call projection); falls back to the projecting shim when
+  /// the registry hasn't been synced yet.
+  List<String> folders() {
     try {
-      await future;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to load sessions',
-        name: 'SessionNotifier',
-        error: e,
+      return rust_registry.sessionsRegistryDistinctFolders();
+    } catch (_) {
+      return rust_sess.sessionsDistinctFolders(
+        sessionFolders: _snap.sessions
+            .map((s) => s.folder)
+            .toList(growable: false),
       );
-    } finally {
-      _loadFuture = null;
-      // Clear the loading flag even on failure so the sidebar doesn't
-      // stay blank forever if the DB never opens — the empty state is
-      // still more honest than a permanent placeholder.
-      ref.read(sessionsLoadingProvider.notifier).markIdle();
     }
   }
 
-  Future<List<Session>> _doLoad() async {
-    final loaded = <Session>[];
+  /// Sessions whose folder equals [folder] exactly (no prefix
+  /// match — use [countSessionsInFolder] for the recursive count).
+  /// Routes through the registry's
+  /// `sessions_registry_ids_by_exact_folder` (cache read, no
+  /// Dart-side scan per call) when available; falls back to the
+  /// inline filter for flutter_test contexts.
+  List<Session> byFolder(String folder) {
     try {
-      // Hydrate from the Rust-side `sessions::Registry` snapshot. The
-      // registry is kept in sync by the FRB DAO write paths so the
-      // snapshot reflects the latest committed state without an extra
-      // DAO round-trip from Dart; `sessionsRegistryReload` forces an
-      // initial pull from disk on first load (the registry starts
-      // empty).
-      await rust_registry.sessionsRegistryReload();
-      final view = rust_registry.sessionsRegistrySnapshot();
-      _folderMap = buildFolderMap(view.folders);
-      loaded.addAll(
-        view.sessions.map((s) => dbSessionToSession(s, _folderMap)),
-      );
-      _emptyFolders
-        ..clear()
-        ..addAll(view.emptyFolders);
-      _collapsedFolders
-        ..clear()
-        ..addAll(view.collapsedFolders);
+      final ids = rust_registry
+          .sessionsRegistryIdsByExactFolder(folderPath: folder)
+          .toSet();
+      if (ids.isEmpty) return const <Session>[];
+      return _snap.sessions.where((s) => ids.contains(s.id)).toList();
+    } catch (_) {
+      return _snap.sessions.where((s) => s.folder == folder).toList();
+    }
+  }
 
-      AppLogger.instance.log(
-        'Loaded ${loaded.length} sessions, ${_folderMap.length} folders',
-        name: 'SessionNotifier',
+  /// Count sessions whose folder equals [folderPath] or sits under
+  /// `{folderPath}/`. Routes through the Rust registry first;
+  /// falls back to the projecting shim when the registry hasn't
+  /// been synced yet.
+  int countSessionsInFolder(String folderPath) {
+    try {
+      return rust_registry.sessionsRegistryCountInFolder(
+        folderPath: folderPath,
       );
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to load sessions',
-        name: 'SessionNotifier',
-        error: e,
+    } catch (_) {
+      return rust_sess.sessionsCountInFolder(
+        sessionFolders: _snap.sessions
+            .map((s) => s.folder)
+            .toList(growable: false),
+        folderPath: folderPath,
       );
     }
-    state = List.of(loaded);
-    return loaded;
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────
@@ -229,12 +263,6 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> add(Session session) async {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
-    // Optimistic cache update — push a credential-cleared copy so
-    // the list view never holds plaintext between this insert and
-    // the `SessionsChanged` bus event re-hydrating from the
-    // registry snapshot (which itself uses
-    // `dbSessionToSession(.., withCredentials: false)`).
-    state = [...state, session.withoutCredentials()];
     try {
       final folderId = await resolveFolderPath(session.folder);
       await rust_db.dbSessionsUpsert(
@@ -242,8 +270,8 @@ class SessionNotifier extends Notifier<List<Session>> {
       );
     } catch (e) {
       AppLogger.instance.log(
-        'SessionNotifier.add failed: $e',
-        name: 'SessionNotifier',
+        'SessionMutator.add failed: $e',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
     }
@@ -252,13 +280,9 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> update(Session session) async {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
-    final idx = state.indexWhere((s) => s.id == session.id);
-    if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
-    // Same credential-clearing rule as `add` — the cache row never
-    // carries plaintext.
-    final next = [...state];
-    next[idx] = session.withoutCredentials();
-    state = next;
+    if (get(session.id) == null) {
+      throw ArgumentError('Session not found: ${session.id}');
+    }
     try {
       final folderId = await resolveFolderPath(session.folder);
       await rust_db.dbSessionsUpsert(
@@ -266,8 +290,8 @@ class SessionNotifier extends Notifier<List<Session>> {
       );
     } catch (e) {
       AppLogger.instance.log(
-        'SessionNotifier.update failed: $e',
-        name: 'SessionNotifier',
+        'SessionMutator.update failed: $e',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
     }
@@ -275,11 +299,7 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   /// Save metadata edits without round-tripping the secret columns
   /// through the Dart heap. Each `*Dirty` flag selects whether the
-  /// corresponding credential column is part of the write. The
-  /// session model already carries empty strings in
-  /// `password` / `keyData` / `passphrase` (the cache view), so the
-  /// metadata DAO is enough for the metadata side; secret slots that
-  /// got dirty land via `db_sessions_set_secret`.
+  /// corresponding credential column is part of the write.
   Future<void> updatePartial(
     Session session, {
     bool passwordDirty = false,
@@ -288,8 +308,9 @@ class SessionNotifier extends Notifier<List<Session>> {
   }) async {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
-    final idx = state.indexWhere((s) => s.id == session.id);
-    if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
+    if (get(session.id) == null) {
+      throw ArgumentError('Session not found: ${session.id}');
+    }
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     try {
       final folderId = await resolveFolderPath(session.folder);
@@ -346,26 +367,21 @@ class SessionNotifier extends Notifier<List<Session>> {
       }
     } catch (e) {
       AppLogger.instance.log(
-        'SessionNotifier.updatePartial failed: $e',
-        name: 'SessionNotifier',
+        'SessionMutator.updatePartial failed: $e',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
       rethrow;
     }
-    // Reload to refresh the per-slot `hasStoredX` flags + cached
-    // metadata after a partial save (dirty-bit changes shift the
-    // saved-or-not indicator state for the next dialog open).
-    await load();
   }
 
   Future<void> delete(String id) => _runUndoable('delete session', () async {
-    state = state.where((s) => s.id != id).toList();
     try {
       await rust_db.dbSessionsDelete(id: id);
     } catch (e) {
       AppLogger.instance.log(
-        'SessionNotifier.delete failed: $e',
-        name: 'SessionNotifier',
+        'SessionMutator.delete failed: $e',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
     }
@@ -374,30 +390,25 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> deleteMultiple(Set<String> ids) =>
       _runUndoable('delete multiple', () async {
         if (ids.isEmpty) return;
-        state = state.where((s) => !ids.contains(s.id)).toList();
         try {
           await rust_db.dbSessionsDeleteMultiple(ids: ids.toList());
         } catch (e) {
           AppLogger.instance.log(
-            'SessionNotifier.deleteMultiple failed: $e',
-            name: 'SessionNotifier',
+            'SessionMutator.deleteMultiple failed: $e',
+            name: 'SessionMutator',
             level: LogLevel.warn,
           );
         }
       });
 
   Future<void> deleteAll() => _runUndoable('delete all', () async {
-    state = const [];
-    _emptyFolders.clear();
-    _collapsedFolders.clear();
     try {
       await rust_db.dbSessionsDeleteAll();
       await rust_db.dbFoldersDeleteAll();
-      _folderMap.clear();
     } catch (e) {
       AppLogger.instance.log(
-        'SessionNotifier.deleteAll failed: $e',
-        name: 'SessionNotifier',
+        'SessionMutator.deleteAll failed: $e',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
     }
@@ -407,11 +418,6 @@ class SessionNotifier extends Notifier<List<Session>> {
     final original = get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
     final folderForCopy = targetFolder ?? original.folder;
-    // One Rust transaction now owns: source-row lookup, label dedup
-    // against the live session list, folder-path ensure, fresh UUID
-    // mint, duplicate-row insert. Replaces the prior Dart-side
-    // sequence of `unique_label` + `resolveFolderPath` +
-    // `dbSessionsDuplicate` round-trips.
     final String newId;
     try {
       newId = await rust_db.dbSessionsDuplicateWithPath(
@@ -422,28 +428,25 @@ class SessionNotifier extends Notifier<List<Session>> {
     } catch (e) {
       AppLogger.instance.log(
         'duplicate FRB call failed: $e',
-        name: 'SessionNotifier',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
       rethrow;
     }
-    // Re-pull the new row so the in-memory cache picks up the
-    // server-of-truth shape — credentials stay Rust-side.
-    await load();
+    // Re-read the freshly-inserted row from the registry. The Rust
+    // side publishes `SessionsChanged` synchronously inside the
+    // duplicate call, so the snapshot at this point already carries
+    // the new row.
     final copy = get(newId);
     if (copy == null) {
-      throw StateError('Duplicate session $newId missing after reload');
+      throw StateError('Duplicate session $newId missing after insert');
     }
     return copy;
   }
 
   Future<void> moveSession(String sessionId, String newFolder) =>
       _runUndoable('move session', () async {
-        final idx = state.indexWhere((s) => s.id == sessionId);
-        if (idx < 0) return;
-        final next = [...state];
-        next[idx] = next[idx].copyWith(folder: newFolder);
-        state = next;
+        if (get(sessionId) == null) return;
         try {
           final folderId = await resolveFolderPath(newFolder);
           await rust_db.dbSessionsMoveToFolder(
@@ -454,7 +457,7 @@ class SessionNotifier extends Notifier<List<Session>> {
         } catch (e) {
           AppLogger.instance.log(
             'moveSession failed: $e',
-            name: 'SessionNotifier',
+            name: 'SessionMutator',
             level: LogLevel.warn,
           );
         }
@@ -463,11 +466,6 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> moveMultiple(Set<String> ids, String newFolder) =>
       _runUndoable('move multiple', () async {
         if (ids.isEmpty) return;
-        final next = <Session>[];
-        for (final s in state) {
-          next.add(ids.contains(s.id) ? s.copyWith(folder: newFolder) : s);
-        }
-        state = next;
         try {
           final folderId = await resolveFolderPath(newFolder);
           await rust_db.dbSessionsMoveMultiple(
@@ -478,7 +476,7 @@ class SessionNotifier extends Notifier<List<Session>> {
         } catch (e) {
           AppLogger.instance.log(
             'moveMultiple failed: $e',
-            name: 'SessionNotifier',
+            name: 'SessionMutator',
             level: LogLevel.warn,
           );
         }
@@ -488,18 +486,16 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   Future<void> addEmptyFolder(String folderPath) async {
     if (folderPath.isEmpty) return;
-    _emptyFolders.add(folderPath);
-    state = List.of(state);
     AppLogger.instance.log(
       'Added empty folder: <folder>',
-      name: 'SessionNotifier',
+      name: 'SessionMutator',
     );
     try {
       await resolveFolderPath(folderPath);
     } catch (e) {
       AppLogger.instance.log(
         'addEmptyFolder failed: $e',
-        name: 'SessionNotifier',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
     }
@@ -508,52 +504,25 @@ class SessionNotifier extends Notifier<List<Session>> {
   // ── Collapsed folders ───────────────────────────────────────────
 
   Future<void> toggleFolderCollapsed(String folderPath) async {
-    final wasCollapsed = _collapsedFolders.contains(folderPath);
-    if (wasCollapsed) {
-      _collapsedFolders.remove(folderPath);
-    } else {
-      _collapsedFolders.add(folderPath);
-    }
-    state = List.of(state);
+    final wasCollapsed = _snap.collapsedFolders.contains(folderPath);
     AppLogger.instance.log(
       'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: <folder>',
-      name: 'SessionNotifier',
+      name: 'SessionMutator',
     );
     try {
-      final folderId = findFolderIdByPath(folderPath, _folderMap);
+      final folderId = findFolderIdByPath(folderPath, _snap.folderMap);
       if (folderId != null) {
+        // `db_folders_toggle_collapsed` emits `SessionsChanged` on
+        // success; the workspace stream re-fetches and the
+        // collapsed-folder Provider re-emits. The Rust DB row is the
+        // single source of truth.
         await rust_db.dbFoldersToggleCollapsed(id: folderId);
-        // `db_folders_toggle_collapsed` emits a `SessionsChanged`
-        // bus event on success; the subscriber wired in `build()`
-        // re-runs `_doLoad` which rebuilds `_folderMap` from the
-        // registry. No optimistic Dart-side patch — the cache is
-        // Rust-owned and stays in sync via the bus tick.
       }
     } catch (e) {
       AppLogger.instance.log(
         'toggleFolderCollapsed failed: $e',
-        name: 'SessionNotifier',
+        name: 'SessionMutator',
         level: LogLevel.warn,
-      );
-    }
-  }
-
-  /// Count sessions whose folder equals [folderPath] or sits under
-  /// `{folderPath}/`. Routes through the Rust registry's
-  /// `sessions_registry_count_in_folder` first (cached view, no
-  /// per-call projection); falls back to the projecting
-  /// `sessions::count_in_folder` shim when the registry hasn't
-  /// been synced yet (typical unit-test path — registry empty but
-  /// the Notifier's `state` carries the live session list).
-  int countSessionsInFolder(String folderPath) {
-    try {
-      return rust_registry.sessionsRegistryCountInFolder(
-        folderPath: folderPath,
-      );
-    } catch (_) {
-      return rust_sess.sessionsCountInFolder(
-        sessionFolders: state.map((s) => s.folder).toList(growable: false),
-        folderPath: folderPath,
       );
     }
   }
@@ -563,15 +532,6 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<void> renameFolder(String oldPath, String newPath) =>
       _runUndoable('rename folder', () async {
         if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
-
-        // One Rust transaction resolves the existing folder by path,
-        // ensures the new parent path (creating segments as needed),
-        // and updates the row. The call emits a `SessionsChanged` bus
-        // event on success; the subscriber wired in `build()` re-runs
-        // `_doLoad`, which re-hydrates `state`, `_folderMap`,
-        // `_emptyFolders`, and `_collapsedFolders` from the registry.
-        // No optimistic Dart-side cascade — every cached surface is
-        // Rust-owned and the bus tick is authoritative.
         try {
           await rust_db.dbFoldersRenamePathCascade(
             oldPath: oldPath,
@@ -581,7 +541,7 @@ class SessionNotifier extends Notifier<List<Session>> {
         } catch (e) {
           AppLogger.instance.log(
             'renameFolder failed: $e',
-            name: 'SessionNotifier',
+            name: 'SessionMutator',
             level: LogLevel.warn,
           );
         }
@@ -597,37 +557,30 @@ class SessionNotifier extends Notifier<List<Session>> {
         // its own would orphan these sessions into root and the user
         // would see them reappear at the top level on the next reload —
         // contradicting the confirm dialog's "will delete N sessions
-        // inside" promise and reading as "delete folder doesn't work".
-        final sessionIdsToDelete = state
+        // inside" promise.
+        final sessions = _snap.sessions;
+        final folderMap = _snap.folderMap;
+        final sessionIdsToDelete = sessions
             .where(
               (s) =>
                   s.folder == folderPath || s.folder.startsWith('$folderPath/'),
             )
             .map((s) => s.id)
             .toSet();
-        state = state.where((s) => !sessionIdsToDelete.contains(s.id)).toList();
-        _emptyFolders.removeWhere(
-          (g) => g == folderPath || g.startsWith('$folderPath/'),
-        );
-        _collapsedFolders.removeWhere(
-          (c) => c == folderPath || c.startsWith('$folderPath/'),
-        );
         try {
           if (sessionIdsToDelete.isNotEmpty) {
             await rust_db.dbSessionsDeleteMultiple(
               ids: sessionIdsToDelete.toList(),
             );
           }
-          final folderId = findFolderIdByPath(folderPath, _folderMap);
+          final folderId = findFolderIdByPath(folderPath, folderMap);
           if (folderId != null) {
             await rust_db.dbFoldersDeleteRecursive(id: folderId);
-            final folders = await rust_db.dbFoldersListAll();
-            _folderMap = buildFolderMap(folders);
           }
         } catch (e) {
           AppLogger.instance.log(
             'deleteFolder failed: $e',
-            name: 'SessionNotifier',
+            name: 'SessionMutator',
             level: LogLevel.warn,
           );
         }
@@ -663,21 +616,23 @@ class SessionNotifier extends Notifier<List<Session>> {
     final newName = _uniqueFolderNameUnder(targetParent, sourceName);
     final newRoot = targetParent.isEmpty ? newName : '$targetParent/$newName';
 
-    // Create the destination root folder. addEmptyFolder upserts the
-    // DB row + cache + local empty-set in one shot.
-    await addEmptyFolder(newRoot);
-
-    // Snapshot the source-side data BEFORE we start adding new rows,
-    // otherwise the freshly-created destination folders would feed
-    // back into the iteration as we extend the cache.
-    final sourceSessions = state
+    // Snapshot the source-side data BEFORE we start adding new rows;
+    // the workspace stream re-flows on every Rust write, so reading
+    // the live snapshot during the loop would see freshly-created
+    // destination folders feed back into iteration.
+    final snap = _snap;
+    final sourceSessions = snap.sessions
         .where(
           (s) => s.folder == sourcePath || s.folder.startsWith('$sourcePath/'),
         )
-        .toList();
-    final sourceEmptyFolders = _emptyFolders
+        .toList(growable: false);
+    final sourceEmptyFolders = snap.emptyFolders
         .where((f) => f == sourcePath || f.startsWith('$sourcePath/'))
-        .toList();
+        .toList(growable: false);
+
+    // Create the destination root folder. addEmptyFolder upserts the
+    // DB row in one shot; the bus tick rebuilds the snapshot.
+    await addEmptyFolder(newRoot);
 
     // Recreate every empty subfolder. Translates "$sourcePath/X/Y" →
     // "$newRoot/X/Y". Sessions handle their own folder ensure inside
@@ -690,8 +645,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     }
 
     // Duplicate every session under the source tree to its mirror
-    // position in the new tree. The transactional Rust helper
-    // ensures each session lands with a unique label and folder id.
+    // position in the new tree.
     for (final session in sourceSessions) {
       final rel = session.folder.substring(sourcePath.length);
       final destFolder = rel.isEmpty ? newRoot : '$newRoot$rel';
@@ -701,13 +655,13 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   /// Pick a folder name that doesn't collide with an existing child
   /// of [parentPath]. Appends "(1)", "(2)", ... until a free name
-  /// is found. Used by [duplicateFolder] to mirror file-manager
-  /// "Copy of X" semantics without surfacing a Dart-side rename
-  /// dialog.
+  /// is found.
   String _uniqueFolderNameUnder(String parentPath, String baseName) {
+    final snap = _snap;
     final existingPaths = <String>{
-      ..._emptyFolders,
-      for (final f in _folderMap.values) _composeFolderPath(f, _folderMap),
+      ...snap.emptyFolders,
+      for (final f in snap.folderMap.values)
+        _composeFolderPath(f, snap.folderMap),
     };
     bool collides(String name) {
       final p = parentPath.isEmpty ? name : '$parentPath/$name';
@@ -748,22 +702,6 @@ class SessionNotifier extends Notifier<List<Session>> {
     List<Session> sessions,
     Set<String> emptyFolders,
   ) async {
-    // Same credential-clearing rule as `add` / `update` — undo
-    // history snapshots may carry credential-bearing copies (the
-    // history snapshot is built off the live cache, which may have
-    // been hydrated with credentials by `loadWithCredentials` for a
-    // recent edit dialog). Restore must not re-introduce them.
-    state = sessions.map((s) => s.withoutCredentials()).toList();
-    _emptyFolders
-      ..clear()
-      ..addAll(emptyFolders);
-
-    // One Rust transaction now wipes live sessions + folders,
-    // rebuilds the folder tree from the snapshot's session paths
-    // + bare empty-folder list, and re-inserts every session under
-    // the freshly-resolved folder id. Replaces the Dart
-    // delete-all + N× resolveFolderPath + N× upsert + M×
-    // resolveFolderPath fan-out.
     try {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       await rust_db.dbSessionsRestoreSnapshot(
@@ -800,80 +738,36 @@ class SessionNotifier extends Notifier<List<Session>> {
         emptyFolderPaths: emptyFolders.toList(growable: false),
         nowMs: nowMs,
       );
-      // Refresh the folder cache so subsequent reads see the
-      // post-restore tree without waiting for the bus tick.
-      final folders = await rust_db.dbFoldersListAll();
-      _folderMap = buildFolderMap(folders);
     } catch (e) {
       AppLogger.instance.log(
         'restoreSnapshot failed: $e',
-        name: 'SessionNotifier',
+        name: 'SessionMutator',
         level: LogLevel.warn,
       );
     }
   }
 
-  // ── Query ───────────────────────────────────────────────────────
-
-  /// Distinct, sorted list of named folders referenced by any
-  /// session in the cache. Routes through the Rust registry's
-  /// `sessions_registry_distinct_folders` first (cache read, no
-  /// per-call projection); falls back to the projecting
-  /// `sessions::distinct_folders` shim when the registry hasn't
-  /// been synced yet (typical unit-test path).
-  List<String> folders() {
-    try {
-      return rust_registry.sessionsRegistryDistinctFolders();
-    } catch (_) {
-      return rust_sess.sessionsDistinctFolders(
-        sessionFolders: state.map((s) => s.folder).toList(growable: false),
-      );
-    }
-  }
-
-  /// Cached sessions whose folder equals [folder] exactly (no
-  /// prefix match — use [countSessionsInFolder] for the
-  /// recursive count). Routes through the registry's
-  /// `sessions_registry_ids_by_exact_folder` (cache read, no
-  /// Dart-side scan per call) when available; falls back to the
-  /// inline filter for flutter_test contexts.
-  List<Session> byFolder(String folder) {
-    try {
-      final ids = rust_registry
-          .sessionsRegistryIdsByExactFolder(folderPath: folder)
-          .toSet();
-      if (ids.isEmpty) return const <Session>[];
-      return state.where((s) => ids.contains(s.id)).toList();
-    } catch (_) {
-      return state.where((s) => s.folder == folder).toList();
-    }
-  }
-
   // ── Undo / redo ─────────────────────────────────────────────────
 
-  SessionSnapshot _snapshot(String description) => SessionSnapshot(
-    sessions: List.of(state),
-    emptyFolders: Set.of(_emptyFolders),
+  SessionSnapshot _captureSnapshot(String description) => SessionSnapshot(
+    sessions: List.of(_snap.sessions),
+    emptyFolders: Set.of(_snap.emptyFolders),
     description: description,
   );
 
   /// Run an undoable store operation: snapshot state, execute, sync.
   Future<T> _runUndoable<T>(String op, Future<T> Function() fn) async {
-    _historyOrInit().pushUndo(_snapshot(op));
+    _historyOrInit().pushUndo(_captureSnapshot(op));
     try {
       return await fn();
     } catch (e) {
-      AppLogger.instance.log(
-        'Failed to $op',
-        name: 'SessionNotifier',
-        error: e,
-      );
+      AppLogger.instance.log('Failed to $op', name: 'SessionMutator', error: e);
       rethrow;
     }
   }
 
   Future<bool> undo() async {
-    final current = _snapshot('current');
+    final current = _captureSnapshot('current');
     final restored = _historyOrInit().undo(current);
     if (restored == null) return false;
     await _restoreSnapshot(restored.sessions, restored.emptyFolders);
@@ -881,13 +775,29 @@ class SessionNotifier extends Notifier<List<Session>> {
   }
 
   Future<bool> redo() async {
-    final current = _snapshot('current');
+    final current = _captureSnapshot('current');
     final restored = _historyOrInit().redo(current);
     if (restored == null) return false;
     await _restoreSnapshot(restored.sessions, restored.emptyFolders);
     return true;
   }
+
+  /// Release the Rust-side history actor handle. Called by the
+  /// Provider's `onDispose` so the actor doesn't outlive its owner.
+  void disposeHistory() {
+    _history?.dispose();
+    _history = null;
+  }
 }
+
+/// Process-singleton mutator surface. Stateless aside from the
+/// lazily-minted [SessionHistory] handle; the handle is released
+/// when the Provider tears down.
+final sessionMutatorProvider = Provider<SessionMutator>((ref) {
+  final mutator = SessionMutator(ref);
+  ref.onDispose(mutator.disposeHistory);
+  return mutator;
+});
 
 /// Case-insensitive substring search across (label, folder, host,
 /// user). Routes through `lfs_core::sessions::filter_sessions` so
@@ -956,12 +866,12 @@ final filteredSessionsProvider = Provider<List<Session>>((ref) {
   }
 });
 
-/// Filtered tree based on search.
+/// Filtered tree based on search. Watches the workspace snapshot so
+/// the tree re-renders on every mutation (session add, folder
+/// rename, empty-folder add) without a `ref.watch(sessionProvider)`
+/// nudge — the snapshot itself is the trigger.
 final filteredSessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
   final sessions = ref.watch(filteredSessionsProvider);
-  // Watch sessionProvider so emptyFolders mutations (which rebuild
-  // state via `state = List.of(state)`) re-trigger this Provider.
-  ref.watch(sessionProvider);
-  final notifier = ref.read(sessionProvider.notifier);
-  return SessionTree.build(sessions, emptyFolders: notifier.emptyFolders);
+  final emptyFolders = ref.watch(emptyFoldersProvider);
+  return SessionTree.build(sessions, emptyFolders: emptyFolders);
 });

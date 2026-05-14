@@ -320,7 +320,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // the single entry point that authorises unlocked reads.
     if (!_securityController.isReady) return;
     AppLogger.instance.log('App resumed — reloading sessions', name: 'App');
-    ref.read(sessionProvider.notifier).load();
+    // Force the workspace stream to re-pull. Background mutations
+    // by another process instance / DB schema migration wouldn't
+    // have published a `SessionsChanged` event into this process's
+    // bus, so the snapshot has to be nudged explicitly on resume.
+    ref.invalidate(sessionsWorkspaceStreamProvider);
   }
 
   @override

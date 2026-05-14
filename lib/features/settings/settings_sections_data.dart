@@ -368,7 +368,7 @@ class _QrExportTile extends ConsumerWidget {
 
   Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
-    final notifier = ref.read(sessionProvider.notifier);
+    final workspaceEmptyFolders = ref.read(emptyFoldersProvider);
 
     // Load counts for export dialog. The export orchestrator (and
     // the live size estimator) pulls every byte — sessions, keys,
@@ -390,7 +390,7 @@ class _QrExportTile extends ConsumerWidget {
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
-        emptyFolders: notifier.emptyFolders,
+        emptyFolders: workspaceEmptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
         tags: allTags,

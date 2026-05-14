@@ -7,7 +7,6 @@ import '../core/security/security_tier.dart';
 import '../providers/connection_provider.dart' show knownHostsProvider;
 import '../providers/key_provider.dart' show sshKeysProvider;
 import '../providers/security_provider.dart';
-import '../providers/session_provider.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../utils/logger.dart';
 
@@ -159,9 +158,11 @@ class TierUnlockedListener {
   void _handleCascadeReady(rust_bus.BusEvent_UnlockCascadeReady event) {
     try {
       final tier = SecurityTierWireName.fromWireName(event.tierWire);
-      // Invalidate Dart-side store caches so the next read pulls
-      // fresh rows after the engine swap.
-      _ref.read(sessionProvider.notifier).invalidateCache();
+      // Sessions stream re-fetches off the `SessionsChanged` bus
+      // event the Rust orchestrator publishes right before
+      // `UnlockCascadeReady` — no Dart-side cache to invalidate.
+      // SSH keys + known_hosts still own Dart-cached state today;
+      // their B2 migrations drop these invalidates the same way.
       _ref.read(sshKeysProvider.notifier).invalidateCache();
       _ref.read(knownHostsProvider.notifier).invalidateCache();
       _ref

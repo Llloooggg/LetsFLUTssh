@@ -327,7 +327,12 @@ pub async fn db_ssh_keys_replace_all(rows: Vec<DbSshKey>) -> Result<(), String> 
 }
 
 pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::ssh_keys::delete(c, &id))
+    // Sessions that referenced this key via `sessions.key_id` clear
+    // the column on delete (`ON DELETE SET NULL`), so the Dart-side
+    // sessions stream needs to re-fetch to drop the stale keyId from
+    // the cached snapshot. Predicate filters out the no-op delete
+    // (id resolves to nothing) so we don't waste a bus event.
+    run_db_writing_sessions_when(move |c| lfs_core::db::ssh_keys::delete(c, &id), |n| *n > 0)
         .await
         .map(|n| n as u32)
 }
@@ -1347,13 +1352,15 @@ pub async fn db_snippets_upsert(row: DbSnippet) -> Result<(), String> {
 }
 
 pub async fn db_snippets_delete(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::snippets::delete(c, &id))
+    // session_snippets cascades on FK delete; the workspace stream
+    // re-fetches so the cached snapshot drops stale snippet links.
+    run_db_writing_sessions_when(move |c| lfs_core::db::snippets::delete(c, &id), |n| *n > 0)
         .await
         .map(|n| n as u32)
 }
 
 pub async fn db_snippets_delete_all() -> Result<u32, String> {
-    run_db(lfs_core::db::snippets::delete_all)
+    run_db_writing_sessions_when(lfs_core::db::snippets::delete_all, |n| *n > 0)
         .await
         .map(|n| n as u32)
 }
@@ -1741,13 +1748,15 @@ pub async fn db_tags_upsert(row: DbTag) -> Result<(), String> {
 }
 
 pub async fn db_tags_delete(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::tags::delete(c, &id))
+    // session_tags / folder_tags cascade on FK delete; the workspace
+    // stream re-fetches so the cached snapshot drops stale tag links.
+    run_db_writing_sessions_when(move |c| lfs_core::db::tags::delete(c, &id), |n| *n > 0)
         .await
         .map(|n| n as u32)
 }
 
 pub async fn db_tags_delete_all() -> Result<u32, String> {
-    run_db(lfs_core::db::tags::delete_all)
+    run_db_writing_sessions_when(lfs_core::db::tags::delete_all, |n| *n > 0)
         .await
         .map(|n| n as u32)
 }

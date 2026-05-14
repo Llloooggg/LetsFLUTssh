@@ -11,7 +11,6 @@ import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
 import '../providers/key_provider.dart';
-import '../providers/session_provider.dart';
 import '../providers/snippet_provider.dart';
 import '../providers/tag_provider.dart';
 import '../utils/format.dart';
@@ -365,11 +364,11 @@ void _invalidateImportProviders(WidgetRef ref) {
   ref.invalidate(snippetsProvider);
 }
 
-/// Reload the in-memory caches the UI binds to. Rust apply
-/// writes directly through the DB — the Dart-side caches need
-/// a `load()` to pick up the new rows.
+/// Refresh the UI-bound caches after a Rust import apply. Tags +
+/// snippets still own Dart-cached state today; sessions ride the
+/// workspace stream which re-fetches off the `SessionsChanged`
+/// event the Rust apply already publishes.
 Future<void> _refreshStores(WidgetRef ref) async {
-  await ref.read(sessionProvider.notifier).load();
   await ref.read(tagsProvider.notifier).loadAll();
   await ref.read(snippetsProvider.notifier).loadAll();
 }

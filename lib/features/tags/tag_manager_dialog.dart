@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tags/tag.dart';
 import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_collection_toolbar.dart';
@@ -153,10 +152,10 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
     );
     if (confirmed != true || !mounted) return;
     await ref.read(tagsProvider.notifier).delete(tag.id);
-    // SessionTags cascades on FK, but any UI that derives per-session tag
-    // lists from the in-memory session state needs a reload to drop links
-    // to the now-deleted tag.
-    await ref.read(sessionProvider.notifier).load();
+    // SessionTags / FolderTags cascade on FK; `dbTagsDelete`
+    // Rust-side publishes `SessionsChanged` so the workspace
+    // stream re-fetches and any per-session-tag derived UI drops
+    // the dead link without a Dart-side reload.
     await _load();
     if (mounted) {
       Toast.show(context, message: s.tagDeleted(tag.name));
