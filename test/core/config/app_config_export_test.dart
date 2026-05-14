@@ -1,16 +1,27 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // AppConfig.toJson{,ForExport} / fromJson route through Rust;
-  // the Dart facade no longer carries a fallback. Bootstrap FRB.
+  // The portable-export pipeline routes through the typed FRB shim
+  // `configAppConfigStripForExportTyped`; tests bootstrap the FRB
+  // native lib so the Rust canonicaliser can run.
   setUpAll(requireFrbLoaded);
 
-  group('AppConfig.toJsonForExport', () {
+  Map<String, dynamic> stripJsonFor(AppConfig cfg) {
+    final raw = rust_config.configAppConfigStripForExportTyped(
+      value: cfg.toTyped(),
+    );
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  group('configAppConfigStripForExportTyped', () {
     test('strips per-machine security metadata', () {
       final cfg = AppConfig.defaults.copyWithSecurity(
         security: const SecurityConfig(
@@ -18,11 +29,17 @@ void main() {
           modifiers: SecurityTierModifiers(password: true, biometric: true),
         ),
       );
-      final full = cfg.toJson();
+      // The full snapshot carries the per-host fields — pin that
+      // before the strip pass to keep the test self-documenting.
+      final full =
+          jsonDecode(
+                rust_config.configAppConfigToJsonTyped(value: cfg.toTyped()),
+              )
+              as Map<String, dynamic>;
       expect(full['security_tier'], 'hardware');
       expect(full['security_modifiers'], isA<Map>());
 
-      final portable = cfg.toJsonForExport();
+      final portable = stripJsonFor(cfg);
       expect(portable.containsKey('security_tier'), isFalse);
       expect(portable.containsKey('security_modifiers'), isFalse);
       expect(portable.containsKey('config_schema_version'), isFalse);
@@ -37,21 +54,27 @@ void main() {
               modifiers: SecurityTierModifiers(password: true),
             ),
           );
-      final portable = cfg.toJsonForExport();
+      final portable = stripJsonFor(cfg);
       expect(portable['transfer_workers'], 7);
       expect(portable['max_history'], 1234);
       expect(portable['locale'], 'ru');
     });
 
-    test('round-trip via toJsonForExport + fromJson leaves security null', () {
+    test('rehydration of the stripped JSON leaves security null', () {
       final cfg = AppConfig.defaults.copyWithSecurity(
         security: const SecurityConfig(
           tier: SecurityTier.hardware,
           modifiers: SecurityTierModifiers(password: true),
         ),
       );
-      final portable = cfg.toJsonForExport();
-      final rehydrated = AppConfig.fromJson(portable);
+      final portable = rust_config.configAppConfigStripForExportTyped(
+        value: cfg.toTyped(),
+      );
+      final rehydratedTyped = rust_config.configAppConfigFromJsonTyped(
+        inputJson: portable,
+      );
+      expect(rehydratedTyped, isNotNull);
+      final rehydrated = AppConfig.fromTyped(rehydratedTyped!);
       expect(
         rehydrated.security,
         isNull,

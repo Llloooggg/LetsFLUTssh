@@ -351,6 +351,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw);
 
   @protected
+  DbAppConfigSnapshot dco_decode_box_autoadd_db_app_config_snapshot(
+    dynamic raw,
+  );
+
+  @protected
   DbApplyOptions dco_decode_box_autoadd_db_apply_options(dynamic raw);
 
   @protected
@@ -590,6 +595,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbAppConfig dco_decode_db_app_config(dynamic raw);
 
   @protected
+  DbAppConfigSnapshot dco_decode_db_app_config_snapshot(dynamic raw);
+
+  @protected
   DbApplyOptions dco_decode_db_apply_options(dynamic raw);
 
   @protected
@@ -600,6 +608,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAuthType dco_decode_db_auth_type(dynamic raw);
+
+  @protected
+  DbBehaviorConfig dco_decode_db_behavior_config(dynamic raw);
 
   @protected
   DbBiometricAvailability dco_decode_db_biometric_availability(dynamic raw);
@@ -934,6 +945,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSnippet dco_decode_db_snippet(dynamic raw);
 
   @protected
+  DbSshDefaults dco_decode_db_ssh_defaults(dynamic raw);
+
+  @protected
   DbSshKey dco_decode_db_ssh_key(dynamic raw);
 
   @protected
@@ -982,6 +996,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag dco_decode_db_tag(dynamic raw);
+
+  @protected
+  DbTerminalConfig dco_decode_db_terminal_config(dynamic raw);
 
   @protected
   DbThreatRow dco_decode_db_threat_row(dynamic raw);
@@ -1033,6 +1050,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTransferState dco_decode_db_transfer_state(dynamic raw);
+
+  @protected
+  DbUiConfig dco_decode_db_ui_config(dynamic raw);
 
   @protected
   DbUnlockFailureReason dco_decode_db_unlock_failure_reason(dynamic raw);
@@ -1292,6 +1312,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig? dco_decode_opt_box_autoadd_db_app_config(dynamic raw);
+
+  @protected
+  DbAppConfigSnapshot? dco_decode_opt_box_autoadd_db_app_config_snapshot(
+    dynamic raw,
+  );
 
   @protected
   DbConflictAction? dco_decode_opt_box_autoadd_db_conflict_action(dynamic raw);
@@ -1696,6 +1721,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbAppConfigSnapshot sse_decode_box_autoadd_db_app_config_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbApplyOptions sse_decode_box_autoadd_db_apply_options(
     SseDeserializer deserializer,
   );
@@ -2003,6 +2033,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbAppConfig sse_decode_db_app_config(SseDeserializer deserializer);
 
   @protected
+  DbAppConfigSnapshot sse_decode_db_app_config_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbApplyOptions sse_decode_db_apply_options(SseDeserializer deserializer);
 
   @protected
@@ -2015,6 +2050,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAuthType sse_decode_db_auth_type(SseDeserializer deserializer);
+
+  @protected
+  DbBehaviorConfig sse_decode_db_behavior_config(SseDeserializer deserializer);
 
   @protected
   DbBiometricAvailability sse_decode_db_biometric_availability(
@@ -2485,6 +2523,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSnippet sse_decode_db_snippet(SseDeserializer deserializer);
 
   @protected
+  DbSshDefaults sse_decode_db_ssh_defaults(SseDeserializer deserializer);
+
+  @protected
   DbSshKey sse_decode_db_ssh_key(SseDeserializer deserializer);
 
   @protected
@@ -2547,6 +2588,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
+
+  @protected
+  DbTerminalConfig sse_decode_db_terminal_config(SseDeserializer deserializer);
 
   @protected
   DbThreatRow sse_decode_db_threat_row(SseDeserializer deserializer);
@@ -2614,6 +2658,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTransferState sse_decode_db_transfer_state(SseDeserializer deserializer);
+
+  @protected
+  DbUiConfig sse_decode_db_ui_config(SseDeserializer deserializer);
 
   @protected
   DbUnlockFailureReason sse_decode_db_unlock_failure_reason(
@@ -2957,6 +3004,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig? sse_decode_opt_box_autoadd_db_app_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbAppConfigSnapshot? sse_decode_opt_box_autoadd_db_app_config_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -3444,6 +3496,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_app_config_snapshot(
+    DbAppConfigSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_apply_options(
     DbApplyOptions self,
     SseSerializer serializer,
@@ -3825,6 +3883,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_app_config(DbAppConfig self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_app_config_snapshot(
+    DbAppConfigSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_apply_options(
     DbApplyOptions self,
     SseSerializer serializer,
@@ -3841,6 +3905,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_auth_type(DbAuthType self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_behavior_config(
+    DbBehaviorConfig self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_biometric_availability(
@@ -4452,6 +4522,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_snippet(DbSnippet self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_ssh_defaults(DbSshDefaults self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_ssh_key(DbSshKey self, SseSerializer serializer);
 
   @protected
@@ -4531,6 +4604,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_tag(DbTag self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_terminal_config(
+    DbTerminalConfig self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_threat_row(DbThreatRow self, SseSerializer serializer);
@@ -4618,6 +4697,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbTransferState self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_ui_config(DbUiConfig self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_unlock_failure_reason(
@@ -5050,6 +5132,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_app_config(
     DbAppConfig? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_app_config_snapshot(
+    DbAppConfigSnapshot? self,
     SseSerializer serializer,
   );
 

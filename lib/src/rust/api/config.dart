@@ -5,6 +5,11 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'security_capabilities.dart';
+import 'security_config.dart';
+import 'sync.dart';
+
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Encode the AppConfig blob persisted as `config.json`. Returns
 /// the minified JSON string — caller `jsonDecode`s into a
@@ -143,3 +148,267 @@ String? configStoreFlush() =>
 /// when a flush fired.
 bool configStoreTickIfDue() =>
     RustLib.instance.api.crateApiConfigConfigStoreTickIfDue();
+
+/// Typed snapshot of the live `AppConfig`. Returns `None` before
+/// [`config_store_init`] runs (cold-start window) — the caller
+/// falls through to defaults until init lands. Same data
+/// [`config_store_get_json`] surfaces but routed in the parsed
+/// shape so the Dart side never re-implements the JSON grammar.
+DbAppConfigSnapshot? configStoreGetTyped() =>
+    RustLib.instance.api.crateApiConfigConfigStoreGetTyped();
+
+/// Replace the live `AppConfig` with the typed value and arm the
+/// debounce timer. Round-trips through the canonical
+/// [`AppConfig::sanitized`] step so out-of-range fields (slider
+/// drag past the clamp, hand-edited DTO) land back inside the
+/// allowed range before the disk write fires.
+void configStoreSetTyped({required DbAppConfigSnapshot value}) =>
+    RustLib.instance.api.crateApiConfigConfigStoreSetTyped(value: value);
+
+/// Typed default `AppConfig` — every field at its baked-in
+/// default. Used by the Dart cold-start seam to initialise a
+/// notifier before the store actor publishes a snapshot.
+DbAppConfigSnapshot configAppConfigDefaultsTyped() =>
+    RustLib.instance.api.crateApiConfigConfigAppConfigDefaultsTyped();
+
+/// Strip every per-host security field from the typed value, then
+/// return the trimmed JSON string the `.lfs` archive exporter
+/// embeds. Same shape [`config_app_config_strip_for_export`]
+/// returns but accepts the typed mirror so the caller skips a
+/// `jsonEncode` step.
+String configAppConfigStripForExportTyped({
+  required DbAppConfigSnapshot value,
+}) => RustLib.instance.api.crateApiConfigConfigAppConfigStripForExportTyped(
+  value: value,
+);
+
+/// Encode the typed value as the canonical JSON the disk format
+/// uses. Mirror of [`config_app_config_to_json`] but accepts the
+/// typed mirror — used by the QR composer + the archive size
+/// preview, which want the on-wire shape (`security_tier` /
+/// `security_modifiers` / `security_probe_cache` / per-host sync
+/// state included) rather than the export-stripped shape.
+String configAppConfigToJsonTyped({required DbAppConfigSnapshot value}) =>
+    RustLib.instance.api.crateApiConfigConfigAppConfigToJsonTyped(value: value);
+
+/// Parse a canonical-JSON config blob (the shape an `.lfs` apply
+/// driver hands back in `DbApplyResult.config_json`, or the bytes
+/// `config.json` carries on disk) into the typed mirror. Returns
+/// `None` for a malformed shape (non-object root, syntax error)
+/// so the caller can route the failure to the fatal-error screen
+/// rather than silently picking defaults. Sanitisation runs
+/// inside [`AppConfig::from_json_value`] before the conversion to
+/// the typed mirror.
+DbAppConfigSnapshot? configAppConfigFromJsonTyped({
+  required String inputJson,
+}) => RustLib.instance.api.crateApiConfigConfigAppConfigFromJsonTyped(
+  inputJson: inputJson,
+);
+
+/// Typed FRB mirror of [`lfs_core::config::AppConfig`]. Every
+/// persisted preference field crosses the boundary in its parsed
+/// shape so the Dart side never reconstructs the grammar — the
+/// `_get_typed` / `_set_typed` endpoints are the canonical reader
+/// + writer for the in-memory snapshot.
+///
+/// Wire shape on disk stays JSON (`config.json` keys identical to
+/// the Rust-side `to_json_value` output) — the disk format is owned
+/// by [`AppConfig::to_json_value`] / [`AppConfig::from_json_value`]
+/// inside `lfs_core`; this struct carries the parsed values, not
+/// the file format.
+class DbAppConfigSnapshot {
+  final DbTerminalConfig terminal;
+  final DbSshDefaults ssh;
+  final DbUiConfig ui;
+  final DbBehaviorConfig behavior;
+  final PlatformInt64 transferWorkers;
+  final PlatformInt64 maxHistory;
+  final String? locale;
+
+  /// `None` until the wizard has run — the Dart cold-start path
+  /// keys off this to decide between "first launch" vs "resume".
+  final DbSecurityConfig? security;
+
+  /// Cached `securityCapabilitiesProvider` snapshot. `None` until
+  /// a probe runs or after a Recheck-button invalidation.
+  final DbSecurityCapabilities? securityProbeCache;
+  final BigInt recordingsStorageCapBytes;
+  final DbSyncConfig sync_;
+
+  const DbAppConfigSnapshot({
+    required this.terminal,
+    required this.ssh,
+    required this.ui,
+    required this.behavior,
+    required this.transferWorkers,
+    required this.maxHistory,
+    this.locale,
+    this.security,
+    this.securityProbeCache,
+    required this.recordingsStorageCapBytes,
+    required this.sync_,
+  });
+
+  @override
+  int get hashCode =>
+      terminal.hashCode ^
+      ssh.hashCode ^
+      ui.hashCode ^
+      behavior.hashCode ^
+      transferWorkers.hashCode ^
+      maxHistory.hashCode ^
+      locale.hashCode ^
+      security.hashCode ^
+      securityProbeCache.hashCode ^
+      recordingsStorageCapBytes.hashCode ^
+      sync_.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbAppConfigSnapshot &&
+          runtimeType == other.runtimeType &&
+          terminal == other.terminal &&
+          ssh == other.ssh &&
+          ui == other.ui &&
+          behavior == other.behavior &&
+          transferWorkers == other.transferWorkers &&
+          maxHistory == other.maxHistory &&
+          locale == other.locale &&
+          security == other.security &&
+          securityProbeCache == other.securityProbeCache &&
+          recordingsStorageCapBytes == other.recordingsStorageCapBytes &&
+          sync_ == other.sync_;
+}
+
+/// Behaviour mirror — log level + update-check + skipped version
+/// + the FIDO2 "prefer direct HID" Settings toggle.
+///
+/// `log_level` rides across as `Option<String>` (wire-name) — the
+/// Dart codegen can't import the Rust-side `LogLevel` enum directly
+/// without pulling the enum into FRB. The wire-name is the same set
+/// the JSON envelope uses (`info` / `warn` / `error`); both Dart
+/// and Rust resolve the string the same way (Rust via
+/// `LogLevel::from_wire_name`, Dart via `logLevelFromJson`).
+class DbBehaviorConfig {
+  final String? logLevelWireName;
+  final bool checkUpdatesOnStart;
+  final String? skippedVersion;
+  final bool fido2PreferDirectHid;
+
+  const DbBehaviorConfig({
+    this.logLevelWireName,
+    required this.checkUpdatesOnStart,
+    this.skippedVersion,
+    required this.fido2PreferDirectHid,
+  });
+
+  @override
+  int get hashCode =>
+      logLevelWireName.hashCode ^
+      checkUpdatesOnStart.hashCode ^
+      skippedVersion.hashCode ^
+      fido2PreferDirectHid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbBehaviorConfig &&
+          runtimeType == other.runtimeType &&
+          logLevelWireName == other.logLevelWireName &&
+          checkUpdatesOnStart == other.checkUpdatesOnStart &&
+          skippedVersion == other.skippedVersion &&
+          fido2PreferDirectHid == other.fido2PreferDirectHid;
+}
+
+/// SSH defaults mirror. Field-for-field copy of
+/// [`lfs_core::config::SshDefaults`].
+class DbSshDefaults {
+  final PlatformInt64 keepaliveSec;
+  final PlatformInt64 defaultPort;
+  final PlatformInt64 sshTimeoutSec;
+
+  const DbSshDefaults({
+    required this.keepaliveSec,
+    required this.defaultPort,
+    required this.sshTimeoutSec,
+  });
+
+  @override
+  int get hashCode =>
+      keepaliveSec.hashCode ^ defaultPort.hashCode ^ sshTimeoutSec.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSshDefaults &&
+          runtimeType == other.runtimeType &&
+          keepaliveSec == other.keepaliveSec &&
+          defaultPort == other.defaultPort &&
+          sshTimeoutSec == other.sshTimeoutSec;
+}
+
+/// Terminal display mirror. Field-for-field copy of
+/// [`lfs_core::config::TerminalConfig`]; FRB codegen emits this as a
+/// plain Dart class so the parsed shape crosses the boundary without
+/// a `Map<String, dynamic>` round-trip.
+class DbTerminalConfig {
+  final double fontSize;
+  final String theme;
+  final PlatformInt64 scrollback;
+
+  const DbTerminalConfig({
+    required this.fontSize,
+    required this.theme,
+    required this.scrollback,
+  });
+
+  @override
+  int get hashCode => fontSize.hashCode ^ theme.hashCode ^ scrollback.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbTerminalConfig &&
+          runtimeType == other.runtimeType &&
+          fontSize == other.fontSize &&
+          theme == other.theme &&
+          scrollback == other.scrollback;
+}
+
+/// UI / window mirror. Field-for-field copy of
+/// [`lfs_core::config::UiConfig`].
+class DbUiConfig {
+  final PlatformInt64 toastDurationMs;
+  final double windowWidth;
+  final double windowHeight;
+  final double uiScale;
+  final bool showFolderSizes;
+
+  const DbUiConfig({
+    required this.toastDurationMs,
+    required this.windowWidth,
+    required this.windowHeight,
+    required this.uiScale,
+    required this.showFolderSizes,
+  });
+
+  @override
+  int get hashCode =>
+      toastDurationMs.hashCode ^
+      windowWidth.hashCode ^
+      windowHeight.hashCode ^
+      uiScale.hashCode ^
+      showFolderSizes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbUiConfig &&
+          runtimeType == other.runtimeType &&
+          toastDurationMs == other.toastDurationMs &&
+          windowWidth == other.windowWidth &&
+          windowHeight == other.windowHeight &&
+          uiScale == other.uiScale &&
+          showFolderSizes == other.showFolderSizes;
+}

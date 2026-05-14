@@ -1,12 +1,246 @@
 //! FRB adapter for `lfs_core::config::AppConfig` JSON ser/de.
 //!
 //! Sync — every op is a small JSON parse / serialise + a few enum
-//! lookups. The wire shape is `String` on both sides (JSON-string
-//! payloads cross the boundary) so future field bumps land inside
-//! `lfs_core` without re-generating bindings; mirrors the same
-//! shape `security_config` + `security_capabilities` shims use.
+//! lookups. Two wire shapes coexist:
+//!
+//! - **JSON-string payloads** for legacy seams (export composer,
+//!   migration runner, hand-written `config.json` round-trips). The
+//!   `_to_json` / `_from_json` shims keep the bytes-on-the-wire
+//!   stable so a future field bump lands inside `lfs_core` without
+//!   re-generating bindings.
+//! - **Typed `DbAppConfigSnapshot` mirror** — every consumer that reads the
+//!   parsed shape (Dart `AppConfig` provider, settings UI, in-memory
+//!   diffs) routes through this so the Dart side never re-implements
+//!   the JSON grammar.
 
-use lfs_core::config::AppConfig;
+use lfs_core::config::{
+    AppConfig, BehaviorConfig, LogLevel as CoreLogLevel, SshDefaults, SyncConfig, TerminalConfig,
+    UiConfig,
+};
+use lfs_core::security::SecurityTier;
+
+use crate::api::security_capabilities::DbSecurityCapabilities;
+use crate::api::security_config::DbSecurityConfig;
+use crate::api::sync::DbSyncConfig;
+
+/// Terminal display mirror. Field-for-field copy of
+/// [`lfs_core::config::TerminalConfig`]; FRB codegen emits this as a
+/// plain Dart class so the parsed shape crosses the boundary without
+/// a `Map<String, dynamic>` round-trip.
+#[derive(Debug, Clone)]
+pub struct DbTerminalConfig {
+    pub font_size: f64,
+    pub theme: String,
+    pub scrollback: i64,
+}
+
+impl From<TerminalConfig> for DbTerminalConfig {
+    fn from(c: TerminalConfig) -> Self {
+        Self {
+            font_size: c.font_size,
+            theme: c.theme,
+            scrollback: c.scrollback,
+        }
+    }
+}
+
+impl From<DbTerminalConfig> for TerminalConfig {
+    fn from(c: DbTerminalConfig) -> Self {
+        Self {
+            font_size: c.font_size,
+            theme: c.theme,
+            scrollback: c.scrollback,
+        }
+    }
+}
+
+/// SSH defaults mirror. Field-for-field copy of
+/// [`lfs_core::config::SshDefaults`].
+#[derive(Debug, Clone)]
+pub struct DbSshDefaults {
+    pub keepalive_sec: i64,
+    pub default_port: i64,
+    pub ssh_timeout_sec: i64,
+}
+
+impl From<SshDefaults> for DbSshDefaults {
+    fn from(c: SshDefaults) -> Self {
+        Self {
+            keepalive_sec: c.keepalive_sec,
+            default_port: c.default_port,
+            ssh_timeout_sec: c.ssh_timeout_sec,
+        }
+    }
+}
+
+impl From<DbSshDefaults> for SshDefaults {
+    fn from(c: DbSshDefaults) -> Self {
+        Self {
+            keepalive_sec: c.keepalive_sec,
+            default_port: c.default_port,
+            ssh_timeout_sec: c.ssh_timeout_sec,
+        }
+    }
+}
+
+/// UI / window mirror. Field-for-field copy of
+/// [`lfs_core::config::UiConfig`].
+#[derive(Debug, Clone)]
+pub struct DbUiConfig {
+    pub toast_duration_ms: i64,
+    pub window_width: f64,
+    pub window_height: f64,
+    pub ui_scale: f64,
+    pub show_folder_sizes: bool,
+}
+
+impl From<UiConfig> for DbUiConfig {
+    fn from(c: UiConfig) -> Self {
+        Self {
+            toast_duration_ms: c.toast_duration_ms,
+            window_width: c.window_width,
+            window_height: c.window_height,
+            ui_scale: c.ui_scale,
+            show_folder_sizes: c.show_folder_sizes,
+        }
+    }
+}
+
+impl From<DbUiConfig> for UiConfig {
+    fn from(c: DbUiConfig) -> Self {
+        Self {
+            toast_duration_ms: c.toast_duration_ms,
+            window_width: c.window_width,
+            window_height: c.window_height,
+            ui_scale: c.ui_scale,
+            show_folder_sizes: c.show_folder_sizes,
+        }
+    }
+}
+
+/// Behaviour mirror — log level + update-check + skipped version
+/// + the FIDO2 "prefer direct HID" Settings toggle.
+///
+/// `log_level` rides across as `Option<String>` (wire-name) — the
+/// Dart codegen can't import the Rust-side `LogLevel` enum directly
+/// without pulling the enum into FRB. The wire-name is the same set
+/// the JSON envelope uses (`info` / `warn` / `error`); both Dart
+/// and Rust resolve the string the same way (Rust via
+/// `LogLevel::from_wire_name`, Dart via `logLevelFromJson`).
+#[derive(Debug, Clone)]
+pub struct DbBehaviorConfig {
+    pub log_level_wire_name: Option<String>,
+    pub check_updates_on_start: bool,
+    pub skipped_version: Option<String>,
+    pub fido2_prefer_direct_hid: bool,
+}
+
+impl From<BehaviorConfig> for DbBehaviorConfig {
+    fn from(c: BehaviorConfig) -> Self {
+        Self {
+            log_level_wire_name: c.log_level.map(|l| l.wire_name().to_string()),
+            check_updates_on_start: c.check_updates_on_start,
+            skipped_version: c.skipped_version,
+            fido2_prefer_direct_hid: c.fido2_prefer_direct_hid,
+        }
+    }
+}
+
+impl From<DbBehaviorConfig> for BehaviorConfig {
+    fn from(c: DbBehaviorConfig) -> Self {
+        Self {
+            log_level: c
+                .log_level_wire_name
+                .as_deref()
+                .and_then(CoreLogLevel::from_wire_name),
+            check_updates_on_start: c.check_updates_on_start,
+            skipped_version: c.skipped_version,
+            fido2_prefer_direct_hid: c.fido2_prefer_direct_hid,
+        }
+    }
+}
+
+/// Typed FRB mirror of [`lfs_core::config::AppConfig`]. Every
+/// persisted preference field crosses the boundary in its parsed
+/// shape so the Dart side never reconstructs the grammar — the
+/// `_get_typed` / `_set_typed` endpoints are the canonical reader
+/// + writer for the in-memory snapshot.
+///
+/// Wire shape on disk stays JSON (`config.json` keys identical to
+/// the Rust-side `to_json_value` output) — the disk format is owned
+/// by [`AppConfig::to_json_value`] / [`AppConfig::from_json_value`]
+/// inside `lfs_core`; this struct carries the parsed values, not
+/// the file format.
+#[derive(Debug, Clone)]
+pub struct DbAppConfigSnapshot {
+    pub terminal: DbTerminalConfig,
+    pub ssh: DbSshDefaults,
+    pub ui: DbUiConfig,
+    pub behavior: DbBehaviorConfig,
+    pub transfer_workers: i64,
+    pub max_history: i64,
+    pub locale: Option<String>,
+    /// `None` until the wizard has run — the Dart cold-start path
+    /// keys off this to decide between "first launch" vs "resume".
+    pub security: Option<DbSecurityConfig>,
+    /// Cached `securityCapabilitiesProvider` snapshot. `None` until
+    /// a probe runs or after a Recheck-button invalidation.
+    pub security_probe_cache: Option<DbSecurityCapabilities>,
+    pub recordings_storage_cap_bytes: u64,
+    pub sync: DbSyncConfig,
+}
+
+impl From<AppConfig> for DbAppConfigSnapshot {
+    fn from(c: AppConfig) -> Self {
+        Self {
+            terminal: c.terminal.into(),
+            ssh: c.ssh.into(),
+            ui: c.ui.into(),
+            behavior: c.behavior.into(),
+            transfer_workers: c.transfer_workers,
+            max_history: c.max_history,
+            locale: c.locale,
+            security: c.security.map(|s| DbSecurityConfig {
+                tier_wire_name: s.tier.wire_name().to_string(),
+                password: s.modifiers.password,
+                biometric: s.modifiers.biometric,
+            }),
+            security_probe_cache: c.security_probe_cache.map(DbSecurityCapabilities::from),
+            recordings_storage_cap_bytes: c.recordings_storage_cap_bytes,
+            sync: c.sync.into(),
+        }
+    }
+}
+
+impl From<DbAppConfigSnapshot> for AppConfig {
+    fn from(c: DbAppConfigSnapshot) -> Self {
+        let security = c.security.and_then(|s| {
+            SecurityTier::from_wire_name(&s.tier_wire_name).map(|tier| {
+                lfs_core::security::SecurityConfig {
+                    tier,
+                    modifiers: lfs_core::security::SecurityTierModifiers {
+                        password: s.password,
+                        biometric: s.biometric,
+                    },
+                }
+            })
+        });
+        Self {
+            terminal: c.terminal.into(),
+            ssh: c.ssh.into(),
+            ui: c.ui.into(),
+            behavior: c.behavior.into(),
+            transfer_workers: c.transfer_workers,
+            max_history: c.max_history,
+            locale: c.locale,
+            security,
+            security_probe_cache: c.security_probe_cache.map(Into::into),
+            recordings_storage_cap_bytes: c.recordings_storage_cap_bytes,
+            sync: SyncConfig::from(c.sync),
+        }
+        .sanitized()
+    }
+}
 
 /// Encode the AppConfig blob persisted as `config.json`. Returns
 /// the minified JSON string — caller `jsonDecode`s into a
@@ -183,6 +417,76 @@ pub fn config_store_tick_if_due() -> Result<bool, String> {
     lfs_core::config_store::instance().tick_if_due()
 }
 
+/// Typed snapshot of the live `AppConfig`. Returns `None` before
+/// [`config_store_init`] runs (cold-start window) — the caller
+/// falls through to defaults until init lands. Same data
+/// [`config_store_get_json`] surfaces but routed in the parsed
+/// shape so the Dart side never re-implements the JSON grammar.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_get_typed() -> Option<DbAppConfigSnapshot> {
+    lfs_core::config_store::instance()
+        .get_app_config()
+        .map(Into::into)
+}
+
+/// Replace the live `AppConfig` with the typed value and arm the
+/// debounce timer. Round-trips through the canonical
+/// [`AppConfig::sanitized`] step so out-of-range fields (slider
+/// drag past the clamp, hand-edited DTO) land back inside the
+/// allowed range before the disk write fires.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_set_typed(value: DbAppConfigSnapshot) -> Result<(), String> {
+    let cfg = AppConfig::from(value);
+    lfs_core::config_store::instance().set_json(&cfg.to_json_value().to_string())
+}
+
+/// Typed default `AppConfig` — every field at its baked-in
+/// default. Used by the Dart cold-start seam to initialise a
+/// notifier before the store actor publishes a snapshot.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_app_config_defaults_typed() -> DbAppConfigSnapshot {
+    AppConfig::default().into()
+}
+
+/// Strip every per-host security field from the typed value, then
+/// return the trimmed JSON string the `.lfs` archive exporter
+/// embeds. Same shape [`config_app_config_strip_for_export`]
+/// returns but accepts the typed mirror so the caller skips a
+/// `jsonEncode` step.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_app_config_strip_for_export_typed(value: DbAppConfigSnapshot) -> String {
+    let cfg = AppConfig::from(value);
+    let mut json = cfg.to_json_value();
+    lfs_core::config::strip_for_export(&mut json);
+    json.to_string()
+}
+
+/// Encode the typed value as the canonical JSON the disk format
+/// uses. Mirror of [`config_app_config_to_json`] but accepts the
+/// typed mirror — used by the QR composer + the archive size
+/// preview, which want the on-wire shape (`security_tier` /
+/// `security_modifiers` / `security_probe_cache` / per-host sync
+/// state included) rather than the export-stripped shape.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_app_config_to_json_typed(value: DbAppConfigSnapshot) -> String {
+    let cfg = AppConfig::from(value);
+    cfg.to_json_value().to_string()
+}
+
+/// Parse a canonical-JSON config blob (the shape an `.lfs` apply
+/// driver hands back in `DbApplyResult.config_json`, or the bytes
+/// `config.json` carries on disk) into the typed mirror. Returns
+/// `None` for a malformed shape (non-object root, syntax error)
+/// so the caller can route the failure to the fatal-error screen
+/// rather than silently picking defaults. Sanitisation runs
+/// inside [`AppConfig::from_json_value`] before the conversion to
+/// the typed mirror.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_app_config_from_json_typed(input_json: String) -> Option<DbAppConfigSnapshot> {
+    let value: serde_json::Value = serde_json::from_str(&input_json).ok()?;
+    Some(AppConfig::from_json_value(&value).into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,5 +570,82 @@ mod tests {
     fn to_json_returns_err_for_garbage_input() {
         let res = config_app_config_to_json("not json".into());
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn db_app_config_round_trips_through_core_appconfig() {
+        // The typed mirror must survive a full Db → Core → Db
+        // round-trip without losing any field. Pins the From-impl
+        // contract — a future field added to one side without the
+        // other becomes a compile-time error here.
+        let cfg = AppConfig::default();
+        let db: DbAppConfigSnapshot = cfg.clone().into();
+        let back: AppConfig = db.into();
+        assert_eq!(back, cfg);
+    }
+
+    #[test]
+    fn db_app_config_security_tier_wire_round_trips() {
+        use lfs_core::security::{SecurityConfig, SecurityTier, SecurityTierModifiers};
+        let cfg = AppConfig {
+            security: Some(SecurityConfig {
+                tier: SecurityTier::Hardware,
+                modifiers: SecurityTierModifiers {
+                    password: true,
+                    biometric: false,
+                },
+            }),
+            ..AppConfig::default()
+        };
+        let db: DbAppConfigSnapshot = cfg.clone().into();
+        let back: AppConfig = db.into();
+        assert_eq!(back.security, cfg.security);
+    }
+
+    #[test]
+    fn db_app_config_strip_for_export_typed_drops_per_host_fields() {
+        // Mirror of the JSON-string `strip_for_export` test — the
+        // typed variant must drop the same per-host keys before the
+        // bytes land inside an `.lfs` archive.
+        use lfs_core::security::{SecurityConfig, SecurityTier, SecurityTierModifiers};
+        let cfg = AppConfig {
+            security: Some(SecurityConfig {
+                tier: SecurityTier::Keychain,
+                modifiers: SecurityTierModifiers::default(),
+            }),
+            ..AppConfig::default()
+        };
+        let db: DbAppConfigSnapshot = cfg.into();
+        let stripped = config_app_config_strip_for_export_typed(db);
+        let value: serde_json::Value = serde_json::from_str(&stripped).expect("valid JSON");
+        let obj = value.as_object().expect("object root");
+        assert!(!obj.contains_key("security_tier"));
+        assert!(!obj.contains_key("security_modifiers"));
+        assert!(!obj.contains_key("config_schema_version"));
+        assert!(obj.contains_key("font_size"));
+    }
+
+    #[test]
+    fn db_app_config_defaults_typed_matches_core_defaults() {
+        let db = config_app_config_defaults_typed();
+        let cfg = AppConfig::from(db);
+        assert_eq!(cfg, AppConfig::default());
+    }
+
+    #[test]
+    fn db_app_config_behavior_log_level_wire_name_round_trips() {
+        let cfg = AppConfig {
+            behavior: BehaviorConfig {
+                log_level: Some(CoreLogLevel::Warn),
+                check_updates_on_start: false,
+                skipped_version: Some("1.2.3".into()),
+                fido2_prefer_direct_hid: true,
+            },
+            ..AppConfig::default()
+        };
+        let db: DbAppConfigSnapshot = cfg.clone().into();
+        assert_eq!(db.behavior.log_level_wire_name.as_deref(), Some("warn"));
+        let back: AppConfig = db.into();
+        assert_eq!(back.behavior, cfg.behavior);
     }
 }

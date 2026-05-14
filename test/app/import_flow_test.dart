@@ -15,6 +15,7 @@ import 'package:letsflutssh/widgets/lfs_import_dialog.dart';
 import 'package:letsflutssh/widgets/link_import_preview_dialog.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
+import '../helpers/frb_bootstrap.dart';
 import '../helpers/test_notifiers.dart';
 
 /// Recorded calls so each test can assert that the right rust seam
@@ -195,6 +196,12 @@ void _testFlow(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // `decodeConfigFromApply` (used by handleQrImportSource + showLfsImportDialog)
+  // routes through `configAppConfigFromJsonTyped` FRB sync — no Dart-side
+  // codec to fall back on, so the native lib must be loaded before any
+  // test that exercises the config-restore branch.
+  setUpAll(requireFrbLoaded);
 
   tearDown(() {
     debugSetImportFlowSeams(null);

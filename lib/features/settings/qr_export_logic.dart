@@ -12,11 +12,10 @@
 /// "credential-bearing" for the QR display screen's safety pill.
 library;
 
-import 'dart:convert';
-
 import '../../core/config/app_config.dart';
 import '../../core/session/qr_codec.dart';
 import '../../src/rust/api/archive.dart' as rust_archive;
+import '../../src/rust/api/config.dart' as rust_config;
 
 /// Wrap a Rust-side QR payload string in the canonical deeplink
 /// scheme. The Dart receiver — see `extract_payload_from_uri` in
@@ -76,8 +75,11 @@ rust_archive.DbQrExportInput buildDbQrExportInput({
     // an FRB round-trip and keeps the helper self-defensive (the only
     // current caller already nulls cfg when includeConfig is off, but
     // an opt-in test or a future caller shouldn't have to know that).
+    // Routes through `config_app_config_to_json_typed` so the Dart
+    // side never reconstructs the JSON grammar — the typed mirror
+    // crosses the boundary, Rust emits the canonical bytes.
     configJson: (options.includeConfig && cfg != null)
-        ? jsonEncode(cfg.toJson())
+        ? rust_config.configAppConfigToJsonTyped(value: cfg.toTyped())
         : null,
   );
 }

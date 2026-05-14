@@ -1,18 +1,18 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/features/settings/qr_export_logic.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
-  // AppConfig.toJson() routes through `configAppConfigToJson` on the
-  // FRB boundary; tests that build a non-null cfg need the native blob
-  // loaded. Tests that don't touch cfg are unaffected — the bootstrap
-  // is cheap (one-time .so load).
+  // The QR export config encoder routes through
+  // `configAppConfigToJsonTyped` on the FRB boundary; tests that
+  // build a non-null cfg need the native blob loaded. Tests that
+  // don't touch cfg are unaffected — the bootstrap is cheap
+  // (one-time .so load).
   setUpAll(requireFrbLoaded);
 
   group('qrPayloadDeepLink', () {
@@ -147,9 +147,12 @@ void main() {
         cfg: cfg,
       );
       expect(input.options.includeConfig, isTrue);
-      // configJson is the canonical JSON of cfg.toJson().
+      // configJson is the canonical Rust-emitted JSON of cfg.toTyped().
       expect(input.configJson, isNotNull);
-      expect(input.configJson, jsonEncode(cfg.toJson()));
+      expect(
+        input.configJson,
+        rust_config.configAppConfigToJsonTyped(value: cfg.toTyped()),
+      );
     });
 
     test('cfg=non-null + includeConfig=false → configJson null', () {

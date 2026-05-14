@@ -1,15 +1,28 @@
-import 'dart:convert';
-
 import '../../src/rust/api/config.dart' as rust_config;
-import '../../utils/logger.dart'
-    show LogLevel, logLevelFromJson, logLevelToJson;
+import '../../src/rust/api/config.dart'
+    show
+        DbAppConfigSnapshot,
+        DbBehaviorConfig,
+        DbSshDefaults,
+        DbTerminalConfig,
+        DbUiConfig;
 import '../../src/rust/api/security_capabilities.dart'
     show DbSecurityCapabilities;
-import '../security/security_bootstrap.dart'
-    show DbSecurityCapabilitiesExt, securityCapabilitiesFromJsonMap;
+import '../../src/rust/api/security_config.dart' show DbSecurityConfig;
+import '../../src/rust/api/sync.dart' show DbSyncConfig;
+import '../../utils/logger.dart'
+    show LogLevel, logLevelFromJson, logLevelToJson;
 import '../security/security_tier.dart';
 
 /// Terminal display settings.
+///
+/// Pure typed value object — the JSON wire shape lives in
+/// `lfs_core::config::TerminalConfig` and the parse / validate /
+/// clamp pipeline runs Rust-side via the [`DbAppConfigSnapshot`]
+/// round-trip the `configStoreGetTyped` / `configStoreSetTyped`
+/// endpoints expose. Constructors here build in-memory state only;
+/// out-of-range inputs are clamped inside Rust before they reach the
+/// store actor.
 class TerminalConfig {
   final double fontSize;
   final String theme; // 'dark', 'light', 'system'
@@ -22,47 +35,6 @@ class TerminalConfig {
   });
 
   static const defaults = TerminalConfig();
-  static const _validThemes = ['dark', 'light', 'system'];
-
-  /// Upper bound on the user-supplied `scrollback`. xterm allocates
-  /// per-line buffers eagerly; an unclamped `cat /dev/urandom` into
-  /// a window with `maxLines: 1_000_000_000` would OOM the renderer.
-  /// 200 000 lines is enough for a full work-session of `tail -f` on
-  /// a chatty log file (~12 hours of 5-line/s output) and stays
-  /// below the ~50 MiB-per-pane cap on a typical 80x24 terminal.
-  static const int maxScrollback = 200000;
-
-  String? validate() {
-    if (fontSize < 6 || fontSize > 72) return 'Font size must be 6-72';
-    if (!_validThemes.contains(theme)) {
-      return 'Theme must be one of: ${_validThemes.join(', ')}';
-    }
-    if (scrollback < 100) return 'Scrollback must be at least 100';
-    if (scrollback > maxScrollback) {
-      return 'Scrollback must be at most $maxScrollback';
-    }
-    return null;
-  }
-
-  TerminalConfig sanitized() {
-    const d = TerminalConfig.defaults;
-    final int sanitizedScrollback;
-    if (scrollback < 100) {
-      // Too-small / non-positive — fall back to the default rather
-      // than the floor so a user who saw a confusing 100-line
-      // window after typing 0 lands on the working-default value.
-      sanitizedScrollback = d.scrollback;
-    } else if (scrollback > maxScrollback) {
-      sanitizedScrollback = maxScrollback;
-    } else {
-      sanitizedScrollback = scrollback;
-    }
-    return TerminalConfig(
-      fontSize: fontSize.clamp(6, 72),
-      theme: _validThemes.contains(theme) ? theme : d.theme,
-      scrollback: sanitizedScrollback,
-    );
-  }
 
   TerminalConfig copyWith({double? fontSize, String? theme, int? scrollback}) =>
       TerminalConfig(
@@ -82,23 +54,25 @@ class TerminalConfig {
   @override
   int get hashCode => Object.hash(fontSize, theme, scrollback);
 
-  Map<String, dynamic> toJson() => {
-    'font_size': fontSize,
-    'theme': theme,
-    'scrollback': scrollback,
-  };
+  /// Rebuild from the FRB typed mirror. Rust-side sanitiser already
+  /// clamped every field on the way out of [`configStoreGetTyped`].
+  factory TerminalConfig.fromTyped(DbTerminalConfig db) => TerminalConfig(
+    fontSize: db.fontSize,
+    theme: db.theme,
+    scrollback: db.scrollback.toInt(),
+  );
 
-  factory TerminalConfig.fromJson(Map<String, dynamic> json) {
-    const d = TerminalConfig.defaults;
-    return TerminalConfig(
-      fontSize: (json['font_size'] as num?)?.toDouble() ?? d.fontSize,
-      theme: json['theme'] as String? ?? d.theme,
-      scrollback: json['scrollback'] as int? ?? d.scrollback,
-    ).sanitized();
-  }
+  /// Build the FRB typed mirror for a set call. The Rust side will
+  /// re-clamp out-of-range values during [`AppConfig::sanitized`].
+  DbTerminalConfig toTyped() => DbTerminalConfig(
+    fontSize: fontSize,
+    theme: theme,
+    scrollback: scrollback,
+  );
 }
 
-/// SSH connection defaults.
+/// SSH connection defaults. See [TerminalConfig] for the parser
+/// ownership rule — Rust owns the grammar.
 class SshDefaults {
   final int keepAliveSec;
   final int defaultPort;
@@ -111,24 +85,6 @@ class SshDefaults {
   });
 
   static const defaults = SshDefaults();
-
-  String? validate() {
-    if (keepAliveSec < 0) return 'Keep-alive must be non-negative';
-    if (defaultPort < 1 || defaultPort > 65535) return 'Port must be 1-65535';
-    if (sshTimeoutSec < 1) return 'SSH timeout must be at least 1 second';
-    return null;
-  }
-
-  SshDefaults sanitized() {
-    const d = SshDefaults.defaults;
-    return SshDefaults(
-      keepAliveSec: keepAliveSec < 0 ? d.keepAliveSec : keepAliveSec,
-      defaultPort: (defaultPort < 1 || defaultPort > 65535)
-          ? d.defaultPort
-          : defaultPort,
-      sshTimeoutSec: sshTimeoutSec < 1 ? d.sshTimeoutSec : sshTimeoutSec,
-    );
-  }
 
   SshDefaults copyWith({
     int? keepAliveSec,
@@ -151,23 +107,21 @@ class SshDefaults {
   @override
   int get hashCode => Object.hash(keepAliveSec, defaultPort, sshTimeoutSec);
 
-  Map<String, dynamic> toJson() => {
-    'keepalive_sec': keepAliveSec,
-    'default_port': defaultPort,
-    'ssh_timeout_sec': sshTimeoutSec,
-  };
+  factory SshDefaults.fromTyped(DbSshDefaults db) => SshDefaults(
+    keepAliveSec: db.keepaliveSec.toInt(),
+    defaultPort: db.defaultPort.toInt(),
+    sshTimeoutSec: db.sshTimeoutSec.toInt(),
+  );
 
-  factory SshDefaults.fromJson(Map<String, dynamic> json) {
-    const d = SshDefaults.defaults;
-    return SshDefaults(
-      keepAliveSec: json['keepalive_sec'] as int? ?? d.keepAliveSec,
-      defaultPort: json['default_port'] as int? ?? d.defaultPort,
-      sshTimeoutSec: json['ssh_timeout_sec'] as int? ?? d.sshTimeoutSec,
-    ).sanitized();
-  }
+  DbSshDefaults toTyped() => DbSshDefaults(
+    keepaliveSec: keepAliveSec,
+    defaultPort: defaultPort,
+    sshTimeoutSec: sshTimeoutSec,
+  );
 }
 
-/// UI and window settings.
+/// UI and window settings. See [TerminalConfig] for the parser
+/// ownership rule — Rust owns the grammar.
 class UiConfig {
   final int toastDurationMs;
   final double windowWidth;
@@ -184,27 +138,6 @@ class UiConfig {
   });
 
   static const defaults = UiConfig();
-
-  String? validate() {
-    if (toastDurationMs < 500) return 'Toast duration must be at least 500ms';
-    if (windowWidth < 200) return 'Window width must be at least 200';
-    if (windowHeight < 200) return 'Window height must be at least 200';
-    if (uiScale < 0.5 || uiScale > 2.0) return 'UI scale must be 0.5-2.0';
-    return null;
-  }
-
-  UiConfig sanitized() {
-    const d = UiConfig.defaults;
-    return UiConfig(
-      toastDurationMs: toastDurationMs < 500
-          ? d.toastDurationMs
-          : toastDurationMs,
-      windowWidth: windowWidth < 200 ? d.windowWidth : windowWidth,
-      windowHeight: windowHeight < 200 ? d.windowHeight : windowHeight,
-      uiScale: uiScale.clamp(0.5, 2.0),
-      showFolderSizes: showFolderSizes,
-    );
-  }
 
   UiConfig copyWith({
     int? toastDurationMs,
@@ -239,25 +172,21 @@ class UiConfig {
     showFolderSizes,
   );
 
-  Map<String, dynamic> toJson() => {
-    'toast_duration_ms': toastDurationMs,
-    'window_width': windowWidth,
-    'window_height': windowHeight,
-    'ui_scale': uiScale,
-    'show_folder_sizes': showFolderSizes,
-  };
+  factory UiConfig.fromTyped(DbUiConfig db) => UiConfig(
+    toastDurationMs: db.toastDurationMs.toInt(),
+    windowWidth: db.windowWidth,
+    windowHeight: db.windowHeight,
+    uiScale: db.uiScale,
+    showFolderSizes: db.showFolderSizes,
+  );
 
-  factory UiConfig.fromJson(Map<String, dynamic> json) {
-    const d = UiConfig.defaults;
-    return UiConfig(
-      toastDurationMs: json['toast_duration_ms'] as int? ?? d.toastDurationMs,
-      windowWidth: (json['window_width'] as num?)?.toDouble() ?? d.windowWidth,
-      windowHeight:
-          (json['window_height'] as num?)?.toDouble() ?? d.windowHeight,
-      uiScale: (json['ui_scale'] as num?)?.toDouble() ?? d.uiScale,
-      showFolderSizes: json['show_folder_sizes'] as bool? ?? d.showFolderSizes,
-    ).sanitized();
-  }
+  DbUiConfig toTyped() => DbUiConfig(
+    toastDurationMs: toastDurationMs,
+    windowWidth: windowWidth,
+    windowHeight: windowHeight,
+    uiScale: uiScale,
+    showFolderSizes: showFolderSizes,
+  );
 }
 
 /// App behavior settings: logging, update checks, skipped versions.
@@ -267,16 +196,11 @@ class UiConfig {
 /// access cannot weaken the security control by editing a plaintext
 /// file. See [autoLockMinutesProvider] in
 /// `lib/providers/auto_lock_provider.dart`.
-// See [LogLevel] in utils/logger.dart — imported here so the
-// config-level serialisation stays the single source of truth for
-// the log-level enum encoding.
 class BehaviorConfig {
   /// Minimum severity the routine file sink admits. `null` = logging
   /// off (default). Picking any [LogLevel] opens the sink and writes
   /// lines at or above that level, so picking `warn` writes W + E,
-  /// picking `info` writes everything. Replaces the old
-  /// `enableLogging` bool — users who had that on will land on
-  /// `null` after upgrade and can re-pick a level in Settings.
+  /// picking `info` writes everything.
   final LogLevel? logLevel;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
@@ -334,30 +258,32 @@ class BehaviorConfig {
     fido2PreferDirectHid,
   );
 
-  Map<String, dynamic> toJson() => {
-    if (logLevel != null) 'log_level': logLevelToJson(logLevel),
-    'check_updates_on_start': checkUpdatesOnStart,
-    if (skippedVersion != null) 'skipped_version': skippedVersion,
-    'fido2_prefer_direct_hid': fido2PreferDirectHid,
-  };
+  factory BehaviorConfig.fromTyped(DbBehaviorConfig db) => BehaviorConfig(
+    logLevel: logLevelFromJson(db.logLevelWireName),
+    checkUpdatesOnStart: db.checkUpdatesOnStart,
+    skippedVersion: db.skippedVersion,
+    fido2PreferDirectHid: db.fido2PreferDirectHid,
+  );
 
-  factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
-    const d = BehaviorConfig.defaults;
-    return BehaviorConfig(
-      logLevel: logLevelFromJson(json['log_level'] as String?) ?? d.logLevel,
-      checkUpdatesOnStart:
-          json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
-      skippedVersion: json['skipped_version'] as String?,
-      fido2PreferDirectHid:
-          json['fido2_prefer_direct_hid'] as bool? ?? d.fido2PreferDirectHid,
-    );
-  }
+  DbBehaviorConfig toTyped() => DbBehaviorConfig(
+    logLevelWireName: logLevelToJson(logLevel),
+    checkUpdatesOnStart: checkUpdatesOnStart,
+    skippedVersion: skippedVersion,
+    fido2PreferDirectHid: fido2PreferDirectHid,
+  );
 }
 
 /// Application configuration model.
 ///
 /// Same fields and defaults as LetsGOssh config.
 /// Grouped into sub-configs: [terminal], [ssh], [ui], [behavior].
+///
+/// Persistence + JSON grammar + range validation all live in
+/// `lfs_core::config::AppConfig`. The Dart side only carries the
+/// parsed snapshot; mutations route back through
+/// `configStoreSetTyped` (or the partial-update FRB endpoints for
+/// sync / security tier / probe cache). The Rust sanitiser clamps
+/// every out-of-range field before the disk write.
 class AppConfig {
   final TerminalConfig terminal;
   final SshDefaults ssh;
@@ -396,10 +322,7 @@ class AppConfig {
   /// against this value so the on-disk total stays at or below the
   /// configured cap. Mirror of `AppConfig.recordings_storage_cap_bytes`
   /// in `lfs_core::config`. Default
-  /// `defaultRecordingsStorageCapBytes` (500 MiB). The Settings UI
-  /// tile that exposes this lands as a follow-up; today the field is
-  /// reachable for tests + future call sites through the provider
-  /// accessor below.
+  /// `defaultRecordingsStorageCapBytes` (500 MiB).
   final int recordingsStorageCapBytes;
 
   /// 500 MiB, mirror of
@@ -457,59 +380,6 @@ class AppConfig {
   LogLevel? get logLevel => behavior.logLevel;
   bool get checkUpdatesOnStart => behavior.checkUpdatesOnStart;
   String? get skippedVersion => behavior.skippedVersion;
-
-  /// Validate config values. Returns error message or null.
-  ///
-  /// Stays Dart-side: the Rust counterpart
-  /// `config_app_config_validate_json` runs `from_json_value` first,
-  /// which `.sanitized()`s out-of-range values during parse, so the
-  /// validator can't ever observe a failing case. Until the Rust
-  /// validator takes raw JSON without the sanitising parse, the
-  /// per-sub-struct chain below is the source of truth.
-  ///
-  /// No production caller exercises this path today (settings UI
-  /// uses Form-level validators on individual inputs); the test
-  /// suite documents the per-field contract.
-  String? validate() {
-    return terminal.validate() ??
-        ssh.validate() ??
-        ui.validate() ??
-        (transferWorkers < 1 ? 'Transfer workers must be at least 1' : null) ??
-        (maxHistory < 0 ? 'Max history must be non-negative' : null);
-  }
-
-  /// Hard ceiling on the configured recordings cap. Same value as
-  /// the Rust-side `MAX_RECORDINGS_STORAGE_CAP_BYTES` (1 TiB). A
-  /// user-supplied value above this falls through to the default
-  /// on sanitise — defence-in-depth in case a hand-edited
-  /// `config.json` slips a `u64::MAX`-like value past the Rust
-  /// sanitiser.
-  static const int _maxRecordingsStorageCapBytes = 1024 * 1024 * 1024 * 1024;
-
-  /// Return a copy with invalid values clamped to safe defaults.
-  AppConfig sanitized() {
-    const d = AppConfig.defaults;
-    return AppConfig(
-      terminal: terminal.sanitized(),
-      ssh: ssh.sanitized(),
-      ui: ui.sanitized(),
-      behavior: behavior,
-      transferWorkers: transferWorkers < 1
-          ? d.transferWorkers
-          : transferWorkers,
-      maxHistory: maxHistory < 0 ? d.maxHistory : maxHistory,
-      locale: locale != null && supportedLocales.contains(locale)
-          ? locale
-          : null,
-      security: security,
-      securityProbeCache: securityProbeCache,
-      recordingsStorageCapBytes:
-          (recordingsStorageCapBytes <= 0 ||
-              recordingsStorageCapBytes > _maxRecordingsStorageCapBytes)
-          ? d.recordingsStorageCapBytes
-          : recordingsStorageCapBytes,
-    );
-  }
 
   /// Sentinel for clearing nullable fields in [copyWith].
   static const _unset = Object();
@@ -599,126 +469,76 @@ class AppConfig {
     recordingsStorageCapBytes,
   );
 
-  /// JSON stays flat for backward compatibility.
-  ///
-  /// Routes through `lfs_core::config::AppConfig` (FRB sync) — the
-  /// field-name set + default-omit grammar (locale / security_tier
-  /// / log_level only when set) lives one place across the two
-  /// encoders. Tests that exercise the encoder bootstrap FRB via
-  /// `requireFrbLoaded()`.
-  Map<String, dynamic> toJson() {
-    final dartShape = <String, dynamic>{
-      ...terminal.toJson(),
-      ...ssh.toJson(),
-      ...ui.toJson(),
-      ...behavior.toJson(),
-      'transfer_workers': transferWorkers,
-      'max_history': maxHistory,
-      'recordings_storage_cap_bytes': recordingsStorageCapBytes,
-      if (locale != null) 'locale': locale,
-      if (security != null) 'security_tier': security!.tier.wireName,
-      if (security != null) 'security_modifiers': security!.modifiers.toJson(),
-      if (securityProbeCache != null)
-        'security_probe_cache': securityProbeCache!.toJsonMap,
-    };
-    final canonical = rust_config.configAppConfigToJson(
-      inputJson: jsonEncode(dartShape),
-    );
-    return jsonDecode(canonical) as Map<String, dynamic>;
-  }
-
-  /// Portable JSON for `.lfs` archive export. Strips every field that
-  /// describes the LOCAL machine's security setup — `security_tier`,
-  /// `security_modifiers`, `config_schema_version` — so importing the
-  /// archive on a different machine does not try to adopt the
-  /// exporter's tier / modifier shape. The security configuration is
-  /// strictly per-install and is re-established through the wizard
-  /// on each new device.
-  ///
-  /// Routes through `lfs_core::config::strip_for_export` (FRB sync)
-  /// — the strip-list lives one place.
-  Map<String, dynamic> toJsonForExport() {
-    final stripped = rust_config.configAppConfigStripForExport(
-      inputJson: jsonEncode(toJson()),
-    );
-    return jsonDecode(stripped) as Map<String, dynamic>;
-  }
-
-  /// Parse `config.json` JSON into a typed `AppConfig`.
-  ///
-  /// Pure Dart on purpose — `_mainBody` loads `config.json` BEFORE
-  /// `RustLib.init` so the first frame paints with the user's real
-  /// theme / locale / `ui_scale` from the first frame instead of
-  /// flashing through `AppConfig.defaults` while the native blob
-  /// loads. Routing through `lfs_core::config::AppConfig::
-  /// from_json_value` would crash in that window with "RustLib not
-  /// initialised". The per-sub-config `fromJson` factories
-  /// (`TerminalConfig.fromJson`, `SshDefaults.fromJson`,
-  /// `UiConfig.fromJson`, `BehaviorConfig.fromJson`) each call
-  /// their own `.sanitized()` step (clamp out-of-range values,
-  /// fall through unknown enum names to defaults), and the outer
-  /// `.sanitized()` at the bottom of this factory re-runs the
-  /// same Dart-side clamp pipeline. The Rust path used to handle
-  /// values that bypass Dart's typed casts (e.g. a `"theme": 123`
-  /// hand-edit), but every sub-config's `as String? ?? d.theme`
-  /// pattern catches that already — the only marginal difference
-  /// was canonical field ordering on save, which `_saveAppConfigToDisk`
-  /// achieves through the Rust `configStoreSetJson` actor anyway.
-  factory AppConfig.fromJson(Map<String, dynamic> json) {
-    const d = AppConfig.defaults;
+  /// Rebuild from the FRB typed mirror that
+  /// [`configStoreGetTyped`] hands back. The Rust side already ran
+  /// [`AppConfig::sanitized`] before the snapshot crossed the
+  /// boundary, so the values land in valid ranges.
+  factory AppConfig.fromTyped(DbAppConfigSnapshot db) {
+    final security = _securityConfigFromTyped(db.security);
     return AppConfig(
-      terminal: TerminalConfig.fromJson(json),
-      ssh: SshDefaults.fromJson(json),
-      ui: UiConfig.fromJson(json),
-      behavior: BehaviorConfig.fromJson(json),
-      transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
-      maxHistory: json['max_history'] as int? ?? d.maxHistory,
-      locale: json['locale'] as String?,
-      security: _readSecurityConfig(json),
-      securityProbeCache: securityCapabilitiesFromJsonMap(
-        json['security_probe_cache'] as Map<String, dynamic>?,
-      ),
-      recordingsStorageCapBytes:
-          (json['recordings_storage_cap_bytes'] as num?)?.toInt() ??
-          d.recordingsStorageCapBytes,
-    ).sanitized();
+      terminal: TerminalConfig.fromTyped(db.terminal),
+      ssh: SshDefaults.fromTyped(db.ssh),
+      ui: UiConfig.fromTyped(db.ui),
+      behavior: BehaviorConfig.fromTyped(db.behavior),
+      transferWorkers: db.transferWorkers.toInt(),
+      maxHistory: db.maxHistory.toInt(),
+      locale: db.locale,
+      security: security,
+      securityProbeCache: db.securityProbeCache,
+      recordingsStorageCapBytes: db.recordingsStorageCapBytes.toInt(),
+    );
+  }
+
+  /// Build the FRB typed mirror for a `set` call. Sync sub-bag
+  /// values come from [`configStoreGetTyped`] verbatim — the Dart
+  /// side never holds the sync wire shape and lets Rust own
+  /// per-push / per-pull mutations. The argument is the previously
+  /// observed sync DTO (typically pulled from the same snapshot
+  /// that produced this config); for callers that haven't observed
+  /// one yet [`rust_config.configAppConfigDefaultsTyped`] returns a
+  /// canonical empty bag.
+  DbAppConfigSnapshot toTyped({DbSyncConfig? sync}) {
+    final effectiveSync =
+        sync ?? rust_config.configAppConfigDefaultsTyped().sync_;
+    return DbAppConfigSnapshot(
+      terminal: terminal.toTyped(),
+      ssh: ssh.toTyped(),
+      ui: ui.toTyped(),
+      behavior: behavior.toTyped(),
+      transferWorkers: transferWorkers,
+      maxHistory: maxHistory,
+      locale: locale,
+      security: _securityConfigToTyped(security),
+      securityProbeCache: securityProbeCache,
+      recordingsStorageCapBytes: BigInt.from(recordingsStorageCapBytes),
+      sync_: effectiveSync,
+    );
   }
 }
 
-SecurityConfig? _readSecurityConfig(Map<String, dynamic> json) {
-  // Absence of the `security_tier` field means the user has not yet
-  // completed the first-launch wizard. Returning `null` is the signal
-  // `_initSecurity` keys off to fire the wizard. An *unknown* tier
-  // string (e.g. a value from a newer version) is treated as "no
-  // config" for the same reason — the user will re-run the wizard
-  // rather than land in a silently-wrong tier.
-  final tierStr = json['security_tier'];
-  if (tierStr is! String) return null;
-  final tier = _tierFromName(tierStr);
-  if (tier == null) return null;
-  final modifiersJson = json['security_modifiers'];
-  final modifiers = modifiersJson is Map<String, dynamic>
-      ? SecurityTierModifiers.fromJson(modifiersJson)
-      : SecurityTierModifiers.defaults;
-  return SecurityConfig(tier: tier, modifiers: modifiers);
+SecurityConfig? _securityConfigFromTyped(DbSecurityConfig? db) {
+  if (db == null) return null;
+  // Absence (handled by the `null` branch above) and an unknown wire
+  // tier name fall through to "no config" so the first-launch wizard
+  // re-runs rather than landing on a silently-wrong tier. The Rust
+  // canonical parser already filtered unknown wire names — defence in
+  // depth: rebuild via [SecurityTierWireName.fromWireName] and
+  // discard the bag on a parser disagreement.
+  final tier = SecurityTierWireName.fromWireName(db.tierWireName);
+  return SecurityConfig(
+    tier: tier,
+    modifiers: SecurityTierModifiers(
+      password: db.password,
+      biometric: db.biometric,
+    ),
+  );
 }
 
-SecurityTier? _tierFromName(String s) {
-  switch (s) {
-    case 'plaintext':
-      return SecurityTier.plaintext;
-    case 'keychain':
-      return SecurityTier.keychain;
-    case 'hardware':
-      return SecurityTier.hardware;
-    case 'paranoid':
-      return SecurityTier.paranoid;
-    default:
-      // The pre-v3 `keychain_with_password` wire string is no
-      // longer recognised — the Rust-side `ConfigV2ToV3` migration
-      // rewrites stored configs to `keychain` + `modifiers
-      // .password = true` before the runtime parses them, so this
-      // branch only fires on a malformed external value.
-      return null;
-  }
+DbSecurityConfig? _securityConfigToTyped(SecurityConfig? config) {
+  if (config == null) return null;
+  return DbSecurityConfig(
+    tierWireName: config.tier.wireName,
+    password: config.modifiers.password,
+    biometric: config.modifiers.biometric,
+  );
 }

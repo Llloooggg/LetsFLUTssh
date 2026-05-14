@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 
 import '../core/config/app_config.dart';
@@ -7,6 +5,7 @@ import '../core/session/qr_codec.dart' show ExportOptions, qrMaxPayloadBytes;
 import '../core/session/session.dart';
 import '../features/settings/export_import.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
+import '../src/rust/api/config.dart' as rust_config;
 import '../src/rust/api/qr_compose.dart' as rust_compose;
 import '../utils/format.dart' as utils_format;
 import 'unified_export_models.dart';
@@ -223,7 +222,9 @@ class UnifiedExportController extends ChangeNotifier {
         selectedSessionIds: ids,
         selectedEmptyFolders: folders,
         configJson: options.includeConfig && data.config != null
-            ? jsonEncode(data.config!.toJson())
+            ? rust_config.configAppConfigToJsonTyped(
+                value: data.config!.toTyped(),
+              )
             : null,
       ),
     );
@@ -253,7 +254,9 @@ class UnifiedExportController extends ChangeNotifier {
         selectedSessionIds: selectedIds,
         selectedEmptyFolders: relevantEmptyFolders.toList(growable: false),
         configJson: _options.includeConfig && data.config != null
-            ? jsonEncode((data.config ?? AppConfig.defaults).toJsonForExport())
+            ? rust_config.configAppConfigStripForExportTyped(
+                value: (data.config ?? AppConfig.defaults).toTyped(),
+              )
             : '',
         schemaVersion: ExportImport.currentSchemaVersion,
         appVersion: null,

@@ -12,6 +12,7 @@ import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/archive.dart' as rust_archive;
+import '../../src/rust/api/config.dart' as rust_config;
 import '../../src/rust/api/migration.dart' as rust_migration;
 import '../../utils/logger.dart';
 
@@ -115,8 +116,12 @@ class ExportImport {
   }) async {
     progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
     final params = kdfParams ?? defaultKdfParams;
+    // Strip per-host security + sync slots Rust-side via the typed
+    // FRB shim so the Dart code never re-implements the strip-list.
     final configJson = config != null
-        ? jsonEncode(config.toJsonForExport())
+        ? rust_config.configAppConfigStripForExportTyped(
+            value: config.toTyped(),
+          )
         : '';
     progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
     final byteCount = await rust_archive.dbExportArchive(

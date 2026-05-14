@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/archive_stage.dart' as rust_stage;
+import '../../src/rust/api/config.dart' as rust_config;
 import '../config/app_config.dart';
 import '../security/ssh_key.dart';
 import '../snippets/snippet.dart';
@@ -160,11 +161,17 @@ Future<rust_archive.DbApplyResult> _applyHandle({
 
 /// Decode an [AppConfig] from the JSON returned by [applyOpenedHandle]
 /// / [applyResultViaRust] in `DbApplyResult.configJson`. Returns null
-/// if the staged archive carried no config entry.
+/// if the staged archive carried no config entry. Routes through the
+/// canonical Rust-side parser via [`config_app_config_from_json_typed`]
+/// so the JSON grammar (field defaults, schema-version stamping,
+/// sanitisation clamps) lives one place; a malformed blob collapses
+/// to `null` — the import driver treats that as "no config entry".
 AppConfig? decodeConfigFromApply(rust_archive.DbApplyResult apply) {
   final raw = apply.configJson;
   if (raw == null || raw.isEmpty) return null;
-  return AppConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  final typed = rust_config.configAppConfigFromJsonTyped(inputJson: raw);
+  if (typed == null) return null;
+  return AppConfig.fromTyped(typed);
 }
 
 /// Serialise an [ImportResult] into the JSON-string envelope the Rust

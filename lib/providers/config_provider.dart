@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,14 +30,8 @@ class LoadedAppConfig {
 
 /// Thrown by [loadAppConfigFromDisk] when the Rust `config_store`
 /// actor could not adopt an on-disk `config.json` (parse failure
-/// surfaced by `config_store_init` as an `Err`, or an in-memory
-/// snapshot the Dart factory cannot turn into a valid [AppConfig]
-/// — Rust + Dart canonical encoders disagreeing is itself a bug).
-/// Distinct from the missing-file branch — a missing file means
-/// "fresh install, use defaults"; a parse error means "the user
-/// has on-disk data we cannot interpret, do NOT silently fall back
-/// to defaults and then save those defaults over the unparseable
-/// file".
+/// surfaced by `config_store_init` as an `Err`, or the in-memory
+/// snapshot is missing — `_mainBody` ordering bug).
 ///
 /// Silent fallback would overwrite the user's real `config.json`
 /// on the next probe-cache write — specifically `security_tier`
@@ -63,8 +56,8 @@ class AppConfigParseException implements Exception {
 /// Preconditions: [bootstrapRustConfigStore] (which calls
 /// `config_store_init`) must have run earlier in `_mainBody` so the
 /// actor already adopted the on-disk file (or seeded defaults). This
-/// function only reads the in-memory canonical JSON via
-/// `config_store_get_json` plus the `was_loaded_from_disk` flag —
+/// function only reads the typed in-memory snapshot via
+/// `config_store_get_typed` plus the `was_loaded_from_disk` flag —
 /// no Dart-side `dart:io` File / Directory operations touch the
 /// config path at all. `lfs_core::config_store::Store` owns parse +
 /// symlink-safe read + atomic write.
@@ -72,20 +65,16 @@ class AppConfigParseException implements Exception {
 /// Returns defaults with `loadedFromFile: false` when init seeded
 /// defaults (absent or unreadable file — fresh-install or
 /// hostile-environment path). Throws [AppConfigParseException]
-/// when:
-/// * the actor returned `None` from `config_store_get_json` (init
-///   never ran — precondition violation, caller bug), or
-/// * the returned JSON does not decode into a `Map<String, dynamic>`
-///   shape the Dart [AppConfig.fromJson] factory accepts (Rust +
-///   Dart canonical encoders drifted — schema bug).
+/// when the actor returned `None` from `config_store_get_typed`
+/// (init never ran — precondition violation, caller bug).
 ///
 /// `config_store_init` itself surfaces an on-disk parse failure as
 /// `Err`; that path turns into the same fatal-screen route via the
 /// throw inside [bootstrapRustConfigStore].
 Future<LoadedAppConfig> loadAppConfigFromDisk() async {
   final loadedFromFile = rust_config.configStoreWasLoadedFromDisk();
-  final canonicalJson = rust_config.configStoreGetJson();
-  if (canonicalJson == null) {
+  final typed = rust_config.configStoreGetTyped();
+  if (typed == null) {
     // Structural precondition violation: `_mainBody` runs
     // `_initRustCoreOrFatal` (which calls `bootstrapRustConfigStore`)
     // before any caller can reach `loadAppConfigFromDisk`. A null
@@ -102,21 +91,10 @@ Future<LoadedAppConfig> loadAppConfigFromDisk() async {
       StateError('config_store not initialised'),
     );
   }
-  try {
-    final json = jsonDecode(canonicalJson) as Map<String, dynamic>;
-    return LoadedAppConfig(
-      config: AppConfig.fromJson(json),
-      loadedFromFile: loadedFromFile,
-    );
-  } catch (e) {
-    AppLogger.instance.log(
-      'config_store snapshot did not decode into AppConfig — '
-      'refusing silent fallback to defaults so the existing file '
-      'is not overwritten on next save: $e',
-      name: 'ConfigStore',
-    );
-    throw AppConfigParseException(_configPathHint(), e);
-  }
+  return LoadedAppConfig(
+    config: AppConfig.fromTyped(typed),
+    loadedFromFile: loadedFromFile,
+  );
 }
 
 /// Best-effort path hint for [AppConfigParseException]. The Rust
@@ -130,8 +108,8 @@ String _configPathHint() => 'config.json';
 /// Wire the Rust `lfs_core::config_store::Store` actor against the
 /// app-support directory. The actor loads `<support_dir>/config.json`
 /// if present (or seeds defaults), spawns the singleton background
-/// debounce ticker, and exposes the canonical JSON through the
-/// `config_store_get_json` snapshot.
+/// debounce ticker, and exposes the canonical snapshot through the
+/// `config_store_get_typed` snapshot.
 ///
 /// Called once from `_initRustCoreOrFatal()` in `main.dart`
 /// immediately after `RustLib.init()` + `appInit()` succeed and
@@ -156,15 +134,16 @@ Future<void> bootstrapRustConfigStore() async {
 }
 
 Future<void> _saveAppConfigToDisk(AppConfig config) async {
-  // `config.toJson()` already routes through the Rust canonicaliser
-  // (`config_app_config_to_json`), which stamps `config_schema_version`
-  // from `SchemaVersions::CONFIG` on the way out. Persisting goes
-  // through `lfs_core::config_store::Store` — the actor owns the
-  // in-memory snapshot, 300 ms debounce, atomic write through
-  // `write_bytes_atomic`, and the bus event publication. The
-  // `flush()` after `set_json` forces the pending state to disk on
+  // Persisting routes through `lfs_core::config_store::Store` — the
+  // actor owns the in-memory snapshot, 300 ms debounce, atomic write
+  // through `write_bytes_atomic`, and the bus event publication. The
+  // `flush()` after `set_typed` forces the pending state to disk on
   // an explicit save semantic ("save now") rather than letting the
   // actor's own debounce window absorb it.
+  //
+  // The typed setter pulls the sync sub-bag from the live snapshot so
+  // the per-push / per-pull state Rust owns survives the round-trip;
+  // a missing snapshot collapses to canonical defaults.
   //
   // `configStoreInit` is idempotent — the Rust singleton's
   // `OnceLock<PathBuf>` adopts the first path and ignores the rest.
@@ -174,7 +153,8 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
   // init to pin the singleton against the test's temp support dir.
   final dir = await getApplicationSupportDirectory();
   rust_config.configStoreInit(supportDir: dir.path);
-  rust_config.configStoreSetJson(newJson: jsonEncode(config.toJson()));
+  final liveSync = rust_config.configStoreGetTyped()?.sync_;
+  rust_config.configStoreSetTyped(value: config.toTyped(sync: liveSync));
   rust_config.configStoreFlush();
 }
 

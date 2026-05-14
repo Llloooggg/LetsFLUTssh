@@ -130,8 +130,9 @@ Future<void> _populateDb({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // Controller's payload-size cache calls AppConfig.toJson which
-  // routes through the Rust canonical encoder. Bootstrap FRB.
+  // Controller's payload-size cache builds the typed AppConfig DTO
+  // and hands it to the Rust canonical encoder via
+  // `configAppConfigToJsonTyped`. Bootstrap FRB.
   setUpAll(requireFrbLoaded);
 
   // Each test gets a fresh in-memory `letsflutssh.db` so populated
