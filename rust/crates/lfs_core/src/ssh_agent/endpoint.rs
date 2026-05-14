@@ -26,7 +26,7 @@ use ssh_agent_lib::agent::Session;
 use ssh_agent_lib::error::AgentError;
 use ssh_agent_lib::proto::{
     AddIdentity, AddIdentityConstrained, AddSmartcardKeyConstrained, Extension, Identity,
-    ProtoError, RemoveIdentity, SignRequest, SmartcardKey,
+    RemoveIdentity, SignRequest, SmartcardKey,
 };
 use ssh_key::public::KeyData;
 use ssh_key::{Algorithm, PublicKey, Signature};
@@ -550,15 +550,6 @@ pub fn status() -> AgentStatus {
             unsupported: false,
         },
     }
-}
-
-// `Failure` is a wire-level concept the trait surface does not
-// expose; ProtoError carries unsupported-command + decode error
-// arms only. The custom message arm we use is `AgentError::Other`,
-// which renders as the wire FAILURE byte on the server side.
-#[allow(dead_code)]
-fn _shape_check_proto_error_arms(p: ProtoError) -> ProtoError {
-    p
 }
 
 #[cfg(test)]

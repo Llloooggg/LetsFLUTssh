@@ -704,17 +704,6 @@ impl EventBus {
         self.senders.values().map(|s| s.receiver_count()).sum()
     }
 
-    /// Live receiver count for a single topic. Used by tests + the
-    /// future "no subscribers, dropping" log line a noisy actor
-    /// might want to emit before a publish.
-    #[allow(dead_code)] // documented surface, not yet called outside tests
-    pub fn subscriber_count_for(&self, topic: EventTopic) -> usize {
-        self.senders
-            .get(&topic)
-            .map(|s| s.receiver_count())
-            .unwrap_or(0)
-    }
-
     /// Helper for the ssh-agent endpoint — publishes a
     /// [`Event::SshAgentSignaturePrompt`] without forcing the
     /// caller to import the `Event` variant directly. Returns the

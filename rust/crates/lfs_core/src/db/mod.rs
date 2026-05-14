@@ -113,7 +113,7 @@ impl Connection {
     /// way. DAO bodies that take `&impl DbAccess` keep going
     /// through the trait method — this is a duplication for
     /// ergonomic reasons, not a behaviour difference.
-    #[allow(dead_code)] // false positive: tests resolve through this inherent.
+    #[cfg(test)]
     pub(crate) fn raw(&self) -> &rusqlite::Connection {
         &self.inner
     }
