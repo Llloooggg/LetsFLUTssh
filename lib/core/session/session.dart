@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/path.dart' as rust_path;
 import '../../src/rust/api/sessions.dart' as rust_sess;
-import '../../utils/platform.dart';
 import '../ssh/ssh_config.dart';
 
 /// Authentication type for a session.
@@ -378,14 +378,15 @@ class Session {
 
   /// Convert to SSHConfig for connecting.
   SSHConfig toSSHConfig() {
-    final String expandedKeyPath;
-    if (keyPath == '~') {
-      expandedKeyPath = homeDirectory;
-    } else if (keyPath.startsWith('~/')) {
-      expandedKeyPath = '$homeDirectory${keyPath.substring(1)}';
-    } else {
-      expandedKeyPath = keyPath;
-    }
+    // Fast-path skips the FRB hop for the common case (no tilde to
+    // expand); the actual `~` / `~/` → home-dir grammar lives in
+    // `lfs_core::path::expand_tilde` so only paths that need
+    // expansion cross the bridge. This also keeps `toSSHConfig`
+    // callable from test contexts that haven't bootstrapped FRB
+    // for non-tilde fixtures (every Session test fixture today).
+    final expandedKeyPath = keyPath.startsWith('~')
+        ? rust_path.pathExpandTilde(path: keyPath)
+        : keyPath;
     return SSHConfig(
       server: server,
       auth: SshAuth(

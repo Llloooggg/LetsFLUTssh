@@ -95,6 +95,26 @@ List<String> sshConfigSplitHostPatterns({required String value}) => RustLib
 String sshConfigUnquote({required String value}) =>
     RustLib.instance.api.crateApiSshConfigSshConfigUnquote(value: value);
 
+/// Walk every `Include` directive in [`content`] and return the
+/// single-level resolved paths in encounter order. No recursion,
+/// no filesystem touch, no glob expansion — each token resolves
+/// through the same tilde + relative-anchor rules the in-memory
+/// parser applies.
+///
+/// Used by the Dart test-seam include-map collector
+/// (`openssh_config_parser._collectIncludeMap`): the visited-set
+/// + recursion stay Dart-side because the `IncludeReader` callback
+/// is Dart-side, but the per-line grammar lives in one place. The
+/// production path is [`parse_openssh_config_resolving`] which
+/// owns the whole walk Rust-side.
+List<String> sshConfigResolveIncludePaths({
+  required String content,
+  required String baseDir,
+}) => RustLib.instance.api.crateApiSshConfigSshConfigResolveIncludePaths(
+  content: content,
+  baseDir: baseDir,
+);
+
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 enum DbOpenSshAuthType { password, key }
 

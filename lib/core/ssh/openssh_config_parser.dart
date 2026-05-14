@@ -1,4 +1,3 @@
-import 'dart:convert' show LineSplitter;
 import 'dart:io' show Platform;
 
 import '../../src/rust/api/ssh_config.dart' as rust_ssh_config;
@@ -110,10 +109,10 @@ OpenSshConfigEntry _fromRustEntry(rust_ssh_config.DbOpenSshHostEntry e) {
 /// Walk the include tree recursively via [reader], collecting every
 /// path the reader is asked for into a `path → content` map. Used only
 /// by the test path: production goes through Rust's real-fs resolver
-/// which doesn't need this enumeration step. Each include token
-/// resolves to a single canonical path (tilde / relative-anchor handled
-/// the same way the Rust parser does — no glob walk because the Dart
-/// side doesn't have a filesystem to walk in tests). The visited set
+/// which doesn't need this enumeration step. Per-line include-token
+/// resolution lives in `lfs_core::ssh_config::resolve_include_paths_for_content`
+/// (exposed via FRB); the visited set + recursion stay Dart-side
+/// because the [reader] callback is Dart-side. The visited set
 /// prevents `Include loop.conf` infinite loops.
 Map<String, String> _collectIncludeMap(
   String content,
@@ -123,62 +122,23 @@ Map<String, String> _collectIncludeMap(
 ) {
   final out = <String, String>{};
   final visited = <String>{};
-  _collectIncludeMapInto(content, reader, baseDir, maxDepth, visited, out);
-  return out;
-}
-
-void _collectIncludeMapInto(
-  String content,
-  IncludeReader reader,
-  String baseDir,
-  int remainingDepth,
-  Set<String> visited,
-  Map<String, String> out,
-) {
-  if (remainingDepth <= 0) return;
-  for (final rawLine in const LineSplitter().convert(content)) {
-    final line = rust_ssh_config.sshConfigStripComment(line: rawLine).trim();
-    if (line.isEmpty) continue;
-    final pair = rust_ssh_config.sshConfigSplitKeywordValue(line: line);
-    if (pair == null) continue;
-    if (pair.$1.toLowerCase() != 'include') continue;
-    for (final token in rust_ssh_config.sshConfigSplitHostPatterns(
-      value: pair.$2,
-    )) {
-      final resolved = _resolveSingleIncludePath(token, baseDir);
-      if (!visited.add(resolved)) continue;
-      final body = reader(resolved);
-      if (body == null) continue;
-      out[resolved] = body;
-      _collectIncludeMapInto(
-        body,
-        reader,
-        baseDir,
-        remainingDepth - 1,
-        visited,
-        out,
-      );
+  void walk(String body, int depth) {
+    if (depth <= 0) return;
+    final paths = rust_ssh_config.sshConfigResolveIncludePaths(
+      content: body,
+      baseDir: baseDir,
+    );
+    for (final path in paths) {
+      if (!visited.add(path)) continue;
+      final included = reader(path);
+      if (included == null) continue;
+      out[path] = included;
+      walk(included, depth - 1);
     }
   }
-}
 
-/// Mirrors `lfs_core::ssh_config::resolve_include_paths` (non-glob
-/// variant) for the test-only include map collector. Tilde expansion
-/// uses the Dart-side `homeDirectory` so test contexts that haven't
-/// bootstrapped FRB still resolve. Globs are out of scope — the test
-/// path expects fully-resolved paths in its canned map.
-String _resolveSingleIncludePath(String pattern, String baseDir) {
-  if (pattern == '~') return homeDirectory;
-  if (pattern.startsWith('~/')) return '$homeDirectory${pattern.substring(1)}';
-  if (_isAbsolutePath(pattern)) return pattern;
-  return '$baseDir${Platform.pathSeparator}$pattern';
-}
-
-bool _isAbsolutePath(String path) {
-  if (path.startsWith('/')) return true;
-  if (path.length >= 2 && path[1] == ':') return true;
-  if (path.startsWith(r'\\')) return true;
-  return false;
+  walk(content, maxDepth);
+  return out;
 }
 
 String _defaultSshDir() => '$homeDirectory${Platform.pathSeparator}.ssh';

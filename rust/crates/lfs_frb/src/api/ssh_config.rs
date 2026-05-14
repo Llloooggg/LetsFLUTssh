@@ -168,6 +168,23 @@ pub fn ssh_config_unquote(value: String) -> String {
     lfs_core::ssh_config::unquote(&value).to_string()
 }
 
+/// Walk every `Include` directive in [`content`] and return the
+/// single-level resolved paths in encounter order. No recursion,
+/// no filesystem touch, no glob expansion — each token resolves
+/// through the same tilde + relative-anchor rules the in-memory
+/// parser applies.
+///
+/// Used by the Dart test-seam include-map collector
+/// (`openssh_config_parser._collectIncludeMap`): the visited-set
+/// + recursion stay Dart-side because the `IncludeReader` callback
+/// is Dart-side, but the per-line grammar lives in one place. The
+/// production path is [`parse_openssh_config_resolving`] which
+/// owns the whole walk Rust-side.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_config_resolve_include_paths(content: String, base_dir: String) -> Vec<String> {
+    lfs_core::ssh_config::resolve_include_paths_for_content(&content, &base_dir)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +299,31 @@ Host plain\n\
         let k: DbOpenSshAuthType = lfs_core::ssh_config::AuthType::Key.into();
         assert!(matches!(p, DbOpenSshAuthType::Password));
         assert!(matches!(k, DbOpenSshAuthType::Key));
+    }
+
+    #[test]
+    fn resolve_include_paths_anchors_relative_tokens_against_base_dir() {
+        // Pin the FRB contract: relative tokens get anchored,
+        // absolute ones pass through. The Dart caller's visited-set
+        // deduplication relies on the canonical anchored form.
+        let sep = if cfg!(windows) { '\\' } else { '/' };
+        let out = ssh_config_resolve_include_paths(
+            "Include extras\nInclude /etc/ssh/ssh_config\n".into(),
+            "/cfg".into(),
+        );
+        assert_eq!(
+            out,
+            vec![
+                format!("/cfg{sep}extras"),
+                "/etc/ssh/ssh_config".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_include_paths_returns_empty_for_include_free_content() {
+        let out =
+            ssh_config_resolve_include_paths("Host x\n    HostName y\n".into(), "/cfg".into());
+        assert!(out.is_empty());
     }
 }

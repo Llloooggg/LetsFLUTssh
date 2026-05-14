@@ -503,6 +503,41 @@ fn read_include_file(path: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+/// Walk every `Include` directive in [`content`] and return the
+/// single-level resolved paths in encounter order. Does NOT recurse,
+/// touch the filesystem, or expand globs — each token is resolved
+/// through [`resolve_include_paths`] (tilde / relative-anchor handled
+/// the same way the in-memory parser does).
+///
+/// Exposed for the Dart test-seam collector that walks an
+/// in-memory include map: the recursion + cycle detection stay
+/// Dart-side (the reader callback is Dart-side), but the per-line
+/// grammar lives in one place. Production callers use
+/// [`parse_openssh_config_with_fs`] which owns the whole walk
+/// Rust-side.
+pub fn resolve_include_paths_for_content(content: &str, base_dir: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for raw_line in content.lines() {
+        let stripped = strip_comment(raw_line);
+        let line = stripped.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some((kw, value)) = split_keyword_value(line) else {
+            continue;
+        };
+        if !kw.eq_ignore_ascii_case("include") {
+            continue;
+        }
+        for token in split_host_patterns(&value) {
+            for resolved in resolve_include_paths(&token, base_dir) {
+                out.push(resolved);
+            }
+        }
+    }
+    out
+}
+
 fn resolve_include_paths(pattern: &str, base_dir: &str) -> Vec<String> {
     let mut resolved = pattern.to_string();
     if resolved == "~" {
@@ -870,6 +905,52 @@ mod tests {
         let cfg = "Host alias\n";
         let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
         assert_eq!(entries[0].effective_host(), "alias");
+    }
+
+    // ---- resolve_include_paths_for_content -------------------------
+
+    #[test]
+    fn resolve_include_paths_for_content_returns_each_relative_token_anchored() {
+        // Two `Include` lines, second one carries multiple
+        // whitespace-separated tokens. Output order mirrors source
+        // order so the Dart caller's visited set deduplicates
+        // deterministically.
+        let cfg = "\
+Host pre\n\
+    HostName p\n\
+Include extras\n\
+Include a.conf b.conf\n";
+        let sep = if cfg!(windows) { '\\' } else { '/' };
+        let resolved = resolve_include_paths_for_content(cfg, "/cfg");
+        assert_eq!(
+            resolved,
+            vec![
+                format!("/cfg{sep}extras"),
+                format!("/cfg{sep}a.conf"),
+                format!("/cfg{sep}b.conf"),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_include_paths_for_content_skips_comments_and_other_directives() {
+        // `HostName` is not an Include line; the `#` strips the
+        // include token after it. Both lines must produce zero
+        // entries so the Dart walker doesn't fan out into spurious
+        // reader calls.
+        let cfg = "\
+Host x\n\
+    HostName y\n\
+# Include suppressed.conf\n\
+HostName z\n";
+        assert!(resolve_include_paths_for_content(cfg, "/cfg").is_empty());
+    }
+
+    #[test]
+    fn resolve_include_paths_for_content_keeps_absolute_paths_unmodified() {
+        let cfg = "Include /etc/ssh/ssh_config\n";
+        let resolved = resolve_include_paths_for_content(cfg, "/cfg");
+        assert_eq!(resolved, vec!["/etc/ssh/ssh_config".to_string()]);
     }
 
     // ---- with_fs include resolution ---------------------------------
