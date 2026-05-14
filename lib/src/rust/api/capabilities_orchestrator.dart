@@ -8,17 +8,21 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'security_capabilities.dart';
 
 /// Resolve a pending keychain-reachability probe with the
-/// `KeyringProbeResult` wire name the Dart subscriber computed
-/// from the OS-keychain ping. Wire names: `"available"` /
-/// `"linuxNoSecretService"` / `"probeFailed"`. Returns `true`
-/// when a receiver was actually woken.
+/// typed `DbKeyringProbeResult` the Dart subscriber returned
+/// from its `SecureKeyStorage.probe()` round-trip. The shim
+/// converts to the core `KeyringProbeResult` enum and feeds the
+/// canonical wire name into the prompt registry — the registry
+/// itself stays string-keyed (one generic over the same response
+/// type as the four sibling probe registries) so this conversion
+/// is the single Rust-side hop. Returns `true` when a receiver
+/// was actually woken.
 bool keychainProbePromptResolve({
   required String promptId,
-  required String wireName,
+  required DbKeyringProbeResult result,
 }) => RustLib.instance.api
     .crateApiCapabilitiesOrchestratorKeychainProbePromptResolve(
       promptId: promptId,
-      wireName: wireName,
+      result: result,
     );
 
 /// Cancel a pending keychain-reachability probe — used when

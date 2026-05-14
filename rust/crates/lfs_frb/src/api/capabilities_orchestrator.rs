@@ -6,21 +6,27 @@
 //! orchestrator (5 s) keep a stuck D-Bus call from freezing the
 //! wizard spinner indefinitely.
 
+use lfs_core::security::capabilities::KeyringProbeResult as CoreKeyringProbeResult;
 use lfs_core::security::capabilities_cache as cache;
 use lfs_core::security::{
     capabilities_orchestrator, hardware_vault_probe_prompt, keychain_probe_prompt,
 };
 
-use crate::api::security_capabilities::DbSecurityCapabilities;
+use crate::api::security_capabilities::{DbKeyringProbeResult, DbSecurityCapabilities};
 
 /// Resolve a pending keychain-reachability probe with the
-/// `KeyringProbeResult` wire name the Dart subscriber computed
-/// from the OS-keychain ping. Wire names: `"available"` /
-/// `"linuxNoSecretService"` / `"probeFailed"`. Returns `true`
-/// when a receiver was actually woken.
+/// typed `DbKeyringProbeResult` the Dart subscriber returned
+/// from its `SecureKeyStorage.probe()` round-trip. The shim
+/// converts to the core `KeyringProbeResult` enum and feeds the
+/// canonical wire name into the prompt registry — the registry
+/// itself stays string-keyed (one generic over the same response
+/// type as the four sibling probe registries) so this conversion
+/// is the single Rust-side hop. Returns `true` when a receiver
+/// was actually woken.
 #[flutter_rust_bridge::frb(sync)]
-pub fn keychain_probe_prompt_resolve(prompt_id: String, wire_name: String) -> bool {
-    keychain_probe_prompt::instance().resolve(&prompt_id, wire_name)
+pub fn keychain_probe_prompt_resolve(prompt_id: String, result: DbKeyringProbeResult) -> bool {
+    let core: CoreKeyringProbeResult = result.into();
+    keychain_probe_prompt::instance().resolve(&prompt_id, core.wire_name().to_string())
 }
 
 /// Cancel a pending keychain-reachability probe — used when
@@ -94,7 +100,7 @@ mod tests {
         // Pin the documented contract — `false` means "no receiver
         // woken" so a stale dispatch from a dismissed wizard
         // doesn't crash. The shim must never panic here.
-        let woke = keychain_probe_prompt_resolve("ghost".into(), "available".into());
+        let woke = keychain_probe_prompt_resolve("ghost".into(), DbKeyringProbeResult::Available);
         assert!(!woke);
     }
 

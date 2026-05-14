@@ -147,7 +147,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
     state = state.copyWith(status: UpdateStatus.downloading, progress: 0);
     try {
       final dir = await getApplicationSupportDirectory();
-      await _cleanupStaleDownloads(dir.path, info.assetUrl!);
+      await _cleanupStaleDownloads(info.assetUrl!);
       var lastReportedPercent = -1;
       final path = await _service.downloadAsset(
         info.assetUrl!,
@@ -225,13 +225,14 @@ class UpdateNotifier extends Notifier<UpdateState> {
     }
   }
 
-  /// Delete previously downloaded update files in [dir] before starting
-  /// a fresh download. Matches any file whose name ends with the same
-  /// suffix as the incoming [assetUrl] (e.g. `-windows-x64-setup.exe`).
-  Future<void> _cleanupStaleDownloads(String dir, String assetUrl) async {
+  /// Delete previously downloaded update files in the pinned support
+  /// dir before starting a fresh download. Matches any file whose name
+  /// ends with the same suffix as the incoming [assetUrl] (e.g.
+  /// `-windows-x64-setup.exe`). The scan root resolves Rust-side
+  /// through the support-dir singleton — Dart no longer hands a path.
+  Future<void> _cleanupStaleDownloads(String assetUrl) async {
     try {
       final removed = await rust_update.updateCleanupStaleDownloads(
-        dir: dir,
         assetUrl: assetUrl,
       );
       if (removed > 0) {

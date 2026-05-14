@@ -14,6 +14,21 @@ pub fn app_init() {
     lfs_core::app::init();
 }
 
+/// Test-only seam — clear the pinned support directory so the next
+/// `config_store_init` call adopts a fresh path. Mirror of
+/// [`lfs_core::security::master_password::reset_support_dir_for_tests`].
+///
+/// Used by Dart test files that allocate a per-case temp dir and
+/// need each case to scope the support-dir singleton against its
+/// own directory (e.g. `update_provider_test.dart`'s download
+/// group). Production code never calls this — losing the pin
+/// surfaces as `Error::Platform` on the next FRB call that needs
+/// the support dir rather than touching persistent state.
+#[flutter_rust_bridge::frb(sync)]
+pub fn app_reset_support_dir_for_tests() {
+    lfs_core::security::master_password::reset_support_dir_for_tests();
+}
+
 /// Store `bytes` under `id` in the SecretStore. Replaces any prior
 /// entry at the same id (the previous Zeroizing buffer scrubs on
 /// drop). Caller is responsible for picking namespaced ids — see

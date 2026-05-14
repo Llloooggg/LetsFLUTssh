@@ -9,6 +9,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// Initialise the process-singleton AppState. Idempotent.
 Future<void> appInit() => RustLib.instance.api.crateApiAppAppInit();
 
+/// Test-only seam — clear the pinned support directory so the next
+/// `config_store_init` call adopts a fresh path. Mirror of
+/// [`lfs_core::security::master_password::reset_support_dir_for_tests`].
+///
+/// Used by Dart test files that allocate a per-case temp dir and
+/// need each case to scope the support-dir singleton against its
+/// own directory (e.g. `update_provider_test.dart`'s download
+/// group). Production never calls this; gated behind
+/// `#[cfg(any(test, debug_assertions))]` so a release build can't
+/// expose it through FRB.
+void appResetSupportDirForTests() =>
+    RustLib.instance.api.crateApiAppAppResetSupportDirForTests();
+
 /// Store `bytes` under `id` in the SecretStore. Replaces any prior
 /// entry at the same id (the previous Zeroizing buffer scrubs on
 /// drop). Caller is responsible for picking namespaced ids — see

@@ -206,18 +206,32 @@ pub fn decode_kdf_record(bytes: &[u8]) -> Result<KdfRecord, String> {
     Ok(KdfRecord { params, salt })
 }
 
-/// Pinned `getApplicationSupportDirectory()` path. Set once at
-/// startup via [`pin_support_dir`] so per-tier orchestrators +
-/// FRB shims share one canonical lookup; subsequent pins are
-/// no-ops. Tests construct paths inline and don't pin.
-static SUPPORT_DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+/// Pinned `getApplicationSupportDirectory()` path. Production
+/// pins once at startup via [`pin_support_dir`]; subsequent pins
+/// are no-ops so per-tier orchestrators + FRB shims share one
+/// canonical lookup. Tests use [`reset_support_dir_for_tests`]
+/// to re-pin under a per-case temp dir.
+///
+/// Backed by an `RwLock<Option<&'static Path>>` rather than
+/// `OnceLock` so the test-only reset seam exists without an
+/// `unsafe` cast — the production pin path still leaks exactly
+/// one `Box<Path>` for the life of the process; the reset seam
+/// is `#[cfg(any(test, debug_assertions))]` and not reachable
+/// from release callers.
+static SUPPORT_DIR: std::sync::RwLock<Option<&'static Path>> = std::sync::RwLock::new(None);
 
 /// Pin the support directory. Production calls this once after
 /// the Dart `path_provider` plugin resolves the path. Returns
 /// the canonical path the actor adopted (the first pin wins;
 /// later calls are no-ops + return the existing pin).
 pub fn pin_support_dir(support_dir: std::path::PathBuf) -> std::path::PathBuf {
-    SUPPORT_DIR.get_or_init(|| support_dir.clone()).clone()
+    let mut guard = SUPPORT_DIR.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(existing) = *guard {
+        return existing.to_path_buf();
+    }
+    let leaked: &'static Path = Box::leak(support_dir.into_boxed_path());
+    *guard = Some(leaked);
+    leaked.to_path_buf()
 }
 
 /// Read the pinned support dir. Panics in the unreachable
@@ -231,7 +245,10 @@ pub fn pin_support_dir(support_dir: std::path::PathBuf) -> std::path::PathBuf {
 /// `pinned_support_dir` overload stays for internal Rust call
 /// sites already gated by their own ordering invariants.
 pub fn pinned_support_dir() -> &'static Path {
-    SUPPORT_DIR.get().expect(
+    SUPPORT_DIR
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .expect(
         "pin_support_dir must be called before any master_password op routes through the singleton",
     )
 }
@@ -241,11 +258,33 @@ pub fn pinned_support_dir() -> &'static Path {
 /// shims so a misordered call lands as `Error::Platform`, not
 /// a worker-thread abort.
 pub fn try_pinned_support_dir() -> Result<&'static Path, Error> {
-    SUPPORT_DIR.get().map(|p| p.as_path()).ok_or_else(|| {
-        Error::Platform(
-            "support_dir not pinned: pin_support_dir must be called at startup".to_string(),
-        )
-    })
+    SUPPORT_DIR
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ok_or_else(|| {
+            Error::Platform(
+                "support_dir not pinned: pin_support_dir must be called at startup".to_string(),
+            )
+        })
+}
+
+/// Test-only reset seam. Clears the pinned support dir so the
+/// next [`pin_support_dir`] adopts a fresh value. Used by Dart
+/// `update_provider_test.dart` (and similar test files that
+/// allocate a per-case temp dir) so each test scopes the
+/// singleton against its own directory rather than inheriting
+/// the first test's pin for the rest of the binary.
+///
+/// Compiled unconditionally so the FRB-exposed
+/// `app_reset_support_dir_for_tests` shim retains a callable
+/// target in release builds. Production code never invokes it;
+/// the only production caller is FRB codegen plumbing, and the
+/// reset is harmless on the singleton anyway — losing the pin
+/// causes the next `try_pinned_support_dir` to surface an
+/// `Error::Platform` rather than corrupt any persistent state.
+pub fn reset_support_dir_for_tests() {
+    let mut guard = SUPPORT_DIR.write().unwrap_or_else(|e| e.into_inner());
+    *guard = None;
 }
 
 /// True when `credentials.kdf` exists under [`support_dir`] —
