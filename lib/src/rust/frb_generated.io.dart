@@ -338,6 +338,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusProgressStep dco_decode_box_autoadd_bus_progress_step(dynamic raw);
 
   @protected
+  BusRecoveryPromptKind dco_decode_box_autoadd_bus_recovery_prompt_kind(
+    dynamic raw,
+  );
+
+  @protected
   DbAgentDecision dco_decode_box_autoadd_db_agent_decision(dynamic raw);
 
   @protected
@@ -557,6 +562,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusProgressStep dco_decode_bus_progress_step(dynamic raw);
+
+  @protected
+  BusRecoveryPromptKind dco_decode_bus_recovery_prompt_kind(dynamic raw);
 
   @protected
   BusRuleStatus dco_decode_bus_rule_status(dynamic raw);
@@ -829,6 +837,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecordingEvent dco_decode_db_recording_event(dynamic raw);
+
+  @protected
+  DbRecoveryOutcome dco_decode_db_recovery_outcome(dynamic raw);
 
   @protected
   DbReleaseAsset dco_decode_db_release_asset(dynamic raw);
@@ -1668,6 +1679,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BusRecoveryPromptKind sse_decode_box_autoadd_bus_recovery_prompt_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbAgentDecision sse_decode_box_autoadd_db_agent_decision(
     SseDeserializer deserializer,
   );
@@ -1957,6 +1973,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusProgressStep sse_decode_bus_progress_step(SseDeserializer deserializer);
+
+  @protected
+  BusRecoveryPromptKind sse_decode_bus_recovery_prompt_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BusRuleStatus sse_decode_bus_rule_status(SseDeserializer deserializer);
@@ -2327,6 +2348,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecordingEvent sse_decode_db_recording_event(SseDeserializer deserializer);
+
+  @protected
+  DbRecoveryOutcome sse_decode_db_recovery_outcome(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbReleaseAsset sse_decode_db_release_asset(SseDeserializer deserializer);
@@ -3398,6 +3424,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bus_recovery_prompt_kind(
+    BusRecoveryPromptKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_agent_decision(
     DbAgentDecision self,
     SseSerializer serializer,
@@ -3757,6 +3789,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_bus_progress_step(
     BusProgressStep self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bus_recovery_prompt_kind(
+    BusRecoveryPromptKind self,
     SseSerializer serializer,
   );
 
@@ -4240,6 +4278,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_recording_event(
     DbRecordingEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_recovery_outcome(
+    DbRecoveryOutcome self,
     SseSerializer serializer,
   );
 

@@ -292,6 +292,20 @@ pub enum BusEvent {
         db_key_secret_id: String,
         pin_secret_id: Option<String>,
     },
+    /// Vault-recovery dialog — fired by the Rust recovery
+    /// orchestrator when a corrupt-DB / vault-state-missing /
+    /// legacy-state scenario needs the user's input. Dart
+    /// subscriber renders the matching widget keyed off `kind` and
+    /// dispatches the user's choice back via
+    /// `recovery_prompt_resolve(prompt_id, choice_wire)`. `choices`
+    /// carries the wire names of the legal responses so the
+    /// listener can stay aligned with the orchestrator without
+    /// hard-coding the kind→choice-set table.
+    RecoveryPromptRequest {
+        prompt_id: String,
+        kind: BusRecoveryPromptKind,
+        choices: Vec<String>,
+    },
     /// Security capabilities cache snapshot updated. `json` is
     /// the freshly-cached snapshot in the `lfs_core::security::
     /// capabilities` snake_case JSON shape; an empty string
@@ -343,6 +357,46 @@ pub enum BusEvent {
         key_label: String,
         requester: Option<String>,
     },
+}
+
+/// FRB mirror of `lfs_core::security::recovery_prompt::RecoveryPromptKind`.
+/// Each variant carries its scenario-specific payload so the Dart
+/// listener can render the right copy without re-reading the on-disk
+/// probe results — `reason` for the corrupt-DB path, `tier_label`
+/// for vault-state-missing, the two diagnostic fields for the
+/// legacy-state prompt (used in the dialog body + the log line the
+/// listener emits before dispatching the choice back).
+#[derive(Debug, Clone)]
+pub enum BusRecoveryPromptKind {
+    DbCorruptDetected {
+        reason: String,
+    },
+    VaultStateMissing {
+        tier_label: String,
+    },
+    LegacyStateFound {
+        config_version_on_disk: i32,
+        orphan_artefacts: bool,
+    },
+}
+
+impl From<lfs_core::security::recovery_prompt::RecoveryPromptKind> for BusRecoveryPromptKind {
+    fn from(k: lfs_core::security::recovery_prompt::RecoveryPromptKind) -> Self {
+        use lfs_core::security::recovery_prompt::RecoveryPromptKind as K;
+        match k {
+            K::DbCorruptDetected { reason } => BusRecoveryPromptKind::DbCorruptDetected { reason },
+            K::VaultStateMissing { tier_label } => {
+                BusRecoveryPromptKind::VaultStateMissing { tier_label }
+            }
+            K::LegacyStateFound {
+                config_version_on_disk,
+                orphan_artefacts,
+            } => BusRecoveryPromptKind::LegacyStateFound {
+                config_version_on_disk,
+                orphan_artefacts,
+            },
+        }
+    }
 }
 
 /// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
@@ -515,6 +569,15 @@ impl BusEvent {
                 prompt_id,
                 db_key_secret_id,
                 pin_secret_id,
+            },
+            lfs_core::bus::Event::RecoveryPromptRequest {
+                prompt_id,
+                kind,
+                choices,
+            } => BusEvent::RecoveryPromptRequest {
+                prompt_id,
+                kind: kind.into(),
+                choices,
             },
             lfs_core::bus::Event::SecurityCapabilitiesChanged { json } => {
                 BusEvent::SecurityCapabilitiesChanged { json }

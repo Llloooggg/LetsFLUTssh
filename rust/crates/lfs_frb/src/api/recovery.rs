@@ -17,6 +17,7 @@
 //!   breaking the "Flutter renders dialogs" invariant.
 
 use lfs_core::security::recovery;
+use lfs_core::security::recovery_prompt;
 
 /// FRB mirror of [`recovery::LegacyStateDetection`]. Surfaces both
 /// signals + the auxiliary version fields so the Dart caller can log
@@ -107,6 +108,102 @@ pub async fn recovery_detect_legacy_state(
     .map_err(|e| format!("recovery_detect_legacy_state task: {e}"))
 }
 
+/// FRB mirror of [`recovery::RecoveryOutcome`]. The Dart caller
+/// branches on this typed enum to decide whether to re-run the
+/// first-launch wizard (`WipedAndRestarted`), shut the app down
+/// (`UserExited`), or fall through to the retry-under-different-tier
+/// path (`Continued`). Each branch is exhaustive on the Dart side
+/// so a future Rust-side variant lights up every match site.
+#[derive(Debug, Clone, Copy)]
+pub enum DbRecoveryOutcome {
+    WipedAndRestarted,
+    UserExited,
+    Continued,
+}
+
+impl From<recovery::RecoveryOutcome> for DbRecoveryOutcome {
+    fn from(o: recovery::RecoveryOutcome) -> Self {
+        match o {
+            recovery::RecoveryOutcome::WipedAndRestarted => DbRecoveryOutcome::WipedAndRestarted,
+            recovery::RecoveryOutcome::UserExited => DbRecoveryOutcome::UserExited,
+            recovery::RecoveryOutcome::Continued => DbRecoveryOutcome::Continued,
+        }
+    }
+}
+
+/// FRB shim for the recovery-prompt registry — Dart subscriber
+/// dispatches the user's response back via this surface. `choice_wire`
+/// is the wire name of one of the [`recovery_prompt::RecoveryPromptResponse`]
+/// variants (`"reset"` / `"quit"` / `"tryOtherTier"`). Returns `Ok(())`
+/// when the receiver was actually woken; `Err` with a descriptive
+/// message when the id is unknown (idempotent in practice — a stale
+/// dispatch from a dismissed dialog should never crash the app, the
+/// caller logs and moves on).
+#[flutter_rust_bridge::frb(sync)]
+pub fn recovery_prompt_resolve(prompt_id: String, choice_wire: String) -> Result<(), String> {
+    let registry = recovery_prompt::instance();
+    let resolved = registry.resolve(&prompt_id, choice_wire);
+    if resolved {
+        Ok(())
+    } else {
+        Err(format!(
+            "recovery_prompt_resolve: no pending receiver for prompt_id={prompt_id}"
+        ))
+    }
+}
+
+/// Cancel a pending recovery prompt — used when the Dart subscriber
+/// detaches before dispatching (e.g. cold-start tear-down). Idempotent
+/// on a missing id.
+#[flutter_rust_bridge::frb(sync)]
+pub fn recovery_prompt_cancel(prompt_id: String) {
+    recovery_prompt::instance().cancel(&prompt_id);
+}
+
+/// Orchestrate the "database integrity probe failed" recovery
+/// dialog. Rust publishes the prompt onto the bus, awaits the
+/// Dart subscriber's choice, runs the destructive cascade
+/// internally on `Reset`, and returns a typed outcome the Dart
+/// shell branches on. See [`recovery::recovery_handle_corrupt_db`].
+pub async fn recovery_handle_corrupt_db(
+    support_dir: String,
+    reason: String,
+) -> Result<DbRecoveryOutcome, String> {
+    let path = std::path::PathBuf::from(support_dir);
+    let outcome = recovery::recovery_handle_corrupt_db(&path, reason).await;
+    Ok(DbRecoveryOutcome::from(outcome))
+}
+
+/// Orchestrate the "vault state missing — tier is unreachable"
+/// recovery dialog. Same cascade as the corrupt-DB path; framed
+/// for the security-state loss scenario. See
+/// [`recovery::recovery_handle_vault_state_missing`].
+pub async fn recovery_handle_vault_state_missing(
+    support_dir: String,
+    tier_label: String,
+) -> Result<DbRecoveryOutcome, String> {
+    let path = std::path::PathBuf::from(support_dir);
+    let outcome = recovery::recovery_handle_vault_state_missing(&path, tier_label).await;
+    Ok(DbRecoveryOutcome::from(outcome))
+}
+
+/// Orchestrate the "legacy state detected" recovery dialog
+/// (`TierResetDialog`). Two-choice variant — `Reset` runs the
+/// cascade and returns `WipedAndRestarted`; `Quit` returns
+/// `UserExited`. See
+/// [`recovery::recovery_handle_legacy_state`].
+pub async fn recovery_handle_legacy_state(
+    support_dir: String,
+    config_version_on_disk: i32,
+    orphan_artefacts: bool,
+) -> Result<DbRecoveryOutcome, String> {
+    let path = std::path::PathBuf::from(support_dir);
+    let outcome =
+        recovery::recovery_handle_legacy_state(&path, config_version_on_disk, orphan_artefacts)
+            .await;
+    Ok(DbRecoveryOutcome::from(outcome))
+}
+
 /// Compose the destructive cascade Dart used to drive across five
 /// separate FRB hops:
 ///
@@ -188,5 +285,36 @@ mod tests {
         let report = recovery_run_destructive_reset(path).await.expect("ok");
         assert!(report.deleted_files.is_empty());
         assert!(report.failed_files.is_empty());
+    }
+
+    #[test]
+    fn recovery_prompt_resolve_unknown_id_returns_err() {
+        let r = recovery_prompt_resolve("ghost".into(), "reset".into());
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn recovery_prompt_cancel_unknown_id_is_idempotent() {
+        recovery_prompt_cancel("ghost".into());
+    }
+
+    #[test]
+    fn db_recovery_outcome_mirrors_each_variant() {
+        for (core, expected) in [
+            (
+                recovery::RecoveryOutcome::WipedAndRestarted,
+                "WipedAndRestarted",
+            ),
+            (recovery::RecoveryOutcome::UserExited, "UserExited"),
+            (recovery::RecoveryOutcome::Continued, "Continued"),
+        ] {
+            let mirror: DbRecoveryOutcome = core.into();
+            let actual = match mirror {
+                DbRecoveryOutcome::WipedAndRestarted => "WipedAndRestarted",
+                DbRecoveryOutcome::UserExited => "UserExited",
+                DbRecoveryOutcome::Continued => "Continued",
+            };
+            assert_eq!(actual, expected);
+        }
     }
 }

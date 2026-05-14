@@ -10,7 +10,7 @@ import 'ssh.dart';
 part 'bus.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Direct connect entry point. Bypasses the bus because connect is
 /// a request/response operation: the Dart caller awaits the result
@@ -492,6 +492,21 @@ sealed class BusEvent with _$BusEvent {
     String? pinSecretId,
   }) = BusEvent_HardwareVaultSealPromptRequest;
 
+  /// Vault-recovery dialog — fired by the Rust recovery
+  /// orchestrator when a corrupt-DB / vault-state-missing /
+  /// legacy-state scenario needs the user's input. Dart
+  /// subscriber renders the matching widget keyed off `kind` and
+  /// dispatches the user's choice back via
+  /// `recovery_prompt_resolve(prompt_id, choice_wire)`. `choices`
+  /// carries the wire names of the legal responses so the
+  /// listener can stay aligned with the orchestrator without
+  /// hard-coding the kind→choice-set table.
+  const factory BusEvent.recoveryPromptRequest({
+    required String promptId,
+    required BusRecoveryPromptKind kind,
+    required List<String> choices,
+  }) = BusEvent_RecoveryPromptRequest;
+
   /// Security capabilities cache snapshot updated. `json` is
   /// the freshly-cached snapshot in the `lfs_core::security::
   /// capabilities` snake_case JSON shape; an empty string
@@ -578,6 +593,22 @@ class BusProgressStep {
           phase == other.phase &&
           status == other.status &&
           detail == other.detail;
+}
+
+@freezed
+sealed class BusRecoveryPromptKind with _$BusRecoveryPromptKind {
+  const BusRecoveryPromptKind._();
+
+  const factory BusRecoveryPromptKind.dbCorruptDetected({
+    required String reason,
+  }) = BusRecoveryPromptKind_DbCorruptDetected;
+  const factory BusRecoveryPromptKind.vaultStateMissing({
+    required String tierLabel,
+  }) = BusRecoveryPromptKind_VaultStateMissing;
+  const factory BusRecoveryPromptKind.legacyStateFound({
+    required int configVersionOnDisk,
+    required bool orphanArtefacts,
+  }) = BusRecoveryPromptKind_LegacyStateFound;
 }
 
 /// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.

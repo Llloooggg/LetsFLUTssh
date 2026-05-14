@@ -223,6 +223,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // orchestrator's `HardwareTierVault.store(dbKey, pin)` call (the
     // wrap-and-persist counterpart of the unlock prompt).
     HardwareVaultSealPromptListener.start();
+    // Recovery prompt subscriber — surfaces the corrupt-DB /
+    // vault-state-missing / legacy-state dialogs the Rust
+    // recovery orchestrator publishes during the bootstrap
+    // unlock cascade. Dart owns the widget rendering; the
+    // orchestrator owns the decision graph + destructive
+    // cascade.
+    RecoveryPromptListener.start();
     // Diagnostic observer for tier_machine transitions — logs every
     // Locked / Unlocking / Unlocked / Wiping flip a support trace
     // can read back. Non-functional until per-tier handlers wire

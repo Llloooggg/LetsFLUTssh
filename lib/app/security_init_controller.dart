@@ -16,7 +16,14 @@ import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
 import '../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../src/rust/api/macos_resign.dart' as rust_macos_resign;
-import '../src/rust/api/recovery.dart' as rust_recovery;
+import '../src/rust/api/recovery.dart'
+    as rust_recovery
+    show
+        recoveryDetectLegacyState,
+        recoveryHandleCorruptDb,
+        recoveryHandleLegacyState,
+        recoveryHandleVaultStateMissing;
+import '../src/rust/api/recovery.dart' show DbRecoveryOutcome;
 import '../src/rust/api/security_capabilities.dart' show DbSecurityCapabilities;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
@@ -48,7 +55,6 @@ import '../widgets/app_dialog.dart';
 import '../widgets/db_corrupt_dialog.dart';
 import '../widgets/hardware_password_setup_wizard.dart';
 import '../widgets/security_setup_dialog.dart';
-import '../widgets/tier_reset_dialog.dart';
 import '../widgets/tier_secret_unlock_dialog.dart';
 import '../widgets/toast.dart';
 import 'navigator_key.dart';
@@ -312,10 +318,15 @@ class SecurityInitController {
   }
 
   /// Post-[bootstrap] integrity probe. Runs one trivial SELECT
-  /// against the DB we just attached; on failure asks the user
-  /// whether to try a different unlock path, wipe and start fresh,
-  /// or quit. Public because [reinitFromReset] re-runs it after the
-  /// wizard and because tests drive it directly.
+  /// against the DB we just attached; on failure routes the user
+  /// through the Rust recovery orchestrator's corrupt-DB prompt.
+  ///
+  /// The orchestrator publishes a `BusEvent.recoveryPromptRequest`,
+  /// awaits the Dart subscriber's choice via the prompt registry,
+  /// and runs the destructive cascade Rust-side on `Reset`. The
+  /// `DbRecoveryOutcome` returned here branches on the post-cascade
+  /// step that has to stay Flutter-side: re-running first-launch,
+  /// shutting the app down, or retrying under a different tier.
   Future<void> handleCorruption() async {
     if (await _verifyReadable()) {
       _markSecurityReady();
@@ -327,23 +338,16 @@ class SecurityInitController {
     // way the breadcrumb must survive the routine-log toggle so we
     // can reason about the failure post-mortem.
     await AppLogger.instance.logCritical(
-      'Database readability probe failed — offering reset dialog',
+      'Database readability probe failed — handing off to recovery orchestrator',
       name: 'App',
     );
-    final choice = await _dialogs.showDbCorrupt();
-    switch (choice) {
-      case DbCorruptChoice.exitApp:
-        AppLogger.instance.log(
-          'DB corruption detected — user chose to exit',
-          name: 'App',
-        );
-        await SystemNavigator.pop();
-        exit(0);
-      case DbCorruptChoice.tryOtherTier:
-        await _retryUnlockUnderDifferentTier();
-      case DbCorruptChoice.resetAndSetupFresh:
-        await _wipeAndRestartFromScratch();
-    }
+    final outcome = await _runRecoveryOrchestrator(
+      (supportDir) => rust_recovery.recoveryHandleCorruptDb(
+        supportDir: supportDir,
+        reason: 'integrity probe failed',
+      ),
+    );
+    await _dispatchRecoveryOutcome(outcome, source: 'handleCorruption');
   }
 
   // ── Migrations ─────────────────────────────────────────────
@@ -398,19 +402,29 @@ class SecurityInitController {
   }
 
   Future<void> _handleMigrationFailure() async {
-    final choice = await _dialogs.showDbCorrupt();
-    switch (choice) {
-      case DbCorruptChoice.exitApp:
-      case DbCorruptChoice.tryOtherTier:
-        AppLogger.instance.log(
-          'Migration failure — user chose to exit',
-          name: 'App',
-        );
-        await SystemNavigator.pop();
-        exit(0);
-      case DbCorruptChoice.resetAndSetupFresh:
-        await _wipeAndRestartFromScratch();
+    // Migration failure routes through the same corrupt-DB
+    // orchestrator path as the integrity-probe failure — same
+    // dialog, same destructive cascade. The `tryOtherTier` branch
+    // collapses to `exit` here because a retry under a different
+    // tier would re-run the same migration pipeline; once that has
+    // surfaced a fatal report there is no other tier path left to
+    // try.
+    final outcome = await _runRecoveryOrchestrator(
+      (supportDir) => rust_recovery.recoveryHandleCorruptDb(
+        supportDir: supportDir,
+        reason: 'migration runner failure',
+      ),
+    );
+    if (outcome == DbRecoveryOutcome.continued) {
+      AppLogger.instance.log(
+        'Migration failure: tryOtherTier collapses to exit — no '
+        'alternate path past a fatal migration report',
+        name: 'App',
+      );
+      await SystemNavigator.pop();
+      exit(0);
     }
+    await _dispatchRecoveryOutcome(outcome, source: '_handleMigrationFailure');
   }
 
   /// Surface "configured tier is unreachable" to the user instead of
@@ -437,8 +451,8 @@ class SecurityInitController {
     // we got here, the DB is already open and we'd otherwise show
     // the user a corrupt-DB dialog over a perfectly-fine vault —
     // and "Reset and setup fresh" wipes the DB they could just be
-    // using. Probe first; only show the dialog when the DB is
-    // actually unreadable.
+    // using. Probe first; only hand off to the orchestrator when
+    // the DB is actually unreadable.
     if (await _verifyReadable()) {
       AppLogger.instance.log(
         'Vault state missing dialog skipped — listener cascade '
@@ -450,23 +464,16 @@ class SecurityInitController {
     }
     await AppLogger.instance.logCritical(
       'Configured tier ($tierLabel) is unreachable — vault state '
-      'missing. Surfacing recovery dialog instead of plaintext fallback.',
+      'missing. Handing off to recovery orchestrator.',
       name: 'App',
     );
-    final choice = await _dialogs.showDbCorrupt();
-    switch (choice) {
-      case DbCorruptChoice.exitApp:
-        AppLogger.instance.log(
-          'Vault state missing — user chose to exit',
-          name: 'App',
-        );
-        await SystemNavigator.pop();
-        exit(0);
-      case DbCorruptChoice.tryOtherTier:
-        await _retryUnlockUnderDifferentTier();
-      case DbCorruptChoice.resetAndSetupFresh:
-        await _wipeAndRestartFromScratch();
-    }
+    final outcome = await _runRecoveryOrchestrator(
+      (supportDir) => rust_recovery.recoveryHandleVaultStateMissing(
+        supportDir: supportDir,
+        tierLabel: tierLabel,
+      ),
+    );
+    await _dispatchRecoveryOutcome(outcome, source: '_handleVaultStateMissing');
   }
 
   // ── Security init ──────────────────────────────────────────
@@ -603,25 +610,54 @@ class SecurityInitController {
     );
     if (!detection.shouldPromptReset) return false;
     if (!isMounted()) return true;
-    final choice = await _dialogs.showTierReset();
-    if (choice == TierResetChoice.exitApp) {
-      AppLogger.instance.log(
-        'Legacy state detected (configVersion=${detection.configVersionOnDisk}, '
-        'orphan=${detection.orphanArtefacts}) — user chose to exit',
-        name: 'App',
-      );
-      await SystemNavigator.pop();
-      exit(0);
-    }
-    await wiper.wipeAll();
     AppLogger.instance.log(
       'Legacy state detected (configVersion=${detection.configVersionOnDisk}, '
-      'orphan=${detection.orphanArtefacts}) — wiped, running fresh wizard',
+      'orphan=${detection.orphanArtefacts}) — handing off to recovery orchestrator',
       name: 'App',
     );
-    _credentialsWereReset = true;
-    await _firstLaunchSetup(manager, keyStorage);
-    return true;
+    final outcome = await rust_recovery.recoveryHandleLegacyState(
+      supportDir: supportDir.path,
+      configVersionOnDisk: detection.configVersionOnDisk,
+      orphanArtefacts: detection.orphanArtefacts,
+    );
+    switch (outcome) {
+      case DbRecoveryOutcome.userExited:
+        AppLogger.instance.log(
+          'Legacy state — user chose to exit',
+          name: 'App',
+        );
+        await SystemNavigator.pop();
+        exit(0);
+      case DbRecoveryOutcome.wipedAndRestarted:
+        _credentialsWereReset = true;
+        // The Rust cascade swept config.json off disk — the Dart-side
+        // Riverpod snapshot still holds the old security record. Pull
+        // it back to `security: null` so the wizard surfaces fresh.
+        await ref
+            .read(configProvider.notifier)
+            .update(
+              (c) =>
+                  c.copyWithSecurity(security: null, securityProbeCache: null),
+            );
+        if (!isMounted()) return true;
+        await _firstLaunchSetup(manager, keyStorage);
+        return true;
+      case DbRecoveryOutcome.continued:
+        // `TierResetDialog` never offers TryOtherTier; a stray
+        // `Continued` from a hand-rolled subscriber means the dialog
+        // was bypassed without dispatching a choice. Treat as the
+        // same fall-through the dialog widget defaults to on
+        // programmatic dismiss — exit cleanly so the user can pick
+        // a recovery path on the next launch.
+        AppLogger.instance.log(
+          'Legacy state — orchestrator returned Continued (no dispatch); '
+          'falling back to exit',
+          name: 'App',
+          level: LogLevel.warn,
+        );
+        await SystemNavigator.pop();
+        exit(0);
+    }
   }
 
   // ── Existing-install unlock ────────────────────────────────
@@ -871,13 +907,72 @@ class SecurityInitController {
     await _initSecurity();
     if (!isMounted()) return;
     if (_corruptionRetries > _maxCorruptionRetries) {
-      await _wipeAndRestartFromScratch();
+      // Exceeded retry budget — drive the destructive cascade
+      // through the orchestrator. The corrupt-DB scenario is the
+      // matching prompt; once it lands the `WipedAndRestarted`
+      // branch picks up the post-cascade re-init.
+      AppLogger.instance.log(
+        'DB corruption: retry budget exhausted — invoking destructive '
+        'reset through the recovery orchestrator',
+        name: 'App',
+      );
+      final outcome = await _runRecoveryOrchestrator(
+        (supportDir) => rust_recovery.recoveryHandleCorruptDb(
+          supportDir: supportDir,
+          reason: 'retry budget exhausted',
+        ),
+      );
+      await _dispatchRecoveryOutcome(
+        outcome,
+        source: '_retryUnlockUnderDifferentTier exhausted',
+      );
       return;
     }
     await handleCorruption();
   }
 
-  Future<void> _wipeAndRestartFromScratch() async {
+  /// Resolve the support_dir + call the orchestrator entry point.
+  /// All three corrupt-DB / vault-state-missing / legacy-state
+  /// callers share this shape — they differ only in which Rust
+  /// entry point they invoke.
+  Future<DbRecoveryOutcome> _runRecoveryOrchestrator(
+    Future<DbRecoveryOutcome> Function(String supportDir) call,
+  ) async {
+    final supportDir = await getApplicationSupportDirectory();
+    return call(supportDir.path);
+  }
+
+  /// Post-orchestrator branch dispatcher. The Rust orchestrator
+  /// already ran the destructive cascade on the `wipedAndRestarted`
+  /// branch; this method runs the Dart-side post-cascade re-init
+  /// (Riverpod cache invalidation + first-launch wizard) or surfaces
+  /// the exit / retry-under-different-tier paths the Rust side
+  /// cannot drive (Flutter widgets / `SystemNavigator.pop`).
+  Future<void> _dispatchRecoveryOutcome(
+    DbRecoveryOutcome outcome, {
+    required String source,
+  }) async {
+    switch (outcome) {
+      case DbRecoveryOutcome.userExited:
+        AppLogger.instance.log('$source: user chose to exit', name: 'App');
+        await SystemNavigator.pop();
+        exit(0);
+      case DbRecoveryOutcome.continued:
+        await _retryUnlockUnderDifferentTier();
+      case DbRecoveryOutcome.wipedAndRestarted:
+        await _resumeAfterDestructiveReset();
+    }
+  }
+
+  /// Run the Dart-side post-cascade re-init after the Rust
+  /// orchestrator finished its destructive cascade
+  /// (`recoveryHandleCorruptDb` / `recoveryHandleVaultStateMissing` /
+  /// `recoveryHandleLegacyState` on the `Reset` branch). The Rust
+  /// cascade already ran `db_close`, swept every managed file,
+  /// purged the OS keychain, and cleared the hardware-vault entries;
+  /// the Dart side now invalidates the Riverpod caches that mirror
+  /// the wiped state and surfaces the first-launch wizard.
+  Future<void> _resumeAfterDestructiveReset() async {
     final sw = Stopwatch()..start();
     void mark(String phase) {
       AppLogger.instance.log(
@@ -890,20 +985,22 @@ class SecurityInitController {
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
-    // The Rust `recovery::run_destructive_reset` orchestrator inside
-    // `WipeAllService.wipeAll()` handles db_close + file sweep +
-    // keychain purge as one transaction; the prior Dart-side
-    // db_close + wipeAll sequence collapses to a single call.
-    await WipeAllService(
-      credentialCacheEvict: ref.read(sessionCredentialCacheProvider).evictAll,
-    ).wipeAll();
-    mark('wipe_all');
+    mark('cascade_complete');
+    // The Rust cascade swept config.json off disk — the in-memory
+    // Riverpod snapshot still mirrors the old security record. Pull
+    // it back to `security: null` so the wizard surfaces fresh.
     await ref
         .read(configProvider.notifier)
         .update(
           (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
         );
     mark('config_clear');
+    // Evict in-memory credential cache the cascade did not touch.
+    // The Rust SecretStore was cleared by `db_close` + sweep;
+    // the per-session Dart cache lives separately and needs an
+    // explicit evict to stay aligned.
+    await ref.read(sessionCredentialCacheProvider).evictAll();
+    mark('cache_evict');
     _credentialsWereReset = true;
     _corruptionRetries = 0;
     if (!isMounted()) return;

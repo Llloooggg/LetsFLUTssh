@@ -287,6 +287,28 @@ pub enum Event {
         db_key_secret_id: String,
         pin_secret_id: Option<String>,
     },
+    /// Vault-recovery dialog — fired by the Rust recovery
+    /// orchestrator when it needs the user to pick between
+    /// destructive reset / quit / retry-under-different-tier. Dart
+    /// subscriber renders the matching widget (`DbCorruptDialog` or
+    /// `TierResetDialog`) keyed off `kind`, dispatches the
+    /// user's choice back via
+    /// `recovery_prompt_resolve(prompt_id, response_wire_name)`.
+    /// The orchestrator awaits the
+    /// [`crate::security::recovery_prompt::PromptRegistry`] receiver
+    /// inside its `recovery_handle_*` entry points.
+    ///
+    /// `choices` carries the wire names of the legal responses for
+    /// this prompt (subset of
+    /// `RecoveryPromptResponse::wire_name`) so the Dart shell can
+    /// keep its dialog buttons aligned without having to mirror the
+    /// kind→choice-set table separately. The legacy-state prompt
+    /// drops `tryOtherTier`; the other two carry the full triple.
+    RecoveryPromptRequest {
+        prompt_id: String,
+        kind: crate::security::recovery_prompt::RecoveryPromptKind,
+        choices: Vec<String>,
+    },
     /// Security capabilities snapshot updated — fired by
     /// `lfs_core::security::capabilities_cache::Cache::set` when
     /// the new snapshot differs from the cached one, and by
@@ -514,6 +536,7 @@ impl Event {
             Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultUnlockPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultSealPromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::RecoveryPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::SecurityCapabilitiesChanged { .. } => EventTopic::SecurityCapabilities,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
@@ -1138,6 +1161,21 @@ mod tests {
                 prompt_id: "p".into(),
                 db_key_secret_id: "s".into(),
                 pin_secret_id: None,
+            }
+            .topic(),
+            EventTopic::SecurityPrompt
+        );
+    }
+
+    #[test]
+    fn topic_recovery_prompt_request_is_security_prompt() {
+        assert_eq!(
+            Event::RecoveryPromptRequest {
+                prompt_id: "p".into(),
+                kind: crate::security::recovery_prompt::RecoveryPromptKind::DbCorruptDetected {
+                    reason: "x".into(),
+                },
+                choices: vec!["reset".into(), "tryOtherTier".into(), "quit".into()],
             }
             .topic(),
             EventTopic::SecurityPrompt

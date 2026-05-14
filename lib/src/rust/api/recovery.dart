@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Bundle the legacy-state probes into one async call.
 ///
@@ -25,6 +25,68 @@ Future<DbLegacyStateDetection> recoveryDetectLegacyState({
 }) => RustLib.instance.api.crateApiRecoveryRecoveryDetectLegacyState(
   supportDir: supportDir,
   hasCurrentSecurityConfig: hasCurrentSecurityConfig,
+);
+
+/// FRB shim for the recovery-prompt registry — Dart subscriber
+/// dispatches the user's response back via this surface. `choice_wire`
+/// is the wire name of one of the [`recovery_prompt::RecoveryPromptResponse`]
+/// variants (`"reset"` / `"quit"` / `"tryOtherTier"`). Returns `Ok(())`
+/// when the receiver was actually woken; `Err` with a descriptive
+/// message when the id is unknown (idempotent in practice — a stale
+/// dispatch from a dismissed dialog should never crash the app, the
+/// caller logs and moves on).
+void recoveryPromptResolve({
+  required String promptId,
+  required String choiceWire,
+}) => RustLib.instance.api.crateApiRecoveryRecoveryPromptResolve(
+  promptId: promptId,
+  choiceWire: choiceWire,
+);
+
+/// Cancel a pending recovery prompt — used when the Dart subscriber
+/// detaches before dispatching (e.g. cold-start tear-down). Idempotent
+/// on a missing id.
+void recoveryPromptCancel({required String promptId}) => RustLib.instance.api
+    .crateApiRecoveryRecoveryPromptCancel(promptId: promptId);
+
+/// Orchestrate the "database integrity probe failed" recovery
+/// dialog. Rust publishes the prompt onto the bus, awaits the
+/// Dart subscriber's choice, runs the destructive cascade
+/// internally on `Reset`, and returns a typed outcome the Dart
+/// shell branches on. See [`recovery::recovery_handle_corrupt_db`].
+Future<DbRecoveryOutcome> recoveryHandleCorruptDb({
+  required String supportDir,
+  required String reason,
+}) => RustLib.instance.api.crateApiRecoveryRecoveryHandleCorruptDb(
+  supportDir: supportDir,
+  reason: reason,
+);
+
+/// Orchestrate the "vault state missing — tier is unreachable"
+/// recovery dialog. Same cascade as the corrupt-DB path; framed
+/// for the security-state loss scenario. See
+/// [`recovery::recovery_handle_vault_state_missing`].
+Future<DbRecoveryOutcome> recoveryHandleVaultStateMissing({
+  required String supportDir,
+  required String tierLabel,
+}) => RustLib.instance.api.crateApiRecoveryRecoveryHandleVaultStateMissing(
+  supportDir: supportDir,
+  tierLabel: tierLabel,
+);
+
+/// Orchestrate the "legacy state detected" recovery dialog
+/// (`TierResetDialog`). Two-choice variant — `Reset` runs the
+/// cascade and returns `WipedAndRestarted`; `Quit` returns
+/// `UserExited`. See
+/// [`recovery::recovery_handle_legacy_state`].
+Future<DbRecoveryOutcome> recoveryHandleLegacyState({
+  required String supportDir,
+  required int configVersionOnDisk,
+  required bool orphanArtefacts,
+}) => RustLib.instance.api.crateApiRecoveryRecoveryHandleLegacyState(
+  supportDir: supportDir,
+  configVersionOnDisk: configVersionOnDisk,
+  orphanArtefacts: orphanArtefacts,
 );
 
 /// Compose the destructive cascade Dart used to drive across five
@@ -143,3 +205,11 @@ class DbLegacyStateDetection {
           configTargetVersion == other.configTargetVersion &&
           shouldPromptReset == other.shouldPromptReset;
 }
+
+/// FRB mirror of [`recovery::RecoveryOutcome`]. The Dart caller
+/// branches on this typed enum to decide whether to re-run the
+/// first-launch wizard (`WipedAndRestarted`), shut the app down
+/// (`UserExited`), or fall through to the retry-under-different-tier
+/// path (`Continued`). Each branch is exhaustive on the Dart side
+/// so a future Rust-side variant lights up every match site.
+enum DbRecoveryOutcome { wipedAndRestarted, userExited, continued }

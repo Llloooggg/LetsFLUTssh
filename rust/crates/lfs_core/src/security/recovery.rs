@@ -61,7 +61,43 @@
 
 use std::path::Path;
 
+use uuid::Uuid;
+
+use crate::bus::Event;
+use crate::security::recovery_prompt::{self, RecoveryPromptKind, RecoveryPromptResponse};
 use crate::security::{wipe, wipe_keychain};
+
+/// Branch the Dart caller takes after the orchestrator hands control
+/// back. The Rust orchestrator owns the destructive cascade itself —
+/// when this variant lands the file sweep, keychain purge, and
+/// hardware-vault clear have already run, so the Dart side only
+/// needs to re-run the post-cascade re-init (first-launch wizard,
+/// retry-under-different-tier path, or quit).
+///
+/// Typed (not stringly-keyed) so a regression that adds a fourth
+/// branch lights up every match site instead of silently falling
+/// through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoveryOutcome {
+    /// User picked Reset. The destructive cascade ran inside this
+    /// orchestrator call; the Dart caller drops back to the
+    /// first-launch wizard with a freshly-cleared support_dir.
+    WipedAndRestarted,
+    /// User picked Quit. Dart side calls `SystemNavigator.pop` +
+    /// `exit(0)` — those surfaces are Flutter-only and stay
+    /// Dart-side, the orchestrator just signals which outcome to
+    /// follow.
+    UserExited,
+    /// User picked TryOtherTier (only offered on the DB-corrupt
+    /// and vault-state-missing prompts). The Dart caller runs
+    /// `_retryUnlockUnderDifferentTier` — clearing the
+    /// `AppConfig.security` field, reinvoking the unlock cascade
+    /// under the legacy-infer path, capped by
+    /// `_corruptionRetries`. The orchestrator does NOT touch the
+    /// support_dir on this branch — the retry path needs the DB +
+    /// vault state intact to attempt a different unlock route.
+    Continued,
+}
 
 /// Outcome of [`detect_legacy_state`]. Mirrors the Dart-side
 /// `legacyConfig || orphanArtefacts` decision: a true value in
@@ -276,6 +312,147 @@ pub async fn run_destructive_reset(support_dir: &Path) -> DestructiveResetReport
         keychain_purge_succeeded: kc_ok,
         hw_vault_cleared: hw_ok,
         hw_vault_biometric_cleared: hw_bio_ok,
+    }
+}
+
+/// Publish a recovery prompt onto the bus and wait for the Dart
+/// caller's choice. Shared between the three orchestrator entry
+/// points below.
+///
+/// Returns the typed [`RecoveryPromptResponse`] the Dart subscriber
+/// dispatched, or `RecoveryPromptResponse::Quit` when the receiver
+/// is dropped (no subscriber / wire-name decode failure / Dart
+/// dismiss-without-dispatch) — the fail-safe is to NOT wipe the
+/// user's data on an ambiguous outcome.
+async fn await_prompt_choice(
+    kind: RecoveryPromptKind,
+    choices: &[RecoveryPromptResponse],
+) -> RecoveryPromptResponse {
+    let app = crate::app::instance();
+    let prompt_id = Uuid::new_v4().to_string();
+    let rx = recovery_prompt::instance().register(prompt_id.clone());
+    let wire_choices: Vec<String> = choices.iter().map(|c| c.wire_name().to_string()).collect();
+    app.bus.publish(Event::RecoveryPromptRequest {
+        prompt_id: prompt_id.clone(),
+        kind: kind.clone(),
+        choices: wire_choices,
+    });
+    match rx.await {
+        Ok(wire) => RecoveryPromptResponse::from_wire_name(&wire).unwrap_or_else(|| {
+            crate::app_log_warn!(
+                "Recovery",
+                "recovery_prompt: unknown wire response {wire:?} — defaulting to Quit"
+            );
+            RecoveryPromptResponse::Quit
+        }),
+        Err(_) => {
+            crate::app_log_warn!(
+                "Recovery",
+                "recovery_prompt: receiver dropped for prompt_id={prompt_id} \
+                 (no subscriber / dialog dismissed) — defaulting to Quit"
+            );
+            RecoveryPromptResponse::Quit
+        }
+    }
+}
+
+/// Surface "the database integrity probe failed" to the user and
+/// branch on the choice. Reused by the migration-runner failure
+/// path — same dialog, same three choices, same destructive
+/// cascade.
+///
+/// On `Reset` the destructive cascade runs Rust-side and the
+/// outcome lands as [`RecoveryOutcome::WipedAndRestarted`]; the
+/// Dart caller picks up first-launch re-init. On `Quit` /
+/// `TryOtherTier` the cascade does NOT run — the Dart caller
+/// either exits or re-attempts the unlock under a different tier
+/// against the existing on-disk state.
+pub async fn recovery_handle_corrupt_db(support_dir: &Path, reason: String) -> RecoveryOutcome {
+    crate::app_log_warn!(
+        "Recovery",
+        "recovery_handle_corrupt_db: reason={reason} — publishing prompt"
+    );
+    let choices = [
+        RecoveryPromptResponse::Reset,
+        RecoveryPromptResponse::TryOtherTier,
+        RecoveryPromptResponse::Quit,
+    ];
+    let response =
+        await_prompt_choice(RecoveryPromptKind::DbCorruptDetected { reason }, &choices).await;
+    match response {
+        RecoveryPromptResponse::Reset => {
+            run_destructive_reset(support_dir).await;
+            RecoveryOutcome::WipedAndRestarted
+        }
+        RecoveryPromptResponse::Quit => RecoveryOutcome::UserExited,
+        RecoveryPromptResponse::TryOtherTier => RecoveryOutcome::Continued,
+    }
+}
+
+/// Surface "the configured tier is unreachable — vault state
+/// missing" to the user and branch on the choice. Same dialog +
+/// cascade as the corrupt-DB path, framed for the security-state
+/// loss scenario.
+pub async fn recovery_handle_vault_state_missing(
+    support_dir: &Path,
+    tier_label: String,
+) -> RecoveryOutcome {
+    crate::app_log_warn!(
+        "Recovery",
+        "recovery_handle_vault_state_missing: tier_label={tier_label} — publishing prompt"
+    );
+    let choices = [
+        RecoveryPromptResponse::Reset,
+        RecoveryPromptResponse::TryOtherTier,
+        RecoveryPromptResponse::Quit,
+    ];
+    let response = await_prompt_choice(
+        RecoveryPromptKind::VaultStateMissing { tier_label },
+        &choices,
+    )
+    .await;
+    match response {
+        RecoveryPromptResponse::Reset => {
+            run_destructive_reset(support_dir).await;
+            RecoveryOutcome::WipedAndRestarted
+        }
+        RecoveryPromptResponse::Quit => RecoveryOutcome::UserExited,
+        RecoveryPromptResponse::TryOtherTier => RecoveryOutcome::Continued,
+    }
+}
+
+/// Surface "legacy state on disk detected" to the user and branch
+/// on the choice. The dialog (`TierResetDialog`) offers two
+/// choices — `Reset` and `Quit`; a stray `TryOtherTier` from a
+/// hand-rolled subscriber maps to `Continued` so the Dart caller
+/// falls through to its regular unlock path against the
+/// untouched on-disk state.
+pub async fn recovery_handle_legacy_state(
+    support_dir: &Path,
+    config_version_on_disk: i32,
+    orphan_artefacts: bool,
+) -> RecoveryOutcome {
+    crate::app_log_warn!(
+        "Recovery",
+        "recovery_handle_legacy_state: config_version_on_disk={config_version_on_disk} \
+         orphan_artefacts={orphan_artefacts} — publishing prompt"
+    );
+    let choices = [RecoveryPromptResponse::Reset, RecoveryPromptResponse::Quit];
+    let response = await_prompt_choice(
+        RecoveryPromptKind::LegacyStateFound {
+            config_version_on_disk,
+            orphan_artefacts,
+        },
+        &choices,
+    )
+    .await;
+    match response {
+        RecoveryPromptResponse::Reset => {
+            run_destructive_reset(support_dir).await;
+            RecoveryOutcome::WipedAndRestarted
+        }
+        RecoveryPromptResponse::Quit => RecoveryOutcome::UserExited,
+        RecoveryPromptResponse::TryOtherTier => RecoveryOutcome::Continued,
     }
 }
 
@@ -511,5 +688,172 @@ mod tests {
         // (no backend state to drop ⇒ success).
         assert!(report.hw_vault_cleared);
         assert!(report.hw_vault_biometric_cleared);
+    }
+
+    // ─── Orchestrator state-machine entry points ─────────────────
+    // The three `recovery_handle_*` entry points publish a
+    // `RecoveryPromptRequest` event and await the receiver. The
+    // tests below stand in for the Dart subscriber by spawning a
+    // task that subscribes to the bus, picks the published event
+    // up, and resolves the matching prompt id through the
+    // registry — driving each `RecoveryOutcome` branch.
+
+    use crate::bus::{Event, EventTopic};
+    use crate::security::recovery_prompt::{self, RecoveryPromptResponse};
+
+    /// Serializes every test that drives the orchestrator end-to-
+    /// end. `recovery_prompt::instance()` + `app::init().bus` are
+    /// process-wide singletons across `#[tokio::test]` runs; without
+    /// the lock parallel tests' driver tasks race each other into
+    /// the wrong prompt id and the awaiting handler stalls
+    /// indefinitely. Mirror of `AUTOLOCK_TEST_LOCK` in `bus.rs`.
+    static RECOVERY_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    /// Drive one orchestrator round-trip — subscribe to the bus,
+    /// dispatch the chosen response back through the prompt
+    /// registry the moment the event lands. Mirrors what the
+    /// Dart `RecoveryPromptListener` does in production.
+    async fn drive_dart_response(response: RecoveryPromptResponse) -> tokio::task::JoinHandle<()> {
+        let app = crate::app::init();
+        let mut rx = app.bus.subscribe(EventTopic::SecurityPrompt);
+        tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(Event::RecoveryPromptRequest { prompt_id, .. }) => {
+                        recovery_prompt::instance()
+                            .resolve(&prompt_id, response.wire_name().to_string());
+                        return;
+                    }
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => return,
+                }
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_corrupt_db_reset_wipes_and_returns_wiped() {
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("credentials.kdf"), b"x").unwrap();
+        let driver = drive_dart_response(RecoveryPromptResponse::Reset).await;
+        let outcome = recovery_handle_corrupt_db(p, "probe failed".into()).await;
+        driver.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::WipedAndRestarted);
+        assert!(!p.join("credentials.kdf").exists());
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_corrupt_db_quit_returns_user_exited() {
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("credentials.kdf"), b"x").unwrap();
+        let driver = drive_dart_response(RecoveryPromptResponse::Quit).await;
+        let outcome = recovery_handle_corrupt_db(p, "probe failed".into()).await;
+        driver.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::UserExited);
+        // Cascade did NOT run on Quit — file is still on disk.
+        assert!(p.join("credentials.kdf").exists());
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_corrupt_db_try_other_tier_returns_continued() {
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("credentials.kdf"), b"x").unwrap();
+        let driver = drive_dart_response(RecoveryPromptResponse::TryOtherTier).await;
+        let outcome = recovery_handle_corrupt_db(p, "probe failed".into()).await;
+        driver.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::Continued);
+        // TryOtherTier preserves on-disk state for the retry path.
+        assert!(p.join("credentials.kdf").exists());
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_vault_state_missing_reset_branch() {
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("hardware_vault.bin"), b"x").unwrap();
+        let driver = drive_dart_response(RecoveryPromptResponse::Reset).await;
+        let outcome = recovery_handle_vault_state_missing(p, "T2 hardware".into()).await;
+        driver.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::WipedAndRestarted);
+        assert!(!p.join("hardware_vault.bin").exists());
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_legacy_state_reset_branch() {
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("config.json"), b"{}").unwrap();
+        let driver = drive_dart_response(RecoveryPromptResponse::Reset).await;
+        let outcome = recovery_handle_legacy_state(p, 3, true).await;
+        driver.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::WipedAndRestarted);
+        assert!(!p.join("config.json").exists());
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_legacy_state_quit_branch_preserves_disk() {
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("config.json"), b"{}").unwrap();
+        let driver = drive_dart_response(RecoveryPromptResponse::Quit).await;
+        let outcome = recovery_handle_legacy_state(p, 3, false).await;
+        driver.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::UserExited);
+        // Quit preserves on-disk state — user may export their data
+        // from an older install before accepting the reset.
+        assert!(p.join("config.json").exists());
+    }
+
+    #[tokio::test]
+    async fn recovery_handle_corrupt_db_no_subscriber_defaults_to_quit() {
+        // No Dart subscriber and no other handler resolves the prompt.
+        // Cancel the registry entry to simulate Dart dropping the
+        // subscription mid-flight; the receiver returns Err and the
+        // orchestrator must fall through to Quit so the user's data
+        // is preserved.
+        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _ = crate::app::init();
+        let tmp = tempfile::tempdir().expect("tmp");
+        let p = tmp.path();
+        fs::write(p.join("credentials.kdf"), b"x").unwrap();
+        // Spawn a task that cancels every pending prompt the
+        // orchestrator publishes — simulates the Dart subscriber
+        // dismissing the dialog without dispatching a choice.
+        let app = crate::app::init();
+        let mut rx = app.bus.subscribe(EventTopic::SecurityPrompt);
+        let canceller = tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(Event::RecoveryPromptRequest { prompt_id, .. }) => {
+                        recovery_prompt::instance().cancel(&prompt_id);
+                        return;
+                    }
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => return,
+                }
+            }
+        });
+        let outcome = recovery_handle_corrupt_db(p, "probe failed".into()).await;
+        canceller.await.unwrap();
+        assert_eq!(outcome, RecoveryOutcome::UserExited);
+        // No cascade ran — data preserved.
+        assert!(p.join("credentials.kdf").exists());
     }
 }

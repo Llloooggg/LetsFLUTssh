@@ -17,6 +17,7 @@ import 'app/hardware_vault_probe_prompt_listener.dart';
 import 'app/hardware_vault_seal_prompt_listener.dart';
 import 'app/hardware_vault_unlock_prompt_listener.dart';
 import 'app/keychain_probe_prompt_listener.dart';
+import 'app/recovery_prompt_listener.dart';
 import 'app/ssh_agent_prompt_listener.dart';
 import 'app/tier_state_observer.dart';
 import 'app/global_error_dialog.dart';
