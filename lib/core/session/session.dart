@@ -6,45 +6,40 @@ import '../../src/rust/api/path.dart' as rust_path;
 import '../../src/rust/api/sessions.dart' as rust_sess;
 import '../ssh/ssh_config.dart';
 
-/// Authentication type for a session.
+/// Authentication type for a session — re-exported from the
+/// FRB-generated mirror of `lfs_core::sessions::AuthType` so the
+/// Rust side owns the variant set + the wire grammar
+/// (`AuthType::wire_name` / `AuthType::from_wire_name`). The Dart
+/// name is unchanged so call sites stay short; the `.name` getter
+/// the generated enum exposes (`password` / `key` /
+/// `keyWithPassword` / `agent`) doubles as the wire value the DB
+/// column and the canonical-JSON payload carry.
 ///
-/// `agent` defers credential discovery to a running system ssh-agent
-/// (Unix `$SSH_AUTH_SOCK` / Windows OpenSSH named pipe / Pageant).
-/// The session row carries no key id / inline PEM / password — every
-/// signature flows through the agent over its socket; the dialog
-/// surfaces no extra fields and the connect path short-circuits to
-/// [SshAuthAgent] without staging anything into SecretStore.
-enum AuthType { password, key, keyWithPassword, agent }
+/// `agent` defers credential discovery to a running system
+/// ssh-agent (Unix `$SSH_AUTH_SOCK` / Windows OpenSSH named pipe /
+/// Pageant). The session row carries no key id / inline PEM /
+/// password — every signature flows through the agent over its
+/// socket; the dialog surfaces no extra fields and the connect
+/// path short-circuits to [SshAuthAgent] without staging anything
+/// into SecretStore.
+typedef AuthType = rust_sess.DbAuthType;
 
-/// Transport kind. SSH covers the classic shell + SFTP file
-/// browser; WebDAV runs the file browser against an HTTP-backed
-/// remote (Nextcloud, ownCloud, Apache mod_dav, IIS, Synology DSM
-/// etc.); S3 runs against any S3-compatible object store (AWS S3,
-/// MinIO, Wasabi, Backblaze B2-S3, Cloudflare R2, DigitalOcean
-/// Spaces, Scaleway). The wire value persisted in the DB matches
-/// `lfs_core::db::sessions::SESSION_KIND_*` constants — keep the
-/// strings in sync with `name`.
-enum SessionKind {
-  ssh,
-  webdav,
-  s3;
-
-  /// Wire value persisted in `sessions.kind`. The DAO normalises
-  /// the empty string to `'ssh'` so the column never holds NULL.
-  String get wire => name;
-
-  /// Parse the wire value. Unknown strings fall back to SSH so a
-  /// future schema bump that adds a kind the current build does
-  /// not understand never bricks the session list — the row
-  /// simply renders as SSH until the build catches up.
-  static SessionKind fromWire(String? value) {
-    if (value == null || value.isEmpty) return SessionKind.ssh;
-    for (final k in SessionKind.values) {
-      if (k.wire == value) return k;
-    }
-    return SessionKind.ssh;
-  }
-}
+/// Transport kind — re-exported from the FRB-generated mirror of
+/// `lfs_core::sessions::SessionKind`. SSH covers the classic shell
+/// + SFTP file browser; WebDAV runs the file browser against an
+/// HTTP-backed remote (Nextcloud, ownCloud, Apache mod_dav, IIS,
+/// Synology DSM etc.); S3 runs against any S3-compatible object
+/// store (AWS S3, MinIO, Wasabi, Backblaze B2-S3, Cloudflare R2,
+/// DigitalOcean Spaces, Scaleway).
+///
+/// The wire value persisted in the DB matches
+/// `lfs_core::db::sessions::SESSION_KIND_*` and is reached via the
+/// `.name` getter (`ssh` / `webdav` / `s3`). Parsing routes
+/// through [rust_sess.sessionKindFromWire] — empty / unknown
+/// tags fold to SSH so a future schema bump that adds a kind the
+/// current build does not understand renders the row as SSH until
+/// the build catches up.
+typedef SessionKind = rust_sess.DbSessionKind;
 
 /// One-off ProxyJump override — used when the user wants to bounce
 /// through a host that is **not** a saved session. All three fields
@@ -562,8 +557,8 @@ rust_sess.DbSessionJsonInput sessionToJsonInput(
     host: session.host,
     port: session.port,
     user: session.user,
-    kind: session.kind.wire,
-    authType: session.authType.name,
+    kind: session.kind,
+    authType: session.authType,
     keyId: session.keyId,
     keyPath: session.keyPath,
     createdAtIso: session.createdAt.toIso8601String(),
@@ -598,13 +593,10 @@ Session sessionFromJsonOutput(rust_sess.DbSessionJsonOutput out) {
     id: out.id,
     label: out.label,
     folder: out.folder,
-    kind: SessionKind.fromWire(out.kind),
+    kind: out.kind,
     server: ServerAddress(host: out.host, port: out.port, user: out.user),
     auth: SessionAuth(
-      authType: AuthType.values.firstWhere(
-        (e) => e.name == out.authType,
-        orElse: () => AuthType.password,
-      ),
+      authType: out.authType,
       keyId: out.keyId,
       password: out.password,
       keyPath: out.keyPath,

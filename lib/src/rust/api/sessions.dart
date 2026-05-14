@@ -8,7 +8,24 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sessions.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `hash`, `hash`
+
+/// Parse a stored `auth_type` wire-string into the typed enum. The
+/// FRB sync shim around [`AuthType::from_wire_name`] — used by the
+/// DB-row mapper Dart-side after a `sessions.auth_type` column
+/// read. Unknown / empty strings fold to [`DbAuthType::Password`]
+/// so a future variant added to a newer build cannot brick a
+/// legacy row.
+DbAuthType authTypeFromWire({required String value}) =>
+    RustLib.instance.api.crateApiSessionsAuthTypeFromWire(value: value);
+
+/// Parse a stored `kind` wire-string into the typed enum. The FRB
+/// sync shim around [`SessionKind::from_wire_name`] — used by the
+/// DB-row mapper Dart-side after a `sessions.kind` column read.
+/// Empty / unknown tags fold to [`DbSessionKind::Ssh`] for the same
+/// forward-compatibility reason that the parser itself follows.
+DbSessionKind sessionKindFromWire({required String value}) =>
+    RustLib.instance.api.crateApiSessionsSessionKindFromWire(value: value);
 
 /// Case-insensitive substring search across [`label`, `folder`,
 /// `host`, `user`]. Returns matched ids in input order.
@@ -108,6 +125,16 @@ String sessionHistoryEncodeSnapshot({
 List<DbSessionJsonExtra> sessionExtrasDecode({required String json}) =>
     RustLib.instance.api.crateApiSessionsSessionExtrasDecode(json: json);
 
+/// FRB-visible mirror of [`lfs_core::sessions::AuthType`]. Carries
+/// the four app-side authentication methods across the boundary as
+/// a typed enum; Dart consumers pattern-match directly rather than
+/// round-tripping the wire-string through a `.fromWire` helper.
+///
+/// FRB codegen lowers each variant to camelCase Dart
+/// (`password` / `key` / `keyWithPassword` / `agent`), matching the
+/// wire grammar `AuthType::wire_name` round-trips byte-identically.
+enum DbAuthType { password, key, keyWithPassword, agent }
+
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
 /// domain `Session` list once and feeds it here, avoiding a
@@ -190,8 +217,16 @@ class DbSessionJsonInput {
   final String host;
   final int port;
   final String user;
-  final String kind;
-  final String authType;
+
+  /// Typed transport tag — mirrors [`CoreSessionKind`]. The
+  /// underlying wire string lives one layer deeper in
+  /// `session_json::SessionJsonInput`, so the codec's
+  /// conditional-omit grammar stays a single source of truth.
+  final DbSessionKind kind;
+
+  /// Typed authentication tag — mirrors [`CoreAuthType`]. Same
+  /// rationale as `kind` for the typed-vs-wire split.
+  final DbAuthType authType;
   final String keyId;
   final String keyPath;
   final String createdAtIso;
@@ -302,8 +337,16 @@ class DbSessionJsonOutput {
   final String host;
   final int port;
   final String user;
-  final String kind;
-  final String authType;
+
+  /// Typed transport tag — see [`DbSessionJsonInput::kind`] for
+  /// the rationale; `Ssh` covers the legacy missing-key case
+  /// because [`CoreSessionKind::from_wire_name`] folds unknown
+  /// tags onto it.
+  final DbSessionKind kind;
+
+  /// Typed authentication tag — same shape as
+  /// [`DbSessionJsonInput::auth_type`].
+  final DbAuthType authType;
   final String keyId;
   final String keyPath;
   final String createdAtIso;
@@ -411,6 +454,11 @@ sealed class DbSessionJsonValue with _$DbSessionJsonValue {
   const factory DbSessionJsonValue.object(List<DbSessionJsonExtra> field0) =
       DbSessionJsonValue_Object;
 }
+
+/// FRB-visible mirror of [`lfs_core::sessions::SessionKind`]. One
+/// enum value per supported transport — the Dart consumer switches
+/// on this directly instead of comparing wire strings.
+enum DbSessionKind { ssh, webdav, s3 }
 
 /// FRB mirror of Dart `ProxyJumpOverride` — used inside
 /// [`DbSessionJsonInput`] to carry an optional via-override.

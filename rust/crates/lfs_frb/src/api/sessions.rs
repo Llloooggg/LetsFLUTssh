@@ -7,7 +7,101 @@
 //! own `RegistryActor` shim once the broader session_store retire
 //! reaches the actor stage.
 
-use lfs_core::sessions;
+use lfs_core::sessions::{self, AuthType as CoreAuthType, SessionKind as CoreSessionKind};
+
+/// FRB-visible mirror of [`lfs_core::sessions::AuthType`]. Carries
+/// the four app-side authentication methods across the boundary as
+/// a typed enum; Dart consumers pattern-match directly rather than
+/// round-tripping the wire-string through a `.fromWire` helper.
+///
+/// FRB codegen lowers each variant to camelCase Dart
+/// (`password` / `key` / `keyWithPassword` / `agent`), matching the
+/// wire grammar `AuthType::wire_name` round-trips byte-identically.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DbAuthType {
+    Password,
+    Key,
+    KeyWithPassword,
+    Agent,
+}
+
+impl From<CoreAuthType> for DbAuthType {
+    fn from(value: CoreAuthType) -> Self {
+        match value {
+            CoreAuthType::Password => DbAuthType::Password,
+            CoreAuthType::Key => DbAuthType::Key,
+            CoreAuthType::KeyWithPassword => DbAuthType::KeyWithPassword,
+            CoreAuthType::Agent => DbAuthType::Agent,
+        }
+    }
+}
+
+impl From<DbAuthType> for CoreAuthType {
+    fn from(value: DbAuthType) -> Self {
+        match value {
+            DbAuthType::Password => CoreAuthType::Password,
+            DbAuthType::Key => CoreAuthType::Key,
+            DbAuthType::KeyWithPassword => CoreAuthType::KeyWithPassword,
+            DbAuthType::Agent => CoreAuthType::Agent,
+        }
+    }
+}
+
+/// FRB-visible mirror of [`lfs_core::sessions::SessionKind`]. One
+/// enum value per supported transport — the Dart consumer switches
+/// on this directly instead of comparing wire strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DbSessionKind {
+    Ssh,
+    Webdav,
+    S3,
+}
+
+impl From<CoreSessionKind> for DbSessionKind {
+    fn from(value: CoreSessionKind) -> Self {
+        match value {
+            CoreSessionKind::Ssh => DbSessionKind::Ssh,
+            CoreSessionKind::Webdav => DbSessionKind::Webdav,
+            CoreSessionKind::S3 => DbSessionKind::S3,
+        }
+    }
+}
+
+impl From<DbSessionKind> for CoreSessionKind {
+    fn from(value: DbSessionKind) -> Self {
+        match value {
+            DbSessionKind::Ssh => CoreSessionKind::Ssh,
+            DbSessionKind::Webdav => CoreSessionKind::Webdav,
+            DbSessionKind::S3 => CoreSessionKind::S3,
+        }
+    }
+}
+
+/// Parse a stored `auth_type` wire-string into the typed enum. The
+/// FRB sync shim around [`AuthType::from_wire_name`] — used by the
+/// DB-row mapper Dart-side after a `sessions.auth_type` column
+/// read. Unknown / empty strings fold to [`DbAuthType::Password`]
+/// so a future variant added to a newer build cannot brick a
+/// legacy row.
+#[flutter_rust_bridge::frb(sync)]
+pub fn auth_type_from_wire(value: String) -> DbAuthType {
+    CoreAuthType::from_wire_name(&value).into()
+}
+
+/// Parse a stored `kind` wire-string into the typed enum. The FRB
+/// sync shim around [`SessionKind::from_wire_name`] — used by the
+/// DB-row mapper Dart-side after a `sessions.kind` column read.
+/// Empty / unknown tags fold to [`DbSessionKind::Ssh`] for the same
+/// forward-compatibility reason that the parser itself follows.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_kind_from_wire(value: String) -> DbSessionKind {
+    let opt = if value.is_empty() {
+        None
+    } else {
+        Some(value.as_str())
+    };
+    CoreSessionKind::from_wire_name(opt).into()
+}
 
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
@@ -210,8 +304,14 @@ pub struct DbSessionJsonInput {
     pub host: String,
     pub port: u32,
     pub user: String,
-    pub kind: String,
-    pub auth_type: String,
+    /// Typed transport tag — mirrors [`CoreSessionKind`]. The
+    /// underlying wire string lives one layer deeper in
+    /// `session_json::SessionJsonInput`, so the codec's
+    /// conditional-omit grammar stays a single source of truth.
+    pub kind: DbSessionKind,
+    /// Typed authentication tag — mirrors [`CoreAuthType`]. Same
+    /// rationale as `kind` for the typed-vs-wire split.
+    pub auth_type: DbAuthType,
     pub key_id: String,
     pub key_path: String,
     pub created_at_iso: String,
@@ -237,8 +337,8 @@ impl From<DbSessionJsonInput> for lfs_core::session_json::SessionJsonInput {
             host: d.host,
             port: d.port,
             user: d.user,
-            kind: d.kind,
-            auth_type: d.auth_type,
+            kind: CoreSessionKind::from(d.kind).wire_name().to_string(),
+            auth_type: CoreAuthType::from(d.auth_type).wire_name().to_string(),
             key_id: d.key_id,
             key_path: d.key_path,
             created_at_iso: d.created_at_iso,
@@ -326,8 +426,14 @@ pub struct DbSessionJsonOutput {
     pub host: String,
     pub port: u32,
     pub user: String,
-    pub kind: String,
-    pub auth_type: String,
+    /// Typed transport tag — see [`DbSessionJsonInput::kind`] for
+    /// the rationale; `Ssh` covers the legacy missing-key case
+    /// because [`CoreSessionKind::from_wire_name`] folds unknown
+    /// tags onto it.
+    pub kind: DbSessionKind,
+    /// Typed authentication tag — same shape as
+    /// [`DbSessionJsonInput::auth_type`].
+    pub auth_type: DbAuthType,
     pub key_id: String,
     pub key_path: String,
     pub created_at_iso: String,
@@ -360,8 +466,8 @@ impl From<lfs_core::session_json::SessionJsonOutput> for DbSessionJsonOutput {
             host: d.host,
             port: d.port,
             user: d.user,
-            kind: d.kind,
-            auth_type: d.auth_type,
+            kind: CoreSessionKind::from_wire_name(Some(d.kind.as_str())).into(),
+            auth_type: CoreAuthType::from_wire_name(&d.auth_type).into(),
             key_id: d.key_id,
             key_path: d.key_path,
             created_at_iso: d.created_at_iso,

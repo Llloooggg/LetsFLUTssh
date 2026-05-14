@@ -589,6 +589,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbArchiveProbeKind dco_decode_db_archive_probe_kind(dynamic raw);
 
   @protected
+  DbAuthType dco_decode_db_auth_type(dynamic raw);
+
+  @protected
   DbBiometricAvailability dco_decode_db_biometric_availability(dynamic raw);
 
   @protected
@@ -883,6 +886,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSessionJsonValue dco_decode_db_session_json_value(dynamic raw);
+
+  @protected
+  DbSessionKind dco_decode_db_session_kind(dynamic raw);
 
   @protected
   DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
@@ -1985,6 +1991,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbAuthType sse_decode_db_auth_type(SseDeserializer deserializer);
+
+  @protected
   DbBiometricAvailability sse_decode_db_biometric_availability(
     SseDeserializer deserializer,
   );
@@ -2401,6 +2410,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSessionJsonValue sse_decode_db_session_json_value(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbSessionKind sse_decode_db_session_kind(SseDeserializer deserializer);
 
   @protected
   DbSessionMetadata sse_decode_db_session_metadata(
@@ -3788,6 +3800,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_auth_type(DbAuthType self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_biometric_availability(
     DbBiometricAvailability self,
     SseSerializer serializer,
@@ -4332,6 +4347,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbSessionJsonValue self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_session_kind(DbSessionKind self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_session_metadata(

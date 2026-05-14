@@ -261,6 +261,109 @@ pub struct SearchableSession {
     pub user: String,
 }
 
+/// Session authentication method — the app-side type carried on
+/// every saved session. Wire values match the Dart enum names
+/// exactly (`"password"`, `"key"`, `"keyWithPassword"`, `"agent"`)
+/// so the DB column round-trips byte-identically across the
+/// Rust ↔ Dart boundary.
+///
+/// Note: [`crate::ssh_config::AuthType`] is a different, narrower
+/// 2-variant enum used by the OpenSSH `~/.ssh/config` importer —
+/// it models the subset of methods that grammar surfaces
+/// (password / key) and stays separate so its wire shape never
+/// drifts with the app-side enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuthType {
+    /// Plain password — held in `SessionAuth.password`, encrypted at
+    /// rest. Default when a row is missing / unknown.
+    Password,
+    /// SSH key — `keyId` references the key store; `keyPath` may
+    /// also carry an on-disk path.
+    Key,
+    /// SSH key whose unlock requires an additional password — the
+    /// `password` field carries the passphrase prompt unlock value
+    /// the connect path injects separately from the key bytes.
+    KeyWithPassword,
+    /// Defer credential discovery to a running ssh-agent — the
+    /// session carries no key id / inline PEM / password.
+    Agent,
+}
+
+impl AuthType {
+    /// Wire value persisted in the `sessions.auth_type` column and
+    /// the canonical-JSON `auth_type` key. Byte-identical to the
+    /// corresponding Dart enum's `.name` getter.
+    #[must_use]
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            AuthType::Password => "password",
+            AuthType::Key => "key",
+            AuthType::KeyWithPassword => "keyWithPassword",
+            AuthType::Agent => "agent",
+        }
+    }
+
+    /// Parse a wire value. Unknown / empty strings fall back to
+    /// [`AuthType::Password`] so a future variant added in a newer
+    /// build can never brick a legacy row — the row simply renders
+    /// as `password` until the build catches up.
+    #[must_use]
+    pub fn from_wire_name(s: &str) -> Self {
+        match s {
+            "key" => AuthType::Key,
+            "keyWithPassword" => AuthType::KeyWithPassword,
+            "agent" => AuthType::Agent,
+            _ => AuthType::Password,
+        }
+    }
+}
+
+/// Transport kind — selects between the SSH/SFTP shell + file
+/// browser, the WebDAV-backed file browser, and the S3-compatible
+/// object-store browser. Wire values match
+/// `crate::db::sessions::SESSION_KIND_*` and the Dart `.name`
+/// getter on the corresponding enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SessionKind {
+    /// SSH + SFTP (default).
+    Ssh,
+    /// WebDAV (Nextcloud, ownCloud, Apache mod_dav, IIS, Synology
+    /// DSM, …).
+    Webdav,
+    /// S3-compatible object store (AWS S3, MinIO, Wasabi, Backblaze
+    /// B2-S3, Cloudflare R2, DigitalOcean Spaces, Scaleway, …).
+    S3,
+}
+
+impl SessionKind {
+    /// Wire value persisted in the `sessions.kind` column and the
+    /// canonical-JSON `kind` key. Matches the
+    /// `crate::db::sessions::SESSION_KIND_*` constants byte for
+    /// byte.
+    #[must_use]
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            SessionKind::Ssh => crate::db::sessions::SESSION_KIND_SSH,
+            SessionKind::Webdav => crate::db::sessions::SESSION_KIND_WEBDAV,
+            SessionKind::S3 => crate::db::sessions::SESSION_KIND_S3,
+        }
+    }
+
+    /// Parse a wire value. `None`, the empty string, or any
+    /// unknown tag falls back to [`SessionKind::Ssh`] so a future
+    /// schema bump that adds a kind the current build does not
+    /// understand renders the row as SSH until the build catches
+    /// up — never bricks the session list.
+    #[must_use]
+    pub fn from_wire_name(s: Option<&str>) -> Self {
+        match s {
+            Some(v) if v == crate::db::sessions::SESSION_KIND_WEBDAV => SessionKind::Webdav,
+            Some(v) if v == crate::db::sessions::SESSION_KIND_S3 => SessionKind::S3,
+            _ => SessionKind::Ssh,
+        }
+    }
+}
+
 /// Validate the minimum required fields for storage. Returns a
 /// human-readable error message string when the session is not
 /// storable, `None` when it is.
@@ -383,6 +486,71 @@ mod tests {
             host: host.to_string(),
             user: user.to_string(),
         }
+    }
+
+    #[test]
+    fn auth_type_wire_round_trip_every_variant() {
+        for v in [
+            AuthType::Password,
+            AuthType::Key,
+            AuthType::KeyWithPassword,
+            AuthType::Agent,
+        ] {
+            assert_eq!(AuthType::from_wire_name(v.wire_name()), v);
+        }
+    }
+
+    #[test]
+    fn auth_type_unknown_wire_falls_back_to_password() {
+        assert_eq!(AuthType::from_wire_name(""), AuthType::Password);
+        assert_eq!(
+            AuthType::from_wire_name("does-not-exist"),
+            AuthType::Password
+        );
+    }
+
+    #[test]
+    fn auth_type_wire_names_match_dart_enum_dot_name() {
+        // Byte-identity guard — these strings round-trip the DB
+        // column and the canonical-JSON payload, so a typo would
+        // brick every saved row.
+        assert_eq!(AuthType::Password.wire_name(), "password");
+        assert_eq!(AuthType::Key.wire_name(), "key");
+        assert_eq!(AuthType::KeyWithPassword.wire_name(), "keyWithPassword");
+        assert_eq!(AuthType::Agent.wire_name(), "agent");
+    }
+
+    #[test]
+    fn session_kind_wire_round_trip_every_variant() {
+        for v in [SessionKind::Ssh, SessionKind::Webdav, SessionKind::S3] {
+            assert_eq!(SessionKind::from_wire_name(Some(v.wire_name())), v);
+        }
+    }
+
+    #[test]
+    fn session_kind_unknown_wire_falls_back_to_ssh() {
+        assert_eq!(SessionKind::from_wire_name(None), SessionKind::Ssh);
+        assert_eq!(SessionKind::from_wire_name(Some("")), SessionKind::Ssh);
+        assert_eq!(
+            SessionKind::from_wire_name(Some("future-tag")),
+            SessionKind::Ssh
+        );
+    }
+
+    #[test]
+    fn session_kind_wire_names_match_db_constants() {
+        assert_eq!(
+            SessionKind::Ssh.wire_name(),
+            crate::db::sessions::SESSION_KIND_SSH
+        );
+        assert_eq!(
+            SessionKind::Webdav.wire_name(),
+            crate::db::sessions::SESSION_KIND_WEBDAV
+        );
+        assert_eq!(
+            SessionKind::S3.wire_name(),
+            crate::db::sessions::SESSION_KIND_S3
+        );
     }
 
     #[test]

@@ -773,7 +773,7 @@ class SessionNotifier extends Notifier<List<Session>> {
               id: s.id,
               label: s.label,
               folderPath: s.folder,
-              kind: s.kind.wire,
+              kind: s.kind.name,
               host: s.host,
               port: s.port,
               user: s.user,
