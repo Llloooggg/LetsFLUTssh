@@ -117,6 +117,12 @@ pub async fn pkcs11_resolve_module_for_key(key_id: String) -> Result<Option<Stri
             .map(|_| ())
         })
         .map_err(|e| frb_err::wire(frb_err::kind::PKCS11, &e.to_string()))?;
+        // The persisted `pkcs11_module_path` is part of the
+        // `ssh_keys` row surface the Dart key-manager renders —
+        // publish `KeysChanged` so the badge popover (which carries
+        // the resolved module path) re-renders without waiting for
+        // the next reload.
+        lfs_core::keys::notify_changed(&lfs_core::app::instance());
         Ok(Some(path_str))
     })
     .await
@@ -335,7 +341,7 @@ pub struct DbPkcs11ImportArgs {
 /// `backend = 'pkcs11'` and reaches into `pkcs11_module_path` +
 /// `pkcs11_object_id` for the signing primitives.
 pub async fn pkcs11_import_key(args: DbPkcs11ImportArgs) -> Result<String, String> {
-    crate::api::db::run_db_mut(move |conn| {
+    crate::api::db::run_db_mut_writing_keys(move |conn| {
         let row = lfs_core::db::ssh_keys::SshKeyRow {
             id: lfs_core::id::random_handle_hex_32(),
             label: args.label,

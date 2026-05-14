@@ -57,7 +57,7 @@ class _ExportImportTile extends ConsumerWidget {
     try {
       final sshDir = p.join(plat.homeDirectory, '.ssh');
       final configPath = p.join(sshDir, 'config');
-      final keyStore = ref.read(sshKeysProvider.notifier);
+      final keyStore = ref.read(sshKeysMutatorProvider);
 
       // Capture localized strings BEFORE the first async hop. The
       // PPK-aware key scanner now awaits FRB; resolving `S.of(context)`
@@ -576,7 +576,9 @@ class _ExportImportTile extends ConsumerWidget {
               (current) => cfg.copyWithSecurity(security: current.security),
             );
       }
-      ref.invalidate(sshKeysProvider);
+      // Sessions + ssh_keys streams re-fetch off the
+      // `SessionsChanged` / `KeysChanged` events the Rust apply
+      // publishes; tags + snippets still own Dart-cached state.
       ref.invalidate(tagsProvider);
       ref.invalidate(snippetsProvider);
 
@@ -660,7 +662,9 @@ class _ExportImportTile extends ConsumerWidget {
               (current) => cfg.copyWithSecurity(security: current.security),
             );
       }
-      ref.invalidate(sshKeysProvider);
+      // Sessions + ssh_keys streams re-fetch off the
+      // `SessionsChanged` / `KeysChanged` events the Rust apply
+      // publishes; tags + snippets still own Dart-cached state.
       ref.invalidate(tagsProvider);
       ref.invalidate(snippetsProvider);
 

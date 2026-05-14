@@ -2,6 +2,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
@@ -36,7 +37,7 @@ void main() {
         // CircularProgressIndicator forever — `pumpAndSettle`
         // never settles. Stub them to immediate empty values.
         sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
-        sshKeysProvider.overrideWith(() => _StubKeysNotifier(const [])),
+        ..._stubKeysOverrides(_StubKeysMutator(const [])),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -2008,14 +2009,12 @@ void main() {
     Widget buildWithKeys(
       List<SshKeyEntry> keys, {
       Session? session,
-      _StubKeysNotifier? notifier,
+      _StubKeysMutator? notifier,
     }) {
       final keysList = List<SshKeyEntry>.unmodifiable(keys);
       return ProviderScope(
         overrides: [
-          sshKeysProvider.overrideWith(
-            () => notifier ?? _StubKeysNotifier(keysList),
-          ),
+          ..._stubKeysOverrides(notifier ?? _StubKeysMutator(keysList)),
           if (session != null)
             sessionTagsProvider(
               session.id,
@@ -2136,7 +2135,7 @@ void main() {
         // render the resolved label on the chip. The session itself never
         // stores the label — the key store is the source of truth.
         final storedKey = makeKey('k-abc', 'Saved laptop key');
-        final fakeStore = _StubKeysNotifier(
+        final fakeStore = _StubKeysMutator(
           [storedKey],
           lookup: {'k-abc': storedKey},
         );
@@ -2185,9 +2184,7 @@ void main() {
       final keysList = List<SshKeyEntry>.unmodifiable(keys);
       return ProviderScope(
         overrides: [
-          sshKeysProvider.overrideWith(
-            () => _StubKeysNotifier(keysList, backends: backends),
-          ),
+          ..._stubKeysOverrides(_StubKeysMutator(keysList, backends: backends)),
         ],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
@@ -2250,7 +2247,7 @@ void main() {
     Widget buildAgentApp({Session? session}) {
       return ProviderScope(
         overrides: [
-          sshKeysProvider.overrideWith(() => _StubKeysNotifier(const [])),
+          ..._stubKeysOverrides(_StubKeysMutator(const [])),
           if (session != null)
             sessionTagsProvider(
               session.id,
@@ -2326,9 +2323,7 @@ void main() {
           SessionDialogResult? result;
           await tester.pumpWidget(
             ProviderScope(
-              overrides: [
-                sshKeysProvider.overrideWith(() => _StubKeysNotifier(const [])),
-              ],
+              overrides: [..._stubKeysOverrides(_StubKeysMutator(const []))],
               child: MaterialApp(
                 localizationsDelegates: S.localizationsDelegates,
                 supportedLocales: S.supportedLocales,
@@ -2465,20 +2460,17 @@ void main() {
   });
 }
 
-/// Minimal [SshKeysNotifier] test double.
-///
-/// Overrides [loadAllMetadata] — the metadata-only path the key-picker
-/// flow uses when resolving an already-stored `keyId` into a human
-/// label. Records the lookups so tests can assert the dialog only
-/// pulls metadata and never PEM bytes. `build()` returns the seeded
-/// list so `ref.watch(sshKeysProvider)` resolves immediately.
+/// Minimal [SshKeysMutator] test double — returns the seeded
+/// metadata map on every `loadAllMetadata` and records the lookup
+/// count so tests can assert the dialog only pulls metadata and
+/// never PEM bytes.
 ///
 /// `backends` lets a test set the `backend` discriminator on a row
 /// keyed by id so the key-picker surface (which routes the badge
 /// widget off this column) can be asserted against. Rows whose id
 /// is missing from the map default to `'software'` (no badge).
-class _StubKeysNotifier extends SshKeysNotifier {
-  _StubKeysNotifier(
+class _StubKeysMutator extends SshKeysMutator {
+  _StubKeysMutator(
     this._initial, {
     Map<String, SshKeyEntry>? lookup,
     Map<String, String>? backends,
@@ -2493,8 +2485,10 @@ class _StubKeysNotifier extends SshKeysNotifier {
   /// hits this once per key-picker open, never PEM-bearing `loadAll`.
   int metadataLookups = 0;
 
-  @override
-  Future<List<SshKeyEntry>> build() async => _initial;
+  /// Snapshot of the seeded entry list. Used by helpers that build
+  /// the matching `sshKeysStreamProvider` override so the picker
+  /// reads the same rows the metadata path returns.
+  List<SshKeyEntry> get initial => _initial;
 
   @override
   Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
@@ -2515,3 +2509,12 @@ class _StubKeysNotifier extends SshKeysNotifier {
     };
   }
 }
+
+/// Provider-override builder — wires the stream + mutator overrides
+/// off a single [_StubKeysMutator] so every test in this file picks
+/// up the same seed list on `sshKeysProvider` (sync derive) and the
+/// same metadata response on `sshKeysMutatorProvider.loadAllMetadata`.
+List<Override> _stubKeysOverrides(_StubKeysMutator mutator) => [
+  sshKeysStreamProvider.overrideWith((_) => Stream.value(mutator.initial)),
+  sshKeysMutatorProvider.overrideWithValue(mutator),
+];

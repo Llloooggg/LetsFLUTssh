@@ -19,7 +19,7 @@ import 'pkcs11_import_dialog_logic.dart';
 /// of `pkcs11_import_key`.
 class Pkcs11ImportResult {
   /// The new `ssh_keys.id` Rust assigned. Mirrors the caller-side
-  /// existing-id contract `SshKeysNotifier.save` keeps.
+  /// existing-id contract `SshKeysMutator.save` keeps.
   final String keyId;
 
   /// Human-readable label the user accepted at submit time. Echoed

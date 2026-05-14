@@ -82,7 +82,9 @@ void main() {
         // no `lfs_core.db` to read from. Stub them out with empty
         // immediate values.
         sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
-        sshKeysProvider.overrideWith(_EmptySshKeysNotifier.new),
+        sshKeysStreamProvider.overrideWith(
+          (_) => Stream.value(const <SshKeyEntry>[]),
+        ),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -3411,15 +3413,4 @@ void main() {
       },
     );
   });
-}
-
-/// Stand-in for [SshKeysNotifier] that resolves to an empty list
-/// without hitting the Rust DB. The session-edit dialog reads the
-/// key list to populate its dropdown; the test scope doesn't have
-/// an `lfs_core.db` so the live notifier would surface a
-/// `loadAllSafe` failure (or, worse, hang `pumpAndSettle` while
-/// the AsyncValue is `loading`).
-class _EmptySshKeysNotifier extends SshKeysNotifier {
-  @override
-  Future<List<SshKeyEntry>> build() async => const <SshKeyEntry>[];
 }

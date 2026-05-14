@@ -423,6 +423,9 @@ sealed class BusEvent with _$BusEvent {
   /// Sessions / folders tables mutated.
   const factory BusEvent.sessionsChanged() = BusEvent_SessionsChanged;
 
+  /// `ssh_keys` / `ssh_key_certificates` tables mutated.
+  const factory BusEvent.keysChanged() = BusEvent_KeysChanged;
+
   /// `config.json` save landed — carries the freshly-written
   /// JSON so subscribers swap in the canonical state without
   /// a follow-up `config_store_get_json` round-trip.
@@ -653,6 +656,12 @@ enum BusTopic {
   update,
   knownHosts,
   sessions,
+
+  /// `ssh_keys` + `ssh_key_certificates` table fan-out — the
+  /// Dart `sshKeysStreamProvider` subscribes here and re-fetches
+  /// the metadata listing on every event. Symmetric with
+  /// [`BusTopic::Sessions`].
+  keys,
   config,
   tier,
   securityPrompt,

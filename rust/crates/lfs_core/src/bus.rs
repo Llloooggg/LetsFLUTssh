@@ -70,6 +70,14 @@ pub enum EventTopic {
     /// toggle) so the Dart shim can re-fetch in one
     /// microtask-coalesced refresh rather than per-call.
     Sessions,
+    /// `ssh_keys` + `ssh_key_certificates` tables — refresh
+    /// notification for the SSH-key store cache mirror. Fires
+    /// after every write (upsert / delete / replace-all /
+    /// import / cert upsert/delete / hardware-row mutation) so
+    /// the Dart shim can re-fetch in one microtask-coalesced
+    /// refresh rather than per-call. Symmetric with the Sessions
+    /// topic — same shape, same publish discipline.
+    Keys,
     /// `config.json` actor — fires after a debounced save lands
     /// on disk. Subscribers re-snapshot the canonical state
     /// without polling.
@@ -125,6 +133,7 @@ impl EventTopic {
         EventTopic::Update,
         EventTopic::KnownHosts,
         EventTopic::Sessions,
+        EventTopic::Keys,
         EventTopic::Config,
         EventTopic::Tier,
         EventTopic::SecurityPrompt,
@@ -433,6 +442,16 @@ pub enum Event {
     /// toggle) — the cache mirror picks the canonical state up
     /// from the DB after the FRB layer publishes here.
     SessionsChanged,
+    /// `ssh_keys` + `ssh_key_certificates` tables mutated. No
+    /// detail — Dart subscribers re-fetch the full metadata
+    /// listing via the SSH-key DAOs. One event per write covers
+    /// every row mutation (software upsert / delete / replace-all
+    /// / import-merge / cert upsert/delete / hardware-row
+    /// stub-clear / PKCS#11 module-path rebind) so the cache
+    /// mirror picks the canonical state off the DB after the
+    /// FRB layer publishes here. Symmetric with
+    /// [`Event::SessionsChanged`].
+    KeysChanged,
 
     /// TOFU prompt — russh's `check_server_key` saw a host key
     /// that does not match a stored entry. The prompt id is
@@ -548,6 +567,7 @@ impl Event {
             | Event::UpdateDownloadCompleted { .. } => EventTopic::Update,
             Event::KnownHostsChanged => EventTopic::KnownHosts,
             Event::SessionsChanged => EventTopic::Sessions,
+            Event::KeysChanged => EventTopic::Keys,
             Event::ConfigChanged { .. } => EventTopic::Config,
             Event::TierStateChanged { .. } | Event::UnlockCascadeReady { .. } => EventTopic::Tier,
             Event::CoreLog { .. } => EventTopic::CoreLog,
@@ -1094,6 +1114,11 @@ mod tests {
     #[test]
     fn topic_sessions_changed_is_sessions() {
         assert_eq!(Event::SessionsChanged.topic(), EventTopic::Sessions);
+    }
+
+    #[test]
+    fn topic_keys_changed_is_keys() {
+        assert_eq!(Event::KeysChanged.topic(), EventTopic::Keys);
     }
 
     #[test]

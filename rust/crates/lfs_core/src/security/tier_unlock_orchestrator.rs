@@ -155,12 +155,14 @@ fn run_post_unlock_cascade(tier: crate::security::SecurityTier) {
     // 3. Re-publish the Rust-owned store-changed events. The DB
     //    handle just flipped from "closed / wrong-key" to "readable
     //    under the freshly-staged key"; every Dart-side store stream
-    //    (sessions, known_hosts) is subscribed to its topic via
-    //    `AppBus.subscribe` and re-fetches on each event. Without
-    //    this republish the streams keep the snapshot they captured
-    //    pre-unlock (typically empty), and the sidebar would render
-    //    blank until the user mutates something.
+    //    (sessions, ssh_keys, known_hosts) is subscribed to its
+    //    topic via `AppBus.subscribe` and re-fetches on each event.
+    //    Without this republish the streams keep the snapshot they
+    //    captured pre-unlock (typically empty), and the sidebar /
+    //    key manager / Settings panels would render blank until the
+    //    user mutates something.
     app.bus.publish(Event::SessionsChanged);
+    app.bus.publish(Event::KeysChanged);
     app.bus.publish(Event::KnownHostsChanged);
 
     // 4. Publish the cascade-ready event AFTER both side-effects

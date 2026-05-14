@@ -390,7 +390,7 @@ typedef SshKeyImporter = Future<SshKeyEntry> Function(String pem, String label);
 
 /// Parse an OpenSSH PEM-armored private key into an [SshKeyEntry].
 /// Returns the entry; the caller decides whether to persist it via
-/// `SshKeysNotifier.save` / `importForMerge`. Async — the underlying
+/// `SshKeysMutator.save` / `importForMerge`. Async — the underlying
 /// parse runs on the Rust core's blocking pool through the FRB
 /// boundary.
 ///

@@ -90,7 +90,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Future<void> _loadKeys() async {
-    final store = ref.read(sshKeysProvider.notifier);
+    final store = ref.read(sshKeysMutatorProvider);
     try {
       final keys = await store.loadAllMetadata();
       if (mounted) {
@@ -503,9 +503,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final store = ref.read(sshKeysProvider.notifier);
+    final store = ref.read(sshKeysMutatorProvider);
     await store.delete(entry.id);
-    ref.invalidate(sshKeysProvider);
     // DB cascades `Sessions.keyId → NULL` on key deletion;
     // `dbSshKeysDelete` Rust-side publishes `SessionsChanged` so
     // the workspace stream re-fetches and the tree picks up the
@@ -663,7 +662,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
 
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
   }
 
@@ -693,7 +691,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         error: e,
       );
     }
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
   }
 
@@ -701,9 +698,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final result = await _GenerateKeyDialog.show(context);
     if (result == null || !mounted) return;
 
-    final store = ref.read(sshKeysProvider.notifier);
+    final store = ref.read(sshKeysMutatorProvider);
     await store.save(result);
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
     if (mounted) {
       Toast.show(
@@ -887,9 +883,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       hasUserVerification: meta.hasUserVerification,
     );
     try {
-      final store = ref.read(sshKeysProvider.notifier);
+      final store = ref.read(sshKeysMutatorProvider);
       await store.save(entry);
-      ref.invalidate(sshKeysProvider);
       await _loadKeys();
       if (mounted) {
         Toast.show(
@@ -938,7 +933,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
     if (!mounted) return;
     Toast.show(
@@ -974,7 +968,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
     if (!mounted) return;
     Toast.show(
@@ -1010,7 +1003,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
     if (!mounted) return;
     Toast.show(
@@ -1046,7 +1038,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
     if (!mounted) return;
     Toast.show(
@@ -1080,7 +1071,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    ref.invalidate(sshKeysProvider);
     await _loadKeys();
     if (!mounted) return;
     Toast.show(
@@ -1097,7 +1087,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     try {
       final id = await const TpmImportHelper().pickAndImport(context);
       if (id == null || !mounted) return;
-      ref.invalidate(sshKeysProvider);
       await _loadKeys();
       if (!mounted) return;
       Toast.show(
@@ -1122,10 +1111,9 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
 
   Future<void> _persistImportedKey(String label, String pem) async {
     try {
-      final store = ref.read(sshKeysProvider.notifier);
+      final store = ref.read(sshKeysMutatorProvider);
       final entry = await store.importKey(pem, label);
       await store.save(entry);
-      ref.invalidate(sshKeysProvider);
       await _loadKeys();
       if (mounted) {
         Toast.show(

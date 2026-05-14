@@ -10,7 +10,6 @@ import '../core/session/qr_decoded_source.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
-import '../providers/key_provider.dart';
 import '../providers/snippet_provider.dart';
 import '../providers/tag_provider.dart';
 import '../utils/format.dart';
@@ -356,10 +355,11 @@ Future<void> showLfsImportDialog(
 }
 
 /// Refresh cached FutureProviders after a QR / LFS / paste-link import
-/// so the UI picks up newly imported keys, tags, and snippets without
-/// an app restart.
+/// so the UI picks up newly imported tags + snippets without an app
+/// restart. Sessions + ssh_keys streams re-fetch off the
+/// `SessionsChanged` / `KeysChanged` events the Rust apply / merge
+/// path already publishes.
 void _invalidateImportProviders(WidgetRef ref) {
-  ref.invalidate(sshKeysProvider);
   ref.invalidate(tagsProvider);
   ref.invalidate(snippetsProvider);
 }

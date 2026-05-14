@@ -3,12 +3,30 @@
 //! and ingests user-supplied PEM blobs.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use russh::keys::ssh_key::private::{KeypairData, RsaKeypair};
 use russh::keys::ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey};
 use russh::keys::Certificate;
 
+use crate::app::AppState;
+use crate::bus::Event;
 use crate::error::Error;
+
+/// Publish [`Event::KeysChanged`] on the global bus. Called by the
+/// FRB layer (and any in-process orchestrator that mutates the
+/// `ssh_keys` / `ssh_key_certificates` tables) after every
+/// successful write so the Dart `sshKeysStreamProvider` re-fetches
+/// in one microtask-coalesced reload rather than per-call.
+///
+/// Symmetric with [`crate::sessions::notify_changed`] — same shape,
+/// same publish discipline. Coalescing happens on the Dart side:
+/// the stream pipelines its re-fetches off the bus, so a flurry of
+/// rapid writes (archive apply, bulk import) emits one event per
+/// write but the consumer collapses them into the next snapshot.
+pub fn notify_changed(app: &Arc<AppState>) {
+    app.bus.publish(Event::KeysChanged);
+}
 
 /// Result of a keypair generation / import: PEM (OpenSSH armored
 /// private key), the matching public-key string in `authorized_keys`

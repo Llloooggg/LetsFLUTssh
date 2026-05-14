@@ -20,6 +20,12 @@ Future<DbSyncResult> syncPush() => RustLib.instance.api.crateApiSyncSyncPush();
 
 /// Pull the latest `.lfs` from the remote and merge it into the
 /// local DB. See [`lfs_core::sync::pull`].
+///
+/// Pull mutates `sessions` / `ssh_keys` / `tags` / `snippets` /
+/// `bookmarks` (per the merge driver); publish on every store
+/// topic so each Dart-side stream re-fetches the canonical
+/// post-merge snapshot. Skipped / up-to-date results don't fan
+/// out events — nothing changed.
 Future<DbSyncResult> syncPull() => RustLib.instance.api.crateApiSyncSyncPull();
 
 /// Snapshot the persisted [`SyncConfig`]. Sync — reads from the

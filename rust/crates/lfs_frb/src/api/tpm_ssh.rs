@@ -355,7 +355,7 @@ async fn persist_row(outcome: GenerateOutcome) -> Result<DbTpmSshImportResult, S
     let label = outcome.label.clone();
     let key_type = outcome.key_type.clone();
     let line = outcome.authorized_keys_line.clone();
-    let inserted = crate::api::db::run_db_mut(move |conn| {
+    let inserted = crate::api::db::run_db_mut_writing_keys(move |conn| {
         let row = lfs_core::db::ssh_keys::SshKeyRow {
             id: lfs_core::id::random_handle_hex_32(),
             label: label.clone(),
@@ -594,7 +594,12 @@ fn make_persistent_native_linux(key_id: String, handle: u32) -> Result<(), Strin
     let mut updated = row;
     updated.tpm_handle = Some(handle);
     db.with_conn(|c| lfs_core::db::ssh_keys::upsert(c, &updated))
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    // Persistent-handle promotion flips the row's `tpm_handle`
+    // column the key-manager badge popover reads — publish so the
+    // Dart stream re-fetches.
+    lfs_core::keys::notify_changed(&lfs_core::app::instance());
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -632,7 +637,12 @@ fn evict_native_linux(key_id: String) -> Result<(), String> {
     let mut updated = row;
     updated.tpm_handle = None;
     db.with_conn(|c| lfs_core::db::ssh_keys::upsert(c, &updated))
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    // Evict flips the row's `tpm_handle` column back to `NULL` —
+    // publish so the Dart stream re-renders without the persistent
+    // handle badge.
+    lfs_core::keys::notify_changed(&lfs_core::app::instance());
+    Ok(())
 }
 
 /// Enumerate TPM-bound `ssh_keys` rows for the key-manager listing.
@@ -693,9 +703,12 @@ pub async fn tpm_ssh_delete(key_id: String) -> Result<(), String> {
             }
         }
     }
-    crate::api::db::run_db(move |c| lfs_core::db::ssh_keys::delete(c, &key_id))
-        .await
-        .map(|_| ())
+    crate::api::db::run_db_writing_keys_when(
+        move |c| lfs_core::db::ssh_keys::delete(c, &key_id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|_| ())
 }
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]

@@ -142,7 +142,7 @@ pub async fn hello_ssh_generate(args: DbHelloGenerateArgs) -> Result<DbHelloImpo
         let result_label = outcome.label.clone();
         let result_line = outcome.authorized_keys_line.clone();
         let result_tier = outcome.tier;
-        let inserted = crate::api::db::run_db_mut(move |conn| {
+        let inserted = crate::api::db::run_db_mut_writing_keys(move |conn| {
             let row = lfs_core::db::ssh_keys::SshKeyRow {
                 id: lfs_core::id::random_handle_hex_32(),
                 label: outcome.label,
@@ -333,9 +333,12 @@ pub async fn hello_ssh_delete(key_id: String) -> Result<(), String> {
                 })?;
             }
         }
-        crate::api::db::run_db(move |c| lfs_core::db::ssh_keys::delete(c, &key_id))
-            .await
-            .map(|_| ())
+        crate::api::db::run_db_writing_keys_when(
+            move |c| lfs_core::db::ssh_keys::delete(c, &key_id),
+            |n| *n > 0,
+        )
+        .await
+        .map(|_| ())
     }
     #[cfg(not(target_os = "windows"))]
     {

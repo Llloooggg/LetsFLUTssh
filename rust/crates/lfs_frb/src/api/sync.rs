@@ -139,11 +139,31 @@ pub async fn sync_push() -> Result<DbSyncResult, String> {
 
 /// Pull the latest `.lfs` from the remote and merge it into the
 /// local DB. See [`lfs_core::sync::pull`].
+///
+/// Pull mutates `sessions` / `ssh_keys` / `tags` / `snippets` /
+/// `bookmarks` (per the merge driver); publish on every store
+/// topic so each Dart-side stream re-fetches the canonical
+/// post-merge snapshot. Skipped / up-to-date results don't fan
+/// out events — nothing changed.
 pub async fn sync_pull() -> Result<DbSyncResult, String> {
-    lfs_core::sync::pull()
+    let res = lfs_core::sync::pull()
         .await
         .map(DbSyncResult::from)
-        .map_err(sync_err_to_wire)
+        .map_err(sync_err_to_wire);
+    if let Ok(r) = &res {
+        let touched = r.sessions_merged > 0
+            || r.keys_merged > 0
+            || r.tags_merged > 0
+            || r.snippets_merged > 0
+            || r.bookmarks_merged > 0;
+        if touched {
+            let app = lfs_core::app::instance();
+            lfs_core::sessions::reload_and_notify(&app);
+            lfs_core::keys::notify_changed(&app);
+            lfs_core::known_hosts::notify_changed(&app);
+        }
+    }
+    res
 }
 
 fn sync_err_to_wire(e: SyncError) -> String {

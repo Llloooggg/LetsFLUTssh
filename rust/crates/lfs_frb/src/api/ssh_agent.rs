@@ -137,7 +137,7 @@ pub async fn ssh_agent_update_key_policy(key_id: String, policy: String) -> Resu
     use lfs_core::db::ssh_keys::AgentPolicy;
     let p = AgentPolicy::from_db(&policy);
     let key_id_clone = key_id.clone();
-    tokio::task::spawn_blocking(move || {
+    let res = tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
         let db = app
             .db()
@@ -152,5 +152,11 @@ pub async fn ssh_agent_update_key_policy(key_id: String, policy: String) -> Resu
     })
     .await
     .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("spawn_blocking: {e}")))?
-    .map_err(|e| frb_err::from_core(&e))
+    .map_err(|e| frb_err::from_core(&e));
+    if res.is_ok() {
+        // Policy update flips `ssh_keys.agent_policy` — publish so the
+        // key-manager dropdown re-renders against the canonical row.
+        lfs_core::keys::notify_changed(&lfs_core::app::instance());
+    }
+    res
 }

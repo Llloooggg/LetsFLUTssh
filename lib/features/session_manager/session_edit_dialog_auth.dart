@@ -170,44 +170,37 @@ extension _AuthTab on _SessionEditDialogState {
 
   Widget _buildKeyStoreSelector() {
     final s = S.of(context);
-    final keys = ref.watch(sshKeysProvider);
-
-    return keys.when(
-      data: (keyList) {
-        if (keyList.isEmpty && !_hasStoreKey) {
-          return const SizedBox.shrink();
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final keyList = ref.watch(sshKeysProvider);
+    if (keyList.isEmpty && !_hasStoreKey) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _hasStoreKey
-                      ? _buildSelectedKeyChip()
-                      : _buildKeyPickerButton(s, keyList),
-                ),
-              ],
+            Expanded(
+              child: _hasStoreKey
+                  ? _buildSelectedKeyChip()
+                  : _buildKeyPickerButton(s, keyList),
             ),
-            if (_hasStoreKey)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _buildOrDividerLabel(),
-                    style: TextStyle(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgFaint,
-                    ),
-                  ),
+          ],
+        ),
+        if (_hasStoreKey)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _buildOrDividerLabel(),
+                style: TextStyle(
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.fgFaint,
                 ),
               ),
-          ],
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -269,7 +262,7 @@ extension _AuthTab on _SessionEditDialogState {
     // Software rows render no badge (the legacy default).
     Map<String, SshKeyMetadata> metadata = const {};
     try {
-      metadata = await ref.read(sshKeysProvider.notifier).loadAllMetadata();
+      metadata = await ref.read(sshKeysMutatorProvider).loadAllMetadata();
     } catch (_) {
       // Metadata lookup is decorative only — a transient FRB miss
       // degrades to the unbadged list shape rather than blocking

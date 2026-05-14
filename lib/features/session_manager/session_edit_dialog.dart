@@ -494,7 +494,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// bytes never need to materialise on the Dart heap for this
   /// resolve step.
   Future<void> _resolveKeyLabel() async {
-    final store = ref.read(sshKeysProvider.notifier);
+    final store = ref.read(sshKeysMutatorProvider);
     final metadata = await store.loadAllMetadata();
     final entry = metadata[_selectedKeyId];
     if (entry != null && mounted) {

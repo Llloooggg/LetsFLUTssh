@@ -134,7 +134,7 @@ pub async fn enclave_ssh_generate(
         // Persist via the shared DB worker pool — runs on the
         // single rusqlite mutex, separate from the keychain
         // round trip above.
-        let inserted = crate::api::db::run_db_mut(move |conn| {
+        let inserted = crate::api::db::run_db_mut_writing_keys(move |conn| {
             let row = lfs_core::db::ssh_keys::SshKeyRow {
                 id: lfs_core::id::random_handle_hex_32(),
                 label: outcome.label,
@@ -290,9 +290,12 @@ pub async fn enclave_ssh_delete(key_id: String) -> Result<(), String> {
         // Soft-delete the DB row regardless of chip outcome — the
         // user clicked delete; the DB tombstone is the source of
         // truth for the listing.
-        crate::api::db::run_db(move |c| lfs_core::db::ssh_keys::delete(c, &key_id))
-            .await
-            .map(|_| ())
+        crate::api::db::run_db_writing_keys_when(
+            move |c| lfs_core::db::ssh_keys::delete(c, &key_id),
+            |n| *n > 0,
+        )
+        .await
+        .map(|_| ())
     }
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     {

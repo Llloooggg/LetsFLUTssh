@@ -638,6 +638,16 @@ pub async fn db_import_apply(
             .map_err(|e| crate::api::frb_err::from_core(&e))?;
         let mut frb_result = DbApplyResult::from(result);
         frb_result.config_json = staged_config_json;
+        // Apply mutates `sessions` / `ssh_keys` / `known_hosts` /
+        // `tags` / `snippets` in a single transaction; publish so
+        // every Dart-side stream re-fetches off the fresh snapshot.
+        // Skip publish on rolled-back results — the in-flight
+        // transaction undid every write, so nothing changed.
+        if !frb_result.rolled_back {
+            lfs_core::sessions::reload_and_notify(&app);
+            lfs_core::keys::notify_changed(&app);
+            lfs_core::known_hosts::notify_changed(&app);
+        }
         Ok(frb_result)
     })
     .await

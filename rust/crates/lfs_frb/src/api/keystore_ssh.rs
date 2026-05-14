@@ -165,7 +165,7 @@ pub async fn keystore_ssh_generate(
         let platform = outcome.platform.clone();
         let actual_sb = outcome.actual_strongbox;
         let alias_for_row = alias.clone();
-        let inserted = crate::api::db::run_db_mut(move |conn| {
+        let inserted = crate::api::db::run_db_mut_writing_keys(move |conn| {
             let row = lfs_core::db::ssh_keys::SshKeyRow {
                 id: lfs_core::id::random_handle_hex_32(),
                 label: label_for_row.clone(),
@@ -347,9 +347,12 @@ pub async fn keystore_ssh_delete(key_id: String) -> Result<(), String> {
                 let _ = lfs_os_security::android::keystore_signer::delete(alias).await;
             }
         }
-        crate::api::db::run_db(move |c| lfs_core::db::ssh_keys::delete(c, &key_id))
-            .await
-            .map(|_| ())
+        crate::api::db::run_db_writing_keys_when(
+            move |c| lfs_core::db::ssh_keys::delete(c, &key_id),
+            |n| *n > 0,
+        )
+        .await
+        .map(|_| ())
     }
     #[cfg(not(target_os = "android"))]
     {

@@ -114,6 +114,84 @@ where
     res
 }
 
+/// `run_db` + always-fire `KeysChanged` on Ok. Symmetric with
+/// [`run_db_writing_sessions`] — every ssh_keys /
+/// ssh_key_certificates write routes through here so the Dart
+/// `sshKeysStreamProvider` re-fetches in one microtask-coalesced
+/// refresh rather than per-call.
+pub(crate) async fn run_db_writing_keys<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+{
+    let res = run_db(f).await;
+    if res.is_ok() {
+        lfs_core::keys::notify_changed(&lfs_core::app::instance());
+    }
+    res
+}
+
+/// `run_db` + conditional `KeysChanged` on Ok + predicate. Used by
+/// DAO endpoints that return `0 / N rows affected` — `n > 0` is
+/// the typical predicate so a no-op delete (id resolves to
+/// nothing) doesn't waste a bus event.
+pub(crate) async fn run_db_writing_keys_when<F, R, W>(f: F, when: W) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+    W: Fn(&R) -> bool,
+{
+    let res = run_db(f).await;
+    if let Ok(v) = &res {
+        if when(v) {
+            lfs_core::keys::notify_changed(&lfs_core::app::instance());
+        }
+    }
+    res
+}
+
+/// `run_db_mut` + always-fire `KeysChanged` on Ok. Mirrors
+/// [`run_db_mut_writing_sessions`] for the transactional ssh_keys
+/// paths (`replace_all`, `import_key_for_merge`).
+pub(crate) async fn run_db_mut_writing_keys<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+{
+    let res = run_db_mut(f).await;
+    if res.is_ok() {
+        lfs_core::keys::notify_changed(&lfs_core::app::instance());
+    }
+    res
+}
+
+/// `run_db` that fires BOTH `KeysChanged` AND `SessionsChanged`
+/// when the wrapped value satisfies a caller-supplied predicate.
+/// Used by `db_ssh_keys_delete`: the cascade clears
+/// `sessions.key_id` (ON DELETE SET NULL), so the workspace
+/// stream needs to re-fetch alongside the key stream. Predicate
+/// filters out the no-op delete (id resolves to nothing) so we
+/// don't waste either event.
+pub(crate) async fn run_db_writing_keys_and_sessions_when<F, R, W>(
+    f: F,
+    when: W,
+) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+    W: Fn(&R) -> bool,
+{
+    let res = run_db(f).await;
+    if let Ok(v) = &res {
+        if when(v) {
+            let app = lfs_core::app::instance();
+            lfs_core::keys::notify_changed(&app);
+            lfs_core::sessions::reload_and_notify(&app);
+        }
+    }
+    res
+}
+
 // ---- ssh_keys ----------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -313,7 +391,7 @@ pub async fn db_ssh_keys_get(id: String) -> Result<Option<DbSshKey>, String> {
 
 pub async fn db_ssh_keys_upsert(row: DbSshKey) -> Result<(), String> {
     let row: lfs_core::db::ssh_keys::SshKeyRow = row.into();
-    run_db(move |c| lfs_core::db::ssh_keys::upsert(c, &row)).await
+    run_db_writing_keys(move |c| lfs_core::db::ssh_keys::upsert(c, &row)).await
 }
 
 /// Atomic full-table replace. **Don't fan out to N delete +
@@ -323,18 +401,22 @@ pub async fn db_ssh_keys_upsert(row: DbSshKey) -> Result<(), String> {
 /// replacement inside one rusqlite transaction.
 pub async fn db_ssh_keys_replace_all(rows: Vec<DbSshKey>) -> Result<(), String> {
     let rows: Vec<lfs_core::db::ssh_keys::SshKeyRow> = rows.into_iter().map(Into::into).collect();
-    run_db_mut(move |c| lfs_core::db::ssh_keys::replace_all(c, &rows)).await
+    run_db_mut_writing_keys(move |c| lfs_core::db::ssh_keys::replace_all(c, &rows)).await
 }
 
 pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
     // Sessions that referenced this key via `sessions.key_id` clear
-    // the column on delete (`ON DELETE SET NULL`), so the Dart-side
-    // sessions stream needs to re-fetch to drop the stale keyId from
-    // the cached snapshot. Predicate filters out the no-op delete
-    // (id resolves to nothing) so we don't waste a bus event.
-    run_db_writing_sessions_when(move |c| lfs_core::db::ssh_keys::delete(c, &id), |n| *n > 0)
-        .await
-        .map(|n| n as u32)
+    // the column on delete (`ON DELETE SET NULL`), so both the
+    // Dart-side keys stream AND the workspace stream need to
+    // re-fetch (the former for the row removal, the latter for the
+    // cleared keyId). Predicate filters out the no-op delete (id
+    // resolves to nothing) so we don't waste either event.
+    run_db_writing_keys_and_sessions_when(
+        move |c| lfs_core::db::ssh_keys::delete(c, &id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
 
 /// Composite import — Rust composes the dedup-by-fingerprint
@@ -345,7 +427,7 @@ pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
 /// sequence lands as a single sqlite transaction.
 pub async fn db_ssh_keys_import_for_merge(proposed: DbSshKey) -> Result<String, String> {
     let row: lfs_core::db::ssh_keys::SshKeyRow = proposed.into();
-    run_db_mut(move |c| lfs_core::db::ssh_keys::import_key_for_merge(c, &row)).await
+    run_db_mut_writing_keys(move |c| lfs_core::db::ssh_keys::import_key_for_merge(c, &row)).await
 }
 
 /// Stage the stored key's private PEM bytes into the SecretStore
@@ -522,16 +604,19 @@ pub async fn db_ssh_key_certificate_get(
 /// fingerprint) before calling — the DAO does not re-check.
 pub async fn db_ssh_key_certificate_upsert(rec: DbSshKeyCertificate) -> Result<(), String> {
     let rec: lfs_core::db::ssh_key_certificates::CertRecord = rec.into();
-    run_db(move |c| lfs_core::db::ssh_key_certificates::upsert(c, &rec)).await
+    run_db_writing_keys(move |c| lfs_core::db::ssh_key_certificates::upsert(c, &rec)).await
 }
 
 /// Remove the certificate paired with `key_id`. Returns the number
 /// of rows affected — `0` is a successful no-op when no cert was
 /// attached.
 pub async fn db_ssh_key_certificate_delete(key_id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::ssh_key_certificates::delete(c, &key_id))
-        .await
-        .map(|n| n as u32)
+    run_db_writing_keys_when(
+        move |c| lfs_core::db::ssh_key_certificates::delete(c, &key_id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
 
 /// Every certificate row, ordered by `key_id`. Used by archive

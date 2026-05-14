@@ -20,6 +20,11 @@ pub enum BusTopic {
     Update,
     KnownHosts,
     Sessions,
+    /// `ssh_keys` + `ssh_key_certificates` table fan-out — the
+    /// Dart `sshKeysStreamProvider` subscribes here and re-fetches
+    /// the metadata listing on every event. Symmetric with
+    /// [`BusTopic::Sessions`].
+    Keys,
     Config,
     Tier,
     SecurityPrompt,
@@ -47,6 +52,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::Update => lfs_core::bus::EventTopic::Update,
             BusTopic::KnownHosts => lfs_core::bus::EventTopic::KnownHosts,
             BusTopic::Sessions => lfs_core::bus::EventTopic::Sessions,
+            BusTopic::Keys => lfs_core::bus::EventTopic::Keys,
             BusTopic::Config => lfs_core::bus::EventTopic::Config,
             BusTopic::Tier => lfs_core::bus::EventTopic::Tier,
             BusTopic::SecurityPrompt => lfs_core::bus::EventTopic::SecurityPrompt,
@@ -236,6 +242,8 @@ pub enum BusEvent {
     KnownHostsChanged,
     /// Sessions / folders tables mutated.
     SessionsChanged,
+    /// `ssh_keys` / `ssh_key_certificates` tables mutated.
+    KeysChanged,
     /// `config.json` save landed — carries the freshly-written
     /// JSON so subscribers swap in the canonical state without
     /// a follow-up `config_store_get_json` round-trip.
@@ -554,6 +562,7 @@ impl BusEvent {
             }
             lfs_core::bus::Event::KnownHostsChanged => BusEvent::KnownHostsChanged,
             lfs_core::bus::Event::SessionsChanged => BusEvent::SessionsChanged,
+            lfs_core::bus::Event::KeysChanged => BusEvent::KeysChanged,
             lfs_core::bus::Event::ConfigChanged { json } => BusEvent::ConfigChanged { json },
             lfs_core::bus::Event::TierStateChanged { state_wire_name } => {
                 BusEvent::TierStateChanged { state_wire_name }
@@ -1063,6 +1072,7 @@ mod tests {
             (BusTopic::Update, lfs_core::bus::EventTopic::Update),
             (BusTopic::KnownHosts, lfs_core::bus::EventTopic::KnownHosts),
             (BusTopic::Sessions, lfs_core::bus::EventTopic::Sessions),
+            (BusTopic::Keys, lfs_core::bus::EventTopic::Keys),
             (BusTopic::Config, lfs_core::bus::EventTopic::Config),
             (BusTopic::Tier, lfs_core::bus::EventTopic::Tier),
             (
