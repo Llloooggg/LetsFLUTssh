@@ -59,28 +59,82 @@ pub enum DbPortForwardRuleValidationError {
     BindHostRequired,
 }
 
+/// FRB-visible mirror of [`lfs_core::portforward::RuleKind`].
+/// Carries the three port-forward kinds across the boundary as a
+/// typed enum; Dart consumers pattern-match directly rather than
+/// round-tripping the wire-string through a `.fromWire` helper.
+///
+/// FRB codegen lowers each variant to camelCase Dart matching the
+/// wire grammar `RuleKind::wire_name` round-trips byte-identically
+/// (`local` / `remote` / `dynamic`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DbPortForwardKind {
+    Local,
+    Remote,
+    Dynamic,
+}
+
+impl From<lfs_core::portforward::RuleKind> for DbPortForwardKind {
+    fn from(value: lfs_core::portforward::RuleKind) -> Self {
+        match value {
+            lfs_core::portforward::RuleKind::Local => DbPortForwardKind::Local,
+            lfs_core::portforward::RuleKind::Remote => DbPortForwardKind::Remote,
+            lfs_core::portforward::RuleKind::Dynamic => DbPortForwardKind::Dynamic,
+        }
+    }
+}
+
+impl From<DbPortForwardKind> for lfs_core::portforward::RuleKind {
+    fn from(value: DbPortForwardKind) -> Self {
+        match value {
+            DbPortForwardKind::Local => lfs_core::portforward::RuleKind::Local,
+            DbPortForwardKind::Remote => lfs_core::portforward::RuleKind::Remote,
+            DbPortForwardKind::Dynamic => lfs_core::portforward::RuleKind::Dynamic,
+        }
+    }
+}
+
+/// Parse a stored `port_forward_rules.kind` wire-string into the
+/// typed enum. The FRB sync shim around
+/// [`RuleKind::from_wire_name`] — used by the DB-row mapper
+/// Dart-side after a `port_forward_rules.kind` column read.
+/// Unknown / empty strings fold to [`DbPortForwardKind::Local`]
+/// so a future variant added to a newer build cannot brick a
+/// legacy stored row.
+#[flutter_rust_bridge::frb(sync)]
+pub fn port_forward_kind_from_wire(value: String) -> DbPortForwardKind {
+    lfs_core::portforward::RuleKind::from_wire_name(&value).into()
+}
+
+/// Wire value the typed enum lowers to. The FRB sync shim around
+/// [`RuleKind::wire_name`] — needed because FRB lowers Rust's
+/// `Dynamic` variant to Dart's `dynamic_` (the trailing underscore
+/// dodges the `dynamic` keyword collision) so the Dart enum's
+/// `.name` getter does NOT match the DB column for that variant.
+/// Callers writing rows to `port_forward_rules.kind` route through
+/// this shim so the on-wire byte (`"dynamic"`) stays canonical.
+#[flutter_rust_bridge::frb(sync)]
+pub fn port_forward_kind_to_wire(value: DbPortForwardKind) -> String {
+    let core: lfs_core::portforward::RuleKind = value.into();
+    core.wire_name().to_owned()
+}
+
 /// Pre-flight check for a port-forward rule. Returns `None` when
 /// the rule's network params are valid for its kind, else the
-/// matching reject variant. `kind` is the wire string the Dart
-/// `PortForwardKind` enum emits (`"local"` / `"remote"` /
-/// `"dynamic"`); any other value treats the rule as Local for the
-/// validation (matches the prior Dart fallback in
-/// `PortForwardKindExt.fromWireName`).
+/// matching reject variant. Takes a typed [`DbPortForwardKind`]
+/// so the Dart caller does not round-trip through a wire-string
+/// fallback that could silently re-classify a Dynamic rule as
+/// Local.
 #[flutter_rust_bridge::frb(sync)]
 pub fn port_forward_validate_rule(
-    kind: String,
+    kind: DbPortForwardKind,
     bind_host: String,
     bind_port: i64,
     remote_host: String,
     remote_port: i64,
 ) -> Option<DbPortForwardRuleValidationError> {
-    let rule_kind = match kind.as_str() {
-        "remote" => lfs_core::portforward::RuleKind::Remote,
-        "dynamic" => lfs_core::portforward::RuleKind::Dynamic,
-        _ => lfs_core::portforward::RuleKind::Local,
-    };
     lfs_core::portforward::validate_rule(
-        rule_kind,
+        kind.into(),
         &bind_host,
         bind_port,
         &remote_host,
@@ -100,6 +154,108 @@ pub fn port_forward_validate_rule(
             DbPortForwardRuleValidationError::BindHostRequired
         }
     })
+}
+
+/// FRB-visible mirror of [`lfs_core::portforward::AppRule`] — the
+/// app-side rule shape (no `session_id`, ISO-8601 `created_at`
+/// the way Dart's `DateTime.toIso8601String()` emits when the
+/// source is UTC). Distinct from
+/// [`crate::api::db::DbPortForwardRule`] which carries the DB-row
+/// shape (`session_id` + `created_at_ms`).
+///
+/// `description` is allowed to be empty; the codec helpers below
+/// drop the key on serialise when empty so the wire round-trips
+/// byte-identically with the prior Dart codec.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DbPortForwardRuleJson {
+    pub id: String,
+    pub kind: DbPortForwardKind,
+    pub bind_host: String,
+    pub bind_port: i64,
+    pub remote_host: String,
+    pub remote_port: i64,
+    pub description: String,
+    pub enabled: bool,
+    pub sort_order: i64,
+    /// ISO-8601 UTC string (`YYYY-MM-DDTHH:MM:SS.mmmZ`). Matches
+    /// what `DateTime.toIso8601String()` emits for a UTC source.
+    pub created_at_iso8601: String,
+}
+
+impl DbPortForwardRuleJson {
+    /// Convert the FRB-visible mirror into the `lfs_core` shape the
+    /// canonical codec accepts. Uses the supplied `fallback_ms`
+    /// when the ISO-8601 string is missing / unparseable so the
+    /// Dart caller controls the "now" stamp instead of the
+    /// codec inventing one.
+    #[flutter_rust_bridge::frb(ignore)]
+    fn into_core(self, fallback_ms: i64) -> lfs_core::portforward::AppRule {
+        lfs_core::portforward::AppRule {
+            id: self.id,
+            kind: self.kind.into(),
+            bind_host: self.bind_host,
+            bind_port: self.bind_port,
+            remote_host: self.remote_host,
+            remote_port: self.remote_port,
+            description: self.description,
+            enabled: self.enabled,
+            sort_order: self.sort_order,
+            created_at_ms: lfs_core::archive::iso8601::parse_iso8601_or_now(
+                &self.created_at_iso8601,
+                fallback_ms,
+            ),
+        }
+    }
+}
+
+impl From<lfs_core::portforward::AppRule> for DbPortForwardRuleJson {
+    fn from(value: lfs_core::portforward::AppRule) -> Self {
+        Self {
+            id: value.id,
+            kind: value.kind.into(),
+            bind_host: value.bind_host,
+            bind_port: value.bind_port,
+            remote_host: value.remote_host,
+            remote_port: value.remote_port,
+            description: value.description,
+            enabled: value.enabled,
+            sort_order: value.sort_order,
+            created_at_iso8601: lfs_core::archive::iso8601::format_iso8601_utc(value.created_at_ms),
+        }
+    }
+}
+
+/// Serialise a rule into canonical JSON. Routes through
+/// [`lfs_core::portforward::rule_to_json_string`] so the Rust
+/// codec is the single source of truth for the field order, key
+/// names, and the empty-description omission rule.
+///
+/// `created_at_iso8601` on the input is re-parsed into millis +
+/// re-formatted so a stray locale string the Dart caller might
+/// have built (e.g. a non-UTC `toIso8601String`) round-trips
+/// through the canonical formatter — no second on-wire shape.
+#[flutter_rust_bridge::frb(sync)]
+pub fn port_forward_rule_to_json_typed(rule: DbPortForwardRuleJson) -> String {
+    let core: lfs_core::portforward::AppRule = rule.into_core(0);
+    lfs_core::portforward::rule_to_json_string(&core)
+}
+
+/// Parse a canonical-JSON rule string into the typed mirror.
+/// Routes through [`lfs_core::portforward::rule_from_json_string`]
+/// so the missing-field defaults (`Local` for kind, `127.0.0.1`
+/// for bind_host, `true` for enabled, "now" for `created_at`)
+/// stay in sync with the Rust codec. `now_ms` is the fallback the
+/// parser stamps when `created_at` is missing or unparseable; the
+/// Dart caller passes `DateTime.now().millisecondsSinceEpoch` so a
+/// fresh rule built from a partial map carries a sensible
+/// timestamp.
+#[flutter_rust_bridge::frb(sync)]
+pub fn port_forward_rule_from_json_typed(
+    json: String,
+    now_ms: i64,
+) -> Result<DbPortForwardRuleJson, String> {
+    let rule = lfs_core::portforward::rule_from_json_string(&json, now_ms)?;
+    Ok(rule.into())
 }
 
 /// Start a Rust-driven `-L` local forward listener against the

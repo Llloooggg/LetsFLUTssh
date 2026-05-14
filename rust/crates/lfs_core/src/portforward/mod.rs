@@ -107,6 +107,29 @@ mod validate_rule_tests {
         let r = validate_rule(RuleKind::Local, "", 8080, "h", 22);
         assert_eq!(r, Some(RuleValidationError::BindHostRequired));
     }
+
+    #[test]
+    fn rule_kind_wire_round_trip_every_variant() {
+        // Byte-identity guard — these strings round-trip the DB
+        // column `port_forward_rules.kind`, so a typo would brick
+        // every saved row.
+        for v in [RuleKind::Local, RuleKind::Remote, RuleKind::Dynamic] {
+            assert_eq!(RuleKind::from_wire_name(v.wire_name()), v);
+        }
+    }
+
+    #[test]
+    fn rule_kind_unknown_wire_falls_back_to_local() {
+        assert_eq!(RuleKind::from_wire_name(""), RuleKind::Local);
+        assert_eq!(RuleKind::from_wire_name("does-not-exist"), RuleKind::Local);
+    }
+
+    #[test]
+    fn rule_kind_wire_names_match_dart_enum_dot_name() {
+        assert_eq!(RuleKind::Local.wire_name(), "local");
+        assert_eq!(RuleKind::Remote.wire_name(), "remote");
+        assert_eq!(RuleKind::Dynamic.wire_name(), "dynamic");
+    }
 }
 
 use std::collections::HashMap;
@@ -126,6 +149,37 @@ pub enum RuleKind {
     Remote,
     /// `-D bind_host:bind_port` — SOCKS5 dynamic forward.
     Dynamic,
+}
+
+impl RuleKind {
+    /// Wire value persisted in the `port_forward_rules.kind` column
+    /// and the canonical-JSON `kind` key. Byte-identical to the
+    /// matching Dart enum's `.name` getter on the FRB-generated
+    /// mirror so the DB column round-trips across the boundary
+    /// without a Dart-side parser.
+    #[must_use]
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            RuleKind::Local => "local",
+            RuleKind::Remote => "remote",
+            RuleKind::Dynamic => "dynamic",
+        }
+    }
+
+    /// Parse a wire value into the typed variant. Unknown / empty
+    /// strings fall back to [`RuleKind::Local`] so a future variant
+    /// added in a newer build can never brick a legacy stored row —
+    /// it simply renders as `local` until the build catches up. The
+    /// previous Dart-side `PortForwardKindExt.fromWireName` followed
+    /// the same fallback rule.
+    #[must_use]
+    pub fn from_wire_name(s: &str) -> Self {
+        match s {
+            "remote" => RuleKind::Remote,
+            "dynamic" => RuleKind::Dynamic,
+            _ => RuleKind::Local,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -177,6 +231,176 @@ impl RuleActor {
             status: self.status,
             detail: self.detail.clone(),
         }
+    }
+}
+
+/// App-side port-forward rule shape — the canonical JSON the FRB
+/// codec helpers (`port_forward_rule_to_json_typed` /
+/// `port_forward_rule_from_json_typed`) round-trip. Mirrors the
+/// Dart `PortForwardRule` struct (no `session_id`; `created_at` is
+/// an ISO-8601 UTC string the way Dart's
+/// `DateTime.toIso8601String()` emits when the source is UTC).
+///
+/// Distinct from [`db::port_forwards::PortForwardRuleRow`] (the
+/// DB-row shape, which carries `session_id` + `created_at_ms` and
+/// the sync `updated_at_ms` stamp). The DB-row codec lives in
+/// `archive::compose::port_forward_row_to_value`; this one is the
+/// Dart-side rule's canonical wire that legacy code emitted from
+/// `PortForwardRule.toJson` and parsed in `.fromJson`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppRule {
+    pub id: String,
+    pub kind: RuleKind,
+    pub bind_host: String,
+    pub bind_port: i64,
+    pub remote_host: String,
+    pub remote_port: i64,
+    pub description: String,
+    pub enabled: bool,
+    pub sort_order: i64,
+    pub created_at_ms: i64,
+}
+
+/// Serialise an [`AppRule`] into the canonical JSON string the
+/// Dart-side rule grammar expects. Field order + key names match
+/// what `PortForwardRule.toJson` historically emitted so any
+/// on-disk / clipboard artefact written with the old codec still
+/// parses byte-identically through `from_json_string`.
+///
+/// `description` is omitted when empty (mirrors the prior Dart
+/// codec's `if (description.isNotEmpty)` guard so a freshly built
+/// rule round-trips through the typed FRB shim without growing a
+/// spurious empty field).
+#[must_use]
+pub fn rule_to_json_string(rule: &AppRule) -> String {
+    let mut obj = serde_json::Map::new();
+    obj.insert("id".into(), serde_json::json!(rule.id));
+    obj.insert("kind".into(), serde_json::json!(rule.kind.wire_name()));
+    obj.insert("bind_host".into(), serde_json::json!(rule.bind_host));
+    obj.insert("bind_port".into(), serde_json::json!(rule.bind_port));
+    obj.insert("remote_host".into(), serde_json::json!(rule.remote_host));
+    obj.insert("remote_port".into(), serde_json::json!(rule.remote_port));
+    if !rule.description.is_empty() {
+        obj.insert("description".into(), serde_json::json!(rule.description));
+    }
+    obj.insert("enabled".into(), serde_json::json!(rule.enabled));
+    obj.insert("sort_order".into(), serde_json::json!(rule.sort_order));
+    obj.insert(
+        "created_at".into(),
+        serde_json::json!(crate::archive::iso8601::format_iso8601_utc(
+            rule.created_at_ms
+        )),
+    );
+    serde_json::Value::Object(obj).to_string()
+}
+
+/// Parse a canonical-JSON rule string into the typed [`AppRule`].
+///
+/// Tolerant of missing / unknown fields the same way the previous
+/// Dart codec was: a missing `kind` → `Local`; missing `bind_host`
+/// → `127.0.0.1`; missing numeric fields → 0; missing `enabled`
+/// → `true`; missing `created_at` (or unparseable) → "now"
+/// (matches `DateTime.tryParse(...) ?? DateTime.now()` semantics
+/// the legacy parser shipped). Returns the parser error string for
+/// malformed JSON only — a recognised shape always succeeds.
+pub fn rule_from_json_string(json: &str, now_ms: i64) -> Result<AppRule, String> {
+    let v: serde_json::Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    let obj = v.as_object().ok_or("rule json: top-level not an object")?;
+    let s = |key: &str| obj.get(key).and_then(|v| v.as_str()).map(str::to_owned);
+    let i = |key: &str| obj.get(key).and_then(serde_json::Value::as_i64);
+    let b = |key: &str| obj.get(key).and_then(serde_json::Value::as_bool);
+    let kind_wire = s("kind").unwrap_or_default();
+    let created_at_ms = match s("created_at") {
+        Some(s) if !s.is_empty() => crate::archive::iso8601::parse_iso8601_or_now(&s, now_ms),
+        _ => now_ms,
+    };
+    Ok(AppRule {
+        id: s("id").unwrap_or_default(),
+        kind: RuleKind::from_wire_name(&kind_wire),
+        bind_host: s("bind_host").unwrap_or_else(|| "127.0.0.1".to_owned()),
+        bind_port: i("bind_port").unwrap_or(0),
+        remote_host: s("remote_host").unwrap_or_default(),
+        remote_port: i("remote_port").unwrap_or(0),
+        description: s("description").unwrap_or_default(),
+        enabled: b("enabled").unwrap_or(true),
+        sort_order: i("sort_order").unwrap_or(0),
+        created_at_ms,
+    })
+}
+
+#[cfg(test)]
+mod app_rule_codec_tests {
+    use super::*;
+
+    fn rule_with_iso_ms(ms: i64) -> AppRule {
+        AppRule {
+            id: "fixed-id".into(),
+            kind: RuleKind::Local,
+            bind_host: "127.0.0.1".into(),
+            bind_port: 9090,
+            remote_host: "svc.local".into(),
+            remote_port: 443,
+            description: "prod tunnel".into(),
+            enabled: false,
+            sort_order: 5,
+            created_at_ms: ms,
+        }
+    }
+
+    #[test]
+    fn rule_round_trips_through_canonical_json() {
+        // 2026-01-02T03:04:05.000Z → ms = 1767322145000
+        let original = rule_with_iso_ms(1_767_322_145_000);
+        let s = rule_to_json_string(&original);
+        let back = rule_from_json_string(&s, 0).expect("parse");
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn rule_to_json_omits_empty_description() {
+        let r = AppRule {
+            description: String::new(),
+            ..rule_with_iso_ms(0)
+        };
+        let s = rule_to_json_string(&r);
+        assert!(!s.contains("description"));
+    }
+
+    #[test]
+    fn rule_from_json_defaults_missing_fields() {
+        let s = r#"{"bind_port":22}"#;
+        let r = rule_from_json_string(s, 12_345).expect("parse");
+        assert_eq!(r.kind, RuleKind::Local);
+        assert_eq!(r.bind_host, "127.0.0.1");
+        assert!(r.enabled);
+        assert_eq!(r.bind_port, 22);
+        // Missing created_at → fall back to the supplied `now_ms`.
+        assert_eq!(r.created_at_ms, 12_345);
+    }
+
+    #[test]
+    fn rule_from_json_maps_unknown_kind_to_local() {
+        let s = r#"{"bind_port":1,"kind":"who-knows"}"#;
+        let r = rule_from_json_string(s, 0).expect("parse");
+        assert_eq!(r.kind, RuleKind::Local);
+    }
+
+    #[test]
+    fn rule_from_json_maps_every_known_kind() {
+        for (wire, expected) in [
+            ("local", RuleKind::Local),
+            ("remote", RuleKind::Remote),
+            ("dynamic", RuleKind::Dynamic),
+        ] {
+            let s = format!(r#"{{"bind_port":1,"kind":"{wire}"}}"#);
+            assert_eq!(rule_from_json_string(&s, 0).unwrap().kind, expected);
+        }
+    }
+
+    #[test]
+    fn rule_from_json_rejects_malformed_json() {
+        assert!(rule_from_json_string("not json", 0).is_err());
+        assert!(rule_from_json_string("[1,2,3]", 0).is_err());
     }
 }
 

@@ -18,7 +18,7 @@
 /// Matches what `DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
 /// .toIso8601String()` would emit and parses cleanly through Dart's
 /// `DateTime.tryParse`.
-pub(crate) fn format_iso8601_utc(ms: i64) -> String {
+pub fn format_iso8601_utc(ms: i64) -> String {
     let secs_total = ms.div_euclid(1000);
     let millis = ms.rem_euclid(1000) as u32;
     let (year, month, day, hh, mm, ss) = unix_to_civil(secs_total);
@@ -64,7 +64,7 @@ pub(crate) fn civil_to_unix_ms(year: i64, month: u32, day: u32, hh: u32, mm: u32
 /// Iso8601 → unix-millis. Best-effort: drops to `now` on parse
 /// failure since the archive's "created_at" is informational only —
 /// the row's effective timestamp is the apply moment.
-pub(crate) fn parse_iso8601_or_now(s: &str, now_ms: i64) -> i64 {
+pub fn parse_iso8601_or_now(s: &str, now_ms: i64) -> i64 {
     if s.is_empty() {
         return now_ms;
     }

@@ -106,7 +106,8 @@ class PortForwardRuntime implements ConnectionExtension {
       // bus before throwing, so the UI sees the failure regardless.
       _armed.remove(rule.id);
       AppLogger.instance.log(
-        'Failed to start ${rule.kind.wireName} forward (Rust)',
+        'Failed to start ${rust_fwd.portForwardKindToWire(value: rule.kind)} '
+        'forward (Rust)',
         name: 'PortForward',
         error: e,
       );
@@ -137,7 +138,8 @@ class PortForwardRuntime implements ConnectionExtension {
       }
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to stop ${kind.wireName} forward (Rust)',
+        'Failed to stop ${rust_fwd.portForwardKindToWire(value: kind)} '
+        'forward (Rust)',
         name: 'PortForward',
         error: e,
       );

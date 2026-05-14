@@ -39,7 +39,7 @@ use crate::error::Error;
 pub mod apply;
 pub mod compose;
 pub mod envelope;
-pub(crate) mod iso8601;
+pub mod iso8601;
 
 /// Hard upper bound on the on-disk `.lfs` size accepted by
 /// [`read_archive_to_pending`]. 256 MiB covers a session library

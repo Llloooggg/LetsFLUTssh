@@ -2,32 +2,16 @@ import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/forward.dart' as rust_forward;
 
-/// Direction of an SSH port forward.
-///
-/// v1 ships local-only (-L). Remote (-R) and dynamic SOCKS5 (-D) are
-/// declared in the enum so the persistence layer rejects nothing on
-/// import, but the runtime guards against running the unsupported
-/// kinds — see `PortForwardRuntime` for the gating logic.
-enum PortForwardKind { local, remote, dynamic_ }
-
-extension PortForwardKindExt on PortForwardKind {
-  String get wireName => switch (this) {
-    PortForwardKind.local => 'local',
-    PortForwardKind.remote => 'remote',
-    PortForwardKind.dynamic_ => 'dynamic',
-  };
-
-  static PortForwardKind fromWireName(String? name) {
-    switch (name) {
-      case 'remote':
-        return PortForwardKind.remote;
-      case 'dynamic':
-        return PortForwardKind.dynamic_;
-      default:
-        return PortForwardKind.local;
-    }
-  }
-}
+/// Direction of an SSH port forward — re-export of the FRB-mirror
+/// enum so call sites keep the short `PortForwardKind.remote` /
+/// `PortForwardKind.dynamic_` identifiers. The single source of
+/// truth (variant set + wire-string grammar) lives in
+/// `lfs_core::portforward::RuleKind`; FRB lowers Rust's `Dynamic`
+/// variant to Dart `dynamic_` so the keyword collision is avoided
+/// while the on-wire byte stays `"dynamic"` — route through
+/// [`rust_forward.portForwardKindToWire`] /
+/// [`rust_forward.portForwardKindFromWire`] for any wire conversion.
+typedef PortForwardKind = rust_forward.DbPortForwardKind;
 
 /// Immutable description of a single port-forward rule attached to a
 /// session.
@@ -70,7 +54,7 @@ class PortForwardRule {
   /// the driver's own pre-flight share one source.
   String? validate() {
     final err = rust_forward.portForwardValidateRule(
-      kind: kind.wireName,
+      kind: kind,
       bindHost: bindHost,
       bindPort: bindPort,
       remoteHost: remoteHost,
@@ -116,35 +100,6 @@ class PortForwardRule {
     sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt,
   );
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'kind': kind.wireName,
-    'bind_host': bindHost,
-    'bind_port': bindPort,
-    'remote_host': remoteHost,
-    'remote_port': remotePort,
-    if (description.isNotEmpty) 'description': description,
-    'enabled': enabled,
-    'sort_order': sortOrder,
-    'created_at': createdAt.toIso8601String(),
-  };
-
-  factory PortForwardRule.fromJson(Map<String, dynamic> json) =>
-      PortForwardRule(
-        id: json['id'] as String?,
-        kind: PortForwardKindExt.fromWireName(json['kind'] as String?),
-        bindHost: json['bind_host'] as String? ?? '127.0.0.1',
-        bindPort: json['bind_port'] as int? ?? 0,
-        remoteHost: json['remote_host'] as String? ?? '',
-        remotePort: json['remote_port'] as int? ?? 0,
-        description: json['description'] as String? ?? '',
-        enabled: json['enabled'] as bool? ?? true,
-        sortOrder: json['sort_order'] as int? ?? 0,
-        createdAt:
-            DateTime.tryParse(json['created_at'] as String? ?? '') ??
-            DateTime.now(),
-      );
 
   @override
   bool operator ==(Object other) =>

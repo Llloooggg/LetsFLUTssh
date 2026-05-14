@@ -3,6 +3,7 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/port_forward_rule.dart';
 import 'package:letsflutssh/core/ssh/port_forward_runtime.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/src/rust/api/forward.dart' as rust_fwd;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -74,11 +75,17 @@ void main() {
       expect(PortForwardRuntime().id, 'port-forward-runtime');
     });
 
-    test('rule kinds round-trip through the wire-name extension', () {
+    test('rule kinds round-trip through the FRB wire-name shims', () {
       // Belt-and-braces guard against a misnamed enum case showing
-      // up only at runtime — the parser dispatches on `wireName`.
+      // up only at runtime — the DAO dispatches on the wire string
+      // returned by `portForwardKindToWire`.
       for (final k in PortForwardKind.values) {
-        expect(PortForwardKindExt.fromWireName(k.wireName), k);
+        expect(
+          rust_fwd.portForwardKindFromWire(
+            value: rust_fwd.portForwardKindToWire(value: k),
+          ),
+          k,
+        );
       }
     });
 

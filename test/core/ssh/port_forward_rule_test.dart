@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/ssh/port_forward_rule.dart';
+import 'package:letsflutssh/src/rust/api/forward.dart' as rust_forward;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -80,9 +81,16 @@ void main() {
     });
   });
 
-  group('PortForwardRule JSON roundtrip', () {
-    test('round-trips every field', () {
-      final r = PortForwardRule(
+  group('PortForwardRule canonical-JSON roundtrip (FRB-routed)', () {
+    // The Dart-side `toJson` / `fromJson` codec was retired in favour
+    // of `portForwardRuleToJsonTyped` / `portForwardRuleFromJsonTyped`,
+    // which route both directions through the canonical Rust codec
+    // in `lfs_core::portforward`. The tests here exercise the FRB
+    // shim and pin the round-trip + missing-field-default contract
+    // so a future shape drift on either side surfaces immediately.
+
+    test('round-trips every field through the typed FRB codec', () {
+      const input = rust_forward.DbPortForwardRuleJson(
         id: 'fixed-id',
         kind: PortForwardKind.local,
         bindHost: '127.0.0.1',
@@ -92,22 +100,53 @@ void main() {
         description: 'prod tunnel',
         enabled: false,
         sortOrder: 5,
-        createdAt: DateTime.utc(2026, 1, 2, 3, 4, 5),
+        createdAtIso8601: '2026-01-02T03:04:05.000Z',
       );
-      final back = PortForwardRule.fromJson(r.toJson());
-      expect(back, equals(r));
+      final json = rust_forward.portForwardRuleToJsonTyped(rule: input);
+      final back = rust_forward.portForwardRuleFromJsonTyped(
+        json: json,
+        nowMs: 0,
+      );
+      expect(back, equals(input));
     });
 
     test('fromJson defaults missing fields safely', () {
-      final r = PortForwardRule.fromJson({'bind_port': 22});
+      final r = rust_forward.portForwardRuleFromJsonTyped(
+        json: '{"bind_port": 22}',
+        nowMs: 12345,
+      );
       expect(r.kind, PortForwardKind.local);
       expect(r.bindHost, '127.0.0.1');
       expect(r.enabled, isTrue);
+      expect(r.bindPort, 22);
+      // Missing `created_at` falls back to the supplied `now_ms` so
+      // a freshly built rule carries a sensible timestamp.
+      expect(r.createdAtIso8601, '1970-01-01T00:00:12.345Z');
     });
 
     test('fromJson maps unknown kind to local', () {
-      final r = PortForwardRule.fromJson({'bind_port': 1, 'kind': 'who-knows'});
+      final r = rust_forward.portForwardRuleFromJsonTyped(
+        json: '{"bind_port": 1, "kind": "who-knows"}',
+        nowMs: 0,
+      );
       expect(r.kind, PortForwardKind.local);
+    });
+
+    test('toJson omits empty description (matches prior codec)', () {
+      const input = rust_forward.DbPortForwardRuleJson(
+        id: 'k',
+        kind: PortForwardKind.local,
+        bindHost: '127.0.0.1',
+        bindPort: 1,
+        remoteHost: 'h',
+        remotePort: 1,
+        description: '',
+        enabled: true,
+        sortOrder: 0,
+        createdAtIso8601: '2026-01-02T03:04:05.000Z',
+      );
+      final json = rust_forward.portForwardRuleToJsonTyped(rule: input);
+      expect(json.contains('description'), isFalse);
     });
   });
 }

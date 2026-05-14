@@ -1,4 +1,5 @@
 import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/forward.dart' as rust_forward;
 import '../../utils/logger.dart';
 import '../ssh/port_forward_rule.dart';
 
@@ -24,7 +25,7 @@ Future<List<PortForwardRule>> loadPortForwards(String sessionId) async {
         .map(
           (r) => PortForwardRule(
             id: r.id,
-            kind: PortForwardKindExt.fromWireName(r.kind),
+            kind: rust_forward.portForwardKindFromWire(value: r.kind),
             bindHost: r.bindHost,
             bindPort: r.bindPort,
             remoteHost: r.remoteHost,
@@ -54,7 +55,7 @@ Future<void> upsertPortForward(String sessionId, PortForwardRule rule) async {
       row: rust_db.DbPortForwardRule(
         id: rule.id,
         sessionId: sessionId,
-        kind: rule.kind.wireName,
+        kind: rust_forward.portForwardKindToWire(value: rule.kind),
         bindHost: rule.bindHost,
         bindPort: rule.bindPort,
         remoteHost: rule.remoteHost,
