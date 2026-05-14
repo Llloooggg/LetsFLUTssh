@@ -370,21 +370,7 @@ class Session {
 
   /// Convert to SSHConfig for connecting.
   SSHConfig toSSHConfig() {
-    // The `~` / `~/` → home-dir grammar lives Rust-side in
-    // `lfs_core::path::expand_tilde` — single source of truth for
-    // tilde expansion. The `startsWith('~')` Dart-side guard is a
-    // test-infrastructure carve-out: `Session.toSSHConfig` runs
-    // inside `testWidgets` button-tap onPressed handlers across
-    // the connect-tab cascade tests, and FRB async calls in that
-    // frame-pump model never resolve under `pumpAndSettle`
-    // (the same `dbPortForwardsListForSession` await later in
-    // the chain hangs in the same way). Skipping the FRB hop for
-    // non-tilde paths sidesteps the interaction without putting
-    // any expansion grammar Dart-side — every actual `~` path
-    // still crosses the bridge.
-    final expandedKeyPath = keyPath.startsWith('~')
-        ? rust_path.pathExpandTilde(path: keyPath)
-        : keyPath;
+    final expandedKeyPath = rust_path.pathExpandTilde(path: keyPath);
     return SSHConfig(
       server: server,
       auth: SshAuth(

@@ -11,9 +11,12 @@ import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
+import '../../helpers/frb_bootstrap.dart';
+import '../../helpers/frb_pump.dart';
 
 /// A fake ConnectionsNotifier that returns a disconnected
 /// connection with error. `build()` skips the real init (no FRB
@@ -78,6 +81,16 @@ class _FakeConnectionManager extends ConnectionsNotifier {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await requireFrbLoaded();
+    // `Session.toSSHConfig` calls `path_expand_tilde` Rust-side and
+    // the connect path then awaits `db_port_forwards_list_for_session`
+    // — both need the AppState + DB live before any test runs.
+    await rust_app.dbInit(path: ':memory:', key: const []);
+  });
+
   group('SessionConnect error message formatting', () {
     test('HostKeyError produces userMessage', () {
       const error = HostKeyError('Host key changed');
@@ -117,6 +130,7 @@ void main() {
   group('SessionConnect.connectTerminal', () {
     testWidgets('adds terminal tab on successful connection', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -140,7 +154,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -153,13 +171,14 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(find.byType(Scaffold), findsOneWidget);
     });
 
     testWidgets('uses session label when non-empty', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -183,7 +202,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -196,7 +219,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       // The label should be passed to connect()
       expect(fakeManager.lastLabel, 'My Server');
@@ -204,6 +227,7 @@ void main() {
 
     testWidgets('passes session ID to connection manager', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -226,7 +250,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -239,13 +267,14 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(fakeManager.lastSessionId, 'sess-42');
     });
 
     testWidgets('uses displayName when session label is empty', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -269,7 +298,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -282,7 +315,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       // Empty label => displayName used
       expect(fakeManager.lastLabel, 'root@10.0.0.1:22');
@@ -291,6 +324,7 @@ void main() {
     testWidgets('creates tab in tab provider on success', (tester) async {
       final fakeManager = _FakeConnectionManager();
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -314,7 +348,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -327,7 +365,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
@@ -340,6 +378,7 @@ void main() {
     testWidgets('adds SFTP tab on successful connection', (tester) async {
       final fakeManager = _FakeConnectionManager();
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -363,7 +402,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectSftp(context, ref, session);
+                      pending = SessionConnect.connectSftp(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('SFTP'),
                   ),
@@ -376,7 +419,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('SFTP'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
@@ -388,6 +431,7 @@ void main() {
       tester,
     ) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -410,7 +454,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectSftp(context, ref, session);
+                      pending = SessionConnect.connectSftp(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('SFTP'),
                   ),
@@ -423,7 +471,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('SFTP'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(fakeManager.lastLabel, 'admin@10.0.0.1:22');
     });
@@ -437,6 +485,7 @@ void main() {
         Exception('Wrong password'),
       );
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -460,7 +509,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -473,7 +526,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       // Tab should still be added (connection status shown inside tab)
       final ws = capturedRef.read(workspaceProvider);
@@ -487,6 +540,7 @@ void main() {
     ) async {
       final failManager = _FailingConnectionManager(Exception('Auth failed'));
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -510,7 +564,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectSftp(context, ref, session);
+                      pending = SessionConnect.connectSftp(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('SFTP'),
                   ),
@@ -523,7 +581,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('SFTP'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
@@ -762,7 +820,7 @@ void main() {
       tester,
     ) async {
       final fakeManager = _FakeConnectionManager();
-      bool? result;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -775,13 +833,13 @@ void main() {
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: () {
                       final session = Session(
                         label: 'ok',
                         server: const ServerAddress(host: 'h', user: 'u'),
                         auth: const SessionAuth(password: 'pass'),
                       );
-                      result = await SessionConnect.connectTerminal(
+                      pending = SessionConnect.connectTerminal(
                         context,
                         ref,
                         session,
@@ -798,7 +856,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Go'));
-      await tester.pumpAndSettle();
+      final result = await pumpUntilFrbSettles(tester, pending);
 
       expect(result, isTrue);
     });
@@ -814,6 +872,7 @@ void main() {
         // sees the PEM. This test pins the contract: `keyData` stays
         // empty, `keyId` survives the round-trip.
         final fakeManager = _FakeConnectionManager();
+        late Future<bool> pending;
 
         await tester.pumpWidget(
           ProviderScope(
@@ -836,7 +895,11 @@ void main() {
                           ),
                           auth: const SessionAuth(keyId: 'k-1'),
                         );
-                        SessionConnect.connectTerminal(context, ref, session);
+                        pending = SessionConnect.connectTerminal(
+                          context,
+                          ref,
+                          session,
+                        );
                       },
                       child: const Text('Connect'),
                     ),
@@ -848,7 +911,7 @@ void main() {
         );
         await tester.pump();
         await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+        await pumpUntilFrbSettles(tester, pending);
 
         expect(
           fakeManager.lastConfig?.auth.keyId,
@@ -865,6 +928,7 @@ void main() {
 
     testWidgets('incomplete session shows warning toast', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
@@ -883,7 +947,11 @@ void main() {
                         label: 'inc',
                         server: const ServerAddress(host: 'h', user: 'u'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Go'),
                   ),
@@ -896,7 +964,7 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Go'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(find.textContaining('no credentials'), findsOneWidget);
 
