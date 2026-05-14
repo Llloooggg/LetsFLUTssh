@@ -50,6 +50,7 @@ import 'api/qr_codec_encode.dart';
 import 'api/qr_compose.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';
+import 'api/recovery.dart';
 import 'api/s3.dart';
 import 'api/secure_key_storage.dart';
 import 'api/security_capabilities.dart';
@@ -606,6 +607,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbDeeplinkOutcome dco_decode_db_deeplink_outcome(dynamic raw);
 
   @protected
+  DbDestructiveResetReport dco_decode_db_destructive_reset_report(dynamic raw);
+
+  @protected
   DbDownloadErrorKind dco_decode_db_download_error_kind(dynamic raw);
 
   @protected
@@ -731,6 +735,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHostsImportSummary dco_decode_db_known_hosts_import_summary(
     dynamic raw,
   );
+
+  @protected
+  DbLegacyStateDetection dco_decode_db_legacy_state_detection(dynamic raw);
 
   @protected
   DbLocalFileEntry dco_decode_db_local_file_entry(dynamic raw);
@@ -1999,6 +2006,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbDestructiveResetReport sse_decode_db_destructive_reset_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbDownloadErrorKind sse_decode_db_download_error_kind(
     SseDeserializer deserializer,
   );
@@ -2166,6 +2178,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHostsImportSummary sse_decode_db_known_hosts_import_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbLegacyStateDetection sse_decode_db_legacy_state_detection(
     SseDeserializer deserializer,
   );
 
@@ -3793,6 +3810,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_destructive_reset_report(
+    DbDestructiveResetReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_download_error_kind(
     DbDownloadErrorKind self,
     SseSerializer serializer,
@@ -4014,6 +4037,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_known_hosts_import_summary(
     DbKnownHostsImportSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_legacy_state_detection(
+    DbLegacyStateDetection self,
     SseSerializer serializer,
   );
 

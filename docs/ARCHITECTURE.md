@@ -1078,18 +1078,23 @@ Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNot
 2. If a `.wipe-pending` marker from an interrupted
    `WipeAllService.wipeAll()` exists → resume the wipe idempotently
    before anything else touches the app-support dir.
-3. Read `readConfigSchemaVersion()` (FRB shim over
-   `migration_config_version_on_disk`, which delegates to the
-   Rust-side `ConfigArtefact::read_version`). When the value is
-   older than `currentConfigSchemaVersion()` (FRB getter for
-   `lfs_core::migration::SchemaVersions::CONFIG`), or when
-   `AppConfig.security == null`
-   **and** any managed artefact exists on disk, show
-   `TierResetDialog`. The dialog routes through
-   `WipeAllService.wipeAll()` on user confirm; on cancel the app
-   quits. Covers both "resolved tier does not match the sealed blob
-   under the expected ACL" and "orphan files from a half-broken
-   install".
+3. One FRB call to `recoveryDetectLegacyState` (FRB shim over
+   `lfs_core::security::recovery::detect_legacy_state`) bundles the
+   on-disk schema-version read + the orphan-artefact existence
+   probe + the `< target` decision into a single Rust-side
+   transaction. Returns a `DbLegacyStateDetection` with both
+   signals plus the auxiliary version fields for diagnostic
+   logging. When `shouldPromptReset` is true — either the on-disk
+   `config.json` is older than the build's target schema, or
+   `AppConfig.security == null` **and** any managed artefact lives
+   in the support-dir — show `TierResetDialog`. The dialog routes
+   through `WipeAllService.wipeAll()` on user confirm; on cancel
+   the app quits. Covers both "resolved tier does not match the
+   sealed blob under the expected ACL" and "orphan files from a
+   half-broken install". `has_current_security_config` flows from
+   the Dart-side `AppConfig.security != null` snapshot so the
+   orphan branch short-circuits when the running process already
+   has a valid security config.
 4. When the config has a tier, dispatch to the matching unlock path
    (`_unlockParanoid`, `_unlockKeychainWithPassword`, `_unlockHardware`,
    `_unlockKeychain`, or the plaintext short-circuit).
@@ -1941,7 +1946,7 @@ Lifetime:
 1. **Populate** — `ConnectionsNotifier._cachePostAuthCredentials` writes the envelope into the SecretStore immediately after a successful SSH auth, but only when the `Connection` has a stable `sessionId`. Quick-connect sessions have no key to namespace under and are skipped.
 2. **Read on (re)connect** — `ConnectionsNotifier._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `transport.connect`. Today the read accessors return null by design — the connect path resolves saved-session credentials through `db_sessions_stage_secrets` directly, so the overlay is a no-op for stored sessions; the layering point stays for future reconnect paths that need it.
 3. **Evict on explicit close** — `ConnectionsNotifier.disconnect(id)` and `disconnectAll` evict the matching ids. Transient drops (network blip, app suspend/resume) flip the Connection's state without calling `disconnect`, so the SecretStore entries are preserved across reconnect.
-4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes `secrets_clear` over FRB before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads it through. The same path also calls [`TerminalScrubber.scrubAll`](../lib/core/security/terminal_scrubber.dart) ahead of file delete so live terminal panes flush their xterm scrollback (a session that recently echoed a password would otherwise leave the bytes in the per-pane `Terminal.buffer.lines` for the rest of the process). The Rust-side counterpart, `lfs_core::security::wipe::sweep_files`, additionally calls `app::instance().secrets.clear()` before deleting the on-disk artefacts so cached SecretStore entries clear in lockstep with the files. **Coverage tripwire:** `lfs_core::security::wipe::tests::every_known_artefact_is_in_managed_files` references every canonical filename const (config, KDF, hardware-vault blobs across Apple / Android / pre-port platforms) and fails the build when a new artefact is added without updating `MANAGED_FILES` — directly addresses the Android-port rename gap (`hardware_vault_password_overlay_android.bin` → `hardware_vault_android_bio.bin`) that left an orphan file untouched by an earlier sweep.
+4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes `secrets_clear` over FRB before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads it through. The same path also calls [`TerminalScrubber.scrubAll`](../lib/core/security/terminal_scrubber.dart) ahead of file delete so live terminal panes flush their xterm scrollback (a session that recently echoed a password would otherwise leave the bytes in the per-pane `Terminal.buffer.lines` for the rest of the process). The on-disk + keychain half of the cascade is bundled Rust-side by [`lfs_core::security::recovery::run_destructive_reset`](../rust/crates/lfs_core/src/security/recovery.rs): one FRB hop composes `db_close` → `wipe::sweep_files` → `wipe_keychain::run` so the Dart side awaits a single transaction instead of sequencing three. `sweep_files` itself additionally calls `app::instance().secrets.clear()` before deleting the on-disk artefacts so cached SecretStore entries clear in lockstep with the files. The hardware-vault clear (Apple SE / Android Keystore / Windows CNG / Linux TPM2) is the one remaining post-cascade step the Dart side still owns until the per-platform clear orchestrator moves into `lfs_core`. **Coverage tripwire:** `lfs_core::security::wipe::tests::every_known_artefact_is_in_managed_files` references every canonical filename const (config, KDF, hardware-vault blobs across Apple / Android / pre-port platforms) and fails the build when a new artefact is added without updating `MANAGED_FILES` — directly addresses the Android-port rename gap (`hardware_vault_password_overlay_android.bin` → `hardware_vault_android_bio.bin`) that left an orphan file untouched by an earlier sweep.
 5. **App shutdown** — the provider's `ref.onDispose` calls `secrets_clear`, dropping every cached secret as the Riverpod container tears down.
 
 Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, decrypts nothing at rest, and only helps the user's own reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock would flatten the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.

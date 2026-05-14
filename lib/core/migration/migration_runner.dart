@@ -36,18 +36,3 @@ Future<rust_migration.DbMigrationReport> runStartupMigrations() async {
   final dir = await getApplicationSupportDirectory();
   return rust_migration.migrationRunOnStartup(supportDir: dir.path);
 }
-
-/// Target version this build supports for `config.json`. Reads
-/// `lfs_core::migration::SchemaVersions::CONFIG` through FRB so the
-/// constant lives one place across the workspace.
-int currentConfigSchemaVersion() =>
-    rust_migration.migrationConfigTargetVersion();
-
-/// Read the `config.json` schema version from disk. Returns `-1`
-/// when the file is absent. Throws [Exception] when the file is
-/// present but corrupt — the caller surfaces the failure as a fatal
-/// startup error.
-Future<int> readConfigSchemaVersion() async {
-  final dir = await getApplicationSupportDirectory();
-  return rust_migration.migrationConfigVersionOnDisk(supportDir: dir.path);
-}

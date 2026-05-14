@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwvault;
+import '../../src/rust/api/recovery.dart' as rust_recovery;
 import '../../src/rust/api/wipe.dart' as rust_wipe;
-import '../../src/rust/api/wipe_keychain.dart' as rust_wipe_kc;
 import '../../utils/logger.dart';
 import 'terminal_scrubber.dart';
 
@@ -170,19 +170,46 @@ class WipeAllService {
       );
     }
 
-    // 1. Files (Rust-side: marker write → managed-file delete →
-    //    logs sweep → marker clear, all under one FRB hop). The
-    //    Rust sweep also handles the `.wipe-pending` crash marker.
-    final fileReport = await rust_wipe.wipeSweepFiles(supportDir: dir.path);
-    final deleted = List<String>.from(fileReport.deletedFiles);
-    final failed = List<String>.from(fileReport.failedFiles);
+    // 1. Composite destructive cascade through the Rust
+    //    `recovery::run_destructive_reset` orchestrator. Bundles
+    //    db_close + managed-file sweep + keychain purge into one
+    //    transaction so the Dart side awaits a single FRB call
+    //    instead of sequencing three.
+    //
+    //    Falls back to the per-call FRB shape on the keychain-only
+    //    branch (`_purgeKeychain == false` — Settings "wipe but
+    //    keep keychain entries" toggle) so the caller's opt-out is
+    //    still honoured. In that path the keychain purge is the
+    //    sole subset of the cascade that gets skipped; everything
+    //    else stays Rust-side.
+    final List<String> deleted;
+    final List<String> failed;
+    final bool purged;
+    if (_purgeKeychain) {
+      final report = await rust_recovery.recoveryRunDestructiveReset(
+        supportDir: dir.path,
+      );
+      deleted = List<String>.from(report.deletedFiles);
+      failed = List<String>.from(report.failedFiles);
+      purged = report.keychainPurgeSucceeded;
+      mark('recovery_reset');
+    } else {
+      // Settings opt-out: caller wants the on-disk wipe without
+      // touching OS-keychain aliases. Routes through the legacy
+      // pair so the keychain step is skippable; the rest of the
+      // cascade still runs.
+      final fileReport = await rust_wipe.wipeSweepFiles(supportDir: dir.path);
+      deleted = List<String>.from(fileReport.deletedFiles);
+      failed = List<String>.from(fileReport.failedFiles);
+      purged = false;
+      mark('sweep_files');
+    }
     for (final name in failed) {
       AppLogger.instance.log(
         'WipeAllService: failed to delete $name',
         name: 'WipeAllService',
       );
     }
-    mark('sweep_files');
 
     // 2. Native hw-vault: primary + biometric overlay via Rust
     //    (`lfs_os_security::hardware_tier_vault::*`). Swallow errors;
@@ -190,14 +217,13 @@ class WipeAllService {
     //    the call is a no-op. Apple SE / Android Keystore / Windows
     //    CNG / Linux TPM2 all share the same FRB entry now, so wipe
     //    semantics are uniform across platforms.
+    //
+    //    Stays a separate FRB hop until the per-platform hw-vault
+    //    clear orchestrator moves into `lfs_core` (out of scope for
+    //    the recovery extraction — flagged for follow-up).
     final nativeCleared = await _clearNativePrimary();
     final overlayCleared = await _clearNativeBiometricOverlay();
     mark('native_vault_clear');
-
-    // 3. OS secure storage (keychain / Credential Manager / keyring /
-    //    EncryptedSharedPrefs depending on platform).
-    final purged = _purgeKeychain ? await _purgeKeychainStore() : false;
-    mark('keychain_purge');
 
     return WipeReport(
       deletedFiles: deleted,
@@ -243,35 +269,6 @@ class WipeAllService {
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService: Rust hw-vault clearBiometric failed: $e',
-        name: 'WipeAllService',
-      );
-      return false;
-    }
-  }
-
-  /// Walk the canonical key list (versioned in Rust as
-  /// `lfs_core::security::wipe_keychain::MANAGED_KEYS`) and ask
-  /// the keychain plugin to drop each via the Rust actor. The
-  /// audited key catalogue + the per-key outcome report live in
-  /// Rust; per-key failures (e.g. one stuck Linux libsecret slot)
-  /// are logged so partial wipe is visible in a support trace
-  /// without having to re-run the wipe.
-  Future<bool> _purgeKeychainStore() async {
-    try {
-      final report = await rust_wipe_kc.wipeKeychainRun();
-      for (final entry in report.entries) {
-        if (entry.status != 'deleted') {
-          AppLogger.instance.log(
-            'WipeAllService: keychain key "${entry.key}" '
-            '${entry.status}',
-            name: 'WipeAllService',
-          );
-        }
-      }
-      return report.allSucceeded;
-    } catch (e) {
-      AppLogger.instance.log(
-        'WipeAllService: keychain purge skipped: $e',
         name: 'WipeAllService',
       );
       return false;

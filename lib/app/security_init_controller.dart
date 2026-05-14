@@ -16,6 +16,7 @@ import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
 import '../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../src/rust/api/macos_resign.dart' as rust_macos_resign;
+import '../src/rust/api/recovery.dart' as rust_recovery;
 import '../src/rust/api/security_capabilities.dart' show DbSecurityCapabilities;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
@@ -591,18 +592,22 @@ class SecurityInitController {
     WipeAllService wiper,
   ) async {
     final currentSecurity = ref.read(configProvider).security;
-    final configVersion = await readConfigSchemaVersion();
-    final legacyConfig =
-        configVersion >= 0 && configVersion < currentConfigSchemaVersion();
-    final orphanArtefacts =
-        currentSecurity == null && await wiper.hasAnyState();
-    if (!legacyConfig && !orphanArtefacts) return false;
+    final supportDir = await getApplicationSupportDirectory();
+    // Single FRB hop folds the prior three-call sequence
+    // (`migration_config_target_version` + `migration_config_version_on_disk`
+    // + `wipe_has_any_state`) into one Rust-side detection. Auxiliary
+    // version fields stay on the return for diagnostic logging.
+    final detection = await rust_recovery.recoveryDetectLegacyState(
+      supportDir: supportDir.path,
+      hasCurrentSecurityConfig: currentSecurity != null,
+    );
+    if (!detection.shouldPromptReset) return false;
     if (!isMounted()) return true;
     final choice = await _dialogs.showTierReset();
     if (choice == TierResetChoice.exitApp) {
       AppLogger.instance.log(
-        'Legacy state detected (configVersion=$configVersion, '
-        'orphan=$orphanArtefacts) — user chose to exit',
+        'Legacy state detected (configVersion=${detection.configVersionOnDisk}, '
+        'orphan=${detection.orphanArtefacts}) — user chose to exit',
         name: 'App',
       );
       await SystemNavigator.pop();
@@ -610,8 +615,8 @@ class SecurityInitController {
     }
     await wiper.wipeAll();
     AppLogger.instance.log(
-      'Legacy state detected (configVersion=$configVersion, '
-      'orphan=$orphanArtefacts) — wiped, running fresh wizard',
+      'Legacy state detected (configVersion=${detection.configVersionOnDisk}, '
+      'orphan=${detection.orphanArtefacts}) — wiped, running fresh wizard',
       name: 'App',
     );
     _credentialsWereReset = true;
@@ -885,8 +890,10 @@ class SecurityInitController {
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
-    _safeRustDbClose();
-    mark('db_close');
+    // The Rust `recovery::run_destructive_reset` orchestrator inside
+    // `WipeAllService.wipeAll()` handles db_close + file sweep +
+    // keychain purge as one transaction; the prior Dart-side
+    // db_close + wipeAll sequence collapses to a single call.
     await WipeAllService(
       credentialCacheEvict: ref.read(sessionCredentialCacheProvider).evictAll,
     ).wipeAll();
