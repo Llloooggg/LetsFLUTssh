@@ -213,6 +213,27 @@ pub enum Event {
     /// subscribers branch without parsing an enum across FRB.
     TierStateChanged { state_wire_name: String },
 
+    /// Post-unlock cascade settled Rust-side — the orchestrator
+    /// staged the DB key, opened the rusqlite handle, and
+    /// persisted the resolved tier into `config.json`. Fires
+    /// AFTER `TierStateChanged.unlocked` on the same `Tier`
+    /// topic; the Dart `TierUnlockedListener` subscribes here
+    /// to run the Riverpod half (cache invalidations +
+    /// `securityStateProvider` flip) off a single payload
+    /// instead of round-tripping back through
+    /// `tier_machine_active_tier_wire_name` +
+    /// `secrets_has(ACTIVE_DBKEY_SECRET_ID)`.
+    ///
+    /// `tier_wire`: the resolved tier (`plaintext` / `keychain` /
+    /// `hardware` / `paranoid`) that just unlocked.
+    /// `has_key`: whether the canonical `ACTIVE_DBKEY_SECRET_ID`
+    /// slot carries a staged key — true on every tier the
+    /// orchestrator stages a non-empty buffer for (the plaintext
+    /// branch stages an empty buffer; the slot is still present
+    /// so this flag follows the SecretStore probe shape the Dart
+    /// listener used to perform itself).
+    UnlockCascadeReady { tier_wire: String, has_key: bool },
+
     /// Connection credential prompt — fired by the connection
     /// actor when a saved session needs a password / passphrase
     /// the SecretStore doesn't already carry. `kind_wire_name`
@@ -528,7 +549,7 @@ impl Event {
             Event::KnownHostsChanged => EventTopic::KnownHosts,
             Event::SessionsChanged => EventTopic::Sessions,
             Event::ConfigChanged { .. } => EventTopic::Config,
-            Event::TierStateChanged { .. } => EventTopic::Tier,
+            Event::TierStateChanged { .. } | Event::UnlockCascadeReady { .. } => EventTopic::Tier,
             Event::CoreLog { .. } => EventTopic::CoreLog,
             Event::SshAgentSignaturePrompt { .. } => EventTopic::SshAgent,
             Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
@@ -1088,6 +1109,18 @@ mod tests {
         assert_eq!(
             Event::TierStateChanged {
                 state_wire_name: "locked".into()
+            }
+            .topic(),
+            EventTopic::Tier
+        );
+    }
+
+    #[test]
+    fn topic_unlock_cascade_ready_is_tier() {
+        assert_eq!(
+            Event::UnlockCascadeReady {
+                tier_wire: "plaintext".into(),
+                has_key: true,
             }
             .topic(),
             EventTopic::Tier

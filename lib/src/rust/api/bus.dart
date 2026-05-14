@@ -434,6 +434,25 @@ sealed class BusEvent with _$BusEvent {
   const factory BusEvent.tierStateChanged({required String stateWireName}) =
       BusEvent_TierStateChanged;
 
+  /// Post-unlock cascade settled Rust-side — orchestrator
+  /// opened the rusqlite handle + persisted the resolved
+  /// tier. Fires AFTER `TierStateChanged.unlocked` on the
+  /// `Tier` topic. The Dart `TierUnlockedListener` runs its
+  /// Riverpod half off this payload instead of round-tripping
+  /// through `tier_machine_active_tier_wire_name` +
+  /// `secrets_has(ACTIVE_DBKEY_SECRET_ID)`.
+  ///
+  /// `tier_wire`: the resolved tier wire name (`plaintext` /
+  /// `keychain` / `hardware` / `paranoid`).
+  /// `has_key`: whether the canonical
+  /// `ACTIVE_DBKEY_SECRET_ID` slot carries a staged key —
+  /// follows the same SecretStore probe shape the Dart
+  /// listener used to perform.
+  const factory BusEvent.unlockCascadeReady({
+    required String tierWire,
+    required bool hasKey,
+  }) = BusEvent_UnlockCascadeReady;
+
   /// Connection actor needs a password / passphrase for the
   /// saved session — Dart subscriber renders the dialog,
   /// dispatches the response command back. `kind_wire_name`

@@ -24649,6 +24649,14 @@ impl SseDecode for crate::api::bus::BusEvent {
                 };
             }
             28 => {
+                let mut var_tierWire = <String>::sse_decode(deserializer);
+                let mut var_hasKey = <bool>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::UnlockCascadeReady {
+                    tier_wire: var_tierWire,
+                    has_key: var_hasKey,
+                };
+            }
+            29 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_sessionId = <String>::sse_decode(deserializer);
                 let mut var_kindWireName = <String>::sse_decode(deserializer);
@@ -24658,19 +24666,19 @@ impl SseDecode for crate::api::bus::BusEvent {
                     kind_wire_name: var_kindWireName,
                 };
             }
-            29 => {
+            30 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::KeychainProbePromptRequest {
                     prompt_id: var_promptId,
                 };
             }
-            30 => {
+            31 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::HardwareVaultProbePromptRequest {
                     prompt_id: var_promptId,
                 };
             }
-            31 => {
+            32 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_pin = <Option<String>>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::HardwareVaultUnlockPromptRequest {
@@ -24678,7 +24686,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     pin: var_pin,
                 };
             }
-            32 => {
+            33 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_dbKeySecretId = <String>::sse_decode(deserializer);
                 let mut var_pinSecretId = <Option<String>>::sse_decode(deserializer);
@@ -24688,7 +24696,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     pin_secret_id: var_pinSecretId,
                 };
             }
-            33 => {
+            34 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_kind =
                     <crate::api::bus::BusRecoveryPromptKind>::sse_decode(deserializer);
@@ -24699,11 +24707,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     choices: var_choices,
                 };
             }
-            34 => {
+            35 => {
                 let mut var_json = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::SecurityCapabilitiesChanged { json: var_json };
             }
-            35 => {
+            36 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_host = <String>::sse_decode(deserializer);
                 let mut var_port = <i64>::sse_decode(deserializer);
@@ -24720,7 +24728,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     kind: var_kind,
                 };
             }
-            36 => {
+            37 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_accepted = <bool>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::KnownHostPromptResolved {
@@ -24728,7 +24736,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     accepted: var_accepted,
                 };
             }
-            37 => {
+            38 => {
                 let mut var_levelWireName = <String>::sse_decode(deserializer);
                 let mut var_name = <String>::sse_decode(deserializer);
                 let mut var_message = <String>::sse_decode(deserializer);
@@ -24738,7 +24746,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     message: var_message,
                 };
             }
-            38 => {
+            39 => {
                 let mut var_requestId = <String>::sse_decode(deserializer);
                 let mut var_keyId = <String>::sse_decode(deserializer);
                 let mut var_keyLabel = <String>::sse_decode(deserializer);
@@ -30704,25 +30712,31 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::TierStateChanged { state_wire_name } => {
                 [27.into_dart(), state_wire_name.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::bus::BusEvent::UnlockCascadeReady { tier_wire, has_key } => [
+                28.into_dart(),
+                tier_wire.into_into_dart().into_dart(),
+                has_key.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::bus::BusEvent::CredentialPromptRequest {
                 prompt_id,
                 session_id,
                 kind_wire_name,
             } => [
-                28.into_dart(),
+                29.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 session_id.into_into_dart().into_dart(),
                 kind_wire_name.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::KeychainProbePromptRequest { prompt_id } => {
-                [29.into_dart(), prompt_id.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::bus::BusEvent::HardwareVaultProbePromptRequest { prompt_id } => {
                 [30.into_dart(), prompt_id.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::bus::BusEvent::HardwareVaultProbePromptRequest { prompt_id } => {
+                [31.into_dart(), prompt_id.into_into_dart().into_dart()].into_dart()
+            }
             crate::api::bus::BusEvent::HardwareVaultUnlockPromptRequest { prompt_id, pin } => [
-                31.into_dart(),
+                32.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 pin.into_into_dart().into_dart(),
             ]
@@ -30732,7 +30746,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 db_key_secret_id,
                 pin_secret_id,
             } => [
-                32.into_dart(),
+                33.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 db_key_secret_id.into_into_dart().into_dart(),
                 pin_secret_id.into_into_dart().into_dart(),
@@ -30743,14 +30757,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 kind,
                 choices,
             } => [
-                33.into_dart(),
+                34.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 kind.into_into_dart().into_dart(),
                 choices.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::SecurityCapabilitiesChanged { json } => {
-                [34.into_dart(), json.into_into_dart().into_dart()].into_dart()
+                [35.into_dart(), json.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::KnownHostPromptRequest {
                 prompt_id,
@@ -30760,7 +30774,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 fingerprint,
                 kind,
             } => [
-                35.into_dart(),
+                36.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 host.into_into_dart().into_dart(),
                 port.into_into_dart().into_dart(),
@@ -30773,7 +30787,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 prompt_id,
                 accepted,
             } => [
-                36.into_dart(),
+                37.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 accepted.into_into_dart().into_dart(),
             ]
@@ -30783,7 +30797,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 name,
                 message,
             } => [
-                37.into_dart(),
+                38.into_dart(),
                 level_wire_name.into_into_dart().into_dart(),
                 name.into_into_dart().into_dart(),
                 message.into_into_dart().into_dart(),
@@ -30795,7 +30809,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 key_label,
                 requester,
             } => [
-                38.into_dart(),
+                39.into_dart(),
                 request_id.into_into_dart().into_dart(),
                 key_id.into_into_dart().into_dart(),
                 key_label.into_into_dart().into_dart(),
@@ -35896,26 +35910,31 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <i32>::sse_encode(27, serializer);
                 <String>::sse_encode(state_wire_name, serializer);
             }
+            crate::api::bus::BusEvent::UnlockCascadeReady { tier_wire, has_key } => {
+                <i32>::sse_encode(28, serializer);
+                <String>::sse_encode(tier_wire, serializer);
+                <bool>::sse_encode(has_key, serializer);
+            }
             crate::api::bus::BusEvent::CredentialPromptRequest {
                 prompt_id,
                 session_id,
                 kind_wire_name,
             } => {
-                <i32>::sse_encode(28, serializer);
+                <i32>::sse_encode(29, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <String>::sse_encode(session_id, serializer);
                 <String>::sse_encode(kind_wire_name, serializer);
             }
             crate::api::bus::BusEvent::KeychainProbePromptRequest { prompt_id } => {
-                <i32>::sse_encode(29, serializer);
-                <String>::sse_encode(prompt_id, serializer);
-            }
-            crate::api::bus::BusEvent::HardwareVaultProbePromptRequest { prompt_id } => {
                 <i32>::sse_encode(30, serializer);
                 <String>::sse_encode(prompt_id, serializer);
             }
-            crate::api::bus::BusEvent::HardwareVaultUnlockPromptRequest { prompt_id, pin } => {
+            crate::api::bus::BusEvent::HardwareVaultProbePromptRequest { prompt_id } => {
                 <i32>::sse_encode(31, serializer);
+                <String>::sse_encode(prompt_id, serializer);
+            }
+            crate::api::bus::BusEvent::HardwareVaultUnlockPromptRequest { prompt_id, pin } => {
+                <i32>::sse_encode(32, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <Option<String>>::sse_encode(pin, serializer);
             }
@@ -35924,7 +35943,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 db_key_secret_id,
                 pin_secret_id,
             } => {
-                <i32>::sse_encode(32, serializer);
+                <i32>::sse_encode(33, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <String>::sse_encode(db_key_secret_id, serializer);
                 <Option<String>>::sse_encode(pin_secret_id, serializer);
@@ -35934,13 +35953,13 @@ impl SseEncode for crate::api::bus::BusEvent {
                 kind,
                 choices,
             } => {
-                <i32>::sse_encode(33, serializer);
+                <i32>::sse_encode(34, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <crate::api::bus::BusRecoveryPromptKind>::sse_encode(kind, serializer);
                 <Vec<String>>::sse_encode(choices, serializer);
             }
             crate::api::bus::BusEvent::SecurityCapabilitiesChanged { json } => {
-                <i32>::sse_encode(34, serializer);
+                <i32>::sse_encode(35, serializer);
                 <String>::sse_encode(json, serializer);
             }
             crate::api::bus::BusEvent::KnownHostPromptRequest {
@@ -35951,7 +35970,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 fingerprint,
                 kind,
             } => {
-                <i32>::sse_encode(35, serializer);
+                <i32>::sse_encode(36, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <String>::sse_encode(host, serializer);
                 <i64>::sse_encode(port, serializer);
@@ -35963,7 +35982,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 prompt_id,
                 accepted,
             } => {
-                <i32>::sse_encode(36, serializer);
+                <i32>::sse_encode(37, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <bool>::sse_encode(accepted, serializer);
             }
@@ -35972,7 +35991,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 name,
                 message,
             } => {
-                <i32>::sse_encode(37, serializer);
+                <i32>::sse_encode(38, serializer);
                 <String>::sse_encode(level_wire_name, serializer);
                 <String>::sse_encode(name, serializer);
                 <String>::sse_encode(message, serializer);
@@ -35983,7 +36002,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 key_label,
                 requester,
             } => {
-                <i32>::sse_encode(38, serializer);
+                <i32>::sse_encode(39, serializer);
                 <String>::sse_encode(request_id, serializer);
                 <String>::sse_encode(key_id, serializer);
                 <String>::sse_encode(key_label, serializer);

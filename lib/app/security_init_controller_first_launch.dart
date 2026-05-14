@@ -311,12 +311,14 @@ extension _FirstLaunchFlows on SecurityInitController {
     return false;
   }
 
-  /// Pre-write the SecurityConfig so the listener's
-  /// `_persistSecurityTier` no-ops (existing modifiers match), arm
-  /// the listener, dispatch the first-launch orchestrator, await
-  /// the cascade. Returns true on success, false on orchestrator
-  /// failure / FRB unreachable so the caller takes the Dart-side
-  /// fallback.
+  /// Pre-write the SecurityConfig so the Rust orchestrator's
+  /// `config_store::update_security_tier` finds a matching
+  /// `(tier, modifiers)` pair and short-circuits the partial
+  /// update (idempotent skip preserves wizard-supplied modifiers
+  /// across the cascade). Arm the listener, dispatch the
+  /// first-launch orchestrator, await the cascade. Returns true
+  /// on success, false on orchestrator failure / FRB unreachable
+  /// so the caller takes the Dart-side fallback.
   Future<bool> _runFirstLaunchOrchestrator({
     required SecurityTier tier,
     SecurityTierModifiers? modifiers,

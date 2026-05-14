@@ -483,6 +483,13 @@ impl Db {
 /// `ApplyMode::Sync` only; archive imports filter them upstream.
 pub const SCHEMA_VERSION: i32 = 15;
 
+/// On-disk file name of the encrypted sqlite database under the
+/// app support directory. Single source of truth — every Rust-side
+/// caller (orchestrator cascade, wipe path, recovery sweep) derives
+/// the full path from `app::support_dir().join(DB_FILE_NAME)`.
+/// Mirrors the Dart `_rustDbFileName` constant.
+pub const DB_FILE_NAME: &str = "letsflutssh.db";
+
 /// Tables that gained the `deleted_at INTEGER NULL` tombstone column
 /// on the v2 → v3 hop. Iterated by [`bootstrap_schema`] under the
 /// `(1..3).contains(&current)` gate so v1 / v2 databases pick up the

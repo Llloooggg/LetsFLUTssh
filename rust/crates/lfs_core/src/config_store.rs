@@ -263,6 +263,38 @@ impl Store {
         Ok(())
     }
 
+    /// Replace just the `security.tier` slice of the current
+    /// [`AppConfig`] (modifiers + capabilities preserved) and arm
+    /// the debounce timer. Same atomic-write contract as
+    /// [`update_sync`]. Idempotent: skips the swap when the
+    /// current `(tier, modifiers)` already matches the resolved
+    /// `(tier, existing_modifiers_or_defaults)` pair — the same
+    /// no-write check the Dart `_persistSecurityTier` helper used
+    /// to perform before this moved Rust-side.
+    ///
+    /// Returns `Err` when the actor has not been [`init`]-ed yet.
+    pub fn update_security_tier(&self, tier: crate::security::SecurityTier) -> Result<(), String> {
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if g.file_path.is_none() {
+            return Err("config_store: not initialised".into());
+        }
+        let Some(current) = g.current.as_ref() else {
+            return Err("config_store: no current state".into());
+        };
+        let modifiers = current.security.map(|s| s.modifiers).unwrap_or_default();
+        let resolved = crate::security::SecurityConfig { tier, modifiers };
+        // Idempotent skip — `(tier, modifiers)` already canonical.
+        if current.security == Some(resolved) {
+            return Ok(());
+        }
+        let mut updated = current.clone();
+        updated.security = Some(resolved);
+        g.current = Some(updated.clone());
+        g.pending = Some(updated);
+        g.pending_at = Some(Instant::now() + DEBOUNCE);
+        Ok(())
+    }
+
     /// Force any pending state to disk synchronously, return the
     /// JSON written (or the current state when nothing was
     /// pending). Used at app shutdown / test teardown so the last
@@ -692,6 +724,72 @@ mod tests {
     fn update_security_probe_cache_errors_when_not_initialised() {
         let store = Store::for_tests();
         let r = store.update_security_probe_cache(None);
+        assert!(r.is_err(), "expected init-required error");
+    }
+
+    #[test]
+    fn update_security_tier_lands_in_get_app_config_and_preserves_modifiers() {
+        // Seed the actor with an existing `(Keychain, password=true)`
+        // bag so the partial-update has something to preserve.
+        use crate::security::{SecurityConfig, SecurityTier, SecurityTierModifiers};
+        let dir = fresh_dir();
+        let store = Store::for_tests();
+        store.init(dir.path().to_path_buf()).unwrap();
+        // Seed prior state via the JSON round-trip so we don't need a
+        // dedicated test-helper setter for the field.
+        let seeded = AppConfig {
+            security: Some(SecurityConfig {
+                tier: SecurityTier::Keychain,
+                modifiers: SecurityTierModifiers {
+                    password: true,
+                    biometric: false,
+                },
+            }),
+            ..AppConfig::default()
+        };
+        store.set_json(&seeded.to_json_value().to_string()).unwrap();
+
+        store.update_security_tier(SecurityTier::Paranoid).unwrap();
+        let after = store.get_app_config().unwrap();
+        let sec = after.security.expect("security present");
+        assert_eq!(sec.tier, SecurityTier::Paranoid);
+        assert!(
+            sec.modifiers.password,
+            "modifiers must survive the tier-only partial update"
+        );
+    }
+
+    #[test]
+    fn update_security_tier_is_idempotent_on_matching_state() {
+        // Re-applying the same `(tier, modifiers)` pair must not
+        // arm the debounce timer — saves the disk write on a
+        // no-op cascade re-run.
+        use crate::security::{SecurityConfig, SecurityTier};
+        let dir = fresh_dir();
+        let store = Store::for_tests();
+        store.init(dir.path().to_path_buf()).unwrap();
+        let seeded = AppConfig {
+            security: Some(SecurityConfig::defaults()),
+            ..AppConfig::default()
+        };
+        store.set_json(&seeded.to_json_value().to_string()).unwrap();
+        // Flush the seed so `pending` is cleared.
+        store.flush().unwrap();
+
+        store.update_security_tier(SecurityTier::Plaintext).unwrap();
+        // No write should have been queued — the state already matched.
+        let g = store.inner.lock().unwrap();
+        assert!(
+            g.pending.is_none(),
+            "idempotent skip must leave pending=None"
+        );
+    }
+
+    #[test]
+    fn update_security_tier_errors_when_not_initialised() {
+        use crate::security::SecurityTier;
+        let store = Store::for_tests();
+        let r = store.update_security_tier(SecurityTier::Plaintext);
         assert!(r.is_err(), "expected init-required error");
     }
 }

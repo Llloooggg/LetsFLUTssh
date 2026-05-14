@@ -446,11 +446,11 @@ class SecurityInitController {
   Future<void> _handleVaultStateMissing(String tierLabel) async {
     // Idempotency probe — every caller arrives here through a
     // listener-timeout fallback (`tierUnlockedListenerWaitTimeout`).
-    // If `TierUnlockedListener._handleUnlocked` finished its
-    // `ensureRustDbOpen` cascade after the timeout fired but before
-    // we got here, the DB is already open and we'd otherwise show
-    // the user a corrupt-DB dialog over a perfectly-fine vault —
-    // and "Reset and setup fresh" wipes the DB they could just be
+    // If the Rust unlock cascade (db_init + tier persist + bus
+    // `UnlockCascadeReady`) finished after the timeout fired but
+    // before we got here, the DB is already open and we'd otherwise
+    // show the user a corrupt-DB dialog over a perfectly-fine vault
+    // — and "Reset and setup fresh" wipes the DB they could just be
     // using. Probe first; only hand off to the orchestrator when
     // the DB is actually unreadable.
     if (await _verifyReadable()) {

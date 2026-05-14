@@ -3,27 +3,22 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
-import '../core/db/rust_db_init.dart';
-import '../core/security/active_dbkey.dart';
 import '../core/security/security_tier.dart';
-import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart' show knownHostsProvider;
 import '../providers/key_provider.dart' show sshKeysProvider;
 import '../providers/security_provider.dart';
 import '../providers/session_provider.dart';
-import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/bus.dart' as rust_bus;
-import '../src/rust/api/tier_machine.dart' as rust_tier;
 import '../utils/logger.dart';
 
 /// Wall-clock budget for `awaitNextUnlock().timeout(...)` across
-/// every tier-unlock and first-launch path. The bus event
-/// `Unlocked` triggers `_handleUnlocked`, which inline-runs
-/// `ensureRustDbOpen` — on a fresh-install Windows IoT box with
+/// every tier-unlock and first-launch path. The Rust orchestrator
+/// fires `UnlockCascadeReady` after it opens the rusqlite handle
+/// + persists the tier — on a fresh-install Windows IoT box with
 /// Defender + SQLCipher PBKDF2-256k header derivation + first-time
-/// vendored-OpenSSL init, the cascade end-to-end is ~6-10s.
-/// Anything tighter (the previous 5s budget) raced against the
-/// Rust side and fired the destructive Dart-fallback / vault-
+/// vendored-OpenSSL init, the Rust-side cascade end-to-end is
+/// ~6-10s. Anything tighter (the previous 5s budget) raced against
+/// the Rust side and fired the destructive Dart-fallback / vault-
 /// missing path even though the unlock was succeeding. 30s mirrors
 /// the connect-actor timeout, well past worst observed init wall-
 /// clock; users on hung systems still get a recovery dialog within
@@ -31,24 +26,27 @@ import '../utils/logger.dart';
 /// destruction window.
 const tierUnlockedListenerWaitTimeout = Duration(seconds: 30);
 
-/// Bus-driven post-unlock orchestrator. Subscribes to
-/// `BusTopic.tier`, takes the key the Rust per-tier
-/// orchestrator staged under `TIER_UNLOCK_KEY_ID`, and runs
-/// the existing Dart post-unlock cascade — invalidate caches,
-/// publish `securityStateProvider`, open the Rust DB,
-/// persist the tier into config.
+/// Bus-driven post-unlock listener. Subscribes to
+/// `BusTopic.tier`; the Rust per-tier orchestrator owns the
+/// post-stage cascade (DB-open via `app::instance().db_init`,
+/// tier persistence via `config_store::update_security_tier`)
+/// and publishes `BusEvent::UnlockCascadeReady { tier_wire,
+/// has_key }` after both side-effects settle. The Dart half
+/// runs ONLY the Riverpod work — cache invalidations +
+/// `securityStateProvider.setActive` — driven off the payload
+/// the Rust side carries.
 ///
 /// Lives as a Provider so [SecurityInitController] can hand
 /// off the post-unlock work without owning either the bus
-/// subscription or the per-tier `_injectDatabase` step
-/// itself; the controller now just dispatches the orchestrator
-/// and awaits [awaitNextUnlock] for the cascade to settle.
+/// subscription or the per-tier ordering itself; the controller
+/// now just dispatches the orchestrator and awaits
+/// [awaitNextUnlock] for the cascade to settle.
 ///
-/// Both terminal events (`unlocked` and `locked`) resolve the
+/// Both terminal events (cascade-ready and `locked`) resolve the
 /// pending await — `locked` arrives from
 /// `UnlockFailed { ... }` dispatches so a wrong-secret /
 /// cancel / corruption branch unblocks the caller without
-/// hanging on a never-arriving `unlocked` signal.
+/// hanging on a never-arriving cascade-ready signal.
 class TierUnlockedListener {
   TierUnlockedListener(this._ref);
 
@@ -127,10 +125,12 @@ class TierUnlockedListener {
   }
 
   void _onEvent(rust_bus.BusEvent event) {
+    if (event is rust_bus.BusEvent_UnlockCascadeReady) {
+      _handleCascadeReady(event);
+      return;
+    }
     if (event is! rust_bus.BusEvent_TierStateChanged) return;
     switch (event.stateWireName) {
-      case 'unlocked':
-        unawaited(_handleUnlocked());
       case 'locked':
         if (_onlyUnlocked) {
           // Multi-attempt dialog mode — caller is awaiting the
@@ -142,61 +142,35 @@ class TierUnlockedListener {
         }
         _resolvePending(TierUnlockOutcome.locked);
       case _:
-        // Unlocking / Wiping — transient, no Dart-side work.
+        // Unlocking / Unlocked / Wiping — the Rust orchestrator
+        // drives its half of the cascade and then publishes
+        // `UnlockCascadeReady`; the Dart Riverpod work runs off
+        // that single payload instead of the per-state wire-name
+        // dance.
         break;
     }
   }
 
-  Future<void> _handleUnlocked() async {
-    final sw = Stopwatch()..start();
-    void mark(String phase) {
-      AppLogger.instance.log(
-        'unlock cascade phase=$phase elapsed=${sw.elapsedMilliseconds}ms',
-        name: 'TierUnlock',
-      );
-    }
-
+  /// Dart-side half of the unlock cascade. Runs after the Rust
+  /// orchestrator already opened the rusqlite handle + persisted
+  /// the tier into `config.json`; this body is the Riverpod-only
+  /// rendezvous (cache invalidations + `securityStateProvider`
+  /// flip + resolve the pending `awaitNextUnlock`).
+  void _handleCascadeReady(rust_bus.BusEvent_UnlockCascadeReady event) {
     try {
-      // Resolve the active tier wire name to the Dart enum so the
-      // post-unlock Dart cascade flips the right
-      // `securityStateProvider` slot.
-      final tierWire = rust_tier.tierMachineActiveTierWireName();
-      final tier = SecurityTierWireName.fromWireName(tierWire);
-      // The Rust orchestrator stages the resolved DB key directly
-      // under `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID` (re-export
-      // of `TIER_UNLOCK_KEY_ID`). Probe presence — empty means
-      // plaintext tier — and route the encrypted cascade through
-      // `dbInitFromSecret(ACTIVE)` so the bytes never cross the FRB
-      // boundary outwards.
-      final hasKey = rust_app.secretsHas(id: kActiveDbKeySecretId);
-      mark('secrets_probe');
+      final tier = SecurityTierWireName.fromWireName(event.tierWire);
       // Invalidate Dart-side store caches so the next read pulls
       // fresh rows after the engine swap.
       _ref.read(sessionProvider.notifier).invalidateCache();
       _ref.read(sshKeysProvider.notifier).invalidateCache();
       _ref.read(knownHostsProvider.notifier).invalidateCache();
-      _ref.read(securityStateProvider.notifier).setActive(tier, hasKey: hasKey);
-      // Open the Rust-owned sqlite handle. SecretRef path on the
-      // encrypted tier; plaintext routes through the unencrypted
-      // branch in `ensureRustDbOpen`.
-      if (hasKey) {
-        await ensureRustDbOpen(secretId: kActiveDbKeySecretId);
-      } else {
-        await ensureRustDbOpen();
-      }
-      mark('rust_db_open');
-      // Persist the tier into config so a cold-restart picks
-      // up the same tier without re-entering the wizard.
-      // Modifiers come from the wizard / settings flow that
-      // ran earlier; the listener reads the current config
-      // and updates only when the resolved (tier, modifiers)
-      // pair differs from what's stored.
-      await _persistSecurityTier(tier);
-      mark('persist_tier');
+      _ref
+          .read(securityStateProvider.notifier)
+          .setActive(tier, hasKey: event.hasKey);
       _resolvePending(TierUnlockOutcome.unlocked);
     } catch (e, st) {
       AppLogger.instance.log(
-        'TierUnlockedListener post-unlock cascade failed: $e',
+        'TierUnlockedListener Riverpod cascade failed: $e',
         name: 'TierUnlock',
         level: LogLevel.warn,
         error: e,
@@ -204,26 +178,6 @@ class TierUnlockedListener {
       );
       _resolvePending(TierUnlockOutcome.failed);
     }
-  }
-
-  /// Mirror of `SecurityInitController._persistSecurityTier`.
-  /// Reads the current tier + modifiers from config and writes
-  /// only when the resolved pair differs from the stored one.
-  /// Modifiers come from the wizard's prior write — the listener
-  /// just keeps the tier slot consistent with what the
-  /// orchestrator just unlocked.
-  Future<void> _persistSecurityTier(SecurityTier tier) async {
-    final existing = _ref.read(configProvider).security;
-    final resolved = existing?.modifiers ?? SecurityTierModifiers.defaults;
-    if (existing != null &&
-        existing.tier == tier &&
-        existing.modifiers == resolved) {
-      return;
-    }
-    final next = SecurityConfig(tier: tier, modifiers: resolved);
-    await _ref
-        .read(configProvider.notifier)
-        .update((cfg) => cfg.copyWithSecurity(security: next));
   }
 
   void _resolvePending(TierUnlockOutcome outcome) {

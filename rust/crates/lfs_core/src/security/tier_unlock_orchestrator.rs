@@ -83,6 +83,84 @@ fn stage_key(bytes: &[u8]) {
         .put(TIER_UNLOCK_KEY_ID, bytes);
 }
 
+/// Run the Rust-side half of the post-unlock cascade after the
+/// per-tier orchestrator successfully staged the DB key + fired
+/// `UnlockSucceeded`. Three responsibilities, in order:
+///
+/// 1. Open the rusqlite handle keyed off the staged bytes
+///    (empty bytes ⇒ plaintext open). Failure is logged and the
+///    cascade continues — recovery routes through the Dart-side
+///    `verifyRustDbReadable` probe + `DbCorruptDialog`, same as
+///    the prior Dart flow.
+/// 2. Persist the resolved tier into `config.json` via the
+///    config_store partial-update. Idempotent on a matching
+///    `(tier, modifiers)` pair. Failure is logged + continues —
+///    the in-memory state machine still reflects the unlocked
+///    tier; the persistence is best-effort.
+/// 3. Publish [`Event::UnlockCascadeReady`] on the `Tier` topic
+///    so the Dart `TierUnlockedListener` runs its Riverpod half
+///    (cache invalidations + `securityStateProvider` flip) off
+///    a single payload.
+///
+/// Posture: log + continue on partial failures. One stuck step
+/// must not block the chain; the Dart side's recovery rails
+/// still trip on a broken DB / config write.
+fn run_post_unlock_cascade(tier: crate::security::SecurityTier) {
+    let app = crate::app::instance();
+    let tier_wire = tier.wire_name().to_string();
+
+    // Probe presence of the canonical active-DB-key slot. Mirrors
+    // the previous Dart `rust_app.secretsHas(kActiveDbKeySecretId)`
+    // probe; the orchestrator's `stage_key` always populates the
+    // slot (with an empty buffer on plaintext) so this is true on
+    // every successful unlock path.
+    let has_key = app.secrets.has(TIER_UNLOCK_KEY_ID);
+
+    // 1. Open the rusqlite handle. Empty bytes (plaintext path)
+    //    yield an unencrypted open; non-empty bytes feed SQLCipher.
+    let path = match app.support_dir() {
+        Ok(p) => p.join(crate::db::DB_FILE_NAME),
+        Err(e) => {
+            crate::app_log_warn!(
+                "TierUnlock",
+                "post-unlock cascade: support_dir unavailable: {e}"
+            );
+            // Without a support_dir we can't open the DB; the
+            // event still publishes so Dart Riverpod runs and the
+            // probe-based recovery rail trips on the missing DB.
+            app.bus
+                .publish(Event::UnlockCascadeReady { tier_wire, has_key });
+            return;
+        }
+    };
+    let key_bytes = app.secrets.get(TIER_UNLOCK_KEY_ID);
+    let key_slice: &[u8] = match key_bytes.as_deref() {
+        Some(slice) => slice,
+        None => &[],
+    };
+    if let Err(e) = app.db_init(&path, key_slice) {
+        crate::app_log_warn!("TierUnlock", "post-unlock cascade: db_init failed: {e}");
+    }
+
+    // 2. Persist the tier. `Err` only when config_store hasn't been
+    //    initialised yet — production cold-start invariant guards
+    //    against that, so a hit here is a real bug worth logging.
+    if let Err(e) = crate::config_store::instance().update_security_tier(tier) {
+        crate::app_log_warn!(
+            "TierUnlock",
+            "post-unlock cascade: update_security_tier failed: {e}"
+        );
+    }
+
+    // 3. Publish the cascade-ready event AFTER both side-effects
+    //    have settled (success or logged failure). Subscribers
+    //    react to a single payload carrying `(tier_wire, has_key)`
+    //    instead of round-tripping through the tier-machine +
+    //    secrets-probe FRB surfaces.
+    app.bus
+        .publish(Event::UnlockCascadeReady { tier_wire, has_key });
+}
+
 /// Storage key for the T1 / T1+pw DB encryption key in the OS
 /// keychain. Mirrors the Dart-era
 /// `SecureKeyStorage._keyName` const — both implementations
@@ -121,6 +199,7 @@ pub fn unlock_plaintext() {
     // for the plaintext path.
     stage_key(&[]);
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockSucceeded);
+    run_post_unlock_cascade(SecurityTier::Plaintext);
 }
 
 /// Keychain tier (T1) — read the DB encryption key directly from
@@ -148,6 +227,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
         Ok(Some(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Keychain);
             UnlockOutcome::Staged
         }
         Ok(_) => {
@@ -255,6 +335,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
         Ok(Some(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Keychain);
             UnlockOutcome::Staged
         }
         Ok(_) => {
@@ -337,6 +418,7 @@ pub async fn unlock_paranoid(password: Vec<u8>) -> UnlockOutcome {
             limiters.record_success(PARANOID_UNLOCK_LIMITER_ID);
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Paranoid);
             UnlockOutcome::Staged
         }
         Ok(Ok(_)) => {
@@ -459,6 +541,7 @@ pub async fn unlock_hardware(password: String) -> UnlockOutcome {
             stage_key(&bytes);
             limiters.record_success(HARDWARE_UNLOCK_LIMITER_ID);
             instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Hardware);
             UnlockOutcome::Staged
         }
         Ok(Ok(_)) => {
@@ -518,6 +601,7 @@ pub fn first_launch_plaintext() {
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockRequested);
     stage_key(&[]);
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockSucceeded);
+    run_post_unlock_cascade(SecurityTier::Plaintext);
 }
 
 /// First-launch Paranoid. Runs `master_password::enable` (Argon2id +
@@ -538,6 +622,7 @@ pub async fn first_launch_paranoid(password: Vec<u8>) -> UnlockOutcome {
         Ok(Ok(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Paranoid);
             return UnlockOutcome::Staged;
         }
         Ok(Ok(_)) => "master_password::enable returned empty key".into(),
@@ -568,6 +653,7 @@ pub async fn first_launch_keychain() -> UnlockOutcome {
         Ok(()) => {
             stage_key(&key);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Keychain);
             UnlockOutcome::Staged
         }
         Err(detail) => {
@@ -609,6 +695,7 @@ pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOut
         Ok(()) => {
             stage_key(&key);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Keychain);
             UnlockOutcome::Staged
         }
         Err(detail) => {
@@ -664,6 +751,7 @@ pub async fn first_launch_hardware(pin: Option<String>) -> UnlockOutcome {
         Ok(Ok(())) => {
             stage_key(&key);
             instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Hardware);
             UnlockOutcome::Staged
         }
         Ok(Err(detail)) => {
@@ -730,6 +818,7 @@ pub fn commit_biometric_unlock(tier: SecurityTier, bytes: &[u8]) {
     instance_dispatch(tier, &TierEvent::UnlockRequested);
     stage_key(bytes);
     instance_dispatch(tier, &TierEvent::UnlockSucceeded);
+    run_post_unlock_cascade(tier);
 }
 
 /// SecretRef variant of [`commit_biometric_unlock`]. The DB key is
@@ -752,6 +841,7 @@ pub fn commit_biometric_unlock_from_secret(tier: SecurityTier, secret_id: &str) 
     }
     instance_dispatch(tier, &TierEvent::UnlockRequested);
     instance_dispatch(tier, &TierEvent::UnlockSucceeded);
+    run_post_unlock_cascade(tier);
     true
 }
 
@@ -915,5 +1005,51 @@ mod tests {
             }
             other => panic!("expected PluginError(hardware_password_required), got {other:?}"),
         }
+    }
+
+    /// Bus contract: the orchestrator publishes
+    /// `BusEvent::UnlockCascadeReady { tier_wire, has_key }` AFTER
+    /// the existing `TierStateChanged.unlocked` event so the Dart
+    /// listener subscribes to a single payload instead of probing
+    /// the tier machine + secret store directly. Plaintext is the
+    /// simplest path to exercise without a real keychain / hardware
+    /// vault — every cascade-bearing tier shares the same helper.
+    #[tokio::test]
+    async fn unlock_plaintext_publishes_cascade_ready_event() {
+        let _guard = serial_mutex().lock().await;
+        let app = crate::app::init();
+        let mut rx = app.bus.subscribe(crate::bus::EventTopic::Tier);
+        unlock_plaintext();
+
+        // Walk the topic stream until we see the cascade-ready
+        // event. The orchestrator also publishes the
+        // intermediate `TierStateChanged.{unlocking,unlocked}`
+        // transitions on the same channel; we ignore them and
+        // assert only on the new variant.
+        let deadline = std::time::Duration::from_secs(2);
+        let event = tokio::time::timeout(deadline, async {
+            loop {
+                match rx.recv().await {
+                    Ok(Event::UnlockCascadeReady { tier_wire, has_key }) => {
+                        return (tier_wire, has_key);
+                    }
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(e) => panic!("recv error: {e:?}"),
+                }
+            }
+        })
+        .await
+        .expect("cascade event must fire within 2s");
+
+        assert_eq!(
+            event.0, "plaintext",
+            "tier_wire must mirror the unlocked tier"
+        );
+        // Plaintext stages an empty buffer; the slot is still
+        // present so the probe-shape `has_key` follows
+        // `secrets_has(ACTIVE_DBKEY_SECRET_ID)` semantics — true
+        // when the entry exists at all, empty or not.
+        assert!(event.1, "has_key must reflect the staged slot probe");
     }
 }
