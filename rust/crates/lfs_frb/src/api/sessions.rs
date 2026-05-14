@@ -258,9 +258,10 @@ impl From<DbSessionJsonInput> for lfs_core::session_json::SessionJsonInput {
 }
 
 /// Tagged-union mirror of `serde_json::Value` for the typed `extras`
-/// payload Dart consumes. Non-scalar leaves carry the raw JSON text
-/// so a future caller can re-parse the slice without rebuilding it.
-/// Mirrors [`lfs_core::session_json::SessionJsonValue`].
+/// payload Dart consumes. Fully recursive: nested arrays / objects
+/// carry their typed children so a probe at any depth never has to
+/// re-parse JSON text. Mirrors
+/// [`lfs_core::session_json::SessionJsonValue`].
 #[derive(Debug, Clone)]
 pub enum DbSessionJsonValue {
     Null,
@@ -268,8 +269,8 @@ pub enum DbSessionJsonValue {
     Int(i64),
     Double(f64),
     Text(String),
-    Array(String),
-    Object(String),
+    Array(Vec<DbSessionJsonValue>),
+    Object(Vec<DbSessionJsonExtra>),
 }
 
 impl From<lfs_core::session_json::SessionJsonValue> for DbSessionJsonValue {
@@ -281,8 +282,18 @@ impl From<lfs_core::session_json::SessionJsonValue> for DbSessionJsonValue {
             V::Int(i) => DbSessionJsonValue::Int(i),
             V::Double(d) => DbSessionJsonValue::Double(d),
             V::Text(s) => DbSessionJsonValue::Text(s),
-            V::Array(s) => DbSessionJsonValue::Array(s),
-            V::Object(s) => DbSessionJsonValue::Object(s),
+            V::Array(items) => {
+                DbSessionJsonValue::Array(items.into_iter().map(Into::into).collect())
+            }
+            V::Object(pairs) => DbSessionJsonValue::Object(
+                pairs
+                    .into_iter()
+                    .map(|(key, value)| DbSessionJsonExtra {
+                        key,
+                        value: value.into(),
+                    })
+                    .collect(),
+            ),
         }
     }
 }
@@ -290,7 +301,8 @@ impl From<lfs_core::session_json::SessionJsonValue> for DbSessionJsonValue {
 /// One entry of the decoded `extras` map. FRB does not support
 /// `HashMap<String, EnumVariant>` directly across the bridge, so the
 /// map is carried as a `Vec<DbSessionJsonExtra>` the Dart consumer
-/// re-keys into a `Map<String, ...>` after the call.
+/// re-keys into a `Map<String, ...>` after the call. The same struct
+/// doubles as the nested-object carrier inside [`DbSessionJsonValue`].
 #[derive(Debug, Clone)]
 pub struct DbSessionJsonExtra {
     pub key: String,

@@ -134,7 +134,7 @@ return object(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  null_,TResult Function( bool field0)?  bool,TResult Function( PlatformInt64 field0)?  int,TResult Function( double field0)?  double,TResult Function( String field0)?  text,TResult Function( String field0)?  array,TResult Function( String field0)?  object,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  null_,TResult Function( bool field0)?  bool,TResult Function( PlatformInt64 field0)?  int,TResult Function( double field0)?  double,TResult Function( String field0)?  text,TResult Function( List<DbSessionJsonValue> field0)?  array,TResult Function( List<DbSessionJsonExtra> field0)?  object,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case DbSessionJsonValue_Null() when null_ != null:
 return null_();case DbSessionJsonValue_Bool() when bool != null:
@@ -161,7 +161,7 @@ return object(_that.field0);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  null_,required TResult Function( bool field0)  bool,required TResult Function( PlatformInt64 field0)  int,required TResult Function( double field0)  double,required TResult Function( String field0)  text,required TResult Function( String field0)  array,required TResult Function( String field0)  object,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  null_,required TResult Function( bool field0)  bool,required TResult Function( PlatformInt64 field0)  int,required TResult Function( double field0)  double,required TResult Function( String field0)  text,required TResult Function( List<DbSessionJsonValue> field0)  array,required TResult Function( List<DbSessionJsonExtra> field0)  object,}) {final _that = this;
 switch (_that) {
 case DbSessionJsonValue_Null():
 return null_();case DbSessionJsonValue_Bool():
@@ -184,7 +184,7 @@ return object(_that.field0);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  null_,TResult? Function( bool field0)?  bool,TResult? Function( PlatformInt64 field0)?  int,TResult? Function( double field0)?  double,TResult? Function( String field0)?  text,TResult? Function( String field0)?  array,TResult? Function( String field0)?  object,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  null_,TResult? Function( bool field0)?  bool,TResult? Function( PlatformInt64 field0)?  int,TResult? Function( double field0)?  double,TResult? Function( String field0)?  text,TResult? Function( List<DbSessionJsonValue> field0)?  array,TResult? Function( List<DbSessionJsonExtra> field0)?  object,}) {final _that = this;
 switch (_that) {
 case DbSessionJsonValue_Null() when null_ != null:
 return null_();case DbSessionJsonValue_Bool() when bool != null:
@@ -501,10 +501,16 @@ as String,
 
 
 class DbSessionJsonValue_Array extends DbSessionJsonValue {
-  const DbSessionJsonValue_Array(this.field0): super._();
+  const DbSessionJsonValue_Array(final  List<DbSessionJsonValue> field0): _field0 = field0,super._();
   
 
- final  String field0;
+ final  List<DbSessionJsonValue> _field0;
+ List<DbSessionJsonValue> get field0 {
+  if (_field0 is EqualUnmodifiableListView) return _field0;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_field0);
+}
+
 
 /// Create a copy of DbSessionJsonValue
 /// with the given fields replaced by the non-null parameter values.
@@ -516,12 +522,12 @@ $DbSessionJsonValue_ArrayCopyWith<DbSessionJsonValue_Array> get copyWith => _$Db
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbSessionJsonValue_Array&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbSessionJsonValue_Array&&const DeepCollectionEquality().equals(other._field0, _field0));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,field0);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_field0));
 
 @override
 String toString() {
@@ -536,7 +542,7 @@ abstract mixin class $DbSessionJsonValue_ArrayCopyWith<$Res> implements $DbSessi
   factory $DbSessionJsonValue_ArrayCopyWith(DbSessionJsonValue_Array value, $Res Function(DbSessionJsonValue_Array) _then) = _$DbSessionJsonValue_ArrayCopyWithImpl;
 @useResult
 $Res call({
- String field0
+ List<DbSessionJsonValue> field0
 });
 
 
@@ -555,8 +561,8 @@ class _$DbSessionJsonValue_ArrayCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
   return _then(DbSessionJsonValue_Array(
-null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
-as String,
+null == field0 ? _self._field0 : field0 // ignore: cast_nullable_to_non_nullable
+as List<DbSessionJsonValue>,
   ));
 }
 
@@ -567,10 +573,16 @@ as String,
 
 
 class DbSessionJsonValue_Object extends DbSessionJsonValue {
-  const DbSessionJsonValue_Object(this.field0): super._();
+  const DbSessionJsonValue_Object(final  List<DbSessionJsonExtra> field0): _field0 = field0,super._();
   
 
- final  String field0;
+ final  List<DbSessionJsonExtra> _field0;
+ List<DbSessionJsonExtra> get field0 {
+  if (_field0 is EqualUnmodifiableListView) return _field0;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_field0);
+}
+
 
 /// Create a copy of DbSessionJsonValue
 /// with the given fields replaced by the non-null parameter values.
@@ -582,12 +594,12 @@ $DbSessionJsonValue_ObjectCopyWith<DbSessionJsonValue_Object> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbSessionJsonValue_Object&&(identical(other.field0, field0) || other.field0 == field0));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbSessionJsonValue_Object&&const DeepCollectionEquality().equals(other._field0, _field0));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,field0);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_field0));
 
 @override
 String toString() {
@@ -602,7 +614,7 @@ abstract mixin class $DbSessionJsonValue_ObjectCopyWith<$Res> implements $DbSess
   factory $DbSessionJsonValue_ObjectCopyWith(DbSessionJsonValue_Object value, $Res Function(DbSessionJsonValue_Object) _then) = _$DbSessionJsonValue_ObjectCopyWithImpl;
 @useResult
 $Res call({
- String field0
+ List<DbSessionJsonExtra> field0
 });
 
 
@@ -621,8 +633,8 @@ class _$DbSessionJsonValue_ObjectCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
   return _then(DbSessionJsonValue_Object(
-null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
-as String,
+null == field0 ? _self._field0 : field0 // ignore: cast_nullable_to_non_nullable
+as List<DbSessionJsonExtra>,
   ));
 }
 

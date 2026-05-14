@@ -635,9 +635,9 @@ Session sessionFromJsonOutput(rust_sess.DbSessionJsonOutput out) {
 /// * `Null` → `null` (key still present, useful for `extras['k'] != null`
 ///   probes Dart-side).
 /// * `Bool` / `Int` / `Double` / `Text` → native Dart types.
-/// * `Array` / `Object` → re-parsed via [jsonDecode] so nested-shape
-///   probes still work; a parse failure folds the slot to `null`
-///   rather than blocking the whole map.
+/// * `Array` / `Object` → recursive walk into `List<Object?>` /
+///   `Map<String, Object?>`. The FRB carrier is fully typed end to
+///   end so a nested probe never has to re-parse a JSON string.
 Map<String, Object?> extrasListToMap(List<rust_sess.DbSessionJsonExtra> list) {
   final out = <String, Object?>{};
   for (final entry in list) {
@@ -653,15 +653,7 @@ Object? _extrasLeafToDart(rust_sess.DbSessionJsonValue v) {
     int: (i) => i.field0.toInt(),
     double: (d) => d.field0,
     text: (t) => t.field0,
-    array: (a) => _extrasSafeDecode(a.field0),
-    object: (o) => _extrasSafeDecode(o.field0),
+    array: (a) => a.field0.map(_extrasLeafToDart).toList(growable: false),
+    object: (o) => extrasListToMap(o.field0),
   );
-}
-
-Object? _extrasSafeDecode(String raw) {
-  try {
-    return jsonDecode(raw);
-  } on FormatException {
-    return null;
-  }
 }

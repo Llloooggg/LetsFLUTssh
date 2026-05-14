@@ -26626,11 +26626,13 @@ impl SseDecode for crate::api::sessions::DbSessionJsonValue {
                 return crate::api::sessions::DbSessionJsonValue::Text(var_field0);
             }
             5 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
+                let mut var_field0 =
+                    <Vec<crate::api::sessions::DbSessionJsonValue>>::sse_decode(deserializer);
                 return crate::api::sessions::DbSessionJsonValue::Array(var_field0);
             }
             6 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
+                let mut var_field0 =
+                    <Vec<crate::api::sessions::DbSessionJsonExtra>>::sse_decode(deserializer);
                 return crate::api::sessions::DbSessionJsonValue::Object(var_field0);
             }
             _ => {
@@ -28127,6 +28129,20 @@ impl SseDecode for Vec<crate::api::sessions::DbSessionJsonOutput> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::sessions::DbSessionJsonOutput>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sessions::DbSessionJsonValue> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sessions::DbSessionJsonValue>::sse_decode(
                 deserializer,
             ));
         }
@@ -37131,11 +37147,11 @@ impl SseEncode for crate::api::sessions::DbSessionJsonValue {
             }
             crate::api::sessions::DbSessionJsonValue::Array(field0) => {
                 <i32>::sse_encode(5, serializer);
-                <String>::sse_encode(field0, serializer);
+                <Vec<crate::api::sessions::DbSessionJsonValue>>::sse_encode(field0, serializer);
             }
             crate::api::sessions::DbSessionJsonValue::Object(field0) => {
                 <i32>::sse_encode(6, serializer);
-                <String>::sse_encode(field0, serializer);
+                <Vec<crate::api::sessions::DbSessionJsonExtra>>::sse_encode(field0, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -38224,6 +38240,16 @@ impl SseEncode for Vec<crate::api::sessions::DbSessionJsonOutput> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::sessions::DbSessionJsonOutput>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::sessions::DbSessionJsonValue> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sessions::DbSessionJsonValue>::sse_encode(item, serializer);
         }
     }
 }

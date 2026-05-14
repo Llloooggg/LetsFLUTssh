@@ -26277,9 +26277,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         return DbSessionJsonValue_Text(dco_decode_String(raw[1]));
       case 5:
-        return DbSessionJsonValue_Array(dco_decode_String(raw[1]));
+        return DbSessionJsonValue_Array(
+          dco_decode_list_db_session_json_value(raw[1]),
+        );
       case 6:
-        return DbSessionJsonValue_Object(dco_decode_String(raw[1]));
+        return DbSessionJsonValue_Object(
+          dco_decode_list_db_session_json_extra(raw[1]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -27282,6 +27286,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
         .map(dco_decode_db_session_json_output)
+        .toList();
+  }
+
+  @protected
+  List<DbSessionJsonValue> dco_decode_list_db_session_json_value(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_db_session_json_value)
         .toList();
   }
 
@@ -31164,10 +31176,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_field0 = sse_decode_String(deserializer);
         return DbSessionJsonValue_Text(var_field0);
       case 5:
-        var var_field0 = sse_decode_String(deserializer);
+        var var_field0 = sse_decode_list_db_session_json_value(deserializer);
         return DbSessionJsonValue_Array(var_field0);
       case 6:
-        var var_field0 = sse_decode_String(deserializer);
+        var var_field0 = sse_decode_list_db_session_json_extra(deserializer);
         return DbSessionJsonValue_Object(var_field0);
       default:
         throw UnimplementedError('');
@@ -32575,6 +32587,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DbSessionJsonOutput>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_session_json_output(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DbSessionJsonValue> sse_decode_list_db_session_json_value(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSessionJsonValue>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_db_session_json_value(deserializer));
     }
     return ans_;
   }
@@ -36545,10 +36571,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(field0, serializer);
       case DbSessionJsonValue_Array(field0: final field0):
         sse_encode_i_32(5, serializer);
-        sse_encode_String(field0, serializer);
+        sse_encode_list_db_session_json_value(field0, serializer);
       case DbSessionJsonValue_Object(field0: final field0):
         sse_encode_i_32(6, serializer);
-        sse_encode_String(field0, serializer);
+        sse_encode_list_db_session_json_extra(field0, serializer);
     }
   }
 
@@ -37618,6 +37644,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_db_session_json_output(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_db_session_json_value(
+    List<DbSessionJsonValue> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_db_session_json_value(item, serializer);
     }
   }
 

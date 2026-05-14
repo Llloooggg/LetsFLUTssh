@@ -150,7 +150,8 @@ class DbSearchableSession {
 /// One entry of the decoded `extras` map. FRB does not support
 /// `HashMap<String, EnumVariant>` directly across the bridge, so the
 /// map is carried as a `Vec<DbSessionJsonExtra>` the Dart consumer
-/// re-keys into a `Map<String, ...>` after the call.
+/// re-keys into a `Map<String, ...>` after the call. The same struct
+/// doubles as the nested-object carrier inside [`DbSessionJsonValue`].
 class DbSessionJsonExtra {
   final String key;
   final DbSessionJsonValue value;
@@ -405,9 +406,9 @@ sealed class DbSessionJsonValue with _$DbSessionJsonValue {
       DbSessionJsonValue_Double;
   const factory DbSessionJsonValue.text(String field0) =
       DbSessionJsonValue_Text;
-  const factory DbSessionJsonValue.array(String field0) =
+  const factory DbSessionJsonValue.array(List<DbSessionJsonValue> field0) =
       DbSessionJsonValue_Array;
-  const factory DbSessionJsonValue.object(String field0) =
+  const factory DbSessionJsonValue.object(List<DbSessionJsonExtra> field0) =
       DbSessionJsonValue_Object;
 }
 

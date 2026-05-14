@@ -34,9 +34,10 @@
 //! * `extras` is emitted as a raw JSON object when non-empty; the
 //!   decoder converts each leaf into a [`SessionJsonValue`] tagged
 //!   union so the Dart consumer no longer needs to call `jsonDecode`
-//!   to read the persisted column. Non-scalar leaves (nested objects
-//!   / arrays) round-trip as `Object(String)` / `Array(String)`
-//!   carrying the raw JSON text for callers that want to re-probe.
+//!   to read the persisted column. Nested objects / arrays carry
+//!   their fully typed children (`Array(Vec<SessionJsonValue>)` /
+//!   `Object(Vec<(String, SessionJsonValue)>)`) so a probe at any
+//!   depth never re-parses raw JSON text.
 //! * `extras` is also accepted as a JSON-encoded **string** on
 //!   decode — that path appears when the column is read off the
 //!   sessions table verbatim and handed back through the same
@@ -93,9 +94,10 @@ pub struct SessionJsonInput {
 /// on these variants directly so a `jsonDecode` is no longer needed
 /// on the persisted blob.
 ///
-/// Non-scalar leaves keep their raw JSON text so a future caller
-/// that wants to walk an array / nested object can re-parse the
-/// slice without re-fetching the full extras blob.
+/// Nested arrays / objects carry their fully typed children so a
+/// caller walking the tree never has to re-parse raw JSON. The
+/// `Vec` indirection on the `Array` / `Object` arms keeps the
+/// enum's stack size bounded under recursion.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SessionJsonValue {
     /// JSON `null` or a missing key in the input.
@@ -110,12 +112,15 @@ pub enum SessionJsonValue {
     Double(f64),
     /// JSON string.
     Text(String),
-    /// JSON array, carried as the raw text slice so callers that
-    /// want to re-walk the structure can `serde_json::from_str`
-    /// without rebuilding it.
-    Array(String),
-    /// JSON object, same shape as `Array` for the same reason.
-    Object(String),
+    /// JSON array, carried as a typed list of children. Each
+    /// element is heap-allocated to keep the enum's stack size
+    /// bounded under recursion.
+    Array(Vec<SessionJsonValue>),
+    /// JSON object, carried as a key-ordered list of typed
+    /// `{key, value}` pairs. Key order matches `serde_json`'s
+    /// preserve-order iteration so the original document order
+    /// round-trips across encode → decode.
+    Object(Vec<(String, SessionJsonValue)>),
 }
 
 impl SessionJsonValue {
@@ -153,12 +158,14 @@ impl SessionJsonValue {
                 }
             }
             Value::String(s) => SessionJsonValue::Text(s.clone()),
-            Value::Array(_) => {
-                SessionJsonValue::Array(serde_json::to_string(value).unwrap_or_default())
+            Value::Array(items) => {
+                SessionJsonValue::Array(items.iter().map(SessionJsonValue::from_value).collect())
             }
-            Value::Object(_) => {
-                SessionJsonValue::Object(serde_json::to_string(value).unwrap_or_default())
-            }
+            Value::Object(map) => SessionJsonValue::Object(
+                map.iter()
+                    .map(|(k, v)| (k.clone(), SessionJsonValue::from_value(v)))
+                    .collect(),
+            ),
         }
     }
 }
@@ -669,17 +676,64 @@ mod tests {
     }
 
     #[test]
-    fn extras_value_arrays_and_objects_round_trip_as_raw_text() {
+    fn extras_value_arrays_and_objects_carry_typed_children() {
         let array = serde_json::from_str::<Value>(r#"[1,"two",false]"#).unwrap();
         match SessionJsonValue::from_value(&array) {
-            SessionJsonValue::Array(s) => assert_eq!(s, r#"[1,"two",false]"#),
+            SessionJsonValue::Array(items) => {
+                assert_eq!(items.len(), 3);
+                assert_eq!(items[0], SessionJsonValue::Int(1));
+                assert_eq!(items[1], SessionJsonValue::Text("two".into()));
+                assert_eq!(items[2], SessionJsonValue::Bool(false));
+            }
             other => panic!("expected Array, got {other:?}"),
         }
         let object = serde_json::from_str::<Value>(r#"{"nested":true}"#).unwrap();
         match SessionJsonValue::from_value(&object) {
-            SessionJsonValue::Object(s) => assert_eq!(s, r#"{"nested":true}"#),
+            SessionJsonValue::Object(pairs) => {
+                assert_eq!(pairs.len(), 1);
+                assert_eq!(pairs[0].0, "nested");
+                assert_eq!(pairs[0].1, SessionJsonValue::Bool(true));
+            }
             other => panic!("expected Object, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn extras_value_recurses_through_nested_arrays_and_objects() {
+        let value =
+            serde_json::from_str::<Value>(r#"{"layers":[{"name":"web","flags":[true,false]},42]}"#)
+                .unwrap();
+        let typed = SessionJsonValue::from_value(&value);
+        let SessionJsonValue::Object(top) = typed else {
+            panic!("expected top-level Object");
+        };
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].0, "layers");
+        let SessionJsonValue::Array(layers) = &top[0].1 else {
+            panic!("expected layers Array");
+        };
+        assert_eq!(layers.len(), 2);
+        let SessionJsonValue::Object(first) = &layers[0] else {
+            panic!("expected first layer Object");
+        };
+        // `serde_json::Map` uses a BTreeMap by default, so the inner
+        // object's keys land sorted alphabetically ("flags" before
+        // "name"). The Dart consumer does its own re-keying into a
+        // `Map<String, Object?>` so the order is not load-bearing for
+        // call sites — the test asserts on it to pin the contract.
+        let first_keys: Vec<&str> = first.iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(first_keys, vec!["flags", "name"]);
+        let flags_pair = first.iter().find(|(k, _)| k == "flags").unwrap();
+        let SessionJsonValue::Array(flags) = &flags_pair.1 else {
+            panic!("expected flags Array");
+        };
+        assert_eq!(
+            flags,
+            &vec![SessionJsonValue::Bool(true), SessionJsonValue::Bool(false)]
+        );
+        let name_pair = first.iter().find(|(k, _)| k == "name").unwrap();
+        assert_eq!(name_pair.1, SessionJsonValue::Text("web".into()));
+        assert_eq!(layers[1], SessionJsonValue::Int(42));
     }
 
     #[test]

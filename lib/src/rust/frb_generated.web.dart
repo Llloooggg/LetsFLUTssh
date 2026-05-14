@@ -1152,6 +1152,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSessionJsonOutput> dco_decode_list_db_session_json_output(dynamic raw);
 
   @protected
+  List<DbSessionJsonValue> dco_decode_list_db_session_json_value(dynamic raw);
+
+  @protected
   List<DbSessionTreeInput> dco_decode_list_db_session_tree_input(dynamic raw);
 
   @protected
@@ -2759,6 +2762,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSessionJsonOutput> sse_decode_list_db_session_json_output(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbSessionJsonValue> sse_decode_list_db_session_json_value(
     SseDeserializer deserializer,
   );
 
@@ -4777,6 +4785,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_session_json_output(
     List<DbSessionJsonOutput> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_session_json_value(
+    List<DbSessionJsonValue> self,
     SseSerializer serializer,
   );
 
