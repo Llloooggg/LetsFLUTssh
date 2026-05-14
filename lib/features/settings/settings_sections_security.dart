@@ -402,12 +402,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     );
     final kcDetail = ref.watch(keyringProbeDetailProvider);
     final keychainAvail = kcDetail.maybeWhen(
-      data: (d) => d == KeyringProbeResult.available,
+      data: (d) => d == DbKeyringProbeResult.available,
       orElse: () =>
           caps.maybeWhen(data: (c) => c.keychainAvailable, orElse: () => true),
     );
     final kcReason = kcDetail.maybeWhen(
-      data: (d) => d == KeyringProbeResult.available
+      data: (d) => d == DbKeyringProbeResult.available
           ? null
           : keyringProbeDetailText(l10n, d),
       orElse: () => keychainAvail ? null : l10n.tierKeychainUnavailable,

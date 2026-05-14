@@ -6,36 +6,23 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `hash`
 
-/// Encode a [`SecurityCapabilities`] snapshot into the JSON wire
-/// format the wizard persists inside `config.json` under
+/// Conservative default snapshot — every probe in its "not yet
+/// run / not available" state. Used by the wizard call sites
+/// that need a `DbSecurityCapabilities` instance before the real
+/// probe has run (loading-state placeholder + tests).
+DbSecurityCapabilities securityCapabilitiesDefaults() => RustLib.instance.api
+    .crateApiSecurityCapabilitiesSecurityCapabilitiesDefaults();
+
+/// Encode a [`DbSecurityCapabilities`] snapshot into the JSON
+/// wire format the wizard persists inside `config.json` under
 /// `security_probe_cache`. Returns the minified JSON string —
 /// caller stores it as a Dart `Map<String, dynamic>` after a
 /// `jsonDecode` round-trip.
-///
-/// Inputs come unpacked because FRB cannot derive a struct mirror
-/// for `SecurityCapabilities` without re-encoding the
-/// `KeyringProbeResult` enum + every field. A flat parameter list
-/// keeps the Dart side from having to mirror the enum twice (once
-/// in the Rust DTO, once in its own `KeyringProbeResult`).
-String securityCapabilitiesToJson({
-  required bool keychainAvailable,
-  required bool hardwareVaultAvailable,
-  required bool biometricAvailable,
-  required bool fprintdAvailable,
-  required bool isLinuxHost,
-  required String keychainProbeWireName,
-  required String hardwareProbeCode,
-}) =>
+String securityCapabilitiesToJson({required DbSecurityCapabilities caps}) =>
     RustLib.instance.api.crateApiSecurityCapabilitiesSecurityCapabilitiesToJson(
-      keychainAvailable: keychainAvailable,
-      hardwareVaultAvailable: hardwareVaultAvailable,
-      biometricAvailable: biometricAvailable,
-      fprintdAvailable: fprintdAvailable,
-      isLinuxHost: isLinuxHost,
-      keychainProbeWireName: keychainProbeWireName,
-      hardwareProbeCode: hardwareProbeCode,
+      caps: caps,
     );
 
 /// Wizard rule — true when the biometric modifier toggle should
@@ -45,14 +32,10 @@ String securityCapabilitiesToJson({
 /// `SecurityCapabilities::can_offer_biometric_modifier` byte-for-
 /// byte.
 bool securityCapabilitiesCanOfferBiometricModifier({
-  required bool biometricAvailable,
-  required bool fprintdAvailable,
-  required bool isLinuxHost,
+  required DbSecurityCapabilities caps,
 }) => RustLib.instance.api
     .crateApiSecurityCapabilitiesSecurityCapabilitiesCanOfferBiometricModifier(
-      biometricAvailable: biometricAvailable,
-      fprintdAvailable: fprintdAvailable,
-      isLinuxHost: isLinuxHost,
+      caps: caps,
     );
 
 /// Parse a `security_probe_cache` JSON snapshot. Returns `None` for
@@ -63,19 +46,38 @@ DbSecurityCapabilities? securityCapabilitiesFromJson({required String json}) =>
     RustLib.instance.api
         .crateApiSecurityCapabilitiesSecurityCapabilitiesFromJson(json: json);
 
-/// FRB-side mirror of the parsed snapshot. Returned as a flat DTO
-/// so the Dart caller can rebuild `SecurityCapabilities` without
-/// re-importing the enum from a generated file.
+/// FRB-visible mirror of
+/// `lfs_core::security::capabilities::KeyringProbeResult`. FRB
+/// codegen emits this as a Dart `enum` so the wire-name string
+/// round-trip never lands on the Dart side — one enum on each
+/// side of the boundary, generated once.
+enum DbKeyringProbeResult {
+  /// Keychain reachable — Linux zbus connect against
+  /// `org.freedesktop.secrets` returned ok; non-Linux live
+  /// write/read/delete round-trip succeeded.
+  available,
+
+  /// Linux secret-service unreachable — no session bus / no
+  /// daemon / `zbus` connect failed. UI shows "install a
+  /// keyring daemon".
+  linuxNoSecretService,
+
+  /// Non-Linux keychain returned an error (rare). UI shows the
+  /// generic fallback copy.
+  probeFailed,
+}
+
+/// FRB-side mirror of the `SecurityCapabilities` snapshot. The
+/// flat DTO carries every wizard-visible field plus the typed
+/// `DbKeyringProbeResult` enum (no wire-name string round-trip on
+/// the Dart side).
 class DbSecurityCapabilities {
   final bool keychainAvailable;
   final bool hardwareVaultAvailable;
   final bool biometricAvailable;
   final bool fprintdAvailable;
   final bool isLinuxHost;
-
-  /// Stable Dart `name` for `KeyringProbeResult` — `available`,
-  /// `linuxNoSecretService`, or `probeFailed`.
-  final String keychainProbeWireName;
+  final DbKeyringProbeResult keychainProbe;
   final String hardwareProbeCode;
 
   const DbSecurityCapabilities({
@@ -84,7 +86,7 @@ class DbSecurityCapabilities {
     required this.biometricAvailable,
     required this.fprintdAvailable,
     required this.isLinuxHost,
-    required this.keychainProbeWireName,
+    required this.keychainProbe,
     required this.hardwareProbeCode,
   });
 
@@ -95,7 +97,7 @@ class DbSecurityCapabilities {
       biometricAvailable.hashCode ^
       fprintdAvailable.hashCode ^
       isLinuxHost.hashCode ^
-      keychainProbeWireName.hashCode ^
+      keychainProbe.hashCode ^
       hardwareProbeCode.hashCode;
 
   @override
@@ -108,6 +110,6 @@ class DbSecurityCapabilities {
           biometricAvailable == other.biometricAvailable &&
           fprintdAvailable == other.fprintdAvailable &&
           isLinuxHost == other.isLinuxHost &&
-          keychainProbeWireName == other.keychainProbeWireName &&
+          keychainProbe == other.keychainProbe &&
           hardwareProbeCode == other.hardwareProbeCode;
 }

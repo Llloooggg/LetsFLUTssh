@@ -1,9 +1,31 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 
 import '../../helpers/frb_bootstrap.dart';
+
+/// Build a [DbSecurityCapabilities] with `defaults()` as the
+/// baseline + the named-arg overrides only the test cares about.
+/// Keeps each fixture line readable when every field is otherwise
+/// `false` / default.
+DbSecurityCapabilities _caps({
+  bool? keychainAvailable,
+  bool? hardwareVaultAvailable,
+  bool? biometricAvailable,
+  bool? fprintdAvailable,
+  bool? isLinuxHost,
+  DbKeyringProbeResult? keychainProbe,
+  String? hardwareProbeCode,
+}) => securityCapabilitiesDefaults().copyWith(
+  keychainAvailable: keychainAvailable,
+  hardwareVaultAvailable: hardwareVaultAvailable,
+  biometricAvailable: biometricAvailable,
+  fprintdAvailable: fprintdAvailable,
+  isLinuxHost: isLinuxHost,
+  keychainProbe: keychainProbe,
+  hardwareProbeCode: hardwareProbeCode,
+);
 
 void main() {
   // canOfferBiometricModifier, mapWizardChoice, the value-type
@@ -12,36 +34,34 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(requireFrbLoaded);
 
-  group('SecurityCapabilities.canOfferBiometricModifier', () {
+  group('DbSecurityCapabilities.canOfferBiometricModifier', () {
     test('non-Linux: only the platform biometric flag matters', () {
-      const caps = SecurityCapabilities(biometricAvailable: true);
-      expect(caps.canOfferBiometricModifier, isTrue);
+      expect(_caps(biometricAvailable: true).canOfferBiometricModifier, isTrue);
     });
 
     test('non-Linux: false when biometric unavailable', () {
-      const caps = SecurityCapabilities(biometricAvailable: false);
-      expect(caps.canOfferBiometricModifier, isFalse);
+      expect(
+        _caps(biometricAvailable: false).canOfferBiometricModifier,
+        isFalse,
+      );
     });
 
     test('Linux: either biometric or fprintd suffices', () {
       expect(
-        const SecurityCapabilities(
+        _caps(
           isLinuxHost: true,
           fprintdAvailable: true,
         ).canOfferBiometricModifier,
         isTrue,
       );
       expect(
-        const SecurityCapabilities(
+        _caps(
           isLinuxHost: true,
           biometricAvailable: true,
         ).canOfferBiometricModifier,
         isTrue,
       );
-      expect(
-        const SecurityCapabilities(isLinuxHost: true).canOfferBiometricModifier,
-        isFalse,
-      );
+      expect(_caps(isLinuxHost: true).canOfferBiometricModifier, isFalse);
     });
   });
 
@@ -157,23 +177,23 @@ void main() {
     });
   });
 
-  group('SecurityCapabilities value-type contract', () {
-    test('default constructor uses the "nothing detected" defaults', () {
-      const caps = SecurityCapabilities();
+  group('DbSecurityCapabilities value-type contract', () {
+    test('defaults factory carries the "nothing detected" snapshot', () {
+      final caps = securityCapabilitiesDefaults();
       expect(caps.keychainAvailable, isFalse);
       expect(caps.hardwareVaultAvailable, isFalse);
       expect(caps.biometricAvailable, isFalse);
       expect(caps.fprintdAvailable, isFalse);
       expect(caps.isLinuxHost, isFalse);
-      expect(caps.keychainProbe, KeyringProbeResult.probeFailed);
+      expect(caps.keychainProbe, DbKeyringProbeResult.probeFailed);
       expect(caps.hardwareProbeCode, 'unknown');
     });
 
     test('copyWith replaces only the named fields', () {
-      const base = SecurityCapabilities(
+      final base = _caps(
         keychainAvailable: true,
         isLinuxHost: true,
-        keychainProbe: KeyringProbeResult.available,
+        keychainProbe: DbKeyringProbeResult.available,
         hardwareProbeCode: 'available',
       );
       final copy = base.copyWith(
@@ -182,29 +202,29 @@ void main() {
       );
       expect(copy.keychainAvailable, isTrue, reason: 'untouched stays true');
       expect(copy.isLinuxHost, isTrue);
-      expect(copy.keychainProbe, KeyringProbeResult.available);
+      expect(copy.keychainProbe, DbKeyringProbeResult.available);
       expect(copy.hardwareProbeCode, 'available');
       expect(copy.hardwareVaultAvailable, isTrue);
       expect(copy.biometricAvailable, isTrue);
     });
 
     test('== + hashCode agree on field-by-field equality', () {
-      const a = SecurityCapabilities(
+      final a = _caps(
         keychainAvailable: true,
         hardwareVaultAvailable: true,
         biometricAvailable: true,
         fprintdAvailable: false,
         isLinuxHost: true,
-        keychainProbe: KeyringProbeResult.available,
+        keychainProbe: DbKeyringProbeResult.available,
         hardwareProbeCode: 'available',
       );
-      const b = SecurityCapabilities(
+      final b = _caps(
         keychainAvailable: true,
         hardwareVaultAvailable: true,
         biometricAvailable: true,
         fprintdAvailable: false,
         isLinuxHost: true,
-        keychainProbe: KeyringProbeResult.available,
+        keychainProbe: DbKeyringProbeResult.available,
         hardwareProbeCode: 'available',
       );
       expect(a, b);
@@ -219,23 +239,23 @@ void main() {
     test(
       'JSON round-trip preserves every field; invalid payloads return null',
       () {
-        const caps = SecurityCapabilities(
+        final caps = _caps(
           keychainAvailable: true,
           hardwareVaultAvailable: false,
           biometricAvailable: true,
           fprintdAvailable: true,
           isLinuxHost: true,
-          keychainProbe: KeyringProbeResult.linuxNoSecretService,
+          keychainProbe: DbKeyringProbeResult.linuxNoSecretService,
           hardwareProbeCode: 'available',
         );
-        final round = SecurityCapabilities.fromJson(caps.toJson())!;
+        final round = securityCapabilitiesFromJsonMap(caps.toJsonMap)!;
         expect(round, caps);
-        expect(SecurityCapabilities.fromJson(null), isNull);
+        expect(securityCapabilitiesFromJsonMap(null), isNull);
         // Missing keychain_probe → treated as corrupt cache (null).
-        expect(SecurityCapabilities.fromJson(<String, dynamic>{}), isNull);
+        expect(securityCapabilitiesFromJsonMap(<String, dynamic>{}), isNull);
         // Non-string keychain_probe → corrupt.
         expect(
-          SecurityCapabilities.fromJson(const {
+          securityCapabilitiesFromJsonMap(const {
             'keychain_probe': 42,
             'hardware_probe_code': 'available',
           }),
@@ -243,7 +263,7 @@ void main() {
         );
         // Unknown enum value for keychain_probe → corrupt.
         expect(
-          SecurityCapabilities.fromJson(const {
+          securityCapabilitiesFromJsonMap(const {
             'keychain_probe': 'nonsense',
             'hardware_probe_code': 'available',
           }),
@@ -251,7 +271,7 @@ void main() {
         );
         // Non-string hardware_probe_code → corrupt.
         expect(
-          SecurityCapabilities.fromJson(const {
+          securityCapabilitiesFromJsonMap(const {
             'keychain_probe': 'available',
             'hardware_probe_code': 7,
           }),
@@ -262,7 +282,7 @@ void main() {
   });
 
   // probeCapabilities itself is no longer unit-tested here: the
-  // function is now a thin async wrapper around
+  // function is a thin async wrapper around
   // `lfs_core::security::capabilities_orchestrator::run`. The
   // orchestrator runs platform probes against the real host
   // (Secret Service / TPM2 / fprintd / etc.) under prompt

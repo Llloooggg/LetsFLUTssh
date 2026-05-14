@@ -26,6 +26,8 @@ import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/logger.dart' as rust_logger;
 import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
+import '../../src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
 import '../../src/rust/api/ssh_agent.dart' as rust_ssh_agent;
 import '../../src/rust/api/sync.dart' as rust_sync;
 import '../../core/security/active_dbkey.dart';
@@ -37,7 +39,6 @@ import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../providers/auto_lock_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
-import '../../core/security/secure_key_storage.dart';
 import '../../providers/key_provider.dart';
 import '../../core/logs/log_store.dart';
 import '../../providers/log_store_provider.dart';

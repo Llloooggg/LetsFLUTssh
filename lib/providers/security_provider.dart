@@ -10,6 +10,8 @@ import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
 import '../core/security/secure_key_storage.dart';
 import '../src/rust/api/app.dart' as rust_secrets;
+import '../src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult, DbSecurityCapabilities;
 import '../src/rust/api/tpm.dart' as rust_tpm;
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
@@ -58,7 +60,7 @@ final hardwareTierVaultProvider = Provider<HardwareTierVault>(
 /// install (or never, if the user imports a per-host config that
 /// already carries a cache — which we strip on export to prevent
 /// exactly that stale-positive case).
-final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
+final securityCapabilitiesProvider = FutureProvider<DbSecurityCapabilities>((
   ref,
 ) async {
   // Pure-functional build: cache hit → return the cached snapshot,
@@ -88,7 +90,7 @@ final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
 /// provider → re-await it. The fresh probe lands in the listener
 /// here exactly once, which writes the new snapshot.
 final securityProbeCachePersisterProvider = Provider<void>((ref) {
-  ref.listen<AsyncValue<SecurityCapabilities>>(securityCapabilitiesProvider, (
+  ref.listen<AsyncValue<DbSecurityCapabilities>>(securityCapabilitiesProvider, (
     _,
     next,
   ) {
@@ -309,7 +311,7 @@ HardwareProbeDetail decodeHardwareProbeCode(String code) {
 /// Classified keyring (T1) probe outcome. Mirrors the enum on
 /// [SecureKeyStorage] so UI code can depend only on the provider
 /// layer — no need to import the storage class to render a hint.
-final keyringProbeDetailProvider = FutureProvider<KeyringProbeResult>((
+final keyringProbeDetailProvider = FutureProvider<DbKeyringProbeResult>((
   ref,
 ) async {
   // Same "derive from the capability snapshot" dance as
@@ -323,16 +325,16 @@ final keyringProbeDetailProvider = FutureProvider<KeyringProbeResult>((
   return caps.keychainProbe;
 });
 
-/// Resolve the localised user-facing copy for a [KeyringProbeResult].
+/// Resolve the localised user-facing copy for a [DbKeyringProbeResult].
 /// Shared between Settings and the first-launch wizard so the copy
 /// stays in lockstep.
-String keyringProbeDetailText(S l10n, KeyringProbeResult result) {
+String keyringProbeDetailText(S l10n, DbKeyringProbeResult result) {
   switch (result) {
-    case KeyringProbeResult.available:
+    case DbKeyringProbeResult.available:
       return '';
-    case KeyringProbeResult.linuxNoSecretService:
+    case DbKeyringProbeResult.linuxNoSecretService:
       return l10n.keyringProbeLinuxNoSecretService;
-    case KeyringProbeResult.probeFailed:
+    case DbKeyringProbeResult.probeFailed:
       return l10n.keyringProbeFailed;
   }
 }

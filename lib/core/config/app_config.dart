@@ -3,7 +3,10 @@ import 'dart:convert';
 import '../../src/rust/api/config.dart' as rust_config;
 import '../../utils/logger.dart'
     show LogLevel, logLevelFromJson, logLevelToJson;
-import '../security/security_bootstrap.dart' show SecurityCapabilities;
+import '../../src/rust/api/security_capabilities.dart'
+    show DbSecurityCapabilities;
+import '../security/security_bootstrap.dart'
+    show DbSecurityCapabilitiesExt, securityCapabilitiesFromJsonMap;
 import '../security/security_tier.dart';
 
 /// Terminal display settings.
@@ -384,7 +387,7 @@ class AppConfig {
   /// Recheck button is the user's tool to force a fresh read after
   /// they change the host (enable TPM in BIOS, run
   /// `macos-resign.sh`, enrol a biometric, etc.).
-  final SecurityCapabilities? securityProbeCache;
+  final DbSecurityCapabilities? securityProbeCache;
 
   /// Aggregate byte ceiling for the recordings tree under
   /// `<appSupport>/recordings/`. The Rust recorder's
@@ -562,7 +565,7 @@ class AppConfig {
           : security as SecurityConfig?,
       securityProbeCache: identical(securityProbeCache, _unset)
           ? this.securityProbeCache
-          : securityProbeCache as SecurityCapabilities?,
+          : securityProbeCache as DbSecurityCapabilities?,
       recordingsStorageCapBytes: recordingsStorageCapBytes,
     );
   }
@@ -616,7 +619,7 @@ class AppConfig {
       if (security != null) 'security_tier': security!.tier.wireName,
       if (security != null) 'security_modifiers': security!.modifiers.toJson(),
       if (securityProbeCache != null)
-        'security_probe_cache': securityProbeCache!.toJson(),
+        'security_probe_cache': securityProbeCache!.toJsonMap,
     };
     final canonical = rust_config.configAppConfigToJson(
       inputJson: jsonEncode(dartShape),
@@ -672,7 +675,7 @@ class AppConfig {
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       locale: json['locale'] as String?,
       security: _readSecurityConfig(json),
-      securityProbeCache: SecurityCapabilities.fromJson(
+      securityProbeCache: securityCapabilitiesFromJsonMap(
         json['security_probe_cache'] as Map<String, dynamic>?,
       ),
       recordingsStorageCapBytes:

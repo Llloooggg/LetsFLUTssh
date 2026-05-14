@@ -53,8 +53,8 @@ extension _FirstLaunchFlows on SecurityInitController {
     );
   }
 
-  Future<SecurityCapabilities> _offerMacosSelfSign(
-    SecurityCapabilities caps,
+  Future<DbSecurityCapabilities> _offerMacosSelfSign(
+    DbSecurityCapabilities caps,
   ) async {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return caps;
@@ -366,7 +366,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     return false;
   }
 
-  void _queueFirstLaunchBanner(SecurityCapabilities caps) {
+  void _queueFirstLaunchBanner(DbSecurityCapabilities caps) {
     ref
         .read(firstLaunchBannerProvider.notifier)
         .set(

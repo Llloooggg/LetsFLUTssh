@@ -1,10 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
 
 import '../helpers/frb_bootstrap.dart';
 
@@ -148,9 +149,9 @@ void main() {
 
     test('keyringProbeDetailText returns non-empty for every non-available '
         'case', () {
-      for (final result in KeyringProbeResult.values) {
+      for (final result in DbKeyringProbeResult.values) {
         final text = keyringProbeDetailText(l10n, result);
-        if (result == KeyringProbeResult.available) {
+        if (result == DbKeyringProbeResult.available) {
           expect(text, isEmpty);
         } else {
           expect(

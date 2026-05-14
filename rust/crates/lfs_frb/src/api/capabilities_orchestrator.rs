@@ -1,17 +1,17 @@
 //! FRB adapter for `lfs_core::security::capabilities_orchestrator`
 //! and the two probe-prompt registries it composes.
 //!
-//! The orchestrator is async — it fans out four probes
-//! concurrently and waits for the slowest. Per-probe timeouts
-//! inside the orchestrator (5 s) keep a stuck D-Bus call from
-//! freezing the wizard spinner indefinitely.
+//! The orchestrator is async — it fans out four probes concurrently
+//! and waits for the slowest. Per-probe timeouts inside the
+//! orchestrator (5 s) keep a stuck D-Bus call from freezing the
+//! wizard spinner indefinitely.
 
 use lfs_core::security::capabilities_cache as cache;
 use lfs_core::security::{
     capabilities_orchestrator, hardware_vault_probe_prompt, keychain_probe_prompt,
 };
 
-use crate::api::capabilities_cache::DbSecurityCapabilitiesSnapshot;
+use crate::api::security_capabilities::DbSecurityCapabilities;
 
 /// Resolve a pending keychain-reachability probe with the
 /// `KeyringProbeResult` wire name the Dart subscriber computed
@@ -63,17 +63,8 @@ pub fn hardware_vault_probe_prompt_cancel(prompt_id: String) {
 /// error) collapse to the matching "unavailable" answer rather
 /// than `Err` so a stuck D-Bus call never blocks the wizard
 /// spinner.
-pub async fn capabilities_probe_run(is_linux_host: bool) -> DbSecurityCapabilitiesSnapshot {
-    let snap = capabilities_orchestrator::run(is_linux_host).await;
-    DbSecurityCapabilitiesSnapshot {
-        keychain_available: snap.keychain_available,
-        hardware_vault_available: snap.hardware_vault_available,
-        biometric_available: snap.biometric_available,
-        fprintd_available: snap.fprintd_available,
-        is_linux_host: snap.is_linux_host,
-        keychain_probe_wire_name: snap.keychain_probe.wire_name().to_string(),
-        hardware_probe_code: snap.hardware_probe_code,
-    }
+pub async fn capabilities_probe_run(is_linux_host: bool) -> DbSecurityCapabilities {
+    capabilities_orchestrator::run(is_linux_host).await.into()
 }
 
 /// Pure helper — drop the cached snapshot. Wraps

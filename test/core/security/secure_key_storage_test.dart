@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 
 /// SecureKeyStorage round-trip / probe / delete coverage moved
 /// Rust-side after the cleanup arc retired
@@ -11,7 +12,7 @@ import 'package:letsflutssh/core/security/secure_key_storage.dart';
 /// flows from Dart with a MethodChannel mock would only re-validate
 /// FRB plumbing already covered by the FRB codegen + bus tests.
 ///
-/// What stays Dart-side: the [KeyringProbeResult] enum vocabulary
+/// What stays Dart-side: the [DbKeyringProbeResult] enum vocabulary
 /// (Settings UI maps reason codes to ARB strings; a silent new enum
 /// value without a matching locale key surfaces as a blank tooltip)
 /// and the [SecureKeyStorage.enableRuntimeSubprocessProbes] static
@@ -21,7 +22,7 @@ void main() {
     test('probeSecretServiceReachability defaults to true; tests opt out', () {
       // Production constructs with the default `true`; widget tests
       // that don't want a live D-Bus probe pass `false` and read
-      // back `KeyringProbeResult.available` without touching the
+      // back `DbKeyringProbeResult.available` without touching the
       // session bus.
       expect(SecureKeyStorage(), isNotNull);
       expect(
@@ -31,12 +32,12 @@ void main() {
     });
 
     test(
-      'KeyringProbeResult carries every documented classification label',
+      'DbKeyringProbeResult carries every documented classification label',
       () {
-        expect(KeyringProbeResult.values, <KeyringProbeResult>[
-          KeyringProbeResult.available,
-          KeyringProbeResult.linuxNoSecretService,
-          KeyringProbeResult.probeFailed,
+        expect(DbKeyringProbeResult.values, <DbKeyringProbeResult>[
+          DbKeyringProbeResult.available,
+          DbKeyringProbeResult.linuxNoSecretService,
+          DbKeyringProbeResult.probeFailed,
         ]);
       },
     );

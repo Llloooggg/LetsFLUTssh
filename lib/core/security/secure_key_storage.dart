@@ -2,6 +2,8 @@ import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import '../../src/rust/api/secure_key_storage.dart' as rust_storage;
+import '../../src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
 import '../../utils/logger.dart';
 import 'linux_keychain_marker.dart';
 
@@ -41,7 +43,7 @@ class SecureKeyStorage {
   /// check (zbus connect against `org.freedesktop.secrets`). Production
   /// (`main.dart`) constructs the storage with the default `true`;
   /// widget tests that don't want a live D-Bus probe pass `false` and
-  /// read back `KeyringProbeResult.available` without touching the
+  /// read back `DbKeyringProbeResult.available` without touching the
   /// session bus.
   final bool _probeSecretServiceReachability;
 
@@ -57,7 +59,7 @@ class SecureKeyStorage {
   }
 
   Future<bool> isAvailable() async {
-    return (await probe()) == KeyringProbeResult.available;
+    return (await probe()) == DbKeyringProbeResult.available;
   }
 
   /// Classified keyring probe.
@@ -70,7 +72,7 @@ class SecureKeyStorage {
   /// default); widget tests that pass `false` bypass it so a
   /// missing session bus cannot pollute test output with
   /// classification noise.
-  Future<KeyringProbeResult> probe() async {
+  Future<DbKeyringProbeResult> probe() async {
     if (!Platform.isLinux) {
       try {
         final markerBytes = Uint8List.fromList([0x70, 0x72, 0x6f, 0x62, 0x65]);
@@ -84,19 +86,19 @@ class SecureKeyStorage {
             back is rust_storage.DbSecureStorageOutcome_Found &&
             _bytesEqual(back.field0, markerBytes);
         return ok
-            ? KeyringProbeResult.available
-            : KeyringProbeResult.probeFailed;
+            ? DbKeyringProbeResult.available
+            : DbKeyringProbeResult.probeFailed;
       } catch (e) {
         AppLogger.instance.log(
           'Keychain probe failed on ${Platform.operatingSystem}: $e',
           name: 'SecureKeyStorage',
         );
-        return KeyringProbeResult.probeFailed;
+        return DbKeyringProbeResult.probeFailed;
       }
     }
 
     if (!_probeSecretServiceReachability) {
-      return KeyringProbeResult.available;
+      return DbKeyringProbeResult.available;
     }
     try {
       // Routes through `lfs_os_security::secure_key_storage::
@@ -109,20 +111,20 @@ class SecureKeyStorage {
       // platform-data path.
       final reachable = await rust_storage
           .secureStorageSecretServiceReachable();
-      if (reachable) return KeyringProbeResult.available;
+      if (reachable) return DbKeyringProbeResult.available;
       AppLogger.instance.log(
         'secret-service unreachable (zbus connect failed); '
         'classifying as linuxNoSecretService',
         name: 'SecureKeyStorage',
       );
-      return KeyringProbeResult.linuxNoSecretService;
+      return DbKeyringProbeResult.linuxNoSecretService;
     } catch (e) {
       AppLogger.instance.log(
         'secret-service probe threw: $e',
         name: 'SecureKeyStorage',
         level: LogLevel.warn,
       );
-      return KeyringProbeResult.linuxNoSecretService;
+      return DbKeyringProbeResult.linuxNoSecretService;
     }
   }
 
@@ -209,5 +211,3 @@ class SecureKeyStorage {
     return true;
   }
 }
-
-enum KeyringProbeResult { available, linuxNoSecretService, probeFailed }

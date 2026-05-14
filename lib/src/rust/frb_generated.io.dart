@@ -10,7 +10,6 @@ import 'api/archive_stage.dart';
 import 'api/auth_compose.dart';
 import 'api/biometric_key_vault.dart';
 import 'api/bus.dart';
-import 'api/capabilities_cache.dart';
 import 'api/capabilities_orchestrator.dart';
 import 'api/config.dart';
 import 'api/connection.dart';
@@ -706,6 +705,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKeychainWipeReport dco_decode_db_keychain_wipe_report(dynamic raw);
 
   @protected
+  DbKeyringProbeResult dco_decode_db_keyring_probe_result(dynamic raw);
+
+  @protected
   DbKeystoreAlgo dco_decode_db_keystore_algo(dynamic raw);
 
   @protected
@@ -841,11 +843,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities dco_decode_db_security_capabilities(dynamic raw);
-
-  @protected
-  DbSecurityCapabilitiesSnapshot dco_decode_db_security_capabilities_snapshot(
-    dynamic raw,
-  );
 
   @protected
   DbSecurityConfig dco_decode_db_security_config(dynamic raw);
@@ -2119,6 +2116,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbKeyringProbeResult sse_decode_db_keyring_probe_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbKeystoreAlgo sse_decode_db_keystore_algo(SseDeserializer deserializer);
 
   @protected
@@ -2312,11 +2314,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities sse_decode_db_security_capabilities(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DbSecurityCapabilitiesSnapshot sse_decode_db_security_capabilities_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -3928,6 +3925,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_keyring_probe_result(
+    DbKeyringProbeResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_keystore_algo(
     DbKeystoreAlgo self,
     SseSerializer serializer,
@@ -4182,12 +4185,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_security_capabilities(
     DbSecurityCapabilities self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_db_security_capabilities_snapshot(
-    DbSecurityCapabilitiesSnapshot self,
     SseSerializer serializer,
   );
 

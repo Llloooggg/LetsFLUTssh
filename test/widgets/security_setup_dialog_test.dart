@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
@@ -16,13 +17,14 @@ Widget _wrap(Widget child) => MaterialApp(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // SecuritySetupDialog embeds PasswordStrengthMeter, which routes
-  // through `lfs_core::password_strength` — bootstrap FRB so the
-  // dialog can build.
+  // through `lfs_core::password_strength`; the snapshot fixtures
+  // are built via `securityCapabilitiesDefaults()` which is an FRB
+  // sync call — bootstrap FRB so both paths are available.
   setUpAll(requireFrbLoaded);
 
   Future<void> openDialog(
     WidgetTester tester, {
-    required SecurityCapabilities caps,
+    required DbSecurityCapabilities caps,
   }) async {
     await tester.pumpWidget(
       _wrap(
@@ -40,13 +42,21 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  const allCaps = SecurityCapabilities(
-    keychainAvailable: true,
-    hardwareVaultAvailable: true,
-    biometricAvailable: true,
-  );
-  const noKeychain = SecurityCapabilities(hardwareVaultAvailable: true);
-  const noHardware = SecurityCapabilities(keychainAvailable: true);
+  // Per-test fixture helpers — `securityCapabilitiesDefaults()` is
+  // an FRB sync call so it can run only after `requireFrbLoaded`.
+  late DbSecurityCapabilities allCaps;
+  late DbSecurityCapabilities noKeychain;
+  late DbSecurityCapabilities noHardware;
+  setUpAll(() {
+    final base = securityCapabilitiesDefaults();
+    allCaps = base.copyWith(
+      keychainAvailable: true,
+      hardwareVaultAvailable: true,
+      biometricAvailable: true,
+    );
+    noKeychain = base.copyWith(hardwareVaultAvailable: true);
+    noHardware = base.copyWith(keychainAvailable: true);
+  });
 
   group('SecuritySetupDialog — 3-tier ladder', () {
     testWidgets('renders T0/T1/T2 badges + Paranoid alternative section', (
@@ -70,8 +80,8 @@ void main() {
     testWidgets('T1 row disabled-subtitle text when keychain missing', (
       tester,
     ) async {
-      // Default `SecurityCapabilities.keychainProbe` is
-      // `KeyringProbeResult.probeFailed` (the classified fallback
+      // Default `DbSecurityCapabilities.keychainProbe` is
+      // `DbKeyringProbeResult.probeFailed` (the classified fallback
       // when no probe ran); the wizard prefers that classified copy
       // over the generic `tierKeychainUnavailable` string. If a
       // platform ever classifies the failure more specifically the
@@ -133,7 +143,7 @@ void main() {
     testWidgets(
       'reduced wizard banner shown when neither T1 nor T2 is reachable',
       (tester) async {
-        const noOsVault = SecurityCapabilities(biometricAvailable: false);
+        final noOsVault = securityCapabilitiesDefaults();
         await openDialog(tester, caps: noOsVault);
         final context = tester.element(find.byType(SecuritySetupDialog));
         expect(find.text(S.of(context).wizardReducedBanner), findsOneWidget);

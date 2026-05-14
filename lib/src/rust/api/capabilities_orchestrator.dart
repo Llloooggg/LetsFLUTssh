@@ -4,8 +4,8 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import 'capabilities_cache.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'security_capabilities.dart';
 
 /// Resolve a pending keychain-reachability probe with the
 /// `KeyringProbeResult` wire name the Dart subscriber computed
@@ -69,7 +69,7 @@ void hardwareVaultProbePromptCancel({required String promptId}) => RustLib
 /// error) collapse to the matching "unavailable" answer rather
 /// than `Err` so a stuck D-Bus call never blocks the wizard
 /// spinner.
-Future<DbSecurityCapabilitiesSnapshot> capabilitiesProbeRun({
+Future<DbSecurityCapabilities> capabilitiesProbeRun({
   required bool isLinuxHost,
 }) => RustLib.instance.api.crateApiCapabilitiesOrchestratorCapabilitiesProbeRun(
   isLinuxHost: isLinuxHost,

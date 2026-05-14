@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
+import '../src/rust/api/security_capabilities.dart' show DbSecurityCapabilities;
 import '../l10n/app_localizations.dart';
 import '../providers/security_provider.dart'
     show
@@ -144,10 +145,10 @@ class SecuritySetupDialog extends StatefulWidget {
 
   /// DI hook — when non-null the wizard skips the platform capability
   /// probe and renders against the injected caps. Production call
-  /// sites never set this; tests supply a fixed [SecurityCapabilities]
+  /// sites never set this; tests supply a fixed [DbSecurityCapabilities]
   /// so `pumpAndSettle` does not time out on real D-Bus / biometric
   /// probes that never return inside a unit-test harness.
-  final SecurityCapabilities? capabilitiesOverride;
+  final DbSecurityCapabilities? capabilitiesOverride;
 
   /// When true (the Settings "Change tier" entry point) the dialog
   /// honours Cancel / barrier-tap / Esc / back-gesture. When false
@@ -168,7 +169,7 @@ class SecuritySetupDialog extends StatefulWidget {
     BuildContext context, {
     SecurityTier? currentTier,
     SecurityTierModifiers? currentModifiers,
-    SecurityCapabilities? capabilitiesOverride,
+    DbSecurityCapabilities? capabilitiesOverride,
     bool dismissible = false,
   }) async {
     final result = await showDialog<SecuritySetupResult>(
@@ -189,7 +190,7 @@ class SecuritySetupDialog extends StatefulWidget {
 }
 
 class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
-  SecurityCapabilities? _caps;
+  DbSecurityCapabilities? _caps;
   WizardTier _selected = WizardTier.keychain;
 
   // Modifier toggles. Password is implied-on for Paranoid, but the
@@ -236,13 +237,13 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   /// available (stronger off-device guarantees), else keychain, else
   /// plaintext. Paranoid is never auto-recommended — it is a
   /// conscious opt-in for users who distrust the OS.
-  WizardTier? _recommendedTier(SecurityCapabilities caps) {
+  WizardTier? _recommendedTier(DbSecurityCapabilities caps) {
     if (caps.hardwareVaultAvailable) return WizardTier.hardware;
     if (caps.keychainAvailable) return WizardTier.keychain;
     return WizardTier.plaintext;
   }
 
-  WizardTier _initialSelection(SecurityCapabilities caps) {
+  WizardTier _initialSelection(DbSecurityCapabilities caps) {
     switch (widget.currentTier) {
       case SecurityTier.plaintext:
         return WizardTier.plaintext;
@@ -438,7 +439,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     onSelect: () => setState(() => _selected = WizardTier.plaintext),
   );
 
-  Widget _buildKeychainRow(S l10n, SecurityCapabilities caps) => _TierRow(
+  Widget _buildKeychainRow(S l10n, DbSecurityCapabilities caps) => _TierRow(
     badge: 'T1',
     label: l10n.tierKeychainLabel,
     subtitle: l10n.tierKeychainSubtitle(_keychainName),
@@ -463,7 +464,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         : null,
   );
 
-  Widget _buildHardwareRow(S l10n, SecurityCapabilities caps) => _TierRow(
+  Widget _buildHardwareRow(S l10n, DbSecurityCapabilities caps) => _TierRow(
     badge: 'T2',
     label: l10n.tierHardwareLabel,
     subtitle: l10n.tierHardwareSubtitleHonest,
@@ -508,12 +509,12 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     }),
   );
 
-  String _keychainDisabledReason(S l10n, SecurityCapabilities caps) {
+  String _keychainDisabledReason(S l10n, DbSecurityCapabilities caps) {
     final reason = keyringProbeDetailText(l10n, caps.keychainProbe);
     return reason.isEmpty ? l10n.tierKeychainUnavailable : reason;
   }
 
-  String _hardwareDisabledReason(S l10n, SecurityCapabilities caps) {
+  String _hardwareDisabledReason(S l10n, DbSecurityCapabilities caps) {
     final detail = decodeHardwareProbeCode(caps.hardwareProbeCode);
     final reason = hardwareProbeDetailText(l10n, detail);
     return reason.isEmpty ? l10n.tierHardwareUnavailable : reason;
@@ -556,7 +557,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     );
   }
 
-  Widget _buildModifierPanel(S l10n, SecurityCapabilities caps) {
+  Widget _buildModifierPanel(S l10n, DbSecurityCapabilities caps) {
     switch (_selected) {
       case WizardTier.plaintext:
         return _PlaintextAckPanel(
@@ -585,7 +586,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   /// Extracted so [_buildModifierPanel] stays under the S3776
   /// threshold; the switch itself is simple dispatch, each case's
   /// body belongs in its own method.
-  Widget _buildMidTierPanel(S l10n, SecurityCapabilities caps) {
+  Widget _buildMidTierPanel(S l10n, DbSecurityCapabilities caps) {
     final passwordRequired = _selected == WizardTier.hardware;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -673,7 +674,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     );
   }
 
-  String? _biometricDisabledReason(S l10n, SecurityCapabilities caps) {
+  String? _biometricDisabledReason(S l10n, DbSecurityCapabilities caps) {
     if (!_password) return l10n.biometricRequiresPassword;
     if (_selected == WizardTier.paranoid) {
       return l10n.biometricForbiddenParanoid;

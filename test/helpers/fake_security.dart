@@ -26,6 +26,8 @@ import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
 
 class FakeMasterPasswordManager extends MasterPasswordManager {
@@ -119,14 +121,14 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
 class FakeSecureKeyStorage extends SecureKeyStorage {
   Uint8List? storedKey;
   Uint8List? biometricKey;
-  KeyringProbeResult probeResult;
+  DbKeyringProbeResult probeResult;
   bool available;
   bool writeKeySucceeds;
 
   FakeSecureKeyStorage({
     this.storedKey,
     this.biometricKey,
-    this.probeResult = KeyringProbeResult.available,
+    this.probeResult = DbKeyringProbeResult.available,
     this.available = true,
     this.writeKeySucceeds = true,
   });
@@ -135,7 +137,7 @@ class FakeSecureKeyStorage extends SecureKeyStorage {
   Future<bool> isAvailable() async => available;
 
   @override
-  Future<KeyringProbeResult> probe() async => probeResult;
+  Future<DbKeyringProbeResult> probe() async => probeResult;
 
   @override
   Future<bool> writeKeyFromSecret(String secretId) async {
