@@ -169,6 +169,26 @@ pub struct DbSessionViaOverride {
     pub user: String,
 }
 
+impl From<DbSessionViaOverride> for lfs_core::session_json::SessionJsonViaOverride {
+    fn from(d: DbSessionViaOverride) -> Self {
+        Self {
+            host: d.host,
+            port: d.port,
+            user: d.user,
+        }
+    }
+}
+
+impl From<lfs_core::session_json::SessionJsonViaOverride> for DbSessionViaOverride {
+    fn from(d: lfs_core::session_json::SessionJsonViaOverride) -> Self {
+        Self {
+            host: d.host,
+            port: d.port,
+            user: d.user,
+        }
+    }
+}
+
 /// Session-shaped input for the canonical JSON encoder. Mirrors
 /// the field set Dart `Session.toJson` (and
 /// `toJsonWithCredentials`) emits, including the conditional-omit
@@ -179,6 +199,9 @@ pub struct DbSessionViaOverride {
 /// `extras_json` carries the JSON-encoded `extras` map verbatim;
 /// the encoder re-parses it once so the output `extras` value is
 /// the raw object, matching Dart's `'extras': extras` insertion.
+///
+/// `kind` defaults to `"ssh"` and is omitted on the wire to keep
+/// pre-WebDAV importers reading the same payload unchanged.
 #[derive(Debug, Clone)]
 pub struct DbSessionJsonInput {
     pub id: String,
@@ -187,6 +210,7 @@ pub struct DbSessionJsonInput {
     pub host: String,
     pub port: u32,
     pub user: String,
+    pub kind: String,
     pub auth_type: String,
     pub key_id: String,
     pub key_path: String,
@@ -204,66 +228,200 @@ pub struct DbSessionJsonInput {
     pub passphrase: String,
 }
 
-/// Canonical JSON encoder for a Session. Emits the exact field
-/// set + conditional-omit rules Dart `Session.toJson` /
-/// `toJsonWithCredentials` produce. Single source of truth for
-/// the wire shape; the Dart `session_json_drift_test` round-trips
-/// a fixture through both encoders and asserts logical equality
-/// to catch a future field-add on one side but not the other.
+impl From<DbSessionJsonInput> for lfs_core::session_json::SessionJsonInput {
+    fn from(d: DbSessionJsonInput) -> Self {
+        Self {
+            id: d.id,
+            label: d.label,
+            folder: d.folder,
+            host: d.host,
+            port: d.port,
+            user: d.user,
+            kind: d.kind,
+            auth_type: d.auth_type,
+            key_id: d.key_id,
+            key_path: d.key_path,
+            created_at_iso: d.created_at_iso,
+            updated_at_iso: d.updated_at_iso,
+            extras_json: d.extras_json,
+            via_session_id: d.via_session_id,
+            via_override: d.via_override.map(Into::into),
+            notes: d.notes,
+            sort_order: d.sort_order,
+            last_connected_at_ms: d.last_connected_at_ms,
+            include_credentials: d.include_credentials,
+            password: d.password,
+            key_data: d.key_data,
+            passphrase: d.passphrase,
+        }
+    }
+}
+
+/// Tagged-union mirror of `serde_json::Value` for the typed `extras`
+/// payload Dart consumes. Non-scalar leaves carry the raw JSON text
+/// so a future caller can re-parse the slice without rebuilding it.
+/// Mirrors [`lfs_core::session_json::SessionJsonValue`].
+#[derive(Debug, Clone)]
+pub enum DbSessionJsonValue {
+    Null,
+    Bool(bool),
+    Int(i64),
+    Double(f64),
+    Text(String),
+    Array(String),
+    Object(String),
+}
+
+impl From<lfs_core::session_json::SessionJsonValue> for DbSessionJsonValue {
+    fn from(v: lfs_core::session_json::SessionJsonValue) -> Self {
+        use lfs_core::session_json::SessionJsonValue as V;
+        match v {
+            V::Null => DbSessionJsonValue::Null,
+            V::Bool(b) => DbSessionJsonValue::Bool(b),
+            V::Int(i) => DbSessionJsonValue::Int(i),
+            V::Double(d) => DbSessionJsonValue::Double(d),
+            V::Text(s) => DbSessionJsonValue::Text(s),
+            V::Array(s) => DbSessionJsonValue::Array(s),
+            V::Object(s) => DbSessionJsonValue::Object(s),
+        }
+    }
+}
+
+/// One entry of the decoded `extras` map. FRB does not support
+/// `HashMap<String, EnumVariant>` directly across the bridge, so the
+/// map is carried as a `Vec<DbSessionJsonExtra>` the Dart consumer
+/// re-keys into a `Map<String, ...>` after the call.
+#[derive(Debug, Clone)]
+pub struct DbSessionJsonExtra {
+    pub key: String,
+    pub value: DbSessionJsonValue,
+}
+
+/// Session-shaped decoder output. Field set is the inverse of
+/// [`DbSessionJsonInput`]; the Dart `Session.fromJson` factory now
+/// rehydrates straight from this struct rather than walking the raw
+/// JSON map field-by-field.
+///
+/// `extras` is a list of `{key, value}` pairs (see
+/// [`DbSessionJsonExtra`] for the FRB-shape rationale).
+/// `password` / `key_data` / `passphrase` are always present;
+/// they hold the empty string when the source payload omitted them.
+#[derive(Debug, Clone)]
+pub struct DbSessionJsonOutput {
+    pub id: String,
+    pub label: String,
+    pub folder: String,
+    pub host: String,
+    pub port: u32,
+    pub user: String,
+    pub kind: String,
+    pub auth_type: String,
+    pub key_id: String,
+    pub key_path: String,
+    pub created_at_iso: String,
+    pub updated_at_iso: String,
+    pub extras: Vec<DbSessionJsonExtra>,
+    pub via_session_id: Option<String>,
+    pub via_override: Option<DbSessionViaOverride>,
+    pub notes: String,
+    pub sort_order: i32,
+    pub last_connected_at_ms: Option<i64>,
+    pub password: String,
+    pub key_data: String,
+    pub passphrase: String,
+}
+
+impl From<lfs_core::session_json::SessionJsonOutput> for DbSessionJsonOutput {
+    fn from(d: lfs_core::session_json::SessionJsonOutput) -> Self {
+        let extras = d
+            .extras
+            .into_iter()
+            .map(|(key, value)| DbSessionJsonExtra {
+                key,
+                value: value.into(),
+            })
+            .collect();
+        Self {
+            id: d.id,
+            label: d.label,
+            folder: d.folder,
+            host: d.host,
+            port: d.port,
+            user: d.user,
+            kind: d.kind,
+            auth_type: d.auth_type,
+            key_id: d.key_id,
+            key_path: d.key_path,
+            created_at_iso: d.created_at_iso,
+            updated_at_iso: d.updated_at_iso,
+            extras,
+            via_session_id: d.via_session_id,
+            via_override: d.via_override.map(Into::into),
+            notes: d.notes,
+            sort_order: d.sort_order,
+            last_connected_at_ms: d.last_connected_at_ms,
+            password: d.password,
+            key_data: d.key_data,
+            passphrase: d.passphrase,
+        }
+    }
+}
+
+/// Canonical JSON encoder for a Session. Thin FRB shim around
+/// [`lfs_core::session_json::encode_canonical_json`]; the wire-shape
+/// invariants live there.
 ///
 /// Sync because the work is one `serde_json::Map` build + one
 /// `to_string` — sub-microsecond per call.
 #[flutter_rust_bridge::frb(sync)]
 pub fn session_canonical_json(input: DbSessionJsonInput) -> Result<String, String> {
-    use serde_json::{json, Map, Value};
-    let mut obj = Map::new();
-    obj.insert("id".into(), json!(input.id));
-    obj.insert("label".into(), json!(input.label));
-    obj.insert("folder".into(), json!(input.folder));
-    obj.insert("host".into(), json!(input.host));
-    obj.insert("port".into(), json!(input.port));
-    obj.insert("user".into(), json!(input.user));
-    obj.insert("auth_type".into(), json!(input.auth_type));
-    if !input.key_id.is_empty() {
-        obj.insert("key_id".into(), json!(input.key_id));
-    }
-    obj.insert("key_path".into(), json!(input.key_path));
-    obj.insert("created_at".into(), json!(input.created_at_iso));
-    obj.insert("updated_at".into(), json!(input.updated_at_iso));
-    if !input.extras_json.is_empty() {
-        let parsed: Value = serde_json::from_str(&input.extras_json)
-            .map_err(|e| format!("extras_json parse: {e}"))?;
-        if let Some(map) = parsed.as_object() {
-            if !map.is_empty() {
-                obj.insert("extras".into(), parsed);
-            }
-        }
-    }
-    if let Some(via) = input.via_session_id.as_deref() {
-        if !via.is_empty() {
-            obj.insert("via_session_id".into(), json!(via));
-        }
-    }
-    if let Some(over) = &input.via_override {
-        obj.insert(
-            "via_override".into(),
-            json!({"host": over.host, "port": over.port, "user": over.user}),
-        );
-    }
-    if !input.notes.is_empty() {
-        obj.insert("notes".into(), json!(input.notes));
-    }
-    if input.sort_order != 0 {
-        obj.insert("sort_order".into(), json!(input.sort_order));
-    }
-    if let Some(ms) = input.last_connected_at_ms {
-        obj.insert("last_connected_at_ms".into(), json!(ms));
-    }
-    if input.include_credentials {
-        obj.insert("password".into(), json!(input.password));
-        obj.insert("key_data".into(), json!(input.key_data));
-        obj.insert("passphrase".into(), json!(input.passphrase));
-    }
-    serde_json::to_string(&Value::Object(obj))
-        .map_err(|e| format!("session_canonical_json serialise: {e}"))
+    lfs_core::session_json::encode_canonical_json(&input.into())
+}
+
+/// Canonical JSON decoder for a Session. Inverse of
+/// [`session_canonical_json`]; routes through
+/// [`lfs_core::session_json::decode_canonical_json`].
+///
+/// The Dart `Session.fromJson` factory consumes the
+/// [`DbSessionJsonOutput`] shape directly, replacing the retired
+/// hand-rolled JSON walk.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_decode_from_json(json: String) -> Result<DbSessionJsonOutput, String> {
+    lfs_core::session_json::decode_canonical_json(&json).map(Into::into)
+}
+
+/// Decode an undo-history snapshot blob — JSON array of canonical
+/// session payloads — into the typed list shape. Used by the
+/// `SessionHistory._decode` Dart helper.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_history_decode_snapshot(json: String) -> Result<Vec<DbSessionJsonOutput>, String> {
+    lfs_core::session_json::decode_session_array(&json)
+        .map(|v| v.into_iter().map(Into::into).collect())
+}
+
+/// Encode an undo-history snapshot blob — JSON array of canonical
+/// session payloads — from a list of `DbSessionJsonInput`. Used by
+/// the `SessionHistory._encode` Dart helper.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_history_encode_snapshot(
+    sessions: Vec<DbSessionJsonInput>,
+) -> Result<String, String> {
+    let typed: Vec<lfs_core::session_json::SessionJsonInput> =
+        sessions.into_iter().map(Into::into).collect();
+    lfs_core::session_json::encode_session_array(&typed)
+}
+
+/// Decode the on-disk `Sessions.extras` JSON column into the typed
+/// `{key, value}` list shape. Mapper-side consumer drops its
+/// jsonDecode call when this lands; corrupt blobs fold to empty so
+/// a session never fails to load on a malformed extras column.
+#[flutter_rust_bridge::frb(sync)]
+pub fn session_extras_decode(json: String) -> Vec<DbSessionJsonExtra> {
+    lfs_core::session_json::decode_extras_string(&json)
+        .into_iter()
+        .map(|(key, value)| DbSessionJsonExtra {
+            key,
+            value: value.into(),
+        })
+        .collect()
 }

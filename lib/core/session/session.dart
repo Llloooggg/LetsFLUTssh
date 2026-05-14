@@ -66,14 +66,11 @@ class ProxyJumpOverride {
     required this.user,
   });
 
-  Map<String, dynamic> toJson() => {'host': host, 'port': port, 'user': user};
-
-  factory ProxyJumpOverride.fromJson(Map<String, dynamic> json) =>
-      ProxyJumpOverride(
-        host: json['host'] as String,
-        port: json['port'] as int? ?? 22,
-        user: json['user'] as String,
-      );
+  // JSON codec lives on the parent `Session` — the canonical
+  // encoder (`lfs_core::session_json::encode_canonical_json`)
+  // nests the override block directly in the session payload.
+  // A separate `ProxyJumpOverride.toJson` / `.fromJson` pair would
+  // re-introduce the duplication the migration is removing.
 
   @override
   bool operator ==(Object other) =>
@@ -451,37 +448,27 @@ class Session {
   // on any caller that constructed it before those fields landed.
 
   /// Serialize without secrets — safe for plaintext JSON storage.
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'label': label,
-    'folder': folder,
-    // `kind` omitted for the SSH default so a pre-WebDAV importer
-    // round-trips the payload unchanged. The importer defaults
-    // missing values to SSH on read.
-    if (kind != SessionKind.ssh) 'kind': kind.wire,
-    'host': host,
-    'port': port,
-    'user': user,
-    'auth_type': authType.name,
-    if (keyId.isNotEmpty) 'key_id': keyId,
-    'key_path': keyPath,
-    'created_at': createdAt.toIso8601String(),
-    'updated_at': updatedAt.toIso8601String(),
-    if (extras.isNotEmpty) 'extras': extras,
-    if (viaSessionId != null) 'via_session_id': viaSessionId,
-    if (viaOverride != null) 'via_override': viaOverride!.toJson(),
-    if (notes.isNotEmpty) 'notes': notes,
-    if (sortOrder != 0) 'sort_order': sortOrder,
-    if (lastConnectedAtMs != null) 'last_connected_at_ms': lastConnectedAtMs,
-  };
+  ///
+  /// Routes through the canonical encoder in `lfs_core::session_json`
+  /// via the FRB sync shim. Single source of truth for the wire
+  /// shape; the Dart side never hand-rolls the field set.
+  Map<String, dynamic> toJson() {
+    final encoded = rust_sess.sessionCanonicalJson(
+      input: sessionToJsonInput(this, includeCredentials: false),
+    );
+    return jsonDecode(encoded) as Map<String, dynamic>;
+  }
 
   /// Serialize with secrets — for encrypted export only.
-  Map<String, dynamic> toJsonWithCredentials() => {
-    ...toJson(),
-    'password': password,
-    'key_data': keyData,
-    'passphrase': passphrase,
-  };
+  ///
+  /// Same routing as [toJson]; the `include_credentials` flag on the
+  /// encoder input flips the credential trio on.
+  Map<String, dynamic> toJsonWithCredentials() {
+    final encoded = rust_sess.sessionCanonicalJson(
+      input: sessionToJsonInput(this, includeCredentials: true),
+    );
+    return jsonDecode(encoded) as Map<String, dynamic>;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -530,68 +517,145 @@ class Session {
     return true;
   }
 
+  /// Re-hydrate from a JSON map produced by [toJson] /
+  /// [toJsonWithCredentials] (or any compatible importer).
+  ///
+  /// Routes through `lfs_core::session_json::decode_canonical_json`
+  /// via the FRB sync shim. The Rust decoder owns the full
+  /// missing-key / wrong-type / legacy-`group`-alias tolerance set
+  /// — see the module-level docstring there for the invariants.
   factory Session.fromJson(Map<String, dynamic> json) {
-    return Session(
-      id: json['id'] as String,
-      label: json['label'] as String? ?? '',
-      folder: json['folder'] as String? ?? json['group'] as String? ?? '',
-      kind: SessionKind.fromWire(json['kind'] as String?),
-      server: ServerAddress(
-        host: json['host'] as String,
-        port: json['port'] as int? ?? 22,
-        user: json['user'] as String,
-      ),
-      auth: SessionAuth(
-        authType: AuthType.values.firstWhere(
-          (e) => e.name == json['auth_type'],
-          orElse: () => AuthType.password,
-        ),
-        keyId: json['key_id'] as String? ?? '',
-        password: json['password'] as String? ?? '',
-        keyPath: json['key_path'] as String? ?? '',
-        keyData: json['key_data'] as String? ?? '',
-        passphrase: json['passphrase'] as String? ?? '',
-      ),
-      createdAt:
-          DateTime.tryParse(json['created_at'] as String? ?? '') ??
-          DateTime.now(),
-      updatedAt:
-          DateTime.tryParse(json['updated_at'] as String? ?? '') ??
-          DateTime.now(),
-      extras: _decodeExtras(json['extras']),
-      viaSessionId: json['via_session_id'] as String?,
-      viaOverride: json['via_override'] is Map<String, dynamic>
-          ? ProxyJumpOverride.fromJson(
-              json['via_override'] as Map<String, dynamic>,
-            )
-          : null,
-      notes: json['notes'] as String? ?? '',
-      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
-      lastConnectedAtMs: (json['last_connected_at_ms'] as num?)?.toInt(),
-    );
+    final out = rust_sess.sessionDecodeFromJson(json: jsonEncode(json));
+    return sessionFromJsonOutput(out);
   }
+}
 
-  /// Decode the persisted `extras` payload tolerantly: accepts a
-  /// `Map<String, dynamic>` (modern import path), a JSON-encoded
-  /// string (DB load path through `mappers.dart`), and treats
-  /// anything malformed as empty so a corrupt blob can never block
-  /// the session from loading.
-  static Map<String, Object?> _decodeExtras(Object? raw) {
-    if (raw == null) return const <String, Object?>{};
-    if (raw is Map) {
-      return raw.map((k, v) => MapEntry(k.toString(), v));
-    }
-    if (raw is String) {
-      if (raw.isEmpty) return const <String, Object?>{};
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is Map) {
-          return decoded.map((k, v) => MapEntry(k.toString(), v));
-        }
-      } on FormatException {
-        // Corrupt JSON in the column — fall through to empty.
-      }
-    }
-    return const <String, Object?>{};
+// ── Canonical-JSON ↔ domain translation ─────────────────────────────
+//
+// Pure Dart-side glue between the FRB DTOs (`DbSessionJsonInput` /
+// `DbSessionJsonOutput`) and the domain [Session] / [ProxyJumpOverride]
+// classes. Lives in the same file as [Session] so the import graph
+// stays acyclic — splitting it out introduced a cycle
+// (session.dart → codec → session.dart) which `flutter_test`'s
+// `import_cycles_test` rejects.
+
+/// Build the FRB encoder input for [session]. The
+/// `includeCredentials` flag mirrors the Dart-side
+/// `Session.toJson` vs `Session.toJsonWithCredentials` split — when
+/// false the credential trio (`password`, `key_data`, `passphrase`)
+/// is omitted from the wire payload.
+rust_sess.DbSessionJsonInput sessionToJsonInput(
+  Session session, {
+  required bool includeCredentials,
+}) {
+  final via = session.viaOverride;
+  return rust_sess.DbSessionJsonInput(
+    id: session.id,
+    label: session.label,
+    folder: session.folder,
+    host: session.host,
+    port: session.port,
+    user: session.user,
+    kind: session.kind.wire,
+    authType: session.authType.name,
+    keyId: session.keyId,
+    keyPath: session.keyPath,
+    createdAtIso: session.createdAt.toIso8601String(),
+    updatedAtIso: session.updatedAt.toIso8601String(),
+    extrasJson: session.extras.isEmpty ? '' : jsonEncode(session.extras),
+    viaSessionId: session.viaSessionId,
+    viaOverride: via == null
+        ? null
+        : rust_sess.DbSessionViaOverride(
+            host: via.host,
+            port: via.port,
+            user: via.user,
+          ),
+    notes: session.notes,
+    sortOrder: session.sortOrder,
+    lastConnectedAtMs: session.lastConnectedAtMs,
+    includeCredentials: includeCredentials,
+    password: session.password,
+    keyData: session.keyData,
+    passphrase: session.passphrase,
+  );
+}
+
+/// Re-hydrate a [Session] from a decoded [rust_sess.DbSessionJsonOutput]
+/// payload. Credential fields land in the auth bag verbatim; callers
+/// that loaded the payload from a credential-stripped JSON will see
+/// empty strings there. Timestamps fall back to `DateTime.now()` when
+/// the wire payload omitted them — same tolerance as the retired
+/// hand-rolled `Session.fromJson` factory.
+Session sessionFromJsonOutput(rust_sess.DbSessionJsonOutput out) {
+  return Session(
+    id: out.id,
+    label: out.label,
+    folder: out.folder,
+    kind: SessionKind.fromWire(out.kind),
+    server: ServerAddress(host: out.host, port: out.port, user: out.user),
+    auth: SessionAuth(
+      authType: AuthType.values.firstWhere(
+        (e) => e.name == out.authType,
+        orElse: () => AuthType.password,
+      ),
+      keyId: out.keyId,
+      password: out.password,
+      keyPath: out.keyPath,
+      keyData: out.keyData,
+      passphrase: out.passphrase,
+    ),
+    createdAt: DateTime.tryParse(out.createdAtIso) ?? DateTime.now(),
+    updatedAt: DateTime.tryParse(out.updatedAtIso) ?? DateTime.now(),
+    extras: extrasListToMap(out.extras),
+    viaSessionId: out.viaSessionId,
+    viaOverride: out.viaOverride == null
+        ? null
+        : ProxyJumpOverride(
+            host: out.viaOverride!.host,
+            port: out.viaOverride!.port,
+            user: out.viaOverride!.user,
+          ),
+    notes: out.notes,
+    sortOrder: out.sortOrder,
+    lastConnectedAtMs: out.lastConnectedAtMs,
+  );
+}
+
+/// Re-key the FRB `Vec<DbSessionJsonExtra>` list into the
+/// `Map<String, Object?>` shape `Session.extras` exposes. Leaf
+/// conversion mirrors the typed accessors:
+///
+/// * `Null` → `null` (key still present, useful for `extras['k'] != null`
+///   probes Dart-side).
+/// * `Bool` / `Int` / `Double` / `Text` → native Dart types.
+/// * `Array` / `Object` → re-parsed via [jsonDecode] so nested-shape
+///   probes still work; a parse failure folds the slot to `null`
+///   rather than blocking the whole map.
+Map<String, Object?> extrasListToMap(List<rust_sess.DbSessionJsonExtra> list) {
+  final out = <String, Object?>{};
+  for (final entry in list) {
+    out[entry.key] = _extrasLeafToDart(entry.value);
+  }
+  return out;
+}
+
+Object? _extrasLeafToDart(rust_sess.DbSessionJsonValue v) {
+  return v.map(
+    null_: (_) => null,
+    bool: (b) => b.field0,
+    int: (i) => i.field0.toInt(),
+    double: (d) => d.field0,
+    text: (t) => t.field0,
+    array: (a) => _extrasSafeDecode(a.field0),
+    object: (o) => _extrasSafeDecode(o.field0),
+  );
+}
+
+Object? _extrasSafeDecode(String raw) {
+  try {
+    return jsonDecode(raw);
+  } on FormatException {
+    return null;
   }
 }

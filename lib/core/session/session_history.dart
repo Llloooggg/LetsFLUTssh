@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../src/rust/api/session_history.dart' as rust_history;
+import '../../src/rust/api/sessions.dart' as rust_sess;
 import 'session.dart';
 
 /// Snapshot of session state for undo/redo.
@@ -115,34 +116,37 @@ class SessionHistory {
   static Uint8List _encode(SessionSnapshot snapshot) {
     // Plaintext credentials never enter the undo blob.
     // [SessionNotifier] only ever stores `withoutCredentials()`
-    // shapes in `state`, so the credential-bearing fields would be
-    // empty Strings anyway — but emitting them through
-    // `toJsonWithCredentials` re-introduced a JSON-encoded
-    // plaintext byte buffer for every undoable mutation, which
-    // sat on the Dart heap until the GC reaped it. Use the
-    // credential-stripped `toJson()` so the on-bus blob is
-    // structurally credential-clean by construction.
+    // shapes in `state`, so the credential-bearing fields are
+    // empty Strings; routing through `includeCredentials: false`
+    // keeps the blob structurally credential-clean by construction.
     //
-    // On restore, the Rust-side DB row keeps its own credential
-    // columns; `_restoreSnapshot` writes empty strings there
-    // today (a separate pre-existing limitation tracked under
-    // the SecretRef migration). Switching to credential-clean
-    // JSON here doesn't change the restore behaviour — empty
-    // strings come from the cache regardless of whether they
-    // travel through `toJson` or `toJsonWithCredentials`.
-    final json = {
-      'sessions': snapshot.sessions.map((s) => s.toJson()).toList(),
+    // The session array is encoded Rust-side
+    // (`session_history_encode_snapshot`) so the wire shape stays
+    // byte-identical with the retired Dart pair (`jsonEncode([for s
+    // toJson()])`); the `emptyFolders` + `description` wrapper stays
+    // Dart-side because it carries no Session JSON shape.
+    final inputs = snapshot.sessions
+        .map((s) => sessionToJsonInput(s, includeCredentials: false))
+        .toList(growable: false);
+    final sessionsJson = rust_sess.sessionHistoryEncodeSnapshot(
+      sessions: inputs,
+    );
+    final wrapped = jsonEncode({
+      'sessions': jsonDecode(sessionsJson),
       'emptyFolders': snapshot.emptyFolders.toList(),
       'description': snapshot.description,
-    };
-    return Uint8List.fromList(utf8.encode(jsonEncode(json)));
+    });
+    return Uint8List.fromList(utf8.encode(wrapped));
   }
 
   static SessionSnapshot _decode(Uint8List blob, String description) {
-    final json = jsonDecode(utf8.decode(blob)) as Map<String, dynamic>;
-    final sessions = (json['sessions'] as List<dynamic>)
-        .map((e) => Session.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final raw = utf8.decode(blob);
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    final sessionsArrayJson = jsonEncode(json['sessions']);
+    final decoded = rust_sess.sessionHistoryDecodeSnapshot(
+      json: sessionsArrayJson,
+    );
+    final sessions = decoded.map(sessionFromJsonOutput).toList();
     final folders = (json['emptyFolders'] as List<dynamic>)
         .map((e) => e as String)
         .toSet();

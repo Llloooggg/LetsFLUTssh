@@ -868,7 +868,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSessionHistorySnapshot dco_decode_db_session_history_snapshot(dynamic raw);
 
   @protected
+  DbSessionJsonExtra dco_decode_db_session_json_extra(dynamic raw);
+
+  @protected
   DbSessionJsonInput dco_decode_db_session_json_input(dynamic raw);
+
+  @protected
+  DbSessionJsonOutput dco_decode_db_session_json_output(dynamic raw);
+
+  @protected
+  DbSessionJsonValue dco_decode_db_session_json_value(dynamic raw);
 
   @protected
   DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
@@ -1125,6 +1134,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSession> dco_decode_list_db_session(dynamic raw);
+
+  @protected
+  List<DbSessionJsonExtra> dco_decode_list_db_session_json_extra(dynamic raw);
+
+  @protected
+  List<DbSessionJsonInput> dco_decode_list_db_session_json_input(dynamic raw);
+
+  @protected
+  List<DbSessionJsonOutput> dco_decode_list_db_session_json_output(dynamic raw);
 
   @protected
   List<DbSessionTreeInput> dco_decode_list_db_session_tree_input(dynamic raw);
@@ -2347,7 +2365,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSessionJsonExtra sse_decode_db_session_json_extra(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSessionJsonInput sse_decode_db_session_json_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionJsonOutput sse_decode_db_session_json_output(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionJsonValue sse_decode_db_session_json_value(
     SseDeserializer deserializer,
   );
 
@@ -2696,6 +2729,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSession> sse_decode_list_db_session(SseDeserializer deserializer);
+
+  @protected
+  List<DbSessionJsonExtra> sse_decode_list_db_session_json_extra(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbSessionJsonInput> sse_decode_list_db_session_json_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbSessionJsonOutput> sse_decode_list_db_session_json_output(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbSessionTreeInput> sse_decode_list_db_session_tree_input(
@@ -4227,8 +4275,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_session_json_extra(
+    DbSessionJsonExtra self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_session_json_input(
     DbSessionJsonInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_session_json_output(
+    DbSessionJsonOutput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_session_json_value(
+    DbSessionJsonValue self,
     SseSerializer serializer,
   );
 
@@ -4664,6 +4730,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_session(
     List<DbSession> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_session_json_extra(
+    List<DbSessionJsonExtra> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_session_json_input(
+    List<DbSessionJsonInput> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_session_json_output(
+    List<DbSessionJsonOutput> self,
     SseSerializer serializer,
   );
 

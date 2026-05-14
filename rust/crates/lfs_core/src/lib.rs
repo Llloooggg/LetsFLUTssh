@@ -72,6 +72,7 @@ pub mod s3;
 pub mod secrets;
 pub mod security;
 pub mod session_history;
+pub mod session_json;
 pub mod session_tree;
 pub mod sessions;
 pub mod sftp;

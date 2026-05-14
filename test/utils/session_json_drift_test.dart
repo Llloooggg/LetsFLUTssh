@@ -106,6 +106,7 @@ void main() {
       host: s.host,
       port: s.port,
       user: s.user,
+      kind: s.kind.wire,
       authType: s.authType.name,
       keyId: s.keyId,
       keyPath: s.keyPath,

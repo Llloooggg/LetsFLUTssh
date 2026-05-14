@@ -2,7 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('Session ProxyJump fields', () {
     Session session({String? viaSessionId, ProxyJumpOverride? viaOverride}) =>
         Session(
@@ -87,16 +92,38 @@ void main() {
     });
   });
 
-  group('ProxyJumpOverride', () {
-    test('roundtrips through JSON', () {
-      const o = ProxyJumpOverride(host: 'h', port: 2200, user: 'u');
-      final back = ProxyJumpOverride.fromJson(o.toJson());
-      expect(back, equals(o));
+  group('ProxyJumpOverride nested in Session JSON', () {
+    Session session({required ProxyJumpOverride viaOverride}) => Session(
+      id: 's',
+      label: 'l',
+      server: const ServerAddress(host: 'h', user: 'u'),
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      viaOverride: viaOverride,
+    );
+
+    test('roundtrips through the parent Session codec', () {
+      final s = session(
+        viaOverride: const ProxyJumpOverride(
+          host: 'b.example.com',
+          port: 2200,
+          user: 'jumper',
+        ),
+      );
+      final back = Session.fromJson(s.toJson());
+      expect(back.viaOverride, equals(s.viaOverride));
     });
 
-    test('default port is 22', () {
-      final back = ProxyJumpOverride.fromJson(const {'host': 'h', 'user': 'u'});
-      expect(back.port, 22);
+    test('default port is 22 when wire payload omits it', () {
+      // Hand-craft a Session JSON with `via_override` missing `port`
+      // — the canonical decoder falls back to 22 (the constructor's
+      // default-port contract).
+      final json = session(
+        viaOverride: const ProxyJumpOverride(host: 'h', user: 'u'),
+      ).toJson();
+      (json['via_override'] as Map<String, dynamic>).remove('port');
+      final back = Session.fromJson(json);
+      expect(back.viaOverride!.port, 22);
     });
   });
 }

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import '../../src/rust/api/db.dart' as rust_db;
-import '../../utils/logger.dart';
+import '../../src/rust/api/folder_path.dart' as rust_fp;
+import '../../src/rust/api/sessions.dart' as rust_sess;
 import '../session/session.dart';
 import '../ssh/ssh_config.dart';
-import '../../src/rust/api/folder_path.dart' as rust_fp;
 
 // ---------------------------------------------------------------------------
 // Session ↔ DB mapping
@@ -69,24 +69,14 @@ ProxyJumpOverride? _decodeOverride(String? host, int? port, String? user) {
   return ProxyJumpOverride(host: host, port: port ?? 22, user: user);
 }
 
-/// Decode the `Sessions.extras` JSON column. Tolerates malformed
-/// blobs (returns empty) — corrupt extras must never block a session
-/// from loading. The column default is `'{}'`, so this is a recovery
-/// path for hand-edited DBs or future schema regressions.
+/// Decode the `Sessions.extras` JSON column via the Rust-side typed
+/// decoder. Corrupt blobs fold to empty Rust-side — the FRB call
+/// always returns a valid list — so a session can never fail to load
+/// on a malformed extras column. The column default is `'{}'`, so the
+/// typical path returns an empty list with no work.
 Map<String, Object?> _decodeExtras(String raw) {
   if (raw.isEmpty) return const <String, Object?>{};
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map) {
-      return decoded.map((k, v) => MapEntry(k.toString(), v));
-    }
-  } on FormatException {
-    AppLogger.instance.log(
-      'Corrupt session.extras JSON, dropping to empty map',
-      name: 'SessionMapper',
-    );
-  }
-  return const <String, Object?>{};
+  return extrasListToMap(rust_sess.sessionExtrasDecode(json: raw));
 }
 
 /// Convert domain [Session] to FRB [rust_db.DbSession] for upsert.

@@ -5,8 +5,10 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'sessions.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Case-insensitive substring search across [`label`, `folder`,
 /// `host`, `user`]. Returns matched ids in input order.
@@ -62,17 +64,49 @@ List<String> sessionsDistinctFolders({required List<String> sessionFolders}) =>
       sessionFolders: sessionFolders,
     );
 
-/// Canonical JSON encoder for a Session. Emits the exact field
-/// set + conditional-omit rules Dart `Session.toJson` /
-/// `toJsonWithCredentials` produce. Single source of truth for
-/// the wire shape; the Dart `session_json_drift_test` round-trips
-/// a fixture through both encoders and asserts logical equality
-/// to catch a future field-add on one side but not the other.
+/// Canonical JSON encoder for a Session. Thin FRB shim around
+/// [`lfs_core::session_json::encode_canonical_json`]; the wire-shape
+/// invariants live there.
 ///
 /// Sync because the work is one `serde_json::Map` build + one
 /// `to_string` — sub-microsecond per call.
 String sessionCanonicalJson({required DbSessionJsonInput input}) =>
     RustLib.instance.api.crateApiSessionsSessionCanonicalJson(input: input);
+
+/// Canonical JSON decoder for a Session. Inverse of
+/// [`session_canonical_json`]; routes through
+/// [`lfs_core::session_json::decode_canonical_json`].
+///
+/// The Dart `Session.fromJson` factory consumes the
+/// [`DbSessionJsonOutput`] shape directly, replacing the retired
+/// hand-rolled JSON walk.
+DbSessionJsonOutput sessionDecodeFromJson({required String json}) =>
+    RustLib.instance.api.crateApiSessionsSessionDecodeFromJson(json: json);
+
+/// Decode an undo-history snapshot blob — JSON array of canonical
+/// session payloads — into the typed list shape. Used by the
+/// `SessionHistory._decode` Dart helper.
+List<DbSessionJsonOutput> sessionHistoryDecodeSnapshot({
+  required String json,
+}) => RustLib.instance.api.crateApiSessionsSessionHistoryDecodeSnapshot(
+  json: json,
+);
+
+/// Encode an undo-history snapshot blob — JSON array of canonical
+/// session payloads — from a list of `DbSessionJsonInput`. Used by
+/// the `SessionHistory._encode` Dart helper.
+String sessionHistoryEncodeSnapshot({
+  required List<DbSessionJsonInput> sessions,
+}) => RustLib.instance.api.crateApiSessionsSessionHistoryEncodeSnapshot(
+  sessions: sessions,
+);
+
+/// Decode the on-disk `Sessions.extras` JSON column into the typed
+/// `{key, value}` list shape. Mapper-side consumer drops its
+/// jsonDecode call when this lands; corrupt blobs fold to empty so
+/// a session never fails to load on a malformed extras column.
+List<DbSessionJsonExtra> sessionExtrasDecode({required String json}) =>
+    RustLib.instance.api.crateApiSessionsSessionExtrasDecode(json: json);
 
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
@@ -113,6 +147,28 @@ class DbSearchableSession {
           user == other.user;
 }
 
+/// One entry of the decoded `extras` map. FRB does not support
+/// `HashMap<String, EnumVariant>` directly across the bridge, so the
+/// map is carried as a `Vec<DbSessionJsonExtra>` the Dart consumer
+/// re-keys into a `Map<String, ...>` after the call.
+class DbSessionJsonExtra {
+  final String key;
+  final DbSessionJsonValue value;
+
+  const DbSessionJsonExtra({required this.key, required this.value});
+
+  @override
+  int get hashCode => key.hashCode ^ value.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionJsonExtra &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          value == other.value;
+}
+
 /// Session-shaped input for the canonical JSON encoder. Mirrors
 /// the field set Dart `Session.toJson` (and
 /// `toJsonWithCredentials`) emits, including the conditional-omit
@@ -123,6 +179,9 @@ class DbSearchableSession {
 /// `extras_json` carries the JSON-encoded `extras` map verbatim;
 /// the encoder re-parses it once so the output `extras` value is
 /// the raw object, matching Dart's `'extras': extras` insertion.
+///
+/// `kind` defaults to `"ssh"` and is omitted on the wire to keep
+/// pre-WebDAV importers reading the same payload unchanged.
 class DbSessionJsonInput {
   final String id;
   final String label;
@@ -130,6 +189,7 @@ class DbSessionJsonInput {
   final String host;
   final int port;
   final String user;
+  final String kind;
   final String authType;
   final String keyId;
   final String keyPath;
@@ -153,6 +213,7 @@ class DbSessionJsonInput {
     required this.host,
     required this.port,
     required this.user,
+    required this.kind,
     required this.authType,
     required this.keyId,
     required this.keyPath,
@@ -178,6 +239,7 @@ class DbSessionJsonInput {
       host.hashCode ^
       port.hashCode ^
       user.hashCode ^
+      kind.hashCode ^
       authType.hashCode ^
       keyId.hashCode ^
       keyPath.hashCode ^
@@ -205,6 +267,7 @@ class DbSessionJsonInput {
           host == other.host &&
           port == other.port &&
           user == other.user &&
+          kind == other.kind &&
           authType == other.authType &&
           keyId == other.keyId &&
           keyPath == other.keyPath &&
@@ -220,6 +283,132 @@ class DbSessionJsonInput {
           password == other.password &&
           keyData == other.keyData &&
           passphrase == other.passphrase;
+}
+
+/// Session-shaped decoder output. Field set is the inverse of
+/// [`DbSessionJsonInput`]; the Dart `Session.fromJson` factory now
+/// rehydrates straight from this struct rather than walking the raw
+/// JSON map field-by-field.
+///
+/// `extras` is a list of `{key, value}` pairs (see
+/// [`DbSessionJsonExtra`] for the FRB-shape rationale).
+/// `password` / `key_data` / `passphrase` are always present;
+/// they hold the empty string when the source payload omitted them.
+class DbSessionJsonOutput {
+  final String id;
+  final String label;
+  final String folder;
+  final String host;
+  final int port;
+  final String user;
+  final String kind;
+  final String authType;
+  final String keyId;
+  final String keyPath;
+  final String createdAtIso;
+  final String updatedAtIso;
+  final List<DbSessionJsonExtra> extras;
+  final String? viaSessionId;
+  final DbSessionViaOverride? viaOverride;
+  final String notes;
+  final int sortOrder;
+  final PlatformInt64? lastConnectedAtMs;
+  final String password;
+  final String keyData;
+  final String passphrase;
+
+  const DbSessionJsonOutput({
+    required this.id,
+    required this.label,
+    required this.folder,
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.kind,
+    required this.authType,
+    required this.keyId,
+    required this.keyPath,
+    required this.createdAtIso,
+    required this.updatedAtIso,
+    required this.extras,
+    this.viaSessionId,
+    this.viaOverride,
+    required this.notes,
+    required this.sortOrder,
+    this.lastConnectedAtMs,
+    required this.password,
+    required this.keyData,
+    required this.passphrase,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      folder.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      kind.hashCode ^
+      authType.hashCode ^
+      keyId.hashCode ^
+      keyPath.hashCode ^
+      createdAtIso.hashCode ^
+      updatedAtIso.hashCode ^
+      extras.hashCode ^
+      viaSessionId.hashCode ^
+      viaOverride.hashCode ^
+      notes.hashCode ^
+      sortOrder.hashCode ^
+      lastConnectedAtMs.hashCode ^
+      password.hashCode ^
+      keyData.hashCode ^
+      passphrase.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionJsonOutput &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          folder == other.folder &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          kind == other.kind &&
+          authType == other.authType &&
+          keyId == other.keyId &&
+          keyPath == other.keyPath &&
+          createdAtIso == other.createdAtIso &&
+          updatedAtIso == other.updatedAtIso &&
+          extras == other.extras &&
+          viaSessionId == other.viaSessionId &&
+          viaOverride == other.viaOverride &&
+          notes == other.notes &&
+          sortOrder == other.sortOrder &&
+          lastConnectedAtMs == other.lastConnectedAtMs &&
+          password == other.password &&
+          keyData == other.keyData &&
+          passphrase == other.passphrase;
+}
+
+@freezed
+sealed class DbSessionJsonValue with _$DbSessionJsonValue {
+  const DbSessionJsonValue._();
+
+  const factory DbSessionJsonValue.null_() = DbSessionJsonValue_Null;
+  const factory DbSessionJsonValue.bool(bool field0) = DbSessionJsonValue_Bool;
+  const factory DbSessionJsonValue.int(PlatformInt64 field0) =
+      DbSessionJsonValue_Int;
+  const factory DbSessionJsonValue.double(double field0) =
+      DbSessionJsonValue_Double;
+  const factory DbSessionJsonValue.text(String field0) =
+      DbSessionJsonValue_Text;
+  const factory DbSessionJsonValue.array(String field0) =
+      DbSessionJsonValue_Array;
+  const factory DbSessionJsonValue.object(String field0) =
+      DbSessionJsonValue_Object;
 }
 
 /// FRB mirror of Dart `ProxyJumpOverride` — used inside
