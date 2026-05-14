@@ -35,9 +35,8 @@ pub enum RuleValidationError {
 
 /// Pre-flight check: return `None` when the rule's network params
 /// are valid for its kind, else the variant describing the first
-/// rejection. Mirror of the prior Dart-side `PortForwardRule.
-/// validate` body, lifted so the UI and the runtime share one
-/// grammar that does not drift across the FRB boundary.
+/// rejection. The UI and the runtime share one grammar that does
+/// not drift across the FRB boundary.
 pub fn validate_rule(
     kind: RuleKind,
     bind_host: &str,
@@ -60,6 +59,144 @@ pub fn validate_rule(
         return Some(RuleValidationError::BindHostRequired);
     }
     None
+}
+
+/// Per-field validation rejection emitted by the Dart `Form` field
+/// validators. Distinct from [`RuleValidationError`] because the
+/// `Form` calls one validator per text field (port input / host
+/// input) with only that field's value in hand, so the rejection
+/// surface is narrower than the whole-rule check above.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldValidationError {
+    /// Port input failed `int::tryParse` or fell outside `[1, 65535]`.
+    /// The Dart caller renders the range string `1–65535` verbatim
+    /// under the field (intentionally not localised — the range
+    /// itself is the spec).
+    PortOutOfRange,
+    /// Host input is empty / whitespace on a non-`Dynamic` forward.
+    /// The Dart caller renders the em-dash sentinel `—` verbatim.
+    HostRequired,
+}
+
+/// Validate a single port-field input from the rule editor. Returns
+/// `None` when the trimmed string parses to a port inside
+/// `[1, 65535]`, else [`FieldValidationError::PortOutOfRange`]. Empty
+/// / whitespace / non-numeric / out-of-range all collapse to the
+/// same rejection — the editor's port field is required for every
+/// forward kind.
+#[must_use]
+pub fn validate_port_field(raw: &str) -> Option<FieldValidationError> {
+    match raw.trim().parse::<i64>() {
+        Ok(n) if (1..=65535).contains(&n) => None,
+        _ => Some(FieldValidationError::PortOutOfRange),
+    }
+}
+
+/// Validate a single host-field input from the rule editor. Returns
+/// `None` for `Dynamic` forwards (no remote endpoint to reach) or
+/// when the trimmed string is non-empty; else
+/// [`FieldValidationError::HostRequired`].
+#[must_use]
+pub fn validate_host_field(raw: &str, kind: RuleKind) -> Option<FieldValidationError> {
+    if kind == RuleKind::Dynamic {
+        return None;
+    }
+    if raw.trim().is_empty() {
+        return Some(FieldValidationError::HostRequired);
+    }
+    None
+}
+
+#[cfg(test)]
+mod field_validation_tests {
+    use super::*;
+
+    #[test]
+    fn port_field_accepts_valid_range() {
+        assert!(validate_port_field("1").is_none());
+        assert!(validate_port_field("22").is_none());
+        assert!(validate_port_field("8080").is_none());
+        assert!(validate_port_field("65535").is_none());
+    }
+
+    #[test]
+    fn port_field_strips_whitespace() {
+        assert!(validate_port_field(" 22 ").is_none());
+        assert!(validate_port_field("\t22\n").is_none());
+    }
+
+    #[test]
+    fn port_field_rejects_out_of_range() {
+        assert_eq!(
+            validate_port_field("0"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("-1"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("65536"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("999999"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+    }
+
+    #[test]
+    fn port_field_rejects_empty_or_garbage() {
+        assert_eq!(
+            validate_port_field(""),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("   "),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("22a"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("22.5"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+        assert_eq!(
+            validate_port_field("twenty-two"),
+            Some(FieldValidationError::PortOutOfRange)
+        );
+    }
+
+    #[test]
+    fn host_field_dynamic_always_passes() {
+        assert!(validate_host_field("", RuleKind::Dynamic).is_none());
+        assert!(validate_host_field("   ", RuleKind::Dynamic).is_none());
+        assert!(validate_host_field("192.0.2.1", RuleKind::Dynamic).is_none());
+    }
+
+    #[test]
+    fn host_field_static_rejects_empty() {
+        for k in [RuleKind::Local, RuleKind::Remote] {
+            assert_eq!(
+                validate_host_field("", k),
+                Some(FieldValidationError::HostRequired)
+            );
+            assert_eq!(
+                validate_host_field("   ", k),
+                Some(FieldValidationError::HostRequired)
+            );
+        }
+    }
+
+    #[test]
+    fn host_field_static_accepts_non_empty() {
+        for k in [RuleKind::Local, RuleKind::Remote] {
+            assert!(validate_host_field("192.0.2.1", k).is_none());
+            assert!(validate_host_field("  example.org  ", k).is_none());
+        }
+    }
 }
 
 #[cfg(test)]

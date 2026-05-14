@@ -450,8 +450,8 @@ mod tests {
                     certificate: USER_CERT.to_vec(),
                     valid_after: 0,
                     valid_before: i64::MAX,
-                    principals: "[]".into(),
-                    critical_options: "{}".into(),
+                    principals: Vec::new(),
+                    critical_options: std::collections::BTreeMap::new(),
                     fingerprint: "SHA256:fixture".into(),
                 },
             )

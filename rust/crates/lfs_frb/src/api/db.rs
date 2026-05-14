@@ -6,6 +6,8 @@
 //! actual rusqlite call inside `tokio::task::spawn_blocking` so
 //! the FRB worker thread isn't pinned by disk I/O.
 
+use std::collections::HashMap;
+
 /// Resolve the running `Db` handle off `AppState`. Sibling FRB
 /// modules in `crate::api::*` route through here so the
 /// "db not initialized" error message stays one place.
@@ -583,14 +585,22 @@ pub async fn db_ssh_keys_list_metadata() -> Result<Vec<DbSshKeyMetadata>, String
 /// One certificate per stored SSH key — the Dart key-manager UI
 /// surfaces the principals / validity / critical-options summary on
 /// the matching row.
+///
+/// `principals` and `critical_options` cross the FRB boundary as
+/// their natural typed shapes (`Vec<String>` / `HashMap<String,
+/// String>`); the JSON encoding for the underlying SQL columns is
+/// owned by the DAO ([`lfs_core::db::ssh_key_certificates`]) so the
+/// Dart caller never sees the wire grammar. A malformed stored JSON
+/// blob now logs and collapses to the empty list / map inside Rust
+/// — same observable shape as the prior Dart-side parser fallback.
 #[derive(Debug, Clone)]
 pub struct DbSshKeyCertificate {
     pub key_id: String,
     pub certificate: Vec<u8>,
     pub valid_after: i64,
     pub valid_before: i64,
-    pub principals: String,
-    pub critical_options: String,
+    pub principals: Vec<String>,
+    pub critical_options: HashMap<String, String>,
     pub fingerprint: String,
 }
 
@@ -602,7 +612,7 @@ impl From<lfs_core::db::ssh_key_certificates::CertRecord> for DbSshKeyCertificat
             valid_after: r.valid_after,
             valid_before: r.valid_before,
             principals: r.principals,
-            critical_options: r.critical_options,
+            critical_options: r.critical_options.into_iter().collect(),
             fingerprint: r.fingerprint,
         }
     }
@@ -616,7 +626,7 @@ impl From<DbSshKeyCertificate> for lfs_core::db::ssh_key_certificates::CertRecor
             valid_after: r.valid_after,
             valid_before: r.valid_before,
             principals: r.principals,
-            critical_options: r.critical_options,
+            critical_options: r.critical_options.into_iter().collect(),
             fingerprint: r.fingerprint,
         }
     }
@@ -1991,13 +2001,15 @@ mod tests {
 
     #[test]
     fn db_ssh_key_certificate_round_trips_through_core() {
+        let mut critical = HashMap::new();
+        critical.insert("force-command".to_string(), "echo hi".to_string());
         let db = DbSshKeyCertificate {
             key_id: "key-1".into(),
             certificate: vec![0xDE, 0xAD, 0xBE, 0xEF],
             valid_after: 1_700_000_000,
             valid_before: 1_700_086_400,
-            principals: r#"["alice","root"]"#.into(),
-            critical_options: r#"{"force-command":"echo hi"}"#.into(),
+            principals: vec!["alice".to_string(), "root".to_string()],
+            critical_options: critical,
             fingerprint: "SHA256:abc".into(),
         };
         let core: lfs_core::db::ssh_key_certificates::CertRecord = db.clone().into();

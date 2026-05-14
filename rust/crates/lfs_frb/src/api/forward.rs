@@ -59,6 +59,57 @@ pub enum DbPortForwardRuleValidationError {
     BindHostRequired,
 }
 
+/// FRB mirror of [`lfs_core::portforward::FieldValidationError`] —
+/// per-field rejection for the rule-editor `Form` validators. The
+/// Dart caller renders the matching sentinel string under the
+/// field (`1–65535` for port, `—` for host). Kept as a typed enum
+/// so the Dart side does not substring-match a free-form string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbPortForwardFieldValidationError {
+    /// Port input outside `[1, 65535]`, or non-numeric / empty.
+    PortOutOfRange,
+    /// Host input empty on a non-`Dynamic` forward.
+    HostRequired,
+}
+
+impl From<lfs_core::portforward::FieldValidationError> for DbPortForwardFieldValidationError {
+    fn from(value: lfs_core::portforward::FieldValidationError) -> Self {
+        match value {
+            lfs_core::portforward::FieldValidationError::PortOutOfRange => {
+                DbPortForwardFieldValidationError::PortOutOfRange
+            }
+            lfs_core::portforward::FieldValidationError::HostRequired => {
+                DbPortForwardFieldValidationError::HostRequired
+            }
+        }
+    }
+}
+
+/// Validate a single port-field input from the rule editor. The
+/// `Form` field validator returns `None` when the input is a port
+/// inside `[1, 65535]`, else
+/// [`DbPortForwardFieldValidationError::PortOutOfRange`]. Sync —
+/// the parse + range check is two CPU instructions and the editor
+/// calls this per keystroke.
+#[flutter_rust_bridge::frb(sync)]
+#[must_use]
+pub fn port_forward_validate_port_field(raw: String) -> Option<DbPortForwardFieldValidationError> {
+    lfs_core::portforward::validate_port_field(&raw).map(Into::into)
+}
+
+/// Validate a single host-field input from the rule editor. Routes
+/// through [`lfs_core::portforward::validate_host_field`] — Dynamic
+/// forwards always pass (no remote endpoint to reach); static
+/// forwards require a non-empty trimmed value.
+#[flutter_rust_bridge::frb(sync)]
+#[must_use]
+pub fn port_forward_validate_host_field(
+    raw: String,
+    kind: DbPortForwardKind,
+) -> Option<DbPortForwardFieldValidationError> {
+    lfs_core::portforward::validate_host_field(&raw, kind.into()).map(Into::into)
+}
+
 /// FRB-visible mirror of [`lfs_core::portforward::RuleKind`].
 /// Carries the three port-forward kinds across the boundary as a
 /// typed enum; Dart consumers pattern-match directly rather than

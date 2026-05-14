@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -264,10 +263,12 @@ rust_db.DbSshKey _toRow(SshKeyEntry e) => rust_db.DbSshKey(
 /// (principals / validity / fingerprint). The bytes are fetched
 /// on demand by the connect path's SecretStore staging.
 ///
-/// `principals` / `criticalOptions` arrive as serialized JSON in
-/// the DAO row (one TEXT column each); a malformed JSON value is
-/// logged-and-skipped so a tampered DB row never sinks the whole
-/// listing.
+/// `principals` / `criticalOptions` arrive already typed as
+/// `Vec<String>` / `HashMap<String, String>` from the FRB-mirrored
+/// DAO row — the JSON encode / decode lives Rust-side at the SQL
+/// boundary, so a malformed stored value collapses to the empty
+/// list / map inside Rust before crossing the boundary and never
+/// surfaces here.
 SshKeyMetadata _mergeCertOntoMetadata(
   rust_db.DbSshKeyMetadata r,
   rust_db.DbSshKeyCertificate? cert,
@@ -287,8 +288,8 @@ SshKeyMetadata _mergeCertOntoMetadata(
         isUtc: true,
       ),
     );
-    principals = _decodeJsonStringList(cert.principals);
-    critical = _decodeJsonStringMap(cert.criticalOptions);
+    principals = cert.principals;
+    critical = cert.criticalOptions;
     certFp = cert.fingerprint;
   }
   return SshKeyMetadata(
@@ -319,40 +320,4 @@ SshKeyMetadata _mergeCertOntoMetadata(
     keystorePlatform: r.keystorePlatform,
     importedAsStub: r.importedAsStub,
   );
-}
-
-List<String> _decodeJsonStringList(String raw) {
-  if (raw.isEmpty) return const [];
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is List) {
-      return decoded.map((e) => e.toString()).toList(growable: false);
-    }
-  } catch (e) {
-    AppLogger.instance.log(
-      'Failed to decode cert principals JSON',
-      name: 'SshKeysMutator',
-      error: e,
-      level: LogLevel.warn,
-    );
-  }
-  return const [];
-}
-
-Map<String, String> _decodeJsonStringMap(String raw) {
-  if (raw.isEmpty) return const {};
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map) {
-      return decoded.map((k, v) => MapEntry(k.toString(), v.toString()));
-    }
-  } catch (e) {
-    AppLogger.instance.log(
-      'Failed to decode cert critical_options JSON',
-      name: 'SshKeysMutator',
-      error: e,
-      level: LogLevel.warn,
-    );
-  }
-  return const {};
 }

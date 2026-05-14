@@ -1342,26 +1342,42 @@ fn apply_ssh_key_certificates(
             .unwrap_or_default();
         let valid_after = json_i64(&v, "valid_after");
         let valid_before = json_i64(&v, "valid_before");
-        let principals = v
-            .get("principals")
-            .map(|x| {
-                if x.is_string() {
-                    x.as_str().unwrap_or("[]").to_string()
-                } else {
-                    x.to_string()
-                }
-            })
-            .unwrap_or_else(|| "[]".into());
-        let critical_options = v
-            .get("critical_options")
-            .map(|x| {
-                if x.is_string() {
-                    x.as_str().unwrap_or("{}").to_string()
-                } else {
-                    x.to_string()
-                }
-            })
-            .unwrap_or_else(|| "{}".into());
+        // `principals` rides through archives either as a JSON
+        // array (the canonical shape, as written by the export
+        // path) or as a JSON-encoded string (legacy interim shape).
+        // Parse both into the typed `Vec<String>` the DAO carries.
+        let principals: Vec<String> = match v.get("principals") {
+            Some(x) if x.is_array() => x
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|e| e.as_str().map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            Some(x) if x.is_string() => {
+                serde_json::from_str::<Vec<String>>(x.as_str().unwrap_or("[]")).unwrap_or_default()
+            }
+            _ => Vec::new(),
+        };
+        // Same dual-shape decode for `critical_options` → typed
+        // `BTreeMap<String, String>`.
+        let critical_options: std::collections::BTreeMap<String, String> =
+            match v.get("critical_options") {
+                Some(x) if x.is_object() => x
+                    .as_object()
+                    .map(|m| {
+                        m.iter()
+                            .filter_map(|(k, val)| val.as_str().map(|s| (k.clone(), s.to_owned())))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                Some(x) if x.is_string() => serde_json::from_str::<
+                    std::collections::BTreeMap<String, String>,
+                >(x.as_str().unwrap_or("{}"))
+                .unwrap_or_default(),
+                _ => std::collections::BTreeMap::new(),
+            };
         let fingerprint = json_string(&v, "fingerprint");
         let rec = ssh_key_certificates::CertRecord {
             key_id: key_id.clone(),

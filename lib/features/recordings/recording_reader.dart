@@ -38,9 +38,9 @@ class RecordingHeader {
     this.shellLabel,
   });
 
-  /// Lift the FRB-typed mirror into the Dart value class. Sole
-  /// constructor used by the readers — `RecordingHeader.fromJson`
-  /// no longer exists because the JSON parse runs Rust-side.
+  /// Lift the FRB-typed mirror into the Dart value class. The JSON
+  /// parse runs Rust-side (`recorder_decode_header_line`); this
+  /// factory is the sole constructor every reader path uses.
   factory RecordingHeader.fromRust(rust_recorder.DbRecordingHeader header) =>
       RecordingHeader(
         width: header.width,

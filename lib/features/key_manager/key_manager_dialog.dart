@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -633,8 +632,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
 
-    final principalsJson = jsonEncode(summary.principals);
-    final criticalJson = jsonEncode(summary.criticalOptions);
     try {
       await rust_db.dbSshKeyCertificateUpsert(
         rec: rust_db.DbSshKeyCertificate(
@@ -642,8 +639,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
           certificate: bytes,
           validAfter: summary.validAfterUnix,
           validBefore: summary.validBeforeUnix,
-          principals: principalsJson,
-          criticalOptions: criticalJson,
+          principals: summary.principals,
+          criticalOptions: summary.criticalOptions,
           fingerprint: summary.fingerprint,
         ),
       );

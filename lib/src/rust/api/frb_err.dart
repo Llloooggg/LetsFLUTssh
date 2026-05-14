@@ -7,14 +7,15 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`, `json_escape`, `wire_str`, `wire`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`
 
 /// Parse an FRB error string into the typed [`DbFrbError`] envelope.
-/// JSON-shaped payloads land with their `kind` + `detail` fields;
-/// non-JSON strings (plain `e.to_string()` callsites that have not
-/// migrated yet) fall back to `kind = "generic"` with the original
-/// text as detail. Malformed JSON also lands in the generic bucket
-/// — never returns an error so untrusted input still routes safely.
+/// JSON-shaped payloads land with their typed [`DbFrbErrorKind`] +
+/// `detail`; non-JSON strings (plain `e.to_string()` callsites that
+/// have not migrated yet) fall back to
+/// [`DbFrbErrorKind::Generic`] with the original text as detail.
+/// Malformed JSON also lands in the generic bucket — never returns
+/// an error so untrusted input still routes safely.
 ///
 /// Sync because the only work is one `serde_json::from_str` + two
 /// `as_str` reads; the Dart caller hits this on every UI toast
@@ -28,8 +29,13 @@ DbFrbError frbErrorFromWire({required String wire}) =>
 /// raw wire string in through [`frb_error_from_wire`] to receive
 /// this struct back, removing the last Dart-side parser on the
 /// FRB error channel.
+///
+/// `kind` is a typed [`DbFrbErrorKind`] rather than a raw string;
+/// the Dart routing table in `lib/utils/format.dart` pattern-matches
+/// on the variant so a future `kind` rename in this file cannot
+/// silently re-classify a routed UI toast as a generic one.
 class DbFrbError {
-  final String kind;
+  final DbFrbErrorKind kind;
   final String detail;
 
   const DbFrbError({required this.kind, required this.detail});
@@ -44,4 +50,67 @@ class DbFrbError {
           runtimeType == other.runtimeType &&
           kind == other.kind &&
           detail == other.detail;
+}
+
+/// FRB-visible typed mirror of every wire discriminator declared in
+/// [`kind`]. The Dart caller pattern-matches on this enum rather
+/// than substring-matching the kind string — the FRB-generated Dart
+/// enum mirrors variant-for-variant so a rewrite of the routing
+/// logic in `lib/utils/format.dart` reads as a `switch` on a typed
+/// value, not a string compare.
+///
+/// Unknown / future variants land on [`DbFrbErrorKind::Generic`] so
+/// a newer Rust build cannot brick a Dart caller — the routing
+/// table stays exhaustive across upgrades.
+enum DbFrbErrorKind {
+  generic,
+  connect,
+  handshake,
+  authFailed,
+  authOther,
+  keyParse,
+  passphraseRequired,
+  passphraseIncorrect,
+  hostKeyRejected,
+  io,
+  db,
+  sftp,
+  sessionUnavailable,
+  recorder,
+  archive,
+  transport,
+  vault,
+  vaultCorrupt,
+  vaultPlatformUnsupported,
+  update,
+  platform,
+  crypto,
+  timeout,
+  cancelled,
+  archiveFutureVersion,
+  webDav,
+  s3,
+  fido2,
+  pkcs11,
+  enclave,
+  hello,
+  tpm,
+  keystore,
+  unsupported;
+
+  /// Parse a wire-string discriminator into the typed variant.
+  /// Unknown strings fall back to [`Self::Generic`] so a future
+  /// `kind` added in a newer Rust build cannot brick a Dart UI
+  /// shipped against an older codegen.
+  static Future<DbFrbErrorKind> fromWire({required String value}) =>
+      RustLib.instance.api.crateApiFrbErrDbFrbErrorKindFromWire(value: value);
+
+  /// Stable wire name matching the [`kind`] constant of the same
+  /// variant. Used by the Dart export-side codec for the round
+  /// trip; the FRB Dart enum's `.name` getter is unsuitable
+  /// because Rust's `WebDav` lowers to `webDav` not `webdav` and
+  /// the underscored variants (`auth_failed`) lose their
+  /// separator entirely.
+  Future<void> wireName() =>
+      RustLib.instance.api.crateApiFrbErrDbFrbErrorKindWireName(that: this);
 }

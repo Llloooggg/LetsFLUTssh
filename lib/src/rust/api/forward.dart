@@ -8,7 +8,30 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'ssh.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`, `into_core`, `u16_port`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `hash`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `hash`
+
+/// Validate a single port-field input from the rule editor. The
+/// `Form` field validator returns `None` when the input is a port
+/// inside `[1, 65535]`, else
+/// [`DbPortForwardFieldValidationError::PortOutOfRange`]. Sync —
+/// the parse + range check is two CPU instructions and the editor
+/// calls this per keystroke.
+DbPortForwardFieldValidationError? portForwardValidatePortField({
+  required String raw,
+}) =>
+    RustLib.instance.api.crateApiForwardPortForwardValidatePortField(raw: raw);
+
+/// Validate a single host-field input from the rule editor. Routes
+/// through [`lfs_core::portforward::validate_host_field`] — Dynamic
+/// forwards always pass (no remote endpoint to reach); static
+/// forwards require a non-empty trimmed value.
+DbPortForwardFieldValidationError? portForwardValidateHostField({
+  required String raw,
+  required DbPortForwardKind kind,
+}) => RustLib.instance.api.crateApiForwardPortForwardValidateHostField(
+  raw: raw,
+  kind: kind,
+);
 
 /// Parse a stored `port_forward_rules.kind` wire-string into the
 /// typed enum. The FRB sync shim around
@@ -258,6 +281,19 @@ abstract class SshForwardedConnection implements RustOpaqueInterface {
   /// Send bytes to the originator (to whoever connected to the
   /// server-side listener).
   Future<void> write({required List<int> data});
+}
+
+/// FRB mirror of [`lfs_core::portforward::FieldValidationError`] —
+/// per-field rejection for the rule-editor `Form` validators. The
+/// Dart caller renders the matching sentinel string under the
+/// field (`1–65535` for port, `—` for host). Kept as a typed enum
+/// so the Dart side does not substring-match a free-form string.
+enum DbPortForwardFieldValidationError {
+  /// Port input outside `[1, 65535]`, or non-numeric / empty.
+  portOutOfRange,
+
+  /// Host input empty on a non-`Dynamic` forward.
+  hostRequired,
 }
 
 /// FRB-visible mirror of [`lfs_core::portforward::RuleKind`].

@@ -1399,13 +1399,21 @@ class DbSshKey {
 /// One certificate per stored SSH key — the Dart key-manager UI
 /// surfaces the principals / validity / critical-options summary on
 /// the matching row.
+///
+/// `principals` and `critical_options` cross the FRB boundary as
+/// their natural typed shapes (`Vec<String>` / `HashMap<String,
+/// String>`); the JSON encoding for the underlying SQL columns is
+/// owned by the DAO ([`lfs_core::db::ssh_key_certificates`]) so the
+/// Dart caller never sees the wire grammar. A malformed stored JSON
+/// blob now logs and collapses to the empty list / map inside Rust
+/// — same observable shape as the prior Dart-side parser fallback.
 class DbSshKeyCertificate {
   final String keyId;
   final Uint8List certificate;
   final PlatformInt64 validAfter;
   final PlatformInt64 validBefore;
-  final String principals;
-  final String criticalOptions;
+  final List<String> principals;
+  final Map<String, String> criticalOptions;
   final String fingerprint;
 
   const DbSshKeyCertificate({

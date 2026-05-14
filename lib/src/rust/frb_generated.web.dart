@@ -423,6 +423,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPkcs11ImportArgs dco_decode_box_autoadd_db_pkcs_11_import_args(dynamic raw);
 
   @protected
+  DbPortForwardFieldValidationError
+  dco_decode_box_autoadd_db_port_forward_field_validation_error(dynamic raw);
+
+  @protected
   DbPortForwardRule dco_decode_box_autoadd_db_port_forward_rule(dynamic raw);
 
   @protected
@@ -700,6 +704,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFrbError dco_decode_db_frb_error(dynamic raw);
 
   @protected
+  DbFrbErrorKind dco_decode_db_frb_error_kind(dynamic raw);
+
+  @protected
   DbHardeningStep dco_decode_db_hardening_step(dynamic raw);
 
   @protected
@@ -831,6 +838,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPlaybackEvent dco_decode_db_playback_event(dynamic raw);
+
+  @protected
+  DbPortForwardFieldValidationError
+  dco_decode_db_port_forward_field_validation_error(dynamic raw);
 
   @protected
   DbPortForwardKind dco_decode_db_port_forward_kind(dynamic raw);
@@ -1390,6 +1401,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPortForwardFieldValidationError?
+  dco_decode_opt_box_autoadd_db_port_forward_field_validation_error(
+    dynamic raw,
+  );
+
+  @protected
   DbPortForwardRuleValidationError?
   dco_decode_opt_box_autoadd_db_port_forward_rule_validation_error(dynamic raw);
 
@@ -1864,6 +1881,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPortForwardFieldValidationError
+  sse_decode_box_autoadd_db_port_forward_field_validation_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbPortForwardRule sse_decode_box_autoadd_db_port_forward_rule(
     SseDeserializer deserializer,
   );
@@ -2219,6 +2242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFrbError sse_decode_db_frb_error(SseDeserializer deserializer);
 
   @protected
+  DbFrbErrorKind sse_decode_db_frb_error_kind(SseDeserializer deserializer);
+
+  @protected
   DbHardeningStep sse_decode_db_hardening_step(SseDeserializer deserializer);
 
   @protected
@@ -2406,6 +2432,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPlaybackEvent sse_decode_db_playback_event(SseDeserializer deserializer);
+
+  @protected
+  DbPortForwardFieldValidationError
+  sse_decode_db_port_forward_field_validation_error(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbPortForwardKind sse_decode_db_port_forward_kind(
@@ -3155,6 +3187,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPortForwardFieldValidationError?
+  sse_decode_opt_box_autoadd_db_port_forward_field_validation_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbPortForwardRuleValidationError?
   sse_decode_opt_box_autoadd_db_port_forward_rule_validation_error(
     SseDeserializer deserializer,
@@ -3725,6 +3763,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_port_forward_field_validation_error(
+    DbPortForwardFieldValidationError self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_port_forward_rule(
     DbPortForwardRule self,
     SseSerializer serializer,
@@ -4178,6 +4222,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_frb_error(DbFrbError self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_frb_error_kind(
+    DbFrbErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_hardening_step(
     DbHardeningStep self,
     SseSerializer serializer,
@@ -4417,6 +4467,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_playback_event(
     DbPlaybackEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_port_forward_field_validation_error(
+    DbPortForwardFieldValidationError self,
     SseSerializer serializer,
   );
 
@@ -5367,6 +5423,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_open_ssh_import_preview(
     DbOpenSshImportPreview? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_port_forward_field_validation_error(
+    DbPortForwardFieldValidationError? self,
     SseSerializer serializer,
   );
 

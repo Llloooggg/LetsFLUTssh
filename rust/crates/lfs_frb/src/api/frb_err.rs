@@ -269,24 +269,170 @@ pub(crate) fn from_core(err: &CoreError) -> String {
     }
 }
 
+/// FRB-visible typed mirror of every wire discriminator declared in
+/// [`kind`]. The Dart caller pattern-matches on this enum rather
+/// than substring-matching the kind string — the FRB-generated Dart
+/// enum mirrors variant-for-variant so a rewrite of the routing
+/// logic in `lib/utils/format.dart` reads as a `switch` on a typed
+/// value, not a string compare.
+///
+/// Unknown / future variants land on [`DbFrbErrorKind::Generic`] so
+/// a newer Rust build cannot brick a Dart caller — the routing
+/// table stays exhaustive across upgrades.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbFrbErrorKind {
+    Generic,
+    Connect,
+    Handshake,
+    AuthFailed,
+    AuthOther,
+    KeyParse,
+    PassphraseRequired,
+    PassphraseIncorrect,
+    HostKeyRejected,
+    Io,
+    Db,
+    Sftp,
+    SessionUnavailable,
+    Recorder,
+    Archive,
+    Transport,
+    Vault,
+    VaultCorrupt,
+    VaultPlatformUnsupported,
+    Update,
+    Platform,
+    Crypto,
+    Timeout,
+    Cancelled,
+    ArchiveFutureVersion,
+    WebDav,
+    S3,
+    Fido2,
+    Pkcs11,
+    Enclave,
+    Hello,
+    Tpm,
+    Keystore,
+    Unsupported,
+}
+
+impl DbFrbErrorKind {
+    /// Stable wire name matching the [`kind`] constant of the same
+    /// variant. Used by the Dart export-side codec for the round
+    /// trip; the FRB Dart enum's `.name` getter is unsuitable
+    /// because Rust's `WebDav` lowers to `webDav` not `webdav` and
+    /// the underscored variants (`auth_failed`) lose their
+    /// separator entirely.
+    #[must_use]
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            Self::Generic => kind::GENERIC,
+            Self::Connect => kind::CONNECT,
+            Self::Handshake => kind::HANDSHAKE,
+            Self::AuthFailed => kind::AUTH_FAILED,
+            Self::AuthOther => kind::AUTH_OTHER,
+            Self::KeyParse => kind::KEY_PARSE,
+            Self::PassphraseRequired => kind::PASSPHRASE_REQUIRED,
+            Self::PassphraseIncorrect => kind::PASSPHRASE_INCORRECT,
+            Self::HostKeyRejected => kind::HOST_KEY_REJECTED,
+            Self::Io => kind::IO,
+            Self::Db => kind::DB,
+            Self::Sftp => kind::SFTP,
+            Self::SessionUnavailable => kind::SESSION_UNAVAILABLE,
+            Self::Recorder => kind::RECORDER,
+            Self::Archive => kind::ARCHIVE,
+            Self::Transport => kind::TRANSPORT,
+            Self::Vault => kind::VAULT,
+            Self::VaultCorrupt => kind::VAULT_CORRUPT,
+            Self::VaultPlatformUnsupported => kind::VAULT_PLATFORM_UNSUPPORTED,
+            Self::Update => kind::UPDATE,
+            Self::Platform => kind::PLATFORM,
+            Self::Crypto => kind::CRYPTO,
+            Self::Timeout => kind::TIMEOUT,
+            Self::Cancelled => kind::CANCELLED,
+            Self::ArchiveFutureVersion => kind::ARCHIVE_FUTURE_VERSION,
+            Self::WebDav => kind::WEBDAV,
+            Self::S3 => kind::S3,
+            Self::Fido2 => kind::FIDO2,
+            Self::Pkcs11 => kind::PKCS11,
+            Self::Enclave => kind::ENCLAVE,
+            Self::Hello => kind::HELLO,
+            Self::Tpm => kind::TPM,
+            Self::Keystore => kind::KEYSTORE,
+            Self::Unsupported => kind::UNSUPPORTED,
+        }
+    }
+
+    /// Parse a wire-string discriminator into the typed variant.
+    /// Unknown strings fall back to [`Self::Generic`] so a future
+    /// `kind` added in a newer Rust build cannot brick a Dart UI
+    /// shipped against an older codegen.
+    #[must_use]
+    pub fn from_wire(value: &str) -> Self {
+        match value {
+            kind::CONNECT => Self::Connect,
+            kind::HANDSHAKE => Self::Handshake,
+            kind::AUTH_FAILED => Self::AuthFailed,
+            kind::AUTH_OTHER => Self::AuthOther,
+            kind::KEY_PARSE => Self::KeyParse,
+            kind::PASSPHRASE_REQUIRED => Self::PassphraseRequired,
+            kind::PASSPHRASE_INCORRECT => Self::PassphraseIncorrect,
+            kind::HOST_KEY_REJECTED => Self::HostKeyRejected,
+            kind::IO => Self::Io,
+            kind::DB => Self::Db,
+            kind::SFTP => Self::Sftp,
+            kind::SESSION_UNAVAILABLE => Self::SessionUnavailable,
+            kind::RECORDER => Self::Recorder,
+            kind::ARCHIVE => Self::Archive,
+            kind::TRANSPORT => Self::Transport,
+            kind::VAULT => Self::Vault,
+            kind::VAULT_CORRUPT => Self::VaultCorrupt,
+            kind::VAULT_PLATFORM_UNSUPPORTED => Self::VaultPlatformUnsupported,
+            kind::UPDATE => Self::Update,
+            kind::PLATFORM => Self::Platform,
+            kind::CRYPTO => Self::Crypto,
+            kind::TIMEOUT => Self::Timeout,
+            kind::CANCELLED => Self::Cancelled,
+            kind::ARCHIVE_FUTURE_VERSION => Self::ArchiveFutureVersion,
+            kind::WEBDAV => Self::WebDav,
+            kind::S3 => Self::S3,
+            kind::FIDO2 => Self::Fido2,
+            kind::PKCS11 => Self::Pkcs11,
+            kind::ENCLAVE => Self::Enclave,
+            kind::HELLO => Self::Hello,
+            kind::TPM => Self::Tpm,
+            kind::KEYSTORE => Self::Keystore,
+            kind::UNSUPPORTED => Self::Unsupported,
+            _ => Self::Generic,
+        }
+    }
+}
+
 /// FRB-visible typed mirror of the wire envelope. The Dart-side
 /// `FrbError.fromWire` wrapper used to do the JSON parse itself
 /// — that grammar lives here now and the Dart caller passes the
 /// raw wire string in through [`frb_error_from_wire`] to receive
 /// this struct back, removing the last Dart-side parser on the
 /// FRB error channel.
+///
+/// `kind` is a typed [`DbFrbErrorKind`] rather than a raw string;
+/// the Dart routing table in `lib/utils/format.dart` pattern-matches
+/// on the variant so a future `kind` rename in this file cannot
+/// silently re-classify a routed UI toast as a generic one.
 #[derive(Debug, Clone)]
 pub struct DbFrbError {
-    pub kind: String,
+    pub kind: DbFrbErrorKind,
     pub detail: String,
 }
 
 /// Parse an FRB error string into the typed [`DbFrbError`] envelope.
-/// JSON-shaped payloads land with their `kind` + `detail` fields;
-/// non-JSON strings (plain `e.to_string()` callsites that have not
-/// migrated yet) fall back to `kind = "generic"` with the original
-/// text as detail. Malformed JSON also lands in the generic bucket
-/// — never returns an error so untrusted input still routes safely.
+/// JSON-shaped payloads land with their typed [`DbFrbErrorKind`] +
+/// `detail`; non-JSON strings (plain `e.to_string()` callsites that
+/// have not migrated yet) fall back to
+/// [`DbFrbErrorKind::Generic`] with the original text as detail.
+/// Malformed JSON also lands in the generic bucket — never returns
+/// an error so untrusted input still routes safely.
 ///
 /// Sync because the only work is one `serde_json::from_str` + two
 /// `as_str` reads; the Dart caller hits this on every UI toast
@@ -296,25 +442,25 @@ pub struct DbFrbError {
 pub fn frb_error_from_wire(wire: String) -> DbFrbError {
     if wire.is_empty() {
         return DbFrbError {
-            kind: kind::GENERIC.to_string(),
+            kind: DbFrbErrorKind::Generic,
             detail: String::new(),
         };
     }
     if !wire.starts_with('{') {
         return DbFrbError {
-            kind: kind::GENERIC.to_string(),
+            kind: DbFrbErrorKind::Generic,
             detail: wire,
         };
     }
     let Ok(value) = serde_json::from_str::<serde_json::Value>(&wire) else {
         return DbFrbError {
-            kind: kind::GENERIC.to_string(),
+            kind: DbFrbErrorKind::Generic,
             detail: wire,
         };
     };
     let Some(obj) = value.as_object() else {
         return DbFrbError {
-            kind: kind::GENERIC.to_string(),
+            kind: DbFrbErrorKind::Generic,
             detail: wire,
         };
     };
@@ -322,11 +468,11 @@ pub fn frb_error_from_wire(wire: String) -> DbFrbError {
     let detail_str = obj.get("detail").and_then(serde_json::Value::as_str);
     match (kind_str, detail_str) {
         (Some(k), Some(d)) => DbFrbError {
-            kind: k.to_string(),
+            kind: DbFrbErrorKind::from_wire(k),
             detail: d.to_string(),
         },
         _ => DbFrbError {
-            kind: kind::GENERIC.to_string(),
+            kind: DbFrbErrorKind::Generic,
             detail: wire,
         },
     }
@@ -372,37 +518,95 @@ mod tests {
     #[test]
     fn from_wire_parses_canonical_envelope() {
         let e = frb_error_from_wire(r#"{"kind":"auth_failed","detail":"bad pw"}"#.to_string());
-        assert_eq!(e.kind, "auth_failed");
+        assert_eq!(e.kind, DbFrbErrorKind::AuthFailed);
         assert_eq!(e.detail, "bad pw");
     }
 
     #[test]
     fn from_wire_falls_back_to_generic_for_non_json() {
         let e = frb_error_from_wire("no such host".to_string());
-        assert_eq!(e.kind, "generic");
+        assert_eq!(e.kind, DbFrbErrorKind::Generic);
         assert_eq!(e.detail, "no such host");
     }
 
     #[test]
     fn from_wire_falls_back_to_generic_for_malformed_json() {
         let e = frb_error_from_wire("{not json".to_string());
-        assert_eq!(e.kind, "generic");
+        assert_eq!(e.kind, DbFrbErrorKind::Generic);
         assert_eq!(e.detail, "{not json");
     }
 
     #[test]
     fn from_wire_empty_string_yields_generic_empty() {
         let e = frb_error_from_wire(String::new());
-        assert_eq!(e.kind, "generic");
+        assert_eq!(e.kind, DbFrbErrorKind::Generic);
         assert_eq!(e.detail, "");
     }
 
     #[test]
     fn from_wire_missing_kind_or_detail_folds_to_generic() {
         let e = frb_error_from_wire(r#"{"kind":"auth_failed"}"#.to_string());
-        assert_eq!(e.kind, "generic");
+        assert_eq!(e.kind, DbFrbErrorKind::Generic);
         let e = frb_error_from_wire(r#"{"detail":"x"}"#.to_string());
-        assert_eq!(e.kind, "generic");
+        assert_eq!(e.kind, DbFrbErrorKind::Generic);
+    }
+
+    #[test]
+    fn from_wire_unknown_kind_folds_to_generic() {
+        // A future Rust build adding a new `kind` discriminator must
+        // not brick an older Dart caller — the parser folds the
+        // unknown variant onto Generic so the routing table stays
+        // exhaustive across the upgrade.
+        let e = frb_error_from_wire(r#"{"kind":"future_variant","detail":"x"}"#.to_string());
+        assert_eq!(e.kind, DbFrbErrorKind::Generic);
+        assert_eq!(e.detail, "x");
+    }
+
+    #[test]
+    fn kind_wire_name_round_trips_every_variant() {
+        // Byte-identity guard — Dart receives the typed enum via
+        // FRB and Rust serialises the same enum into the wire
+        // envelope, so the round trip MUST be lossless for every
+        // discriminator. A typo here would silently drop one
+        // variant onto Generic on the receive side.
+        for v in [
+            DbFrbErrorKind::Generic,
+            DbFrbErrorKind::Connect,
+            DbFrbErrorKind::Handshake,
+            DbFrbErrorKind::AuthFailed,
+            DbFrbErrorKind::AuthOther,
+            DbFrbErrorKind::KeyParse,
+            DbFrbErrorKind::PassphraseRequired,
+            DbFrbErrorKind::PassphraseIncorrect,
+            DbFrbErrorKind::HostKeyRejected,
+            DbFrbErrorKind::Io,
+            DbFrbErrorKind::Db,
+            DbFrbErrorKind::Sftp,
+            DbFrbErrorKind::SessionUnavailable,
+            DbFrbErrorKind::Recorder,
+            DbFrbErrorKind::Archive,
+            DbFrbErrorKind::Transport,
+            DbFrbErrorKind::Vault,
+            DbFrbErrorKind::VaultCorrupt,
+            DbFrbErrorKind::VaultPlatformUnsupported,
+            DbFrbErrorKind::Update,
+            DbFrbErrorKind::Platform,
+            DbFrbErrorKind::Crypto,
+            DbFrbErrorKind::Timeout,
+            DbFrbErrorKind::Cancelled,
+            DbFrbErrorKind::ArchiveFutureVersion,
+            DbFrbErrorKind::WebDav,
+            DbFrbErrorKind::S3,
+            DbFrbErrorKind::Fido2,
+            DbFrbErrorKind::Pkcs11,
+            DbFrbErrorKind::Enclave,
+            DbFrbErrorKind::Hello,
+            DbFrbErrorKind::Tpm,
+            DbFrbErrorKind::Keystore,
+            DbFrbErrorKind::Unsupported,
+        ] {
+            assert_eq!(DbFrbErrorKind::from_wire(v.wire_name()), v);
+        }
     }
 
     #[test]

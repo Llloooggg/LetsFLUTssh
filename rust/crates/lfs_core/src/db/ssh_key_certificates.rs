@@ -11,10 +11,15 @@
 //!
 //! `principals` and `critical_options` are stored as serialized JSON
 //! so the DAO does not need a junction table for what is a tiny
-//! opaque list / map per row. The cert blob itself stays as BLOB
-//! because OpenSSH wire format is binary inside its base64 wrapper —
-//! the typed view in `keys::CertSummary` is rebuilt from
+//! opaque list / map per row. The DAO owns the JSON encode / decode
+//! at the SQL boundary — callers receive [`CertRecord`] with typed
+//! `Vec<String>` / `BTreeMap<String, String>` shapes and never see
+//! the wire grammar. The cert blob itself stays as BLOB because
+//! OpenSSH wire format is binary inside its base64 wrapper — the
+//! typed view in `keys::CertSummary` is rebuilt from
 //! `parse_openssh_cert` on read where the UI surfaces it.
+
+use std::collections::BTreeMap;
 
 use rusqlite::params;
 
@@ -29,25 +34,62 @@ pub struct CertRecord {
     pub valid_after: i64,
     /// Unix seconds.
     pub valid_before: i64,
-    /// Serialized JSON array of principal strings.
-    pub principals: String,
-    /// Serialized JSON object — `force-command` / `source-address` /
-    /// any other openssh option name → value.
-    pub critical_options: String,
+    /// Hosts / users the cert is valid for. Empty list means
+    /// "valid for any principal" per OpenSSH's wire-format convention.
+    pub principals: Vec<String>,
+    /// `force-command` / `source-address` / any other openssh option
+    /// name → value. `BTreeMap` so iteration order is stable for
+    /// round-trip equality.
+    pub critical_options: BTreeMap<String, String>,
     /// Display fingerprint of the certificate blob (`SHA256:<base64>`).
     pub fingerprint: String,
 }
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<CertRecord> {
+    let principals_json: String = row.get("principals")?;
+    let critical_json: String = row.get("critical_options")?;
     Ok(CertRecord {
         key_id: row.get("key_id")?,
         certificate: row.get("certificate")?,
         valid_after: row.get("valid_after")?,
         valid_before: row.get("valid_before")?,
-        principals: row.get("principals")?,
-        critical_options: row.get("critical_options")?,
+        principals: decode_principals(&principals_json),
+        critical_options: decode_critical_options(&critical_json),
         fingerprint: row.get("fingerprint")?,
     })
+}
+
+/// Decode the `principals` column. A malformed value (tampered DB
+/// row, manual edit, future-schema drift) folds to the empty list
+/// so a single bad row never sinks the whole listing — same
+/// fallback the prior Dart-side parser used.
+fn decode_principals(raw: &str) -> Vec<String> {
+    if raw.is_empty() {
+        return Vec::new();
+    }
+    serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()
+}
+
+/// Decode the `critical_options` column. A malformed value folds to
+/// the empty map. The OpenSSH cert format orders critical options
+/// lexicographically; the `BTreeMap` collect preserves that
+/// stability so round-trip equality holds.
+fn decode_critical_options(raw: &str) -> BTreeMap<String, String> {
+    if raw.is_empty() {
+        return BTreeMap::new();
+    }
+    serde_json::from_str::<BTreeMap<String, String>>(raw).unwrap_or_default()
+}
+
+/// Encode the `principals` column. Always emits a valid JSON array.
+fn encode_principals(principals: &[String]) -> String {
+    serde_json::to_string(principals).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Encode the `critical_options` column. Always emits a valid JSON
+/// object; the `BTreeMap` keeps key order stable.
+fn encode_critical_options(critical: &BTreeMap<String, String>) -> String {
+    serde_json::to_string(critical).unwrap_or_else(|_| "{}".to_string())
 }
 
 /// Look up the certificate row paired with `key_id`. Returns `None`
@@ -78,6 +120,8 @@ pub fn get(conn: &impl DbAccess, key_id: &str) -> Result<Option<CertRecord>, Err
 /// calling here so a mismatch surfaces as a localized error rather
 /// than a connect-time auth failure).
 pub fn upsert(conn: &impl DbAccess, rec: &CertRecord) -> Result<(), Error> {
+    let principals_json = encode_principals(&rec.principals);
+    let critical_json = encode_critical_options(&rec.critical_options);
     conn.raw()
         .execute(
             "INSERT INTO ssh_key_certificates (\
@@ -96,8 +140,8 @@ pub fn upsert(conn: &impl DbAccess, rec: &CertRecord) -> Result<(), Error> {
                 rec.certificate,
                 rec.valid_after,
                 rec.valid_before,
-                rec.principals,
-                rec.critical_options,
+                principals_json,
+                critical_json,
                 rec.fingerprint,
             ],
         )
@@ -229,13 +273,15 @@ mod tests {
     }
 
     fn cert(key_id: &str) -> CertRecord {
+        let mut critical = BTreeMap::new();
+        critical.insert("force-command".to_string(), "echo hi".to_string());
         CertRecord {
             key_id: key_id.into(),
             certificate: vec![0xDE, 0xAD, 0xBE, 0xEF],
             valid_after: 1_700_000_000,
             valid_before: 1_700_086_400,
-            principals: r#"["alice","root"]"#.into(),
-            critical_options: r#"{"force-command":"echo hi"}"#.into(),
+            principals: vec!["alice".to_string(), "root".to_string()],
+            critical_options: critical,
             fingerprint: "SHA256:abc".into(),
         }
     }

@@ -17,7 +17,7 @@ import '../features/settings/export_import.dart'
         UnsupportedLfsVersionException;
 import '../l10n/app_localizations.dart';
 import '../src/rust/api/format.dart' as rust_format;
-import 'frb_error.dart';
+import '../src/rust/api/frb_err.dart' as rust_frb_err;
 import 'sanitize.dart';
 
 /// Format byte size to a human-readable string with locale-aware
@@ -213,23 +213,58 @@ String localizeError(S l10n, Object error) {
   return _localizeOsError(l10n, error);
 }
 
-/// Try to parse [error] as a typed FRB envelope and route by `kind`.
+/// Try to parse [error] as a typed FRB envelope and route by kind.
 /// Returns null when the error is not a JSON envelope (plain strings,
 /// typed Dart exceptions, OS errors, etc.) so the caller keeps
 /// walking the fallback chain.
+///
+/// The envelope parser lives Rust-side (`frb_error_from_wire`); this
+/// helper pattern-matches the typed [`rust_frb_err.DbFrbErrorKind`]
+/// enum returned across FRB so a future kind rename in Rust shows
+/// up as a Dart compile error here rather than a silent re-route to
+/// the generic bucket.
 String? _localizeFrbKind(S l10n, Object error) {
   if (error is! String) return null;
   if (!error.startsWith('{')) return null;
-  final wire = FrbError.fromWire(error);
-  if (wire.kind == 'generic') return null;
+  final wire = rust_frb_err.frbErrorFromWire(wire: error);
   switch (wire.kind) {
-    case 'auth_failed':
+    case rust_frb_err.DbFrbErrorKind.authFailed:
       return l10n.errSshAuthFailed('?', '?');
-    case 'host_key_rejected':
+    case rust_frb_err.DbFrbErrorKind.hostKeyRejected:
       return l10n.errSshHostKeyRejected('?', 0);
-    case 'timeout':
+    case rust_frb_err.DbFrbErrorKind.timeout:
       return l10n.errConnectionTimedOut;
-    default:
+    case rust_frb_err.DbFrbErrorKind.generic:
+    case rust_frb_err.DbFrbErrorKind.connect:
+    case rust_frb_err.DbFrbErrorKind.handshake:
+    case rust_frb_err.DbFrbErrorKind.authOther:
+    case rust_frb_err.DbFrbErrorKind.keyParse:
+    case rust_frb_err.DbFrbErrorKind.passphraseRequired:
+    case rust_frb_err.DbFrbErrorKind.passphraseIncorrect:
+    case rust_frb_err.DbFrbErrorKind.io:
+    case rust_frb_err.DbFrbErrorKind.db:
+    case rust_frb_err.DbFrbErrorKind.sftp:
+    case rust_frb_err.DbFrbErrorKind.sessionUnavailable:
+    case rust_frb_err.DbFrbErrorKind.recorder:
+    case rust_frb_err.DbFrbErrorKind.archive:
+    case rust_frb_err.DbFrbErrorKind.transport:
+    case rust_frb_err.DbFrbErrorKind.vault:
+    case rust_frb_err.DbFrbErrorKind.vaultCorrupt:
+    case rust_frb_err.DbFrbErrorKind.vaultPlatformUnsupported:
+    case rust_frb_err.DbFrbErrorKind.update:
+    case rust_frb_err.DbFrbErrorKind.platform:
+    case rust_frb_err.DbFrbErrorKind.crypto:
+    case rust_frb_err.DbFrbErrorKind.cancelled:
+    case rust_frb_err.DbFrbErrorKind.archiveFutureVersion:
+    case rust_frb_err.DbFrbErrorKind.webDav:
+    case rust_frb_err.DbFrbErrorKind.s3:
+    case rust_frb_err.DbFrbErrorKind.fido2:
+    case rust_frb_err.DbFrbErrorKind.pkcs11:
+    case rust_frb_err.DbFrbErrorKind.enclave:
+    case rust_frb_err.DbFrbErrorKind.hello:
+    case rust_frb_err.DbFrbErrorKind.tpm:
+    case rust_frb_err.DbFrbErrorKind.keystore:
+    case rust_frb_err.DbFrbErrorKind.unsupported:
       // Other kinds (passphrase_required / passphrase_incorrect /
       // cancelled / sftp / db / archive / vault / ...) don't yet
       // have dedicated localized templates — fall through to the

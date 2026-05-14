@@ -2,7 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/ssh/port_forward_rule.dart';
 import 'package:letsflutssh/features/session_manager/session_forwards_logic.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // The validators delegate to FRB sync helpers
+  // (`port_forward_validate_*_field`) so the grammar lives one
+  // place. Bootstrap the native lib so the call doesn't throw
+  // `flutter_rust_bridge has not been initialized`.
+  setUpAll(requireFrbLoaded);
+
   group('validatePortForwardPort', () {
     test('valid TCP ports pass', () {
       expect(validatePortForwardPort('1'), isNull);
