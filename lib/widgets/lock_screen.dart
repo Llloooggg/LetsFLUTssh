@@ -24,8 +24,9 @@ import 'secure_screen_scope.dart';
 /// emit unlock cascade. The [TierUnlockedListener] takes the bytes
 /// on `BusEvent::TierStateChanged.unlocked` and re-runs the
 /// post-unlock cascade (caches, drift open, securityStateProvider,
-/// config persist); after the listener resolves we flip
-/// [lockStateProvider] off so the UI restores the workspace.
+/// config persist); after the listener resolves the screen signals
+/// [LockStateNotifier.markUnlockCascadeComplete] so the UI restores
+/// the workspace.
 ///
 /// The biometric overlay surfaces only on tiers that carry an
 /// OS-managed biometric slot for the typed password (T1+pw, T2);
@@ -97,7 +98,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
             onTimeout: () => TierUnlockOutcome.failed,
           );
           if (!mounted) return;
-          ref.read(lockStateProvider.notifier).unlock();
+          ref.read(lockStateProvider.notifier).markUnlockCascadeComplete();
         case TierUnlockAttempt.wrongSecret:
           listener.cancelPending();
           setState(() {

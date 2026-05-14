@@ -127,7 +127,7 @@ void main() {
       addTearDown(container.dispose);
 
       // Start locked.
-      container.read(lockStateProvider.notifier).lock();
+      container.read(lockStateProvider.notifier).debugForceLocked();
       expect(container.read(lockStateProvider), true);
 
       await tester.pumpWidget(
@@ -187,7 +187,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(lockStateProvider.notifier).lock();
+    container.read(lockStateProvider.notifier).debugForceLocked();
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -230,7 +230,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      container.read(lockStateProvider.notifier).lock();
+      container.read(lockStateProvider.notifier).debugForceLocked();
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -271,7 +271,7 @@ void main() {
         overrides: [masterPasswordProvider.overrideWithValue(mp)],
       );
       addTearDown(container.dispose);
-      container.read(lockStateProvider.notifier).lock();
+      container.read(lockStateProvider.notifier).debugForceLocked();
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

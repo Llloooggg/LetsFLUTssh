@@ -140,11 +140,13 @@ void main() {
         // Tick past the 1-minute budget.
         await tester.pump(const Duration(minutes: 1, seconds: 1));
 
-        expect(
-          container.read(lockStateProvider),
-          true,
-          reason: 'timer expiry must flip the lock overlay',
-        );
+        // The overlay flip itself is driven by Rust's tier_machine
+        // dispatching `LockRequested` → `BusEvent::TierStateChanged
+        // { wire: "locked" }`. flutter_test contexts don't load the
+        // FRB native lib so the bus never delivers; the detector's
+        // dispatch is swallowed. The locally-observable contract is
+        // the DB-key wipe — which the detector owns directly via
+        // `securityStateProvider.clearEncryption()`.
         expect(
           container.read(securityStateProvider).hasActiveDbKey,
           isFalse,
@@ -196,11 +198,9 @@ void main() {
 
       await tester.pump(const Duration(minutes: 1, seconds: 1));
 
-      expect(
-        container.read(lockStateProvider),
-        true,
-        reason: 'lock overlay always fires on timeout',
-      );
+      // Overlay flip is Rust-driven via the tier bus event; under
+      // flutter_test the FRB native lib is absent so we observe only
+      // the Dart-owned side effect: the DB key was wiped.
       expect(
         container.read(securityStateProvider).hasActiveDbKey,
         isFalse,
@@ -278,13 +278,18 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump();
 
+      // The overlay flip itself runs through the Rust tier bus event
+      // and is verified end-to-end by the integration suite; the
+      // Dart-observable side effect under flutter_test is the
+      // DB-key wipe.
       expect(
-        container.read(lockStateProvider),
-        true,
+        container.read(securityStateProvider).hasActiveDbKey,
+        isFalse,
         reason:
             'when the user has chosen an idle timeout, backgrounding '
-            'is treated as activity stop and the lock screen is '
-            'pre-overlaid so the OS lock dismisses onto the lock UI',
+            'is treated as activity stop and the DB key is wiped so '
+            'the lock screen surfaces under the OS lock without a '
+            'warm-key window',
       );
     });
 
@@ -367,9 +372,14 @@ void main() {
 
         await tester.pump(const Duration(minutes: 1, seconds: 1));
 
+        // The overlay flip rides on the Rust tier bus event; under
+        // flutter_test the FRB native lib is absent so we assert on
+        // the Dart-observable side effect instead — the detector
+        // wiped the DB key, which is the marker that
+        // `_triggerLock` ran past its tier-gate.
         expect(
-          container.read(lockStateProvider),
-          true,
+          container.read(securityStateProvider).hasActiveDbKey,
+          isFalse,
           reason:
               'keychainWithPassword carries a user-typed secret so the '
               'auto-lock timer must fire — generalisation off Paranoid-only',

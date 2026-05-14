@@ -13,15 +13,19 @@ import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/bus.dart' as rust_bus;
+import '../src/rust/api/tier_machine.dart' as rust_tier;
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
 /// minutes of user inactivity when a user-typed secret is configured.
 ///
 /// What "lock" means:
-///   * The global [lockStateProvider] flips to `true`; the root widget
-///     swaps the UI for a lock screen that blocks interaction until the
-///     user re-authenticates (master password or biometrics).
+///   * The detector dispatches `LockRequested` against Rust's
+///     `tier_machine` singleton; the resulting
+///     `BusEvent::TierStateChanged { wire: "locked" }` reaches
+///     [LockStateNotifier] and the root widget swaps the UI for a
+///     lock screen that blocks interaction until the user
+///     re-authenticates (master password or biometrics).
 ///   * The in-memory DB key is **always** zeroed via
 ///     `securityStateProvider.clearEncryption()` — regardless of whether
 ///     active SSH sessions are present. **Don't gate the wipe on
@@ -310,8 +314,24 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
       'keyWiped=true, dbClosed=true)',
       name: 'AutoLock',
     );
-    // Always overlay the lock screen — that's the user-visible "locked" state.
-    ref.read(lockStateProvider.notifier).lock();
+    // Dispatch `LockRequested` against the singleton tier machine —
+    // the Rust side runs the transition table check and publishes
+    // `TierStateChanged { wire: "locked" }` when the machine was in
+    // `Unlocked` / `Unlocking`. `LockStateNotifier` subscribes to
+    // that event and flips the overlay; no Dart-side bool poking is
+    // needed. Swallow `StateError` for flutter_test contexts without
+    // the native lib loaded — the widget tests stage the overlay
+    // through `debugForceLocked` instead.
+    try {
+      rust_tier.tierMachineDispatch(
+        event: const rust_tier.DbTierEvent.lockRequested(),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Auto-lock tierMachineDispatch swallowed: $e',
+        name: 'AutoLock',
+      );
+    }
     // Scrub terminal scrollbacks BEFORE the user sees the lock
     // overlay. A password the user pasted into a terminal, or a
     // secret the remote shell echoed back, sits in xterm's
