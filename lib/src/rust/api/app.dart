@@ -16,9 +16,9 @@ Future<void> appInit() => RustLib.instance.api.crateApiAppAppInit();
 /// Used by Dart test files that allocate a per-case temp dir and
 /// need each case to scope the support-dir singleton against its
 /// own directory (e.g. `update_provider_test.dart`'s download
-/// group). Production never calls this; gated behind
-/// `#[cfg(any(test, debug_assertions))]` so a release build can't
-/// expose it through FRB.
+/// group). Production code never calls this — losing the pin
+/// surfaces as `Error::Platform` on the next FRB call that needs
+/// the support dir rather than touching persistent state.
 void appResetSupportDirForTests() =>
     RustLib.instance.api.crateApiAppAppResetSupportDirForTests();
 

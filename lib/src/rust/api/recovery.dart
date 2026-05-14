@@ -27,21 +27,21 @@ Future<DbLegacyStateDetection> recoveryDetectLegacyState({
   hasCurrentSecurityConfig: hasCurrentSecurityConfig,
 );
 
-/// Compose the destructive cascade Dart used to drive across four
+/// Compose the destructive cascade Dart used to drive across five
 /// separate FRB hops:
 ///
 /// 1. `db_close` — release the SQLCipher handle.
 /// 2. `wipe_sweep_files` — Rust-side file sweep + log directory wipe.
 /// 3. `wipe_keychain_run` — OS-keychain alias purge.
-/// 4. (Implicit) `config.json` is in the managed-files list so
+/// 4. `hardware_tier_vault_clear` — per-platform primary key drop
+///    (Apple SE / AndroidKeyStore / Windows CNG / Linux TPM2
+///    envelope file).
+/// 5. `hardware_tier_vault_clear_biometric_password` — per-platform
+///    biometric-overlay drop, same dispatch shape.
+/// 6. (Implicit) `config.json` is in the managed-files list so
 ///    step 2 leaves the install without a config; the next
 ///    `configStoreInit` re-seeds defaults, dropping the explicit
 ///    Riverpod patch the controller used to issue.
-///
-/// The hardware-vault clear (Apple SE / Android Keystore / Windows
-/// CNG / Linux TPM2) still routes through `WipeAllService`
-/// alongside this call until the per-platform orchestrator moves
-/// to `lfs_core`. Tracked as follow-up.
 Future<DbDestructiveResetReport> recoveryRunDestructiveReset({
   required String supportDir,
 }) => RustLib.instance.api.crateApiRecoveryRecoveryRunDestructiveReset(
@@ -57,17 +57,29 @@ class DbDestructiveResetReport {
   final List<String> failedFiles;
   final bool keychainPurgeSucceeded;
 
+  /// True when the per-platform hardware-vault primary key was
+  /// dropped (or no hardware tier is present on this build).
+  final bool hwVaultCleared;
+
+  /// True when the per-platform hardware-vault biometric overlay
+  /// was dropped (or no hardware tier is present on this build).
+  final bool hwVaultBiometricCleared;
+
   const DbDestructiveResetReport({
     required this.deletedFiles,
     required this.failedFiles,
     required this.keychainPurgeSucceeded,
+    required this.hwVaultCleared,
+    required this.hwVaultBiometricCleared,
   });
 
   @override
   int get hashCode =>
       deletedFiles.hashCode ^
       failedFiles.hashCode ^
-      keychainPurgeSucceeded.hashCode;
+      keychainPurgeSucceeded.hashCode ^
+      hwVaultCleared.hashCode ^
+      hwVaultBiometricCleared.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -76,7 +88,9 @@ class DbDestructiveResetReport {
           runtimeType == other.runtimeType &&
           deletedFiles == other.deletedFiles &&
           failedFiles == other.failedFiles &&
-          keychainPurgeSucceeded == other.keychainPurgeSucceeded;
+          keychainPurgeSucceeded == other.keychainPurgeSucceeded &&
+          hwVaultCleared == other.hwVaultCleared &&
+          hwVaultBiometricCleared == other.hwVaultBiometricCleared;
 }
 
 /// FRB mirror of [`recovery::LegacyStateDetection`]. Surfaces both

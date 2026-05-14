@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwvault;
 import '../../src/rust/api/recovery.dart' as rust_recovery;
 import '../../src/rust/api/wipe.dart' as rust_wipe;
 import '../../utils/logger.dart';
@@ -49,11 +48,13 @@ class WipeReport {
 /// after every step finishes. The next launch reads
 /// [hasPendingWipe] and re-runs the sweep idempotently.
 ///
-/// Dart side keeps the platform-bound concerns: the keychain
-/// purge (`lfs_os_security::secure_key_storage::delete` over the
-/// canonical alias list — see `wipe_keychain.dart`), the
-/// per-platform hw-vault clear via FRB into `lfs_os_security`,
-/// and the optional per-session credential cache evict.
+/// Dart side keeps two concerns: the optional per-session
+/// credential cache evict (process-RAM only, must run before the
+/// file sweep) and the terminal-scrollback scrub (Flutter-side
+/// widget state). Everything else — db_close, file sweep,
+/// keychain alias purge, per-platform hardware-vault primary +
+/// biometric overlay clear — lives Rust-side inside the
+/// `recovery::run_destructive_reset` orchestrator.
 ///
 /// Intentionally *not* tied to the migration framework's `Artefact`
 /// interface: wipe is a cross-cutting concern that touches files even
@@ -172,19 +173,25 @@ class WipeAllService {
 
     // 1. Composite destructive cascade through the Rust
     //    `recovery::run_destructive_reset` orchestrator. Bundles
-    //    db_close + managed-file sweep + keychain purge into one
-    //    transaction so the Dart side awaits a single FRB call
-    //    instead of sequencing three.
+    //    db_close + managed-file sweep + keychain alias purge +
+    //    per-platform hardware-vault primary clear + biometric
+    //    overlay clear into one transaction so the Dart side
+    //    awaits a single FRB call.
     //
     //    Falls back to the per-call FRB shape on the keychain-only
     //    branch (`_purgeKeychain == false` — Settings "wipe but
     //    keep keychain entries" toggle) so the caller's opt-out is
-    //    still honoured. In that path the keychain purge is the
-    //    sole subset of the cascade that gets skipped; everything
-    //    else stays Rust-side.
+    //    still honoured. In that path the keychain alias purge is
+    //    skipped together with the hw-vault clear (the wrapped-key
+    //    envelope file still gets removed by `wipeSweepFiles`; the
+    //    persistent hardware key — Apple SE / AndroidKeyStore /
+    //    Windows CNG — stays, matching the opt-out's "leave
+    //    OS-bound secret material in place" intent).
     final List<String> deleted;
     final List<String> failed;
     final bool purged;
+    final bool nativeCleared;
+    final bool overlayCleared;
     if (_purgeKeychain) {
       final report = await rust_recovery.recoveryRunDestructiveReset(
         supportDir: dir.path,
@@ -192,16 +199,20 @@ class WipeAllService {
       deleted = List<String>.from(report.deletedFiles);
       failed = List<String>.from(report.failedFiles);
       purged = report.keychainPurgeSucceeded;
+      nativeCleared = report.hwVaultCleared;
+      overlayCleared = report.hwVaultBiometricCleared;
       mark('recovery_reset');
     } else {
       // Settings opt-out: caller wants the on-disk wipe without
-      // touching OS-keychain aliases. Routes through the legacy
-      // pair so the keychain step is skippable; the rest of the
-      // cascade still runs.
+      // touching OS-keychain aliases or hardware-bound persistent
+      // keys. The file sweep still removes the wrapped-key
+      // envelope; the persistent hardware key stays.
       final fileReport = await rust_wipe.wipeSweepFiles(supportDir: dir.path);
       deleted = List<String>.from(fileReport.deletedFiles);
       failed = List<String>.from(fileReport.failedFiles);
       purged = false;
+      nativeCleared = false;
+      overlayCleared = false;
       mark('sweep_files');
     }
     for (final name in failed) {
@@ -210,20 +221,13 @@ class WipeAllService {
         name: 'WipeAllService',
       );
     }
-
-    // 2. Native hw-vault: primary + biometric overlay via Rust
-    //    (`lfs_os_security::hardware_tier_vault::*`). Swallow errors;
-    //    on Linux without a TPM the dispatch returns Unavailable and
-    //    the call is a no-op. Apple SE / Android Keystore / Windows
-    //    CNG / Linux TPM2 all share the same FRB entry now, so wipe
-    //    semantics are uniform across platforms.
-    //
-    //    Stays a separate FRB hop until the per-platform hw-vault
-    //    clear orchestrator moves into `lfs_core` (out of scope for
-    //    the recovery extraction — flagged for follow-up).
-    final nativeCleared = await _clearNativePrimary();
-    final overlayCleared = await _clearNativeBiometricOverlay();
-    mark('native_vault_clear');
+    AppLogger.instance.log(
+      'WipeAllService: cascade outcome '
+      'keychain_purged=$purged '
+      'hw_vault_cleared=$nativeCleared '
+      'hw_vault_biometric_cleared=$overlayCleared',
+      name: 'WipeAllService',
+    );
 
     return WipeReport(
       deletedFiles: deleted,
@@ -232,46 +236,5 @@ class WipeAllService {
       nativeVaultCleared: nativeCleared,
       biometricOverlayCleared: overlayCleared,
     );
-  }
-
-  /// Drop the primary hw-vault. Routes through the unified Rust
-  /// dispatch in `lfs_os_security::hardware_tier_vault::clear`:
-  /// SE primary key + envelope on Apple, AndroidKeyStore wrap key
-  /// + bin file on Android, NCrypt persisted key + bin file on
-  /// Windows, TPM2 envelope on Linux.
-  Future<bool> _clearNativePrimary() async {
-    try {
-      final dir = await _supportDir();
-      await rust_hwvault.hardwareTierVaultClear(supportDir: dir.path);
-      return true;
-    } catch (e) {
-      AppLogger.instance.log(
-        'WipeAllService: Rust hw-vault clear failed: $e',
-        name: 'WipeAllService',
-      );
-      return false;
-    }
-  }
-
-  /// Drop the biometric overlay (key + file) via the unified Rust
-  /// dispatch — Apple SE / Android Keystore / Windows CNG / Linux
-  /// TPM2-sealed-under-fprintd-hash. Linux's overlay file is
-  /// `hardware_vault_password_overlay_linux.bin`; the orchestrator
-  /// lives one crate up in `lfs_core` because it depends on the
-  /// in-crate fprintd D-Bus walk.
-  Future<bool> _clearNativeBiometricOverlay() async {
-    try {
-      final dir = await _supportDir();
-      await rust_hwvault.hardwareTierVaultClearBiometricPassword(
-        supportDir: dir.path,
-      );
-      return true;
-    } catch (e) {
-      AppLogger.instance.log(
-        'WipeAllService: Rust hw-vault clearBiometric failed: $e',
-        name: 'WipeAllService',
-      );
-      return false;
-    }
   }
 }

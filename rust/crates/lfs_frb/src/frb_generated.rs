@@ -24840,10 +24840,14 @@ impl SseDecode for crate::api::recovery::DbDestructiveResetReport {
         let mut var_deletedFiles = <Vec<String>>::sse_decode(deserializer);
         let mut var_failedFiles = <Vec<String>>::sse_decode(deserializer);
         let mut var_keychainPurgeSucceeded = <bool>::sse_decode(deserializer);
+        let mut var_hwVaultCleared = <bool>::sse_decode(deserializer);
+        let mut var_hwVaultBiometricCleared = <bool>::sse_decode(deserializer);
         return crate::api::recovery::DbDestructiveResetReport {
             deleted_files: var_deletedFiles,
             failed_files: var_failedFiles,
             keychain_purge_succeeded: var_keychainPurgeSucceeded,
+            hw_vault_cleared: var_hwVaultCleared,
+            hw_vault_biometric_cleared: var_hwVaultBiometricCleared,
         };
     }
 }
@@ -30901,6 +30905,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::recovery::DbDestructiveResetR
             self.deleted_files.into_into_dart().into_dart(),
             self.failed_files.into_into_dart().into_dart(),
             self.keychain_purge_succeeded.into_into_dart().into_dart(),
+            self.hw_vault_cleared.into_into_dart().into_dart(),
+            self.hw_vault_biometric_cleared.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -35813,6 +35819,8 @@ impl SseEncode for crate::api::recovery::DbDestructiveResetReport {
         <Vec<String>>::sse_encode(self.deleted_files, serializer);
         <Vec<String>>::sse_encode(self.failed_files, serializer);
         <bool>::sse_encode(self.keychain_purge_succeeded, serializer);
+        <bool>::sse_encode(self.hw_vault_cleared, serializer);
+        <bool>::sse_encode(self.hw_vault_biometric_cleared, serializer);
     }
 }
 

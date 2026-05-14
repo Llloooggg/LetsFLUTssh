@@ -24923,12 +24923,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbDestructiveResetReport dco_decode_db_destructive_reset_report(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return DbDestructiveResetReport(
       deletedFiles: dco_decode_list_String(arr[0]),
       failedFiles: dco_decode_list_String(arr[1]),
       keychainPurgeSucceeded: dco_decode_bool(arr[2]),
+      hwVaultCleared: dco_decode_bool(arr[3]),
+      hwVaultBiometricCleared: dco_decode_bool(arr[4]),
     );
   }
 
@@ -29491,10 +29493,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_deletedFiles = sse_decode_list_String(deserializer);
     var var_failedFiles = sse_decode_list_String(deserializer);
     var var_keychainPurgeSucceeded = sse_decode_bool(deserializer);
+    var var_hwVaultCleared = sse_decode_bool(deserializer);
+    var var_hwVaultBiometricCleared = sse_decode_bool(deserializer);
     return DbDestructiveResetReport(
       deletedFiles: var_deletedFiles,
       failedFiles: var_failedFiles,
       keychainPurgeSucceeded: var_keychainPurgeSucceeded,
+      hwVaultCleared: var_hwVaultCleared,
+      hwVaultBiometricCleared: var_hwVaultBiometricCleared,
     );
   }
 
@@ -35255,6 +35261,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.deletedFiles, serializer);
     sse_encode_list_String(self.failedFiles, serializer);
     sse_encode_bool(self.keychainPurgeSucceeded, serializer);
+    sse_encode_bool(self.hwVaultCleared, serializer);
+    sse_encode_bool(self.hwVaultBiometricCleared, serializer);
   }
 
   @protected

@@ -10,12 +10,11 @@
 //!   `has_current_security_config` from its `AppConfig.security`
 //!   snapshot; the orphan branch short-circuits when that is `true`.
 //! - [`recovery_run_destructive_reset`] — composes the destructive
-//!   cascade (DB close → file sweep + keychain purge) atomically.
-//!   The Dart caller follows up with the hardware-vault clear (still
-//!   routed through `WipeAllService` until the per-platform hw-vault
-//!   clear lifts into `lfs_core`) and the first-launch wizard,
-//!   neither of which can move Rust-side without breaking the
-//!   "Flutter renders dialogs" invariant.
+//!   cascade (DB close → file sweep → keychain purge →
+//!   hardware-vault primary clear → hardware-vault biometric
+//!   overlay clear) atomically. The Dart caller follows up with
+//!   the first-launch wizard, which cannot move Rust-side without
+//!   breaking the "Flutter renders dialogs" invariant.
 
 use lfs_core::security::recovery;
 
@@ -62,6 +61,12 @@ pub struct DbDestructiveResetReport {
     pub deleted_files: Vec<String>,
     pub failed_files: Vec<String>,
     pub keychain_purge_succeeded: bool,
+    /// True when the per-platform hardware-vault primary key was
+    /// dropped (or no hardware tier is present on this build).
+    pub hw_vault_cleared: bool,
+    /// True when the per-platform hardware-vault biometric overlay
+    /// was dropped (or no hardware tier is present on this build).
+    pub hw_vault_biometric_cleared: bool,
 }
 
 impl From<recovery::DestructiveResetReport> for DbDestructiveResetReport {
@@ -70,6 +75,8 @@ impl From<recovery::DestructiveResetReport> for DbDestructiveResetReport {
             deleted_files: r.deleted_files,
             failed_files: r.failed_files,
             keychain_purge_succeeded: r.keychain_purge_succeeded,
+            hw_vault_cleared: r.hw_vault_cleared,
+            hw_vault_biometric_cleared: r.hw_vault_biometric_cleared,
         }
     }
 }
@@ -100,21 +107,21 @@ pub async fn recovery_detect_legacy_state(
     .map_err(|e| format!("recovery_detect_legacy_state task: {e}"))
 }
 
-/// Compose the destructive cascade Dart used to drive across four
+/// Compose the destructive cascade Dart used to drive across five
 /// separate FRB hops:
 ///
 /// 1. `db_close` — release the SQLCipher handle.
 /// 2. `wipe_sweep_files` — Rust-side file sweep + log directory wipe.
 /// 3. `wipe_keychain_run` — OS-keychain alias purge.
-/// 4. (Implicit) `config.json` is in the managed-files list so
+/// 4. `hardware_tier_vault_clear` — per-platform primary key drop
+///    (Apple SE / AndroidKeyStore / Windows CNG / Linux TPM2
+///    envelope file).
+/// 5. `hardware_tier_vault_clear_biometric_password` — per-platform
+///    biometric-overlay drop, same dispatch shape.
+/// 6. (Implicit) `config.json` is in the managed-files list so
 ///    step 2 leaves the install without a config; the next
 ///    `configStoreInit` re-seeds defaults, dropping the explicit
 ///    Riverpod patch the controller used to issue.
-///
-/// The hardware-vault clear (Apple SE / Android Keystore / Windows
-/// CNG / Linux TPM2) still routes through `WipeAllService`
-/// alongside this call until the per-platform orchestrator moves
-/// to `lfs_core`. Tracked as follow-up.
 pub async fn recovery_run_destructive_reset(
     support_dir: String,
 ) -> Result<DbDestructiveResetReport, String> {

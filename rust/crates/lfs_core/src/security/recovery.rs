@@ -17,11 +17,11 @@
 //!    picks reset / retry / exit. The Dart side keeps the dialog,
 //!    Rust owns the destructive sequence the reset arm triggers.
 //! 3. **Wipe and restart from scratch** — `run_destructive_reset`
-//!    composes the four-step cascade (DB close → file sweep + keychain
-//!    purge + hardware-vault clear → config `security` reset → return
-//!    a structured outcome) atomically. The Dart caller awaits one
-//!    FRB call instead of sequencing four; partial-failure handling
-//!    lives Rust-side.
+//!    composes the cascade (DB close → file sweep → keychain purge
+//!    → hardware-vault primary clear → hardware-vault biometric
+//!    overlay clear → return a structured outcome) atomically. The
+//!    Dart caller awaits one FRB call instead of sequencing five
+//!    separate hops; partial-failure handling lives Rust-side.
 //!
 //! ## Ordering invariants (load-bearing)
 //!
@@ -35,6 +35,14 @@
 //!   old file, so a mid-sequence crash leaves a fresh empty config
 //!   the next launch's wizard can replace, not a stale tier-attached
 //!   record over a wiped vault.
+//! - **Hardware-vault clear is best-effort and runs AFTER the file
+//!   sweep.** The sweep deletes the wrapped-key envelope file from
+//!   disk; the per-platform `clear` call drops the persisted
+//!   hardware key (Apple SE entry, AndroidKeyStore alias, Windows
+//!   CNG persisted key) the file used to wrap. Linux has no
+//!   persistent hardware key — the TPM2 envelope is fully on-disk —
+//!   so `clear` there is a redundant file-removal that succeeds
+//!   trivially after the sweep already dropped the file.
 //! - **First-launch re-init MUST run after the cascade returns.** The
 //!   wizard is a Flutter widget the Dart caller surfaces; this module
 //!   does NOT run it. Callers await `run_destructive_reset` and then
@@ -159,9 +167,20 @@ pub struct DestructiveResetReport {
     /// or already absent. False when at least one entry returned
     /// an unexpected status from the platform plugin.
     pub keychain_purge_succeeded: bool,
+    /// True when the per-platform hardware-vault primary key was
+    /// dropped (Apple SE / AndroidKeyStore / Windows CNG persisted
+    /// key, or the on-disk TPM2 envelope on Linux). Best-effort:
+    /// `PlatformUnsupported` (no hardware tier on this build) and
+    /// already-absent both count as success — the contract is "no
+    /// vault state remains", not "we executed a delete syscall".
+    pub hw_vault_cleared: bool,
+    /// True when the per-platform hardware-vault biometric overlay
+    /// was dropped. Same best-effort semantics as
+    /// [`Self::hw_vault_cleared`].
+    pub hw_vault_biometric_cleared: bool,
 }
 
-/// Compose the destructive cascade Dart used to drive across four
+/// Compose the destructive cascade Dart used to drive across five
 /// separate FRB hops + a Riverpod state patch:
 ///
 /// 1. DB close — release the SQLCipher handle so the file sweep
@@ -170,25 +189,26 @@ pub struct DestructiveResetReport {
 ///    managed artefact + the logs directory.
 /// 3. Keychain purge — Rust-side [`wipe_keychain::run`] drops every
 ///    OS-keychain entry the workspace audits.
-/// 4. (Implicit) — `config.json` is in the managed-files list, so
+/// 4. Hardware-vault primary clear — per-platform dispatch into
+///    `lfs_os_security::hardware_tier_vault::clear` (Apple SE /
+///    AndroidKeyStore / Windows CNG persisted key) or the in-crate
+///    `hardware_tier_vault::linux::clear` (TPM2 envelope file).
+///    Best-effort: a `PlatformUnsupported` or already-absent
+///    outcome counts as success; only a hard backend error counts
+///    as a failure and the cascade still continues.
+/// 5. Hardware-vault biometric overlay clear — same dispatch shape
+///    as step 4 against the `clear_biometric_password` surface.
+/// 6. (Implicit) — `config.json` is in the managed-files list, so
 ///    step 2 leaves the install with no on-disk config. The next
 ///    Dart-side `configStoreInit` call seeds a fresh
 ///    `AppConfig.defaults` shape automatically, dropping the
 ///    explicit Riverpod patch the controller used to issue.
 ///
-/// Hardware-vault clear stays Dart-driven for now — it routes
-/// through `lfs_os_security::hardware_tier_vault::clear*` which the
-/// Dart `WipeAllService` already composes; collapsing that call too
-/// would require either (a) moving the per-platform hw-vault clear
-/// orchestrator into `lfs_core` (E15 / E16 follow-up) or (b)
-/// surfacing a callback hook here for the Dart side to plug in.
-/// Option (b) defeats the "one transaction" goal; option (a) is
-/// out of scope for this arc — flagged for follow-up.
-///
 /// Returns the structured outcome regardless of partial failures.
-/// The cascade does not abort on a sweep failure (one stuck file
-/// must not block the rest of the wipe); the caller surfaces the
-/// outcome via the existing logging + toast paths.
+/// The cascade does not abort on a sweep / keychain / hw-vault
+/// failure (one stuck file or hardware backend must not block the
+/// rest of the wipe); the caller surfaces the outcome via the
+/// existing logging + toast paths.
 pub async fn run_destructive_reset(support_dir: &Path) -> DestructiveResetReport {
     crate::app_log_warn!(
         "Recovery",
@@ -226,10 +246,115 @@ pub async fn run_destructive_reset(support_dir: &Path) -> DestructiveResetReport
         kc_ok
     );
 
+    // 4. Hardware-vault primary clear. Drops the persisted hardware
+    //    key the wrapped-envelope file (already deleted in step 2)
+    //    used to unwrap. Apple / Android / Windows release the
+    //    persistent key; Linux is a redundant file-remove (file
+    //    already gone from step 2 — returns `Ok(())`).
+    let hw_ok = clear_hw_vault_primary(support_dir);
+    crate::app_log_info!(
+        "Recovery",
+        "destructive_reset: hw_vault_clear complete succeeded={}",
+        hw_ok
+    );
+
+    // 5. Hardware-vault biometric overlay clear. Same dispatch
+    //    shape; on Linux the persistent state is the on-disk
+    //    overlay file (step 2 already removed it). Apple / Android
+    //    / Windows additionally drop the overlay's persistent key
+    //    so a stale biometric binding cannot resurface.
+    let hw_bio_ok = clear_hw_vault_biometric(support_dir);
+    crate::app_log_info!(
+        "Recovery",
+        "destructive_reset: hw_vault_biometric_clear complete succeeded={}",
+        hw_bio_ok
+    );
+
     DestructiveResetReport {
         deleted_files: file_report.deleted_files,
         failed_files: file_report.failed_files,
         keychain_purge_succeeded: kc_ok,
+        hw_vault_cleared: hw_ok,
+        hw_vault_biometric_cleared: hw_bio_ok,
+    }
+}
+
+/// Best-effort dispatch into the per-platform hardware-vault
+/// primary clear. Linux routes through the in-crate TPM2 module;
+/// every other target routes through `lfs_os_security`. Returns
+/// `true` when the backend reports success OR `PlatformUnsupported`
+/// (no hardware tier compiled for this build); `false` only when
+/// the backend errored on a present hardware surface.
+fn clear_hw_vault_primary(support_dir: &Path) -> bool {
+    let support_dir_str = support_dir.to_string_lossy();
+    #[cfg(target_os = "linux")]
+    {
+        match crate::security::hardware_tier_vault::linux::clear(&support_dir_str) {
+            Ok(()) => true,
+            Err(e) => {
+                crate::app_log_warn!(
+                    "Recovery",
+                    "destructive_reset: linux hw_vault clear failed: {}",
+                    e
+                );
+                false
+            }
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        use lfs_os_security::hardware_tier_vault::{self as hv, HardwareVaultError};
+        match hv::clear(&support_dir_str) {
+            Ok(()) => true,
+            Err(HardwareVaultError::PlatformUnsupported) => true,
+            Err(e) => {
+                crate::app_log_warn!(
+                    "Recovery",
+                    "destructive_reset: hw_vault clear failed: {:?}",
+                    e
+                );
+                false
+            }
+        }
+    }
+}
+
+/// Best-effort dispatch into the per-platform hardware-vault
+/// biometric-overlay clear. Same semantics as
+/// [`clear_hw_vault_primary`].
+fn clear_hw_vault_biometric(support_dir: &Path) -> bool {
+    let support_dir_str = support_dir.to_string_lossy();
+    #[cfg(target_os = "linux")]
+    {
+        match crate::security::hardware_tier_vault::linux::clear_biometric_password(
+            &support_dir_str,
+        ) {
+            Ok(()) => true,
+            Err(e) => {
+                crate::app_log_warn!(
+                    "Recovery",
+                    "destructive_reset: linux hw_vault clear_biometric failed: {}",
+                    e
+                );
+                false
+            }
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        use lfs_os_security::hardware_tier_vault::{self as hv, HardwareVaultError};
+        match hv::clear_biometric_password(&support_dir_str) {
+            Ok(()) => true,
+            Err(HardwareVaultError::PlatformUnsupported) => true,
+            Err(e) => {
+                crate::app_log_warn!(
+                    "Recovery",
+                    "destructive_reset: hw_vault clear_biometric failed: {:?}",
+                    e
+                );
+                false
+            }
+        }
     }
 }
 
@@ -352,6 +477,14 @@ mod tests {
         // Use `>=` because the sweep also probes other managed
         // names that happened to not exist on this run.
         assert!(report.deleted_files.len() >= 3);
+        // Hardware-vault clear runs on every target — Linux is a
+        // file-remove against the already-swept envelope (succeeds);
+        // Apple / Android / Windows surface `PlatformUnsupported`
+        // under cargo test (no hardware backend available in the
+        // workspace harness) which the helper still counts as
+        // success. Either way the boolean is true.
+        assert!(report.hw_vault_cleared);
+        assert!(report.hw_vault_biometric_cleared);
         // Wipe-pending marker cleared at the end of the cascade
         // so the next launch does not loop back into resume-wipe.
         assert!(!wipe::has_pending_wipe(p));
@@ -373,5 +506,10 @@ mod tests {
         let report = run_destructive_reset(tmp.path()).await;
         assert!(report.deleted_files.is_empty());
         assert!(report.failed_files.is_empty());
+        // Idempotent across the hw-vault arms too — clearing
+        // an already-empty support_dir leaves both flags true
+        // (no backend state to drop ⇒ success).
+        assert!(report.hw_vault_cleared);
+        assert!(report.hw_vault_biometric_cleared);
     }
 }
