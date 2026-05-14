@@ -15,18 +15,19 @@ import '../../utils/logger.dart';
 ///
 /// **Source of truth for the lock state is Rust's `tier_machine`.**
 /// The notifier subscribes to `BusTopic.tier` and flips on the
-/// `locked` / `wiping` wire names. The Dart side never originates a
-/// lock by mutating the bool directly — auto-lock requests go through
-/// `tierMachineDispatch(DbTierEvent::LockRequested)`, which dispatches
-/// the transition Rust-side and publishes the bus event that the
-/// notifier observes.
+/// `locked` / `wiping` wire names (lock path) and on
+/// `UnlockCascadeReady` (unlock path). The Dart side never originates
+/// a transition by mutating the bool directly — auto-lock requests go
+/// through `tierMachineDispatch(DbTierEvent::LockRequested)` and
+/// unlock attempts go through `tier_unlock_*` orchestrators, both of
+/// which publish the bus events that the notifier observes.
 final lockStateProvider = NotifierProvider<LockStateNotifier, bool>(
   LockStateNotifier.new,
 );
 
 /// Riverpod notifier backing [lockStateProvider].
 ///
-/// Two transition paths, both idempotent:
+/// Two transition paths, both idempotent, both Rust-driven:
 ///
 /// 1. **Lock** — Rust's `tier_machine` emits
 ///    `BusEvent::TierStateChanged { state_wire_name: "locked" }` (or
@@ -35,16 +36,15 @@ final lockStateProvider = NotifierProvider<LockStateNotifier, bool>(
 ///    `WipeAllService`, or any other path that dispatches
 ///    `TierEvent::LockRequested` / `TierEvent::Wiped` against the
 ///    singleton tier machine.
-/// 2. **Unlock** — driven entirely by the Dart-side cascade in
-///    `LockScreen`. The Rust orchestrator fires
-///    `TierStateChanged { wire: "unlocked" }` BEFORE the
-///    `TierUnlockedListener` finishes its post-unlock work (caches,
-///    `dbInit`, `securityStateProvider`, config persist). The lock
-///    overlay stays up across that cascade because the workspace UI
-///    re-mounts on the bool flip and would otherwise hit a transient
-///    half-open DB. [markUnlockCascadeComplete] is called by the
-///    lock screen AFTER the listener resolves, which is when it's
-///    actually safe to swap back to the workspace tree.
+/// 2. **Unlock** — Rust's `run_post_unlock_cascade` opens the DB,
+///    persists the tier, publishes the store-changed events
+///    (`SessionsChanged` / `KeysChanged` / `KnownHostsChanged`),
+///    then publishes `BusEvent::UnlockCascadeReady { tier_wire,
+///    has_key }`. The notifier flips [state] back to `false` on that
+///    terminal event — every store the workspace tree reads has
+///    already re-fetched, so the re-mount lands on ready data.
+///    `TierStateChanged { wire: "unlocked" }` fires earlier in the
+///    Rust cascade and is intentionally ignored here.
 class LockStateNotifier extends Notifier<bool> {
   StreamSubscription<rust_bus.BusEvent>? _busSub;
 
@@ -78,6 +78,19 @@ class LockStateNotifier extends Notifier<bool> {
   }
 
   void _onBusEvent(rust_bus.BusEvent event) {
+    if (event is rust_bus.BusEvent_UnlockCascadeReady) {
+      // Terminal Rust-side cascade signal — DB open, tier persisted,
+      // store-changed events already published. Safe to drop the
+      // overlay and let the workspace tree re-mount.
+      if (state) {
+        AppLogger.instance.log(
+          'lock overlay → off (Rust cascade ready, tier: ${event.tierWire})',
+          name: 'LockState',
+        );
+        state = false;
+      }
+      return;
+    }
     if (event is! rust_bus.BusEvent_TierStateChanged) return;
     switch (event.stateWireName) {
       case 'locked':
@@ -91,14 +104,14 @@ class LockStateNotifier extends Notifier<bool> {
         }
       case 'unlocked':
       case 'unlocking':
-        // Don't flip on `unlocked` — the Dart post-unlock cascade in
-        // `TierUnlockedListener` still has work to do (caches,
-        // dbInit, securityStateProvider, config persist) and the
-        // workspace UI would otherwise re-mount against a transient
-        // half-open DB. [markUnlockCascadeComplete] is the signal
-        // that the cascade is done and it's safe to swap back to the
-        // workspace tree. `unlocking` is a transient state with no
-        // overlay implication of its own.
+        // Don't flip on `unlocked` — Rust's `run_post_unlock_cascade`
+        // emits this BEFORE it opens the rusqlite handle, persists
+        // the tier, and publishes the store-changed events. The
+        // workspace tree would otherwise re-mount against a transient
+        // half-open DB. `UnlockCascadeReady` is the terminal signal
+        // that every store is ready; the overlay clears there.
+        // `unlocking` is a transient state with no overlay
+        // implication of its own.
         break;
       case _:
         // Unknown wire name — log + drop. New `TierState` variants
@@ -112,21 +125,6 @@ class LockStateNotifier extends Notifier<bool> {
     }
   }
 
-  /// Signal that the Dart-side post-unlock cascade has finished and
-  /// the workspace UI can re-mount. Called by the lock screen after
-  /// `TierUnlockedListener.awaitNextUnlock` resolves — the workspace
-  /// would otherwise re-mount on the bus event ahead of the cascade
-  /// landing the rusqlite handle.
-  void markUnlockCascadeComplete() {
-    if (state) {
-      AppLogger.instance.log(
-        'lock overlay → off (Dart unlock cascade complete)',
-        name: 'LockState',
-      );
-      state = false;
-    }
-  }
-
   /// Test-only seam — force the lock overlay on without round-tripping
   /// through the Rust tier machine + bus. The production lock path
   /// drives through `tierMachineDispatch(LockRequested)` which fires
@@ -137,5 +135,16 @@ class LockStateNotifier extends Notifier<bool> {
   @visibleForTesting
   void debugForceLocked() {
     if (!state) state = true;
+  }
+
+  /// Test-only seam — force the lock overlay off without
+  /// round-tripping through Rust's `run_post_unlock_cascade` +
+  /// `BusEvent::UnlockCascadeReady`. Mirrors [debugForceLocked]; the
+  /// lock-screen widget tests use an `_ImmediateListener` that
+  /// short-circuits the orchestrator, so the bus never delivers the
+  /// cascade-ready event that production flips on.
+  @visibleForTesting
+  void debugForceUnlocked() {
+    if (state) state = false;
   }
 }

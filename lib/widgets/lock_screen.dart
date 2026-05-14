@@ -21,12 +21,13 @@ import 'secure_screen_scope.dart';
 /// Paranoid-only re-auth surface today. `_submitPassword` drives
 /// [MasterPasswordManager.unlockAttempt] which routes through the
 /// `tier_unlock_paranoid` orchestrator: stage key in SecretStore +
-/// emit unlock cascade. The [TierUnlockedListener] takes the bytes
-/// on `BusEvent::TierStateChanged.unlocked` and re-runs the
-/// post-unlock cascade (caches, drift open, securityStateProvider,
-/// config persist); after the listener resolves the screen signals
-/// [LockStateNotifier.markUnlockCascadeComplete] so the UI restores
-/// the workspace.
+/// emit unlock cascade. Rust's `run_post_unlock_cascade` opens the
+/// DB, publishes the store-changed events, and finally publishes
+/// `BusEvent::UnlockCascadeReady`; [LockStateNotifier] is subscribed
+/// to that terminal event and flips the overlay off on its own. The
+/// screen awaits `TierUnlockedListener.awaitNextUnlock` only to gate
+/// the busy spinner on the orchestrator round-trip, not the overlay
+/// flip.
 ///
 /// The biometric overlay surfaces only on tiers that carry an
 /// OS-managed biometric slot for the typed password (T1+pw, T2);
@@ -77,28 +78,29 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
     try {
       // Routes through `tier_unlock_paranoid` — single Argon2id,
-      // stages the derived key in the SecretStore + emits the
-      // unlock cascade. The `TierUnlockedListener` takes the bytes
-      // on the `unlocked` event and runs the post-unlock cascade
-      // (caches, drift open, securityStateProvider, config persist).
+      // stages the derived key in the SecretStore + dispatches
+      // Rust's `run_post_unlock_cascade` (DB open, tier persist,
+      // store-changed events, `UnlockCascadeReady`). The Dart
+      // Riverpod half (`securityStateProvider.setActive`, overlay
+      // flip) lives off the terminal bus event.
       final attempt = await manager.unlockAttempt(
         Uint8List.fromList(utf8.encode(password)),
       );
       if (!mounted) return;
       switch (attempt) {
         case TierUnlockAttempt.staged:
-          // Wait for the listener cascade to finish before flipping
-          // the lock-state flag — the workspace UI re-mounts on
-          // unlock and would otherwise hit a transient half-open DB.
-          // Best-effort timeout: under flutter_test the FRB native lib
-          // isn't loaded so the bus stream never delivers; flip lock
-          // state anyway so the UI doesn't strand.
+          // Wait for the Rust cascade to settle so the busy spinner
+          // stays up across the round-trip. The overlay flip itself
+          // is driven by `LockStateNotifier` subscribing to
+          // `BusEvent::UnlockCascadeReady` — by the time
+          // `awaitNextUnlock` resolves, the same event has already
+          // flipped `lockStateProvider` to `false` and the workspace
+          // re-mounts on the next frame.
           await unlockDone.timeout(
             tierUnlockedListenerWaitTimeout,
             onTimeout: () => TierUnlockOutcome.failed,
           );
           if (!mounted) return;
-          ref.read(lockStateProvider.notifier).markUnlockCascadeComplete();
         case TierUnlockAttempt.wrongSecret:
           listener.cancelPending();
           setState(() {

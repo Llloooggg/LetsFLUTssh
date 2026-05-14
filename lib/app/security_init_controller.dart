@@ -263,11 +263,12 @@ class SecurityInitController {
   /// The auto-lock path unconditionally closes the DB handle so MC's
   /// C-layer page-cipher cache (ChaCha20-Poly1305 state) is zeroed
   /// alongside the Rust-side `SecretStore` slot that held the DB
-  /// key. On unlock the lock screen re-derives the DB key, pushes
-  /// it back into [securityStateProvider], and signals
-  /// [LockStateNotifier.markUnlockCascadeComplete] — this callback
-  /// then walks the usual injection path so every store gets a
-  /// fresh DB reference.
+  /// key. On unlock the orchestrator stages the derived key, opens
+  /// the rusqlite handle, and publishes
+  /// `BusEvent::UnlockCascadeReady`; [TierUnlockedListener] picks
+  /// the event up and runs [securityStateProvider.setActive], and
+  /// this callback then walks the usual injection path so every
+  /// store gets a fresh DB reference.
   Future<void> reopenAfterUnlock() async {
     if (!isMounted()) return;
     final security = ref.read(securityStateProvider);

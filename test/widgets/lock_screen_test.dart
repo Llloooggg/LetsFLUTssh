@@ -17,11 +17,14 @@ import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/widgets/lock_screen.dart';
 
 /// Test-only listener that resolves `awaitNextUnlock` immediately
-/// with `unlocked`. The real listener subscribes to `AppBus` which
-/// requires the FRB native lib (not loaded in flutter_test); a real
-/// `awaitNextUnlock` future would never complete and the screen's
-/// 5s timeout uses real wall-clock that pumpAndSettle doesn't
-/// advance.
+/// with `unlocked`. The real listener + production
+/// `LockStateNotifier` both subscribe to `AppBus`, which requires
+/// the FRB native lib (not loaded in flutter_test); a real
+/// `awaitNextUnlock` future would never complete. The fake
+/// short-circuits so the lock-screen tests can pump through the
+/// orchestrator round-trip; the parallel `BusEvent::UnlockCascadeReady`
+/// flip the production notifier consumes is staged by the fake
+/// master-password manager on a successful `unlockAttempt`.
 class _ImmediateListener extends TierUnlockedListener {
   _ImmediateListener(super.ref);
 
@@ -40,10 +43,24 @@ class _ImmediateListener extends TierUnlockedListener {
 }
 
 class _FakeMasterPassword extends MasterPasswordManager {
-  _FakeMasterPassword({required this.expectedPassword, required this.keyBytes});
+  _FakeMasterPassword({
+    required this.expectedPassword,
+    required this.keyBytes,
+    this.onStaged,
+  });
 
   final String expectedPassword;
   final Uint8List keyBytes;
+
+  /// Called inside `unlockAttempt` when the password matches —
+  /// mirrors the side-effect chain Rust's `run_post_unlock_cascade`
+  /// drives off a staged key (publishes the store-changed events
+  /// and `BusEvent::UnlockCascadeReady`). The lock-screen tests use
+  /// this hook to stage the overlay flip through
+  /// `LockStateNotifier.debugForceUnlocked` since the real bus event
+  /// can't fire without the FRB native lib.
+  final void Function()? onStaged;
+
   int unlockAttemptCalls = 0;
 
   bool _matches(Uint8List password) {
@@ -58,9 +75,11 @@ class _FakeMasterPassword extends MasterPasswordManager {
   @override
   Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
     unlockAttemptCalls++;
-    return _matches(password)
-        ? TierUnlockAttempt.staged
-        : TierUnlockAttempt.wrongSecret;
+    if (_matches(password)) {
+      onStaged?.call();
+      return TierUnlockAttempt.staged;
+    }
+    return TierUnlockAttempt.wrongSecret;
   }
 
   @override
@@ -110,11 +129,19 @@ void main() {
   testWidgets(
     'enter correct password → lockState flips to unlocked with derived key',
     (tester) async {
+      late final ProviderContainer container;
       final mp = _FakeMasterPassword(
         expectedPassword: 'letmein',
         keyBytes: zeroKey,
+        // Mirror Rust's `run_post_unlock_cascade` → `UnlockCascadeReady`
+        // bus event that `LockStateNotifier` flips on in production.
+        // The FRB native lib isn't loaded under flutter_test so the
+        // real event never lands; staging the same transition through
+        // the test seam keeps the contract under observation.
+        onStaged: () =>
+            container.read(lockStateProvider.notifier).debugForceUnlocked(),
       );
-      final container = ProviderContainer(
+      container = ProviderContainer(
         overrides: [
           masterPasswordProvider.overrideWithValue(mp),
           biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
@@ -157,15 +184,11 @@ void main() {
       expect(
         container.read(lockStateProvider),
         false,
-        reason: 'correct password must release the lock',
+        reason:
+            'correct password must release the lock — production flips '
+            'on `BusEvent::UnlockCascadeReady` from Rust, the fake '
+            'stages the same flip through `onStaged`.',
       );
-      // The post-unlock cascade (caches, drift open, securityStateProvider,
-      // config persist) lives in `TierUnlockedListener` — verified end-to-
-      // end in `tier_unlocked_listener_test.dart` and the integration
-      // suite. Under flutter_test the FRB native lib is not loaded so the
-      // bus stream never delivers the `unlocked` event; the lock screen's
-      // 5s timeout fires and flips lock state anyway so the UI doesn't
-      // strand.
     },
   );
 
