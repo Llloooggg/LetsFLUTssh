@@ -518,15 +518,14 @@ class AppConfig {
 
 SecurityConfig? _securityConfigFromTyped(DbSecurityConfig? db) {
   if (db == null) return null;
-  // Absence (handled by the `null` branch above) and an unknown wire
-  // tier name fall through to "no config" so the first-launch wizard
-  // re-runs rather than landing on a silently-wrong tier. The Rust
-  // canonical parser already filtered unknown wire names — defence in
-  // depth: rebuild via [SecurityTierWireName.fromWireName] and
-  // discard the bag on a parser disagreement.
-  final tier = SecurityTierWireName.fromWireName(db.tierWireName);
+  // The typed `DbSecurityConfig.tier` already filtered unknown wire
+  // names Rust-side (`SecurityTier::from_wire_name` returns Option;
+  // the `From<AppConfig>` impl in the FRB layer collapses unknown
+  // tiers to `Plaintext` so the caller routes into the wizard rather
+  // than landing on a silently-wrong tier). No second decode needed
+  // here — the field is already the typed enum.
   return SecurityConfig(
-    tier: tier,
+    tier: db.tier,
     modifiers: SecurityTierModifiers(
       password: db.password,
       biometric: db.biometric,
@@ -537,7 +536,7 @@ SecurityConfig? _securityConfigFromTyped(DbSecurityConfig? db) {
 DbSecurityConfig? _securityConfigToTyped(SecurityConfig? config) {
   if (config == null) return null;
   return DbSecurityConfig(
-    tierWireName: config.tier.wireName,
+    tier: config.tier,
     password: config.modifiers.password,
     biometric: config.modifiers.biometric,
   );

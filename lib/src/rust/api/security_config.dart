@@ -6,23 +6,42 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `hash`
+
+/// Parse a stored tier wire-string into the typed enum. Returns
+/// `None` for an unknown / empty string so the caller can decide
+/// whether to fall through to plaintext (config-load path) or
+/// surface the misuse (typed FRB caller). Mirrors the
+/// [`SecurityTier::from_wire_name`] semantics — pre-v3 strings
+/// (`keychain_with_password`) are not recognised; the
+/// `ConfigV2ToV3` migration rewrites stored configs before this
+/// reader sees them.
+DbSecurityTier? securityTierFromWire({required String value}) => RustLib
+    .instance
+    .api
+    .crateApiSecurityConfigSecurityTierFromWire(value: value);
+
+/// Wire value the typed enum lowers to. The FRB sync shim around
+/// [`SecurityTier::wire_name`] — Dart-side consumers route through
+/// this helper instead of `.name` so any future variant added to a
+/// build whose Dart name diverges from the wire grammar (a keyword
+/// collision forces FRB to append `_`) keeps the on-wire byte
+/// canonical.
+String securityTierToWire({required DbSecurityTier value}) =>
+    RustLib.instance.api.crateApiSecurityConfigSecurityTierToWire(value: value);
 
 /// Encode the `SecurityConfig` blob persisted under
 /// `config.json::security`. Returns the minified JSON string —
 /// caller `jsonDecode`s into a `Map<String, dynamic>` for the
-/// existing `app_config.dart` consumers.
-///
-/// `tier_wire_name` must be one of `plaintext`, `keychain`,
-/// `hardware`, `paranoid`. Unknown wire names surface as `Err`
-/// so the caller surfaces the misuse instead of silently picking
-/// plaintext.
+/// existing `app_config.dart` consumers. Takes the typed
+/// [`DbSecurityTier`] so the wire-name validation lives Rust-side
+/// and the Dart caller can't pass a typo.
 String securityConfigToJson({
-  required String tierWireName,
+  required DbSecurityTier tier,
   required bool password,
   required bool biometric,
 }) => RustLib.instance.api.crateApiSecurityConfigSecurityConfigToJson(
-  tierWireName: tierWireName,
+  tier: tier,
   password: password,
   biometric: biometric,
 );
@@ -54,34 +73,49 @@ DbSecurityTierModifiers? securityTierModifiersFromJson({
   json: json,
 );
 
-/// Flat DTO for a parsed `SecurityConfig` — tier wire name +
-/// per-modifier scalars, returned across the FRB boundary so the
-/// Dart caller can rebuild its own `SecurityConfig` instance
-/// without re-importing the enum from a generated file.
+/// Flat DTO for a parsed `SecurityConfig` — typed tier + per-modifier
+/// scalars, returned across the FRB boundary so the Dart caller can
+/// rebuild its own `SecurityConfig` instance without re-importing
+/// the enum from a generated file. The tier rides as a typed
+/// [`DbSecurityTier`] (no wire-string round-trip on the Dart side).
 class DbSecurityConfig {
-  final String tierWireName;
+  final DbSecurityTier tier;
   final bool password;
   final bool biometric;
 
   const DbSecurityConfig({
-    required this.tierWireName,
+    required this.tier,
     required this.password,
     required this.biometric,
   });
 
   @override
-  int get hashCode =>
-      tierWireName.hashCode ^ password.hashCode ^ biometric.hashCode;
+  int get hashCode => tier.hashCode ^ password.hashCode ^ biometric.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is DbSecurityConfig &&
           runtimeType == other.runtimeType &&
-          tierWireName == other.tierWireName &&
+          tier == other.tier &&
           password == other.password &&
           biometric == other.biometric;
 }
+
+/// FRB-visible mirror of [`lfs_core::security::SecurityTier`].
+/// Carries the four bank-style tier values across the boundary as a
+/// typed enum; Dart consumers pattern-match directly rather than
+/// round-tripping the wire-string through a `.fromWireName` helper.
+///
+/// FRB codegen lowers each variant to camelCase Dart matching the
+/// wire grammar `SecurityTier::wire_name` round-trips byte-identically
+/// (`plaintext` / `keychain` / `hardware` / `paranoid`). None of the
+/// variants collide with a Dart reserved word so the `.name` getter
+/// matches the wire byte for every value — the dedicated
+/// [`security_tier_to_wire`] helper still exists so callers route
+/// through the canonical grammar instead of relying on the camelCase
+/// coincidence.
+enum DbSecurityTier { plaintext, keychain, hardware, paranoid }
 
 /// FRB-side mirror of just the modifiers block.
 class DbSecurityTierModifiers {

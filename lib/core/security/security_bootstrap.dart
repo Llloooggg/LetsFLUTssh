@@ -5,6 +5,7 @@ import '../../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/security_capabilities.dart'
     show DbKeyringProbeResult, DbSecurityCapabilities;
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../../src/rust/api/wizard_setup.dart' as rust_wizard;
 import '../../utils/logger.dart';
 import 'security_tier.dart';
@@ -172,7 +173,13 @@ MappedSetupChoice mapWizardChoice({
     typedSecret: typedSecret,
   );
   return MappedSetupChoice(
-    tier: SecurityTierWireName.fromWireName(r.tierWireName),
+    // The Rust mapper already filtered unknown wire names; fall back
+    // to plaintext on the off-chance a future caller hands us a tier
+    // string this build doesn't know yet (defensive, the wizard side
+    // is the only producer and rides the same enum).
+    tier:
+        rust_sec_cfg.securityTierFromWire(value: r.tierWireName) ??
+        SecurityTier.plaintext,
     modifiers: SecurityTierModifiers(
       password: r.password,
       biometric: r.biometric,

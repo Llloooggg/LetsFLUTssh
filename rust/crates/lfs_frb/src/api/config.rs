@@ -17,7 +17,6 @@ use lfs_core::config::{
     AppConfig, BehaviorConfig, LogLevel as CoreLogLevel, SshDefaults, SyncConfig, TerminalConfig,
     UiConfig,
 };
-use lfs_core::security::SecurityTier;
 
 use crate::api::security_capabilities::DbSecurityCapabilities;
 use crate::api::security_config::DbSecurityConfig;
@@ -201,7 +200,7 @@ impl From<AppConfig> for DbAppConfigSnapshot {
             max_history: c.max_history,
             locale: c.locale,
             security: c.security.map(|s| DbSecurityConfig {
-                tier_wire_name: s.tier.wire_name().to_string(),
+                tier: s.tier.into(),
                 password: s.modifiers.password,
                 biometric: s.modifiers.biometric,
             }),
@@ -214,16 +213,12 @@ impl From<AppConfig> for DbAppConfigSnapshot {
 
 impl From<DbAppConfigSnapshot> for AppConfig {
     fn from(c: DbAppConfigSnapshot) -> Self {
-        let security = c.security.and_then(|s| {
-            SecurityTier::from_wire_name(&s.tier_wire_name).map(|tier| {
-                lfs_core::security::SecurityConfig {
-                    tier,
-                    modifiers: lfs_core::security::SecurityTierModifiers {
-                        password: s.password,
-                        biometric: s.biometric,
-                    },
-                }
-            })
+        let security = c.security.map(|s| lfs_core::security::SecurityConfig {
+            tier: s.tier.into(),
+            modifiers: lfs_core::security::SecurityTierModifiers {
+                password: s.password,
+                biometric: s.biometric,
+            },
         });
         Self {
             terminal: c.terminal.into(),

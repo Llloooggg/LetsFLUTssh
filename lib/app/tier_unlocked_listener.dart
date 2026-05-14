@@ -6,6 +6,7 @@ import '../core/bus/app_bus.dart';
 import '../core/security/security_tier.dart';
 import '../providers/security_provider.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
+import '../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../utils/logger.dart';
 
 /// Wall-clock budget for `awaitNextUnlock().timeout(...)` across
@@ -155,7 +156,13 @@ class TierUnlockedListener {
   /// flip + resolve the pending `awaitNextUnlock`).
   void _handleCascadeReady(rust_bus.BusEvent_UnlockCascadeReady event) {
     try {
-      final tier = SecurityTierWireName.fromWireName(event.tierWire);
+      // Rust orchestrator only emits canonical wire names; the
+      // fallback is defensive (an unknown variant from a newer build
+      // shouldn't crash the cascade — route into plaintext and let
+      // the wizard re-resolve).
+      final tier =
+          rust_sec_cfg.securityTierFromWire(value: event.tierWire) ??
+          SecurityTier.plaintext;
       // Sessions + ssh_keys + known_hosts streams re-fetch off the
       // `SessionsChanged` / `KeysChanged` / `KnownHostsChanged` bus
       // events the Rust orchestrator publishes right before

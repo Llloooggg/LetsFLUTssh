@@ -156,25 +156,14 @@ void main() {
       expect(m.biometric, isFalse);
     });
 
-    test('JSON round-trip preserves the bank-style modifier fields', () {
-      const m = SecurityTierModifiers(password: true, biometric: true);
-      final round = SecurityTierModifiers.fromJson(m.toJson());
-      expect(round, m);
-    });
-
-    test('legacy biometric_shortcut / pin_length JSON keys are ignored', () {
-      // ConfigV3ToV4 strips these from disk on first read; if a
-      // hand-edited config still carries them, the runtime decoder
-      // must silently drop them rather than blow up.
-      final m = SecurityTierModifiers.fromJson(const {
-        'password': true,
-        'biometric': false,
-        'biometric_shortcut': true,
-        'pin_length': 6,
-      });
-      expect(m.password, isTrue);
-      expect(m.biometric, isFalse);
-    });
+    // Wire codec (JSON round-trip, legacy-key stripping) lives
+    // Rust-side in `lfs_core::security::SecurityTierModifiers`; the
+    // Dart class is now a plain data holder. The `from_json_map` /
+    // `to_json_map` contracts (round-trip every field, drop pre-v4
+    // `biometric_shortcut` / `pin_length` keys) are covered by the
+    // `lfs_core::security::tier` unit tests + the `lfs_frb::api::
+    // security_config` FRB shim tests, so the Dart side no longer
+    // re-asserts them.
   });
 
   group('DbSecurityCapabilities value-type contract', () {

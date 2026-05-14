@@ -15,6 +15,7 @@ import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/macos_resign.dart' show MacosResignOutcome;
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../../widgets/expandable_tier_card.dart';
 
 /// Localised tooltip explaining why biometric is unreachable on this
@@ -370,9 +371,17 @@ String buildTierMarkerPayload(
   SecurityTier tier,
   SecurityTierModifiers modifiers,
 ) {
+  // Modifier codec lives Rust-side in
+  // `lfs_core::security::SecurityTierModifiers::to_json_map`; decode
+  // the canonical Rust-emitted string into a map for the composite
+  // log payload.
+  final modsStr = rust_sec_cfg.securityTierModifiersToJson(
+    password: modifiers.password,
+    biometric: modifiers.biometric,
+  );
   return jsonEncode({
     'tier': securityTierLogName(tier),
-    'mods': modifiers.toJson(),
+    'mods': jsonDecode(modsStr),
   });
 }
 

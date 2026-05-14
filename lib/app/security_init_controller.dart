@@ -25,6 +25,7 @@ import '../src/rust/api/recovery.dart'
         recoveryHandleVaultStateMissing;
 import '../src/rust/api/recovery.dart' show DbRecoveryOutcome;
 import '../src/rust/api/security_capabilities.dart' show DbSecurityCapabilities;
+import '../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
 import '../core/security/keychain_password_gate.dart';
@@ -799,7 +800,7 @@ class SecurityInitController {
     if (ProcessHardening.isBeingDebugged()) {
       unawaited(
         AppLogger.instance.logCritical(
-          'Biometric unlock refused: debugger attached (tier=${tier.wireName})',
+          'Biometric unlock refused: debugger attached (tier=${rust_sec_cfg.securityTierToWire(value: tier)})',
           name: 'ProcessHardening',
         ),
       );
@@ -821,7 +822,7 @@ class SecurityInitController {
       if (!await vault.readToActive()) return false;
       try {
         return rust_orch.tierUnlockBiometricCommitFromSecret(
-          tierWireName: tier.wireName,
+          tierWireName: rust_sec_cfg.securityTierToWire(value: tier),
           secretId: kActiveDbKeySecretId,
         );
       } catch (e) {

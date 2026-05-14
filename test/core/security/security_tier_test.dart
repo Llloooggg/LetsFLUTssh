@@ -1,12 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/src/rust/api/security_config.dart' as rust_sec_cfg;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
-  // SecurityConfig.toJson / fromJson route through
-  // `lfs_core::security::SecurityConfig` — bootstrap FRB so the
-  // canonical wire-format encode + permissive decode are exercised.
+  // Wire codec routes through `lfs_core::security::SecurityConfig`
+  // via the FRB shim — bootstrap FRB so the canonical wire-format
+  // encode + permissive decode are exercised.
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(requireFrbLoaded);
 
@@ -113,14 +116,38 @@ void main() {
     });
   });
 
-  group('SecurityConfig JSON round-trip', () {
+  group('SecurityConfig JSON round-trip via Rust codec', () {
+    // The canonical wire codec lives in
+    // `lfs_core::security::SecurityConfig` (see the `lfs_core`
+    // unit tests). These tests pin the FRB-shim contract — that
+    // the typed Dart `SecurityConfig` round-trips byte-identically
+    // through `securityConfigToJson` + `securityConfigFromJson` so
+    // the persistence boundary in `app_config.dart` keeps the
+    // shape stable.
+
+    SecurityConfig roundTrip(SecurityConfig cfg) {
+      final json = rust_sec_cfg.securityConfigToJson(
+        tier: cfg.tier,
+        password: cfg.modifiers.password,
+        biometric: cfg.modifiers.biometric,
+      );
+      final decoded = rust_sec_cfg.securityConfigFromJson(json: json);
+      expect(decoded, isNotNull, reason: 'permissive decoder returned null');
+      return SecurityConfig(
+        tier: decoded!.tier,
+        modifiers: SecurityTierModifiers(
+          password: decoded.password,
+          biometric: decoded.biometric,
+        ),
+      );
+    }
+
     test('hardware with password + biometric round-trips', () {
       const cfg = SecurityConfig(
         tier: SecurityTier.hardware,
         modifiers: SecurityTierModifiers(password: true, biometric: true),
       );
-      final decoded = SecurityConfig.fromJson(cfg.toJson());
-      expect(decoded, cfg);
+      expect(roundTrip(cfg), cfg);
     });
 
     test('keychain with password modifier round-trips (bank-style L2)', () {
@@ -132,8 +159,7 @@ void main() {
         tier: SecurityTier.keychain,
         modifiers: SecurityTierModifiers(password: true),
       );
-      final decoded = SecurityConfig.fromJson(cfg.toJson());
-      expect(decoded, cfg);
+      expect(roundTrip(cfg), cfg);
     });
 
     test('paranoid with defaults round-trips', () {
@@ -141,30 +167,21 @@ void main() {
         tier: SecurityTier.paranoid,
         modifiers: SecurityTierModifiers.defaults,
       );
-      final decoded = SecurityConfig.fromJson(cfg.toJson());
-      expect(decoded, cfg);
+      expect(roundTrip(cfg), cfg);
     });
 
     test('unknown tier string falls back to plaintext (defensive)', () {
-      final decoded = SecurityConfig.fromJson({
+      // Hand-craft a wire payload with a future-version tier token;
+      // the permissive decoder collapses it onto `plaintext` so the
+      // caller routes into the wizard rather than landing on a
+      // silently-wrong tier.
+      final json = jsonEncode({
         'tier': 'made_up_tier',
-        'modifiers': const SecurityTierModifiers().toJson(),
+        'modifiers': {'password': false, 'biometric': false},
       });
-      expect(decoded.tier, SecurityTier.plaintext);
-    });
-
-    test('legacy biometric_shortcut / pin_length fields are ignored', () {
-      // ConfigV3ToV4 strips these from disk on first read; if a
-      // hand-edited config still carries them, the runtime decoder
-      // must silently drop them rather than blow up.
-      final decoded = SecurityTierModifiers.fromJson({
-        'password': true,
-        'biometric': false,
-        'biometric_shortcut': true,
-        'pin_length': 6,
-      });
-      expect(decoded.password, isTrue);
-      expect(decoded.biometric, isFalse);
+      final decoded = rust_sec_cfg.securityConfigFromJson(json: json);
+      expect(decoded, isNotNull);
+      expect(decoded!.tier, SecurityTier.plaintext);
     });
   });
 

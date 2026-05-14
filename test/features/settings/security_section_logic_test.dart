@@ -9,6 +9,9 @@ import 'package:letsflutssh/features/settings/security_section_logic.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/macos_resign.dart'
     show MacosResignOutcome;
+import 'package:letsflutssh/src/rust/api/security_config.dart' as rust_sec_cfg;
+
+import '../../helpers/frb_bootstrap.dart';
 
 /// Drive the section's pure decision helpers
 /// (`biometricPlatformReason`, `autoLockDisabledReason`,
@@ -18,6 +21,11 @@ import 'package:letsflutssh/src/rust/api/macos_resign.dart'
 /// localisations once and reuse it; no widget tree, no Riverpod
 /// container, no async setup.
 void main() {
+  // `buildTierMarkerPayload` routes the modifiers block through the
+  // Rust FRB codec, so bootstrap the bridge before any test runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   late S l10n;
 
   setUpAll(() async {
@@ -592,11 +600,21 @@ void main() {
       }
     });
 
-    test('modifiers map mirrors SecurityTierModifiers.toJson verbatim', () {
+    test('modifiers map mirrors the canonical FRB codec verbatim', () {
       const mods = SecurityTierModifiers(password: false);
       final payload = buildTierMarkerPayload(SecurityTier.plaintext, mods);
       final decoded = json.decode(payload) as Map<String, dynamic>;
-      expect(decoded['mods'], mods.toJson());
+      // The canonical wire shape lives in `lfs_core::security::
+      // SecurityTierModifiers::to_json_map`; route the expected
+      // payload through the same Rust codec so the test pins the
+      // exact bytes the recovery parser ingests.
+      final expectedMods = json.decode(
+        rust_sec_cfg.securityTierModifiersToJson(
+          password: mods.password,
+          biometric: mods.biometric,
+        ),
+      );
+      expect(decoded['mods'], expectedMods);
     });
   });
 
@@ -793,8 +811,8 @@ void main() {
         },
       );
       expect(calls, [
-        'rekey(null,SecurityTier.plaintext)',
-        'clearPlan(SecurityTier.plaintext)',
+        'rekey(null,DbSecurityTier.plaintext)',
+        'clearPlan(DbSecurityTier.plaintext)',
       ]);
     });
   });
@@ -825,8 +843,8 @@ void main() {
         expect(calls, [
           'stage',
           'write(fake-secret-id)',
-          'rekey(SecurityTier.keychain,fake-secret-id)',
-          'clearPlan(SecurityTier.keychain)',
+          'rekey(DbSecurityTier.keychain,fake-secret-id)',
+          'clearPlan(DbSecurityTier.keychain)',
         ]);
       },
     );
@@ -896,8 +914,8 @@ void main() {
         expect(calls, [
           'stage',
           'seal(fake-id)',
-          'rekey(SecurityTier.hardware,fake-id)',
-          'clearPlan(SecurityTier.hardware)',
+          'rekey(DbSecurityTier.hardware,fake-id)',
+          'clearPlan(DbSecurityTier.hardware)',
         ]);
         expect(capturedPassword, 'pw-1');
       },
@@ -996,8 +1014,8 @@ void main() {
       expect(calls, [
         'mint',
         'enable(fake-master-id)',
-        'rekey(SecurityTier.paranoid,fake-master-id)',
-        'clearPlan(SecurityTier.paranoid)',
+        'rekey(DbSecurityTier.paranoid,fake-master-id)',
+        'clearPlan(DbSecurityTier.paranoid)',
       ]);
     });
 
@@ -1102,8 +1120,8 @@ void main() {
           'gate.set(pw-1)',
           'stage',
           'keychainWrite(fake-id)',
-          'rekey(SecurityTier.keychain,fake-id)',
-          'clearPlan(SecurityTier.keychain)',
+          'rekey(DbSecurityTier.keychain,fake-id)',
+          'clearPlan(DbSecurityTier.keychain)',
         ]);
       },
     );

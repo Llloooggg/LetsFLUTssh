@@ -452,6 +452,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityConfig dco_decode_box_autoadd_db_security_config(dynamic raw);
 
   @protected
+  DbSecurityTier dco_decode_box_autoadd_db_security_tier(dynamic raw);
+
+  @protected
   DbSecurityTierModifiers dco_decode_box_autoadd_db_security_tier_modifiers(
     dynamic raw,
   );
@@ -892,6 +895,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityThreat dco_decode_db_security_threat(dynamic raw);
+
+  @protected
+  DbSecurityTier dco_decode_db_security_tier(dynamic raw);
 
   @protected
   DbSecurityTierModifiers dco_decode_db_security_tier_modifiers(dynamic raw);
@@ -1380,6 +1386,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityConfig? dco_decode_opt_box_autoadd_db_security_config(dynamic raw);
 
   @protected
+  DbSecurityTier? dco_decode_opt_box_autoadd_db_security_tier(dynamic raw);
+
+  @protected
   DbSecurityTierModifiers?
   dco_decode_opt_box_autoadd_db_security_tier_modifiers(dynamic raw);
 
@@ -1865,6 +1874,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityConfig sse_decode_box_autoadd_db_security_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSecurityTier sse_decode_box_autoadd_db_security_tier(
     SseDeserializer deserializer,
   );
 
@@ -2459,6 +2473,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityThreat sse_decode_db_security_threat(SseDeserializer deserializer);
+
+  @protected
+  DbSecurityTier sse_decode_db_security_tier(SseDeserializer deserializer);
 
   @protected
   DbSecurityTierModifiers sse_decode_db_security_tier_modifiers(
@@ -3103,6 +3120,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSecurityTier? sse_decode_opt_box_autoadd_db_security_tier(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSecurityTierModifiers?
   sse_decode_opt_box_autoadd_db_security_tier_modifiers(
     SseDeserializer deserializer,
@@ -3684,6 +3706,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_security_config(
     DbSecurityConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_security_tier(
+    DbSecurityTier self,
     SseSerializer serializer,
   );
 
@@ -4455,6 +4483,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_security_threat(
     DbSecurityThreat self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_security_tier(
+    DbSecurityTier self,
     SseSerializer serializer,
   );
 
@@ -5258,6 +5292,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_security_config(
     DbSecurityConfig? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_security_tier(
+    DbSecurityTier? self,
     SseSerializer serializer,
   );
 
