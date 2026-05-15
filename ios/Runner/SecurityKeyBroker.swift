@@ -81,6 +81,12 @@ private final class SecurityKeyDelegate: NSObject,
         guard let cred =
             authorization.credential as? ASAuthorizationSecurityKeyPublicKeyCredentialAssertion
         else {
+            os_log(
+                "didCompleteWithAuthorization tag=%{public}llu unexpected credential type",
+                log: brokerLog,
+                type: .info,
+                tag,
+            )
             callback(tag, BrokerStatus.other, nil, 0, nil, 0, nil, 0, "unexpected credential type")
             cleanup()
             return
@@ -88,6 +94,16 @@ private final class SecurityKeyDelegate: NSObject,
         let sig = Array(cred.signature)
         let auth = Array(cred.rawAuthenticatorData)
         let userHandle = Array(cred.userID)
+        // Log lengths only — never signature or auth-data contents.
+        os_log(
+            "didCompleteWithAuthorization tag=%{public}llu sigLen=%d authLen=%d uhLen=%d",
+            log: brokerLog,
+            type: .info,
+            tag,
+            sig.count,
+            auth.count,
+            userHandle.count,
+        )
         sig.withUnsafeBufferPointer { sigBuf in
             auth.withUnsafeBufferPointer { authBuf in
                 userHandle.withUnsafeBufferPointer { uhBuf in
@@ -124,6 +140,16 @@ private final class SecurityKeyDelegate: NSObject,
         default:
             status = BrokerStatus.other
         }
+        // `localizedDescription` is an OS-localized message — safe to log.
+        os_log(
+            "didCompleteWithError tag=%{public}llu status=%d code=%ld desc=%{public}@",
+            log: brokerLog,
+            type: .info,
+            tag,
+            status,
+            nsErr.code,
+            nsErr.localizedDescription,
+        )
         let msg = nsErr.localizedDescription.cString(using: .utf8)
         msg?.withUnsafeBufferPointer { ptr in
             callback(tag, status, nil, 0, nil, 0, nil, 0, ptr.baseAddress)
@@ -132,6 +158,12 @@ private final class SecurityKeyDelegate: NSObject,
     }
 
     private func cleanup() {
+        os_log(
+            "cleanup tag=%{public}llu",
+            log: brokerLog,
+            type: .info,
+            tag,
+        )
         SecurityKeyBroker.shared.drop(tag: tag)
     }
 }
@@ -269,6 +301,19 @@ public func lfs_security_key_broker_get_assertion(
     let rpIdStr = String(cString: rpId)
     let credentialId = Data(bytes: credentialIdPtr, count: credentialIdLen)
     let challenge = Data(bytes: challengePtr, count: challengeLen)
+
+    // Entry-point breadcrumb — lengths and UV flag only, no credential
+    // or challenge bytes.
+    os_log(
+        "get_assertion tag=%{public}llu rpId=%{public}@ credIdLen=%d challengeLen=%d requireUv=%d",
+        log: brokerLog,
+        type: .info,
+        tag,
+        rpIdStr,
+        credentialIdLen,
+        challengeLen,
+        requireUv,
+    )
 
     let provider = ASAuthorizationSecurityKeyPublicKeyCredentialProvider(
         relyingPartyIdentifier: rpIdStr

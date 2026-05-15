@@ -2,6 +2,7 @@ package com.llloooggg.letsflutssh
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.biometric.BiometricPrompt
 
 /**
@@ -28,14 +29,19 @@ class LfsKeystoreSignCallback(
     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
         val signature = result.cryptoObject?.signature
         if (signature == null) {
+            // Diagnostic only — no signature bytes exist yet.
+            Log.d(TAG, "onAuthenticationSucceeded requestId=$requestId signature=null")
             nativeOnFailedStatic(requestId, "other", "CryptoObject.signature null")
             return
         }
         try {
             signature.update(data)
             val sig = signature.sign()
+            // Log only the byte length, never the signature contents.
+            Log.d(TAG, "onSignSucceeded requestId=$requestId sigLen=${sig.size}")
             nativeOnSigned(requestId, sig)
         } catch (e: Throwable) {
+            Log.d(TAG, "onSignFailed requestId=$requestId reason=${e.javaClass.simpleName} msg=${e.message}")
             nativeOnFailedStatic(requestId, "other", "sign: ${e.message}")
         }
     }
@@ -46,6 +52,7 @@ class LfsKeystoreSignCallback(
         // onAuthenticationError or onAuthenticationSucceeded. Don't
         // wake the Rust pending channel here — that would race the
         // success path.
+        Log.d(TAG, "onAuthenticationFailed requestId=$requestId (prompt remains)")
     }
 
     override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -57,6 +64,9 @@ class LfsKeystoreSignCallback(
             7, 9 -> "user-not-authenticated"
             else -> "other"
         }
+        // `errString` is a localized OS message — safe to log; contains no
+        // credential or PII.
+        Log.d(TAG, "onAuthenticationError requestId=$requestId code=$errorCode tag=$tag msg=$errString")
         nativeOnFailedStatic(requestId, tag, errString.toString())
     }
 
@@ -74,6 +84,7 @@ class LfsKeystoreSignCallback(
         info: BiometricPrompt.PromptInfo,
         crypto: BiometricPrompt.CryptoObject,
     ) {
+        Log.d(TAG, "dispatchAuthenticate requestId=$requestId dataLen=${data.size}")
         Handler(Looper.getMainLooper()).post {
             prompt.authenticate(info, crypto)
         }
@@ -83,6 +94,10 @@ class LfsKeystoreSignCallback(
     private external fun nativeOnFailed(requestId: Long, reasonTag: String, detail: String)
 
     companion object {
+        // Single tag for filtering in `adb logcat -s LfsKeystoreSign:D`
+        // during support investigations.
+        private const val TAG = "LfsKeystoreSign"
+
         /**
          * Static-side shortcut for the pre-authenticate failure
          * branches inside `KeystoreSshSigner.sign` (algorithm
@@ -94,6 +109,7 @@ class LfsKeystoreSignCallback(
          */
         @JvmStatic
         fun nativeOnFailedStatic(reqId: Long, reasonTag: String, detail: String) {
+            Log.d(TAG, "nativeOnFailedStatic requestId=$reqId reason=$reasonTag detail=$detail")
             LfsKeystoreSignCallback(reqId, ByteArray(0))
                 .nativeOnFailed(reqId, reasonTag, detail)
         }

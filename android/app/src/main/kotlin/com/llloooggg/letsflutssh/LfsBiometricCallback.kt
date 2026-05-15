@@ -2,6 +2,7 @@ package com.llloooggg.letsflutssh
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.biometric.BiometricPrompt
 
 /**
@@ -28,14 +29,21 @@ import androidx.biometric.BiometricPrompt
 class LfsBiometricCallback(private val requestId: Long) : BiometricPrompt.AuthenticationCallback() {
 
     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+        // Log breadcrumb only — no credential / key material is in scope here,
+        // BiometricPrompt does not expose the credential bytes via this callback.
+        Log.d(TAG, "onAuthenticationSucceeded requestId=$requestId")
         nativeOnSucceeded(requestId)
     }
 
     override fun onAuthenticationFailed() {
+        Log.d(TAG, "onAuthenticationFailed requestId=$requestId")
         nativeOnFailed(requestId)
     }
 
     override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+        // `errString` is a localized OS message ("Too many attempts. Try
+        // again later.", etc.) — safe to log; contains no credential or PII.
+        Log.d(TAG, "onAuthenticationError requestId=$requestId code=$errorCode msg=$errString")
         nativeOnError(requestId, errorCode)
     }
 
@@ -48,6 +56,7 @@ class LfsBiometricCallback(private val requestId: Long) : BiometricPrompt.Authen
      * `IllegalStateException: Must be called from main thread`.
      */
     fun dispatchAuthenticate(prompt: BiometricPrompt, info: BiometricPrompt.PromptInfo) {
+        Log.d(TAG, "dispatchAuthenticate requestId=$requestId")
         Handler(Looper.getMainLooper()).post {
             prompt.authenticate(info)
         }
@@ -56,4 +65,10 @@ class LfsBiometricCallback(private val requestId: Long) : BiometricPrompt.Authen
     private external fun nativeOnSucceeded(requestId: Long)
     private external fun nativeOnFailed(requestId: Long)
     private external fun nativeOnError(requestId: Long, errorCode: Int)
+
+    companion object {
+        // Single tag for filtering in `adb logcat -s LfsBiometric:D` during
+        // support investigations.
+        private const val TAG = "LfsBiometric"
+    }
 }

@@ -8,30 +8,80 @@
 #include "flutter_window.h"
 #include "utils.h"
 
+// Single-writer claim flag for `EarlyCrashHandler`. Only the first
+// thread that observes `0` and atomically swaps it to `1` is allowed
+// to write the crash file. Every subsequent crash on any thread
+// returns without touching the file. Invariant: only the first
+// thread's crash gets written; subsequent crashes are silent to
+// avoid file corruption mid-write. `volatile LONG` is the correct
+// shape for `InterlockedExchange` on x86 / x64 / ARM64 Windows.
+static volatile LONG g_crash_logged = 0;
+
 // Early-boot crash logger. Writes a single-line diagnostic to
 // `%LOCALAPPDATA%\LetsFLUTssh\startup-crash.log` when the process
 // dies before the Dart logger initialises. Without this the app
 // silently vanishes on Windows when a native DLL load, mitigation
 // policy, or COM init fails — no WER dump (we disabled it) and no
 // file the user can point at.
+//
+// At crash time the process is in an undefined state: the heap may
+// be torn, the C runtime may be unsafe to call, and other threads
+// may also be unwinding. Buffered stdio (`_wfopen_s` / `fwprintf` /
+// `fclose`) flushes via heap allocations that can deadlock or
+// double-fault. We therefore use raw Win32 (`CreateFileW` +
+// `WriteFile`) and bound the payload to a small fixed stack buffer.
 static LONG WINAPI EarlyCrashHandler(EXCEPTION_POINTERS* ex) {
-  wchar_t buf[MAX_PATH] = {0};
-  DWORD len = ::GetEnvironmentVariableW(L"LOCALAPPDATA", buf, MAX_PATH);
+  // Claim the single-writer slot. `InterlockedExchange` returns the
+  // prior value — non-zero means another crash already wrote.
+  if (::InterlockedExchange(&g_crash_logged, 1) != 0) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  wchar_t local_app_data[MAX_PATH] = {0};
+  DWORD len = ::GetEnvironmentVariableW(L"LOCALAPPDATA", local_app_data, MAX_PATH);
   if (len == 0 || len >= MAX_PATH) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
-  wchar_t path[MAX_PATH];
-  _snwprintf_s(path, MAX_PATH, _TRUNCATE,
-               L"%s\\LetsFLUTssh\\startup-crash.log", buf);
-  ::CreateDirectoryW(path + 0, nullptr);  // idempotent, best-effort.
-  FILE* f = nullptr;
-  if (_wfopen_s(&f, path, L"a") == 0 && f != nullptr) {
-    time_t now = ::time(nullptr);
-    fwprintf(f, L"%lld  exc=0x%08lX  addr=%p\n", (long long)now,
-             ex->ExceptionRecord->ExceptionCode,
-             ex->ExceptionRecord->ExceptionAddress);
-    fclose(f);
+  wchar_t dir[MAX_PATH];
+  if (_snwprintf_s(dir, MAX_PATH, _TRUNCATE, L"%s\\LetsFLUTssh", local_app_data) < 0) {
+    return EXCEPTION_CONTINUE_SEARCH;
   }
+  ::CreateDirectoryW(dir, nullptr);  // idempotent, best-effort.
+
+  wchar_t path[MAX_PATH];
+  if (_snwprintf_s(path, MAX_PATH, _TRUNCATE, L"%s\\startup-crash.log", dir) < 0) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  HANDLE h = ::CreateFileW(
+      path,
+      FILE_APPEND_DATA,
+      FILE_SHARE_READ,
+      nullptr,
+      OPEN_ALWAYS,
+      FILE_ATTRIBUTE_NORMAL,
+      nullptr);
+  if (h == INVALID_HANDLE_VALUE) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  // Forensic note: timestamp, exception code, faulting address. Bounded
+  // to <= 1 KiB on the stack — no heap, no CRT iostreams.
+  char line[1024];
+  time_t now = ::time(nullptr);
+  int written = _snprintf_s(
+      line,
+      sizeof(line),
+      _TRUNCATE,
+      "%lld  exc=0x%08lX  addr=%p\r\n",
+      static_cast<long long>(now),
+      ex->ExceptionRecord->ExceptionCode,
+      ex->ExceptionRecord->ExceptionAddress);
+  if (written > 0) {
+    DWORD bytes_written = 0;
+    ::WriteFile(h, line, static_cast<DWORD>(written), &bytes_written, nullptr);
+  }
+  ::CloseHandle(h);
   return EXCEPTION_CONTINUE_SEARCH;  // Let default termination run.
 }
 

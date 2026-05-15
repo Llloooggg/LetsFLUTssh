@@ -13,7 +13,19 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private val secureScreenChannel = "com.letsflutssh/secure_screen"
+
+    // Cross-thread access to the pending QR-scan result. `launchQrScanner`
+    // runs on the platform-channel thread; `onActivityResult` runs on the
+    // main thread. Without `@Volatile` the write from one thread is not
+    // guaranteed to be visible to the other, and a stale-null read from
+    // `onActivityResult` would silently drop the user's scan response.
+    // The `synchronized(scanResultLock)` blocks make the
+    // null-check-then-set and read-then-clear atomic against each other
+    // so a second `scan` call cannot race past the busy guard while the
+    // first result is mid-delivery.
+    @Volatile
     private var pendingScanResult: MethodChannel.Result? = null
+    private val scanResultLock = Any()
 
     // Refcount for FLAG_SECURE — a nested SecureScreenScope (e.g. an
     // unlock dialog inside the wizard) should not clear the flag when
@@ -104,11 +116,13 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun launchQrScanner(result: MethodChannel.Result) {
-        if (pendingScanResult != null) {
-            result.error("BUSY", "A scan is already in progress", null)
-            return
+        synchronized(scanResultLock) {
+            if (pendingScanResult != null) {
+                result.error("BUSY", "A scan is already in progress", null)
+                return
+            }
+            pendingScanResult = result
         }
-        pendingScanResult = result
         val intent = Intent(this, QrScannerActivity::class.java)
         startActivityForResult(intent, QR_SCAN_REQUEST)
     }
@@ -117,8 +131,12 @@ class MainActivity : FlutterFragmentActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == QR_SCAN_REQUEST) {
             val payload = data?.getStringExtra(QrScannerActivity.EXTRA_RESULT)
-            pendingScanResult?.success(if (resultCode == RESULT_OK) payload else null)
-            pendingScanResult = null
+            val pending = synchronized(scanResultLock) {
+                val r = pendingScanResult
+                pendingScanResult = null
+                r
+            }
+            pending?.success(if (resultCode == RESULT_OK) payload else null)
         }
     }
 }
