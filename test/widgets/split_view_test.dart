@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/widgets/split_view.dart';
-import '''package:letsflutssh/l10n/app_localizations.dart''';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 
 void main() {
   Widget buildApp({
