@@ -555,10 +555,10 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     // longer reachable through the map. `dispose()` is async
     // because it waits for `BusEvent::ConnectionRemoved` to
     // arrive on `Connection._busSub` before cancelling the
-    // subscription — the wait is what kills the
-    // "Fail to post message to Dart" stderr noise FRB used to
-    // emit on every disconnect (the worker was racing the
-    // cancel). Fire-and-forget here: the workspace caller
+    // subscription. Trap: cancelling the FRB stream while the
+    // Rust worker is mid-emit produces "Fail to post message to
+    // Dart" stderr noise, so the bus event is the cancellation
+    // handshake. Fire-and-forget here: the workspace caller
     // doesn't await disconnect, and we already removed the
     // Connection from the map so nothing reads it after this.
     unawaited(conn.dispose());

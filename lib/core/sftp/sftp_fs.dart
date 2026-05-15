@@ -190,11 +190,10 @@ class RustSftpFs extends RemoteSftpFs {
     }
   }
 
-  /// Override the abstract default — the recursive walk now lives
-  /// in `lfs_core::sftp::Sftp::remove_dir_recursive` so the Dart
+  /// Override the abstract default — the recursive walk lives in
+  /// `lfs_core::sftp::Sftp::remove_dir_recursive`, so the Dart
   /// caller pays one FRB roundtrip instead of N (one per file +
-  /// one per directory). Same depth cap as the prior Dart-side
-  /// walker (100).
+  /// one per directory). Depth cap: 100.
   @override
   Future<void> removeDir(String path) async {
     try {
@@ -278,10 +277,10 @@ class RustSftpFs extends RemoteSftpFs {
     void Function(TransferProgress)? onProgress,
   ) async {
     // Single FRB call: the open / read-loop / write-loop / fsync
-    // chain lives Rust-side now; the Dart side only listens to a
-    // per-byte progress stream. Replaces the per-chunk
-    // `raf.read → writeAll` round-trip the SFTP-transfer hot path
-    // used to take (~1600 FRB hops on a 100 MiB file → 1).
+    // chain runs Rust-side; the Dart side only listens to a
+    // per-byte progress stream. One FRB call regardless of file
+    // size (a per-chunk `raf.read → writeAll` shape would issue
+    // ~1600 hops on a 100 MiB file at the default chunk size).
     try {
       final fileName = p.basename(localPath);
       await for (final evt in _sftp.streamUploadFile(

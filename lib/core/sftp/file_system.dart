@@ -79,11 +79,11 @@ class LocalFS implements FileSystem {
     try {
       rows = await rust_local_fs.localFsList(path: path);
     } catch (e) {
-      // Match the prior Dart shape so callers that catch
-      // FileSystemException keep working. FRB surfaces
-      // `Result<_, String>` errors as either an `AnyhowException`
-      // or a plain `String`-bearing exception depending on
-      // codec; a single broad catch unifies both.
+      // Re-throw as FileSystemException so callers that catch it
+      // see one stable exception type regardless of FRB error
+      // variant. FRB surfaces `Result<_, String>` errors as either
+      // an `AnyhowException` or a plain `String`-bearing exception
+      // depending on codec; a single broad catch unifies both.
       throw FileSystemException(_describeError(e), path);
     }
 

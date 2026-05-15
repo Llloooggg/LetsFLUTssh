@@ -231,13 +231,14 @@ class Connection {
   /// transient-secret eviction, connect-attempt success/failure
   /// logging).
   ///
-  /// The manager (`ConnectionsNotifier`) used to mirror these
-  /// events through a per-attempt subscription it cancelled in
-  /// `_doConnect.finally`, but the cancel raced in-flight events
-  /// from the FRB worker thread and produced "Fail to post
-  /// message to Dart" stderr noise on every connect. Every duty
-  /// the per-attempt sub had now lives here, where the
-  /// subscription's lifetime matches the Connection's.
+  /// State mutation, transient-secret eviction, connect-attempt
+  /// logging, and error capture all live here on Connection's
+  /// permanent `_busSub`, whose lifetime matches the Connection's
+  /// own. Trap: a per-attempt subscription cancelled in
+  /// `_doConnect.finally` races in-flight events from the FRB
+  /// worker thread and produces "Fail to post message to Dart"
+  /// stderr noise on every connect — bind the listener to the
+  /// owner's lifetime, not the attempt's.
   ///
   /// `Connecting` → mirror state on the Dart object.
   ///

@@ -247,7 +247,8 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   ///
   /// Widget tests without the native lib loaded still work: every
   /// queued dispatch is wrapped in try/catch on replay too, so a
-  /// genuinely-unreachable FRB just degrades to the prior swallow.
+  /// genuinely-unreachable FRB silently degrades (matching the
+  /// unit-test no-native-lib path).
   void _dispatchRust(rust_bus.BusCommand cmd) {
     if (!AutoLockDetector._frbReady) {
       AutoLockDetector._pendingPreFrbDispatches.add(cmd);

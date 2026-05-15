@@ -6,24 +6,23 @@ import '../theme/app_theme.dart';
 /// screens (snippet manager, key manager, tag manager, session
 /// picker, etc.).
 ///
-/// Every caller previously rolled its own `Center(child: Text(...))`
-/// with slightly different padding / alignment rules, which meant:
+/// Owns the alignment + padding + typography contract so every
+/// empty state renders identically. Callers pass only the localised
+/// message and, optionally, a leading [icon] or trailing [action]
+/// slot. Both optional slots render with the same centered +
+/// horizontally-padded layout.
 ///
-///  * on mobile with long-locale strings (Russian / German) the text
-///    wrapped but stayed left-aligned because the inner `Text` did
-///    not set `textAlign`, and the resulting visual looked like the
-///    text was glued to the left edge;
-///  * horizontal padding was inconsistent between dialogs — some
-///    had 24 px gutters, others 0, so the rendered label sat at
-///    different positions relative to the surrounding toolbar;
+/// Without this primitive, each caller would hand-roll
+/// `Center(child: Text(...))` with drifting padding / alignment:
+///
+///  * on mobile with long-locale strings (Russian / German) text
+///    wraps but stays left-aligned when the inner `Text` does not
+///    set `textAlign`, so the label looks glued to the left edge;
+///  * horizontal padding drifts between dialogs (some at 24 px
+///    gutters, others 0), so the rendered label sits at different
+///    positions relative to the surrounding toolbar;
 ///  * no shared hook for adding an "optional illustration" / CTA
 ///    later without touching every caller.
-///
-/// This widget owns the alignment + padding + typography contract so
-/// every empty state renders identically. Callers pass only the
-/// localised message and, optionally, a leading [icon] or trailing
-/// [action] slot. Both optional slots render with the same centered +
-/// horizontally-padded layout.
 class AppEmptyState extends StatelessWidget {
   /// The empty-state copy, already localised. Expected to be a short
   /// sentence (one or two lines on mobile). Text wraps on overflow.

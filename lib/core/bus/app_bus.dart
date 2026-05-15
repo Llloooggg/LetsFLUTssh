@@ -22,10 +22,9 @@
 /// paint the splash first). [_SharedTopic.ensureFrbSub] handles
 /// this by retrying the FRB subscription on every `subscribe`
 /// call — once `RustLib.instance.initialized` flips to true and
-/// any subscriber re-enters `subscribe`, the previously-dead
-/// `_SharedTopic` promotes to a live broadcast and existing Dart
-/// listeners on its controller start receiving events without
-/// re-listening. [retryFrbSubscriptions] is the explicit fast-path
+/// any subscriber re-enters `subscribe`, the cached `_SharedTopic`
+/// promotes to a live broadcast and existing Dart listeners on
+/// its controller start receiving events without re-listening. [retryFrbSubscriptions] is the explicit fast-path
 /// for the bootstrap chain to promote every cached topic at the
 /// FRB-ready boundary, since not every Riverpod provider re-enters
 /// `subscribe` after init.

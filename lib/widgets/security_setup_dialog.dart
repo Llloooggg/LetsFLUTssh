@@ -34,10 +34,10 @@ part 'security_setup_dialog_widgets.dart';
 
 /// Result of the first-launch security setup wizard.
 ///
-/// Carries both the legacy (tier + typed-secret-field) shape and the
-/// new bank-style (tier + modifiers) shape. The typed secret bytes
-/// land in the Rust-side SecretStore under transient ids; only the
-/// ids cross `Navigator.pop`. Callers take (atomic read-and-remove)
+/// Carries the bank-style (tier + modifiers) shape alongside a
+/// compatibility surface for tier + typed-secret-field payloads.
+/// The typed secret bytes land in the Rust-side SecretStore under
+/// transient ids; only the ids cross `Navigator.pop`. Callers take (atomic read-and-remove)
 /// the bytes via [SecuritySetupResult.takeMasterPassword] etc.
 /// inside the same dispatch tick they use them, so the Dart-heap
 /// residency window is bounded to a single function call rather
@@ -137,10 +137,10 @@ class SecuritySetupDialog extends StatefulWidget {
 
   /// Bank-style v3 modifiers for [currentTier]. Carried alongside
   /// the tier so the wizard can pre-fill the password toggle when
-  /// the user re-opens it from Settings (previously the T1+password
-  /// case was inferred from the dedicated `keychainWithPassword`
-  /// tier value alone). `null` matches `currentTier == null` —
-  /// first-launch entry, no existing config to honour.
+  /// the user re-opens it from Settings (T1+password is inferred
+  /// from `modifiers.password`, not from a dedicated tier value).
+  /// `null` matches `currentTier == null` — first-launch entry,
+  /// no existing config to honour.
   final SecurityTierModifiers? currentModifiers;
 
   /// DI hook — when non-null the wizard skips the platform capability
@@ -250,8 +250,8 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       case SecurityTier.keychain:
         // Bank-style v3: T1+password is `keychain` + the password
         // modifier; the wizard pre-fills the toggle from
-        // `currentModifiers.password` instead of the prior dedicated
-        // `keychainWithPassword` tier check.
+        // `currentModifiers.password` (modifier-driven, not a
+        // dedicated tier value).
         _password = widget.currentModifiers?.password ?? false;
         return WizardTier.keychain;
       case SecurityTier.hardware:

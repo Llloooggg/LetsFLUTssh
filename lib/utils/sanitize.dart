@@ -1,9 +1,8 @@
 // Utilities for sanitizing sensitive data before logging or surfacing in
 // user-facing error toasts.
 //
-// Pure Dart on purpose. The redaction pipeline used to route through
-// `lfs_core::log_sanitize` over FRB, but the cold-start path needs
-// these helpers callable BEFORE `RustLib.init` completes — the global
+// Pure Dart on purpose: the cold-start path needs these helpers
+// callable BEFORE `RustLib.init` completes — the global
 // runZonedGuarded / FlutterError / PlatformDispatcher error handlers
 // fire whenever code anywhere in the app throws, including the brief
 // window between `WidgetsFlutterBinding.ensureInitialized` and the
@@ -11,9 +10,9 @@
 // crash-loop the zone handler in that window (every error → log →
 // sanitize → "FRB not initialised" → caught by zone → log again).
 //
-// dart:core RegExp covers every shape the Rust implementation
-// covered, byte-for-byte (the Rust crate was migrated FROM these
-// regexes). Match order mirrors the Rust pipeline:
+// dart:core RegExp covers every shape the Rust `lfs_core::log_sanitize`
+// implementation covers, byte-for-byte (both sides share the same
+// regex vocabulary). Match order mirrors the Rust pipeline:
 // IPv6 → IPv4 → user@host → as-user / user= / login= → host:port →
 // Windows path → Unix path. Each step rewrites the buffer the next
 // step scans, so e.g. host:port redaction operates after the IP

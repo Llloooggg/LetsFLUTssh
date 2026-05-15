@@ -8,14 +8,14 @@
 //! Both halves live here in pure-Rust:
 //!
 //! * [`encode_canonical_json`] — builds the `{...}` payload from an
-//!   [`SessionJsonInput`]. The Dart side previously held a parallel
-//!   `Session.toJson` / `toJsonWithCredentials` encoder; that has been
-//!   retired in favour of routing through this function over FRB.
+//!   [`SessionJsonInput`]. The Dart side reaches this function over
+//!   FRB; there is no parallel Dart encoder.
 //! * [`decode_canonical_json`] — parses a payload into a typed
-//!   [`SessionJsonOutput`] with the inverse field set. Replaces the
-//!   Dart `Session.fromJson` / `ProxyJumpOverride.fromJson` /
-//!   `_decodeExtras` triple, all of which previously walked the same
-//!   shape by hand and could drift between sides.
+//!   [`SessionJsonOutput`] with the inverse field set. The Dart side
+//!   reaches this function over FRB; there is no parallel Dart
+//!   decoder (`Session.fromJson` / `ProxyJumpOverride.fromJson` /
+//!   `_decodeExtras` all route through here, so the two sides cannot
+//!   drift apart on field shape).
 //!
 //! Wire-shape invariants — keep these in lock-step with the
 //! corresponding test in `test/utils/session_json_drift_test.dart`:
