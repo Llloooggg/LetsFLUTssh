@@ -72,6 +72,12 @@ class SPt extends S {
   String get copyModeExtending => 'Arraste para estender a seleção';
 
   @override
+  String get copyModeSetAnchor => 'Definir âncora';
+
+  @override
+  String get copyModeCopySelection => 'Copiar seleção';
+
+  @override
   String get required => 'Obrigatório';
 
   @override

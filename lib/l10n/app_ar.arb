@@ -21,6 +21,8 @@
   "select": "تحديد",
   "copyModeTapToStart": "المس لتحديد بداية التحديد",
   "copyModeExtending": "اسحب لتمديد التحديد",
+  "copyModeSetAnchor": "تعيين نقطة الإرساء",
+  "copyModeCopySelection": "نسخ التحديد",
   "required": "مطلوب",
   "settings": "الإعدادات",
   "appSettings": "إعدادات التطبيق",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "متقدم: تجاوز {brokerLabel} على المنصات التي يعمل فيها المساران. الـ HID المباشر يدعم ميزات authenticator أكثر لكن يحتاج صلاحيات لكل تطبيق.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "فقط {transport} متاح على هذا الجهاز؛ التبديل معطّل.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "حدد مسار وحدة PKCS#11 للرمز \"{token}\"",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

@@ -21,6 +21,14 @@
   "select": "Select",
   "copyModeTapToStart": "Touch to mark selection start",
   "copyModeExtending": "Drag to extend selection",
+  "copyModeSetAnchor": "Set anchor",
+  "@copyModeSetAnchor": {
+    "description": "Screen-reader / semantic label for the crosshair-style button in the mobile terminal's copy-mode bar that commits the current cursor position as the selection's start cell (anchor)."
+  },
+  "copyModeCopySelection": "Copy selection",
+  "@copyModeCopySelection": {
+    "description": "Screen-reader / semantic label for the copy button shown in the mobile terminal's copy-mode bar once the anchor has been set; tapping it copies the selected text to the clipboard."
+  },
   "required": "Required",
   "settings": "Settings",
   "appSettings": "App Settings",

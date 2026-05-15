@@ -72,6 +72,12 @@ class SEs extends S {
   String get copyModeExtending => 'Arrastra para extender la selección';
 
   @override
+  String get copyModeSetAnchor => 'Fijar ancla';
+
+  @override
+  String get copyModeCopySelection => 'Copiar selección';
+
+  @override
   String get required => 'Obligatorio';
 
   @override

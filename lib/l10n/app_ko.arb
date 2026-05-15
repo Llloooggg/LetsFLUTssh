@@ -21,6 +21,8 @@
   "select": "선택",
   "copyModeTapToStart": "선택 시작점을 터치하세요",
   "copyModeExtending": "드래그하여 선택 영역 확장",
+  "copyModeSetAnchor": "앵커 설정",
+  "copyModeCopySelection": "선택 복사",
   "required": "필수",
   "settings": "설정",
   "appSettings": "앱 설정",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "고급: 두 경로가 모두 동작하는 플랫폼에서 {brokerLabel}을 우회합니다. 직접 HID는 더 많은 authenticator 기능을 지원하지만 앱별 권한 부여가 필요합니다.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "이 기기에서는 {transport}만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "토큰 \"{token}\"의 PKCS#11 모듈을 지정하세요",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

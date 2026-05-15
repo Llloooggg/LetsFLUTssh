@@ -21,6 +21,8 @@
   "select": "Auswählen",
   "copyModeTapToStart": "Tippen, um Auswahlbeginn zu markieren",
   "copyModeExtending": "Ziehen, um Auswahl zu erweitern",
+  "copyModeSetAnchor": "Anker setzen",
+  "copyModeCopySelection": "Auswahl kopieren",
   "required": "Erforderlich",
   "settings": "Einstellungen",
   "appSettings": "App-Einstellungen",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "Fortgeschritten: {brokerLabel} auf Plattformen umgehen, wo beide Pfade funktionieren. Direktes HID unterstützt mehr Authenticator-Features, benötigt aber je App eine Berechtigung.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "Auf diesem Gerät ist nur {transport} verfügbar; der Schalter ist deaktiviert.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "PKCS#11-Modul für Token \"{token}\" auswählen",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

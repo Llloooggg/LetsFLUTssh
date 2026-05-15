@@ -72,6 +72,12 @@ class SFa extends S {
   String get copyModeExtending => 'برای گسترش انتخاب بکشید';
 
   @override
+  String get copyModeSetAnchor => 'تنظیم لنگر';
+
+  @override
+  String get copyModeCopySelection => 'کپی انتخاب';
+
+  @override
   String get required => 'الزامی';
 
   @override

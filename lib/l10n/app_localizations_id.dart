@@ -72,6 +72,12 @@ class SId extends S {
   String get copyModeExtending => 'Seret untuk memperluas pilihan';
 
   @override
+  String get copyModeSetAnchor => 'Tetapkan jangkar';
+
+  @override
+  String get copyModeCopySelection => 'Salin pilihan';
+
+  @override
   String get required => 'Wajib';
 
   @override

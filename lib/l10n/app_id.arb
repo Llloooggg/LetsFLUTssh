@@ -21,6 +21,8 @@
   "select": "Pilih",
   "copyModeTapToStart": "Sentuh untuk menandai awal pilihan",
   "copyModeExtending": "Seret untuk memperluas pilihan",
+  "copyModeSetAnchor": "Tetapkan jangkar",
+  "copyModeCopySelection": "Salin pilihan",
   "required": "Wajib",
   "settings": "Pengaturan",
   "appSettings": "Pengaturan Aplikasi",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "Lanjutan: lewati {brokerLabel} di platform yang mendukung kedua jalur. HID langsung mendukung lebih banyak fitur authenticator tapi butuh izin per-app.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "Hanya {transport} yang tersedia di device ini; toggle dinonaktifkan.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "Temukan modul PKCS#11 untuk token \"{token}\"",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

@@ -72,6 +72,12 @@ class SEn extends S {
   String get copyModeExtending => 'Drag to extend selection';
 
   @override
+  String get copyModeSetAnchor => 'Set anchor';
+
+  @override
+  String get copyModeCopySelection => 'Copy selection';
+
+  @override
   String get required => 'Required';
 
   @override

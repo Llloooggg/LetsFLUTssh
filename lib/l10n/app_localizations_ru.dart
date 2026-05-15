@@ -72,6 +72,12 @@ class SRu extends S {
   String get copyModeExtending => 'Ведите пальцем, чтобы расширить выделение';
 
   @override
+  String get copyModeSetAnchor => 'Поставить якорь';
+
+  @override
+  String get copyModeCopySelection => 'Скопировать выделение';
+
+  @override
   String get required => 'Обязательное поле';
 
   @override

@@ -249,6 +249,18 @@ abstract class S {
   /// **'Drag to extend selection'**
   String get copyModeExtending;
 
+  /// Screen-reader / semantic label for the crosshair-style button in the mobile terminal's copy-mode bar that commits the current cursor position as the selection's start cell (anchor).
+  ///
+  /// In en, this message translates to:
+  /// **'Set anchor'**
+  String get copyModeSetAnchor;
+
+  /// Screen-reader / semantic label for the copy button shown in the mobile terminal's copy-mode bar once the anchor has been set; tapping it copies the selected text to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy selection'**
+  String get copyModeCopySelection;
+
   /// No description provided for @required.
   ///
   /// In en, this message translates to:

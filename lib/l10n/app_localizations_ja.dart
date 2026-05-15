@@ -72,6 +72,12 @@ class SJa extends S {
   String get copyModeExtending => 'ドラッグで選択範囲を拡大';
 
   @override
+  String get copyModeSetAnchor => 'アンカーを設定';
+
+  @override
+  String get copyModeCopySelection => '選択をコピー';
+
+  @override
   String get required => '必須';
 
   @override

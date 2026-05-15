@@ -21,6 +21,8 @@
   "select": "Seç",
   "copyModeTapToStart": "Seçim başlangıcını işaretlemek için dokun",
   "copyModeExtending": "Seçimi genişletmek için sürükle",
+  "copyModeSetAnchor": "Bağlantı noktası ayarla",
+  "copyModeCopySelection": "Seçimi kopyala",
   "required": "Gerekli",
   "settings": "Ayarlar",
   "appSettings": "Uygulama Ayarları",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "İleri seviye: her iki yolun da çalıştığı platformlarda {brokerLabel} bypass edilir. Doğrudan HID daha fazla authenticator özelliği sunar ama app bazında permission grant gerektirir.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "Bu cihazda yalnızca {transport} mevcut; toggle devre dışı.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "\"{token}\" token'ı için PKCS#11 modülünü bul",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

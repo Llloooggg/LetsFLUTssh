@@ -21,6 +21,8 @@
   "select": "चुनें",
   "copyModeTapToStart": "चयन आरंभ चिह्नित करने के लिए स्पर्श करें",
   "copyModeExtending": "चयन बढ़ाने के लिए खींचें",
+  "copyModeSetAnchor": "एंकर सेट करें",
+  "copyModeCopySelection": "चयन कॉपी करें",
   "required": "आवश्यक",
   "settings": "सेटिंग्स",
   "appSettings": "ऐप सेटिंग्स",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "एडवांस्ड: जिन प्लेटफ़ॉर्म पर दोनों paths काम करते हैं वहाँ {brokerLabel} को बायपास करें। डायरेक्ट HID authenticator के ज़्यादा फ़ीचर देता है पर हर app के लिए permission grant ज़रूरी होती है।",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "इस डिवाइस पर सिर्फ़ {transport} उपलब्ध है; toggle disabled है।",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "टोकन \"{token}\" के लिए PKCS#11 मॉड्यूल खोजें",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

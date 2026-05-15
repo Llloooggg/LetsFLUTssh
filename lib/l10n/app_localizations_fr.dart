@@ -72,6 +72,12 @@ class SFr extends S {
   String get copyModeExtending => 'Glissez pour étendre la sélection';
 
   @override
+  String get copyModeSetAnchor => 'Définir l\'ancre';
+
+  @override
+  String get copyModeCopySelection => 'Copier la sélection';
+
+  @override
   String get required => 'Requis';
 
   @override

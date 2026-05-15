@@ -72,6 +72,12 @@ class SKo extends S {
   String get copyModeExtending => '드래그하여 선택 영역 확장';
 
   @override
+  String get copyModeSetAnchor => '앵커 설정';
+
+  @override
+  String get copyModeCopySelection => '선택 복사';
+
+  @override
   String get required => '필수';
 
   @override

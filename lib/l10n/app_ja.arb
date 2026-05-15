@@ -21,6 +21,8 @@
   "select": "選択",
   "copyModeTapToStart": "タップして選択開始位置を指定",
   "copyModeExtending": "ドラッグで選択範囲を拡大",
+  "copyModeSetAnchor": "アンカーを設定",
+  "copyModeCopySelection": "選択をコピー",
   "required": "必須",
   "settings": "設定",
   "appSettings": "アプリ設定",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "上級者向け：両方のパスが動作するプラットフォームで {brokerLabel} を回避します。直接 HID は authenticator の機能をより多く扱えますが、アプリごとの権限付与が必要です。",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "このデバイスでは {transport} のみ利用可能です。トグルは無効化されています。",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "トークン \"{token}\" の PKCS#11 モジュールを指定してください",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

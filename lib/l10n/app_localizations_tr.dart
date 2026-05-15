@@ -72,6 +72,12 @@ class STr extends S {
   String get copyModeExtending => 'Seçimi genişletmek için sürükle';
 
   @override
+  String get copyModeSetAnchor => 'Bağlantı noktası ayarla';
+
+  @override
+  String get copyModeCopySelection => 'Seçimi kopyala';
+
+  @override
   String get required => 'Gerekli';
 
   @override

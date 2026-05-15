@@ -21,6 +21,8 @@
   "select": "Sélectionner",
   "copyModeTapToStart": "Touchez pour marquer le début",
   "copyModeExtending": "Glissez pour étendre la sélection",
+  "copyModeSetAnchor": "Définir l'ancre",
+  "copyModeCopySelection": "Copier la sélection",
   "required": "Requis",
   "settings": "Paramètres",
   "appSettings": "Paramètres de l'application",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "Avancé : contourner {brokerLabel} sur les plateformes où les deux chemins fonctionnent. Le HID direct expose plus de features de l'authenticator mais demande une autorisation par app.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "Seul {transport} est disponible sur cet appareil ; le toggle est désactivé.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "Localisez le module PKCS#11 pour le token « {token} »",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

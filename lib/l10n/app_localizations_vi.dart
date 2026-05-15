@@ -72,6 +72,12 @@ class SVi extends S {
   String get copyModeExtending => 'Kéo để mở rộng vùng chọn';
 
   @override
+  String get copyModeSetAnchor => 'Đặt mỏ neo';
+
+  @override
+  String get copyModeCopySelection => 'Sao chép vùng chọn';
+
+  @override
   String get required => 'Bắt buộc';
 
   @override

@@ -21,6 +21,8 @@
   "select": "انتخاب",
   "copyModeTapToStart": "برای تعیین ابتدای انتخاب لمس کنید",
   "copyModeExtending": "برای گسترش انتخاب بکشید",
+  "copyModeSetAnchor": "تنظیم لنگر",
+  "copyModeCopySelection": "کپی انتخاب",
   "required": "الزامی",
   "settings": "تنظیمات",
   "appSettings": "تنظیمات برنامه",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "پیشرفته: عبور از {brokerLabel} روی پلتفرم‌هایی که هر دو مسیر کار می‌کنند. HID مستقیم ویژگی‌های بیشتری از authenticator را در دسترس می‌گذارد ولی برای هر اپ نیاز به مجوز دارد.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "فقط {transport} روی این دستگاه در دسترس است؛ کلید غیرفعال است.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "ماژول PKCS#11 برای توکن «{token}» را پیدا کنید",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

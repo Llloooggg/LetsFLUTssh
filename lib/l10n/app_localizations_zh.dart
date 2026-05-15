@@ -72,6 +72,12 @@ class SZh extends S {
   String get copyModeExtending => '拖动以扩展选择';
 
   @override
+  String get copyModeSetAnchor => '设置锚点';
+
+  @override
+  String get copyModeCopySelection => '复制选择';
+
+  @override
   String get required => '必填';
 
   @override

@@ -72,6 +72,12 @@ class SDe extends S {
   String get copyModeExtending => 'Ziehen, um Auswahl zu erweitern';
 
   @override
+  String get copyModeSetAnchor => 'Anker setzen';
+
+  @override
+  String get copyModeCopySelection => 'Auswahl kopieren';
+
+  @override
   String get required => 'Erforderlich';
 
   @override

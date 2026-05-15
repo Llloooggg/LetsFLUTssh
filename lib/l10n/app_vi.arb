@@ -21,6 +21,8 @@
   "select": "Chọn",
   "copyModeTapToStart": "Chạm để đánh dấu điểm bắt đầu",
   "copyModeExtending": "Kéo để mở rộng vùng chọn",
+  "copyModeSetAnchor": "Đặt mỏ neo",
+  "copyModeCopySelection": "Sao chép vùng chọn",
   "required": "Bắt buộc",
   "settings": "Cài đặt",
   "appSettings": "Cài đặt ứng dụng",
@@ -1281,13 +1283,17 @@
   "fido2BrokerPreferDirectHidSubtitle": "Nâng cao: bỏ qua {brokerLabel} trên các platform mà cả hai đường đều chạy. HID trực tiếp hỗ trợ nhiều tính năng authenticator hơn nhưng cần permission grant theo từng app.",
   "@fido2BrokerPreferDirectHidSubtitle": {
     "placeholders": {
-      "brokerLabel": { "type": "String" }
+      "brokerLabel": {
+        "type": "String"
+      }
     }
   },
   "fido2BrokerSinglePathSubtitle": "Thiết bị này chỉ có {transport}; toggle bị vô hiệu.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {
-      "transport": { "type": "String" }
+      "transport": {
+        "type": "String"
+      }
     }
   },
   "@tpmSshPinPrompt": {
@@ -1319,7 +1325,9 @@
   "pkcs11ModuleResolveOnFirstUse": "Chọn module PKCS#11 cho token \"{token}\"",
   "@pkcs11ModuleResolveOnFirstUse": {
     "placeholders": {
-      "token": { "type": "String" }
+      "token": {
+        "type": "String"
+      }
     }
   }
 }

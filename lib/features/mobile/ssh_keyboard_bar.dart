@@ -283,12 +283,12 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     final actionButton = widget.anchorSet
         ? _KeyButton(
             icon: Icons.copy,
-            semanticLabel: 'Copy selection',
+            semanticLabel: l10n.copyModeCopySelection,
             onTap: () => widget.onCopyPressed?.call(),
           )
         : _KeyButton(
             icon: Icons.adjust,
-            semanticLabel: 'Set anchor',
+            semanticLabel: l10n.copyModeSetAnchor,
             onTap: () => widget.onAnchorPressed?.call(),
           );
     return Row(

@@ -72,6 +72,12 @@ class SHi extends S {
   String get copyModeExtending => 'चयन बढ़ाने के लिए खींचें';
 
   @override
+  String get copyModeSetAnchor => 'एंकर सेट करें';
+
+  @override
+  String get copyModeCopySelection => 'चयन कॉपी करें';
+
+  @override
   String get required => 'आवश्यक';
 
   @override

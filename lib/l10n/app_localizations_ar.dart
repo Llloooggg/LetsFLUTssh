@@ -72,6 +72,12 @@ class SAr extends S {
   String get copyModeExtending => 'اسحب لتمديد التحديد';
 
   @override
+  String get copyModeSetAnchor => 'تعيين نقطة الإرساء';
+
+  @override
+  String get copyModeCopySelection => 'نسخ التحديد';
+
+  @override
   String get required => 'مطلوب';
 
   @override
