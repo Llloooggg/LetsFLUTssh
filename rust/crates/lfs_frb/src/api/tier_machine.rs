@@ -173,13 +173,19 @@ mod tests {
     use super::*;
 
     // The tier-machine singleton is process-static + tests share it.
-    // Each test sets the active tier explicitly before reading state,
-    // so cross-test ordering doesn't leak. `dispatch` publishes a bus
-    // event through `app::instance()` so tests that exercise it
-    // bootstrap the singleton via `lfs_core::app::init()` (idempotent).
+    // Acquire `TIER_TEST_LOCK` at the top of every test that mutates
+    // the singleton's tier slot or dispatches a state transition;
+    // without serialization one test's `LockRequested` can land
+    // mid-way through another's `UnlockSucceeded` and flip the
+    // observed state under the second test's assert. `dispatch`
+    // publishes a bus event through `app::instance()` so tests that
+    // exercise it bootstrap the singleton via `lfs_core::app::init()`
+    // (idempotent).
+    static TIER_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn set_tier_then_read_active_returns_the_pinned_wire_name() {
+        let _guard = TIER_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // Pin the tier round-trip — the Dart wizard pins the tier
         // before kicking off the unlock dispatch and reads it back
         // immediately.
@@ -192,12 +198,14 @@ mod tests {
 
     #[test]
     fn set_tier_with_unknown_wire_name_surfaces_err() {
+        let _guard = TIER_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let res = tier_machine_set_tier("not-a-tier".into());
         assert!(res.is_err());
     }
 
     #[test]
     fn dispatch_unlock_succeeded_advances_to_unlocked() {
+        let _guard = TIER_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // Bootstrap the app singleton — `dispatch` publishes through
         // `app::instance().bus`; without init the publish would
         // panic.
@@ -213,6 +221,7 @@ mod tests {
 
     #[test]
     fn dispatch_invalid_event_for_state_returns_none() {
+        let _guard = TIER_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let _ = lfs_core::app::init();
         let _ = tier_machine_set_tier("plaintext".into());
         // Drive to Unlocked then dispatch UnlockSucceeded again —
