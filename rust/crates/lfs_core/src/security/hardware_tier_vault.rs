@@ -9,8 +9,16 @@
 //!
 //! Wire format (JSON object, UTF-8 bytes on disk):
 //! ```json
-//! { "salt": "<base64>", "sealed": "<base64>" }
+//! { "v": 1, "salt": "<base64>", "sealed": "<base64>" }
 //! ```
+//!
+//! The inner `"v"` integer disambiguates future shape changes
+//! (extra IV / AAD / different encoder) independently of the outer
+//! [`prepend_envelope_header`] magic + platform + version triple.
+//! Decode is strict: a missing or non-`1` `"v"` field is rejected
+//! so a tampered or pre-spec on-disk file routes through the
+//! corrupt-state recovery cascade rather than HMACing against the
+//! wrong shape.
 //!
 //! `encode_linux_blob` / `decode_linux_blob` cover the wire shape;
 //! [`linux::store`] / [`linux::read`] / [`linux::clear`] cover the
@@ -29,6 +37,12 @@ pub struct LinuxBlob {
     pub sealed: Vec<u8>,
 }
 
+/// Current inner JSON envelope version. Independent of the outer
+/// [`prepend_envelope_header`] version so the inner shape can flow
+/// forward (add IV / AAD, swap encoder) without burning a fresh
+/// platform tag for every change.
+pub const LINUX_BLOB_INNER_VERSION: u64 = 1;
+
 /// Encode the salt + sealed-blob pair as the JSON envelope written
 /// to `hardware_vault.bin` on Linux. Caller writes the returned
 /// string's UTF-8 bytes atomically — the file lives next to the
@@ -36,26 +50,35 @@ pub struct LinuxBlob {
 #[must_use]
 pub fn encode_linux_blob(salt: &[u8], sealed: &[u8]) -> String {
     // Hand-build the literal so the field order is stable
-    // ({"salt": …, "sealed": …}) — explicit shape protects the
-    // wire-format docs from a future serde-default flip.
+    // ({"v": …, "salt": …, "sealed": …}) — explicit shape protects
+    // the wire-format docs from a future serde-default flip.
     format!(
-        "{{\"salt\":\"{}\",\"sealed\":\"{}\"}}",
+        "{{\"v\":{},\"salt\":\"{}\",\"sealed\":\"{}\"}}",
+        LINUX_BLOB_INNER_VERSION,
         STANDARD.encode(salt),
         STANDARD.encode(sealed)
     )
 }
 
 /// Parse the on-disk JSON envelope. Returns `Err` for malformed
-/// JSON, missing fields, non-string values, invalid base64, or
-/// empty decoded bytes (a legitimate seal is never zero-length).
-/// The Dart-side `read` treats any decode failure as a "vault is
-/// empty / corrupt" outcome and routes the user back to the
-/// password unlock dialog.
+/// JSON, a missing or unknown `"v"` field, missing salt / sealed
+/// fields, non-string values, invalid base64, or empty decoded
+/// bytes (a legitimate seal is never zero-length). The Dart-side
+/// `read` treats any decode failure as a "vault is empty /
+/// corrupt" outcome and routes the user back to the password
+/// unlock dialog.
 pub fn decode_linux_blob(blob: &str) -> Result<LinuxBlob, String> {
     let value: Value = serde_json::from_str(blob).map_err(|e| format!("blob: parse JSON: {e}"))?;
     let obj = value
         .as_object()
         .ok_or_else(|| String::from("blob: not a JSON object"))?;
+    let version = obj
+        .get("v")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| String::from("blob: missing inner version"))?;
+    if version != LINUX_BLOB_INNER_VERSION {
+        return Err(format!("blob: unknown inner version: {version}"));
+    }
     let salt_b64 = obj
         .get("salt")
         .and_then(|v| v.as_str())
@@ -637,20 +660,20 @@ mod tests {
 
     #[test]
     fn decode_rejects_missing_fields() {
-        assert!(decode_linux_blob("{}").is_err());
-        assert!(decode_linux_blob(r#"{"salt":"YQ=="}"#).is_err());
-        assert!(decode_linux_blob(r#"{"sealed":"YQ=="}"#).is_err());
+        assert!(decode_linux_blob(r#"{"v":1}"#).is_err());
+        assert!(decode_linux_blob(r#"{"v":1,"salt":"YQ=="}"#).is_err());
+        assert!(decode_linux_blob(r#"{"v":1,"sealed":"YQ=="}"#).is_err());
     }
 
     #[test]
     fn decode_rejects_non_string_fields() {
-        assert!(decode_linux_blob(r#"{"salt":1,"sealed":"YQ=="}"#).is_err());
-        assert!(decode_linux_blob(r#"{"salt":"YQ==","sealed":[]}"#).is_err());
+        assert!(decode_linux_blob(r#"{"v":1,"salt":1,"sealed":"YQ=="}"#).is_err());
+        assert!(decode_linux_blob(r#"{"v":1,"salt":"YQ==","sealed":[]}"#).is_err());
     }
 
     #[test]
     fn decode_rejects_invalid_base64() {
-        let blob = r#"{"salt":"!!!","sealed":"YQ=="}"#;
+        let blob = r#"{"v":1,"salt":"!!!","sealed":"YQ=="}"#;
         assert!(decode_linux_blob(blob).is_err());
     }
 
@@ -658,7 +681,55 @@ mod tests {
     fn decode_rejects_empty_decoded_bytes() {
         // A legitimate seal is never zero-length; a tampered file
         // with empty fields must not parse as a valid blob.
-        assert!(decode_linux_blob(r#"{"salt":"","sealed":""}"#).is_err());
+        assert!(decode_linux_blob(r#"{"v":1,"salt":"","sealed":""}"#).is_err());
+    }
+
+    #[test]
+    fn encode_round_trip_includes_version() {
+        // The inner `"v":1` field is the disambiguator for future
+        // shape changes — every freshly-encoded envelope must carry
+        // it as a parseable u64 that matches the constant the
+        // decoder validates against.
+        let salt = vec![0x11u8; 32];
+        let sealed = vec![0x22u8; 64];
+        let blob = encode_linux_blob(&salt, &sealed);
+        let value: Value = serde_json::from_str(&blob).unwrap();
+        let version = value
+            .as_object()
+            .and_then(|o| o.get("v"))
+            .and_then(Value::as_u64)
+            .expect("encoded blob exposes a numeric inner version");
+        assert_eq!(version, LINUX_BLOB_INNER_VERSION);
+        // Round-trip stays lossless even with the version field.
+        let decoded = decode_linux_blob(&blob).unwrap();
+        assert_eq!(decoded.salt, salt);
+        assert_eq!(decoded.sealed, sealed);
+    }
+
+    #[test]
+    fn decode_rejects_unknown_inner_version() {
+        // A future inner shape signalled by `v:99` must be rejected
+        // here rather than parsed into a v1 `LinuxBlob` against
+        // potentially incompatible salt / sealed bytes.
+        let blob = r#"{"v":99,"salt":"YQ==","sealed":"YQ=="}"#;
+        let err = decode_linux_blob(blob).expect_err("future version is rejected");
+        assert!(
+            err.contains("unknown inner version"),
+            "error names the version mismatch: {err}"
+        );
+    }
+
+    #[test]
+    fn decode_rejects_missing_inner_version() {
+        // A pre-spec envelope with no `v` field also routes through
+        // the corrupt-state cascade — no silent acceptance of a
+        // shape the encoder never produced.
+        let blob = r#"{"salt":"YQ==","sealed":"YQ=="}"#;
+        let err = decode_linux_blob(blob).expect_err("missing version is rejected");
+        assert!(
+            err.contains("missing inner version"),
+            "error names the missing field: {err}"
+        );
     }
 
     #[test]

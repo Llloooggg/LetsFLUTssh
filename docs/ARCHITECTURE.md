@@ -1261,6 +1261,8 @@ Per-install salt is generated on `store()` and written alongside the sealed blob
 
 **Atomic writes.** Both `hardware_vault.bin` (Linux sealed blob + salt JSON) and `hardware_vault_salt.bin` (method-channel platforms, salt only) are written through [`writeBytesAtomic`](../lib/utils/file_utils.dart) — tmp-file + `hardenFilePerms` + rename. A crash mid-flush therefore leaves either the previous record or the new record on disk, never a torn file. Matters on the Linux path because the sealed blob + salt live in the same file (a torn JSON unseals into nothing); matters on method-channel platforms because the salt is half of the unseal contract (the other half being the wrapped key the native plugin holds), and a half-written salt bricks the vault permanently.
 
+**Linux inner JSON shape.** The body inside the outer `LFHV[magic+version+platform_id]` envelope is `{"v":1,"salt":"<base64>","sealed":"<base64>"}`. The inner `"v"` integer (constant `LINUX_BLOB_INNER_VERSION` in [`lfs_core::security::hardware_tier_vault`](../rust/crates/lfs_core/src/security/hardware_tier_vault.rs)) disambiguates a future shape change (extra IV / AAD frame, swapped encoder) independently of the outer platform tag — without it a tampered or pre-spec file would parse silently against the wrong field set. Decode is strict: a missing `"v"` or any value other than the current constant routes through the corrupt-state cascade. Bumping the inner version is the additive path; reserving a fresh `HW_VAULT_PLATFORM_LINUX_V2` outer tag remains the escape hatch when a shape change has to invalidate every prior install.
+
 **Native-side atomicity — every platform.** The invariant extends into the native plugins that own the wrapped-key half of the vault:
 
 | Platform | File | Mechanism |
