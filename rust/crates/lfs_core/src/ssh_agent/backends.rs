@@ -44,6 +44,30 @@ pub enum BackendError {
     /// plaintext PEM material through the agent socket.
     #[error("software keys are never exposed through the agent endpoint")]
     SoftwareKeyRefused,
+
+    /// The stored row is a FIDO2 credential whose CTAP2 metadata
+    /// carries the mandatory user-verification bit (`fido2: PIN
+    /// required` / `clientPin` / `uv` per CTAP2 §6.2.1). The agent
+    /// wire protocol has no surface for prompting the user for a
+    /// PIN at sign time — there is no `SSH_AGENTC_SIGN_REQUEST`
+    /// field for an out-of-band PIN response — so we cannot route
+    /// the CTAP2 `getAssertion` through the agent socket. The
+    /// listing path filters these rows out and logs the skip; this
+    /// dispatcher arm surfaces the same typed refusal when the row
+    /// reaches the SIGN path anyway (cert-form lookup, race with a
+    /// concurrent listing, manually crafted SIGN_REQUEST). The
+    /// `key_label` and `fingerprint` fields carry the row's
+    /// human-readable label and the SHA-256-of-public-key
+    /// fingerprint so log lines and (future) user-facing dialogs
+    /// can name the key without leaking the credential id.
+    #[error(
+        "fido2 key {key_label:?} (fingerprint {fingerprint}) requires user-verification; \
+         ssh-agent cannot collect a PIN over the agent wire — use a direct connection instead"
+    )]
+    FidoUvNotSupportedViaAgent {
+        key_label: String,
+        fingerprint: String,
+    },
 }
 
 /// SSH userauth-style sign output. Carries the bytes the agent
@@ -622,7 +646,20 @@ fn ssh_algorithm_for_pkcs11(key_type: &str, flags: u32) -> String {
 /// [`crate::ssh::sk::sign_for_userauth`]. The returned bytes are
 /// the full `string(algorithm) || string(sig_blob)` wire body
 /// the agent protocol's `Signature` response carries verbatim.
+///
+/// UV-required credentials never reach CTAP2 here — the agent wire
+/// protocol has no field for a PIN response, and CTAP2
+/// `getAssertion` against a `uv=required` credential without a
+/// `pinUvAuthParam` returns `CTAP2_ERR_PIN_REQUIRED`. We
+/// short-circuit with a typed [`BackendError::FidoUvNotSupportedViaAgent`]
+/// so the external client receives a clean `SSH_AGENT_FAILURE` and
+/// our log line names the key by label + fingerprint. The connect
+/// path (`crate::connection`) has its own PIN-collection dialog and
+/// remains the supported entry point for UV-required FIDO2 keys.
 async fn fido2_sign(row: &SshKeyRow, data: &[u8]) -> Result<SignOutput, BackendError> {
+    if row.has_user_verification {
+        return Err(uv_not_supported_error(row));
+    }
     let credential_id = row
         .credential_id
         .as_ref()
@@ -656,6 +693,54 @@ async fn fido2_sign(row: &SshKeyRow, data: &[u8]) -> Result<SignOutput, BackendE
         algorithm: algo_label,
         signature,
     })
+}
+
+/// Build the [`BackendError::FidoUvNotSupportedViaAgent`] for a row
+/// whose `has_user_verification` bit is set. Resolves a stable SHA-256
+/// fingerprint of the OpenSSH public-key blob so the log line / future
+/// UI dialog can identify the key without leaking the credential id.
+/// Falls back to a placeholder when the stored public key text cannot
+/// be re-parsed — a corrupt row still has a label to show.
+pub(crate) fn uv_not_supported_error(row: &SshKeyRow) -> BackendError {
+    let fingerprint = fingerprint_for_row(row);
+    BackendError::FidoUvNotSupportedViaAgent {
+        key_label: row.label.clone(),
+        fingerprint,
+    }
+}
+
+/// Recover the OpenSSH SHA-256 fingerprint string (`SHA256:<base64>`)
+/// from a row's stored public-key text. Returns `unknown` when the
+/// text fails to parse — the key manager rejects malformed bodies at
+/// import, so the fallback is a defensive sentinel rather than a load-
+/// bearing path.
+fn fingerprint_for_row(row: &SshKeyRow) -> String {
+    use russh::keys::ssh_key::PublicKey;
+    let Ok(pk) = PublicKey::from_openssh(&row.public_key) else {
+        return "unknown".into();
+    };
+    let bytes = match pk.key_data().encoded_bytes() {
+        Ok(b) => b,
+        Err(_) => return "unknown".into(),
+    };
+    crate::ssh::format_fingerprint(&bytes)
+}
+
+/// Local extension trait — mirrors the one used in
+/// [`super::identities`] so this module stays standalone. Reuse is
+/// limited to one call site so we keep the helper private rather than
+/// promoting it into the cross-module surface.
+trait KeyDataEncodeBytes {
+    fn encoded_bytes(&self) -> Result<Vec<u8>, ssh_agent_lib::ssh_encoding::Error>;
+}
+
+impl KeyDataEncodeBytes for russh::keys::ssh_key::public::KeyData {
+    fn encoded_bytes(&self) -> Result<Vec<u8>, ssh_agent_lib::ssh_encoding::Error> {
+        use ssh_agent_lib::ssh_encoding::Encode;
+        let mut out = Vec::with_capacity(self.encoded_len()?);
+        self.encode(&mut out)?;
+        Ok(out)
+    }
 }
 
 /// Map our stored `ssh_keys.key_type` string into a russh
@@ -821,5 +906,66 @@ mod tests {
         let err = BackendError::SoftwareKeyRefused;
         let s = err.to_string();
         assert!(s.contains("software keys"));
+    }
+
+    /// FIDO2 row whose `has_user_verification` bit is set must short-
+    /// circuit the dispatcher with the typed
+    /// `FidoUvNotSupportedViaAgent` error — CTAP2 would otherwise be
+    /// asked to sign without a PIN and return a generic CTAP2 error
+    /// that the agent maps to opaque `SSH_AGENT_FAILURE`.
+    #[tokio::test]
+    async fn dispatch_refuses_fido2_uv_required_with_typed_error() {
+        let row = SshKeyRow {
+            label: "yubikey-uv".into(),
+            has_user_verification: true,
+            ..row_fido2_no_creds()
+        };
+        let err = dispatch_sign(&row, b"data", 0).await.unwrap_err();
+        match err {
+            BackendError::FidoUvNotSupportedViaAgent {
+                key_label,
+                fingerprint,
+            } => {
+                assert_eq!(key_label, "yubikey-uv");
+                // OpenSSH public-key text is the placeholder "PUB" in
+                // `row_software()`; that does not parse as OpenSSH so
+                // the fingerprint helper falls back to "unknown".
+                assert_eq!(fingerprint, "unknown");
+            }
+            other => panic!("expected BackendError::FidoUvNotSupportedViaAgent, got {other:?}"),
+        }
+    }
+
+    /// FIDO2 row WITHOUT UV stays on the existing path. The CTAP2
+    /// device is unreachable in CI so we don't get a SignOutput, but
+    /// the dispatcher must NOT short-circuit with the UV error — the
+    /// failure must be the generic FIDO2 signer error.
+    #[tokio::test]
+    async fn dispatch_fido2_without_uv_does_not_short_circuit_on_uv_error() {
+        let row = SshKeyRow {
+            has_user_verification: false,
+            ..row_fido2_no_creds()
+        };
+        let err = dispatch_sign(&row, b"data", 0).await.unwrap_err();
+        assert!(
+            !matches!(err, BackendError::FidoUvNotSupportedViaAgent { .. }),
+            "uv-not-required row must not surface the uv refusal: {err:?}"
+        );
+    }
+
+    /// Error rendering carries enough detail for the log line / future
+    /// dialog to identify the key: label, fingerprint, and the hint
+    /// to use a direct connection.
+    #[test]
+    fn backend_error_uv_not_supported_renders_message() {
+        let err = BackendError::FidoUvNotSupportedViaAgent {
+            key_label: "yubikey-uv".into(),
+            fingerprint: "SHA256:abc".into(),
+        };
+        let s = err.to_string();
+        assert!(s.contains("yubikey-uv"));
+        assert!(s.contains("SHA256:abc"));
+        assert!(s.contains("user-verification"));
+        assert!(s.contains("direct connection"));
     }
 }

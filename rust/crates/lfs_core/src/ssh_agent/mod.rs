@@ -74,9 +74,22 @@
 //!   parent directory on Linux/macOS; the named pipe is created
 //!   with the default `first_pipe_instance(true)` DACL on Windows
 //!   (current user SID + SYSTEM). See [`transport`].
-//! - **Refuses ADD_IDENTITY** but accepts `session-bind@openssh.com`
-//!   and `restrict-destination-v00@openssh.com` extensions (parsed
-//!   by ssh-agent-lib transparently; we accept the payload).
+//! - **Refuses ADD_IDENTITY** and accepts `session-bind@openssh.com`
+//!   as the only standalone extension. The
+//!   `restrict-destination-v00@openssh.com` /
+//!   `restrict-destination-v01@openssh.com` extensions are refused
+//!   with `SSH_AGENT_FAILURE` — silent acceptance would let the
+//!   caller think the destination is enforced while the signing
+//!   path ignores it. Same refusal fires when the extension arrives
+//!   inside an ADD_IDENTITY_CONSTRAINED payload.
+//! - **Refuses FIDO2 user-verification credentials** at listing AND
+//!   signing time. The agent wire protocol has no surface for
+//!   collecting a PIN at sign time; UV-required rows are filtered
+//!   out of `request_identities` (with an info log) and the
+//!   dispatcher surfaces a typed
+//!   `BackendError::FidoUvNotSupportedViaAgent` if a SIGN_REQUEST
+//!   reaches it anyway. The connect path keeps its own PIN dialog
+//!   and remains the supported entry point.
 //!
 //! ## Lifecycle
 //!

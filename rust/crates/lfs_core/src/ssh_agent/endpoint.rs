@@ -26,7 +26,7 @@ use ssh_agent_lib::agent::Session;
 use ssh_agent_lib::error::AgentError;
 use ssh_agent_lib::proto::{
     AddIdentity, AddIdentityConstrained, AddSmartcardKeyConstrained, Extension, Identity,
-    RemoveIdentity, SignRequest, SmartcardKey,
+    KeyConstraint, RemoveIdentity, SignRequest, SmartcardKey,
 };
 use ssh_key::public::KeyData;
 use ssh_key::{Algorithm, PublicKey, Signature};
@@ -229,10 +229,27 @@ impl Session for Endpoint {
         Err(refused_add())
     }
 
+    /// Refuse — external clients cannot push key material. When the
+    /// payload carries a destination-restriction extension constraint
+    /// (`restrict-destination-v00@openssh.com` /
+    /// `restrict-destination-v01@openssh.com`), surface a more
+    /// specific error: silently accepting the ADD would make the
+    /// caller think the constraint is enforced, but the agent ignores
+    /// it on every subsequent sign. Refuse both — the descriptive
+    /// arm only changes the log line.
     async fn add_identity_constrained(
         &mut self,
-        _identity: AddIdentityConstrained,
+        identity: AddIdentityConstrained,
     ) -> Result<(), AgentError> {
+        if let Some(name) = first_destination_constraint_name(&identity.constraints) {
+            crate::app_log_warn!(
+                "SshAgent",
+                "refusing ADD_IDENTITY_CONSTRAINED with <{}>: agent does not enforce destination \
+                 constraints — use a per-key signer or omit -h",
+                name
+            );
+            return Err(refused_destination_constraint());
+        }
         Err(refused_add())
     }
 
@@ -286,14 +303,33 @@ impl Session for Endpoint {
     /// signs over whatever bytes we hand it, which already include
     /// the session id from the server side.
     ///
-    /// `restrict-destination-v00@openssh.com` — destination
-    /// constraints. We accept the payload silently for now; rejecting
-    /// would break agent-forwarding flows on OpenSSH 8.9+. A future
-    /// task will plumb the constraint through to the per-key confirm
-    /// dialog so the user sees the destination chain on prompt.
+    /// `restrict-destination-v00@openssh.com` /
+    /// `restrict-destination-v01@openssh.com` — OpenSSH agent
+    /// destination-restriction constraints. The constraint records a
+    /// from→to bastion chain the agent is supposed to enforce on
+    /// every subsequent sign so a hostile midpoint cannot reuse a
+    /// signature against a different host. We do not yet bind the
+    /// constraint to the per-key signer (the signing path would need
+    /// to walk the recorded chain against the live connection's
+    /// destination on every SIGN_REQUEST), and silently accepting
+    /// would let `ssh-add -h host` look enforced while it is not —
+    /// an asymmetric security regression where the user thinks the
+    /// key is fenced to one host but it signs anywhere. Refuse at
+    /// the extension boundary with `ExtensionFailure` and log the
+    /// rejection so the user can route around through a per-key
+    /// signer instead.
     async fn extension(&mut self, extension: Extension) -> Result<Option<Extension>, AgentError> {
         match extension.name.as_str() {
-            "session-bind@openssh.com" | "restrict-destination-v00@openssh.com" => Ok(None),
+            "session-bind@openssh.com" => Ok(None),
+            "restrict-destination-v00@openssh.com" | "restrict-destination-v01@openssh.com" => {
+                crate::app_log_warn!(
+                    "SshAgent",
+                    "refusing extension <{}>: agent does not enforce destination constraints — \
+                     use a per-key signer or omit -h",
+                    extension.name
+                );
+                Err(AgentError::ExtensionFailure)
+            }
             _ => Err(AgentError::ExtensionFailure),
         }
     }
@@ -323,6 +359,45 @@ fn refused_add() -> AgentError {
     AgentError::Other(
         "ssh-agent: external clients cannot add or remove keys via this endpoint".into(),
     )
+}
+
+/// Specific refusal for an ADD that carried a destination-restriction
+/// constraint. Distinct from [`refused_add`] so the log line and any
+/// future Dart-side mapper can identify the precise reason rather
+/// than seeing the catch-all "external clients cannot add keys"
+/// message. Wire-level response is still `SSH_AGENT_FAILURE`.
+fn refused_destination_constraint() -> AgentError {
+    AgentError::Other(
+        "ssh-agent in LetsFLUTssh does not enforce destination constraints; \
+         use a per-key signer or omit -h"
+            .into(),
+    )
+}
+
+/// Names of the OpenSSH agent destination-restriction constraint
+/// extensions (`-v00`, plus `-v01` reserved for the future revision
+/// of the same extension). Matched against
+/// [`KeyConstraint::Extension::name`] when parsing
+/// `ADD_IDENTITY_CONSTRAINED` payloads.
+const DESTINATION_CONSTRAINT_NAMES: &[&str] = &[
+    "restrict-destination-v00@openssh.com",
+    "restrict-destination-v01@openssh.com",
+];
+
+/// Return the name of the first destination-restriction extension
+/// constraint in the list, or `None` when no such constraint is
+/// present. Walks the [`KeyConstraint::Extension`] arms only —
+/// `Lifetime` / `Confirm` constraints have their own wire shapes
+/// (constraint-type bytes 1 / 2) and never carry a name string.
+fn first_destination_constraint_name(constraints: &[KeyConstraint]) -> Option<&str> {
+    for c in constraints {
+        if let KeyConstraint::Extension(ext) = c {
+            if DESTINATION_CONSTRAINT_NAMES.contains(&ext.name.as_str()) {
+                return Some(ext.name.as_str());
+            }
+        }
+    }
+    None
 }
 
 /// Best-effort peer-process resolution. Returns `Some(name)` when
@@ -617,5 +692,137 @@ mod tests {
     fn status_with_no_endpoint_reports_not_running() {
         let s = status();
         assert!(!s.running || s.socket_path.is_some());
+    }
+
+    /// Standalone `restrict-destination-v00@openssh.com` extension
+    /// request must refuse with `ExtensionFailure` so the external
+    /// agent-forwarding bastion knows the destination chain is NOT
+    /// enforced rather than thinking it has been pinned.
+    #[tokio::test]
+    async fn endpoint_extension_refuses_restrict_destination_v00() {
+        let mut ep = Endpoint::default();
+        let ext = Extension {
+            name: "restrict-destination-v00@openssh.com".into(),
+            details: ssh_agent_lib::proto::Unparsed::from(Vec::<u8>::new()),
+        };
+        let err = ep.extension(ext).await.unwrap_err();
+        assert!(matches!(err, AgentError::ExtensionFailure));
+    }
+
+    /// Same contract for the `-v01` revision — OpenSSH 9.x reserves
+    /// the future-shape name, and we refuse both with the same
+    /// rationale.
+    #[tokio::test]
+    async fn endpoint_extension_refuses_restrict_destination_v01() {
+        let mut ep = Endpoint::default();
+        let ext = Extension {
+            name: "restrict-destination-v01@openssh.com".into(),
+            details: ssh_agent_lib::proto::Unparsed::from(Vec::<u8>::new()),
+        };
+        let err = ep.extension(ext).await.unwrap_err();
+        assert!(matches!(err, AgentError::ExtensionFailure));
+    }
+
+    /// ADD_IDENTITY_CONSTRAINED carrying a destination-restriction
+    /// constraint surfaces the specific "agent does not enforce"
+    /// refusal rather than the generic "cannot add keys" one. The
+    /// wire-level response is `SSH_AGENT_FAILURE` either way, but the
+    /// log line and any future Dart-side handler can route on the
+    /// specific message.
+    #[tokio::test]
+    async fn endpoint_add_identity_constrained_rejects_destination_constraint() {
+        use ssh_agent_lib::proto::{Credential, KeyConstraint, Unparsed};
+        use ssh_key::private::{Ed25519Keypair, KeypairData};
+        let mut ep = Endpoint::default();
+        let keypair = Ed25519Keypair::random(&mut rand::rngs::OsRng);
+        let identity = AddIdentity {
+            credential: Credential::Key {
+                privkey: KeypairData::Ed25519(keypair),
+                comment: "test".into(),
+            },
+        };
+        let constrained = AddIdentityConstrained {
+            identity,
+            constraints: vec![KeyConstraint::Extension(Extension {
+                name: "restrict-destination-v00@openssh.com".into(),
+                details: Unparsed::from(Vec::<u8>::new()),
+            })],
+        };
+        let err = ep.add_identity_constrained(constrained).await.unwrap_err();
+        match err {
+            AgentError::Other(boxed) => {
+                let s = boxed.to_string();
+                assert!(
+                    s.contains("destination constraints"),
+                    "expected destination-constraint message, got {s}"
+                );
+            }
+            other => panic!("expected AgentError::Other, got {other:?}"),
+        }
+    }
+
+    /// ADD_IDENTITY_CONSTRAINED WITHOUT a destination constraint
+    /// still rejects, but with the generic "cannot add keys" message.
+    /// Distinguishing the two messages is the M14 contract: silent
+    /// acceptance is the bug; both refusals are correct, the
+    /// destination-specific arm just gives a better hint.
+    #[tokio::test]
+    async fn endpoint_add_identity_constrained_without_destination_uses_generic_refusal() {
+        use ssh_agent_lib::proto::{Credential, KeyConstraint};
+        use ssh_key::private::{Ed25519Keypair, KeypairData};
+        let mut ep = Endpoint::default();
+        let keypair = Ed25519Keypair::random(&mut rand::rngs::OsRng);
+        let identity = AddIdentity {
+            credential: Credential::Key {
+                privkey: KeypairData::Ed25519(keypair),
+                comment: "test".into(),
+            },
+        };
+        let constrained = AddIdentityConstrained {
+            identity,
+            constraints: vec![KeyConstraint::Lifetime(3600)],
+        };
+        let err = ep.add_identity_constrained(constrained).await.unwrap_err();
+        match err {
+            AgentError::Other(boxed) => {
+                let s = boxed.to_string();
+                assert!(
+                    s.contains("external clients cannot add"),
+                    "expected generic refusal, got {s}"
+                );
+            }
+            other => panic!("expected AgentError::Other, got {other:?}"),
+        }
+    }
+
+    /// Detector helper handles the v01 alias too — the alias is the
+    /// load-bearing branch in `first_destination_constraint_name` we
+    /// rely on for any future OpenSSH bump.
+    #[test]
+    fn destination_constraint_detector_recognises_v01_alias() {
+        use ssh_agent_lib::proto::{KeyConstraint, Unparsed};
+        let constraints = vec![KeyConstraint::Extension(Extension {
+            name: "restrict-destination-v01@openssh.com".into(),
+            details: Unparsed::from(Vec::<u8>::new()),
+        })];
+        let name = super::first_destination_constraint_name(&constraints);
+        assert_eq!(name, Some("restrict-destination-v01@openssh.com"));
+    }
+
+    /// Detector helper returns `None` when no destination constraint
+    /// is present, even when other extension constraints are.
+    #[test]
+    fn destination_constraint_detector_ignores_other_extensions() {
+        use ssh_agent_lib::proto::{KeyConstraint, Unparsed};
+        let constraints = vec![
+            KeyConstraint::Lifetime(3600),
+            KeyConstraint::Confirm,
+            KeyConstraint::Extension(Extension {
+                name: "some-other-extension@example.com".into(),
+                details: Unparsed::from(Vec::<u8>::new()),
+            }),
+        ];
+        let name = super::first_destination_constraint_name(&constraints);
+        assert_eq!(name, None);
     }
 }

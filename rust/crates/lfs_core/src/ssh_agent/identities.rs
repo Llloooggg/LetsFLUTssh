@@ -56,9 +56,31 @@ pub(crate) struct Advertised {
 /// and are filtered out. `Deny`-policy rows are filtered out too so
 /// listing does not disclose their existence to the external client
 /// (information-disclosure tightening of the OpenSSH `ssh-add -c`
-/// semantics).
+/// semantics). FIDO2 credentials whose CTAP2 metadata carries the
+/// mandatory user-verification bit are filtered too — the agent wire
+/// protocol has no surface for collecting a PIN at sign time, so
+/// publishing such a row would let an external client trigger a
+/// CTAP2 `getAssertion` that always returns `CTAP2_ERR_PIN_REQUIRED`.
+/// The connect path (`crate::connection`) collects the PIN through
+/// its own dialog and remains the supported entry point.
 fn row_is_publishable(row: &SshKeyRow) -> bool {
-    BackendKind::from_row(row) != BackendKind::Software && row.agent_policy != AgentPolicy::Deny
+    if BackendKind::from_row(row) == BackendKind::Software {
+        return false;
+    }
+    if row.agent_policy == AgentPolicy::Deny {
+        return false;
+    }
+    if BackendKind::from_row(row) == BackendKind::Fido2 && row.has_user_verification {
+        crate::app_log_info!(
+            "SshAgent",
+            "skip listing key=<{}> label=<{}>: FIDO2 user-verification required; \
+             agent wire has no PIN surface — use direct connection",
+            row.id,
+            row.label
+        );
+        return false;
+    }
+    true
 }
 
 /// Build the bare public-key wire blob for a row. The DB stores the
@@ -273,6 +295,29 @@ mod tests {
         let r = row("a", KeyBackend::Fido2, ED25519_PUB, AgentPolicy::Deny);
         let out = build_advertised(&[r], |_| Ok(None)).unwrap();
         assert!(out.is_empty());
+    }
+
+    /// FIDO2 row whose CTAP2 metadata carries the user-verification
+    /// bit is filtered out of the listing — the agent wire has no PIN
+    /// surface and publishing the row would let an external client
+    /// trigger a `CTAP2_ERR_PIN_REQUIRED` on every sign.
+    #[test]
+    fn build_skips_fido2_user_verification_required_rows() {
+        let mut r = row("uv", KeyBackend::Fido2, ED25519_PUB, AgentPolicy::Ask);
+        r.has_user_verification = true;
+        let out = build_advertised(&[r], |_| Ok(None)).unwrap();
+        assert!(out.is_empty());
+    }
+
+    /// FIDO2 row WITHOUT user-verification is still published — the
+    /// filter is the UV bit, not the FIDO2 backend.
+    #[test]
+    fn build_emits_fido2_row_without_user_verification() {
+        let mut r = row("touch", KeyBackend::Fido2, ED25519_PUB, AgentPolicy::Ask);
+        r.has_user_verification = false;
+        let out = build_advertised(&[r], |_| Ok(None)).unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].comment, "label-touch");
     }
 
     #[test]
