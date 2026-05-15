@@ -169,13 +169,26 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     });
   }
 
+  /// Tear down the per-connect progress plumbing. Idempotent — both
+  /// the success path and every `!mounted` early-return route through
+  /// this so the subscription + tracker never leak.
+  void _disposeProgress(ProgressTracker tracker) {
+    _progressSub?.cancel();
+    _progressSub = null;
+    tracker.dispose();
+  }
+
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
-    final l10n = S.of(context);
     final tracker = ProgressTracker(conn);
+    // `S.of(context)` is read inline pre-await so the `BuildContext`
+    // is never carried across an async gap. `ProgressWriter` holds
+    // a snapshot of `S` (a static lookup table, not a live context),
+    // which is safe to use after the pane disposes — the writer is
+    // discarded with this method's stack frame.
     final writer = ProgressWriter(
       terminal: _terminal,
-      l10n: l10n,
+      l10n: S.of(context),
       config: conn.sshConfig,
     );
 
@@ -184,6 +197,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
     // Wait for connection if still connecting
     await conn.waitUntilReady();
+    if (!mounted) {
+      _disposeProgress(tracker);
+      return;
+    }
     // `state == connected` flips when the Rust actor publishes
     // ConnectionStateChanged Connected, but the russh handle is
     // adopted asynchronously inside Connection._adoptSession. If
@@ -192,26 +209,42 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // for the adopt to settle (succeed / fail) before checking.
     if (conn.isConnecting || conn.isConnected) {
       await conn.transportReady;
+      if (!mounted) {
+        _disposeProgress(tracker);
+        return;
+      }
     }
-    _progressSub?.cancel();
-    _progressSub = null;
-    tracker.dispose();
+    _disposeProgress(tracker);
 
-    // Check connection result
     if (!conn.isConnected) {
-      if (!mounted) return;
-      // Mark disconnected so tab dot and connection bar update
-      conn.state = SSHConnectionState.disconnected;
-      final error = conn.connectionError != null
-          ? localizeError(l10n, conn.connectionError!)
-          : l10n.errConnectionFailed;
-      _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
-      setState(() => _error = error);
-      // Notify provider so workspace status dots and connection bar update
-      ref.read(connectionsProvider.notifier).notifyStateChanged();
+      _onConnectFailed(conn);
       return;
     }
 
+    await _openShellAndAttach(conn, writer);
+  }
+
+  /// Disconnected branch — surface the failure to the terminal and
+  /// notify the workspace so status dots / connection bar update.
+  /// Only reachable while `mounted` is true (callers gate on it).
+  void _onConnectFailed(Connection conn) {
+    conn.state = SSHConnectionState.disconnected;
+    final l10n = S.of(context);
+    final error = conn.connectionError != null
+        ? localizeError(l10n, conn.connectionError!)
+        : l10n.errConnectionFailed;
+    _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
+    setState(() => _error = error);
+    ref.read(connectionsProvider.notifier).notifyStateChanged();
+  }
+
+  /// Success branch — open the shell, adopt it, and wire broadcast.
+  /// Every async hop checks `mounted` so a mid-open dispose closes
+  /// the freshly-adopted shell instead of leaking it.
+  Future<void> _openShellAndAttach(
+    Connection conn,
+    ProgressWriter writer,
+  ) async {
     try {
       AppLogger.instance.log(
         'Shell open: starting openShell for connection ${conn.id}',
@@ -220,25 +253,30 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       // Clear progress log before opening shell — openShell wires stdout
       // to terminal.write(), so any server output must not be erased.
       writer.clear();
-      _shellConn = await _openShell(conn);
+      final shellConn = await _openShell(conn);
+      if (!mounted) {
+        // Pane was disposed mid-open. Close the shell we just adopted
+        // so the russh channel + recorder don't leak past dispose.
+        shellConn.close();
+        return;
+      }
+      _shellConn = shellConn;
       AppLogger.instance.log(
         'Shell open: success for ${conn.id}',
         name: 'TerminalPane',
       );
       _attachBroadcast();
-      // Notify provider so workspace status dots and connection bar update
-      if (mounted) ref.read(connectionsProvider.notifier).notifyStateChanged();
+      ref.read(connectionsProvider.notifier).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',
         name: 'TerminalPane',
         error: e,
       );
-      if (mounted) {
-        final localized = localizeError(l10n, e);
-        _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
-        setState(() => _error = localized);
-      }
+      if (!mounted) return;
+      final localized = localizeError(S.of(context), e);
+      _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
+      setState(() => _error = localized);
     }
   }
 
