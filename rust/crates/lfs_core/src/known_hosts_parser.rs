@@ -63,6 +63,27 @@ pub fn parse_line(line: &str) -> Vec<ParsedHostEntry> {
         // skipped.
         return Vec::new();
     }
+    // Reject lines whose key body is not valid standard base64.
+    // A corrupt/garbage key bytes would otherwise sit in the
+    // known_hosts table until the next connect attempt, where
+    // russh's base64 decode would surface a host-key mismatch
+    // long after the user moved on from the import dialog. The
+    // empty payload check is separate so the warning text can
+    // call out the distinct shape.
+    if key_base64.is_empty() {
+        crate::app_log_warn!(
+            "KnownHostsImport",
+            "skipping known_hosts line with empty key body"
+        );
+        return Vec::new();
+    }
+    if !is_valid_standard_base64(key_base64) {
+        crate::app_log_warn!(
+            "KnownHostsImport",
+            "skipping known_hosts line with invalid base64 key body"
+        );
+        return Vec::new();
+    }
     let mut out = Vec::new();
     for spec in host_spec.split(',') {
         if let Some(host_port) = normalise_host_spec(spec) {
@@ -74,6 +95,16 @@ pub fn parse_line(line: &str) -> Vec<ParsedHostEntry> {
         }
     }
     out
+}
+
+/// Decode-check a candidate `key_base64` against the standard
+/// (`+/`, padded) base64 alphabet used by every OpenSSH-style
+/// known_hosts line. Returns `false` for anything that won't make
+/// it through `base64::STANDARD.decode` at connect time, so the
+/// importer can drop the row before it lands in the DB.
+fn is_valid_standard_base64(s: &str) -> bool {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    STANDARD.decode(s).is_ok()
 }
 
 /// Convert a single OpenSSH host-spec or LetsFLUTssh internal
@@ -292,6 +323,26 @@ mod tests {
         assert!(!is_hashed_hosts_line(""));
         assert!(!is_hashed_hosts_line("# comment"));
         assert!(!is_hashed_hosts_line("|1|"));
+    }
+
+    #[test]
+    fn rejects_invalid_base64_key_body() {
+        // `not-base64!!!` contains characters outside the standard
+        // base64 alphabet — the line must drop at parse time so a
+        // corrupt key body never lands in the DB and surfaces as a
+        // host-key mismatch on the next connect attempt.
+        assert!(parse_line("example.com ssh-ed25519 not-base64!!!").is_empty());
+        // 3-character body fails padding requirements.
+        assert!(parse_line("example.com ssh-ed25519 KEY").is_empty());
+    }
+
+    #[test]
+    fn rejects_too_few_columns_before_base64_check() {
+        // Two-column lines short-circuit at the `len < 3` check —
+        // the base64 validator never runs because there is no
+        // third field to validate. Pins the order of the two
+        // shape guards.
+        assert!(parse_line("example.com ssh-ed25519").is_empty());
     }
 
     #[test]

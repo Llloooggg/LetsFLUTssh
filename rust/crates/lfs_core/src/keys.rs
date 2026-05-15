@@ -140,7 +140,12 @@ pub fn import_ppk(
     // Argon2 derive call and the runtime would try to allocate that
     // many KiB before the file is even validated. 1 GiB matches the
     // ceiling enforced on the LFSE archive envelope's KDF params.
-    if let Some(memory_kib) = parse_ppk_argon2_memory(trimmed) {
+    //
+    // `Ok(None)` means no `Argon2-Memory` line (v2 PPK) — nothing to
+    // enforce. `Err(_)` means the line exists but the value does not
+    // parse as a u32; surface as a typed parse error so a hostile
+    // value larger than `u32::MAX` cannot silently bypass the cap.
+    if let Some(memory_kib) = parse_ppk_argon2_memory(trimmed)? {
         const PPK_ARGON2_MEMORY_CAP_KIB: u32 = 1024 * 1024; // 1 GiB
         if memory_kib > PPK_ARGON2_MEMORY_CAP_KIB {
             return Err(Error::KeyParse(format!(
@@ -162,17 +167,31 @@ pub fn import_ppk(
 }
 
 /// Find `Argon2-Memory: N` in a PPK v3 header and return the
-/// declared memory cost in KiB. Returns `None` for v2 (no
-/// Argon2 line) or malformed values; callers treat absence as
-/// "no cap to enforce". Pure header sniff, no `russh_keys`
-/// invocation.
-fn parse_ppk_argon2_memory(ppk_text: &str) -> Option<u32> {
+/// declared memory cost in KiB.
+///
+/// - `Ok(None)` — no `Argon2-Memory` line (v2 PPK). Callers treat
+///   absence as "no cap to enforce".
+/// - `Ok(Some(n))` — line present with a value that parses as a
+///   `u32` (KiB).
+/// - `Err(Error::KeyParse)` — line present but the value does not
+///   parse as a `u32`. A hostile `.ppk` could declare a value
+///   above `u32::MAX` (`99999999999999999999`) and silently bypass
+///   the cap when this signal was previously folded into the
+///   absence case; the typed error makes the caller reject the
+///   file before russh-keys forwards the line to the Argon2 derive.
+///
+/// Pure header sniff, no `russh_keys` invocation.
+fn parse_ppk_argon2_memory(ppk_text: &str) -> Result<Option<u32>, Error> {
     for line in ppk_text.lines() {
         if let Some(rest) = line.strip_prefix("Argon2-Memory:") {
-            return rest.trim().parse::<u32>().ok();
+            let value = rest.trim();
+            return value
+                .parse::<u32>()
+                .map(Some)
+                .map_err(|_| Error::KeyParse("ppk: Argon2-Memory not a valid u32".into()));
         }
     }
-    None
+    Ok(None)
 }
 
 /// Parsed metadata for an `sk-*` SSH private key. The "private" file
@@ -908,5 +927,59 @@ mod tests {
         let padded = format!("\n  {ED25519_CERT_FIXTURE}");
         let parsed = parse_openssh_cert(padded.as_bytes()).unwrap();
         assert_eq!(parsed.principals, vec!["host.example.com".to_string()]);
+    }
+
+    #[test]
+    fn parse_ppk_argon2_memory_returns_none_when_line_missing() {
+        // v2 PPK header — no `Argon2-Memory` line. The caller treats
+        // `Ok(None)` as "no cap to enforce".
+        let v2 = "PuTTY-User-Key-File-2: ssh-rsa\nEncryption: none\n";
+        assert_eq!(parse_ppk_argon2_memory(v2).unwrap(), None);
+    }
+
+    #[test]
+    fn parse_ppk_argon2_memory_parses_valid_u32() {
+        let header = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 8192\n";
+        assert_eq!(parse_ppk_argon2_memory(header).unwrap(), Some(8192));
+    }
+
+    #[test]
+    fn parse_ppk_argon2_memory_rejects_value_above_u32_max() {
+        // `99999999999999999999` is larger than `u32::MAX` and was
+        // previously folded into the "no cap to enforce" branch via
+        // `parse::<u32>().ok()`, silently bypassing the 1 GiB cap.
+        // The typed parse error makes the caller reject the file.
+        let hostile = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 99999999999999999999\n";
+        let err = parse_ppk_argon2_memory(hostile).unwrap_err();
+        match err {
+            Error::KeyParse(msg) => {
+                assert!(msg.contains("Argon2-Memory"), "unexpected message: {msg}");
+            }
+            other => panic!("expected KeyParse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_ppk_argon2_memory_rejects_non_numeric_value() {
+        let bad = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: abcd\n";
+        assert!(matches!(
+            parse_ppk_argon2_memory(bad),
+            Err(Error::KeyParse(_))
+        ));
+    }
+
+    #[test]
+    fn import_ppk_rejects_argon2_memory_above_u32_max() {
+        // End-to-end: a hostile `.ppk` whose `Argon2-Memory` value
+        // exceeds `u32::MAX` must short-circuit with a typed
+        // `KeyParse` error before russh-keys touches the file.
+        let hostile = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 9999999999999\nEncryption: aes256-cbc\n";
+        let err = import_ppk(hostile, Some("pw"), "comment").unwrap_err();
+        match err {
+            Error::KeyParse(msg) => {
+                assert!(msg.contains("Argon2-Memory"), "unexpected message: {msg}");
+            }
+            other => panic!("expected KeyParse, got {other:?}"),
+        }
     }
 }

@@ -542,6 +542,7 @@ fn apply_folder_tree(
                 parent_id = Some(existing.clone());
                 continue;
             }
+            warn_if_windows_reserved_folder_label(seg);
             let mut bytes = [0u8; 16];
             rand::rngs::OsRng.fill_bytes(&mut bytes);
             let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
@@ -568,6 +569,49 @@ fn apply_folder_tree(
         }
     }
     path_to_id
+}
+
+/// Emit a soft warning when an imported folder label collides with
+/// a Windows-reserved device name (`CON`, `PRN`, `AUX`, `NUL`,
+/// `COM1-9`, `LPT1-9`). Folder labels are tree display strings, not
+/// filesystem paths — Win32's reserved-name handling cannot apply,
+/// so the warning is advisory only and the row imports normally.
+/// The Windows UI may still render the label oddly when the user
+/// later exports / drags / copies the name into a path context.
+fn warn_if_windows_reserved_folder_label(label: &str) {
+    if is_windows_reserved_name(label) {
+        crate::app_log_warn!(
+            "Archive",
+            "folder label {label} matches Windows-reserved name; may render oddly on Windows"
+        );
+    }
+}
+
+/// Case-insensitive match against the Win32 reserved device names
+/// (`CON`, `PRN`, `AUX`, `NUL`, `COM1`..`COM9`, `LPT1`..`LPT9`).
+/// `COM0` / `LPT0` are NOT reserved on modern Windows (validated
+/// against the MS-DOS device list); the digit must be `1`..`9`.
+fn is_windows_reserved_name(label: &str) -> bool {
+    // Strip a trailing extension — Windows treats `con.txt` as
+    // reserved too because legacy CMD strips before resolution.
+    let bare = match label.find('.') {
+        Some(dot) => &label[..dot],
+        None => label,
+    };
+    let upper = bare.to_ascii_uppercase();
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || matches_numbered_device(&upper, "COM")
+        || matches_numbered_device(&upper, "LPT")
+}
+
+fn matches_numbered_device(upper: &str, prefix: &str) -> bool {
+    let Some(tail) = upper.strip_prefix(prefix) else {
+        return false;
+    };
+    if tail.len() != 1 {
+        return false;
+    }
+    matches!(tail.as_bytes()[0], b'1'..=b'9')
 }
 
 fn apply_empty_folders(
@@ -602,6 +646,7 @@ fn apply_empty_folders(
                 parent_id = Some(existing.clone());
                 continue;
             }
+            warn_if_windows_reserved_folder_label(seg);
             let mut bytes = [0u8; 16];
             rand::rngs::OsRng.fill_bytes(&mut bytes);
             let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
@@ -1254,6 +1299,7 @@ fn apply_known_hosts(
     now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     // Format: "host[:port] keytype key_base64" per line. Comments
     // (`#` lines) and blanks skipped. Default port 22 when the
     // host omits the colon — same fallback the Dart importer uses.
@@ -1268,6 +1314,19 @@ fn apply_known_hosts(
         else {
             continue;
         };
+        // Validate base64 at import time so a corrupt key body
+        // does not sit in the DB until the next connect attempt
+        // surfaces it as a TOFU mismatch.
+        if key_base64.is_empty() || STANDARD.decode(key_base64).is_err() {
+            crate::app_log_warn!(
+                "ArchiveKnownHosts",
+                "skipping archive known_hosts row with invalid base64 key body"
+            );
+            outcome
+                .warnings
+                .push("known_hosts row skipped: invalid base64 key body".into());
+            continue;
+        }
         let (host, port) = match host_port.rsplit_once(':') {
             Some((h, p)) => match p.parse::<i64>() {
                 Ok(n) => (h, n),
@@ -2606,9 +2665,9 @@ mod tests {
     #[test]
     fn replace_mode_clears_known_hosts_when_toggle_on() {
         let mut conn = fresh_db();
-        known_hosts::upsert_by_host_port(&conn, "old.example", 22, "ssh-rsa", "OLD", 0).unwrap();
+        known_hosts::upsert_by_host_port(&conn, "old.example", 22, "ssh-rsa", "OLDK", 0).unwrap();
         let pending = PendingImport {
-            known_hosts_text: Some("new.example ssh-ed25519 NEW".to_string()),
+            known_hosts_text: Some("new.example ssh-ed25519 NEWK".to_string()),
             ..empty_pending()
         };
         let mut opts = merge_all_options();
@@ -2696,7 +2755,7 @@ mod tests {
     fn apply_known_hosts_default_port_22_when_omitted() {
         let conn = fresh_db();
         let pending = PendingImport {
-            known_hosts_text: Some("h.example ssh-ed25519 KEY".to_string()),
+            known_hosts_text: Some("h.example ssh-ed25519 KEYY".to_string()),
             ..empty_pending()
         };
         apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
@@ -2711,7 +2770,7 @@ mod tests {
     fn apply_known_hosts_parses_explicit_port() {
         let conn = fresh_db();
         let pending = PendingImport {
-            known_hosts_text: Some("h.example:9000 ssh-rsa KEY".to_string()),
+            known_hosts_text: Some("h.example:9000 ssh-rsa KEYY".to_string()),
             ..empty_pending()
         };
         apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
@@ -2724,7 +2783,7 @@ mod tests {
     #[test]
     fn apply_known_hosts_skips_comments_and_blanks() {
         let conn = fresh_db();
-        let text = "\n# comment line\n\n  \nh1 ssh-rsa A\n# another comment\nh2 ssh-rsa B\n";
+        let text = "\n# comment line\n\n  \nh1 ssh-rsa AAAA\n# another comment\nh2 ssh-rsa BBBB\n";
         let pending = PendingImport {
             known_hosts_text: Some(text.into()),
             ..empty_pending()
@@ -2738,7 +2797,7 @@ mod tests {
     #[test]
     fn apply_known_hosts_skips_lines_with_too_few_columns() {
         let conn = fresh_db();
-        let text = "incomplete line\nh ssh-rsa KEY";
+        let text = "incomplete line\nh ssh-rsa KEYY";
         let pending = PendingImport {
             known_hosts_text: Some(text.into()),
             ..empty_pending()
@@ -2747,6 +2806,115 @@ mod tests {
             apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
                 .unwrap();
         assert_eq!(result.known_hosts_applied, 1);
+    }
+
+    #[test]
+    fn windows_reserved_name_matches_dos_devices_case_insensitive() {
+        // Pin the Win32 reserved-name list the importer warns
+        // about. Matches MS-DOS device names: `CON`, `PRN`, `AUX`,
+        // `NUL`, `COM1..9`, `LPT1..9`. `COM0` / `LPT0` are NOT
+        // reserved on modern Windows. Extension-stripping mirrors
+        // CMD's pre-resolution stage so `con.txt` is flagged.
+        for label in ["CON", "con", "Con", "PRN", "AUX", "NUL"] {
+            assert!(
+                is_windows_reserved_name(label),
+                "{label} should be reserved"
+            );
+        }
+        for label in ["COM1", "COM9", "LPT1", "LPT9", "com1", "lpt9"] {
+            assert!(
+                is_windows_reserved_name(label),
+                "{label} should be reserved"
+            );
+        }
+        assert!(is_windows_reserved_name("con.txt"));
+        // Non-matches.
+        for label in [
+            "CON ",
+            "MYCON",
+            "COM",
+            "COM0",
+            "LPT0",
+            "COM10",
+            "LPT10",
+            "production",
+            "Stage",
+        ] {
+            assert!(
+                !is_windows_reserved_name(label),
+                "{label} should NOT be reserved"
+            );
+        }
+    }
+
+    #[test]
+    fn apply_folder_tree_imports_windows_reserved_label() {
+        // Folder labels are tree display strings, not filesystem
+        // paths — the warning is advisory and the row must still
+        // land. The accompanying `app_log_warn!` cannot be observed
+        // from a standalone unit test (no app singleton), so this
+        // test covers the import-doesn't-reject leg; the matching
+        // predicate is covered separately.
+        let conn = fresh_db();
+        let sessions = r#"[{
+            "id":"s_con",
+            "label":"hostnamed",
+            "host":"h","port":22,"user":"u","auth_type":"password",
+            "folder":"CON",
+            "created_at":"2026-04-26T00:00:00.000Z",
+            "updated_at":"2026-04-26T00:00:00.000Z"
+        }]"#;
+        let pending = PendingImport {
+            sessions_json: Some(sessions.to_string()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        // Folder still imports — the warning is advisory only.
+        assert_eq!(result.folders_applied, 1);
+        let rows = folders::list_all(&conn).unwrap();
+        assert!(rows.iter().any(|r| r.name == "CON"));
+    }
+
+    #[test]
+    fn apply_known_hosts_skips_invalid_base64_key_body() {
+        // `not-base64!!!` contains characters outside the standard
+        // base64 alphabet — the row must drop at import time so a
+        // corrupt key body never reaches the connect path. Mixed
+        // with a valid row so the per-line skip is asserted (good
+        // row still lands). Driver-level call so the test can read
+        // `outcome.warnings` (not surfaced on the legacy
+        // `ApplyResult` shape).
+        let mut conn = fresh_db();
+        let text = "bad.example ssh-ed25519 not-base64!!!\ngood.example ssh-rsa AAAA";
+        let pending = PendingImport {
+            known_hosts_text: Some(text.into()),
+            ..empty_pending()
+        };
+        let mut outcome = ApplyOutcome::default();
+        apply_pending_to_db(
+            &mut conn,
+            &pending,
+            ApplyMode::ArchiveImport {
+                replace_mode: false,
+            },
+            &merge_all_options(),
+            1_700_000_000_000,
+            &mut outcome,
+        )
+        .unwrap();
+        assert_eq!(outcome.known_hosts_applied, 1);
+        assert!(known_hosts::get_by_host_port(&conn, "bad.example", 22)
+            .unwrap()
+            .is_none());
+        assert!(known_hosts::get_by_host_port(&conn, "good.example", 22)
+            .unwrap()
+            .is_some());
+        assert!(outcome
+            .warnings
+            .iter()
+            .any(|w| w.contains("invalid base64")));
     }
 
     // ── port + json_i64 ───────────────────────────────────────
