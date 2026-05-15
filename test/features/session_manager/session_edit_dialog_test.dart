@@ -2613,6 +2613,120 @@ void main() {
       expect(find.text('Forwarding'), findsNothing);
     });
   });
+
+  group('SessionEditDialog — ProxyJump required-field validation', () {
+    testWidgets('ProxyJump custom mode blocks Save when host/user missing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Fill the main SSH connection so only the proxy fields are
+      // empty when Save fires.
+      await fillRequiredFields(tester);
+
+      // Flip the proxy mode to "Custom" — host / port / username
+      // fields render with `*Required` labels but used to lack any
+      // validator. Save must surface "Required" markers and refuse
+      // to close.
+      await tester.tap(find.text('Custom'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      // Dialog still open — proxy fields blocked the save.
+      expect(find.text('New Connection'), findsOneWidget);
+      expect(find.text('Required'), findsWidgets);
+    });
+
+    testWidgets(
+      'ProxyJump custom mode allows Save once host / port / user filled',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await fillRequiredFields(tester);
+
+        await tester.tap(find.text('Custom'));
+        await tester.pumpAndSettle();
+
+        // Fill proxy host / port / user via the hint placeholders.
+        await tester.enterText(
+          fieldByHint('bastion.example.com'),
+          'bastion.example.com',
+        );
+        // The proxy port hint is '22'; two fields share that hint
+        // (main port + proxy port). Enter via the second occurrence.
+        final portFinder = fieldByHint('22');
+        await tester.enterText(portFinder.last, '2222');
+        // Reuse the username hint — two fields share it (main + proxy).
+        final userFinder = fieldByHint('root');
+        await tester.enterText(userFinder.last, 'ops');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
+
+        // Dialog closed with a SaveResult — proxy override flowed
+        // through.
+        expect(dialogResult, isA<SaveResult>());
+      },
+    );
+
+    testWidgets('ProxyJump saved mode blocks Save when no bastion selected', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await fillRequiredFields(tester);
+
+      // Switch to "Saved session". With no existing sessions to
+      // pick (test scope opens a fresh ProviderScope with no
+      // session list), the dropdown stays unselected — Save must
+      // refuse rather than collapsing silently to no-ProxyJump.
+      await tester.tap(find.text('Saved session'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Connection'), findsOneWidget);
+      expect(find.text('Required'), findsWidgets);
+    });
+
+    testWidgets('ProxyJump port range checked separately from main port', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await fillRequiredFields(tester);
+
+      await tester.tap(find.text('Custom'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        fieldByHint('bastion.example.com'),
+        'bastion.example.com',
+      );
+      // 99999 is out of the 1..65535 SSH port range.
+      await tester.enterText(fieldByHint('22').last, '99999');
+      await tester.enterText(fieldByHint('root').last, 'ops');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      // Dialog stays open; the port-range error surfaces inline.
+      expect(find.text('New Connection'), findsOneWidget);
+    });
+  });
 }
 
 /// Minimal [SshKeysMutator] test double — returns the seeded

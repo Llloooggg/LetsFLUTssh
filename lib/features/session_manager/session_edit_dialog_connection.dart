@@ -308,6 +308,11 @@ extension _ConnectionTab on _SessionEditDialogState {
                 ),
             ],
             onChanged: (v) => rebuild(() => _proxyViaSessionId = v),
+            // "Saved session" mode without a selection would silently
+            // collapse to no-ProxyJump on save (`viaSessionId = null`).
+            // The required-field check forces the user to either pick
+            // a bastion or flip the mode to `None`.
+            validator: (v) => v == null || v.isEmpty ? l10n.required : null,
           ),
         ],
         if (_proxyMode == _ProxyMode.custom) ...[
@@ -319,6 +324,10 @@ extension _ConnectionTab on _SessionEditDialogState {
                   label: l10n.hostRequired,
                   controller: _proxyHostCtrl,
                   hint: 'bastion.example.com',
+                  // Match the main host field's required check —
+                  // the `Host *` label promises a required input,
+                  // the form must enforce it on Save.
+                  validator: _requiredValidator,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -329,6 +338,12 @@ extension _ConnectionTab on _SessionEditDialogState {
                   controller: _proxyPortCtrl,
                   hint: '22',
                   keyboardType: TextInputType.number,
+                  // Same 1..65535 envelope as the main SSH port —
+                  // a stray empty / out-of-range value would land in
+                  // `via_port` and surface as a russh handshake error
+                  // long after Save.
+                  validator: (v) =>
+                      isValidConnectionPort(v) ? null : l10n.portRange,
                 ),
               ),
             ],
@@ -338,6 +353,9 @@ extension _ConnectionTab on _SessionEditDialogState {
             label: l10n.usernameRequired,
             controller: _proxyUserCtrl,
             hint: l10n.hintUsername,
+            // Match the main username field — the label is starred,
+            // the form must enforce.
+            validator: _requiredValidator,
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(

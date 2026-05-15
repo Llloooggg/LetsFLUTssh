@@ -796,10 +796,24 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       if (_requiredValidator(_accessKeyIdCtrl.text) != null) return 0;
       return 1;
     }
-    // Connection tab (0): host, port, username
+    // Connection tab (0): host, port, username, plus the ProxyJump
+    // editor when it is in `saved` (dropdown selection required) or
+    // `custom` (host / port / user required) mode. Routing through
+    // every proxy-mode validator keeps the user on the same tab the
+    // failing field renders on; without this the form would surface
+    // the inline error on tab 0 while jumping focus to tab 1.
     if (_requiredValidator(_hostCtrl.text) != null) return 0;
     if (!isValidConnectionPort(_portCtrl.text)) return 0;
     if (_requiredValidator(_userCtrl.text) != null) return 0;
+    if (_proxyMode == _ProxyMode.saved &&
+        (_proxyViaSessionId == null || _proxyViaSessionId!.isEmpty)) {
+      return 0;
+    }
+    if (_proxyMode == _ProxyMode.custom) {
+      if (_requiredValidator(_proxyHostCtrl.text) != null) return 0;
+      if (!isValidConnectionPort(_proxyPortCtrl.text)) return 0;
+      if (_requiredValidator(_proxyUserCtrl.text) != null) return 0;
+    }
     // Auth tab (1): credentials
     return 1;
   }
