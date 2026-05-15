@@ -131,17 +131,17 @@ SEED
 # and each cap-exceeded rejection. libFuzzer mutates from these
 # anchors, so one seed per branch keeps the corpus tight against
 # the real decision boundaries.
-#   m = 46 MiB (0xb800 KiB), t = 2, p = 1 — production defaults.
-printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01' > \
+#   m = 64 MiB (0x10000 KiB), t = 3, p = 1 — production defaults.
+printf '\x01\x00\x01\x00\x00\x00\x00\x00\x03\x01' > \
   "$OUT/fuzz_kdf_params_seed_corpus/default.bin"
 #   Unknown algo id — trips the first rejection branch.
-printf '\xff\x00\x00\xb8\x00\x00\x00\x00\x02\x01' > \
+printf '\xff\x00\x01\x00\x00\x00\x00\x00\x03\x01' > \
   "$OUT/fuzz_kdf_params_seed_corpus/algo_unknown.bin"
 #   memory = 0 — trips the "params must be > 0" branch.
-printf '\x01\x00\x00\x00\x00\x00\x00\x00\x02\x01' > \
+printf '\x01\x00\x00\x00\x00\x00\x00\x00\x03\x01' > \
   "$OUT/fuzz_kdf_params_seed_corpus/mem_zero.bin"
 #   iterations = 0.
-printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x00\x01' > \
+printf '\x01\x00\x01\x00\x00\x00\x00\x00\x00\x01' > \
   "$OUT/fuzz_kdf_params_seed_corpus/iter_zero.bin"
 #   parallelism = 0.
 printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x00' > \
@@ -167,7 +167,7 @@ printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02' > \
 # reproduces across CI runs.
 {
   printf 'LFSE\x02'
-  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01'
+  printf '\x01\x00\x01\x00\x00\x00\x00\x00\x03\x01'
   printf '%.0s\x00' {1..44}
 } > "$OUT/fuzz_lfs_archive_header_seed_corpus/default.bin"
 # Bad magic — trips the magic-byte loop.

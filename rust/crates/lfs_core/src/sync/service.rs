@@ -478,13 +478,15 @@ fn compose_archive(
         schema_version: i64::from(SchemaVersions::ARCHIVE),
         app_version: Some(env!("CARGO_PKG_VERSION").to_string()),
         master_password: Some(passphrase.to_string()),
-        // Production-default Argon2id params — mirror what the
-        // export composer uses for user-initiated `.lfs` writes
-        // so the on-disk shape and the sync archive read through
-        // the same KDF posture.
-        kdf_memory_kib: 46 * 1024,
-        kdf_iterations: 2,
-        kdf_parallelism: 1,
+        // Production-default Argon2id params — read from the
+        // canonical Rust constant so the sync archive and a user-
+        // initiated `.lfs` export share one KDF posture and a cost
+        // bump only has to land in `KdfParams::defaults`.
+        kdf_memory_kib: crate::security::master_password::KdfParams::defaults().memory_kib,
+        kdf_iterations: crate::security::master_password::KdfParams::defaults().iterations,
+        kdf_parallelism: u32::from(
+            crate::security::master_password::KdfParams::defaults().parallelism,
+        ),
         created_at_ms: now_ms,
         sync_origin: Some(sync_origin.to_string()),
     };

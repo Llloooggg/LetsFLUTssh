@@ -77,8 +77,11 @@ pub struct ExportInput {
     /// AES-GCM envelope. Empty string is treated as no encryption,
     /// matching the Dart-side contract.
     pub master_password: Option<String>,
-    /// Argon2id parameters when `master_password` is set. Dart's
-    /// `KdfParams.productionDefaults` are 46 MiB / t=2 / p=1.
+    /// Argon2id parameters when `master_password` is set. The
+    /// canonical production profile lives in
+    /// `lfs_core::security::master_password::KdfParams::defaults`
+    /// (64 MiB / t=3 / p=1) and Dart's `KdfParams.productionDefaults`
+    /// mirrors it at startup.
     pub kdf_memory_kib: u32,
     pub kdf_iterations: u32,
     pub kdf_parallelism: u32,

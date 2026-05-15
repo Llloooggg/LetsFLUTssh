@@ -21,34 +21,34 @@ enum KdfAlgorithm {
   }
 }
 
-/// Parameters for the current production Argon2id profile.
+/// Argon2id parameter record (memory cost, iterations, parallelism).
 ///
-/// Chosen as the "golden middle" between security and mid-tier mobile
-/// wall-clock time:
-/// - `memoryKiB = 47104` (46 MiB) — OWASP 2024 recommended floor
-/// - `iterations = 2` — one full pass is valid, two gives headroom
-/// - `parallelism = 1` — one lane keeps the isolate single-core
+/// The production profile is owned Rust-side in
+/// `lfs_core::security::master_password::KdfParams::defaults` and
+/// mirrored Dart-side into [productionDefaults] at startup via
+/// [bootstrapFromRust]. Every fresh `enable` / `changePassword` /
+/// `.lfs` export reads back from the mirror, so the Rust constant is
+/// the single source of truth for the wall-clock cost.
 ///
-/// Bumping any field is forward-compatible: the value is stored in
-/// `credentials.kdf` and read back at verify time, so a newer profile
-/// can coexist with accounts enabled under the older one. Downgrading
-/// is not — older binaries would fail to decode the header.
+/// Bumping any field on the Rust side is forward-compatible: the value
+/// is stored in `credentials.kdf` and read back at verify time, so a
+/// newer profile coexists with accounts enabled under the older one.
+/// Downgrading is not — older binaries would fail to decode the
+/// header.
 class KdfParams {
   final KdfAlgorithm algorithm;
   final int memoryKiB;
   final int iterations;
   final int parallelism;
 
-  /// OWASP 2024 Argon2id memory floor: 46 MiB = 46 * 1024 KiB.
-  /// Kept as a named constant so the unit (KiB vs MiB vs bytes) is
-  /// obvious at the call site instead of looking up whether `47104`
-  /// is bytes, KiB, or MiB.
-  static const int _defaultMemoryKiB = 46 * 1024;
-
+  /// Argon2id constructor. Callers must supply explicit cost
+  /// parameters — there are no Dart-side defaults; the canonical
+  /// production profile lives in Rust and is exposed through
+  /// [productionDefaults].
   const KdfParams.argon2id({
-    this.memoryKiB = _defaultMemoryKiB,
-    this.iterations = 2,
-    this.parallelism = 1,
+    required this.memoryKiB,
+    required this.iterations,
+    required this.parallelism,
   }) : algorithm = KdfAlgorithm.argon2id;
 
   const KdfParams._({
@@ -58,9 +58,45 @@ class KdfParams {
     required this.parallelism,
   });
 
-  /// Current production defaults. All fresh `enable()` / `changePassword()`
-  /// calls write these. Old files keep whatever they were encoded with.
-  static const KdfParams productionDefaults = KdfParams.argon2id();
+  /// Current production defaults, mirrored from
+  /// `lfs_core::security::master_password::KdfParams::defaults` at
+  /// startup. Reads before [bootstrapFromRust] has run throw
+  /// [LateInitializationError] — wire it into the FRB-ready section
+  /// of bootstrap (after `_initRustCoreOrFatal`) before any code path
+  /// that touches the field.
+  static late KdfParams productionDefaults;
+
+  /// Populate [productionDefaults] from the canonical Rust constant.
+  /// Safe to call more than once — every invocation overwrites the
+  /// field with the same canonical value, so a test harness that has
+  /// already bootstrapped FRB can rebootstrap the mirror without
+  /// risking [LateInitializationError].
+  static void bootstrapFromRust() {
+    final p = rust_mp.kdfParamsProductionDefaults();
+    productionDefaults = KdfParams._(
+      algorithm: KdfAlgorithm.argon2id,
+      memoryKiB: p.memoryKib,
+      iterations: p.iterations,
+      parallelism: p.parallelism,
+    );
+  }
+
+  /// Pre-seed [productionDefaults] with cheap test-time values for
+  /// widget tests that never load FRB (and thus cannot call
+  /// [bootstrapFromRust]). The values match the Argon2id minimum
+  /// (memory=8 KiB, t=1, p=1) so any Dart code path that touches the
+  /// field during a unit/widget test gets a coherent record without
+  /// burning CPU on a real derive. Tests that *do* load FRB
+  /// subsequently overwrite this via [bootstrapFromRust], so the
+  /// canonical Rust values still apply in integration tests.
+  static void bootstrapForTests() {
+    productionDefaults = const KdfParams._(
+      algorithm: KdfAlgorithm.argon2id,
+      memoryKiB: 8,
+      iterations: 1,
+      parallelism: 1,
+    );
+  }
 
   /// Serialize algorithm ID + params via
   /// `lfs_core::security::master_password::KdfParams::encode` (FRB

@@ -27,9 +27,10 @@ fn support_dir() -> Result<&'static std::path::Path, String> {
 }
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.
-/// The Dart side passes the production defaults from
-/// `KdfParams.productionDefaults`; tests override with a cheaper
-/// profile so unit-test cycles don't spend seconds each.
+/// The Dart side mirrors the production defaults at startup via
+/// `kdf_params_production_defaults` into `KdfParams.productionDefaults`;
+/// tests override with a cheaper profile so unit-test cycles don't
+/// spend seconds each.
 #[derive(Debug, Clone, Copy)]
 pub struct DbKdfParams {
     pub memory_kib: u32,
@@ -59,6 +60,22 @@ impl From<DbKdfParams> for KdfParams {
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_is_enabled() -> Result<bool, String> {
     Ok(master_password::is_enabled(support_dir()?))
+}
+
+/// Production-default Argon2id parameters as defined by
+/// `lfs_core::security::master_password::KdfParams::defaults`. The
+/// Dart side mirrors this once at startup into
+/// `KdfParams.productionDefaults`; every fresh `enable` /
+/// `changePassword` / `.lfs` export reads back from the mirror so
+/// the Rust constant is the single source of truth.
+#[flutter_rust_bridge::frb(sync)]
+pub fn kdf_params_production_defaults() -> DbKdfParams {
+    let p = KdfParams::defaults();
+    DbKdfParams {
+        memory_kib: p.memory_kib,
+        iterations: p.iterations,
+        parallelism: u32::from(p.parallelism),
+    }
 }
 
 /// Encode the algo-id + Argon2id params block to the 10-byte
@@ -249,6 +266,18 @@ mod tests {
     // them under a tempdir + cheap KdfParams. The standalone tests
     // below pin the wire-shape primitives that cross the FRB boundary
     // on every call regardless of the pinned support_dir state.
+
+    #[test]
+    fn kdf_params_production_defaults_match_core_constant() {
+        // The Dart side mirrors this value into
+        // `KdfParams.productionDefaults` at startup. Pin the canonical
+        // 64 MiB / 3 iter / 1 lane profile so a Rust-side knob change
+        // forces a deliberate doc + test update across the boundary.
+        let p = kdf_params_production_defaults();
+        assert_eq!(p.memory_kib, 64 * 1024);
+        assert_eq!(p.iterations, 3);
+        assert_eq!(p.parallelism, 1);
+    }
 
     #[test]
     fn kdf_params_encode_decode_round_trips_production_defaults() {

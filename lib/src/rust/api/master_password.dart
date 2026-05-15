@@ -16,6 +16,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 bool masterPasswordIsEnabled() =>
     RustLib.instance.api.crateApiMasterPasswordMasterPasswordIsEnabled();
 
+/// Production-default Argon2id parameters as defined by
+/// `lfs_core::security::master_password::KdfParams::defaults`. The
+/// Dart side mirrors this once at startup into
+/// `KdfParams.productionDefaults`; every fresh `enable` /
+/// `changePassword` / `.lfs` export reads back from the mirror so
+/// the Rust constant is the single source of truth.
+DbKdfParams kdfParamsProductionDefaults() =>
+    RustLib.instance.api.crateApiMasterPasswordKdfParamsProductionDefaults();
+
 /// Encode the algo-id + Argon2id params block to the 10-byte
 /// big-endian shape `credentials.kdf` stores after the magic +
 /// version header. Lets the Dart `KdfParams.encode` route
@@ -148,9 +157,10 @@ Future<bool> masterPasswordVerifyAndDeriveToSecret({
     );
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.
-/// The Dart side passes the production defaults from
-/// `KdfParams.productionDefaults`; tests override with a cheaper
-/// profile so unit-test cycles don't spend seconds each.
+/// The Dart side mirrors the production defaults at startup via
+/// `kdf_params_production_defaults` into `KdfParams.productionDefaults`;
+/// tests override with a cheaper profile so unit-test cycles don't
+/// spend seconds each.
 class DbKdfParams {
   final int memoryKib;
   final int iterations;

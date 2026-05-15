@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:letsflutssh/core/security/kdf_params.dart';
+
 /// Flutter test harness called before every test file.
 ///
 /// `stderr` is replaced with a discarding sink for the test isolate.
@@ -17,9 +19,19 @@ import 'dart:io';
 /// KDF cost for tests that exercise the real `MasterPasswordManager`
 /// is passed per-construction via the `kdfParams:` constructor
 /// argument (see `master_password_test.dart`). Production constructs
-/// without the argument and lands on `KdfParams.productionDefaults`.
+/// without the argument and lands on `KdfParams.productionDefaults`,
+/// the Dart mirror of `lfs_core::security::master_password::
+/// KdfParams::defaults` populated at startup by
+/// `KdfParams.bootstrapFromRust()`.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   IOOverrides.global = _SilentStderrIOOverrides();
+  // Pre-seed [KdfParams.productionDefaults] with cheap test-time
+  // values so widget tests that never load FRB don't trip the
+  // `late` field on `MasterPasswordManager()` construction. Tests
+  // that load FRB call `KdfParams.bootstrapFromRust()` in their
+  // own `setUpAll` and overwrite this with the canonical Rust
+  // profile.
+  KdfParams.bootstrapForTests();
   await testMain();
 }
 

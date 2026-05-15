@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
+import 'package:letsflutssh/core/security/kdf_params.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -40,7 +41,18 @@ class _FakeBiometricAuth implements BiometricAuth {
 class _MockMasterPasswordManager extends MasterPasswordManager {
   bool _enabled = false;
 
-  _MockMasterPasswordManager();
+  // Explicit cheap Argon2id profile so the super constructor does
+  // not reach for `KdfParams.productionDefaults` — that field is a
+  // `late` mirror populated from Rust at production bootstrap and
+  // this widget test never loads FRB.
+  _MockMasterPasswordManager()
+    : super(
+        kdfParams: const KdfParams.argon2id(
+          memoryKiB: 8,
+          iterations: 1,
+          parallelism: 1,
+        ),
+      );
 
   @override
   Future<Uint8List> enable(Uint8List password) async {

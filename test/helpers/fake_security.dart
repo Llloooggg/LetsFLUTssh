@@ -21,6 +21,7 @@ import 'dart:typed_data';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
+import 'package:letsflutssh/core/security/kdf_params.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
@@ -62,7 +63,20 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
     ),
     this.statusAfterFailure,
   }) : unlockOutcomes = unlockOutcomes ?? [],
-       _status = initialStatus;
+       _status = initialStatus,
+       // Pass an explicit cheap Argon2id profile so the super
+       // constructor does not reach for `KdfParams.productionDefaults`
+       // — that field is a `late` mirror populated from Rust at
+       // production bootstrap and fake-driven widget tests that
+       // never load FRB would otherwise hit `LateInitializationError`
+       // on construction.
+       super(
+         kdfParams: const KdfParams.argon2id(
+           memoryKiB: 8,
+           iterations: 1,
+           parallelism: 1,
+         ),
+       );
 
   @override
   Future<bool> isEnabled() async => enabled;

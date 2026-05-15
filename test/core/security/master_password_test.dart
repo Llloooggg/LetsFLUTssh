@@ -44,8 +44,11 @@ void main() {
   });
 
   setUp(() async {
-    // Production Argon2id (46 MiB / 2 iter) takes ~250 ms per derive
-    // on a fast laptop. Lower for the duration of this file.
+    // Production Argon2id (`KdfParams.productionDefaults`, mirrored
+    // from `lfs_core::security::master_password::KdfParams::defaults`)
+    // spends hundreds of milliseconds per derive. Drop to the
+    // Argon2id minimum here so the verify / enable / change cycles
+    // run in milliseconds.
     mp = MasterPasswordManager(
       kdfParams: const KdfParams.argon2id(
         memoryKiB: 8,

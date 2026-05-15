@@ -1155,7 +1155,7 @@ All three surfaces converge on `ensure_identity` + `resign_bundle` Rust-side —
 
 ```mermaid
 flowchart LR
-    A[User password] --> B["Argon2id (Rust)<br/>m=46 MiB, t=2, p=1<br/>+ 32-byte salt"]
+    A[User password] --> B["Argon2id (Rust)<br/>m=64 MiB, t=3, p=1<br/>+ 32-byte salt"]
     B --> C["32-byte DB key<br/>(Vec&lt;u8&gt; in Rust)"]
     C --> D["SecretStore + Zeroizing<br/>(process-singleton, locked + zeroed on drop)"]
     D --> E["lfs_core::db<br/>SQLCipher PRAGMA key"]
@@ -1175,7 +1175,7 @@ Argon2id derivation runs inside `lfs_core::crypto` on a Tokio blocking task; the
 | 6 | 10 | Argon2id params: `memoryKiB` (u32 BE), `iterations` (u32 BE), `parallelism` (u8), plus algorithm id byte prefix |
 | 16 | 32 | Random salt |
 
-The algorithm id + params block is defined in [`KdfParams`](../lib/core/security/kdf_params.dart) — new algorithms can be added without changing the file-layout header. Production defaults are [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart) (Argon2id m=46 MiB t=2 p=1, chosen as the OWASP 2024 recommended floor that balances mid-tier mobile wall-clock against GPU/ASIC resistance).
+The algorithm id + params block is defined in [`KdfParams`](../lib/core/security/kdf_params.dart) — new algorithms can be added without changing the file-layout header. The canonical production profile lives Rust-side in [`lfs_core::security::master_password::KdfParams::defaults`](../rust/crates/lfs_core/src/security/master_password.rs) (Argon2id m=64 MiB t=3 p=1, one tier above the OWASP 2024 floor of 46 MiB / 2 / 1 — desktop/mobile UX absorbs the extra ~60% derive cost for stronger brute-force resistance). The Dart [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart) field is a `late` mirror populated at startup through the sync FRB getter `kdfParamsProductionDefaults`, so Rust is the single source of truth.
 
 **Sanity ceilings on decode.** `KdfParams.decode` validates each Argon2id field against an upper bound (1 GiB memory, 16 iterations, 8 lanes) before constructing the record — decode of a crafted `credentials.kdf` with absurd costs (4 GiB of RAM, a million iterations) throws `FormatException` rather than spinning up the derivation isolate and wedging unlock on an OOM. The ceilings give ~20× headroom over today's production profile, well past any plausible future tuning, while ruling out denial-of-service by file tamper.
 
@@ -2660,7 +2660,9 @@ payload = ZIP archive:
   port_forward_rules.json    ← v3: per-session port-forward rules (Local / Remote / Dynamic)
 
 Encryption: AES-256-GCM
-Key: Argon2id(password, salt, m=46 MiB, t=2, p=1) — see
+Key: Argon2id(password, salt, m=64 MiB, t=3, p=1) — canonical in
+  [`lfs_core::security::master_password::KdfParams::defaults`](../rust/crates/lfs_core/src/security/master_password.rs),
+  mirrored at startup into
   [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart)
 
 Wire format for v3 encrypted archives (current writer):
@@ -2712,7 +2714,7 @@ On iOS and Android the effective ceiling drops to 512 MiB
 (`mobileImportArgon2idMemoryKiB`) — the Android OOM killer on a 2 GB
 baseline device will terminate the process well before the 1 GiB
 ceiling is reached, and legitimate exports never need more than the
-production default (46 MiB) anyway. **Don't try to derive the cap
+production default (64 MiB) anyway. **Don't try to derive the cap
 from `ProcessInfo.maxRss`** — `maxRss` is the current process peak,
 not total physical RAM, so cold-start under-estimates (tiny peak →
 spurious "malformed header" rejections of valid archives) and
@@ -6146,7 +6148,7 @@ Both providers are session-scoped (keyring failure modes on Linux don't change m
 ```mermaid
 flowchart LR
     pw["User password"]
-    pw --> kdf["Argon2id<br/>m=46 MiB, t=2, p=1<br/>32-byte salt"]
+    pw --> kdf["Argon2id<br/>m=64 MiB, t=3, p=1<br/>32-byte salt"]
     kdf --> k["256-bit key"]
     k --> db["letsflutssh.db<br/>PRAGMA key = x'hex'"]
 ```
@@ -6235,7 +6237,7 @@ v1 header:
   ['LFSE' 4] [0x03 version 1] [KdfParams block ≤16] [salt 32B] [IV 12B]
   [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
 
-Key = Argon2id(password, salt, m=46 MiB, t=2, p=1)
+Key = Argon2id(password, salt, m=64 MiB, t=3, p=1)
 AAD = pre-IV header bytes (magic + version + KDF params + salt)
 Legacy 0x02 envelopes (pre-AAD) decode through a fallback branch.
 ```
@@ -6548,7 +6550,7 @@ Two layers of fuzz testing — **property-based** (random inputs on every PR, no
 | `fuzz_json_parser` | `Session.fromJson()` / `AppConfig.fromJson()` / QR payload decoder | Text input, seeded with valid JSONs per target |
 | `fuzz_known_hosts` | `~/.ssh/known_hosts` parser | Text lines, seeded with one RSA + one Ed25519 entry + a comment |
 | `fuzz_uri_parser` | `letsflutssh://` deep-link URIs (`connect` + `import`) | Text, seeded with valid connect + import payload |
-| `fuzz_kdf_params` | `KdfParams.decode` — 10-byte algorithm / memory / iterations / parallelism blob | Binary, seeded with production defaults (Argon2id, 46 MiB, 2 iter, 1 lane) |
+| `fuzz_kdf_params` | `KdfParams.decode` — 10-byte algorithm / memory / iterations / parallelism blob | Binary, seeded with production defaults (Argon2id, 64 MiB, 3 iter, 1 lane) |
 | `fuzz_lfs_archive_header` | LFS archive header — magic + version + KDF blob + salt + IV — parsed up to but NOT including the Argon2id run (user-supplied `memoryKiB` would OOM the fuzz worker) | Binary, seeded with one well-formed Argon2id header + 32-byte salt + 12-byte IV |
 
 Standalone harnesses mirror production logic inline (no Flutter / pub imports) so the compiled binary stays small and libFuzzer coverage attribution is clean. Drift between the mirror and production is caught by test-table tests that exercise both paths against the same vectors.
@@ -6760,7 +6762,7 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 
 | Decision | Rationale |
 |----------|-----------|
-| Argon2id m=46 MiB t=2 p=1 | OWASP 2024 recommended floor — memory-hard, resists GPU/ASIC cracking much better than PBKDF2 |
+| Argon2id m=64 MiB t=3 p=1 | Deliberately one tier above the OWASP 2024 floor (46 MiB / 2 / 1) — desktop/mobile UX absorbs the extra ~60% derive cost for stronger brute-force resistance. Canonical in `lfs_core::security::master_password::KdfParams::defaults`; mirrored Dart-side via the sync FRB getter `kdfParamsProductionDefaults` so Rust is the single source of truth |
 | v1 floor across every persisted artefact | Anything below the current schema is treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Keeps the attack surface to a single KDF and a single wire format at runtime |
 | chmod 600 | Minimal permissions on sensitive files |
 | TOFU reject without callback | Fail-safe: if no UI → reject |

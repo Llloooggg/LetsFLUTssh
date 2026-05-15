@@ -49,10 +49,17 @@ class ExportImport {
       rust_migration.migrationArchiveTargetVersion();
 
   /// Default Argon2id profile used when [exportViaRust] is called
-  /// without an explicit `kdfParams`. Mutable so the test bootstrap
-  /// can drop cost to the Argon2id minimum, keeping the suite fast.
+  /// without an explicit `kdfParams`. Routes through
+  /// [KdfParams.productionDefaults] (mirrored from the canonical Rust
+  /// constant at startup) by default; tests assign [overrideForTest]
+  /// to drop cost to the Argon2id minimum, keeping the suite fast.
+  static KdfParams get defaultKdfParams =>
+      overrideForTest ?? KdfParams.productionDefaults;
+
+  /// Test-only override for [defaultKdfParams]. Null in production —
+  /// the getter falls through to [KdfParams.productionDefaults].
   @visibleForTesting
-  static KdfParams defaultKdfParams = KdfParams.productionDefaults;
+  static KdfParams? overrideForTest;
 
   /// Probe an `.lfs` candidate file and decide what the import flow
   /// should do with it before asking for a password.

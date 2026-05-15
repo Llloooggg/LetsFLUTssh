@@ -287,9 +287,10 @@ pub fn aes_gcm_decrypt_raw(
 /// derived bytes — changing any of them against a stored
 /// `credentials.kdf` salt produces a different key and locks the
 /// user out. Production defaults live in
-/// `lfs_core::security::KdfParams::production_defaults` (Argon2id
-/// m=46 MiB t=2 p=1, OWASP 2024 floor). Output is `length` bytes
-/// (typically 32 for the AES-256-GCM master key derivation).
+/// `lfs_core::security::master_password::KdfParams::defaults`
+/// (Argon2id m=64 MiB t=3 p=1, one tier above the OWASP 2024 floor).
+/// Output is `length` bytes (typically 32 for the AES-256-GCM master
+/// key derivation).
 pub fn argon2id_derive(
     password: &[u8],
     salt: &[u8],

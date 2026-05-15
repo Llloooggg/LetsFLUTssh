@@ -28,6 +28,7 @@ import 'app/update_dialog_flow.dart';
 import 'widgets/shortcut_registry.dart';
 import 'core/bus/app_bus.dart';
 import 'core/security/backup_exclusion.dart';
+import 'core/security/kdf_params.dart';
 import 'core/session/session.dart';
 import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
@@ -432,6 +433,15 @@ Future<void> _mainBody() async {
     return;
   }
   if (!rustCoreReady) return;
+
+  // Mirror the canonical Argon2id production profile from
+  // `lfs_core::security::master_password::KdfParams::defaults` into
+  // `KdfParams.productionDefaults`. Sync FRB call — safe to make
+  // here because `_initRustCoreOrFatal` has already loaded the
+  // native blob; the mirror has to be in place before
+  // `MasterPasswordManager()` / `ExportImport.defaultKdfParams`
+  // observe the `late` field on first access.
+  KdfParams.bootstrapFromRust();
 
   // Flip the FRB-ready gate, register the log path Rust-side, open
   // the sink if a non-null threshold is already recorded, and drain

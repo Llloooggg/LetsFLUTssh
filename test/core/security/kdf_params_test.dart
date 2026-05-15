@@ -9,9 +9,13 @@ void main() {
   // KdfParams.encode/decode route through
   // `lfs_core::security::master_password::KdfParams` — bootstrap FRB
   // so the canonical Rust wire format and sanity-cap validator are
-  // exercised.
+  // exercised. `KdfParams.productionDefaults` is a `late` mirror of
+  // the Rust constant; populate it before any test reads the field.
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(requireFrbLoaded);
+  setUpAll(() async {
+    await requireFrbLoaded();
+    KdfParams.bootstrapFromRust();
+  });
 
   group('KdfParams.encode/decode', () {
     test('round-trips production defaults', () {
@@ -62,7 +66,7 @@ void main() {
     });
 
     test('rejects zero-valued params (ambiguous / unusable KDF)', () {
-      final encoded = const KdfParams.argon2id().encode();
+      final encoded = KdfParams.productionDefaults.encode();
       // Zero out memoryKiB.
       encoded[1] = 0;
       encoded[2] = 0;
@@ -75,24 +79,41 @@ void main() {
       // A malicious `credentials.kdf` could request gigabytes-of-RAM
       // via an oversized uint32 in the memory slot. Decoder must
       // reject before the derivation isolate allocates the buffer.
-      final encoded = const KdfParams.argon2id().encode();
+      final encoded = KdfParams.productionDefaults.encode();
       final view = ByteData.sublistView(encoded);
       view.setUint32(1, 0xFFFFFFFF); // ~4 GiB requested
       expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
     });
 
     test('rejects crafted iteration count past sanity cap', () {
-      final encoded = const KdfParams.argon2id().encode();
+      final encoded = KdfParams.productionDefaults.encode();
       final view = ByteData.sublistView(encoded);
       view.setUint32(5, 1000000); // a million iterations
       expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
     });
 
     test('rejects crafted parallelism past sanity cap', () {
-      final encoded = const KdfParams.argon2id().encode();
+      final encoded = KdfParams.productionDefaults.encode();
       encoded[9] = 0xFF;
       expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
     });
+  });
+
+  group('KdfParams.productionDefaults (Rust mirror)', () {
+    test(
+      'matches the canonical Rust production profile (64 MiB / 3 iter / 1 lane)',
+      () {
+        // Pin the wall-clock cost the unlock dialog absorbs. The
+        // value lives in `lfs_core::security::master_password::
+        // KdfParams::defaults`; a future drop below 64/3/1 must
+        // update this test, the Rust constant, and the Argon2id
+        // section of ARCHITECTURE.md together.
+        expect(KdfParams.productionDefaults.memoryKiB, 64 * 1024);
+        expect(KdfParams.productionDefaults.iterations, 3);
+        expect(KdfParams.productionDefaults.parallelism, 1);
+        expect(KdfParams.productionDefaults.algorithm, KdfAlgorithm.argon2id);
+      },
+    );
   });
 
   group('KdfAlgorithm.fromId', () {

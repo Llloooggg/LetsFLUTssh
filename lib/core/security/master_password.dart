@@ -30,9 +30,10 @@ import 'tier_unlock_attempt.dart';
 /// ```
 class MasterPasswordManager {
   /// The Argon2id profile used for fresh enable / changePassword calls.
-  /// Tests pass `kdfParams: KdfParams.testFast` so the enable /
-  /// verify cycles don't spend seconds each. Production passes
-  /// nothing — the default lands on `KdfParams.productionDefaults`.
+  /// Tests pass an explicit cheap `kdfParams` so the enable / verify
+  /// cycles don't spend seconds each. Production passes nothing — the
+  /// default lands on `KdfParams.productionDefaults`, the Dart mirror
+  /// of `lfs_core::security::master_password::KdfParams::defaults`.
   final KdfParams _kdfParams;
 
   /// Per-instance rate limiter for [verifyAndDerive] attempts. In-
@@ -48,9 +49,9 @@ class MasterPasswordManager {
   /// Inject rate limiter + KDF params for testing. Production code
   /// passes nothing; a fresh `InMemoryRateLimiter` lives per
   /// [MasterPasswordManager] instance, and `kdfParams` defaults to
-  /// [KdfParams.productionDefaults]. Tests pass `kdfParams:
-  /// KdfParams.testFast` so the Argon2id KDF runs in milliseconds
-  /// instead of seconds.
+  /// [KdfParams.productionDefaults]. Tests pass an explicit cheap
+  /// `kdfParams` (memoryKiB: 8, iterations: 1) so the Argon2id KDF
+  /// runs in milliseconds instead of seconds.
   MasterPasswordManager({
     PasswordRateLimiter? rateLimiter,
     KdfParams? kdfParams,
