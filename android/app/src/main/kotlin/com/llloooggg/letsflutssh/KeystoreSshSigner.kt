@@ -6,6 +6,7 @@ import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import android.security.keystore.UserNotAuthenticatedException
 import android.security.keystore.KeyPermanentlyInvalidatedException
+import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -46,6 +47,7 @@ import java.security.spec.RSAKeyGenParameterSpec
  */
 object KeystoreSshSigner {
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
+    private const val TAG = "KeystoreSshSigner"
 
     /**
      * Result envelope returned by `generate()`. Carries the
@@ -131,6 +133,31 @@ object KeystoreSshSigner {
         val spec = builder.build()
         val actualStrongBox = wantStrongBox
         val kpg = KeyPairGenerator.getInstance(keyAlgo, ANDROID_KEYSTORE)
+
+        // Trap: re-using an alias across different keystore specs
+        // (TEE <-> StrongBox) without an explicit delete leaves the
+        // PREVIOUSLY spec'd key on the chip — KeyPairGenerator.initialize
+        // is rejected as "alias exists", and any later `KeyStore.getEntry`
+        // returns the OLD entry. That silently violates the downgrade
+        // consent the user just gave (e.g. cancelled StrongBox -> TEE).
+        // Invariant: every `generate(alias=X, ...)` call owns the alias
+        // outright; if X already lives in the keystore, purge it before
+        // minting the new key so the spec the caller asked for is the
+        // spec that lands on disk.
+        val purgeKs = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        if (purgeKs.containsAlias(alias)) {
+            val tier = if (wantStrongBox) "StrongBox" else "TEE"
+            Log.d(TAG, "alias $alias already present; deleting before regenerate (new tier=$tier)")
+            try {
+                purgeKs.deleteEntry(alias)
+            } catch (e: Throwable) {
+                throw IllegalStateException(
+                    "AndroidKeyStore: failed to purge prior alias $alias before regenerate: ${e.message}",
+                    e,
+                )
+            }
+        }
+
         try {
             kpg.initialize(spec)
             kpg.generateKeyPair()

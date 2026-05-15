@@ -8,6 +8,7 @@ import androidx.credentials.GetPublicKeyCredentialOption
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.GetCredentialInterruptedException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.CoroutineScope
@@ -218,20 +219,42 @@ object Fido2Broker {
     }
 
     /**
-     * Map a Credential Manager exception type to one of the tags the
-     * Rust side routes. The type strings are stable per
-     * androidx.credentials 1.3 — documented under
-     * `android.credentials.GetCredentialException` and its
-     * subclasses.
+     * Map a Credential Manager exception to one of the tags the Rust
+     * side routes. Three signals are consulted in order: the typed
+     * subclass, the stable `e.type` string (androidx.credentials 1.3
+     * documents these under `android.credentials.GetCredentialException`
+     * and its subclasses), and finally the human-readable `e.message`.
+     *
+     * Trap the message-keyword pass guards against: Credential Manager
+     * docs note that **transport failures** (NFC dropout mid-CTAP,
+     * Bluetooth disconnect on a security-key handshake, USB cable
+     * unplugged) surface as the base `GetCredentialException` with a
+     * descriptive message rather than a dedicated subclass. Tagging
+     * those as `"other"` is wrong — the Rust retry heuristics treat
+     * `"other"` as terminal and refuse to retry, while `"transport"`
+     * is the right tag for "transient — try again". Invariant: any
+     * base-class exception whose message names a transport-layer
+     * disconnect must emit `"transport"`, never `"other"`.
      */
     private fun classifyCredentialException(e: GetCredentialException): String {
+        if (e is GetCredentialInterruptedException) return "transport"
         val type = e.type.lowercase()
+        when {
+            type.contains("cancel") -> return "cancelled"
+            type.contains("timeout") -> return "timeout"
+            type.contains("interrupt") -> return "transport"
+            type.contains("pin") -> return "wrong-pin"
+            type.contains("no_credential") -> return "no-credential"
+        }
+        val msg = e.message?.lowercase() ?: return "other"
         return when {
-            type.contains("cancel") -> "cancelled"
-            type.contains("timeout") -> "timeout"
-            type.contains("interrupt") -> "transport"
-            type.contains("pin") -> "wrong-pin"
-            type.contains("no_credential") -> "no-credential"
+            msg.contains("transport") -> "transport"
+            msg.contains("connection lost") -> "transport"
+            msg.contains("lost connection") -> "transport"
+            msg.contains("disconnected") -> "transport"
+            msg.contains("interrupted") -> "transport"
+            msg.contains("communication") -> "transport"
+            msg.contains("timeout") -> "timeout"
             else -> "other"
         }
     }
