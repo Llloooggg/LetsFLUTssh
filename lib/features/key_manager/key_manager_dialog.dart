@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/import/key_file_helper.dart';
+import '../../core/security/hardware_tier.dart';
 import '../../core/security/ssh_key.dart';
 import 'key_manager_logic.dart';
 import '../../l10n/app_localizations.dart';
@@ -187,64 +188,15 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               : s.pkcs11HwUnavailableMobile,
           onTap: _pkcs11Available ? _importPkcs11Key : null,
         ),
-        // Apple Secure Enclave generate. Capability-ladder rung 3 on
-        // macOS / iOS (native `SecKeyCreateRandomKey`); rung 4 elsewhere
-        // (toolbar action hidden — the underlying chip doesn't exist
-        // on Linux / Windows / Android). On ad-hoc-signed dev builds
-        // the action stays enabled but the wizard's probe step routes
-        // the user at the code-signing reason.
-        if (isApplePlatform)
-          _ToolbarButton(
-            icon: Icons.shield_outlined,
-            label: s.sshKeyAddHardwareBound,
-            tooltip: s.sshKeyAddHardwareBound,
-            onTap: _generateEnclaveKey,
-          ),
-        // Windows Hello (NCrypt / PCP) generate. Capability-ladder
-        // rung 3 on Windows (native `NCryptCreatePersistedKey` against
-        // the Microsoft Platform Crypto Provider); rung 4 elsewhere
-        // (toolbar action hidden — the underlying provider only
-        // exists on Windows). On hosts without Hello configured the
-        // wizard probe step routes the user at the "configure first"
-        // reason.
-        if (isWindowsPlatform)
-          _ToolbarButton(
-            icon: Icons.shield_outlined,
-            label: s.helloWizardTitle,
-            tooltip: s.helloWizardTitle,
-            onTap: _generateHelloKey,
-          ),
-        // TPM 2.0 SSH generate — Linux (`tss-esapi` driver) and
-        // Windows (PCP silent variant, no UI policy). Apple
-        // platforms route to the Secure Enclave wizard instead;
-        // mobile platforms hide the entry (rung 4).
-        if (Platform.isLinux || isWindowsPlatform) ...[
-          _ToolbarButton(
-            icon: Icons.memory,
-            label: s.tpmSshTitle,
-            tooltip: s.tpmSshTitle,
-            onTap: _generateTpmKey,
-          ),
-          if (Platform.isLinux)
-            _ToolbarButton(
-              icon: Icons.file_download_outlined,
-              label: s.tpmSshImportTitle,
-              tooltip: s.tpmSshImportTitle,
-              onTap: _importTpmBlob,
-            ),
-        ],
-        // Android Hardware Keystore / StrongBox generate.
-        // Capability-ladder rung 3 on Android (native AndroidKeyStore
-        // JNI); rung 4 elsewhere — the underlying KeyStore provider
-        // exists only on Android and the toolbar entry stays hidden
-        // on every other platform.
-        if (Platform.isAndroid)
-          _ToolbarButton(
-            icon: Icons.security,
-            label: s.keystoreWizardTitle,
-            tooltip: s.keystoreWizardTitle,
-            onTap: _generateKeystoreKey,
-          ),
+        // Hardware-tier toolbar entries — driven by the central
+        // `supportedHardwareTiersForPlatform()` capability table so a
+        // future platform / driver addition flows through one decision
+        // point instead of fanning out into inline `Platform.isXyz`
+        // branches on every wizard entry. Per-tier runtime probes
+        // (Secure Enclave entitlement on macOS dev builds, Hello
+        // configuration, TPM presence) still gate the actual generate
+        // call inside the wizard's probe step.
+        ..._buildHardwareTierToolbarEntries(s),
         _ToolbarButton(
           icon: Icons.add,
           label: s.generateKey,
@@ -252,6 +204,83 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         ),
       ],
     );
+  }
+
+  /// Render the hardware-backed key entries that the current OS
+  /// supports. Tier order matches the visual order the toolbar
+  /// renders entries: Apple Enclave → Windows Hello → TPM (+ Linux
+  /// TPM import) → Android Keystore. Each branch keeps the wizard
+  /// dispatch local so the surrounding toolbar list stays a single
+  /// flat sequence — no nested spreads, no per-tier method on the
+  /// state class.
+  List<Widget> _buildHardwareTierToolbarEntries(S s) {
+    final tiers = supportedHardwareTiersForPlatform();
+    final entries = <Widget>[];
+    for (final tier in tiers) {
+      switch (tier) {
+        case HardwareTier.appleEnclave:
+          // Capability-ladder rung 3 on macOS / iOS — native
+          // `SecKeyCreateRandomKey` against the chip. Ad-hoc-signed
+          // dev builds reach this entry but the wizard's probe step
+          // surfaces the code-signing reason instead of minting.
+          entries.add(
+            _ToolbarButton(
+              icon: Icons.shield_outlined,
+              label: s.sshKeyAddHardwareBound,
+              tooltip: s.sshKeyAddHardwareBound,
+              onTap: _generateEnclaveKey,
+            ),
+          );
+        case HardwareTier.windowsHello:
+          // Rung 3 on Windows — `NCryptCreatePersistedKey` against
+          // the Microsoft Platform Crypto Provider. Hosts without
+          // Hello configured reach the wizard probe step and route
+          // to the "configure first" reason.
+          entries.add(
+            _ToolbarButton(
+              icon: Icons.shield_outlined,
+              label: s.helloWizardTitle,
+              tooltip: s.helloWizardTitle,
+              onTap: _generateHelloKey,
+            ),
+          );
+        case HardwareTier.tpm:
+          // Rung 3 on Linux (`tss-esapi`) + Windows (PCP silent
+          // variant). The Linux-only import-blob action ships beside
+          // the generate entry; Windows CNG owns its own keystore
+          // and has no portable import shape.
+          entries.add(
+            _ToolbarButton(
+              icon: Icons.memory,
+              label: s.tpmSshTitle,
+              tooltip: s.tpmSshTitle,
+              onTap: _generateTpmKey,
+            ),
+          );
+          if (Platform.isLinux) {
+            entries.add(
+              _ToolbarButton(
+                icon: Icons.file_download_outlined,
+                label: s.tpmSshImportTitle,
+                tooltip: s.tpmSshImportTitle,
+                onTap: _importTpmBlob,
+              ),
+            );
+          }
+        case HardwareTier.androidKeystore:
+          // Rung 3 on Android — AndroidKeyStore JNI via
+          // `lfs_os_security::android::keystore_ssh`.
+          entries.add(
+            _ToolbarButton(
+              icon: Icons.security,
+              label: s.keystoreWizardTitle,
+              tooltip: s.keystoreWizardTitle,
+              onTap: _generateKeystoreKey,
+            ),
+          );
+      }
+    }
+    return entries;
   }
 
   List<SshKeyMetadata> _filtered() => filterSshKeys(_keys, _filter);
@@ -275,22 +304,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Widget _buildKeyEntry(S s, SshKeyMetadata entry) {
-    final hasCert = entry.hasCertificate;
-    final expired = entry.validity?.isExpired ?? false;
-    // FIDO2 sk-* rows: the v9 backend column is authoritative, but
-    // we also fall back to the OpenSSH wire-format tag for rows
-    // written before the migration filled the discriminator.
-    final isFido2 =
-        entry.isFido2 ||
-        entry.keyType == 'sk-ed25519' ||
-        entry.keyType == 'sk-ecdsa-p256' ||
-        entry.keyType.startsWith('sk-ssh-') ||
-        entry.keyType.startsWith('sk-ecdsa-sha2-');
-    final isPkcs11 = entry.isPkcs11;
-    final isEnclave = entry.isEnclave;
-    final isHello = entry.isHello;
-    final isTpm = entry.isTpm;
-    final isKeystore = entry.isKeystore;
     // Stub rows landed via `.lfs` import / WebDAV sync for a
     // device-bound backend — only the public half travelled. The
     // row renders desaturated, the secondary line carries the
@@ -298,23 +311,10 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     // [Re-generate, Remove] (no copy / cert / delete because the
     // private side is bound to the original device).
     final isStub = entry.importedAsStub;
-    final iconData = isFido2
-        ? Icons.usb
-        : (isPkcs11
-              ? Icons.memory
-              : (isEnclave
-                    ? Icons.shield_outlined
-                    : (isHello
-                          ? Icons.shield_outlined
-                          : (isTpm
-                                ? Icons.memory
-                                : (isKeystore
-                                      ? Icons.security
-                                      : Icons.vpn_key)))));
     return Opacity(
       opacity: isStub ? 0.55 : 1.0,
       child: AppDataRow(
-        icon: iconData,
+        icon: _rowIcon(entry),
         iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
         title: entry.label,
         secondary: isStub
@@ -322,118 +322,34 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
             : '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
                   '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
         secondaryMono: !isStub,
-        tertiary: hasCert ? _certTertiary(s, entry) : null,
+        tertiary: entry.hasCertificate ? _certTertiary(s, entry) : null,
         trailing: [
-          if (isFido2)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: HardwareKeyBadge(label: s.hardwareKeyBadge),
-            ),
-          if (isPkcs11)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: Pkcs11Badge(
-                label: s.pkcs11Badge,
-                modulePath: entry.pkcs11ModulePath,
-                tokenSerial: entry.pkcs11TokenSerial,
-                objectLabel: entry.pkcs11ObjectLabel,
-              ),
-            ),
-          if (isEnclave)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: EnclaveBadge(label: s.sshKeyEnclaveBadge),
-            ),
-          if (isHello)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: HelloBadge(
-                label: s.helloBadge,
-                credentialName: entry.helloCredentialName,
-              ),
-            ),
-          if (isTpm)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: TpmBadge(
-                label: s.tpmSshBadge,
-                provider: entry.tpmProvider,
-                persistentHandle: entry.tpmHandle,
-                pinRequired: entry.tpmPinRequired,
-                // Windows-side TPM rows route through the PCP silent
-                // path — surface the silent-warning copy in the badge
-                // popover. Linux rows do not have a Hello-prompt
-                // analogue so the warning is Windows-specific.
-                silent: entry.tpmProvider == 'cng-pcp',
-              ),
-            ),
-          if (isKeystore)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: KeystoreBadge(
-                label: s.keystoreBadge,
-                strongbox: entry.keystoreStrongBox,
-                platform: entry.keystorePlatform,
-              ),
-            ),
-          if (isStub)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: _StubBadge(label: s.hardwareKeyStubBadge),
-            ),
-          if (expired)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xs),
-              child: _ExpiredBadge(label: s.certExpired),
-            ),
-          if (isStub) ...[
-            AppIconButton(
-              icon: Icons.autorenew,
-              tooltip: s.hardwareKeyStubRegenerateAction,
-              dense: true,
-              color: AppTheme.accent,
-              onTap: () => _regenerateStub(entry),
-            ),
-            AppIconButton(
-              icon: Icons.delete_outline,
-              tooltip: s.hardwareKeyStubRemoveAction,
-              dense: true,
-              color: AppTheme.red,
-              onTap: () => _deleteKey(entry),
-            ),
-          ] else ...[
-            AppIconButton(
-              icon: Icons.content_copy,
-              tooltip: s.publicKey,
-              dense: true,
-              onTap: () => _copyPublicKey(entry),
-            ),
-            if (hasCert)
-              AppIconButton(
-                icon: Icons.workspace_premium_outlined,
-                tooltip: s.certRemove,
-                dense: true,
-                color: AppTheme.orange,
-                onTap: () => _removeCertificate(entry),
-              )
-            else
-              AppIconButton(
-                icon: Icons.workspace_premium_outlined,
-                tooltip: s.certImport,
-                dense: true,
-                onTap: () => _importCertificate(entry),
-              ),
-            AppIconButton(
-              icon: Icons.delete_outline,
-              tooltip: s.deleteKey,
-              dense: true,
-              color: AppTheme.red,
-              onTap: () => _deleteKey(entry),
-            ),
-          ],
+          _KeyRowBadges(s: s, entry: entry),
+          _KeyRowActions(
+            s: s,
+            entry: entry,
+            onRegenerateStub: () => _regenerateStub(entry),
+            onCopyPublicKey: () => _copyPublicKey(entry),
+            onImportCertificate: () => _importCertificate(entry),
+            onRemoveCertificate: () => _removeCertificate(entry),
+            onDelete: () => _deleteKey(entry),
+          ),
         ],
       ),
     );
+  }
+
+  /// Pick the row's left-side icon from the backend discriminator.
+  /// `sk-*` keyType strings fall through the `isFido2` flag — see
+  /// [_KeyRowBadges] for the matching fallback rationale.
+  IconData _rowIcon(SshKeyMetadata entry) {
+    if (_isFido2Row(entry)) return Icons.usb;
+    if (entry.isPkcs11) return Icons.memory;
+    if (entry.isEnclave) return Icons.shield_outlined;
+    if (entry.isHello) return Icons.shield_outlined;
+    if (entry.isTpm) return Icons.memory;
+    if (entry.isKeystore) return Icons.security;
+    return Icons.vpn_key;
   }
 
   /// Open the per-backend wizard so the user mints a fresh
@@ -1484,6 +1400,195 @@ class _StubBadge extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+// ── Row badges + actions ────────────────────────────────────────────
+
+/// Return true when [entry] represents a FIDO2 sk-* hardware key.
+/// The v9 schema bumps the `backend` column to authoritative
+/// `fido2`; rows that landed before the migration carried only the
+/// OpenSSH wire-format keyType tag, so the predicate also matches
+/// `sk-ed25519`, `sk-ecdsa-p256`, `sk-ssh-*@*`, and `sk-ecdsa-sha2-*`
+/// prefixes. The badge picker and the row icon share this rule.
+bool _isFido2Row(SshKeyMetadata entry) =>
+    entry.isFido2 ||
+    entry.keyType == 'sk-ed25519' ||
+    entry.keyType == 'sk-ecdsa-p256' ||
+    entry.keyType.startsWith('sk-ssh-') ||
+    entry.keyType.startsWith('sk-ecdsa-sha2-');
+
+/// Right-side badge cluster for a key-manager row. Renders the
+/// backend pill (FIDO2 / PKCS#11 / Enclave / Hello / TPM / Keystore),
+/// the "Stub" pill when the row's private half lives elsewhere, and
+/// the red "Expired" pill when a paired cert is past its
+/// `valid_before`. Multiple badges stack horizontally with the
+/// canonical `AppSpacing.xs` gutter; the widget collapses to a
+/// zero-sized box when none of the conditions hit so the row never
+/// renders a stray empty Padding.
+class _KeyRowBadges extends StatelessWidget {
+  final S s;
+  final SshKeyMetadata entry;
+
+  const _KeyRowBadges({required this.s, required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFido2 = _isFido2Row(entry);
+    final isStub = entry.importedAsStub;
+    final expired = entry.validity?.isExpired ?? false;
+    final badges = <Widget>[];
+    if (isFido2) {
+      badges.add(HardwareKeyBadge(label: s.hardwareKeyBadge));
+    }
+    if (entry.isPkcs11) {
+      badges.add(
+        Pkcs11Badge(
+          label: s.pkcs11Badge,
+          modulePath: entry.pkcs11ModulePath,
+          tokenSerial: entry.pkcs11TokenSerial,
+          objectLabel: entry.pkcs11ObjectLabel,
+        ),
+      );
+    }
+    if (entry.isEnclave) {
+      badges.add(EnclaveBadge(label: s.sshKeyEnclaveBadge));
+    }
+    if (entry.isHello) {
+      badges.add(
+        HelloBadge(
+          label: s.helloBadge,
+          credentialName: entry.helloCredentialName,
+        ),
+      );
+    }
+    if (entry.isTpm) {
+      badges.add(
+        TpmBadge(
+          label: s.tpmSshBadge,
+          provider: entry.tpmProvider,
+          persistentHandle: entry.tpmHandle,
+          pinRequired: entry.tpmPinRequired,
+          // Windows-side TPM rows route through the PCP silent
+          // path — surface the silent-warning copy in the badge
+          // popover. Linux rows do not have a Hello-prompt analogue
+          // so the warning is Windows-specific.
+          silent: entry.tpmProvider == 'cng-pcp',
+        ),
+      );
+    }
+    if (entry.isKeystore) {
+      badges.add(
+        KeystoreBadge(
+          label: s.keystoreBadge,
+          strongbox: entry.keystoreStrongBox,
+          platform: entry.keystorePlatform,
+        ),
+      );
+    }
+    if (isStub) {
+      badges.add(_StubBadge(label: s.hardwareKeyStubBadge));
+    }
+    if (expired) {
+      badges.add(_ExpiredBadge(label: s.certExpired));
+    }
+    if (badges.isEmpty) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final b in badges)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: b,
+          ),
+      ],
+    );
+  }
+}
+
+/// Right-side action cluster for a key-manager row. Stub rows expose
+/// `[Re-generate, Remove]` because the private half lives on another
+/// device; non-stub rows expose `[Copy public key, Import/Remove
+/// cert, Delete]`. The callback shape keeps the widget free of any
+/// reference to `_KeyManagerPanelState`, which makes the row easy to
+/// reuse inside a session-edit "Key from manager" surface if that
+/// ever needs the same affordance.
+class _KeyRowActions extends StatelessWidget {
+  final S s;
+  final SshKeyMetadata entry;
+  final VoidCallback onRegenerateStub;
+  final VoidCallback onCopyPublicKey;
+  final VoidCallback onImportCertificate;
+  final VoidCallback onRemoveCertificate;
+  final VoidCallback onDelete;
+
+  const _KeyRowActions({
+    required this.s,
+    required this.entry,
+    required this.onRegenerateStub,
+    required this.onCopyPublicKey,
+    required this.onImportCertificate,
+    required this.onRemoveCertificate,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry.importedAsStub) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIconButton(
+            icon: Icons.autorenew,
+            tooltip: s.hardwareKeyStubRegenerateAction,
+            dense: true,
+            color: AppTheme.accent,
+            onTap: onRegenerateStub,
+          ),
+          AppIconButton(
+            icon: Icons.delete_outline,
+            tooltip: s.hardwareKeyStubRemoveAction,
+            dense: true,
+            color: AppTheme.red,
+            onTap: onDelete,
+          ),
+        ],
+      );
+    }
+    final hasCert = entry.hasCertificate;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppIconButton(
+          icon: Icons.content_copy,
+          tooltip: s.publicKey,
+          dense: true,
+          onTap: onCopyPublicKey,
+        ),
+        if (hasCert)
+          AppIconButton(
+            icon: Icons.workspace_premium_outlined,
+            tooltip: s.certRemove,
+            dense: true,
+            color: AppTheme.orange,
+            onTap: onRemoveCertificate,
+          )
+        else
+          AppIconButton(
+            icon: Icons.workspace_premium_outlined,
+            tooltip: s.certImport,
+            dense: true,
+            onTap: onImportCertificate,
+          ),
+        AppIconButton(
+          icon: Icons.delete_outline,
+          tooltip: s.deleteKey,
+          dense: true,
+          color: AppTheme.red,
+          onTap: onDelete,
+        ),
+      ],
     );
   }
 }
