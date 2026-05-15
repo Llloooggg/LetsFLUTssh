@@ -81,6 +81,10 @@ class SPt extends S {
   String get required => 'Obrigatório';
 
   @override
+  String get errFillRequiredFields =>
+      'Preencha os campos obrigatórios marcados com *';
+
+  @override
   String get settings => 'Configurações';
 
   @override

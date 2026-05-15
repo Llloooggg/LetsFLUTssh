@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "앵커 설정",
   "copyModeCopySelection": "선택 복사",
   "required": "필수",
+  "errFillRequiredFields": "* 표시된 필수 항목을 입력하세요",
   "settings": "설정",
   "appSettings": "앱 설정",
   "includePasswords": "세션 비밀번호",

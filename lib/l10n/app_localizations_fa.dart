@@ -81,6 +81,10 @@ class SFa extends S {
   String get required => 'الزامی';
 
   @override
+  String get errFillRequiredFields =>
+      'فیلدهای الزامی نشان‌گذاری‌شده با * را پر کنید';
+
+  @override
   String get settings => 'تنظیمات';
 
   @override

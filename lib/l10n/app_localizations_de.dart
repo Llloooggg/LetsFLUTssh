@@ -81,6 +81,10 @@ class SDe extends S {
   String get required => 'Erforderlich';
 
   @override
+  String get errFillRequiredFields =>
+      'Fülle die mit * markierten Pflichtfelder aus';
+
+  @override
   String get settings => 'Einstellungen';
 
   @override

@@ -81,6 +81,9 @@ class SZh extends S {
   String get required => '必填';
 
   @override
+  String get errFillRequiredFields => '请填写带 * 的必填项';
+
+  @override
   String get settings => '设置';
 
   @override

@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Anker setzen",
   "copyModeCopySelection": "Auswahl kopieren",
   "required": "Erforderlich",
+  "errFillRequiredFields": "Fülle die mit * markierten Pflichtfelder aus",
   "settings": "Einstellungen",
   "appSettings": "App-Einstellungen",
   "includePasswords": "Sitzungs-Passwörter",

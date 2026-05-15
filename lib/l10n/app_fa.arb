@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "تنظیم لنگر",
   "copyModeCopySelection": "کپی انتخاب",
   "required": "الزامی",
+  "errFillRequiredFields": "فیلدهای الزامی نشان‌گذاری‌شده با * را پر کنید",
   "settings": "تنظیمات",
   "appSettings": "تنظیمات برنامه",
   "includePasswords": "رمزهای عبور نشست‌ها",

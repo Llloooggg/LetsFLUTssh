@@ -1177,7 +1177,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Fill password (required)
-        await tester.tap(find.text('Auth'));
+        await tester.tap(find.textContaining('Auth'));
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextFormField, '••••••••'),
@@ -1221,7 +1221,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Fill password (required)
-        await tester.tap(find.text('Auth'));
+        await tester.tap(find.textContaining('Auth'));
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextFormField, '••••••••'),
@@ -1275,7 +1275,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill password (required)
-      await tester.tap(find.text('Auth'));
+      await tester.tap(find.textContaining('Auth'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, '••••••••'),
@@ -1333,7 +1333,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill password (required)
-      await tester.tap(find.text('Auth'));
+      await tester.tap(find.textContaining('Auth'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, '••••••••'),

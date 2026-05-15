@@ -81,6 +81,9 @@ class SJa extends S {
   String get required => '必須';
 
   @override
+  String get errFillRequiredFields => '* の付いた必須項目を入力してください';
+
+  @override
   String get settings => '設定';
 
   @override

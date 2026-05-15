@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Bağlantı noktası ayarla",
   "copyModeCopySelection": "Seçimi kopyala",
   "required": "Gerekli",
+  "errFillRequiredFields": "* ile işaretli zorunlu alanları doldur",
   "settings": "Ayarlar",
   "appSettings": "Uygulama Ayarları",
   "includePasswords": "Oturum parolaları",

@@ -81,6 +81,9 @@ class SKo extends S {
   String get required => '필수';
 
   @override
+  String get errFillRequiredFields => '* 표시된 필수 항목을 입력하세요';
+
+  @override
   String get settings => '설정';
 
   @override

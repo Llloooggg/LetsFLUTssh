@@ -81,6 +81,10 @@ class SRu extends S {
   String get required => 'Обязательное поле';
 
   @override
+  String get errFillRequiredFields =>
+      'Заполните обязательные поля, отмеченные *';
+
+  @override
   String get settings => 'Настройки';
 
   @override

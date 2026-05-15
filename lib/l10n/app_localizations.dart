@@ -267,6 +267,12 @@ abstract class S {
   /// **'Required'**
   String get required;
 
+  /// Toast shown when the user presses Save on the session-edit dialog but one or more required fields are empty / invalid. The form already routes focus to the failing tab + renders inline error text; this toast is the global heads-up so the user notices the rejection even when their eye was off the field.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill the required fields marked *'**
+  String get errFillRequiredFields;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:

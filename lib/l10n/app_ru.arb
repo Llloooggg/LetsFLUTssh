@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Поставить якорь",
   "copyModeCopySelection": "Скопировать выделение",
   "required": "Обязательное поле",
+  "errFillRequiredFields": "Заполните обязательные поля, отмеченные *",
   "settings": "Настройки",
   "appSettings": "Настройки приложения",
   "includePasswords": "Пароли сессий",

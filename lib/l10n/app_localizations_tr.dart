@@ -81,6 +81,9 @@ class STr extends S {
   String get required => 'Gerekli';
 
   @override
+  String get errFillRequiredFields => '* ile işaretli zorunlu alanları doldur';
+
+  @override
   String get settings => 'Ayarlar';
 
   @override

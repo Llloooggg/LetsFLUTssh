@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "设置锚点",
   "copyModeCopySelection": "复制选择",
   "required": "必填",
+  "errFillRequiredFields": "请填写带 * 的必填项",
   "settings": "设置",
   "appSettings": "应用设置",
   "includePasswords": "会话密码",

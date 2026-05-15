@@ -95,7 +95,7 @@ extension _ConnectionTab on _SessionEditDialogState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         StyledFormField(
-          label: l10n.s3AccessKeyId,
+          label: '${l10n.s3AccessKeyId} *',
           controller: _accessKeyIdCtrl,
           hint: 'AKIA…',
           validator: _requiredValidator,
@@ -225,14 +225,14 @@ extension _ConnectionTab on _SessionEditDialogState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         StyledFormField(
-          label: l10n.webDavBaseUrl,
+          label: '${l10n.webDavBaseUrl} *',
           controller: _baseUrlCtrl,
           hint: l10n.webDavBaseUrlHint,
           validator: _webDavBaseUrlValidator,
         ),
         const SizedBox(height: AppSpacing.md),
         StyledFormField(
-          label: l10n.webDavUsername,
+          label: '${l10n.webDavUsername} *',
           controller: _userCtrl,
           hint: l10n.hintUsername,
           validator: _requiredValidator,

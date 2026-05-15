@@ -119,11 +119,15 @@ extension _AuthTab on _SessionEditDialogState {
   Widget _buildWebDavCredentialField() {
     final hasStored = widget.session?.auth.hasStoredPassword ?? false;
     final l10n = S.of(context);
-    final label = _webdavAuthMethod == 'bearer'
+    final baseLabel = _webdavAuthMethod == 'bearer'
         ? l10n.webDavAuthBearer
         : l10n.password;
     return StyledFormField(
-      label: label,
+      // Required for every WebDAV auth method — without a credential
+      // the connect path cannot sign the PROPFIND probe. Append the
+      // star so the field reads "required" at a glance, matching the
+      // SSH `usernameRequired` / `hostRequired` style.
+      label: '$baseLabel *',
       controller: _passwordCtrl,
       hint: hasStored ? l10n.savedTypeToChange : '••••••••',
       obscure: _obscurePassword,
@@ -147,7 +151,10 @@ extension _AuthTab on _SessionEditDialogState {
     final hasStored = widget.session?.auth.hasStoredPassword ?? false;
     return [
       StyledFormField(
-        label: l10n.s3SecretKey,
+        // SigV4 cannot sign without the secret half — required for
+        // every S3 session. The star matches the SSH-side required
+        // marker convention.
+        label: '${l10n.s3SecretKey} *',
         controller: _passwordCtrl,
         hint: hasStored ? l10n.savedTypeToChange : '••••••••',
         obscure: _obscurePassword,

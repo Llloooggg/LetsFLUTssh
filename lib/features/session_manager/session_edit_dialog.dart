@@ -31,6 +31,7 @@ import '../../widgets/keystore_ssh_dialog.dart';
 import '../../widgets/pkcs11_import_dialog.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../widgets/tag_color.dart';
+import '../../widgets/toast.dart';
 import '../../widgets/tpm_ssh_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
@@ -843,10 +844,32 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   void _save({bool connect = false}) {
     final formOk = _formKey.currentState!.validate();
     if (!formOk) {
+      // Route the user's focus to the first tab that has a failing
+      // field. The inline `errorText` already paints the field red,
+      // but the surface they were on when they pressed Save may not
+      // be the surface that holds the broken field — the toast is a
+      // global heads-up so they notice the rejection even if their
+      // eye was off the form.
       setState(() => _tabIndex = _tabWithFirstError());
+      Toast.show(
+        context,
+        message: S.of(context).errFillRequiredFields,
+        level: ToastLevel.warning,
+      );
       return;
     }
-    if (!_validateAuth()) return;
+    if (!_validateAuth()) {
+      // `_validateAuth` already sets `_authError` (rendered at the
+      // top of the Auth tab) and flips `_tabIndex` so the user lands
+      // on it. Surface the same global toast so the rejection is
+      // visible regardless of which tab they pressed Save from.
+      Toast.show(
+        context,
+        message: S.of(context).errFillRequiredFields,
+        level: ToastLevel.warning,
+      );
+      return;
+    }
     final session = _buildSession();
     final webdav = _kind == SessionKind.webdav
         ? WebDavSaveData(
@@ -976,7 +999,18 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       child: Row(
         children: [
           Expanded(child: _buildTab(0, Icons.dns, S.of(context).connection)),
-          Expanded(child: _buildTab(1, Icons.shield, S.of(context).auth)),
+          // Auth tab reshapes per `_kind` (SSH agent / password / key
+          // block vs WebDAV method picker + credential vs S3 secret
+          // access key). The body change used to be silent — append
+          // a kind-suffix to the label so the tab strip signals that
+          // the next click lands on a protocol-specific form.
+          Expanded(
+            child: _buildTab(
+              1,
+              Icons.shield,
+              '${S.of(context).auth} · $_kindShortLabel',
+            ),
+          ),
           Expanded(child: _buildTab(2, Icons.folder, S.of(context).options)),
           if (showForwarding)
             Expanded(
@@ -989,6 +1023,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         ],
       ),
     );
+  }
+
+  /// Short uppercase tag shown next to the Auth tab label — the
+  /// canonical wire values map to compact display tokens so the
+  /// tab strip stays narrow at every locale.
+  String get _kindShortLabel {
+    switch (_kind) {
+      case SessionKind.ssh:
+        return 'SSH';
+      case SessionKind.webdav:
+        return 'WebDAV';
+      case SessionKind.s3:
+        return 'S3';
+    }
   }
 
   Widget _buildTab(int index, IconData icon, String label) {

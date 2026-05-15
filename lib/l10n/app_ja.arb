@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "アンカーを設定",
   "copyModeCopySelection": "選択をコピー",
   "required": "必須",
+  "errFillRequiredFields": "* の付いた必須項目を入力してください",
   "settings": "設定",
   "appSettings": "アプリ設定",
   "includePasswords": "セッションパスワード",

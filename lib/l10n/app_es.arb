@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Fijar ancla",
   "copyModeCopySelection": "Copiar selección",
   "required": "Obligatorio",
+  "errFillRequiredFields": "Rellena los campos obligatorios marcados con *",
   "settings": "Ajustes",
   "appSettings": "Ajustes de la aplicación",
   "includePasswords": "Contraseñas de sesiones",

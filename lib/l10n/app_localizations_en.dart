@@ -81,6 +81,9 @@ class SEn extends S {
   String get required => 'Required';
 
   @override
+  String get errFillRequiredFields => 'Fill the required fields marked *';
+
+  @override
   String get settings => 'Settings';
 
   @override

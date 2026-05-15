@@ -81,6 +81,9 @@ class SFr extends S {
   String get required => 'Requis';
 
   @override
+  String get errFillRequiredFields => 'Remplis les champs requis marqués *';
+
+  @override
   String get settings => 'Paramètres';
 
   @override

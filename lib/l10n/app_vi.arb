@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Đặt mỏ neo",
   "copyModeCopySelection": "Sao chép vùng chọn",
   "required": "Bắt buộc",
+  "errFillRequiredFields": "Điền các trường bắt buộc đánh dấu *",
   "settings": "Cài đặt",
   "appSettings": "Cài đặt ứng dụng",
   "includePasswords": "Mật khẩu phiên",

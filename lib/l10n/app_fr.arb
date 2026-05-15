@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Définir l'ancre",
   "copyModeCopySelection": "Copier la sélection",
   "required": "Requis",
+  "errFillRequiredFields": "Remplis les champs requis marqués *",
   "settings": "Paramètres",
   "appSettings": "Paramètres de l'application",
   "includePasswords": "Mots de passe des sessions",

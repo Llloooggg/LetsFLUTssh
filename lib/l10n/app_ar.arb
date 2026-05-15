@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "تعيين نقطة الإرساء",
   "copyModeCopySelection": "نسخ التحديد",
   "required": "مطلوب",
+  "errFillRequiredFields": "املأ الحقول المطلوبة المعلَّمة بـ *",
   "settings": "الإعدادات",
   "appSettings": "إعدادات التطبيق",
   "includePasswords": "كلمات مرور الجلسات",

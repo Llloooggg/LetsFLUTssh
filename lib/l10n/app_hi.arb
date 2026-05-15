@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "एंकर सेट करें",
   "copyModeCopySelection": "चयन कॉपी करें",
   "required": "आवश्यक",
+  "errFillRequiredFields": "* से चिह्नित आवश्यक फ़ील्ड भरें",
   "settings": "सेटिंग्स",
   "appSettings": "ऐप सेटिंग्स",
   "includePasswords": "सेशन पासवर्ड",

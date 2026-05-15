@@ -81,6 +81,9 @@ class SHi extends S {
   String get required => 'आवश्यक';
 
   @override
+  String get errFillRequiredFields => '* से चिह्नित आवश्यक फ़ील्ड भरें';
+
+  @override
   String get settings => 'सेटिंग्स';
 
   @override

@@ -81,6 +81,10 @@ class SEs extends S {
   String get required => 'Obligatorio';
 
   @override
+  String get errFillRequiredFields =>
+      'Rellena los campos obligatorios marcados con *';
+
+  @override
   String get settings => 'Ajustes';
 
   @override

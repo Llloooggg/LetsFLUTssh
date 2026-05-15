@@ -30,6 +30,10 @@
     "description": "Screen-reader / semantic label for the copy button shown in the mobile terminal's copy-mode bar once the anchor has been set; tapping it copies the selected text to the clipboard."
   },
   "required": "Required",
+  "errFillRequiredFields": "Fill the required fields marked *",
+  "@errFillRequiredFields": {
+    "description": "Toast shown when the user presses Save on the session-edit dialog but one or more required fields are empty / invalid. The form already routes focus to the failing tab + renders inline error text; this toast is the global heads-up so the user notices the rejection even when their eye was off the field."
+  },
   "settings": "Settings",
   "appSettings": "App Settings",
   "yes": "Yes",

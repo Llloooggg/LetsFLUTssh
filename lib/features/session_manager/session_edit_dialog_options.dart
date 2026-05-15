@@ -7,13 +7,20 @@ part of 'session_edit_dialog.dart';
 /// library so library-private names stay reachable.
 extension _OptionsTab on _SessionEditDialogState {
   Widget _buildOptionsTab() {
+    // Tags are protocol-neutral (they label the session row, not the
+    // transport) so the section renders for every kind. Recording is
+    // tied to the terminal-shell pipeline — WebDAV and S3 sessions
+    // never open a shell, so the toggle would be inert noise. Hide
+    // it for non-SSH kinds.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildTagsSection(),
-        const SizedBox(height: AppSpacing.lg),
-        _buildRecordSection(),
+        if (_kind == SessionKind.ssh) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _buildRecordSection(),
+        ],
       ],
     );
   }

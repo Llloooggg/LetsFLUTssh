@@ -46,11 +46,11 @@ End-user reference for every feature shipped in the app. Walks through the typic
 ### Creating
 
 - **Sidebar → "+"** or `Ctrl+N` → Session edit dialog.
-- **Tabs:** Connection / Auth / Options / Forwarding.
-- **Connection tab:** name, host, port, username, plus the [Connect via](#7-proxyjump-bastion-chains) selector at the bottom.
-- **Auth tab:** [§3 Authentication](#3-authentication).
-- **Options tab:** tags, [Record session toggle](#9-session-recording--playback).
-- **Forwarding tab:** [§6 Port forwarding](#6-port-forwarding).
+- **Tabs:** Connection / Auth · `<kind>` / Options / Forwarding. The Auth tab label carries the active protocol suffix (`Auth · SSH` / `Auth · WebDAV` / `Auth · S3`) so flipping the kind picker on the Connection tab also visibly reshapes the adjacent Auth tab — the form fields below change with the kind, the suffix is the visible cue.
+- **Connection tab:** name, host, port, username, plus the [Connect via](#7-proxyjump-bastion-chains) selector at the bottom. Required fields carry a `*` suffix; the Save button rejects an incomplete form, routes focus to the failing tab, paints the offending fields red, and surfaces a "Fill the required fields marked *" toast.
+- **Auth tab:** [§3 Authentication](#3-authentication). The form shape branches by kind — see §3 for the per-protocol layout.
+- **Options tab:** tags (universal — any kind), [Record session toggle](#9-session-recording--playback) (SSH only — WebDAV / S3 sessions do not open a shell so the toggle is hidden for those kinds).
+- **Forwarding tab:** [§6 Port forwarding](#6-port-forwarding). Only rendered for SSH transports.
 - **Footer buttons:** Cancel / Save / Save & Connect.
 
 ### Editing

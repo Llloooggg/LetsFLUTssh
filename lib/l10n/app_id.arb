@@ -24,6 +24,7 @@
   "copyModeSetAnchor": "Tetapkan jangkar",
   "copyModeCopySelection": "Salin pilihan",
   "required": "Wajib",
+  "errFillRequiredFields": "Isi field wajib yang ditandai *",
   "settings": "Pengaturan",
   "appSettings": "Pengaturan Aplikasi",
   "includePasswords": "Kata sandi sesi",

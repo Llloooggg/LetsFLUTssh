@@ -81,6 +81,9 @@ class SAr extends S {
   String get required => 'مطلوب';
 
   @override
+  String get errFillRequiredFields => 'املأ الحقول المطلوبة المعلَّمة بـ *';
+
+  @override
   String get settings => 'الإعدادات';
 
   @override

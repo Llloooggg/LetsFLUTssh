@@ -81,6 +81,9 @@ class SVi extends S {
   String get required => 'Bắt buộc';
 
   @override
+  String get errFillRequiredFields => 'Điền các trường bắt buộc đánh dấu *';
+
+  @override
   String get settings => 'Cài đặt';
 
   @override

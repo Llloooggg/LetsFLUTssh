@@ -81,6 +81,9 @@ class SId extends S {
   String get required => 'Wajib';
 
   @override
+  String get errFillRequiredFields => 'Isi field wajib yang ditandai *';
+
+  @override
   String get settings => 'Pengaturan';
 
   @override

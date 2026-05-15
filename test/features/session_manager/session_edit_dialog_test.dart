@@ -14,6 +14,7 @@ import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/dropdown_select_button.dart';
 import 'package:letsflutssh/widgets/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/frb_bootstrap.dart';
@@ -23,6 +24,16 @@ void main() {
   // which now routes through `lfs_core::host_info` (FRB sync).
   // Bootstrap once for the whole file.
   setUpAll(requireFrbLoaded);
+
+  // The Save-fail path fires `Toast.show` which schedules a 3-second
+  // auto-dismiss `Timer`. The framework's `!timersPending` invariant
+  // runs before `tearDown`, so clearing the entry afterwards is too
+  // late. `disabledForTests` short-circuits `Toast.show` so the
+  // notification never schedules a Timer in this file's tests; the
+  // form-level validation contract (inline errors, tab routing) is
+  // still fully exercised because Toast is purely additive UX.
+  setUpAll(() => Toast.disabledForTests = true);
+  tearDownAll(() => Toast.disabledForTests = false);
 
   SessionDialogResult? dialogResult;
 
@@ -72,7 +83,7 @@ void main() {
     await tester.enterText(fieldByHint('192.168.1.1'), host);
     await tester.enterText(fieldByHint('root'), user);
     // Fill password on Auth tab
-    await tester.tap(find.text('Auth'));
+    await tester.tap(find.textContaining('Auth'));
     await tester.pumpAndSettle();
     await tester.enterText(fieldByHint('••••••••'), password);
     await tester.tap(find.text('Connection'));
@@ -80,7 +91,7 @@ void main() {
   }
 
   Future<void> switchToAuth(WidgetTester tester) async {
-    await tester.tap(find.text('Auth'));
+    await tester.tap(find.textContaining('Auth'));
     await tester.pumpAndSettle();
   }
 
@@ -111,7 +122,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to Auth tab
-      await tester.tap(find.text('Auth'));
+      await tester.tap(find.textContaining('Auth'));
       await tester.pumpAndSettle();
 
       // Password field label
@@ -2218,7 +2229,7 @@ void main() {
         );
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Auth'));
+        await tester.tap(find.textContaining('Auth'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Select from Key Store'));
         await tester.pumpAndSettle();
@@ -2234,7 +2245,7 @@ void main() {
       await tester.pumpWidget(buildWithKeys([makeKey('k1', 'Laptop key')]));
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Auth'));
+      await tester.tap(find.textContaining('Auth'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Select from Key Store'));
       await tester.pumpAndSettle();
@@ -2284,7 +2295,7 @@ void main() {
         await tester.pumpWidget(buildAgentApp());
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Auth'));
+        await tester.tap(find.textContaining('Auth'));
         await tester.pumpAndSettle();
 
         expect(find.text('Use system ssh-agent'), findsOneWidget);
@@ -2299,7 +2310,7 @@ void main() {
           await tester.pumpWidget(buildAgentApp());
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Auth'));
+          await tester.tap(find.textContaining('Auth'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Use system ssh-agent'));
           await tester.pumpAndSettle();
@@ -2352,7 +2363,7 @@ void main() {
             find.widgetWithText(TextFormField, 'root'),
             'testuser',
           );
-          await tester.tap(find.text('Auth'));
+          await tester.tap(find.textContaining('Auth'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Use system ssh-agent'));
           await tester.pumpAndSettle();
@@ -2404,7 +2415,7 @@ void main() {
           await tester.pumpWidget(buildAgentApp(session: existing));
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Auth'));
+          await tester.tap(find.textContaining('Auth'));
           await tester.pumpAndSettle();
 
           // Password / key sections collapsed because the saved
@@ -2438,7 +2449,7 @@ void main() {
           await tester.pumpWidget(buildAgentApp());
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Auth'));
+          await tester.tap(find.textContaining('Auth'));
           await tester.pumpAndSettle();
 
           // Tooltip is rendered.
@@ -2518,19 +2529,21 @@ void main() {
         await selectKind(tester, 'WebDAV');
         await switchToAuth(tester);
 
-        // Basic is the default — credential field label = PASSWORD.
-        expect(find.text('PASSWORD'), findsOneWidget);
+        // Basic is the default — credential field label = "PASSWORD *"
+        // (the WebDAV credential is always required, so the dialog
+        // appends the star to the uppercased FieldLabel text).
+        expect(find.text('PASSWORD *'), findsOneWidget);
 
         // Tap the bearer chip — the field above becomes the token.
         await tester.tap(find.text('Bearer token').first);
         await tester.pumpAndSettle();
         // Chip text stays mixed-case ("Bearer token"); the field
-        // label routes through `FieldLabel` which uppercases
-        // ("BEARER TOKEN"). Two distinct strings now own the
-        // bearer-token surface — the password label is gone.
+        // label routes through `FieldLabel` which uppercases and
+        // appends the required marker ("BEARER TOKEN *"). The
+        // password label disappears for the bearer method.
         expect(find.text('Bearer token'), findsOneWidget);
-        expect(find.text('BEARER TOKEN'), findsOneWidget);
-        expect(find.text('PASSWORD'), findsNothing);
+        expect(find.text('BEARER TOKEN *'), findsOneWidget);
+        expect(find.text('PASSWORD *'), findsNothing);
       },
     );
 
@@ -2544,7 +2557,7 @@ void main() {
       await selectKind(tester, 'S3');
       await switchToAuth(tester);
 
-      expect(find.text('SECRET ACCESS KEY'), findsOneWidget);
+      expect(find.text('SECRET ACCESS KEY *'), findsOneWidget);
 
       // No SSH controls, no WebDAV chips.
       expect(find.text('Use system ssh-agent'), findsNothing);
@@ -2566,13 +2579,12 @@ void main() {
 
         await selectKind(tester, 'WebDAV');
 
-        // Connection tab only carries transport — base URL, username.
-        // The WebDAV `webDavUsername` ARB key is "Username" (no
-        // required-marker suffix, unlike the SSH `usernameRequired`
-        // = "Username *" key) — the StyledFormField label simply
-        // uppercases the raw string.
-        expect(find.text('BASE URL'), findsOneWidget);
-        expect(find.text('USERNAME'), findsOneWidget);
+        // Connection tab only carries transport — base URL +
+        // username. Both required, so the dialog appends `*` to the
+        // uppercased FieldLabel text for parity with the SSH host /
+        // username markers.
+        expect(find.text('BASE URL *'), findsOneWidget);
+        expect(find.text('USERNAME *'), findsOneWidget);
         // Auth-method picker + fingerprint moved to the Auth tab.
         expect(find.text('Basic'), findsNothing);
         expect(find.text('Digest'), findsNothing);
@@ -2611,6 +2623,129 @@ void main() {
       await tester.pumpAndSettle();
       await selectKind(tester, 'S3');
       expect(find.text('Forwarding'), findsNothing);
+    });
+  });
+
+  group('SessionEditDialog — Auth tab kind suffix', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('SSH renders the Auth tab label with the SSH suffix', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      // Tab bar shows kind-aware label so the user notices the
+      // adjacent Auth tab also reshapes on a kind flip.
+      expect(find.text('Auth · SSH'), findsOneWidget);
+    });
+
+    testWidgets('WebDAV swaps the Auth tab label to · WebDAV', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'WebDAV');
+      expect(find.text('Auth · WebDAV'), findsOneWidget);
+      expect(find.text('Auth · SSH'), findsNothing);
+    });
+
+    testWidgets('S3 swaps the Auth tab label to · S3', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'S3');
+      expect(find.text('Auth · S3'), findsOneWidget);
+    });
+  });
+
+  group('SessionEditDialog — Options tab record toggle visibility', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> openOptions(WidgetTester tester) async {
+      await tester.tap(find.text('Options'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('SSH Options tab renders the record-session toggle', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await openOptions(tester);
+      // The recordSession ARB key is "Record session" in en.arb;
+      // _OptionRow renders it as a Text widget next to a Switch.
+      expect(find.text('Record session'), findsOneWidget);
+    });
+
+    testWidgets('WebDAV Options tab hides the record-session toggle', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'WebDAV');
+      await openOptions(tester);
+      expect(find.text('Record session'), findsNothing);
+    });
+
+    testWidgets('S3 Options tab hides the record-session toggle', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'S3');
+      await openOptions(tester);
+      expect(find.text('Record session'), findsNothing);
+    });
+  });
+
+  group('SessionEditDialog — required-marker stars across kinds', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('SSH required fields carry the * marker on Connection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      // ARB strings: hostRequired = "Host *", usernameRequired =
+      // "Username *". Uppercased by FieldLabel.
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
+    });
+
+    testWidgets('WebDAV required fields carry the * marker', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'WebDAV');
+      expect(find.text('BASE URL *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
+      await tester.tap(find.textContaining('Auth'));
+      await tester.pumpAndSettle();
+      expect(find.text('PASSWORD *'), findsOneWidget);
+    });
+
+    testWidgets('S3 required fields carry the * marker', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'S3');
+      expect(find.text('ACCESS KEY ID *'), findsOneWidget);
+      await tester.tap(find.textContaining('Auth'));
+      await tester.pumpAndSettle();
+      expect(find.text('SECRET ACCESS KEY *'), findsOneWidget);
     });
   });
 
