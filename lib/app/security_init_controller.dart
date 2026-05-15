@@ -69,22 +69,20 @@ import 'tier_unlocked_listener.dart';
 part 'security_init_controller_first_launch.dart';
 part 'security_init_controller_unlock.dart';
 
-/// Owns the startup / security / tier / DB lifecycle that
-/// `_LetsFLUTsshAppState` used to carry inline.
+/// Owns the startup / security / tier / DB lifecycle so main.dart's
+/// widget-level code stays focused on the UI shell.
 ///
 /// Three mutable fields (`_securityReady`, `_corruptionRetries`,
 /// `_credentialsWereReset`) are touched by ~30 methods spanning
 /// migration, first-launch wizard, per-tier unlock, DB-corruption
-/// recovery, reset, and reinit. Pulling them out of the state class
-/// keeps main.dart's widget-level code focused on the UI shell
-/// while giving this flow a single place to reason about its
-/// invariants.
+/// recovery, reset, and reinit. Living outside the state class gives
+/// this flow a single place to reason about its invariants.
 ///
 /// Lifecycle contract:
 ///   1. Constructed in `_LetsFLUTsshAppState.initState` with the
 ///      ConsumerState's `ref` + a `bool Function() isMounted`
-///      closure so the "post-dispose bail" checks that used to read
-///      `State.mounted` still short-circuit correctly.
+///      closure so the post-dispose bail checks short-circuit on the
+///      same invariant `State.mounted` would.
 ///   2. `bootstrap()` runs migrations → security init → corruption
 ///      probe → session load. Called once from the first-frame
 ///      post-frame callback.

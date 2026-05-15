@@ -236,25 +236,10 @@ impl std::fmt::Display for DownloadError {
 
 impl std::error::Error for DownloadError {}
 
-/// Download the asset at `url` into `target_dir`, verify its
-/// SHA-256 against `expected_digest` (when provided), then fetch
-/// the release's `<name>-<version>.sha256sums` + `.sha256sums.sig`,
-/// verify the signature against the pinned Ed25519 public key, and
-/// confirm the asset's hash matches the manifest entry.
-///
-/// Bus events emitted along the way (subscribe to
-/// [`crate::bus::EventTopic::Update`]):
-/// - `UpdateDownloadProgress` — per-chunk while the asset streams.
-/// - `UpdateVerifyingStarted { url }` — after HTTP completes,
-///   before SHA hashing + signature verify.
-/// - `UpdateDownloadCompleted { url, path }` — terminal success.
-///
-/// Errors clean up the partial files (`asset`, `manifest`,
-/// `manifest.sig`) so a retry starts from a known-empty target dir.
 /// Drop-guard that wipes any tracked partial files unless the
 /// caller explicitly disarms it. Closes the cancellation hole in
-/// `download_with_verification` — a `task::abort` mid-download
-/// previously left bytes on disk that the next retry would hash
+/// `download_with_verification` — trap: a `task::abort`
+/// mid-download leaves bytes on disk that the next retry hashes
 /// against an incomplete file.
 struct PartialDownloadGuard {
     paths: Vec<String>,
@@ -292,6 +277,21 @@ impl Drop for PartialDownloadGuard {
     }
 }
 
+/// Download the asset at `url` into `target_dir`, verify its
+/// SHA-256 against `expected_digest` (when provided), then fetch
+/// the release's `<name>-<version>.sha256sums` + `.sha256sums.sig`,
+/// verify the signature against the pinned Ed25519 public key, and
+/// confirm the asset's hash matches the manifest entry.
+///
+/// Bus events emitted along the way (subscribe to
+/// [`crate::bus::EventTopic::Update`]):
+/// - `UpdateDownloadProgress` — per-chunk while the asset streams.
+/// - `UpdateVerifyingStarted { url }` — after HTTP completes,
+///   before SHA hashing + signature verify.
+/// - `UpdateDownloadCompleted { url, path }` — terminal success.
+///
+/// Errors clean up the partial files (`asset`, `manifest`,
+/// `manifest.sig`) so a retry starts from a known-empty target dir.
 pub async fn download_with_verification(
     url: &str,
     target_dir: &str,
@@ -441,9 +441,9 @@ pub async fn download_with_verification(
     })
 }
 
-/// Replace the last path segment of `url` with `new_tail`. Used to
-/// derive the manifest URL from the asset URL — both live in the
-/// same release directory.
+/// Replace the last path segment of `url` with `new_tail`. Derives
+/// the manifest URL from the asset URL — both live in the same
+/// release directory.
 fn replace_path_tail(url: &str, new_tail: &str) -> String {
     match url.rfind('/') {
         Some(idx) => {
@@ -458,11 +458,10 @@ fn replace_path_tail(url: &str, new_tail: &str) -> String {
 
 /// SHA-256 a file by streaming 64 KiB chunks through the hasher
 /// instead of materialising the whole file in memory. The asset
-/// can be a multi-MiB / multi-GiB installer; the prior
-/// `tokio::fs::read(path).await` shape blew RAM proportional to
-/// the artefact, surfaced under the digest precheck + the
-/// manifest cross-check (two full reads on the same file). Now
-/// the buffer is a single `[u8; 65_536]` reused per chunk.
+/// can be a multi-MiB / multi-GiB installer; both the digest
+/// precheck and the manifest cross-check each read the file once,
+/// so the buffer stays a single `[u8; 65_536]` reused per chunk
+/// regardless of artefact size.
 async fn sha256_file(path: &str) -> Result<String, Error> {
     use tokio::io::AsyncReadExt;
 

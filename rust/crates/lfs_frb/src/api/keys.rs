@@ -137,8 +137,7 @@ pub fn keys_looks_like_ppk(text: String) -> bool {
 /// The 32 KiB size ceiling, missing-file fallback, and
 /// PPK-without-passphrase route to "not a key" all live Rust-side.
 /// FRB encodes `Option<String>` as a nullable string in Dart, so a
-/// `null` return cleanly maps to the prior Dart helper's `null`
-/// contract.
+/// `null` return maps cleanly to the caller's nullable contract.
 pub async fn keys_try_read_pem_from_path(path: String) -> Option<String> {
     tokio::task::spawn_blocking(move || {
         let p = std::path::PathBuf::from(path);

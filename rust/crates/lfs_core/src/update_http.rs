@@ -30,11 +30,11 @@
 //! SPKI pinning was considered (defence-in-depth on top of
 //! system-CA) and rejected: the app ships without analytics or
 //! a remote-management channel, so a pin going stale (GitHub
-//! key rotation) would silently break auto-update for everyone
-//! on the prior release with no detection or rescue path. The
-//! Ed25519 signature is the better security/maintenance
-//! trade-off — it gates the same attacker class without
-//! introducing a third-party-controlled liveness dependency.
+//! key rotation) would silently break auto-update for every
+//! shipped build with no detection or rescue path. The Ed25519
+//! signature is the better security/maintenance trade-off — it
+//! gates the same attacker class without introducing a
+//! third-party-controlled liveness dependency.
 
 use std::path::Path;
 use std::time::Duration;

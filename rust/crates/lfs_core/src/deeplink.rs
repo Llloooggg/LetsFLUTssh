@@ -223,11 +223,10 @@ fn percent_decode(s: &str) -> Option<String> {
 // Dispatcher
 // =====================================================================
 
-/// Typed outcome of a [`DeeplinkDispatcher::dispatch`] call. Mirrors
-/// the Dart-era `DeepLinkHandler` callbacks (`onConnect`,
-/// `onLfsFileOpened`, `onKeyFileOpened`, `onQrImport`,
-/// `onQrImportVersionTooNew`) plus the `Duplicate` / `Unknown`
-/// branches that previously logged-and-dropped Dart-side.
+/// Typed outcome of a [`DeeplinkDispatcher::dispatch`] call. One
+/// variant per Dart-side callback (`Connect`, `LfsFileOpened`,
+/// `KeyFileOpened`, `QrImport`, `QrImportVersionTooNew`) plus
+/// `Duplicate` / `Unknown` branches the dispatcher logs and drops.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeeplinkOutcome {
     /// `letsflutssh://connect?host=…&user=…[&port=…]` — open a

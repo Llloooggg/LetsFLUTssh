@@ -239,8 +239,8 @@ pub enum Event {
     /// slot carries a staged key — true on every tier the
     /// orchestrator stages a non-empty buffer for (the plaintext
     /// branch stages an empty buffer; the slot is still present
-    /// so this flag follows the SecretStore probe shape the Dart
-    /// listener used to perform itself).
+    /// so this flag matches the SecretStore probe shape Dart
+    /// listeners need).
     UnlockCascadeReady { tier_wire: String, has_key: bool },
 
     /// Connection credential prompt — fired by the connection

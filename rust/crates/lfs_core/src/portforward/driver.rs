@@ -523,8 +523,8 @@ impl Drop for RemoteForwardHandle {
         let port = self.bound_port;
         // Fallback path — the explicit `teardown` was not called.
         // Detach the network-side cleanup; loses the runtime-
-        // shutdown race in the worst case but matches the prior
-        // behaviour for any caller still relying on bare drop.
+        // shutdown race in the worst case but keeps bare-drop
+        // callers correct.
         tokio::spawn(async move {
             session.unregister_remote_forward_route(&host, port).await;
             let _ = session.cancel_remote_forward(&host, port).await;

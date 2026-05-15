@@ -461,9 +461,8 @@ pub fn recorder_decode_header_line(line: String) -> Option<DbRecordingHeader> {
 /// Tagged-union mirror of one decoded JSON-Lines record. Routes the
 /// asciinema v2 dispatch (header object vs event tuple) Rust-side so
 /// the Dart playback loop never re-runs `jsonDecode` to peek the
-/// shape. `None` lands on the `other` variant and the Dart consumer
-/// drops the record — matches the prior `jsonDecode` + `is Map` /
-/// `is List` triage behaviour exactly.
+/// shape. A non-conforming line lands on the `other` variant and
+/// the Dart consumer drops the record.
 #[derive(Debug, Clone)]
 pub enum DbRecordingLine {
     Header(DbRecordingHeader),
@@ -593,18 +592,18 @@ pub async fn recorder_close(id: String) -> Result<(), String> {
 // Per-id write queue surface
 // =====================================================================
 //
-// The Dart shim does not call `recorder_record_*` directly any more —
-// the per-id worker inside `lfs_core::recorder::queue` drains a
+// The Dart shim does not call `recorder_record_*` directly — the
+// per-id worker inside `lfs_core::recorder::queue` drains a
 // dedicated mpsc and serialises calls into the registry so the
 // asciinema event stream lands on disk in arrival order even when
 // concurrent FRB calls overlap on the runtime. Spawn the worker once
 // after `recorder_register`; use the enqueue endpoints below for the
 // recording's lifetime; close drains + drops the worker.
 
-/// Spawn the per-id write worker. Pair with a prior
+/// Spawn the per-id write worker. Pair with an existing
 /// [`recorder_register`] so the actor row exists. Idempotent on a
-/// re-spawn for the same id (the prior worker exits cleanly on its
-/// next mailbox `recv`).
+/// re-spawn for the same id — the displaced worker exits cleanly on
+/// its next mailbox `recv`.
 pub async fn recorder_queue_spawn(id: String) {
     let app = lfs_core::app::instance();
     app.recorder_queue.spawn(id).await;
@@ -689,10 +688,9 @@ pub async fn recorder_queue_enqueue_close(id: String) -> Result<(), String> {
 // Recordings browser surface
 // =====================================================================
 //
-// The Dart `RecordingsPanel` used to walk `<appSupport>/recordings/`
-// via `Directory.list()` + `File.stat()` + `File.delete()`. The walk
-// + stat + delete now live Rust-side under `lfs_core::recorder::browser`
-// so the `Rust owns data` invariant holds for the whole recordings
+// The walk + stat + delete for `<appSupport>/recordings/` live
+// Rust-side under `lfs_core::recorder::browser` so the
+// `Rust owns data` invariant holds for the whole recordings
 // lifecycle (write → list → playback → delete).
 
 /// Per-recording metadata yielded by [`recorder_list_recordings`].

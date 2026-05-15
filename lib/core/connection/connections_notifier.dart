@@ -677,13 +677,13 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     // Doing both produced two identical "[*] Connecting…" lines in
     // the terminal + duplicate [Progress] log entries.
     //
-    // The per-attempt sub used to live here too, but every duty it
-    // had — state mutation, transient-secret eviction, connect-step
-    // logging, ConnectionError → connectionError capture — is now
-    // owned by Connection's permanent `_busSub`. A second listener
-    // cancelled in this `finally` raced in-flight events from the
-    // FRB worker thread and produced "Fail to post message to Dart"
-    // stderr noise on every connect, so it's gone.
+    // Trap: do not attach a per-attempt bus listener here. Connection's
+    // permanent `_busSub` owns every duty — state mutation, transient-
+    // secret eviction, connect-step logging, ConnectionError →
+    // connectionError capture. A second listener cancelled in this
+    // `finally` races in-flight events from the FRB worker thread and
+    // produces "Fail to post message to Dart" stderr noise on every
+    // connect.
     _notify();
 
     try {

@@ -20,9 +20,9 @@ pub enum Error {
     /// Module loaded but no token is present in any slot the caller
     /// asked about. Surfaces as `No token present in any reader.`
     TokenAbsent,
-    /// A previously-imported PKCS#11 key references a token / serial
-    /// that no longer matches any present slot. Caller surfaces a
-    /// "replug and retry" toast.
+    /// An imported PKCS#11 key references a token / serial that no
+    /// longer matches any present slot. Caller surfaces a "replug
+    /// and retry" toast.
     TokenUnplugged(String),
     /// `C_Login` rejected the supplied PIN. Display prefix `wrong pin:`
     /// is load-bearing — the Dart UI's PIN re-prompt path string-matches

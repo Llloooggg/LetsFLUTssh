@@ -5,9 +5,7 @@
 //!
 //! * Tilde-prefix expansion (`~/.ssh/config` →
 //!   `/home/<user>/.ssh/config`). Centralised so every consumer
-//!   resolves home the same way; previously the Dart side had its
-//!   own copy in `openssh_config_importer.dart`, the macOS resign
-//!   orchestrator had a third, and they each picked their own
+//!   resolves home the same way and picks the same
 //!   environment-variable preference.
 //!
 //! * `harden_file_perms` — best-effort perm tightening for files

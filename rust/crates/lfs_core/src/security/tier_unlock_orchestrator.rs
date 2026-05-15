@@ -90,8 +90,7 @@ fn stage_key(bytes: &[u8]) {
 /// 1. Open the rusqlite handle keyed off the staged bytes
 ///    (empty bytes ⇒ plaintext open). Failure is logged and the
 ///    cascade continues — recovery routes through the Dart-side
-///    `verifyRustDbReadable` probe + `DbCorruptDialog`, same as
-///    the prior Dart flow.
+///    `verifyRustDbReadable` probe + `DbCorruptDialog`.
 /// 2. Persist the resolved tier into `config.json` via the
 ///    config_store partial-update. Idempotent on a matching
 ///    `(tier, modifiers)` pair. Failure is logged + continues —

@@ -1174,7 +1174,7 @@ fn map_finalize_error(e: &WinError) -> UnavailableReason {
 
 fn is_unsupported_alg(e: &WinError) -> bool {
     // `NTE_NOT_SUPPORTED = 0x80090029` — TPM firmware refused the
-    // algorithm. Specifically used to detect P-384 fallback on older
+    // algorithm. Triggers the P-384 → P-256 fallback on older
     // Infineon firmware that caps at P-256.
     win_error_code(e) == 0x8009_0029
 }

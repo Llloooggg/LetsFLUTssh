@@ -21,7 +21,7 @@
 //!   the parent directory if needed, opens the file in append mode,
 //!   hardens to `0600` on POSIX (no-op on Windows — the app-support
 //!   tree inherits the user's profile ACL). Idempotent on the same
-//!   directory; switching directory closes the prior sink and
+//!   directory; switching directory closes the current sink and
 //!   reopens at the new path.
 //! * [`append_line`] / [`append_critical`] write rendered (already
 //!   sanitised) lines into the file. Routine `append_line` writes
@@ -108,11 +108,11 @@ pub fn open_sink(app_support_dir: &str) -> Result<String, String> {
         if existing == &target_path && guard.sink.is_some() {
             return Ok(target_path.to_string_lossy().into_owned());
         }
-        // Different directory or sink dropped — close the prior
+        // Different directory or sink dropped — close the held
         // handle before reopening so two `BufWriter`s never share
         // the same fd on top of one path.
-        if let Some(mut prior) = guard.sink.take() {
-            let _ = prior.flush();
+        if let Some(mut held) = guard.sink.take() {
+            let _ = held.flush();
         }
     }
     let logs_dir = target_path
@@ -516,8 +516,8 @@ mod tests {
         std::fs::write(sibling_with_index(&path, 2), b"old2").unwrap();
         append_line(&"x".repeat(200)).unwrap();
         rotate_if_needed(50, 3).unwrap();
-        // `.2` now holds the prior `.1`; `.3` holds the prior `.2`;
-        // `.1` is the just-rotated current file.
+        // After rotation: `.2` holds what `.1` was, `.3` holds what
+        // `.2` was, `.1` is the just-rotated current file.
         assert_eq!(
             std::fs::read(sibling_with_index(&path, 2)).unwrap(),
             b"old1"

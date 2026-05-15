@@ -6,7 +6,8 @@ import 'app_data_search_bar.dart';
 /// Standardised toolbar for collection-management dialogs (snippet
 /// manager, tag manager, key manager, etc.).
 ///
-/// Shared behaviour every caller used to re-implement:
+/// Centralises the toolbar contract for every collection-management
+/// dialog:
 ///
 ///  * search bar + count label hidden when the collection is empty
 ///    (their signal is owned by the centered empty-state widget

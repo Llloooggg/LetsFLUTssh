@@ -142,7 +142,7 @@ pub async fn keystore_ssh_probe() -> Result<DbKeystoreProbeResult, String> {
 
 /// Generate a fresh AndroidKeyStore-bound SSH key + persist it as
 /// an `ssh_keys` row. Fires the BiometricPrompt the next time the
-/// row is used to sign; the generate call itself does not prompt
+/// row signs a payload; the generate call itself does not prompt
 /// (the user has already authenticated to reach this surface).
 pub async fn keystore_ssh_generate(
     args: DbKeystoreGenerateArgs,

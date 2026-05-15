@@ -2,8 +2,8 @@
 //! Lives in `lfs_os_security` (not `lfs_core::path` /
 //! `lfs_core::fs::local`) because the crate is the single audit
 //! perimeter for OS-API FFI and subprocess spawning; the icacls
-//! shell-out used to harden files on Windows and the `cmd /c
-//! attrib *` shell-out used to enumerate H/S-attributed names
+//! shell-out that hardens files on Windows and the `cmd /c
+//! attrib *` shell-out that enumerates H/S-attributed names
 //! would otherwise leak `std::process::Command` /
 //! `tokio::process::Command` calls into `lfs_core`, which we keep
 //! free of subprocess invocations.

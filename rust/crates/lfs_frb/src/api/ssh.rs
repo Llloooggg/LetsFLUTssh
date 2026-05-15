@@ -104,9 +104,8 @@ pub async fn ssh_try_connect_pubkey(
 /// any per-channel work. Concurrent operations (open_shell while a
 /// forward pump is parked on `next_forwarded_connection`) therefore
 /// never serialise on the outer mutex; russh handles the per-channel
-/// concurrency itself. Holding the lock across an `await` previously
-/// produced an infinite deadlock against the long-lived forward
-/// pump.
+/// concurrency itself. Trap: holding the lock across an `await`
+/// deadlocks against the long-lived forward pump.
 #[frb(opaque)]
 pub struct SshSession {
     inner: Mutex<Option<Arc<lfs_core::ssh::Session>>>,

@@ -304,9 +304,9 @@ mod tests {
     use tempfile::TempDir;
 
     /// Set up a fresh T1+pw gate config on disk + return the pepper
-    /// the test stand-in would inject — kept for shape parity
-    /// with the prior actor tests even though the post-bus rewrite
-    /// no longer surfaces the pepper through a registry.
+    /// the test stand-in would inject. The actor surfaces the pepper
+    /// through the bus rather than a registry; this helper covers
+    /// the disk-state setup only.
     fn setup_gate(dir: &Path, password: &[u8]) -> Vec<u8> {
         let (salt, pepper) = random_salt_and_pepper();
         let hmac = compute_gate_hmac(&pepper, &salt, password);

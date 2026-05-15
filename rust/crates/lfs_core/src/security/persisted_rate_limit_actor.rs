@@ -1,8 +1,8 @@
 //! In-memory + on-disk actor for the T1+pw keychain-gate's
-//! `PersistedRateLimiter`. Wraps the existing
+//! `PersistedRateLimiter`. Wraps the
 //! `persisted_rate_limit::{encode_state, decode_state}` HMAC-frame
-//! ser/de with the cache + serialised disk-write coordination that
-//! used to live Dart-side.
+//! ser/de with the in-memory cache + serialised disk-write
+//! coordination.
 //!
 //! The actor lives as a process-singleton registry keyed on `id` so
 //! the T1+pw gate can register one limiter at startup
@@ -152,13 +152,13 @@ impl PersistedRateLimiterRegistry {
         // Monotonic floor on the cooldown: a backward clock jump
         // (NTP correction, daylight-saving rollback, suspended
         // laptop with battery-drained RTC) MUST NOT shrink the
-        // already-issued cooldown. An attacker with system-clock
-        // write access could otherwise burn through the schedule
-        // — fail, set clock back, fail again, set back, … and
-        // skip the geometric backoff entirely. `current
-        // .next_retry_at_millis` is the previously-issued floor;
-        // we take the larger of "now + step" and that floor so
-        // failures only ever push the cooldown further out.
+        // issued cooldown. An attacker with system-clock write
+        // access could otherwise burn through the schedule — fail,
+        // set clock back, fail again, set back, … and skip the
+        // geometric backoff entirely. `current.next_retry_at_millis`
+        // is the issued floor; take the larger of "now + step" and
+        // that floor so failures only ever push the cooldown
+        // further out.
         let candidate = if secs == 0 {
             None
         } else {
@@ -477,15 +477,15 @@ mod tests {
     }
 
     /// Backward clock jump (NTP correction, suspended laptop, user
-    /// dropping their system time) MUST NOT shrink an already-issued
+    /// dropping their system time) MUST NOT shrink an issued
     /// cooldown. An attacker with system-clock write access could
     /// otherwise burn through the geometric backoff:
     ///   1. Trigger N failures → cooldown ladder peaks.
     ///   2. Set clock back N seconds.
     ///   3. Each new `record_failure` would issue `now + step`
     ///      against the rolled-back `now`, undershooting the
-    ///      previously-persisted floor and freeing the unlock
-    ///      dialog earlier than the schedule says.
+    ///      persisted floor and freeing the unlock dialog earlier
+    ///      than the schedule says.
     ///
     /// Monotonic floor clamps the new `next_retry_at_millis` to
     /// `max(now + step, prev_next_retry_at_millis)` so backward
@@ -524,9 +524,9 @@ mod tests {
         reg.record_failure("gate");
 
         // Snap the clock back to a wall-time still inside the
-        // previously-issued cooldown (13 500 ms < 14 000 ms floor).
-        // Without the floor this would read as expired (cooldown
-        // ms = 0); with the floor it reports the remaining 500 ms.
+        // pinned cooldown (13 500 ms < 14 000 ms floor). Without
+        // the floor this reads as expired (cooldown ms = 0); with
+        // the floor it reports the remaining 500 ms.
         cell.store(13_500, Ordering::SeqCst);
         let snapshot = reg.status("gate");
         assert!(

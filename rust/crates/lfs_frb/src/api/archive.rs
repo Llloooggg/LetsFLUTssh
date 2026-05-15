@@ -213,9 +213,8 @@ pub struct DbQrExportInput {
 /// Same composition as [`db_export_qr_payload`] but skips the
 /// base64url encode step and returns the deflated payload's
 /// byte count. Drives the live "fits in QR" gauge in the Dart
-/// `unified_export_controller` — single FRB call per checkbox
-/// toggle replaces the per-toggle Dart-side JSON build + Rust
-/// deflate round-trip the controller used to do.
+/// `unified_export_controller` — one FRB call per checkbox
+/// toggle returns the size with no JSON crossing the boundary.
 pub async fn db_export_qr_payload_size(input: DbQrExportInput) -> Result<u32, String> {
     let core_input = QrExportInput {
         options: QrExportOptions {

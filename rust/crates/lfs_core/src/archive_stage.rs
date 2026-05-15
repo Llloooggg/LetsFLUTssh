@@ -233,10 +233,9 @@ pub fn stage_snippets_to_json(rows: &[StagedSnippetImport]) -> Option<String> {
 
 // Junction-table link rows the apply driver consumes via the
 // `session_tags_json` / `folder_tags_json` / `session_snippets_json`
-// fields on `PendingImport`. Typed FRB structs replace the prior
-// Dart-side `jsonEncode([...])` envelopes — the wire shape lives
-// one place, in this module, and the apply driver re-parses the
-// same JSON it would have built.
+// fields on `PendingImport`. Typed FRB structs encode the wire
+// shape in one place — this module — and the apply driver re-parses
+// the same JSON the stagers build.
 
 /// Session ↔ tag M2M row.
 #[derive(Debug, Clone)]

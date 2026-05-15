@@ -109,12 +109,11 @@ pub fn decode_linux_blob(blob: &str) -> Result<LinuxBlob, String> {
 ///   that releases the same password from an OS-gated slot, never
 ///   a replacement.
 ///
-/// The Hardware tier always carries a user-typed secret; the
-/// passwordless arm that used to live here is gone. A caller
-/// asking for "no secret" against the Hardware tier is a bug —
-/// surface the empty payload as `None` so the unlock path routes
-/// through the dialog rather than sealing under an empty
-/// auth-value.
+/// The Hardware tier always carries a user-typed secret — no
+/// passwordless arm. A caller asking for "no secret" against the
+/// Hardware tier is a bug; surface the empty payload as `None` so
+/// the unlock path routes through the dialog rather than sealing
+/// under an empty auth-value.
 #[derive(Debug, Clone, Copy)]
 pub enum AuthIntent<'a> {
     Password(&'a str),

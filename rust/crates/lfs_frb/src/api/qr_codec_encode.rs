@@ -39,8 +39,8 @@ pub struct QrSessionCompactInputs {
     pub is_manager: bool,
     pub include_passwords: bool,
     /// Lossy-decoded as UTF-8 inside the shim — invalid sequences
-    /// collapse to empty, same fallback shape the prior
-    /// `password: String` signature produced for malformed input.
+    /// collapse to empty so malformed input does not propagate
+    /// past the FRB boundary.
     pub password: Vec<u8>,
 }
 

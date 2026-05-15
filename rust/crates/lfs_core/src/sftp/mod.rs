@@ -73,15 +73,12 @@ impl Sftp {
     /// levels deep. Symlinks are NOT followed.
     ///
     /// `max_depth = 0` returns the immediate children's size
-    /// without descending; `max_depth = 64` matches the prior
-    /// Dart-side `_maxRecursionDepth` guard against runaway
-    /// traversals.
+    /// without descending; `max_depth = 64` is the runaway-traversal
+    /// guard the caller passes in.
     ///
     /// Runs the entire walk Rust-side so the SFTP `read_dir`
-    /// round-trips pay one channel turnaround each instead of N
-    /// FRB hops per directory. The Dart caller's previous Dart-
-    /// recursive `dirSize` did N FRB hops for a tree with N
-    /// directories.
+    /// round-trips pay one channel turnaround each — one FRB hop
+    /// regardless of tree depth.
     pub async fn dir_size_recursive(&self, path: &str, max_depth: u32) -> Result<u64, Error> {
         // Async recursion in Rust requires indirection — use a
         // Box::pin'd inner future. Mirrors the pattern in
@@ -447,7 +444,7 @@ pub struct TransferProgressEvent {
 }
 
 /// Per-file streaming chunk size — matches russh-sftp's default
-/// packet window. Same constant the prior Dart walker used.
+/// packet window.
 const TRANSFER_CHUNK_SIZE: usize = 65536;
 
 async fn count_local_files(dir: &std::path::Path) -> u64 {

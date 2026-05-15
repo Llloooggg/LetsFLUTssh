@@ -21,8 +21,8 @@
 //! `PRAGMA user_version = SCHEMA_VERSION` on every fresh open,
 //! and the next schema bump bumps that constant + adds a
 //! `match user_version { ... }` arm with the migration step. The
-//! v1 floor is "what drift used to ship", recorded so a future
-//! `ALTER TABLE` migration has a real anchor to read off.
+//! v1 floor is the drift-bootstrapped baseline, recorded so a
+//! future `ALTER TABLE` migration has a real anchor to read off.
 //!
 //! Threading: every DB call hops to `tokio::task::spawn_blocking`
 //! inside the FRB adapter. This struct is Send + Sync (the inner

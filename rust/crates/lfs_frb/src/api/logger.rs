@@ -2,10 +2,10 @@
 //!
 //! Dart's `AppLogger` formats + sanitises each line and broadcasts
 //! it to the live viewer; the on-disk file lives Rust-side under
-//! `lfs_core::logger::file_sink`. This shim is the one-way bridge:
-//! every `dart:io File`/`Directory` operation Dart used to run
-//! against `<app_support>/logs/letsflutssh.log` now routes through
-//! one of the functions below.
+//! `lfs_core::logger::file_sink`. This shim is the one-way bridge —
+//! every file / directory operation against
+//! `<app_support>/logs/letsflutssh.log` routes through one of the
+//! functions below.
 //!
 //! Sync vs async split: the hot path (`logger_append_line`,
 //! `logger_append_critical`, `logger_flush`, `logger_close_sink`)
@@ -24,7 +24,7 @@
 /// log-path string.
 ///
 /// Idempotent — calling twice with the same directory keeps the
-/// same sink. Switching directory closes the prior sink and
+/// same sink. Switching directory closes the held sink and
 /// reopens at the new path.
 pub async fn logger_open_sink(app_support_dir: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || lfs_core::logger::file_sink::open_sink(&app_support_dir))

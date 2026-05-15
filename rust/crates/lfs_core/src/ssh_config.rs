@@ -82,10 +82,8 @@ pub fn parse_openssh_config(
 /// Rust's `str::lines()` only splits on `\n` (with optional preceding
 /// `\r`); a config file written on classic Mac OS or pasted from
 /// Windows-without-trailing-LF would otherwise collapse onto a
-/// single line. The Dart caller used to handle this through
-/// `LineSplitter` (which understands bare `\r`); now that the parser
-/// owns the full pipeline we normalise at the entry point so the
-/// downstream walkers don't have to think about it.
+/// single line. Normalise at the entry point so the downstream
+/// walkers don't have to think about line endings.
 fn normalise_line_endings(content: &str) -> String {
     if !content.contains('\r') {
         return content.to_string();
@@ -526,8 +524,6 @@ fn glob_files(pattern: &str) -> Vec<String> {
 /// Read an include file, capping at [`MAX_INCLUDE_FILE_BYTES`].
 /// `None` covers all of: file missing, permission denied, file
 /// too large (almost always a hostile config), and read errors.
-/// Mirrors the Dart `_defaultIncludeReader` exactly so behaviour
-/// stays identical after the migration.
 fn read_include_file(path: &str) -> Option<String> {
     let metadata = std::fs::metadata(path).ok()?;
     if !metadata.is_file() {

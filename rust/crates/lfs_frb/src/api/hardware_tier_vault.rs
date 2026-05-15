@@ -18,13 +18,12 @@ use lfs_core::security::hardware_tier_vault as vault;
 use lfs_os_security::hardware_tier_vault::HardwareVaultError;
 
 /// Map a typed [`HardwareVaultError`] to the matching FRB envelope
-/// kind (Apple / Android / Windows path). Pre-fix shape collapsed
-/// every variant to `kind=vault`, which left the Dart UI unable to
-/// distinguish "envelope corrupt — run reset cascade" (a destructive
-/// recovery path that wipes the user's stored DB key) from a
-/// recoverable backend error (wrong PIN, missing file, TPM revoked).
-/// Now `Corrupt` routes to `kind=vault_corrupt` and the Dart side
-/// gates the reset cascade on that discriminator only.
+/// kind (Apple / Android / Windows path). `Corrupt` routes to
+/// `kind=vault_corrupt` so the Dart UI gates the destructive reset
+/// cascade on that discriminator alone — collapsing every variant
+/// to a single `kind=vault` would force the cascade to fire on
+/// recoverable backend errors (wrong PIN, missing file, TPM revoked)
+/// and wipe the user's stored DB key on transient failures.
 #[cfg(not(target_os = "linux"))]
 fn map_hw_vault_error(err: HardwareVaultError) -> String {
     use crate::api::frb_err::{kind, wire};

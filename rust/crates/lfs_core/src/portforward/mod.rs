@@ -399,15 +399,13 @@ pub struct AppRule {
 }
 
 /// Serialise an [`AppRule`] into the canonical JSON string the
-/// Dart-side rule grammar expects. Field order + key names match
-/// what `PortForwardRule.toJson` historically emitted so any
-/// on-disk / clipboard artefact written with the old codec still
-/// parses byte-identically through `from_json_string`.
+/// Dart-side rule grammar expects. Field order + key names are
+/// the wire shape on-disk / clipboard artefacts must parse
+/// byte-identically through `from_json_string`.
 ///
-/// `description` is omitted when empty (mirrors the prior Dart
-/// codec's `if (description.isNotEmpty)` guard so a freshly built
-/// rule round-trips through the typed FRB shim without growing a
-/// spurious empty field).
+/// `description` is omitted when empty so a freshly built rule
+/// round-trips through the typed FRB shim without growing a
+/// spurious empty field.
 #[must_use]
 pub fn rule_to_json_string(rule: &AppRule) -> String {
     let mut obj = serde_json::Map::new();

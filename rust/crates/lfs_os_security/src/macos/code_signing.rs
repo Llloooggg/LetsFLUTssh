@@ -29,8 +29,7 @@
 //! 3. **`uninstall_identity(common_name)`** — drops the
 //!    identity + cert. The trust-DB entry survives but becomes
 //!    a dangling reference (macOS skips entries whose cert is
-//!    missing), which is equivalent to removal — see the prior
-//!    Dart `ResignService.uninstallIdentity` rationale.
+//!    missing), which is equivalent to removal.
 //!
 //! 4. **`has_identity(common_name)`** — read-only probe used by
 //!    settings UI to decide between "Enable secure tiers" and

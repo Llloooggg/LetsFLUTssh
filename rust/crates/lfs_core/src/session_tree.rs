@@ -1,12 +1,10 @@
 //! Session-manager tree builder.
 //!
 //! Folds a flat session list into the folder tree the sidebar
-//! renders. The Dart side used to own this via
-//! `SessionTree.build` (`lib/core/session/session_tree.dart`);
-//! moving it Rust-side keeps the structural logic next to the
-//! domain types in `lfs_core::sessions` and lets `lfs_cli` /
-//! `lfs_tauri` consumers reuse it without reimplementing the
-//! sort and folder-prefix rules.
+//! renders. Living next to the domain types in
+//! `lfs_core::sessions` lets `lfs_cli` / `lfs_tauri` consumers
+//! reuse the structural logic without reimplementing the sort
+//! and folder-prefix rules.
 //!
 //! The output is intentionally immutable — UI-only state
 //! (expansion, focus, selection) lives on the Dart wrapper that

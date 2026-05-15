@@ -806,12 +806,10 @@ const PARENT_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 /// state, and either return immediately (parent already
 /// `Connected`) or await the next `ConnectionStateChanged`
 /// event for `parent_id` until it transitions to a terminal
-/// state. The Dart `ConnectionManager._doConnect` orchestrator
-/// previously awaited a Dart-side completer for the same
-/// effect; pulling the wait into the connect actor keeps the
+/// state. Owning the wait inside the connect actor keeps the
 /// FRB surface self-contained — a child connect FRB call
-/// already returns the parent-failed branch as the same typed
-/// error the rest of the cascade surfaces.
+/// returns the parent-failed branch as the same typed error
+/// the rest of the cascade surfaces.
 ///
 /// Returns:
 ///
@@ -1531,9 +1529,9 @@ mod tests {
 
     #[test]
     fn duplicate_insert_with_same_id_overwrites() {
-        // Re-inserting under the same id replaces the prior actor —
-        // matches the actor-driven shape where reconnect re-creates
-        // the actor row rather than carrying state across.
+        // Re-inserting under the same id replaces the existing
+        // actor — reconnect re-creates the actor row rather than
+        // carrying state across.
         let reg = ConnectionRegistry::new();
         reg.insert(make_actor("c1", false));
         let first_count = reg.count();
@@ -1742,8 +1740,8 @@ mod tests {
     // pair AND the no-actor-mutation invariant (the live generation
     // owns `actor.state`).
 
-    /// Drain every event already pending on a receiver. Used to
-    /// flush events published during fixture setup so the assertions
+    /// Drain every event already pending on a receiver. Flushes
+    /// events published during fixture setup so the assertions
     /// observe only the closure helper's output.
     fn drain_receiver(rx: &mut tokio::sync::broadcast::Receiver<crate::bus::Event>) {
         while rx.try_recv().is_ok() {}

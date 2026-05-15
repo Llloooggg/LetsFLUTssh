@@ -535,9 +535,8 @@ mod tests {
     #[test]
     fn config_json_round_trip() {
         let original = SecurityConfig {
-            // Bank-style T1 + password — previously a dedicated
-            // KeychainWithPassword tier, now Keychain + the
-            // password modifier.
+            // Bank-style T1 + password — Keychain tier composed
+            // with the `password` modifier.
             tier: SecurityTier::Keychain,
             modifiers: SecurityTierModifiers {
                 password: true,

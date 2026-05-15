@@ -83,11 +83,10 @@ class SessionRecorder {
 
   /// Resolved when the Rust worker emits `RecorderStopped` for our
   /// id. [close] awaits it (with a timeout) so the on-disk file is
-  /// fully sealed before the caller proceeds — without this, the
-  /// trailing bytes after the close enqueue could still be in the
-  /// worker's mailbox when [close] returned, producing a truncated
-  /// recording on a fast disconnect. ARCH §3.13 promised this; the
-  /// pre-fix implementation only awaited the enqueue-close future.
+  /// fully sealed before the caller proceeds. Trap: awaiting only
+  /// the enqueue-close future leaves trailing bytes in the worker
+  /// mailbox, producing a truncated recording on a fast disconnect.
+  /// ARCH §3.13 documents the contract.
   final Completer<void> _stoppedCompleter = Completer<void>();
 
   /// Set by [close]; subsequent record calls become no-ops so the

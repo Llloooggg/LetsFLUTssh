@@ -1,6 +1,6 @@
 //! FRB adapter for `lfs_core::connection::auth_compose`. Exposes
-//! the credential-overlay composer the Dart `ConnectionManager`
-//! used to drive Dart-side as a single async call.
+//! the credential-overlay composer as a single async call the Dart
+//! `ConnectionManager` drives.
 //!
 //! The Dart caller passes the (session_id, key_id, key_data,
 //! password, passphrase) bag; the Rust composer walks the

@@ -166,11 +166,9 @@ pub fn archive_stage_snippets_to_json(rows: Vec<DbStagedSnippetImport>) -> Optio
     archive_stage::stage_snippets_to_json(&typed)
 }
 
-/// FRB mirrors of the link-table envelope rows. The shape was
-/// previously built Dart-side via `jsonEncode([...])`; routing
-/// through typed structs keeps the wire format Rust-authoritative
-/// and lets the apply driver consume the same JSON the stager
-/// emits.
+/// FRB mirrors of the link-table envelope rows. Typed structs
+/// keep the wire format Rust-authoritative so the apply driver
+/// consumes the same JSON the stager emits.
 #[derive(Debug, Clone)]
 pub struct DbStagedSessionTagLink {
     pub session_id: String,

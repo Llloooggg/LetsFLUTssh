@@ -783,9 +783,9 @@ mod tests {
 
     #[test]
     fn extras_value_promotes_whole_floats_to_int() {
-        // The Dart `extrasInt('count')` accessor used to accept
-        // `5` and `5.0` indifferently because `jsonDecode` produced
-        // a `num` either way. Keep that contract via the promote.
+        // Trap: the `extrasInt('count')` accessor must accept
+        // `5` and `5.0` indifferently — `jsonDecode` produces a
+        // `num` either way, so the promote keeps that contract.
         let v = SessionJsonValue::from_value(&Value::from(5.0_f64));
         assert_eq!(v, SessionJsonValue::Int(5));
     }
@@ -948,10 +948,10 @@ mod tests {
 
     #[test]
     fn snapshot_envelope_decode_tolerates_missing_fields() {
-        // Mirrors the prior Dart `_decode` shape — a malformed
-        // envelope with a missing `emptyFolders` or `description`
-        // still round-trips so a partial blob from a future build
-        // doesn't poison the undo stack.
+        // Tolerant decode: a malformed envelope with a missing
+        // `emptyFolders` or `description` still round-trips so a
+        // partial blob from a future build doesn't poison the undo
+        // stack.
         let envelope = decode_snapshot_envelope(r#"{"sessions":[]}"#).unwrap();
         assert!(envelope.sessions.is_empty());
         assert!(envelope.empty_folders.is_empty());

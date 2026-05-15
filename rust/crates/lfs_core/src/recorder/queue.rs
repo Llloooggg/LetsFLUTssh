@@ -169,8 +169,8 @@ impl RecorderQueue {
     }
 
     /// Spawn the per-id worker. Idempotent on a re-spawn for the
-    /// same id (the prior worker's channel drops, which causes the
-    /// prior worker to exit on its next `recv`). Call after
+    /// same id — the displaced worker's channel drops, which makes
+    /// that worker exit on its next `recv`. Call after
     /// `RecorderRegistry::register_with_io` so the actor row exists
     /// before the first entry arrives.
     pub async fn spawn(&self, id: RecorderId) {

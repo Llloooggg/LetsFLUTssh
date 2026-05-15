@@ -274,8 +274,8 @@ pub struct DbSshKey {
     /// loaded. Cached for fast re-binding; the loader still verifies
     /// the SHA-256 matches before reuse.
     pub pkcs11_module_path: Option<String>,
-    /// PKCS#11 token serial captured at import — used to confirm the
-    /// same physical token is inserted before signing.
+    /// PKCS#11 token serial captured at import — the signer
+    /// confirms the same physical token is inserted before signing.
     pub pkcs11_token_serial: Option<String>,
     /// `CKA_ID` of the private-key object on the token. Opaque to
     /// Dart; passed verbatim back to Rust on sign.
@@ -591,8 +591,8 @@ pub async fn db_ssh_keys_list_metadata() -> Result<Vec<DbSshKeyMetadata>, String
 /// String>`); the JSON encoding for the underlying SQL columns is
 /// owned by the DAO ([`lfs_core::db::ssh_key_certificates`]) so the
 /// Dart caller never sees the wire grammar. A malformed stored JSON
-/// blob now logs and collapses to the empty list / map inside Rust
-/// — same observable shape as the prior Dart-side parser fallback.
+/// blob logs and collapses to the empty list / map inside Rust so
+/// a single bad row never sinks the listing.
 #[derive(Debug, Clone)]
 pub struct DbSshKeyCertificate {
     pub key_id: String,

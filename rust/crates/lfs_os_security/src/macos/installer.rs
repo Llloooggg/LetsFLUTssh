@@ -26,8 +26,9 @@
 //!    mounts short-lived even on a failure path.
 //!
 //! 5. **Pre-resign entitlements snapshot** — read the entitlements
-//!    plist out of the staged bundle's signature. Used to detect
-//!    the silent-strip bug after re-signing.
+//!    plist out of the staged bundle's signature. The post-resign
+//!    probe compares against this snapshot to detect the silent-
+//!    strip bug.
 //!
 //! 6. **Re-sign under the user's cert if one is installed** —
 //!    `code_signing::has_identity()` short-circuits the no-cert
@@ -48,15 +49,15 @@
 //!    silently stripped `keychain-access-groups`; the signature is
 //!    valid (so verify passes) but T1 keychain access is dead and
 //!    every stored item returns `errSecMissingEntitlement` (-34018).
-//!    Roll back before the swap so the user keeps the working prior
-//!    version.
+//!    Roll back before the swap so the user keeps the working
+//!    installed version.
 //!
 //! 9. **Atomic swap** — `<target>` → `<target>.backup`, then
 //!    `<target>.new` → `<target>`. Sequence matters: rename order
 //!    keeps the live path resolvable at every moment except a
 //!    sub-millisecond gap between the two calls. If the second
 //!    rename fails, restore `<target>` from `<target>.backup` and
-//!    return `RolledBack` so the user keeps the prior bundle.
+//!    return `RolledBack` so the user keeps the installed bundle.
 //!    `<target>.backup` survives as a crash-recovery trail; a
 //!    follow-up `cleanup_backup` call drops it once the new bundle
 //!    has run cleanly.

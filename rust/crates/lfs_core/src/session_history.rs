@@ -1,23 +1,19 @@
 //! Per-handle undo/redo stack for session-manager operations.
 //!
-//! The Dart `SessionHistory` class used to live as an in-memory
-//! `List<SessionSnapshot>` pair. Moving it Rust-side puts state-
-//! machine ownership in the same place every other domain actor
-//! lives — single source of truth for "where does the user's undo
-//! state actually live?". The actor stores opaque blobs (the Dart
-//! side serialises `SessionSnapshot` to JSON and hands the bytes
-//! over) plus the `description` string used for the undo/redo
-//! menu labels. The Rust side never inspects the blobs — it just
-//! provides bounded LIFO semantics and the description-getter
-//! surface the UI consumes.
+//! State-machine ownership lives in the same place every other
+//! domain actor does — single source of truth for "where does the
+//! user's undo state actually live?". The actor stores opaque
+//! blobs (the Dart side serialises `SessionSnapshot` to JSON and
+//! hands the bytes over) plus the `description` string used for
+//! the undo/redo menu labels. The Rust side never inspects the
+//! blobs — it just provides bounded LIFO semantics and the
+//! description-getter surface the UI consumes.
 //!
 //! Why per-handle instead of process-singleton: Riverpod's
 //! `NotifierProvider` rebuild lifecycle creates a fresh
 //! `SessionNotifier` per test container, and each owns its own
 //! history. A process-singleton would leak undo state between
-//! containers; per-handle keeps semantics matching the retired
-//! Dart-side `final SessionHistory _history = SessionHistory();`
-//! field.
+//! containers; per-handle pairs each notifier with its own stack.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};

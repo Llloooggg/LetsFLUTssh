@@ -222,12 +222,10 @@ pub fn has_any_state(support_dir: &Path) -> bool {
 ///   1. Write the `.wipe-pending` marker so a mid-wipe crash leaves a
 ///      trace.
 ///   2. Drop every cached secret out of the process-singleton
-///      [`crate::secrets::SecretStore`]. The Dart caller used to
-///      pass a `credentialCacheEvict: VoidCallback?` hook for this,
-///      which silently skipped the clear when the caller forgot to
-///      pass it. Doing it here closes the gap so a wipe always
-///      drops the in-RAM plaintext too — file-on-disk and
-///      memory-cached state cleared in lockstep.
+///      [`crate::secrets::SecretStore`]. Doing it here closes the
+///      gap a Dart-side callback hook would leave — a wipe always
+///      drops the in-RAM plaintext too, so file-on-disk and
+///      memory-cached state clear in lockstep.
 ///   3. Best-effort delete each managed file. One stuck entry does
 ///      not abort the sweep — the file lands in `failed_files`.
 ///   4. Wipe the `logs/` subdirectory entry-by-entry. A "reset all"

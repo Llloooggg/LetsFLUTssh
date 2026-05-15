@@ -157,10 +157,9 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// spec reports as the current applied value; the toggle mutates
   /// this flag only — the actual enable / disable work (platform
   /// biometric prompt + vault stash) is deferred until the user taps
-  /// Apply. That batches the password prompt with the tier change
-  /// instead of asking on every toggle flip, which was the prior
-  /// behaviour and surprised users who flipped the toggle twice
-  /// before Applying.
+  /// Apply, which batches the password prompt with the tier change.
+  /// Trap: prompting on every toggle flip surprises users who flip
+  /// the toggle twice before Applying.
   late bool _pendingBiometric;
   late bool _initialBiometric;
 
@@ -336,12 +335,11 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   }
 
   /// Normalize the card's tier to the target tier the apply pipeline
-  /// expects. Bank-style v3: the UI treats T1 as a single tier card;
-  /// the presence of a short password used to flip the dispatch to a
-  /// dedicated `keychainWithPassword` tier value, but post-v3 collapse
-  /// the tier stays `keychain` and the password signal lives on the
-  /// modifier instead. `_applyTierChange` reads `result.modifiers
-  /// .password` to decide whether to drive the gate-bearing flow.
+  /// expects. Bank-style v3: the UI treats T1 as a single tier card
+  /// and the password signal lives on `result.modifiers.password`,
+  /// which `_applyTierChange` reads to decide whether to drive the
+  /// gate-bearing flow. The tier itself stays `keychain` regardless
+  /// of the password modifier value.
   SecurityTier _resolveTargetTier() => widget.tier;
 
   SecurityTierModifiers _resolveModifiers() {

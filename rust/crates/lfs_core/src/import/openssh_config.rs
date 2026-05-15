@@ -1,15 +1,13 @@
 //! OpenSSH `~/.ssh/config` → import-preview orchestrator.
 //!
-//! Mirrors the Dart `OpenSshConfigImporter.buildPreview` shape:
-//! parse the config, walk each Host block, resolve every
+//! Parse the config, walk each Host block, resolve every
 //! `IdentityFile` reference to an OpenSSH PEM (skipping
 //! suspicious paths and silently rejecting passphrase-protected
 //! keys), dedupe identical PEMs by their normalised
 //! fingerprint, and emit a structured preview the UI dialog
 //! renders before committing.
 //!
-//! All structural choices match the Dart side verb-for-verb so
-//! the Flutter app's behaviour is unchanged after the migration:
+//! Contract details the importer holds:
 //!
 //! - Both `missing` (file unreadable / unparseable) and
 //!   `encrypted` (passphrase required) outcomes leave the host
@@ -113,8 +111,7 @@ pub fn build_preview_from_path(
 /// suggested label so re-imports stay disambiguated.
 ///
 /// Synchronous — every step is either a string operation or a
-/// bounded local-filesystem read. The Rust impl avoids the Dart
-/// async ceremony the prior orchestrator carried.
+/// bounded local-filesystem read. No async ceremony needed.
 pub fn build_preview(
     config_content: &str,
     folder_label: &str,

@@ -174,11 +174,11 @@ pub fn import_ppk(
 /// - `Ok(Some(n))` — line present with a value that parses as a
 ///   `u32` (KiB).
 /// - `Err(Error::KeyParse)` — line present but the value does not
-///   parse as a `u32`. A hostile `.ppk` could declare a value
-///   above `u32::MAX` (`99999999999999999999`) and silently bypass
-///   the cap when this signal was previously folded into the
-///   absence case; the typed error makes the caller reject the
-///   file before russh-keys forwards the line to the Argon2 derive.
+///   parse as a `u32`. Trap: folding this signal into the absence
+///   case lets a hostile `.ppk` declare a value above `u32::MAX`
+///   (`99999999999999999999`) and silently bypass the cap. The
+///   typed error makes the caller reject the file before
+///   russh-keys forwards the line to the Argon2 derive.
 ///
 /// Pure header sniff, no `russh_keys` invocation.
 fn parse_ppk_argon2_memory(ppk_text: &str) -> Result<Option<u32>, Error> {
@@ -945,10 +945,10 @@ mod tests {
 
     #[test]
     fn parse_ppk_argon2_memory_rejects_value_above_u32_max() {
-        // `99999999999999999999` is larger than `u32::MAX` and was
-        // previously folded into the "no cap to enforce" branch via
-        // `parse::<u32>().ok()`, silently bypassing the 1 GiB cap.
-        // The typed parse error makes the caller reject the file.
+        // `99999999999999999999` is larger than `u32::MAX`. Trap:
+        // folding the parse failure into the "no cap to enforce"
+        // branch via `parse::<u32>().ok()` silently bypasses the
+        // 1 GiB cap. The typed parse error makes the caller reject.
         let hostile = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 99999999999999999999\n";
         let err = parse_ppk_argon2_memory(hostile).unwrap_err();
         match err {

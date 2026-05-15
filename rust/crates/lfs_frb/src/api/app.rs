@@ -114,7 +114,7 @@ pub fn secrets_clear() {
 /// Open the app sqlite database at `path` with the given SQLCipher
 /// master key. Runs on tokio's blocking pool — rusqlite is blocking
 /// and we don't want to pin the FRB worker. Idempotent on the same
-/// (path, key) pair; replaces any previously-initialised handle.
+/// (path, key) pair; replaces the current handle.
 ///
 /// `key` is empty for unencrypted databases (the plaintext-tier
 /// path). Hex-encoding into `PRAGMA key = "x'...'"` happens

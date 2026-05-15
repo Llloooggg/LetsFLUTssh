@@ -1,22 +1,15 @@
 //! Process-singleton actor for the persisted `config.json`.
 //!
-//! Owns three responsibilities the Dart `ConfigNotifier` used to
-//! split across an in-memory state + a debounce timer + an
-//! atomic file write chain:
+//! Owns three responsibilities:
 //!
 //! 1. **In-memory state** — the current [`AppConfig`] under a
 //!    Mutex. `get_json` returns a snapshot; `set_json` swaps in
 //!    a fresh state and schedules persistence.
 //! 2. **Debounced disk writes** — slider drags / fast typing
-//!    coalesce into a single trailing write. 300 ms window
-//!    matches the Dart `_saveDebounce` const.
+//!    coalesce into a single trailing write. 300 ms window.
 //! 3. **Bus event publication** — every successful write fires
 //!    [`crate::bus::BusEvent::ConfigChanged`] so Dart Riverpod
 //!    consumers refresh from the canonical state without polling.
-//!
-//! Lands independently of the Dart cutover so the additive
-//! change is isolated; the Dart `ConfigNotifier` rewrite lands
-//! as a follow-up against this stable API.
 
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -387,8 +380,7 @@ pub fn instance() -> &'static Store {
 /// Tokio runtime is reachable from the calling thread — this
 /// happens for sync FRB calls outside the FRB worker pool and
 /// in unit tests that drive ticks manually. Without this guard
-/// the call would panic with "there is no reactor running",
-/// which is what the Dart-side silent fallback used to absorb.
+/// the call would panic with "there is no reactor running".
 pub fn start_background_ticker() {
     static TICKER_STARTED: OnceLock<()> = OnceLock::new();
     if tokio::runtime::Handle::try_current().is_err() {

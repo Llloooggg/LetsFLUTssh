@@ -137,9 +137,9 @@ impl AppState {
     }
 
     /// Open the app DB at `path` with the given SQLCipher key. Runs
-    /// on the caller's thread (rusqlite is blocking). Replaces any
-    /// previously-initialised DB — used at startup once and on
-    /// rekey events.
+    /// on the caller's thread (rusqlite is blocking). Replaces the
+    /// current DB handle — called at startup once and on rekey
+    /// events.
     pub fn db_init(&self, path: &Path, key: &[u8]) -> Result<(), Error> {
         let db = Db::open(path, key)?;
         let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());

@@ -244,11 +244,9 @@ rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
 
 /// Sessions / keys / tags / snippets all route through
 /// `lfs_core::archive_stage::stage_*_to_json` (FRB sync) — that's the
-/// only path. The Dart shape mirrors that previously lived alongside
-/// for flutter_test contexts retired with no test loss; the Rust
-/// stagers are the canonical wire format and any caller needing to
-/// stage in flutter_test must bootstrap RustLib like the integration
-/// suite does.
+/// only path. The Rust stagers are the canonical wire format; any
+/// caller needing to stage in flutter_test must bootstrap RustLib like
+/// the integration suite does.
 String? _stageSessionsJson(List<Session> sessions) {
   if (sessions.isEmpty) return null;
   return rust_stage.archiveStageSessionsToJson(

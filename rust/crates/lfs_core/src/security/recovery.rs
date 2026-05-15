@@ -1,17 +1,14 @@
-//! Vault-recovery orchestrator — bundles the destructive sequence the
-//! Dart `SecurityInitController` used to compose as four separate FRB
-//! hops + one Riverpod provider patch into one Rust-side transaction.
+//! Vault-recovery orchestrator — owns the destructive reset cascade
+//! as one Rust-side transaction the Dart `SecurityInitController`
+//! invokes through a single FRB hop.
 //!
 //! The user-facing recovery state machine has three entry points the
 //! Dart shell still owns (each surfaces a different dialog whose
 //! prompts are inherently Flutter widgets):
 //!
-//! 1. **Legacy state detected** — `detect_legacy_state` returns the
-//!    decision the controller used to compute by calling three FRB
-//!    functions (`migration_config_target_version`,
-//!    `migration_config_version_on_disk`, `wipe_has_any_state`) +
-//!    inspecting Dart-side `AppConfig.security`. Bundled here so the
-//!    detection logic lives one place.
+//! 1. **Legacy state detected** — `detect_legacy_state` fuses the
+//!    migration-version / wipe-state / config-security checks into
+//!    one FRB call so the detection logic lives one place.
 //! 2. **Vault state missing** — the controller probes the DB readability
 //!    first; on failure it shows the corrupt-DB dialog and the user
 //!    picks reset / retry / exit. The Dart side keeps the dialog,
@@ -39,10 +36,10 @@
 //!   sweep.** The sweep deletes the wrapped-key envelope file from
 //!   disk; the per-platform `clear` call drops the persisted
 //!   hardware key (Apple SE entry, AndroidKeyStore alias, Windows
-//!   CNG persisted key) the file used to wrap. Linux has no
-//!   persistent hardware key — the TPM2 envelope is fully on-disk —
-//!   so `clear` there is a redundant file-removal that succeeds
-//!   trivially after the sweep already dropped the file.
+//!   CNG persisted key) the envelope was wrapped under. Linux has
+//!   no persistent hardware key — the TPM2 envelope is fully
+//!   on-disk — so `clear` there is a redundant file-removal that
+//!   succeeds trivially after the sweep already dropped the file.
 //! - **First-launch re-init MUST run after the cascade returns.** The
 //!   wizard is a Flutter widget the Dart caller surfaces; this module
 //!   does NOT run it. Callers await `run_destructive_reset` and then
@@ -216,8 +213,7 @@ pub struct DestructiveResetReport {
     pub hw_vault_biometric_cleared: bool,
 }
 
-/// Compose the destructive cascade Dart used to drive across five
-/// separate FRB hops + a Riverpod state patch:
+/// Compose the destructive cascade in one Rust-side transaction:
 ///
 /// 1. DB close — release the SQLCipher handle so the file sweep
 ///    can drop `letsflutssh.db` cleanly on Windows.
@@ -237,8 +233,8 @@ pub struct DestructiveResetReport {
 /// 6. (Implicit) — `config.json` is in the managed-files list, so
 ///    step 2 leaves the install with no on-disk config. The next
 ///    Dart-side `configStoreInit` call seeds a fresh
-///    `AppConfig.defaults` shape automatically, dropping the
-///    explicit Riverpod patch the controller used to issue.
+///    `AppConfig.defaults` shape automatically, no explicit
+///    Riverpod patch needed.
 ///
 /// Returns the structured outcome regardless of partial failures.
 /// The cascade does not abort on a sweep / keychain / hw-vault
@@ -284,7 +280,7 @@ pub async fn run_destructive_reset(support_dir: &Path) -> DestructiveResetReport
 
     // 4. Hardware-vault primary clear. Drops the persisted hardware
     //    key the wrapped-envelope file (already deleted in step 2)
-    //    used to unwrap. Apple / Android / Windows release the
+    //    was unwrapped under. Apple / Android / Windows release the
     //    persistent key; Linux is a redundant file-remove (file
     //    already gone from step 2 — returns `Ok(())`).
     let hw_ok = clear_hw_vault_primary(support_dir);

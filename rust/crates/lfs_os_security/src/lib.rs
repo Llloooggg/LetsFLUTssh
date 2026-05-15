@@ -8,14 +8,13 @@
 //! `lock_memory`, `unlock_memory`. The unsafe blocks are auditable
 //! in one place.
 //!
-//! The single-instance file lock used to live here as a sibling
-//! module; it now lives in `lib/core/single_instance/` as pure
-//! Dart on top of `RandomAccessFile.lock`. The Rust route forced
-//! the lock check to wait on `RustLib.init()` before the splash
-//! could paint, which broke the load-order goal of "splash first,
-//! native blob second". `dart:io` calls the same `flock` /
-//! `LockFileEx` syscalls the Rust module did, so going back to
-//! Dart costs nothing and removes the load-order dependency.
+//! The single-instance file lock lives in `lib/core/single_instance/`
+//! as pure Dart on top of `RandomAccessFile.lock`. Trap: routing it
+//! through Rust forces the lock check to wait on `RustLib.init()`
+//! before the splash can paint, which breaks the load-order goal
+//! of "splash first, native blob second". `dart:io` calls the same
+//! `flock` / `LockFileEx` syscalls, so Dart costs nothing extra
+//! and keeps the splash on the fast path.
 //!
 //! ## Hardening goals
 //!

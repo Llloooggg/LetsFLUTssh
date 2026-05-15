@@ -476,9 +476,8 @@ pub fn set_secret_column(
 /// Copy a session row by id, allocating a new id + label and
 /// optionally relocating into `target_folder_id`. Credentials
 /// (`password` / `key_data` / `passphrase`) flow column-to-column
-/// inside SQLite without crossing back to Dart — eliminates the
-/// brief plaintext window the Dart-side `loadWithCredentials` →
-/// `duplicate()` → `add()` path used to open. Returns "session
+/// inside SQLite without crossing back to Dart — no plaintext
+/// crosses the FRB boundary for the copy. Returns "session
 /// missing" when the source row has been deleted.
 pub fn duplicate_session(
     conn: &impl crate::db::DbAccess,

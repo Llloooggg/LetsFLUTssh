@@ -11,9 +11,9 @@
 //! `lfs_core::security::capabilities::KeyringProbeResult` enum.
 //!
 //! Backed by the generic
-//! [`super::prompt_registry::PromptRegistry`]. The shape used to
-//! be hand-rolled here, byte-for-byte the same as the four
-//! sibling prompt registries; the generic collapses all five.
+//! [`super::prompt_registry::PromptRegistry`] — collapses the
+//! identical register / resolve / cancel surface shared by all
+//! five prompt registries into one parameterised type.
 
 use super::prompt_registry::PromptRegistry as Generic;
 

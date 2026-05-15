@@ -171,11 +171,12 @@ class UnifiedExportController extends ChangeNotifier {
   ///
   /// Tags + snippets are folded into the estimate so the "fits in QR"
   /// gate reflects the full payload the real export at
-  /// `settings_sections_data._generateQrExport` will emit. Omitting
-  /// them here used to make the UI claim "fits" while the encoder
-  /// silently appended the `tg` / `sn` sections on export and pushed
-  /// past the 2 KB ceiling — the user then got a bare "QR too large"
-  /// toast with no indication that tags were the culprit.
+  /// `settings_sections_data._generateQrExport` will emit. Trap:
+  /// omitting them underestimates the payload, so the UI claims
+  /// "fits" while the encoder appends the `tg` / `sn` sections on
+  /// export and pushes past the 2 KB ceiling — the user then gets a
+  /// bare "QR too large" toast with no indication that tags were the
+  /// culprit.
   ///
   /// Routes through `lfs_core::archive::qr_export_payload_size` (FRB
   /// sync, id-based) so the wire shape stays one place across the

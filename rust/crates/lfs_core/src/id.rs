@@ -21,8 +21,7 @@ use uuid::Uuid;
 /// Produce a 32-character lowercase-hex handle id from 16
 /// random bytes. Used for opaque in-process handles where UUID
 /// structure (version + variant bits) is unnecessary cosmetic
-/// overhead. Replaces the `random_handle_id` / `generate_transient_id`
-/// helpers that used to live inside individual modules.
+/// overhead. Single source for handle-id minting across modules.
 pub fn random_handle_hex_32() -> String {
     let mut bytes = [0u8; 16];
     rand::rngs::OsRng.fill_bytes(&mut bytes);

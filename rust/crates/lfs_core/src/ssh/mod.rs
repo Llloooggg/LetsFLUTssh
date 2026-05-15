@@ -2021,7 +2021,7 @@ impl Session {
             .map_err(|e| Error::Io(e.to_string()))
     }
 
-    /// Withdraw a previously-requested remote forward.
+    /// Withdraw an outstanding remote forward.
     pub async fn cancel_remote_forward(&self, address: &str, port: u32) -> Result<(), Error> {
         self.handle
             .cancel_tcpip_forward(address.to_string(), port)

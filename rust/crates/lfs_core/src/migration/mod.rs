@@ -488,8 +488,8 @@ fn topo_sort(registry: &Registry) -> Result<Vec<usize>, String> {
             // Dependency declared on an unregistered artefact —
             // dead-weight relationship that can only be a bug
             // (the dependency graph has nothing to enforce). Warn
-            // so support traces catch the drift; previously the
-            // sibling `continue` silently swallowed.
+            // so support traces catch the drift instead of letting
+            // the sibling `continue` silently swallow.
             crate::app_log_warn!(
                 "MigrationRegistry",
                 "topo_sort: dependency declared on unregistered artefact '{}'",

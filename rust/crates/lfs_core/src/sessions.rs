@@ -42,7 +42,7 @@ pub fn notify_changed(app: &Arc<AppState>) {
 /// Reload the in-process session registry from disk and publish a
 /// [`Event::SessionsChanged`] event on the bus. Best-effort —
 /// reload failures are logged via the registry's own contract
-/// (the prior view is preserved); the bus event still fires so
+/// (the cached view is preserved); the bus event still fires so
 /// the Dart cache reloads even when the registry drift didn't
 /// take. Idempotent in the sense that a callsite that fires it
 /// twice in a row produces two bus events but identical state.
@@ -57,11 +57,9 @@ pub fn reload_and_notify(app: &Arc<AppState>) {
 /// `SessionStore._doLoad` Dart-side builds:
 ///
 /// * `sessions` — every row from `db_sessions_list_all`. Carries
-///   credential columns; the in-memory Dart cache used to clear
-///   them before keeping the row, but the Registry keeps them
-///   because (a) they live one process anyway, and (b) the
-///   future `connect_*_with_secret` path will want them resolved
-///   inside Rust.
+///   credential columns; the Registry keeps them because (a)
+///   they live in one process anyway, and (b) the
+///   `connect_*_with_secret` path resolves them inside Rust.
 /// * `folders` — id → `FolderRow` map; rebuilt on every reload.
 /// * `empty_folders` — paths with no sessions pointing at them
 ///   (UI renders them with a placeholder).
@@ -454,11 +452,10 @@ pub fn count_in_folder(session_folders: &[String], folder_path: &str) -> usize {
 /// `host`, `user`]. Returns matched ids in input order, so callers
 /// can re-key their domain list and preserve the user's sort.
 ///
-/// Empty query returns every id. The grammar is the canonical
-/// version of the predicate three callers used to maintain
-/// (`SessionStore.search`, `sessionListProvider`, ad-hoc filter in
-/// the QR-export dialog) — keep new search surfaces routing here so
-/// the four-field rule does not drift.
+/// Empty query returns every id. Single owner of the search
+/// predicate — `SessionStore.search`, `sessionListProvider`, and
+/// the QR-export filter all route through here so the four-field
+/// rule does not drift.
 #[must_use]
 pub fn filter_sessions(items: &[SearchableSession], query: &str) -> Vec<String> {
     if query.is_empty() {

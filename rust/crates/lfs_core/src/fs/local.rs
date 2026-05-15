@@ -1,8 +1,7 @@
 //! Local filesystem operations for the file browser.
 //!
-//! Replaces the Dart `LocalFS` `list / mkdir / remove / removeDir
-//! / dirSize / rename` methods that used to call `dart:io`'s
-//! `File` / `Directory` APIs directly. The Dart side keeps only
+//! Owns `list / mkdir / remove / removeDir / dirSize / rename` for
+//! the Dart `LocalFS` caller. The Dart side keeps only
 //! `initialDir` because that path depends on Flutter plugins
 //! (`path_provider` for iOS sandbox / Android scoped storage)
 //! that don't have a clean Rust analog.

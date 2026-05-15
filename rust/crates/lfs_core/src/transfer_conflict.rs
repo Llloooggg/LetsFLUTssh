@@ -54,8 +54,8 @@ pub struct BatchState {
 }
 
 impl BatchState {
-    /// Cached action when the user previously checked
-    /// "apply to all", `None` otherwise.
+    /// Cached action when the user checked "apply to all" on an
+    /// earlier prompt, `None` otherwise.
     #[must_use]
     pub fn cached(&self) -> Option<ConflictAction> {
         self.cached

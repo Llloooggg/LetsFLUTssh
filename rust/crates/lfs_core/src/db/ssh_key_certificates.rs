@@ -61,8 +61,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<CertRecord> {
 
 /// Decode the `principals` column. A malformed value (tampered DB
 /// row, manual edit, future-schema drift) folds to the empty list
-/// so a single bad row never sinks the whole listing — same
-/// fallback the prior Dart-side parser used.
+/// so a single bad row never sinks the whole listing.
 fn decode_principals(raw: &str) -> Vec<String> {
     if raw.is_empty() {
         return Vec::new();

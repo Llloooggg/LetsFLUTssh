@@ -98,9 +98,9 @@ pub enum ApplyMode {
 impl ApplyMode {
     /// `true` when the mode is `ArchiveImport { replace_mode: false }`
     /// or `ArchiveImport { replace_mode: true }` — i.e. the apply is
-    /// driven by a user-initiated `.lfs` import flow. Used to gate
-    /// per-mode toggle checks (sync ignores `ApplyOptions` toggles
-    /// and always applies every entry the peer carried).
+    /// driven by a user-initiated `.lfs` import flow. Gates per-mode
+    /// toggle checks (sync ignores `ApplyOptions` toggles and always
+    /// applies every entry the peer carried).
     fn is_archive(self) -> bool {
         matches!(self, Self::ArchiveImport { .. })
     }
@@ -111,11 +111,11 @@ impl ApplyMode {
 }
 
 /// Unified counters surfaced by [`apply_pending_to_db`]. Carries
-/// every metric both legacy codepaths used to report on their own
-/// (`ApplyResult` from archive import, `MergeOutcome` from sync
-/// merge). Projection helpers ([`ApplyOutcome::to_apply_result`] /
-/// [`ApplyOutcome::to_merge_outcome`]) build the per-mode views the
-/// legacy callers still consume.
+/// every metric both codepaths report (`ApplyResult` for archive
+/// import, `MergeOutcome` for sync merge). Projection helpers
+/// ([`ApplyOutcome::to_apply_result`] /
+/// [`ApplyOutcome::to_merge_outcome`]) build the per-mode views
+/// callers consume.
 #[derive(Debug, Clone, Default)]
 pub struct ApplyOutcome {
     pub sessions_applied: i64,

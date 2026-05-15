@@ -263,8 +263,7 @@ pub enum BusEvent {
     /// `keychain` / `hardware` / `paranoid`).
     /// `has_key`: whether the canonical
     /// `ACTIVE_DBKEY_SECRET_ID` slot carries a staged key —
-    /// follows the same SecretStore probe shape the Dart
-    /// listener used to perform.
+    /// matches the SecretStore probe shape Dart listeners need.
     UnlockCascadeReady { tier_wire: String, has_key: bool },
     /// Connection actor needs a password / passphrase for the
     /// saved session — Dart subscriber renders the dialog,
@@ -1015,7 +1014,7 @@ pub async fn bus_subscribe(topic: BusTopic, sink: StreamSink<BusEvent>) -> Resul
     let want_topic: lfs_core::bus::EventTopic = topic.into();
     // Subscribe to the topic-scoped channel directly — the per-topic
     // EventBus shape means we never see events for other topics, so
-    // the prior `event.topic() != want_topic` filter loop is gone.
+    // no `event.topic() != want_topic` filter loop is needed.
     let mut rx = app.bus.subscribe(want_topic);
     loop {
         match rx.recv().await {

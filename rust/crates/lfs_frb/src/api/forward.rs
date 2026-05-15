@@ -215,8 +215,8 @@ pub fn port_forward_validate_rule(
 /// shape (`session_id` + `created_at_ms`).
 ///
 /// `description` is allowed to be empty; the codec helpers below
-/// drop the key on serialise when empty so the wire round-trips
-/// byte-identically with the prior Dart codec.
+/// drop the key on serialise when empty so a freshly built rule
+/// does not grow a spurious empty field on the wire.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DbPortForwardRuleJson {
     pub id: String,
@@ -522,9 +522,9 @@ pub async fn ssh_request_remote_forward(
     session.request_remote_forward_inner(&address, port).await
 }
 
-/// Withdraw a previously-requested remote forward. Idempotent on
-/// the server side (sending CANCEL after the listener is gone is
-/// a no-op).
+/// Withdraw an outstanding remote forward. Idempotent on the
+/// server side (sending CANCEL after the listener is gone is a
+/// no-op).
 pub async fn ssh_cancel_remote_forward(
     session: &SshSession,
     address: String,

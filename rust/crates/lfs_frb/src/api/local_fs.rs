@@ -97,8 +97,7 @@ pub async fn local_fs_copy_file(src: String, dst: String) -> Result<(), String> 
 /// symlinks: a symlink at the root returns
 /// `Err("symlink_in_source")`, symlinks inside the tree are
 /// silently skipped, and recursion is bounded by `max_depth`.
-/// The Dart file-browser drop path passes 100, matching the
-/// constant it previously enforced inline.
+/// The Dart file-browser drop path passes 100.
 pub async fn local_fs_copy_recursive_no_symlinks(
     src: String,
     dst: String,

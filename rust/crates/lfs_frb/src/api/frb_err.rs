@@ -409,12 +409,10 @@ impl DbFrbErrorKind {
     }
 }
 
-/// FRB-visible typed mirror of the wire envelope. The Dart-side
-/// `FrbError.fromWire` wrapper used to do the JSON parse itself
-/// — that grammar lives here now and the Dart caller passes the
-/// raw wire string in through [`frb_error_from_wire`] to receive
-/// this struct back, removing the last Dart-side parser on the
-/// FRB error channel.
+/// FRB-visible typed mirror of the wire envelope. The grammar
+/// lives Rust-side; the Dart caller passes the raw wire string
+/// through [`frb_error_from_wire`] to receive this struct back —
+/// no Dart-side parser on the FRB error channel.
 ///
 /// `kind` is a typed [`DbFrbErrorKind`] rather than a raw string;
 /// the Dart routing table in `lib/utils/format.dart` pattern-matches

@@ -1,6 +1,5 @@
 //! Filesystem-side recordings browser. Owns the disk walk +
-//! delete that the Dart `RecordingsPanel` used to drive through
-//! `dart:io`.
+//! delete the Dart `RecordingsPanel` drives over FRB.
 //!
 //! Tree shape: `<recordings_root>/<sessionId>/<isoTimestamp>.<lfsr|cast>`.
 //! The walk lists every immediate child of every session dir,
