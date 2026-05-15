@@ -384,6 +384,31 @@ class SKo extends S {
   String get auth => '인증';
 
   @override
+  String get sectionAuthentication => '인증';
+
+  @override
+  String get sectionAdvanced => '고급';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '포트 포워딩 규칙 $countString개',
+      zero: '포트 포워딩 규칙 없음',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => '관리…';
+
+  @override
   String get authMethodAgent => '시스템 ssh-agent 사용';
 
   @override

@@ -383,6 +383,31 @@ class SZh extends S {
   String get auth => '认证';
 
   @override
+  String get sectionAuthentication => '认证';
+
+  @override
+  String get sectionAdvanced => '高级';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString 条端口转发规则',
+      zero: '无端口转发规则',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => '管理…';
+
+  @override
   String get authMethodAgent => '使用系统 ssh-agent';
 
   @override

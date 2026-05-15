@@ -387,6 +387,31 @@ class SFa extends S {
   String get auth => 'احراز هویت';
 
   @override
+  String get sectionAuthentication => 'احراز هویت';
+
+  @override
+  String get sectionAdvanced => 'پیشرفته';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString قاعده تغییر مسیر پورت',
+      zero: 'بدون قاعده تغییر مسیر پورت',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'مدیریت…';
+
+  @override
   String get authMethodAgent => 'استفاده از ssh-agent سیستم';
 
   @override

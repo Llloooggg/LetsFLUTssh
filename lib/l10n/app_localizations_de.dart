@@ -417,6 +417,32 @@ class SDe extends S {
   String get auth => 'Authentifizierung';
 
   @override
+  String get sectionAuthentication => 'Authentifizierung';
+
+  @override
+  String get sectionAdvanced => 'Erweitert';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString Portweiterleitungsregeln',
+      one: '1 Portweiterleitungsregel',
+      zero: 'Keine Portweiterleitungsregeln',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Verwalten…';
+
+  @override
   String get authMethodAgent => 'System-ssh-agent verwenden';
 
   @override

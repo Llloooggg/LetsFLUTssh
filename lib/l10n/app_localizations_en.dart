@@ -415,6 +415,32 @@ class SEn extends S {
   String get auth => 'Auth';
 
   @override
+  String get sectionAuthentication => 'Authentication';
+
+  @override
+  String get sectionAdvanced => 'Advanced';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString port-forward rules',
+      one: '1 port-forward rule',
+      zero: 'No port-forward rules',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Manage…';
+
+  @override
   String get authMethodAgent => 'Use system ssh-agent';
 
   @override

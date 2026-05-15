@@ -423,6 +423,32 @@ class SPt extends S {
   String get auth => 'Autenticação';
 
   @override
+  String get sectionAuthentication => 'Autenticação';
+
+  @override
+  String get sectionAdvanced => 'Avançado';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString regras de encaminhamento',
+      one: '1 regra de encaminhamento',
+      zero: 'Sem regras de encaminhamento de porta',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Gerenciar…';
+
+  @override
   String get authMethodAgent => 'Usar o ssh-agent do sistema';
 
   @override

@@ -1,15 +1,25 @@
 part of 'session_edit_dialog.dart';
 
-/// Connection-tab UI — host / port / user fields plus the ProxyJump
-/// editor. Lives as an extension on the dialog state so the helpers
-/// reach the per-field controllers (`_hostCtrl`, `_proxyHostCtrl`, …)
+/// Connection-section helpers for the single-form dialog. Build
+/// the per-protocol transport block (SSH host/port/user/ProxyJump,
+/// WebDAV base-URL/username, S3 access-key/region/endpoint/etc.).
+/// Identity fields (name + kind picker) live in the top-of-form
+/// composers in the main file.
+///
+/// Lives as an extension on the dialog state so the helpers reach
+/// the per-field controllers (`_hostCtrl`, `_proxyHostCtrl`, …)
 /// directly without going through a public surface; `part of`
 /// joins the file into the same library so library-private names
 /// stay reachable.
-extension _ConnectionTab on _SessionEditDialogState {
-  Widget _buildConnectionTab() {
+extension _ConnectionSection on _SessionEditDialogState {
+  /// Identity block at the top of the single-form layout. Holds
+  /// the session name and the transport-kind picker. Switching the
+  /// kind reshapes the per-protocol blocks below without
+  /// re-rendering the rest of the form.
+  Widget _buildIdentityBlock() {
     final l10n = S.of(context);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         StyledFormField(
@@ -19,21 +29,32 @@ extension _ConnectionTab on _SessionEditDialogState {
         ),
         const SizedBox(height: AppSpacing.md),
         _buildKindPicker(l10n),
-        const SizedBox(height: AppSpacing.lg),
-        if (_kind == SessionKind.ssh)
-          ..._buildSshFields(l10n)
-        else if (_kind == SessionKind.webdav)
-          _buildWebDavSection(l10n)
-        else
-          _buildS3Section(l10n),
       ],
     );
   }
 
+  /// Per-kind transport block, dispatched off `_kind`. The single-
+  /// form layout calls this from inside the Connection section.
+  Widget _buildConnectionBlock() {
+    final l10n = S.of(context);
+    if (_kind == SessionKind.ssh) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: _buildSshFields(l10n),
+      );
+    }
+    if (_kind == SessionKind.webdav) {
+      return _buildWebDavSection(l10n);
+    }
+    return _buildS3Section(l10n);
+  }
+
   /// Transport-kind picker — flipping the active chip swaps the
-  /// rest of the Connection tab between the SSH host/port/proxy
-  /// block, the WebDAV base-URL / auth-method / pin block, and the
-  /// S3 access-key / region / endpoint / addressing block.
+  /// Connection section between the SSH host/port/proxy block, the
+  /// WebDAV base-URL/username block, and the S3
+  /// access-key/region/endpoint/addressing block. The Authentication
+  /// section right below also reshapes off the same `_kind`.
   Widget _buildKindPicker(S l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

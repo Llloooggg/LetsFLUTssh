@@ -783,6 +783,30 @@ abstract class S {
   /// **'Auth'**
   String get auth;
 
+  /// Section header for the credential block in the session edit dialog. The dialog uses a single-form layout (no tabs); the header sits above the per-protocol auth fields (ssh-agent toggle / password / key block for SSH; method chips + credential for WebDAV; secret access key for S3).
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get sectionAuthentication;
+
+  /// Section header for the collapsible Advanced block in the session edit dialog. Holds tags (universal), port forwarding (SSH only), and the record-session toggle (SSH only). Collapsed by default so the default form stays compact.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get sectionAdvanced;
+
+  /// Compact pluralised summary shown in the Advanced section of the session edit dialog (SSH only) next to the 'Manage…' button that opens the Forwarding rule editor sub-dialog. {count} is the current number of rules on the session.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No port-forward rules} =1{1 port-forward rule} other{{count} port-forward rules}}'**
+  String forwardRulesSummary(int count);
+
+  /// Button label in the Advanced section of the session edit dialog (SSH only) that opens the Forwarding rule editor sub-dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage…'**
+  String get manageRules;
+
   /// No description provided for @authMethodAgent.
   ///
   /// In en, this message translates to:

@@ -387,6 +387,31 @@ class SId extends S {
   String get auth => 'Autentikasi';
 
   @override
+  String get sectionAuthentication => 'Autentikasi';
+
+  @override
+  String get sectionAdvanced => 'Lanjutan';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString aturan port forwarding',
+      zero: 'Tidak ada aturan port forwarding',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Kelola…';
+
+  @override
   String get authMethodAgent => 'Pakai ssh-agent sistem';
 
   @override

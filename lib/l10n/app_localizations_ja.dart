@@ -384,6 +384,31 @@ class SJa extends S {
   String get auth => '認証';
 
   @override
+  String get sectionAuthentication => '認証';
+
+  @override
+  String get sectionAdvanced => '詳細';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ポート転送ルール $countString 件',
+      zero: 'ポート転送ルールなし',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => '管理…';
+
+  @override
   String get authMethodAgent => 'システムの ssh-agent を使う';
 
   @override

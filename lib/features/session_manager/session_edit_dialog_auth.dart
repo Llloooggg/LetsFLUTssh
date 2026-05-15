@@ -1,19 +1,26 @@
 part of 'session_edit_dialog.dart';
 
-/// Auth-tab UI — protocol-branched. For SSH renders the
-/// system-ssh-agent toggle plus password / key-store / inline-PEM /
-/// passphrase block. For WebDAV renders the auth-method picker
-/// (basic / digest / bearer) + a single credential field whose label
-/// flips with the method + the self-signed-cert fingerprint pin. For
-/// S3 renders the secret access key field. Lives as an extension on
-/// the dialog state so the helpers reach the per-field controllers
-/// (`_passwordCtrl`, `_keyDataCtrl`, …) and the dirty-bit flags
-/// directly without going through a public surface; `part of` joins
-/// the file into the same library so library-private names stay
-/// reachable.
-extension _AuthTab on _SessionEditDialogState {
-  Widget _buildAuthTab() {
+/// Authentication-section helpers for the single-form dialog.
+/// Protocol-branched: SSH renders the system-ssh-agent toggle plus
+/// password / key-store / inline-PEM / passphrase block; WebDAV
+/// renders the auth-method picker (basic / digest / bearer) + a
+/// single credential field whose label flips with the method + the
+/// self-signed-cert fingerprint pin; S3 renders the secret access
+/// key field.
+///
+/// Lives as an extension on the dialog state so the helpers reach
+/// the per-field controllers (`_passwordCtrl`, `_keyDataCtrl`, …)
+/// and the dirty-bit flags directly without going through a public
+/// surface; `part of` joins the file into the same library so
+/// library-private names stay reachable.
+extension _AuthSection on _SessionEditDialogState {
+  /// Auth-section composer for the single-form layout. Renders the
+  /// inline `_authError` banner (above the per-kind block) when
+  /// `_validateAuth` reported a mismatch, then dispatches to the
+  /// per-protocol sub-builder.
+  Widget _buildAuthBlock() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (_authError != null)
@@ -184,10 +191,14 @@ extension _AuthTab on _SessionEditDialogState {
   Widget _buildAgentOption() {
     final s = S.of(context);
     final disabled = !isDesktopPlatform;
+    // The disabled tile still binds a no-op `onTap` so taps stop
+    // here instead of bubbling through to the modal barrier. Without
+    // this the dialog's `barrierDismissible` default dismisses the
+    // entire form when the user taps the greyed-out toggle on mobile.
     final tile = Opacity(
       opacity: disabled ? 0.5 : 1.0,
       child: HoverRegion(
-        onTap: disabled ? null : () => rebuild(() => _useAgent = !_useAgent),
+        onTap: disabled ? () {} : () => rebuild(() => _useAgent = !_useAgent),
         builder: (hovered) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(

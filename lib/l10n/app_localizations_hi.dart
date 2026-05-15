@@ -389,6 +389,32 @@ class SHi extends S {
   String get auth => 'प्रमाणीकरण';
 
   @override
+  String get sectionAuthentication => 'प्रमाणीकरण';
+
+  @override
+  String get sectionAdvanced => 'उन्नत';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString पोर्ट-फॉरवर्ड नियम',
+      one: '1 पोर्ट-फॉरवर्ड नियम',
+      zero: 'कोई पोर्ट-फॉरवर्ड नियम नहीं',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'प्रबंधित करें…';
+
+  @override
   String get authMethodAgent => 'सिस्टम ssh-agent इस्तेमाल करें';
 
   @override

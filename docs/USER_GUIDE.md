@@ -46,11 +46,12 @@ End-user reference for every feature shipped in the app. Walks through the typic
 ### Creating
 
 - **Sidebar → "+"** or `Ctrl+N` → Session edit dialog.
-- **Tabs:** Connection / Auth · `<kind>` / Options / Forwarding. The Auth tab label carries the active protocol suffix (`Auth · SSH` / `Auth · WebDAV` / `Auth · S3`) so flipping the kind picker on the Connection tab also visibly reshapes the adjacent Auth tab — the form fields below change with the kind, the suffix is the visible cue.
-- **Connection tab:** name, host, port, username, plus the [Connect via](#7-proxyjump-bastion-chains) selector at the bottom. Required fields carry a `*` suffix; the Save button rejects an incomplete form, routes focus to the failing tab, paints the offending fields red, and surfaces a "Fill the required fields marked *" toast.
-- **Auth tab:** [§3 Authentication](#3-authentication). The form shape branches by kind — see §3 for the per-protocol layout.
-- **Options tab:** tags (universal — any kind), [Record session toggle](#9-session-recording--playback) (SSH only — WebDAV / S3 sessions do not open a shell so the toggle is hidden for those kinds).
-- **Forwarding tab:** [§6 Port forwarding](#6-port-forwarding). Only rendered for SSH transports.
+- **Single-form layout, no tabs.** The dialog scrolls vertically through three sections — every required field is on the same page, so flipping the kind picker reshapes the rest of the form in place rather than swapping hidden tabs.
+- **Identity** (top of form, no header): name + protocol picker (SSH / WebDAV / S3). The picker is the single lever — everything below reshapes off the active kind.
+- **Connection section** ([§3 — see protocol notes](#3-authentication)): per-protocol transport fields — SSH host/port/user/[ProxyJump](#7-proxyjump-bastion-chains); WebDAV base URL + username; S3 access key id / region / endpoint / addressing / default bucket / prefix.
+- **Authentication section** ([§3 Authentication](#3-authentication)): per-protocol credential block — SSH ssh-agent toggle + password / key store / inline-PEM / passphrase; WebDAV method chips (basic / digest / bearer) + credential field whose label flips to "Bearer token" for bearer method + self-signed-cert fingerprint pin; S3 secret access key.
+- **Advanced section** (collapsible, ▶ when collapsed, ▼ when expanded; collapsed by default): tags (universal — any kind), [port forwarding](#6-port-forwarding) (SSH only — "N port-forward rules" row with a Manage button that opens a sub-dialog), [Record session](#9-session-recording--playback) (SSH only — WebDAV / S3 sessions never open a shell).
+- **Required fields** carry a `*` suffix in their label. The Save button rejects an incomplete form, paints the offending fields red (`StyledFormField` errorBorder), and surfaces a "Fill the required fields marked *" toast in the warning tint.
 - **Footer buttons:** Cancel / Save / Save & Connect.
 
 ### Editing

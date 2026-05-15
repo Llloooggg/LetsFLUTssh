@@ -423,6 +423,32 @@ class SFr extends S {
   String get auth => 'Authentification';
 
   @override
+  String get sectionAuthentication => 'Authentification';
+
+  @override
+  String get sectionAdvanced => 'Avancé';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString règles de redirection',
+      one: '1 règle de redirection',
+      zero: 'Aucune règle de redirection de port',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Gérer…';
+
+  @override
   String get authMethodAgent => 'Utiliser le ssh-agent du système';
 
   @override

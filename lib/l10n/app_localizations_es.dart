@@ -423,6 +423,32 @@ class SEs extends S {
   String get auth => 'Autenticación';
 
   @override
+  String get sectionAuthentication => 'Autenticación';
+
+  @override
+  String get sectionAdvanced => 'Avanzado';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString reglas de reenvío',
+      one: '1 regla de reenvío',
+      zero: 'Sin reglas de reenvío de puerto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Gestionar…';
+
+  @override
   String get authMethodAgent => 'Usar el ssh-agent del sistema';
 
   @override

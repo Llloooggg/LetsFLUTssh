@@ -99,6 +99,65 @@ class SessionForwardsTab extends StatelessWidget {
   }
 }
 
+/// Modal sub-dialog that hosts [SessionForwardsTab] for editing the
+/// per-session port-forward rule list.
+///
+/// The parent session edit dialog (`session_edit_dialog.dart`) owns
+/// the rule list as in-memory state until the user saves. The
+/// Advanced section opens this dialog with the current list, lets
+/// the user add / edit / toggle / delete rules in-place, and
+/// returns the edited list back so the parent's `_forwards` field
+/// updates without writing to the persistence layer until the
+/// parent Save fires. Cancel returns `null` and the parent keeps
+/// the pre-edit list.
+class SessionForwardsDialog extends StatefulWidget {
+  final List<PortForwardRule> initial;
+
+  const SessionForwardsDialog({super.key, required this.initial});
+
+  static Future<List<PortForwardRule>?> show(
+    BuildContext context, {
+    required List<PortForwardRule> initial,
+  }) {
+    return AppDialog.show<List<PortForwardRule>>(
+      context,
+      builder: (_) => SessionForwardsDialog(initial: initial),
+    );
+  }
+
+  @override
+  State<SessionForwardsDialog> createState() => _SessionForwardsDialogState();
+}
+
+class _SessionForwardsDialogState extends State<SessionForwardsDialog> {
+  late List<PortForwardRule> _rules;
+
+  @override
+  void initState() {
+    super.initState();
+    _rules = List.of(widget.initial);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return AppDialog(
+      title: l10n.portForwarding,
+      content: SessionForwardsTab(
+        rules: _rules,
+        onChanged: (next) => setState(() => _rules = next),
+      ),
+      actions: [
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.primary(
+          label: l10n.save,
+          onTap: () => Navigator.of(context).pop(_rules),
+        ),
+      ],
+    );
+  }
+}
+
 class _ForwardRuleRow extends StatelessWidget {
   final PortForwardRule rule;
   final VoidCallback onTap;

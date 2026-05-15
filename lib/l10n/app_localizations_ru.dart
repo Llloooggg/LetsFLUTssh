@@ -394,6 +394,34 @@ class SRu extends S {
   String get auth => 'Авторизация';
 
   @override
+  String get sectionAuthentication => 'Аутентификация';
+
+  @override
+  String get sectionAdvanced => 'Дополнительно';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString правил проброса',
+      many: '$countString правил проброса',
+      few: '$countString правила проброса',
+      one: '$countString правило проброса',
+      zero: 'Нет правил проброса портов',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Управлять…';
+
+  @override
   String get authMethodAgent => 'Использовать системный ssh-agent';
 
   @override

@@ -1,17 +1,22 @@
 part of 'session_edit_dialog.dart';
 
-/// Options-tab UI — tags row + record-session toggle. Wired through
-/// an extension on the dialog state so the helpers reach
-/// `widget.session` and `_recordEnabled` directly without going
-/// through a public surface; `part of` joins the file into the same
-/// library so library-private names stay reachable.
-extension _OptionsTab on _SessionEditDialogState {
-  Widget _buildOptionsTab() {
-    // Tags are protocol-neutral (they label the session row, not the
-    // transport) so the section renders for every kind. Recording is
-    // tied to the terminal-shell pipeline — WebDAV and S3 sessions
-    // never open a shell, so the toggle would be inert noise. Hide
-    // it for non-SSH kinds.
+/// Advanced-section helpers for the single-form dialog. The
+/// Advanced block is collapsed by default and holds the secondary
+/// knobs the user rarely needs on a first save: tags (universal),
+/// port-forward rules (SSH only — open via the [SessionForwardsDialog]
+/// modal), and the record-session toggle (SSH only — WebDAV / S3
+/// never open a shell to record).
+///
+/// Lives as an extension on the dialog state so the helpers reach
+/// `widget.session`, `_recordEnabled`, `_forwards`, and
+/// `_advancedExpanded` directly without going through a public
+/// surface; `part of` joins the file into the same library so
+/// library-private names stay reachable.
+extension _AdvancedSection on _SessionEditDialogState {
+  /// Composes the contents of the Advanced section. Wrapped by the
+  /// expander in the main `build()`; this method only builds the
+  /// body rows, the expand/collapse chrome lives outside.
+  Widget _buildAdvancedBlock() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -19,9 +24,38 @@ extension _OptionsTab on _SessionEditDialogState {
         _buildTagsSection(),
         if (_kind == SessionKind.ssh) ...[
           const SizedBox(height: AppSpacing.lg),
+          _buildForwardingRow(),
+          const SizedBox(height: AppSpacing.lg),
           _buildRecordSection(),
         ],
       ],
+    );
+  }
+
+  /// Compact row that opens the port-forward rule editor as a
+  /// modal sub-dialog. Shows a pluralised summary
+  /// ("3 port-forward rules") on the left and a Manage… button on
+  /// the right; the actual rule editor sits inside
+  /// [SessionForwardsDialog]. Persistence stays deferred — edits
+  /// roundtrip through `_forwards` until the parent Save fires.
+  Widget _buildForwardingRow() {
+    final l10n = S.of(context);
+    return _OptionRow(
+      label: l10n.forwardRulesSummary(_forwards.length),
+      trailing: AppButton.secondary(
+        label: l10n.manageRules,
+        icon: Icons.swap_horiz,
+        dense: true,
+        onTap: () async {
+          final result = await SessionForwardsDialog.show(
+            context,
+            initial: _forwards,
+          );
+          if (result != null && mounted) {
+            rebuild(() => _forwards = result);
+          }
+        },
+      ),
     );
   }
 

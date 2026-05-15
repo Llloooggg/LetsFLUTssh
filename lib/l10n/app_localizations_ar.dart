@@ -395,6 +395,35 @@ class SAr extends S {
   String get auth => 'المصادقة';
 
   @override
+  String get sectionAuthentication => 'المصادقة';
+
+  @override
+  String get sectionAdvanced => 'متقدم';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString قاعدة توجيه منافذ',
+      many: '$countString قاعدة توجيه منافذ',
+      few: '$countString قواعد توجيه منافذ',
+      two: 'قاعدتا توجيه منفذ',
+      one: 'قاعدة توجيه منفذ واحدة',
+      zero: 'لا توجد قواعد توجيه منافذ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'إدارة…';
+
+  @override
   String get authMethodAgent => 'استخدم ssh-agent النظام';
 
   @override

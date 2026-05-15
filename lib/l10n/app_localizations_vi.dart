@@ -386,6 +386,31 @@ class SVi extends S {
   String get auth => 'Xác thực';
 
   @override
+  String get sectionAuthentication => 'Xác thực';
+
+  @override
+  String get sectionAdvanced => 'Nâng cao';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString quy tắc port forwarding',
+      zero: 'Không có quy tắc port forwarding',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Quản lý…';
+
+  @override
   String get authMethodAgent => 'Dùng ssh-agent hệ thống';
 
   @override

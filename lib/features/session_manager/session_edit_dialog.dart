@@ -210,7 +210,13 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   bool _showKeyText = false;
   bool _keyDragging = false;
   String? _authError;
-  int _tabIndex = 0;
+
+  /// Collapsible state for the Advanced section at the bottom of
+  /// the single-form layout. Collapsed by default so first-time
+  /// session creation reads as a compact 6-8-field form; the user
+  /// opens Advanced only when they need tags, port forwarding (SSH)
+  /// or the record-session toggle (SSH).
+  bool _advancedExpanded = false;
 
   /// Selected key from the central key store.
   String _selectedKeyId = '';
@@ -721,102 +727,51 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         (saved?.keyData.isNotEmpty ?? false);
 
     if (!hasPassword && !hasKey) {
-      setState(() {
-        _authError = S.of(context).providePasswordOrKey;
-        _tabIndex = 1;
-      });
+      setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
     }
     setState(() => _authError = null);
     return true;
   }
 
-  /// S3-specific auth predicate. The dialog requires an access key
-  /// id (visible on the Connection tab) plus a secret access key
-  /// (Auth tab, stored or freshly typed). The connect path
-  /// short-circuits without the secret since SigV4 cannot be
-  /// signed without it.
+  /// S3-specific auth predicate. The dialog requires both halves
+  /// of the SigV4 credential pair: access key id (top of form on
+  /// the Connection section) and secret access key (Authentication
+  /// section, stored or freshly typed). The connect path short-
+  /// circuits without the secret since SigV4 cannot be signed
+  /// without it.
   bool _validateS3Auth() {
     final hasAccessKey = _accessKeyIdCtrl.text.trim().isNotEmpty;
     if (!hasAccessKey) {
-      setState(() {
-        _authError = S.of(context).providePasswordOrKey;
-        _tabIndex = 0;
-      });
+      setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
     }
     final hasSecret =
         _passwordCtrl.text.isNotEmpty ||
         (widget.session?.auth.hasStoredPassword ?? false);
     if (!hasSecret) {
-      setState(() {
-        _authError = S.of(context).providePasswordOrKey;
-        _tabIndex = 1;
-      });
+      setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
     }
     setState(() => _authError = null);
     return true;
   }
 
-  /// WebDAV-specific auth predicate. Basic / digest need a username +
-  /// a password (or one already in SecretStore); bearer treats the
-  /// password slot as the token. The base-URL check sits in
-  /// [_tabWithFirstError] so a malformed URL routes the user to the
-  /// Connection tab; this method only handles the credential side.
+  /// WebDAV-specific auth predicate. Basic / digest need a username
+  /// + a password (or one already in SecretStore); bearer treats the
+  /// password slot as the token. The base-URL `_webDavBaseUrlValidator`
+  /// fires inline through the `Form.validate` pipeline; this method
+  /// only handles the credential side.
   bool _validateWebDavAuth() {
     final hasPassword =
         _passwordCtrl.text.isNotEmpty ||
         (widget.session?.auth.hasStoredPassword ?? false);
     if (!hasPassword) {
-      setState(() {
-        _authError = S.of(context).providePasswordOrKey;
-        _tabIndex = 1;
-      });
+      setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
     }
     setState(() => _authError = null);
     return true;
-  }
-
-  /// Determine which tab contains the first validation error and switch to it.
-  int _tabWithFirstError() {
-    if (_kind == SessionKind.webdav) {
-      // Connection tab (0): base URL, username
-      if (_webDavBaseUrlValidator(_baseUrlCtrl.text) != null) return 0;
-      if (_requiredValidator(_userCtrl.text) != null) return 0;
-      // Auth tab (1): credentials
-      return 1;
-    }
-    if (_kind == SessionKind.s3) {
-      // Connection tab (0): access key id is the only field that
-      // gates connect. Region + endpoint + default bucket are all
-      // optional from the validator's perspective — empty values
-      // either fall back (`us-east-1`, AWS default endpoint) or
-      // force the `s3://bucket/key` shorthand at path-parse time.
-      if (_requiredValidator(_accessKeyIdCtrl.text) != null) return 0;
-      return 1;
-    }
-    // Connection tab (0): host, port, username, plus the ProxyJump
-    // editor when it is in `saved` (dropdown selection required) or
-    // `custom` (host / port / user required) mode. Routing through
-    // every proxy-mode validator keeps the user on the same tab the
-    // failing field renders on; without this the form would surface
-    // the inline error on tab 0 while jumping focus to tab 1.
-    if (_requiredValidator(_hostCtrl.text) != null) return 0;
-    if (!isValidConnectionPort(_portCtrl.text)) return 0;
-    if (_requiredValidator(_userCtrl.text) != null) return 0;
-    if (_proxyMode == _ProxyMode.saved &&
-        (_proxyViaSessionId == null || _proxyViaSessionId!.isEmpty)) {
-      return 0;
-    }
-    if (_proxyMode == _ProxyMode.custom) {
-      if (_requiredValidator(_proxyHostCtrl.text) != null) return 0;
-      if (!isValidConnectionPort(_proxyPortCtrl.text)) return 0;
-      if (_requiredValidator(_proxyUserCtrl.text) != null) return 0;
-    }
-    // Auth tab (1): credentials
-    return 1;
   }
 
   /// Validator for the WebDAV base-URL field. Required + must parse
@@ -844,13 +799,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   void _save({bool connect = false}) {
     final formOk = _formKey.currentState!.validate();
     if (!formOk) {
-      // Route the user's focus to the first tab that has a failing
-      // field. The inline `errorText` already paints the field red,
-      // but the surface they were on when they pressed Save may not
-      // be the surface that holds the broken field — the toast is a
-      // global heads-up so they notice the rejection even if their
-      // eye was off the form.
-      setState(() => _tabIndex = _tabWithFirstError());
+      // Single-form layout — every field is on one scrollable
+      // page, so the inline `errorText` already paints the failing
+      // field red and the user can scroll to it. The Toast is the
+      // global heads-up that fires regardless of which scroll
+      // position they pressed Save from.
       Toast.show(
         context,
         message: S.of(context).errFillRequiredFields,
@@ -859,10 +812,10 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       return;
     }
     if (!_validateAuth()) {
-      // `_validateAuth` already sets `_authError` (rendered at the
-      // top of the Auth tab) and flips `_tabIndex` so the user lands
-      // on it. Surface the same global toast so the rejection is
-      // visible regardless of which tab they pressed Save from.
+      // `_validateAuth` already sets `_authError`, rendered as a
+      // red banner above the Authentication section. Surface the
+      // same global Toast so the rejection is visible regardless
+      // of where the user scrolled.
       Toast.show(
         context,
         message: S.of(context).errFillRequiredFields,
@@ -911,6 +864,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = S.of(context);
     return Dialog(
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
@@ -928,38 +882,24 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildHeader(),
-                  _buildTabBar(),
                   Flexible(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Stack(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Offstage(
-                            offstage: _tabIndex != 0,
-                            child: _buildConnectionTab(),
-                          ),
-                          Offstage(
-                            offstage: _tabIndex != 1,
-                            child: _buildAuthTab(),
-                          ),
-                          Offstage(
-                            offstage: _tabIndex != 2,
-                            child: _buildOptionsTab(),
-                          ),
-                          // Port forwarding is an SSH-only capability —
-                          // WebDAV / S3 transports do not multiplex
-                          // arbitrary TCP streams over the connection.
-                          // Drop the body entirely for non-SSH so the
-                          // hidden Stack child does not even build.
-                          if (_kind == SessionKind.ssh)
-                            Offstage(
-                              offstage: _tabIndex != 3,
-                              child: SessionForwardsTab(
-                                rules: _forwards,
-                                onChanged: (next) =>
-                                    setState(() => _forwards = next),
-                              ),
-                            ),
+                          _buildIdentityBlock(),
+                          const SizedBox(height: AppSpacing.xl),
+                          _SectionHeader(label: l10n.connection),
+                          const SizedBox(height: AppSpacing.sm),
+                          _buildConnectionBlock(),
+                          const SizedBox(height: AppSpacing.xl),
+                          _SectionHeader(label: l10n.sectionAuthentication),
+                          const SizedBox(height: AppSpacing.sm),
+                          _buildAuthBlock(),
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildAdvancedExpander(l10n),
                         ],
                       ),
                     ),
@@ -985,100 +925,60 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     );
   }
 
-  // ── Tab bar ──
+  // ── Advanced collapsible expander ──
 
-  Widget _buildTabBar() {
-    final showForwarding = _kind == SessionKind.ssh;
-    return Container(
-      decoration: BoxDecoration(border: AppTheme.borderBottom),
-      // Each Expanded slot caps content at an equal share of the bar
-      // width and truncates via ellipsis if the translation overflows.
-      // The Forwarding tab only appears for SSH transports — WebDAV
-      // and S3 cannot tunnel TCP, so the tab would render an inert
-      // section for them.
-      child: Row(
-        children: [
-          Expanded(child: _buildTab(0, Icons.dns, S.of(context).connection)),
-          // Auth tab reshapes per `_kind` (SSH agent / password / key
-          // block vs WebDAV method picker + credential vs S3 secret
-          // access key). The body change used to be silent — append
-          // a kind-suffix to the label so the tab strip signals that
-          // the next click lands on a protocol-specific form.
-          Expanded(
-            child: _buildTab(
-              1,
-              Icons.shield,
-              '${S.of(context).auth} · $_kindShortLabel',
+  /// Header row + animated body for the Advanced section. Collapsed
+  /// by default — the user only opens this when they need a niche
+  /// knob (tags / port forwarding / record-session toggle). Header
+  /// is a tap target; chevron flips on expand. The body is wrapped
+  /// in `AnimatedSize` so the form height transitions smoothly
+  /// without a sudden layout jump.
+  Widget _buildAdvancedExpander(S l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        HoverRegion(
+          onTap: () => setState(() => _advancedExpanded = !_advancedExpanded),
+          builder: (hovered) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: hovered ? AppTheme.hover : Colors.transparent,
+              borderRadius: AppTheme.radiusSm,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _advancedExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_right,
+                  size: 16,
+                  color: AppTheme.fgFaint,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  l10n.sectionAdvanced.toUpperCase(),
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgFaint,
+                    fontWeight: FontWeight.w600,
+                  ).copyWith(letterSpacing: 0.8),
+                ),
+              ],
             ),
           ),
-          Expanded(child: _buildTab(2, Icons.folder, S.of(context).options)),
-          if (showForwarding)
-            Expanded(
-              child: _buildTab(
-                3,
-                Icons.swap_horiz,
-                S.of(context).portForwarding,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Short uppercase tag shown next to the Auth tab label — the
-  /// canonical wire values map to compact display tokens so the
-  /// tab strip stays narrow at every locale.
-  String get _kindShortLabel {
-    switch (_kind) {
-      case SessionKind.ssh:
-        return 'SSH';
-      case SessionKind.webdav:
-        return 'WebDAV';
-      case SessionKind.s3:
-        return 'S3';
-    }
-  }
-
-  Widget _buildTab(int index, IconData icon, String label) {
-    final active = _tabIndex == index;
-    return HoverRegion(
-      onTap: () => setState(() => _tabIndex = index),
-      builder: (hovered) => Container(
-        height: AppTheme.controlHeightLg,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: !active && hovered ? AppTheme.hover : Colors.transparent,
-          border: active
-              ? Border(bottom: BorderSide(color: AppTheme.accent, width: 2))
-              : null,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 12,
-              color: active ? AppTheme.fg : AppTheme.fgFaint,
-            ),
-            const SizedBox(width: AppSpacing.xxs),
-            // Flexible + ellipsis so long translations truncate
-            // inside the tab rather than breaking the Row.
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: AppFonts.interFamily,
-                  fontSize: AppFonts.sm,
-                  fontWeight: FontWeight.w500,
-                  color: active ? AppTheme.fg : AppTheme.fgFaint,
-                ),
-              ),
-            ),
-          ],
+        AnimatedSize(
+          duration: const Duration(milliseconds: 120),
+          alignment: Alignment.topCenter,
+          child: _advancedExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: _buildAdvancedBlock(),
+                )
+              : const SizedBox.shrink(),
         ),
-      ),
+      ],
     );
   }
 
@@ -1109,19 +1009,39 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// connection / auth / options part files mutate the same fields.
   void rebuild(VoidCallback fn) => setState(fn);
 
-  /// Flip the active session kind and clamp `_tabIndex` to a valid
-  /// position. The Forwarding tab (index 3) only exists for SSH —
-  /// the kind picker lives on the Connection tab, so a live user
-  /// cannot currently fire this with `_tabIndex == 3` (the picker
-  /// is itself offstage at that moment). The clamp is defensive:
-  /// any future code path that mutates `_kind` while the dialog is
-  /// open will still leave `_tabIndex` pointing at a rendered tab.
+  /// Flip the active session kind. The single-form layout reshapes
+  /// the Connection / Authentication sections in place — no tabs
+  /// to hide or re-focus.
   void _switchKind(SessionKind next) {
-    setState(() {
-      _kind = next;
-      if (next != SessionKind.ssh && _tabIndex == 3) {
-        _tabIndex = 0;
-      }
-    });
+    setState(() => _kind = next);
+  }
+}
+
+/// Section header for the single-form dialog. Uppercase + faint
+/// tint matches the visual weight of `FieldLabel`, so a section
+/// reads as a heavier divider than a per-field label without
+/// fighting the form's primary input rhythm. A thin top border
+/// above the label seats the section visually distinct from the
+/// preceding block without taking a full divider's worth of
+/// vertical space.
+class _SectionHeader extends StatelessWidget {
+  final String label;
+
+  const _SectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(border: AppTheme.borderTop),
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Text(
+        label.toUpperCase(),
+        style: AppFonts.inter(
+          fontSize: AppFonts.xs,
+          color: AppTheme.fgFaint,
+          fontWeight: FontWeight.w600,
+        ).copyWith(letterSpacing: 0.8),
+      ),
+    );
   }
 }
