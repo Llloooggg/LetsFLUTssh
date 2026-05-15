@@ -124,7 +124,11 @@ extension _AuthSection on _SessionEditDialogState {
   /// same widget the SSH path uses; the connect path interprets
   /// the value per `auth_method`.
   Widget _buildWebDavCredentialField() {
-    final hasStored = widget.session?.auth.hasStoredPassword ?? false;
+    // SSH-side `hasStoredPassword` only flips for sessions whose
+    // secret lives on `ssh_session_details`; WebDAV / S3 secrets
+    // sit under their own SecretStore ids (the `_nonSshSecretStaged`
+    // flag is set by `_loadWebDavDetails` via a `secretsHas` probe).
+    final hasStored = _nonSshSecretStaged;
     final l10n = S.of(context);
     final baseLabel = _webdavAuthMethod == 'bearer'
         ? l10n.webDavAuthBearer
@@ -155,7 +159,11 @@ extension _AuthSection on _SessionEditDialogState {
   /// possession of that identity (this tab).
   List<Widget> _buildS3AuthSection() {
     final l10n = S.of(context);
-    final hasStored = widget.session?.auth.hasStoredPassword ?? false;
+    // S3 secret access keys live under `dbS3SessionDetailsSecretId`,
+    // not on `ssh_session_details`. `_loadS3Details` probes
+    // SecretStore via `secretsHas` and flips `_nonSshSecretStaged`
+    // when the bytes are already staged from a prior save.
+    final hasStored = _nonSshSecretStaged;
     return [
       StyledFormField(
         // SigV4 cannot sign without the secret half — required for

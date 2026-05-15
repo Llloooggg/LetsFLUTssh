@@ -331,13 +331,33 @@ class Session {
       keyPath.isNotEmpty ||
       auth.hasStoredSecret;
 
-  /// True if session has all required fields (host, port, user, and credentials).
-  bool get isValid =>
-      host.trim().isNotEmpty &&
-      port >= 1 &&
-      port <= 65535 &&
-      user.trim().isNotEmpty &&
-      hasCredentials;
+  /// True if the session is ready to connect.
+  ///
+  /// SSH: the SSH-shaped row carries host / port / user / credentials
+  /// on `ssh_session_details` (after the v16 schema split). All four
+  /// must be present.
+  ///
+  /// WebDAV / S3: the transport tuple (base URL, endpoint, etc.) and
+  /// the secret live on the matching `webdav_session_details` /
+  /// `s3_session_details` join + SecretStore. Those rows are not on
+  /// the in-memory `Session` shape — querying them requires an FRB
+  /// hop, which a sync getter cannot do. Treat the row as valid as
+  /// long as it exists with the right `kind`; the connect path
+  /// (`_doWebDavConnect` / `_doS3Connect`) fails fast on a missing
+  /// detail row / unstaged secret with a precise localized error.
+  bool get isValid {
+    switch (kind) {
+      case SessionKind.ssh:
+        return host.trim().isNotEmpty &&
+            port >= 1 &&
+            port <= 65535 &&
+            user.trim().isNotEmpty &&
+            hasCredentials;
+      case SessionKind.webdav:
+      case SessionKind.s3:
+        return true;
+    }
+  }
 
   // Session.validate has retired — callers route through
   // `rust_sess.sessionsValidateFields(host:, port:, user:)` directly

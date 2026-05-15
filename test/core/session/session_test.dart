@@ -575,6 +575,36 @@ void main() {
       );
       expect(s.isValid, isFalse);
     });
+
+    test('WebDAV session is valid even when host / user are empty', () {
+      // Regression: after the v16 schema split, host / user / port
+      // are stored on `ssh_session_details` and read back as the
+      // COALESCE defaults (empty / 22) for non-SSH kinds. The
+      // SSH-shape `isValid` check would have rejected every saved
+      // WebDAV session, breaking Connect with "WebDAV secret not
+      // staged" further down the chain. The transport tuple lives
+      // on `webdav_session_details` (FRB-only, async) so the
+      // connect path is the authoritative validity gate for the
+      // non-SSH kinds — `isValid` defers to it.
+      final s = Session(
+        label: 'nextcloud',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: '', port: 0, user: ''),
+      );
+      expect(s.isValid, isTrue);
+    });
+
+    test('S3 session is valid even when host / user are empty', () {
+      // Same regression coverage for the S3 transport — the SigV4
+      // credential pair lives on `s3_session_details` +
+      // SecretStore, not on the session row.
+      final s = Session(
+        label: 'backups',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: '', port: 0, user: ''),
+      );
+      expect(s.isValid, isTrue);
+    });
   });
 
   group('Session.extras', () {

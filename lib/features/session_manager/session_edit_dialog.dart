@@ -15,6 +15,7 @@ import '../../core/tags/tag.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
+import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/s3.dart' as rust_s3;
 import '../../src/rust/api/webdav.dart' as rust_webdav;
@@ -295,6 +296,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   bool _s3PathStyleEnabled = false;
   bool _loadingS3 = false;
 
+  /// Whether SecretStore already holds a staged WebDAV / S3 password
+  /// for the session being edited. Set by `_loadWebDavDetails` /
+  /// `_loadS3Details` via a `secretsHas` probe — the `hasStoredX`
+  /// flags on `SessionAuth` only cover the SSH credential triplet
+  /// (which lives on `ssh_session_details` for the v16 schema split),
+  /// so non-SSH kinds need a parallel signal to render the
+  /// "[Saved] type to change" hint in the credential field.
+  bool _nonSshSecretStaged = false;
+
   /// Per-slot dirty bits. Flipped to `true` the first time the user
   /// types into / changes the corresponding secret field. The dialog
   /// hands these to the caller via `SaveResult` so the save path can
@@ -461,6 +471,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Future<void> _loadS3Details(String sessionId) async {
     try {
       final detail = await rust_db.dbS3SessionDetailsGet(sessionId: sessionId);
+      // Probe SecretStore for an already-staged secret access key so
+      // the dialog can show the "[Saved] type to change" hint on the
+      // credential field. The SSH-side `auth.hasStoredPassword` flag
+      // only covers `ssh_session_details` rows — non-SSH secrets live
+      // under `dbS3SessionDetailsSecretId` and never trip that flag.
+      final hasSecret = rust_app.secretsHas(
+        id: rust_db.dbS3SessionDetailsSecretId(sessionId: sessionId),
+      );
       if (!mounted) return;
       setState(() {
         if (detail != null) {
@@ -471,6 +489,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           _defaultPrefixCtrl.text = detail.defaultPrefix;
           _s3PathStyleEnabled = detail.pathStyle;
         }
+        _nonSshSecretStaged = hasSecret;
         _loadingS3 = false;
       });
     } catch (_) {
@@ -490,6 +509,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       final detail = await rust_db.dbWebdavSessionDetailsGet(
         sessionId: sessionId,
       );
+      // Probe SecretStore for an already-staged password / bearer
+      // token so the credential field on the Auth section can render
+      // the "[Saved] type to change" hint. The SSH-side
+      // `auth.hasStoredPassword` flag only covers `ssh_session_details`
+      // rows — WebDAV secrets live under
+      // `dbWebdavSessionDetailsSecretId` and never trip that flag.
+      final hasSecret = rust_app.secretsHas(
+        id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: sessionId),
+      );
       if (!mounted) return;
       setState(() {
         if (detail != null) {
@@ -505,6 +533,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           }
           _fingerprintCtrl.text = detail.selfSignedFingerprint ?? '';
         }
+        _nonSshSecretStaged = hasSecret;
         _loadingWebDav = false;
       });
     } catch (_) {
@@ -746,9 +775,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
     }
-    final hasSecret =
-        _passwordCtrl.text.isNotEmpty ||
-        (widget.session?.auth.hasStoredPassword ?? false);
+    final hasSecret = _passwordCtrl.text.isNotEmpty || _nonSshSecretStaged;
     if (!hasSecret) {
       setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
@@ -763,9 +790,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// fires inline through the `Form.validate` pipeline; this method
   /// only handles the credential side.
   bool _validateWebDavAuth() {
-    final hasPassword =
-        _passwordCtrl.text.isNotEmpty ||
-        (widget.session?.auth.hasStoredPassword ?? false);
+    final hasPassword = _passwordCtrl.text.isNotEmpty || _nonSshSecretStaged;
     if (!hasPassword) {
       setState(() => _authError = S.of(context).providePasswordOrKey);
       return false;
