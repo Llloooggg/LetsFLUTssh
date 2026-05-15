@@ -589,7 +589,7 @@
   "keepAliveIntervalSubtitle": "ثانیه‌ها بین بسته‌های SSH keep-alive (۰ = خاموش)",
   "sshTimeoutSubtitle": "مهلت اتصال به ثانیه",
   "defaultPortSubtitle": "درگاه پیش‌فرض برای جلسات جدید",
-  "parallelWorkersSubtitle": "کارگران انتقال SFTP هم‌زمان",
+  "parallelWorkersSubtitle": "Workerهای انتقال SFTP هم‌زمان",
   "maxHistorySubtitle": "حداکثر فرمان‌های ذخیره‌شده در تاریخچه",
   "calculateFolderSizesSubtitle": "نمایش حجم کل در کنار پوشه‌ها در نوار کناری",
   "checkForUpdatesOnStartupSubtitle": "هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن",

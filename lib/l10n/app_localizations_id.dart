@@ -709,7 +709,7 @@ class SId extends S {
   String get defaultPort => 'Port Default';
 
   @override
-  String get parallelWorkers => 'Pekerja Paralel';
+  String get parallelWorkers => 'Worker Paralel';
 
   @override
   String get maxHistory => 'Riwayat Maksimal';
@@ -2328,7 +2328,7 @@ class SId extends S {
   String get defaultPortSubtitle => 'Port default untuk sesi baru';
 
   @override
-  String get parallelWorkersSubtitle => 'Pekerja transfer SFTP paralel';
+  String get parallelWorkersSubtitle => 'Worker transfer SFTP paralel';
 
   @override
   String get maxHistorySubtitle => 'Maksimum perintah tersimpan di riwayat';

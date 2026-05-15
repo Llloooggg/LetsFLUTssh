@@ -2318,7 +2318,7 @@ class SFa extends S {
   String get defaultPortSubtitle => 'درگاه پیش‌فرض برای جلسات جدید';
 
   @override
-  String get parallelWorkersSubtitle => 'کارگران انتقال SFTP هم‌زمان';
+  String get parallelWorkersSubtitle => 'Workerهای انتقال SFTP هم‌زمان';
 
   @override
   String get maxHistorySubtitle => 'حداکثر فرمان‌های ذخیره‌شده در تاریخچه';

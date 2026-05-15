@@ -589,7 +589,7 @@
   "keepAliveIntervalSubtitle": "Secondes entre les paquets SSH keep-alive (0 = désactivé)",
   "sshTimeoutSubtitle": "Délai de connexion en secondes",
   "defaultPortSubtitle": "Port par défaut pour les nouvelles sessions",
-  "parallelWorkersSubtitle": "Travailleurs SFTP de transfert parallèles",
+  "parallelWorkersSubtitle": "Workers SFTP de transfert parallèles",
   "maxHistorySubtitle": "Nombre maximum de commandes enregistrées dans l'historique",
   "calculateFolderSizesSubtitle": "Afficher la taille totale à côté des dossiers dans la barre latérale",
   "checkForUpdatesOnStartupSubtitle": "Interroger GitHub pour une nouvelle version au lancement de l'application",

@@ -552,7 +552,7 @@
   "generated": "Generada",
   "passphrase": "Passphrase",
   "enterMasterPassword": "Ingrese la contraseña maestra para acceder a sus credenciales guardadas.",
-  "wrongMasterPassword": "Contraseña incorrecta. Por favor, inténtelo de nuevo.",
+  "wrongMasterPassword": "Contraseña incorrecta. Inténtelo de nuevo.",
   "currentPassword": "Contraseña actual",
   "forgotPassword": "¿Olvidó su contraseña?",
   "credentialsReset": "Todas las credenciales guardadas han sido eliminadas",

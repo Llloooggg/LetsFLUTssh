@@ -1810,7 +1810,7 @@ class SEs extends S {
 
   @override
   String get wrongMasterPassword =>
-      'Contraseña incorrecta. Por favor, inténtelo de nuevo.';
+      'Contraseña incorrecta. Inténtelo de nuevo.';
 
   @override
   String get currentPassword => 'Contraseña actual';

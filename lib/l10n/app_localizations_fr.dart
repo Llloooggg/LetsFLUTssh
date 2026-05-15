@@ -2409,8 +2409,7 @@ class SFr extends S {
       'Port par défaut pour les nouvelles sessions';
 
   @override
-  String get parallelWorkersSubtitle =>
-      'Travailleurs SFTP de transfert parallèles';
+  String get parallelWorkersSubtitle => 'Workers SFTP de transfert parallèles';
 
   @override
   String get maxHistorySubtitle =>
