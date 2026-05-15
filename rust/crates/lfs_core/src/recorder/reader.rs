@@ -355,6 +355,10 @@ impl Iterator for LfsrFrameIter {
             return Some(Err(ReaderError::TruncatedFrame));
         }
         // ciphertext length = plaintext length + 16-byte GCM tag.
+        // The `pt_len > MAX_FRAME_PLAINTEXT_BYTES` reject above caps the
+        // attacker-controlled allocation at 16 MiB + 16 bytes before any
+        // I/O against the body. Without that guard `pt_len` is a `u32`
+        // and could declare ~4 GiB.
         let mut ct = vec![0u8; pt_len as usize + 16];
         if self.reader.read_exact(&mut ct).is_err() {
             self.finished = true;
@@ -652,6 +656,35 @@ mod tests {
         assert!(matches!(first, Err(ReaderError::FrameTooLarge(_))));
         // Subsequent next() returns None — the iterator is
         // self-terminating after a fatal frame error.
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn frame_with_u32_max_length_rejects_without_allocating() {
+        // An attacker handing us a file declaring `pt_len = u32::MAX`
+        // (~4 GiB) must be rejected by the cap check *before* the
+        // ciphertext buffer is allocated. The guard is `pt_len >
+        // MAX_FRAME_PLAINTEXT_BYTES` evaluated immediately after
+        // reading the 4-byte length prefix; no nonce / ciphertext
+        // bytes are read, no `Vec` of the declared size is allocated.
+        // The file body therefore stays exactly 9 bytes (magic +
+        // version + length) — proving the iterator never advances
+        // past the length read on the rejection path.
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let mut bytes = LFR_MAGIC.to_vec();
+        bytes.push(0x02);
+        bytes.extend_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(bytes.len(), 9);
+        std::fs::write(tmp.path(), &bytes).unwrap();
+        let key = [0u8; 32];
+        let mut iter = open_lfsr_iter(tmp.path(), key).expect("magic ok");
+        let first = iter.next().expect("yields error");
+        match first {
+            Err(ReaderError::FrameTooLarge(reported)) => {
+                assert_eq!(reported, u32::MAX);
+            }
+            other => panic!("expected FrameTooLarge(u32::MAX), got {other:?}"),
+        }
         assert!(iter.next().is_none());
     }
 
