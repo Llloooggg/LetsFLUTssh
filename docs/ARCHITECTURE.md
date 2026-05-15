@@ -2909,7 +2909,7 @@ Central registry for all app keyboard shortcuts. Every shortcut is an `AppShortc
 enum AppShortcut {
   newSession(SingleActivator(LogicalKeyboardKey.keyN, control: true)),
   terminalCopy(SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true)),
-  // ... 29 shortcuts total (global, terminal, file browser, session panel, dialog)
+  // ... 32 shortcuts total (global, terminal, file browser, session panel, context menu, dialog)
   ;
   const AppShortcut(this.defaultBinding);
   final SingleActivator defaultBinding;
