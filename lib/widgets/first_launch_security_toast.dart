@@ -117,11 +117,11 @@ class _ToastCard extends StatelessWidget {
               color: AppTheme.bg2,
               borderRadius: AppTheme.radiusSm,
               border: Border.all(color: AppTheme.border),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
+                  color: AppTheme.overlayShadow,
                   blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ],
             ),

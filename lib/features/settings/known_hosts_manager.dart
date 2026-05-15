@@ -16,6 +16,7 @@ import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/toast.dart';
 import 'known_hosts_manager_logic.dart';
 
@@ -90,10 +91,11 @@ class _KnownHostsManagerPanelState
       countLabel: s.knownHostsCount(totalCount),
       actions: [
         if (totalCount > 0)
-          _ToolbarButton(
+          AppIconButton(
             icon: Icons.delete_sweep,
             tooltip: s.clearAllKnownHosts,
             onTap: _clearAll,
+            dense: true,
           ),
       ],
     );
@@ -141,12 +143,11 @@ class _KnownHostsManagerPanelState
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.content_copy, size: 14),
+          AppIconButton(
+            icon: Icons.content_copy,
             tooltip: s.copy,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () {
+            dense: true,
+            onTap: () {
               Clipboard.setData(ClipboardData(text: fp));
               Toast.show(
                 context,
@@ -155,12 +156,12 @@ class _KnownHostsManagerPanelState
               );
             },
           ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+          AppIconButton(
+            icon: Icons.delete_outline,
             tooltip: s.removeHost,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _removeHost(hostPort),
+            color: AppTheme.red,
+            dense: true,
+            onTap: () => _removeHost(hostPort),
           ),
         ],
       ),
@@ -234,26 +235,6 @@ class KnownHostsManagerDialog extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 400, child: KnownHostsManagerPanel()),
       actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
-    );
-  }
-}
-
-/// Small toolbar button for known hosts actions.
-class _ToolbarButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-
-  const _ToolbarButton({required this.icon, required this.tooltip, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(icon, size: 16),
-      tooltip: tooltip,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: onTap,
     );
   }
 }

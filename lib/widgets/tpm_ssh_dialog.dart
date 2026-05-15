@@ -9,7 +9,6 @@ import '../l10n/app_localizations.dart';
 import '../src/rust/api/tpm_ssh.dart' as rust_tpm;
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
-import '../utils/platform.dart';
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
 import 'app_selection_area.dart';
@@ -740,8 +739,3 @@ class TpmBadge extends StatelessWidget {
     );
   }
 }
-
-// Suppress unused warning on the macros-only platform import; the
-// `isMobilePlatform` helper is referenced indirectly via Platform.
-// ignore: unused_element
-bool _suppressUnused() => isMobilePlatform;

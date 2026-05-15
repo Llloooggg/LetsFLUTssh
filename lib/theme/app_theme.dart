@@ -189,6 +189,11 @@ abstract final class AppTheme {
   static Color get hover => isDark ? _hoverColor : const Color(0x12000000);
   static Color get active => isDark ? _activeColor : const Color(0x1A000000);
 
+  /// Drop shadow for floating overlays (toasts, popovers).
+  /// Black @ 25 % regardless of theme — both palettes keep the
+  /// elevated surface readable against the underlying scaffold.
+  static const Color overlayShadow = Color(0x40000000);
+
   /// Text color for accent-colored backgrounds (buttons, badges, toggles).
   static Color get onAccent => isDark ? _onAccent : _lightOnAccent;
 

@@ -339,12 +339,12 @@ Future<void> _mainBody() async {
     return Container(
       alignment: Alignment.center,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      child: const Text(
+      child: Text(
         'Something went wrong.\n'
         'Try restarting the app.',
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
-        style: TextStyle(fontSize: 14, color: Color(0xFFABB2BF)),
+        style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
       ),
     );
   };

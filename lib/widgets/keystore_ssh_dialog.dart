@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -654,8 +653,3 @@ class KeystoreBadge extends StatelessWidget {
     );
   }
 }
-
-// Suppress unused warning for the Android-only conditional reference
-// some import sites pick up via `Platform.isAndroid`.
-// ignore: unused_element
-bool _suppressUnused() => Platform.isAndroid;
