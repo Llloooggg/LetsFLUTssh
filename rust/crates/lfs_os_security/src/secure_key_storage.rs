@@ -453,11 +453,23 @@ mod platform_impl {
         // that hold the underlying CF refs across the call; the
         // dictionary outlives `as_concrete_TypeRef()`.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let value_key = unsafe { CFString::wrap_under_get_rule(kSecValueData) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let access_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccessible) };
+        // SAFETY: argument is a static CFType reference exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let access_value = unsafe {
             CFString::wrap_under_get_rule(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
         };
@@ -480,6 +492,8 @@ mod platform_impl {
         // the same alias.
         let _ = raw_delete(alias);
 
+        // SAFETY: `SecItemAdd` reads the attributes dictionary alive on the stack and inserts the
+        // entry into the Keychain; no out-param used here.
         let status = unsafe { SecItemAdd(dict.as_concrete_TypeRef(), std::ptr::null_mut()) };
         if status != 0 {
             return Err(SecureStorageError::Backend(format!(
@@ -498,10 +512,20 @@ mod platform_impl {
         // pair carrying the biometric `acl` instead of the
         // accessibility-only attribute.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let value_key = unsafe { CFString::wrap_under_get_rule(kSecValueData) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let acl_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccessControl) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
 
         let svc = CFString::new(SERVICE_NAME);
@@ -523,6 +547,8 @@ mod platform_impl {
         // class + service + account.
         let _ = raw_delete(alias);
 
+        // SAFETY: `SecItemAdd` reads the attributes dictionary alive on the stack and inserts the
+        // entry into the Keychain; no out-param used here.
         let status = unsafe { SecItemAdd(dict.as_concrete_TypeRef(), std::ptr::null_mut()) };
         if status != 0 {
             return Err(SecureStorageError::Backend(format!(
@@ -548,11 +574,23 @@ mod platform_impl {
         // `status` (Apple's docs imply impossible but don't forbid)
         // would otherwise leak; the early ownership wrap closes that.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let return_data_key = unsafe { CFString::wrap_under_get_rule(kSecReturnData) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let match_limit_key = unsafe { CFString::wrap_under_get_rule(kSecMatchLimit) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let match_limit_one = unsafe { CFString::wrap_under_get_rule(kSecMatchLimitOne) };
 
         let svc = CFString::new(SERVICE_NAME);
@@ -569,6 +607,9 @@ mod platform_impl {
         let dict = CFDictionary::from_CFType_pairs(&pairs);
 
         let mut out: core_foundation_sys::base::CFTypeRef = std::ptr::null();
+        // SAFETY: `SecItemCopyMatching` reads the query dictionary alive on the stack and writes a
+        // +1-retained CF reference into the out-pointer; the kernel does not retain any pointer
+        // past return.
         let status = unsafe { SecItemCopyMatching(dict.as_concrete_TypeRef(), &mut out) };
         // Eagerly take ownership of any non-null out-param so it
         // is CFRelease'd on every code path, including the
@@ -577,6 +618,9 @@ mod platform_impl {
         let owned: Option<CFData> = if out.is_null() {
             None
         } else {
+            // SAFETY: pointer is a non-null `CFDataRef` returned with create-rule semantics (+1
+            // retain) by the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop`
+            // balances the create.
             Some(unsafe {
                 CFData::wrap_under_create_rule(out as *const core_foundation_sys::data::__CFData)
             })
@@ -616,8 +660,14 @@ mod platform_impl {
         // `errSecItemNotFound` for our purposes — both treated
         // as success.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
 
         let svc = CFString::new(SERVICE_NAME);
@@ -630,6 +680,8 @@ mod platform_impl {
         ];
         let dict = CFDictionary::from_CFType_pairs(&pairs);
 
+        // SAFETY: `SecItemDelete` reads the query dictionary alive on the stack; no out-params,
+        // return code intentionally ignored (best-effort cleanup).
         let status = unsafe { SecItemDelete(dict.as_concrete_TypeRef()) };
         if status == 0 || status == errSecItemNotFound {
             Ok(())
@@ -666,11 +718,15 @@ mod platform_impl {
     // `GetLastError` directly to keep the existing "missing ↔ Ok(None)"
     // semantics intact.
     unsafe fn last_error_code() -> u32 {
+        // SAFETY: `GetLastError` is a thread-local Win32 query with no arguments; reads the
+        // last-error code for the current thread.
         unsafe { GetLastError().0 }
     }
 
     pub(super) async fn read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
         let target = target_for(alias, false);
+        // SAFETY: `slice::from_raw_parts` constructs a u16 slice from the PCWSTR pointer the OS
+        // handed us; `len` is the verified non-null terminator offset walked just above.
         tokio::task::spawn_blocking(move || unsafe {
             let mut out: *mut CREDENTIALW = std::ptr::null_mut();
             if CredReadW(
@@ -710,6 +766,8 @@ mod platform_impl {
         // store under a distinct alias and let the caller gate
         // with a separate biometric prompt.
         let target = target_for(alias, true);
+        // SAFETY: `slice::from_raw_parts` constructs a u16 slice from the PCWSTR pointer the OS
+        // handed us; `len` is the verified non-null terminator offset walked just above.
         tokio::task::spawn_blocking(move || unsafe {
             let mut out: *mut CREDENTIALW = std::ptr::null_mut();
             if CredReadW(
@@ -750,6 +808,9 @@ mod platform_impl {
         let mut target = target_for(alias, biometric);
         let mut blob = value.to_vec();
         let blob_len = blob.len() as u32;
+        // SAFETY: every objc2 / security-framework call inside this closure either returns an
+        // autoreleased `Retained<T>` or sends a documented Apple selector; the `move` capture
+        // keeps the inputs alive for the closure's full execution.
         tokio::task::spawn_blocking(move || unsafe {
             let cred = CREDENTIALW {
                 TargetName: windows::core::PWSTR::from_raw(target.as_mut_ptr()),
@@ -775,6 +836,8 @@ mod platform_impl {
 
     pub(super) async fn delete(alias: &str, biometric: bool) -> Result<(), SecureStorageError> {
         let target = target_for(alias, biometric);
+        // SAFETY: `PCWSTR` wraps a pointer into a UTF-16 buffer alive on the stack for the
+        // duration of the Win32 call; the kernel does not retain the pointer past return.
         tokio::task::spawn_blocking(move || unsafe {
             if CredDeleteW(PCWSTR::from_raw(target.as_ptr()), CRED_TYPE_GENERIC, None).is_err() {
                 let err = last_error_code();

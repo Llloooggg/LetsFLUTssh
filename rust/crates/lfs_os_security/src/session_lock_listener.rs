@@ -166,6 +166,9 @@ mod macos_impl {
     impl LockObserver {
         fn new(tx: broadcast::Sender<()>) -> Retained<Self> {
             let this = Self::alloc().set_ivars(ObserverIvars { tx });
+            // SAFETY: `msg_send![super(this), init]` dispatches the documented Objective-C `init`
+            // selector to the superclass; `this` is the `&mut Self` from `declare_class!`'s init
+            // method, alive for the call.
             unsafe { msg_send![super(this), init] }
         }
     }
@@ -187,6 +190,9 @@ mod macos_impl {
         // including the Swift plugin this Rust path replaces.
         let name = NSString::from_str("com.apple.screenIsLocked");
 
+        // SAFETY: `addObserver:selector:name:object:` registers the Objective-C target alive on
+        // the heap (held by us as `Retained<>`) with NSNotificationCenter; the runtime keeps a
+        // strong reference until `removeObserver:`.
         unsafe {
             // `addObserver_selector_name_object` takes
             // `&AnyObject` for the observer (NSNotificationCenter
@@ -314,6 +320,8 @@ mod windows_impl {
         let tx_ptr = Box::into_raw(Box::new(tx)) as *const broadcast::Sender<()>;
         TX_SLOT.with(|slot| slot.set(tx_ptr));
 
+        // SAFETY: `PCWSTR` wraps a pointer into a UTF-16 buffer alive on the stack for the
+        // duration of the Win32 call; the kernel does not retain the pointer past return.
         unsafe {
             let h_instance = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
             let class = WNDCLASSW {

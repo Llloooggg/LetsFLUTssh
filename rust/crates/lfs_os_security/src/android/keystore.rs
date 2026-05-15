@@ -416,6 +416,8 @@ fn generate_wrap_key(
         let arr = env
             .new_object_array(1, cls, &gcm)
             .map_err(|e| format!("jni: new_object_array: {e}"))?;
+        // SAFETY: `JObject::from_raw` rewraps a jobject reference we received via JNI; the jobject
+        // is alive for the JNI frame and we hold a local reference for the rest of the function.
         unsafe { JObject::from_raw(arr.as_raw()) }
     };
     h::call_obj(
@@ -433,6 +435,8 @@ fn generate_wrap_key(
         let arr = env
             .new_object_array(1, cls, &nopad)
             .map_err(|e| format!("jni: new_object_array: {e}"))?;
+        // SAFETY: `JObject::from_raw` rewraps a jobject reference we received via JNI; the jobject
+        // is alive for the JNI frame and we hold a local reference for the rest of the function.
         unsafe { JObject::from_raw(arr.as_raw()) }
     };
     h::call_obj(

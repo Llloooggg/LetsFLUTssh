@@ -154,6 +154,9 @@ pub fn reset_cached_handles() {
 pub fn is_available() -> bool {
     let mut provider = NCRYPT_PROV_HANDLE::default();
     let result =
+        // SAFETY: `NCryptOpenStorageProvider` is a CNG API that writes a provider handle into the
+        // out-parameter on success; the kernel does not retain the pointer past the call. The
+        // handle is wrapped in `OwnedNCryptProvHandle` for RAII release.
         unsafe { NCryptOpenStorageProvider(&mut provider, MS_PLATFORM_KEY_STORAGE_PROVIDER, 0) };
     if result.is_ok() {
         // Wrapping in Owned so an early panic in the bool-cast
@@ -363,6 +366,8 @@ pub fn is_biometric_password_stored(support_dir: &str) -> bool {
 
 fn free_obj(handle: usize) {
     if handle != 0 {
+        // SAFETY: `NCryptFreeObject` releases the kernel-owned NCrypt handle; we wrap the integer
+        // in `NCRYPT_HANDLE` and call once at Drop time so the release pairs with the open.
         let _ = unsafe { NCryptFreeObject(NCRYPT_HANDLE(handle)) };
     }
 }
@@ -398,6 +403,9 @@ fn delete_persistent_key(name: &[u16]) {
     if let Ok(provider_raw) = open_provider() {
         let provider = OwnedNCryptProvHandle(provider_raw);
         let mut key = NCRYPT_KEY_HANDLE::default();
+        // SAFETY: `NCryptOpenKey` reads the provider handle + UTF-16 name (alive on the stack) and
+        // writes a +1 key handle into the out-parameter; the key is wrapped in
+        // `OwnedNCryptKeyHandle` for RAII release.
         let open_status = unsafe {
             NCryptOpenKey(
                 provider.handle(),
@@ -410,6 +418,9 @@ fn delete_persistent_key(name: &[u16]) {
         if open_status.is_ok() {
             // `NCryptDeleteKey` consumes the handle on success;
             // the Owned wrapper handles either path.
+            // SAFETY: `NCryptDeleteKey` consumes the key handle (which we own via
+            // `OwnedNCryptKeyHandle`) and removes the persistent key; the handle is invalidated by
+            // the call regardless of outcome.
             let _ = unsafe { NCryptDeleteKey(key, 0) };
             let _ = OwnedNCryptKeyHandle(key);
         }
@@ -451,6 +462,9 @@ impl Drop for OwnedNCryptKeyHandle {
 
 fn open_provider() -> Result<NCRYPT_PROV_HANDLE, HardwareVaultError> {
     let mut provider = NCRYPT_PROV_HANDLE::default();
+    // SAFETY: `NCryptOpenStorageProvider` is a CNG API that writes a provider handle into the
+    // out-parameter on success; the kernel does not retain the pointer past the call. The handle
+    // is wrapped in `OwnedNCryptProvHandle` for RAII release.
     unsafe { NCryptOpenStorageProvider(&mut provider, MS_PLATFORM_KEY_STORAGE_PROVIDER, 0) }
         .map_err(|e| {
             if is_invalid_handle(&e) {
@@ -472,6 +486,9 @@ fn open_existing_key(
     name: &[u16],
 ) -> Result<NCRYPT_KEY_HANDLE, HardwareVaultError> {
     let mut key = NCRYPT_KEY_HANDLE::default();
+    // SAFETY: `NCryptOpenKey` reads the provider handle + UTF-16 name (alive on the stack) and
+    // writes a +1 key handle into the out-parameter; the key is wrapped in `OwnedNCryptKeyHandle`
+    // for RAII release.
     unsafe {
         NCryptOpenKey(
             provider,
@@ -498,6 +515,8 @@ fn open_or_create_key(
     }
 
     let mut key = NCRYPT_KEY_HANDLE::default();
+    // SAFETY: `NCryptCreatePersistedKey` reads the provider handle + algorithm name + UTF-16 key
+    // name (alive on the stack) and writes a new key handle into the out-parameter.
     unsafe {
         NCryptCreatePersistedKey(
             provider,
@@ -512,6 +531,8 @@ fn open_or_create_key(
 
     // 2048-bit RSA.
     let length_bytes = RSA_KEY_LENGTH_BITS.to_le_bytes();
+    // SAFETY: `NCryptSetProperty` reads the key handle + property name + caller-owned byte slice
+    // (alive on the stack); the kernel does not retain the pointer past the call.
     if let Err(e) = unsafe {
         NCryptSetProperty(
             NCRYPT_HANDLE(key.0),
@@ -536,12 +557,17 @@ fn open_or_create_key(
         pszDescription: PCWSTR::null(),
     };
 
+    // SAFETY: `&policy` points at a stack-local `NCRYPT_UI_POLICY` POD whose layout matches the
+    // documented Win32 struct; the resulting byte slice borrows from the same stack frame and is
+    // consumed by the immediately following NCrypt call.
     let policy_bytes = unsafe {
         std::slice::from_raw_parts(
             (&policy as *const NCRYPT_UI_POLICY) as *const u8,
             std::mem::size_of::<NCRYPT_UI_POLICY>(),
         )
     };
+    // SAFETY: `NCryptSetProperty` reads the key handle + property name + caller-owned byte slice
+    // (alive on the stack); the kernel does not retain the pointer past the call.
     if let Err(e) = unsafe {
         NCryptSetProperty(
             NCRYPT_HANDLE(key.0),
@@ -560,6 +586,8 @@ fn open_or_create_key(
     // fallback path defaults to exportable; setting the property
     // explicitly closes the gap defense-in-depth.
     let export_policy: u32 = 0;
+    // SAFETY: `NCryptSetProperty` reads the key handle + property name + caller-owned byte slice
+    // (alive on the stack); the kernel does not retain the pointer past the call.
     if let Err(e) = unsafe {
         NCryptSetProperty(
             NCRYPT_HANDLE(key.0),
@@ -572,6 +600,7 @@ fn open_or_create_key(
         return Err(fmt_win("NCryptSetProperty(EXPORT_POLICY)", e));
     }
 
+    // SAFETY: `NCryptFinalizeKey` commits the persisted key under the handle we own; no out-params.
     if let Err(e) = unsafe { NCryptFinalizeKey(key, NCRYPT_FLAGS(0)) } {
         free_obj(key.0);
         return Err(fmt_win("NCryptFinalizeKey", e));
@@ -588,6 +617,9 @@ fn encrypt_under_key(
     let padding_ptr = (&padding as *const BCRYPT_OAEP_PADDING_INFO) as *const std::ffi::c_void;
 
     let mut output_size: u32 = 0;
+    // SAFETY: `NCryptEncrypt`/`NCryptDecrypt` reads the key handle + plaintext/ciphertext +
+    // padding-info (all alive on the stack) and writes into the caller-owned output buffer +
+    // length; the kernel does not retain the pointer past the call.
     unsafe {
         NCryptEncrypt(
             key,
@@ -601,6 +633,9 @@ fn encrypt_under_key(
     .map_err(|e| fmt_win("NCryptEncrypt(probe)", e))?;
     let mut buffer = vec![0u8; output_size as usize];
     let mut written: u32 = 0;
+    // SAFETY: `NCryptEncrypt`/`NCryptDecrypt` reads the key handle + plaintext/ciphertext +
+    // padding-info (all alive on the stack) and writes into the caller-owned output buffer +
+    // length; the kernel does not retain the pointer past the call.
     unsafe {
         NCryptEncrypt(
             key,
@@ -625,6 +660,9 @@ fn decrypt_under_key(
 
     let mut buffer = vec![0u8; RSA_KEY_LENGTH_BYTES];
     let mut written: u32 = 0;
+    // SAFETY: `NCryptEncrypt`/`NCryptDecrypt` reads the key handle + plaintext/ciphertext +
+    // padding-info (all alive on the stack) and writes into the caller-owned output buffer +
+    // length; the kernel does not retain the pointer past the call.
     unsafe {
         NCryptDecrypt(
             key,

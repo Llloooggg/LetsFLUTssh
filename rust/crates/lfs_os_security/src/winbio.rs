@@ -72,10 +72,18 @@ mod inner {
         };
 
         let enum_units: libloading::Symbol<EnumBiometricUnitsFn> =
+            // SAFETY: `Library::get` performs a dlsym/GetProcAddress against an `unsafe` symbol;
+            // the returned `Symbol<T>` borrows from `lib` for the rest of the function and the
+            // function pointer signature `T` must match the C ABI of the exported symbol (verified
+            // against the Windows / Apple SDK header).
             match unsafe { lib.get(b"WinBioEnumBiometricUnits") } {
                 Ok(s) => s,
                 Err(_) => return 0,
             };
+        // SAFETY: `Library::get` performs a dlsym/GetProcAddress against an `unsafe` symbol; the
+        // returned `Symbol<T>` borrows from `lib` for the rest of the function and the function
+        // pointer signature `T` must match the C ABI of the exported symbol (verified against the
+        // Windows / Apple SDK header).
         let free_fn: libloading::Symbol<FreeFn> = match unsafe { lib.get(b"WinBioFree") } {
             Ok(s) => s,
             Err(_) => return 0,
@@ -83,8 +91,13 @@ mod inner {
 
         let mut schemas: *mut core::ffi::c_void = core::ptr::null_mut();
         let mut count: usize = 0;
+        // SAFETY: `enum_units` is the dynamically-loaded `WinBioEnumBiometricUnits` symbol; it
+        // writes a +1-allocated unit array into `*schemas` and the count into `*count`, both
+        // stack-local outputs we own.
         let hr = unsafe { enum_units(BIOMETRIC_FACTORS, &mut schemas, &mut count) };
         if !schemas.is_null() {
+            // SAFETY: `free_fn` is the dynamically-loaded `WinBioFree` symbol; releasing the
+            // buffer the matching `WinBioEnumBiometricUnits` allocated.
             unsafe {
                 let _ = free_fn(schemas);
             }

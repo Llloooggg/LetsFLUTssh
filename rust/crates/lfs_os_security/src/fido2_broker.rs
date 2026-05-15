@@ -267,6 +267,8 @@ mod platform_impl {
             ..Default::default()
         };
 
+        // SAFETY: `foreground_window` is a thin wrapper over `GetForegroundWindow`, a no-argument
+        // Win32 query that returns the current foreground HWND (or null).
         let hwnd = unsafe { foreground_window() };
 
         // SAFETY: every pointer field above lives in a Vec we own
@@ -284,6 +286,9 @@ mod platform_impl {
         };
 
         match result {
+            // SAFETY: `slice::from_raw_parts` constructs a slice from a pointer + length; the
+            // pointer is owned by the calling FFI and valid for the slice length for the borrow's
+            // duration.
             Ok(assertion_ptr) => unsafe {
                 let assertion = match assertion_ptr.as_ref() {
                     Some(a) => a,
@@ -421,6 +426,10 @@ mod platform_impl {
         // SAFETY: symbol lookup is read-only; the resolved fn ptr
         // has the documented signature.
         let probe: Result<Symbol<SwiftIsAvailable>, _> =
+            // SAFETY: `Library::get` performs a dlsym/GetProcAddress against an `unsafe` symbol;
+            // the returned `Symbol<T>` borrows from `lib` for the rest of the function and the
+            // function pointer signature `T` must match the C ABI of the exported symbol (verified
+            // against the Windows / Apple SDK header).
             unsafe { lib.get(b"lfs_security_key_broker_is_available") };
         let Ok(probe) = probe else {
             return Err(BrokerUnavailable::AppleEntitlementMissing);
@@ -459,6 +468,9 @@ mod platform_impl {
         message_ptr: *const c_char,
     ) {
         let outcome = match status {
+            // SAFETY: `slice::from_raw_parts` constructs a slice from a pointer + length; the
+            // pointer is owned by the calling FFI and valid for the slice length for the borrow's
+            // duration.
             0 => unsafe {
                 let signature = if signature_len > 0 && !signature_ptr.is_null() {
                     std::slice::from_raw_parts(signature_ptr, signature_len).to_vec()
@@ -521,6 +533,10 @@ mod platform_impl {
         // SAFETY: symbol lookup is read-only; fn ptr has the
         // documented Swift contract.
         let entry: Result<Symbol<SwiftGetAssertion>, _> =
+            // SAFETY: `Library::get` performs a dlsym/GetProcAddress against an `unsafe` symbol;
+            // the returned `Symbol<T>` borrows from `lib` for the rest of the function and the
+            // function pointer signature `T` must match the C ABI of the exported symbol (verified
+            // against the Windows / Apple SDK header).
             unsafe { lib.get(b"lfs_security_key_broker_get_assertion") };
         let Ok(entry) = entry else {
             return Err(BrokerError::Other(

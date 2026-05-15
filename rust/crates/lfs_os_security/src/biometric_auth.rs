@@ -105,6 +105,12 @@ mod platform_impl {
         // `Retained<LAContext>` Arc-equivalent into the `RcBlock`
         // itself, so the context outlives the closure
         // and is released only after the reply runs.
+        // SAFETY: every objc2 call returns an autoreleased
+        // `Retained<T>` or sends a documented selector;
+        // `evaluatePolicy_localizedReason_reply` does not retain
+        // the `&reason_ns` past the call, and the reply block
+        // holds its own `Retained<LAContext>` clone so the context
+        // outlives the closure.
         tokio::task::spawn_blocking(move || unsafe {
             let ctx: Retained<LAContext> = LAContext::new();
             let reason_ns: Retained<NSString> = NSString::from_str(&reason_owned);

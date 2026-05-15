@@ -290,6 +290,9 @@ impl OwnedProvider {
 impl Drop for OwnedProvider {
     fn drop(&mut self) {
         if self.0 .0 != 0 {
+            // SAFETY: `NCryptFreeObject` releases the kernel-owned NCrypt handle; we wrap the
+            // integer in `NCRYPT_HANDLE` and call once at Drop time so the release pairs with the
+            // open.
             let _ = unsafe { NCryptFreeObject(NCRYPT_HANDLE(self.0 .0)) };
         }
     }
@@ -309,6 +312,9 @@ impl OwnedKey {
 impl Drop for OwnedKey {
     fn drop(&mut self) {
         if self.0 .0 != 0 {
+            // SAFETY: `NCryptFreeObject` releases the kernel-owned NCrypt handle; we wrap the
+            // integer in `NCRYPT_HANDLE` and call once at Drop time so the release pairs with the
+            // open.
             let _ = unsafe { NCryptFreeObject(NCRYPT_HANDLE(self.0 .0)) };
         }
     }
@@ -333,6 +339,8 @@ pub fn probe_availability() -> Result<TpmTier, UnavailableReason> {
     let name = mint_probe_name();
     let name_w = to_wide_z(&name);
     let mut key = NCRYPT_KEY_HANDLE::default();
+    // SAFETY: `NCryptCreatePersistedKey` reads the provider handle + algorithm name + UTF-16 key
+    // name (alive on the stack) and writes a new key handle into the out-parameter.
     unsafe {
         NCryptCreatePersistedKey(
             provider.handle(),
@@ -353,17 +361,23 @@ pub fn probe_availability() -> Result<TpmTier, UnavailableReason> {
     if let Err(e) = set_ui_policy(probe_key.handle()) {
         return Err(UnavailableReason::Other(e.to_string()));
     }
+    // SAFETY: `NCryptFinalizeKey` commits the persisted key under the handle we own; no out-params.
     let finalize = unsafe { NCryptFinalizeKey(probe_key.handle(), NCRYPT_FLAGS(0)) };
     let tier = match finalize {
         Ok(()) => read_impl_tier(probe_key.handle()),
         Err(e) => {
             // Best-effort delete the half-created key — finalize
             // failed but the persisted name may still hold a slot.
+            // SAFETY: `NCryptDeleteKey` consumes the key handle (which we own via
+            // `OwnedNCryptKeyHandle`) and removes the persistent key; the handle is invalidated by
+            // the call regardless of outcome.
             let _ = unsafe { NCryptDeleteKey(probe_key.into_raw(), 0) };
             return Err(map_finalize_error(&e));
         }
     };
     // Best-effort delete the probe key.
+    // SAFETY: `NCryptDeleteKey` consumes the key handle (which we own via `OwnedNCryptKeyHandle`)
+    // and removes the persistent key; the handle is invalidated by the call regardless of outcome.
     let _ = unsafe { NCryptDeleteKey(probe_key.into_raw(), 0) };
     Ok(tier)
 }
@@ -379,6 +393,8 @@ pub fn create(label: &str, algo: SshKeyAlgo) -> Result<HelloKeyHandle, Error> {
     let name = mint_credential_name();
     let name_w = to_wide_z(&name);
     let mut key = NCRYPT_KEY_HANDLE::default();
+    // SAFETY: `NCryptCreatePersistedKey` reads the provider handle + algorithm name + UTF-16 key
+    // name (alive on the stack) and writes a new key handle into the out-parameter.
     unsafe {
         NCryptCreatePersistedKey(
             provider.handle(),
@@ -401,6 +417,7 @@ pub fn create(label: &str, algo: SshKeyAlgo) -> Result<HelloKeyHandle, Error> {
         set_rsa_length(owned_key.handle())?;
     }
     set_ui_policy(owned_key.handle())?;
+    // SAFETY: `NCryptFinalizeKey` commits the persisted key under the handle we own; no out-params.
     match unsafe { NCryptFinalizeKey(owned_key.handle(), NCRYPT_FLAGS(0)) } {
         Ok(()) => {}
         Err(e) => {
@@ -547,6 +564,9 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
     loop {
         let mut key_name_ptr: *mut windows::Win32::Security::Cryptography::NCryptKeyName =
             std::ptr::null_mut();
+        // SAFETY: `NCryptEnumKeys` reads the provider handle + caller-owned enum-state pointer and
+        // writes a +1-allocated `NCryptKeyName` pointer into the out-parameter; the buffer is
+        // freed by `NCryptFreeBuffer` below.
         let result = unsafe {
             NCryptEnumKeys(
                 provider.handle(),
@@ -569,6 +589,8 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
         if key_name_ptr.is_null() {
             break;
         }
+        // SAFETY: `key_name_ptr` is a non-null `*const NCryptKeyName` the kernel allocated and
+        // handed back; we keep the pointer alive until the matching `NCryptFreeBuffer` below.
         let entry = unsafe { &*key_name_ptr };
         // SAFETY: `entry` came from NCryptEnumKeys which guarantees
         // both `pszName` and `pszAlgid` point at NUL-terminated wide
@@ -576,6 +598,9 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
         // `NCryptFreeBuffer` below tears the whole entry down — we
         // copy out before that fires.
         let name = unsafe { pwstr_to_string(entry.pszName) };
+        // SAFETY: `pwstr_to_string` walks the OS-allocated NUL-terminated UTF-16 buffer pointed at
+        // by the NCrypt struct; the pointer remains valid until the matching `NCryptFreeBuffer`
+        // runs.
         let alg_name = unsafe { pwstr_to_string(entry.pszAlgid) };
         if name.starts_with(CNG_NAME_PREFIX) {
             if let Some(algo) = algo_from_alg_name(&alg_name) {
@@ -589,9 +614,13 @@ pub fn list() -> Result<Vec<HelloKeyHandle>, Error> {
         // `NCryptEnumKeys` allocates the key-name struct + its
         // strings; we must release with `NCryptFreeBuffer` per the
         // docs, otherwise each iteration leaks a few hundred bytes.
+        // SAFETY: `NCryptFreeBuffer` releases the OS-allocated buffer pointer the matching NCrypt
+        // API handed us; no other reference to it remains.
         let _ = unsafe { NCryptFreeBuffer(key_name_ptr as *mut c_void) };
     }
     if !enum_state.is_null() {
+        // SAFETY: `NCryptFreeBuffer` releases the OS-allocated buffer pointer the matching NCrypt
+        // API handed us; no other reference to it remains.
         let _ = unsafe { NCryptFreeBuffer(enum_state) };
     }
     Ok(out)
@@ -626,6 +655,8 @@ pub fn create_silent(label: &str, algo: SshKeyAlgo) -> Result<TpmSilentKeyHandle
     let name = mint_credential_name_tpm();
     let name_w = to_wide_z(&name);
     let mut key = NCRYPT_KEY_HANDLE::default();
+    // SAFETY: `NCryptCreatePersistedKey` reads the provider handle + algorithm name + UTF-16 key
+    // name (alive on the stack) and writes a new key handle into the out-parameter.
     unsafe {
         NCryptCreatePersistedKey(
             provider.handle(),
@@ -651,6 +682,7 @@ pub fn create_silent(label: &str, algo: SshKeyAlgo) -> Result<TpmSilentKeyHandle
     // from [`create`]. With the UI policy property absent, the
     // provider runs in its default "unattended" mode and
     // `NCryptSignHash` does not prompt the user.
+    // SAFETY: `NCryptFinalizeKey` commits the persisted key under the handle we own; no out-params.
     unsafe { NCryptFinalizeKey(owned_key.handle(), NCRYPT_FLAGS(0)) }
         .map_err(|e| fmt_win("NCryptFinalizeKey(silent)", e))?;
     Ok(TpmSilentKeyHandle {
@@ -738,6 +770,9 @@ pub fn list_silent() -> Result<Vec<TpmSilentKeyHandle>, Error> {
     loop {
         let mut key_name_ptr: *mut windows::Win32::Security::Cryptography::NCryptKeyName =
             std::ptr::null_mut();
+        // SAFETY: `NCryptEnumKeys` reads the provider handle + caller-owned enum-state pointer and
+        // writes a +1-allocated `NCryptKeyName` pointer into the out-parameter; the buffer is
+        // freed by `NCryptFreeBuffer` below.
         let result = unsafe {
             NCryptEnumKeys(
                 provider.handle(),
@@ -758,8 +793,16 @@ pub fn list_silent() -> Result<Vec<TpmSilentKeyHandle>, Error> {
         if key_name_ptr.is_null() {
             break;
         }
+        // SAFETY: `key_name_ptr` is a non-null `*const NCryptKeyName` the kernel allocated and
+        // handed back; we keep the pointer alive until the matching `NCryptFreeBuffer` below.
         let entry = unsafe { &*key_name_ptr };
+        // SAFETY: `pwstr_to_string` walks the OS-allocated NUL-terminated UTF-16 buffer pointed at
+        // by the NCrypt struct; the pointer remains valid until the matching `NCryptFreeBuffer`
+        // runs.
         let name = unsafe { pwstr_to_string(entry.pszName) };
+        // SAFETY: `pwstr_to_string` walks the OS-allocated NUL-terminated UTF-16 buffer pointed at
+        // by the NCrypt struct; the pointer remains valid until the matching `NCryptFreeBuffer`
+        // runs.
         let alg_name = unsafe { pwstr_to_string(entry.pszAlgid) };
         if name.starts_with(CNG_NAME_PREFIX_TPM) {
             if let Some(algo) = algo_from_alg_name(&alg_name) {
@@ -770,9 +813,13 @@ pub fn list_silent() -> Result<Vec<TpmSilentKeyHandle>, Error> {
                 });
             }
         }
+        // SAFETY: `NCryptFreeBuffer` releases the OS-allocated buffer pointer the matching NCrypt
+        // API handed us; no other reference to it remains.
         let _ = unsafe { NCryptFreeBuffer(key_name_ptr as *mut c_void) };
     }
     if !enum_state.is_null() {
+        // SAFETY: `NCryptFreeBuffer` releases the OS-allocated buffer pointer the matching NCrypt
+        // API handed us; no other reference to it remains.
         let _ = unsafe { NCryptFreeBuffer(enum_state) };
     }
     Ok(out)
@@ -790,6 +837,8 @@ pub fn delete_silent(handle: &TpmSilentKeyHandle) -> Result<(), Error> {
         Err(e) => return Err(e),
     };
     let raw = key.into_raw();
+    // SAFETY: `NCryptDeleteKey` consumes the key handle (which we own via `OwnedNCryptKeyHandle`)
+    // and removes the persistent key; the handle is invalidated by the call regardless of outcome.
     unsafe { NCryptDeleteKey(raw, 0) }.map_err(|e| fmt_win("NCryptDeleteKey(silent)", e))
 }
 
@@ -814,6 +863,8 @@ pub fn delete(handle: &HelloKeyHandle) -> Result<(), Error> {
         Err(e) => return Err(e),
     };
     let raw = key.into_raw();
+    // SAFETY: `NCryptDeleteKey` consumes the key handle (which we own via `OwnedNCryptKeyHandle`)
+    // and removes the persistent key; the handle is invalidated by the call regardless of outcome.
     unsafe { NCryptDeleteKey(raw, 0) }.map_err(|e| fmt_win("NCryptDeleteKey", e))
 }
 
@@ -821,6 +872,9 @@ pub fn delete(handle: &HelloKeyHandle) -> Result<(), Error> {
 
 fn open_provider() -> Result<NCRYPT_PROV_HANDLE, Error> {
     let mut provider = NCRYPT_PROV_HANDLE::default();
+    // SAFETY: `NCryptOpenStorageProvider` is a CNG API that writes a provider handle into the
+    // out-parameter on success; the kernel does not retain the pointer past the call. The handle
+    // is wrapped in `OwnedNCryptProvHandle` for RAII release.
     unsafe { NCryptOpenStorageProvider(&mut provider, MS_PLATFORM_KEY_STORAGE_PROVIDER, 0) }
         .map_err(|e| {
             Error::Unavailable(UnavailableReason::ProviderUnavailable(format!(
@@ -837,6 +891,9 @@ fn open_existing_key(
 ) -> Result<OwnedKey, Error> {
     let name_w = to_wide_z(credential_name);
     let mut key = NCRYPT_KEY_HANDLE::default();
+    // SAFETY: `NCryptOpenKey` reads the provider handle + UTF-16 name (alive on the stack) and
+    // writes a +1 key handle into the out-parameter; the key is wrapped in `OwnedNCryptKeyHandle`
+    // for RAII release.
     let result = unsafe {
         NCryptOpenKey(
             provider,
@@ -868,12 +925,17 @@ fn set_ui_policy(key: NCRYPT_KEY_HANDLE) -> Result<(), Error> {
         pszFriendlyName: PCWSTR::null(),
         pszDescription: PCWSTR::null(),
     };
+    // SAFETY: `&policy` points at a stack-local `NCRYPT_UI_POLICY` POD whose layout matches the
+    // documented Win32 struct; the resulting byte slice borrows from the same stack frame and is
+    // consumed by the immediately following NCrypt call.
     let bytes = unsafe {
         std::slice::from_raw_parts(
             (&policy as *const NCRYPT_UI_POLICY) as *const u8,
             std::mem::size_of::<NCRYPT_UI_POLICY>(),
         )
     };
+    // SAFETY: `NCryptSetProperty` reads the key handle + property name + caller-owned byte slice
+    // (alive on the stack); the kernel does not retain the pointer past the call.
     unsafe {
         NCryptSetProperty(
             NCRYPT_HANDLE(key.0),
@@ -888,6 +950,8 @@ fn set_ui_policy(key: NCRYPT_KEY_HANDLE) -> Result<(), Error> {
 fn set_rsa_length(key: NCRYPT_KEY_HANDLE) -> Result<(), Error> {
     let length: u32 = 2048;
     let bytes = length.to_le_bytes();
+    // SAFETY: `NCryptSetProperty` reads the key handle + property name + caller-owned byte slice
+    // (alive on the stack); the kernel does not retain the pointer past the call.
     unsafe {
         NCryptSetProperty(
             NCRYPT_HANDLE(key.0),
@@ -901,6 +965,9 @@ fn set_rsa_length(key: NCRYPT_KEY_HANDLE) -> Result<(), Error> {
 
 fn export_blob(key: NCRYPT_KEY_HANDLE, blob_type: PCWSTR) -> Result<Vec<u8>, Error> {
     let mut required: u32 = 0;
+    // SAFETY: `NCryptExportKey` reads the key handle + blob-type name (alive on the stack) and
+    // writes into the caller-owned output buffer + length; called twice — once with null output to
+    // query length, once with the sized buffer.
     unsafe {
         NCryptExportKey(
             key,
@@ -915,6 +982,9 @@ fn export_blob(key: NCRYPT_KEY_HANDLE, blob_type: PCWSTR) -> Result<Vec<u8>, Err
     .map_err(|e| fmt_win("NCryptExportKey(probe)", e))?;
     let mut buf = vec![0u8; required as usize];
     let mut written: u32 = 0;
+    // SAFETY: `NCryptExportKey` reads the key handle + blob-type name (alive on the stack) and
+    // writes into the caller-owned output buffer + length; called twice — once with null output to
+    // query length, once with the sized buffer.
     unsafe {
         NCryptExportKey(
             key,
@@ -1017,10 +1087,14 @@ fn parse_rsa_magnitudes(blob: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Error> {
 
 fn sign_hash_ecdsa(key: NCRYPT_KEY_HANDLE, hash: &[u8]) -> Result<Vec<u8>, Error> {
     let mut required: u32 = 0;
+    // SAFETY: `NCryptSignHash` reads the key handle + padding info + caller-owned hash buffer
+    // (alive on the stack) and writes into the caller-owned output buffer + length.
     unsafe { NCryptSignHash(key, None, hash, None, &mut required, NCRYPT_FLAGS(0)) }
         .map_err(map_sign_error)?;
     let mut buf = vec![0u8; required as usize];
     let mut written: u32 = 0;
+    // SAFETY: `NCryptSignHash` reads the key handle + padding info + caller-owned hash buffer
+    // (alive on the stack) and writes into the caller-owned output buffer + length.
     unsafe {
         NCryptSignHash(
             key,
@@ -1044,6 +1118,8 @@ fn sign_hash_rsa_pkcs1(
     let padding_info = BCRYPT_PKCS1_PADDING_INFO { pszAlgId: pad_alg };
     let padding_ptr = (&padding_info as *const BCRYPT_PKCS1_PADDING_INFO) as *const c_void;
     let mut required: u32 = 0;
+    // SAFETY: `NCryptSignHash` reads the key handle + padding info + caller-owned hash buffer
+    // (alive on the stack) and writes into the caller-owned output buffer + length.
     unsafe {
         NCryptSignHash(
             key,
@@ -1057,6 +1133,8 @@ fn sign_hash_rsa_pkcs1(
     .map_err(map_sign_error)?;
     let mut buf = vec![0u8; required as usize];
     let mut written: u32 = 0;
+    // SAFETY: `NCryptSignHash` reads the key handle + padding info + caller-owned hash buffer
+    // (alive on the stack) and writes into the caller-owned output buffer + length.
     unsafe {
         NCryptSignHash(
             key,
@@ -1103,6 +1181,8 @@ fn is_unsupported_alg(e: &WinError) -> bool {
 
 fn read_impl_tier(key: NCRYPT_KEY_HANDLE) -> TpmTier {
     let mut required: u32 = 0;
+    // SAFETY: `PCWSTR` wraps a pointer into a UTF-16 buffer alive on the stack for the duration of
+    // the Win32 call; the kernel does not retain the pointer past return.
     let result = unsafe {
         NCryptGetProperty(
             NCRYPT_HANDLE(key.0),
@@ -1117,6 +1197,8 @@ fn read_impl_tier(key: NCRYPT_KEY_HANDLE) -> TpmTier {
     }
     let mut buf = vec![0u8; required as usize];
     let mut written: u32 = 0;
+    // SAFETY: `PCWSTR` wraps a pointer into a UTF-16 buffer alive on the stack for the duration of
+    // the Win32 call; the kernel does not retain the pointer past return.
     let read = unsafe {
         NCryptGetProperty(
             NCRYPT_HANDLE(key.0),
@@ -1192,9 +1274,13 @@ unsafe fn pwstr_to_string(ptr: PWSTR) -> String {
         return String::new();
     }
     let mut len = 0usize;
+    // SAFETY: walking a NUL-terminated UTF-16 buffer the OS handed us; the kernel guarantees a NUL
+    // at or before any documented max length so the loop terminates on a valid byte read.
     while unsafe { *ptr.0.add(len) } != 0 {
         len += 1;
     }
+    // SAFETY: `slice::from_raw_parts` constructs a slice from a pointer + length; the pointer is
+    // owned by the calling FFI and valid for the slice length for the borrow's duration.
     let slice = unsafe { std::slice::from_raw_parts(ptr.0, len) };
     String::from_utf16_lossy(slice)
 }

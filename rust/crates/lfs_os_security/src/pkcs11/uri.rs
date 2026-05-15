@@ -349,6 +349,9 @@ impl fmt::Display for Pkcs11Uri {
 fn write_percent(f: &mut fmt::Formatter<'_>, bytes: &[u8], safe: fn(u8) -> bool) -> fmt::Result {
     for &b in bytes {
         if safe(b) {
+            // SAFETY: `safe(b)` only admits ASCII byte values from
+            // `is_unreserved_*` / `is_pchar` etc. (≤ 0x7F), which are
+            // valid single-byte UTF-8 code points by definition.
             f.write_str(unsafe { std::str::from_utf8_unchecked(std::slice::from_ref(&b)) })?;
         } else {
             write!(f, "%{:02X}", b)?;

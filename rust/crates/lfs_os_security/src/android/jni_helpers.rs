@@ -59,6 +59,9 @@ pub fn bytes_to_jbyte_array<'local>(
         // layout, sign interpretation does not matter for the
         // raw byte array transit.
         let i8_view =
+            // SAFETY: `slice::from_raw_parts` constructs a slice from a pointer + length; the
+            // pointer is owned by the calling FFI and valid for the slice length for the borrow's
+            // duration.
             unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const i8, bytes.len()) };
         env.set_byte_array_region(&array, 0, i8_view)
             .map_err(|e| format!("jni: set_byte_array_region: {e}"))?;
@@ -71,6 +74,8 @@ pub fn bytes_to_jbyte_array<'local>(
 /// the conversion error surfaces as `Err(String)` for the
 /// caller to map.
 pub fn jbyte_array_to_bytes(env: &mut JNIEnv, array: &JObject) -> Result<Vec<u8>, String> {
+    // SAFETY: `JObject::from_raw` rewraps a jobject reference we received via JNI; the jobject is
+    // alive for the JNI frame and we hold a local reference for the rest of the function.
     let array = JByteArray::from(unsafe { JObject::from_raw(array.as_raw()) });
     let len = env
         .get_array_length(&array)

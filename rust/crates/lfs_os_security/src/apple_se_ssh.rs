@@ -246,9 +246,16 @@ pub fn probe_availability() -> AvailabilityResult {
     // so it routes through `Other` rather than a dedicated variant.
     let access = build_access_control(AuthPolicy::UserPresence)
         .map_err(|e| UnavailableReason::Other(e.to_string()))?;
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let private_attrs = unsafe { build_private_attrs(PROBE_KEY_TAG, &access) };
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let create_attrs = unsafe { build_create_attrs(private_attrs) };
     let mut err: *mut core_foundation_sys::error::__CFError = ptr::null_mut();
+    // SAFETY: `SecKeyCreateRandomKey` reads the create-attributes dictionary alive on the stack
+    // and writes a +1-retained `SecKeyRef` (or null + err out-param). The SE/keychain holds the
+    // private bytes; the returned handle is wrapped for RAII release.
     let key = unsafe {
         SecKeyCreateRandomKey(
             create_attrs.as_concrete_TypeRef(),
@@ -258,6 +265,9 @@ pub fn probe_availability() -> AvailabilityResult {
     let owned_err = if err.is_null() {
         None
     } else {
+        // SAFETY: pointer is a non-null `CFErrorRef` returned with create-rule semantics (+1
+        // retain) by the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop` balances
+        // the create.
         Some(unsafe { CFError::wrap_under_create_rule(err) })
     };
     if key.is_null() {
@@ -275,7 +285,10 @@ pub fn probe_availability() -> AvailabilityResult {
     let _owned = OwnedSecKey(key);
     // Best-effort cleanup. The OS GCs the key on next launch even
     // if delete fails.
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let delete_query = unsafe { build_delete_query(PROBE_KEY_TAG) };
+    // SAFETY: `SecItemDelete` reads the query dictionary alive on the stack; no out-params.
     unsafe {
         SecItemDelete(delete_query.as_concrete_TypeRef());
     }
@@ -295,9 +308,16 @@ pub fn probe_availability() -> AvailabilityResult {
 pub fn create(label: &str, policy: AuthPolicy) -> Result<EnclaveKeyHandle, Error> {
     let tag = mint_application_tag();
     let access = build_access_control(policy)?;
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let private_attrs = unsafe { build_private_attrs(&tag, &access) };
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let create_attrs = unsafe { build_create_attrs(private_attrs) };
     let mut err: *mut core_foundation_sys::error::__CFError = ptr::null_mut();
+    // SAFETY: `SecKeyCreateRandomKey` reads the create-attributes dictionary alive on the stack
+    // and writes a +1-retained `SecKeyRef` (or null + err out-param). The SE/keychain holds the
+    // private bytes; the returned handle is wrapped for RAII release.
     let key = unsafe {
         SecKeyCreateRandomKey(
             create_attrs.as_concrete_TypeRef(),
@@ -307,6 +327,9 @@ pub fn create(label: &str, policy: AuthPolicy) -> Result<EnclaveKeyHandle, Error
     let owned_err = if err.is_null() {
         None
     } else {
+        // SAFETY: pointer is a non-null `CFErrorRef` returned with create-rule semantics (+1
+        // retain) by the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop` balances
+        // the create.
         Some(unsafe { CFError::wrap_under_create_rule(err) })
     };
     if key.is_null() {
@@ -351,9 +374,14 @@ pub fn sign(
 ) -> Result<Vec<u8>, Error> {
     let private_key =
         load_private_key(&handle.application_tag, context)?.ok_or(Error::KeyNotFound)?;
+    // SAFETY: identifier is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; reading the static is a plain pointer copy.
     let algorithm = unsafe { kSecKeyAlgorithmECDSASignatureMessageX962SHA256 };
     let data_cf = CFData::from_buffer(data);
     let mut err: *mut core_foundation_sys::error::__CFError = ptr::null_mut();
+    // SAFETY: `SecKeyCreateSignature` reads the key + algo + data (all alive on the stack) and
+    // returns a +1-retained `CFDataRef` (or null + err out-param); may surface the biometric
+    // prompt.
     let sig_ref = unsafe {
         SecKeyCreateSignature(
             private_key.0,
@@ -365,6 +393,9 @@ pub fn sign(
     let owned_err = if err.is_null() {
         None
     } else {
+        // SAFETY: pointer is a non-null `CFErrorRef` returned with create-rule semantics (+1
+        // retain) by the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop` balances
+        // the create.
         Some(unsafe { CFError::wrap_under_create_rule(err) })
     };
     if sig_ref.is_null() {
@@ -373,6 +404,8 @@ pub fn sign(
             None => Error::SignRefused,
         });
     }
+    // SAFETY: pointer is a non-null `CFDataRef` returned with create-rule semantics (+1 retain) by
+    // the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop` balances the create.
     let sig_data = unsafe { CFData::wrap_under_create_rule(sig_ref) };
     Ok(sig_data.bytes().to_vec())
 }
@@ -389,12 +422,16 @@ pub fn sign(
 /// the wire body.
 pub fn public_key_ssh_wire(handle: &EnclaveKeyHandle) -> Result<Vec<u8>, Error> {
     let private_key = load_private_key(&handle.application_tag, None)?.ok_or(Error::KeyNotFound)?;
+    // SAFETY: `SecKeyCopyPublicKey` reads the private `SecKeyRef` we own and returns a fresh
+    // +1-retained `SecKeyRef` (or null on failure) which is wrapped below.
     let public_ref = unsafe { SecKeyCopyPublicKey(private_key.0) };
     if public_ref.is_null() {
         return Err(Error::Backend("SecKeyCopyPublicKey returned null".into()));
     }
     let public_owned = OwnedSecKey(public_ref);
     let mut err: *mut core_foundation_sys::error::__CFError = ptr::null_mut();
+    // SAFETY: `SecKeyCopyExternalRepresentation` reads the key reference we own and returns a
+    // +1-retained `CFDataRef` (or null + err out-param).
     let bytes_ref = unsafe {
         SecKeyCopyExternalRepresentation(
             public_owned.0,
@@ -404,6 +441,9 @@ pub fn public_key_ssh_wire(handle: &EnclaveKeyHandle) -> Result<Vec<u8>, Error> 
     let owned_err = if err.is_null() {
         None
     } else {
+        // SAFETY: pointer is a non-null `CFErrorRef` returned with create-rule semantics (+1
+        // retain) by the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop` balances
+        // the create.
         Some(unsafe { CFError::wrap_under_create_rule(err) })
     };
     if bytes_ref.is_null() {
@@ -412,6 +452,8 @@ pub fn public_key_ssh_wire(handle: &EnclaveKeyHandle) -> Result<Vec<u8>, Error> 
             None => Error::Backend("SecKeyCopyExternalRepresentation: null".into()),
         });
     }
+    // SAFETY: pointer is a non-null `CFDataRef` returned with create-rule semantics (+1 retain) by
+    // the preceding Sec*/CFCopy* call; wrap transfers ownership so `Drop` balances the create.
     let cf_bytes = unsafe { CFData::wrap_under_create_rule(bytes_ref) };
     Ok(cf_bytes.bytes().to_vec())
 }
@@ -427,8 +469,13 @@ pub fn public_key_ssh_wire(handle: &EnclaveKeyHandle) -> Result<Vec<u8>, Error> 
 /// caller should join against `ssh_keys.enclave_tag` to recover
 /// the user-typed name.
 pub fn list() -> Result<Vec<EnclaveKeyHandle>, Error> {
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let query = unsafe { build_list_query() };
     let mut items: *const c_void = ptr::null();
+    // SAFETY: `SecItemCopyMatching` reads the query dictionary alive on the stack and writes a
+    // +1-retained CF reference into the out-pointer; the kernel does not retain any pointer past
+    // return.
     let status = unsafe {
         SecItemCopyMatching(
             query.as_concrete_TypeRef(),
@@ -452,6 +499,8 @@ pub fn list() -> Result<Vec<EnclaveKeyHandle>, Error> {
     // re-validate the prefix on the Rust side because Keychain
     // returns every SE-class private key with a tag attribute,
     // and our partial-match filter is best-effort.
+    // SAFETY: pointer is a non-null `CFArrayRef` returned with create-rule semantics (+1 retain)
+    // by `SecItemCopyMatching`; wrap transfers ownership so `Drop` balances the create.
     let array = unsafe {
         core_foundation::array::CFArray::<*const c_void>::wrap_under_create_rule(items as *const _)
     };
@@ -464,7 +513,11 @@ pub fn list() -> Result<Vec<EnclaveKeyHandle>, Error> {
         // Each entry is a CFDictionaryRef. Reach into it for the
         // application-tag CFData.
         let dict =
+            // SAFETY: argument is a static CFType reference exported by Security.framework with
+            // program-lifetime refcount; the get-rule wrap takes no extra retain.
             unsafe { CFDictionary::<CFString, CFType>::wrap_under_get_rule(*dict_ptr as *const _) };
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
         let Some(value) = dict.find(&tag_key) else {
             continue;
@@ -491,7 +544,11 @@ pub fn list() -> Result<Vec<EnclaveKeyHandle>, Error> {
 /// on the OS side); we treat that as `Ok(())` so the DAO's
 /// soft-delete + sync-replay path stays clean.
 pub fn delete(handle: &EnclaveKeyHandle) -> Result<(), Error> {
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let query = unsafe { build_delete_query(&handle.application_tag) };
+    // SAFETY: `SecItemDelete` reads the query dictionary alive on the stack; no out-params, return
+    // code intentionally ignored (best-effort cleanup).
     let status = unsafe { SecItemDelete(query.as_concrete_TypeRef()) };
     if status == errSecItemNotFound || status == 0 {
         Ok(())
@@ -522,6 +579,8 @@ struct OwnedSecKey(SecKeyRef);
 impl Drop for OwnedSecKey {
     fn drop(&mut self) {
         if !self.0.is_null() {
+            // SAFETY: pointer is a non-null +1-retained CF reference we own via the surrounding
+            // wrapper; releasing once balances the create-rule retain.
             unsafe { core_foundation_sys::base::CFRelease(self.0 as *const c_void) };
         }
     }
@@ -553,8 +612,14 @@ unsafe fn build_private_attrs(
     tag: &[u8],
     access: &SecAccessControl,
 ) -> CFDictionary<CFString, CFType> {
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let is_perm_key = unsafe { CFString::wrap_under_get_rule(kSecAttrIsPermanent) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let app_tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let ac_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccessControl) };
     let true_val = CFNumber::from(1i32);
     let tag_data = CFData::from_buffer(tag);
@@ -573,11 +638,23 @@ unsafe fn build_private_attrs(
 unsafe fn build_create_attrs(
     private_attrs: CFDictionary<CFString, CFType>,
 ) -> CFDictionary<CFString, CFType> {
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_type_key = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyType) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_type_val = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyTypeECSECPrimeRandom) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let size_key = unsafe { CFString::wrap_under_get_rule(kSecAttrKeySizeInBits) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let token_key = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenID) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let token_val = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenIDSecureEnclave) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let priv_key = unsafe { CFString::wrap_under_get_rule(kSecPrivateKeyAttrs) };
     CFDictionary::from_CFType_pairs(&[
         (key_type_key, key_type_val.as_CFType()),
@@ -602,13 +679,29 @@ unsafe fn build_lookup_query(
     tag: &[u8],
     context: Option<&Retained<LAContext>>,
 ) -> CFDictionary<CFString, CFType> {
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let class_val = unsafe { CFString::wrap_under_get_rule(kSecClassKey) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_type_key = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyType) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_type_val = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyTypeECSECPrimeRandom) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let app_tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let return_ref_key = unsafe { CFString::wrap_under_get_rule(kSecReturnRef) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let match_limit_key = unsafe { CFString::wrap_under_get_rule(kSecMatchLimit) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let match_limit_val = unsafe { CFString::wrap_under_get_rule(kSecMatchLimitOne) };
     let true_val = CFNumber::from(1i32);
     let mut pairs: Vec<(CFString, CFType)> = vec![
@@ -623,6 +716,8 @@ unsafe fn build_lookup_query(
         // and let CF treat the Obj-C pointer as a CFType for the
         // dictionary slot. `kSecUseAuthenticationContext` is documented
         // to accept LAContext instances verbatim.
+        // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+        // program-lifetime refcount; the get-rule wrap takes no extra retain.
         let auth_ctx_key = unsafe { CFString::wrap_under_get_rule(kSecUseAuthenticationContext) };
         let ctx_ptr: *const c_void = Retained::as_ptr(ctx) as *const c_void;
         // SAFETY: LAContext is a CFRetain-compatible Obj-C class;
@@ -642,14 +737,32 @@ unsafe fn build_lookup_query(
 ///
 /// Same get-rule contract as `build_lookup_query`.
 unsafe fn build_list_query() -> CFDictionary<CFString, CFType> {
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let class_val = unsafe { CFString::wrap_under_get_rule(kSecClassKey) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_class_key = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyClass) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_class_val = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyClassPrivate) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let token_key = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenID) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let token_val = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenIDSecureEnclave) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let return_attrs_key = unsafe { CFString::wrap_under_get_rule(kSecReturnAttributes) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let match_limit_key = unsafe { CFString::wrap_under_get_rule(kSecMatchLimit) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let match_limit_val = unsafe { CFString::wrap_under_get_rule(kSecMatchLimitAll) };
     let true_val = CFNumber::from(1i32);
     CFDictionary::from_CFType_pairs(&[
@@ -669,12 +782,26 @@ unsafe fn build_list_query() -> CFDictionary<CFString, CFType> {
 /// Same get-rule contract as the sibling builders above; the
 /// dictionary must outlive the `SecItemDelete` FFI call.
 unsafe fn build_delete_query(tag: &[u8]) -> CFDictionary<CFString, CFType> {
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let class_val = unsafe { CFString::wrap_under_get_rule(kSecClassKey) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_class_key = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyClass) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let key_class_val = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyClassPrivate) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let token_key = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenID) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let token_val = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenIDSecureEnclave) };
+    // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
+    // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let app_tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
     CFDictionary::from_CFType_pairs(&[
         (class_key, class_val.as_CFType()),
@@ -691,8 +818,13 @@ fn load_private_key(
     tag: &[u8],
     context: Option<&Retained<LAContext>>,
 ) -> Result<Option<OwnedSecKey>, Error> {
+    // SAFETY: callee is `unsafe fn` because it wraps Security.framework static `CFStringRef`
+    // constants; the resulting dictionary is owned for the duration of the call below.
     let query = unsafe { build_lookup_query(tag, context) };
     let mut item: *const c_void = ptr::null();
+    // SAFETY: `SecItemCopyMatching` reads the query dictionary alive on the stack and writes a
+    // +1-retained CF reference into the out-pointer; the kernel does not retain any pointer past
+    // return.
     let status = unsafe {
         SecItemCopyMatching(query.as_concrete_TypeRef(), &mut item as *mut *const c_void)
     };

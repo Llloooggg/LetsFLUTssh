@@ -1,3 +1,5 @@
+#![warn(clippy::undocumented_unsafe_blocks)]
+
 //! Process-hardening + memory-lock helpers.
 //!
 //! Per-OS FFI lives here (not in `lfs_core`) so the core stays
@@ -141,26 +143,32 @@ pub fn is_being_debugged() -> bool {
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
-        // SAFETY: `proc_pidinfo` is a read-only kernel query that
+        // `proc_pidinfo` is a read-only kernel query that
         // populates the typed `proc_bsdinfo` struct exposed by
         // `libc`. We pass our own buffer + size; the kernel does
-        // not retain the pointer past the call. The previous
-        // implementation hard-coded `p_flag` at byte 32 inside
-        // `kinfo_proc.kp_proc` (sysctl + raw cast); the offset
-        // is stable on 64-bit Darwin since 10.4 but would break
-        // silently if Apple ever shipped a layout change. Routing
-        // through `proc_pidinfo(PROC_PIDTBSDINFO)` reads the
-        // typed `pbi_flags` field straight off `proc_bsdinfo`,
-        // so the binding mirrors the kernel ABI rather than
-        // depending on a frozen byte offset.
+        // not retain the pointer past the call. Routing through
+        // `proc_pidinfo(PROC_PIDTBSDINFO)` reads the typed
+        // `pbi_flags` field straight off `proc_bsdinfo`, so the
+        // binding mirrors the kernel ABI rather than depending on
+        // a frozen byte offset.
         use std::mem;
         // `P_TRACED = 0x800` lives in `<sys/proc.h>` and is mirrored
         // into `pbi_flags` by the kernel's `fill_tbsdinfo()` shim.
         // libc does not export the constant, so we pin it locally.
         const P_TRACED: u32 = 0x0000_0800;
+        // SAFETY: `getpid()` takes no arguments and returns the
+        // current process's PID; no pointer aliasing.
         let pid = unsafe { libc::getpid() };
+        // SAFETY: `proc_bsdinfo` is a plain-old-data POD layout
+        // (`#[repr(C)]` struct of integer fields); all-zero is a
+        // valid bit pattern and we immediately overwrite it via
+        // the `proc_pidinfo` call below.
         let mut info: libc::proc_bsdinfo = unsafe { mem::zeroed() };
         let info_size = mem::size_of::<libc::proc_bsdinfo>() as libc::c_int;
+        // SAFETY: `proc_pidinfo` writes up to `info_size` bytes
+        // into the buffer pointed to by `&mut info`, which we own
+        // on the stack and which is exactly that many bytes wide;
+        // the kernel does not retain the pointer past the call.
         let rc = unsafe {
             libc::proc_pidinfo(
                 pid,
@@ -269,9 +277,6 @@ fn prctl_no_dumpable() -> HardeningStep {
 fn ptrace_deny_attach() -> HardeningStep {
     // PT_DENY_ATTACH = 31 on Darwin (private; not in libc crate).
     const PT_DENY_ATTACH: libc::c_int = 31;
-    // SAFETY: ptrace with PT_DENY_ATTACH does not deref pointer
-    // args; the kernel reads the request code and applies a
-    // process-level flag.
     extern "C" {
         fn ptrace(
             request: libc::c_int,
@@ -280,6 +285,9 @@ fn ptrace_deny_attach() -> HardeningStep {
             data: libc::c_int,
         ) -> libc::c_int;
     }
+    // SAFETY: ptrace with PT_DENY_ATTACH does not deref the
+    // pointer arg (we pass a null pointer); the kernel reads the
+    // request code and applies a process-level flag.
     let rc = unsafe { ptrace(PT_DENY_ATTACH, 0, std::ptr::null_mut(), 0) };
     HardeningStep {
         label: "ptrace(PT_DENY_ATTACH)".to_string(),
