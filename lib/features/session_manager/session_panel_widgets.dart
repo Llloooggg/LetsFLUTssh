@@ -174,6 +174,30 @@ class _SessionDetailsPanel extends StatelessWidget {
     this.folderItemCount = 0,
   });
 
+  /// Build the per-kind detail rows. SSH carries the host /
+  /// login / port tuple on the in-memory row; WebDAV and S3
+  /// keep their transport details on the matching join table
+  /// (the dialog edit flow fetches them async) — the panel
+  /// shows the protocol tag and the label so it does not
+  /// surface stale empty rows for those kinds.
+  List<(String, String)> _rowsForSession(Session s, S l10n) {
+    final name = s.label.isNotEmpty ? s.label : s.displayName;
+    switch (s.kind) {
+      case SessionKind.webdav:
+        return [(l10n.name, name), (l10n.protocol, 'WebDAV')];
+      case SessionKind.s3:
+        return [(l10n.name, name), (l10n.protocol, 'S3')];
+      case SessionKind.ssh:
+        return [
+          (l10n.name, name),
+          (l10n.host, s.host),
+          (l10n.login, s.user),
+          (l10n.protocol, 'SSH'),
+          (l10n.port, s.port.toString()),
+        ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
@@ -182,13 +206,7 @@ class _SessionDetailsPanel extends StatelessWidget {
     final List<(String, String)> rows;
     if (session != null) {
       final s = session!;
-      rows = [
-        (l10n.name, s.label.isNotEmpty ? s.label : s.displayName),
-        (l10n.host, s.host),
-        (l10n.login, s.user),
-        (l10n.protocol, 'SSH'),
-        (l10n.port, s.port.toString()),
-      ];
+      rows = _rowsForSession(s, l10n);
     } else if (folderPath != null && folderPath!.isNotEmpty) {
       final folderName = folderPath!.split('/').last;
       rows = [

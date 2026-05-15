@@ -352,9 +352,35 @@ class Session {
   /// the `SessionsChanged` bus event landing.
   Session withoutCredentials() => copyWith(auth: auth.withoutCredentials());
 
-  /// Display string: "label (user@host)" or "user@host" if no label.
-  String get displayName =>
-      label.isNotEmpty ? '$label ($user@$host)' : '$user@$host:$port';
+  /// Display string for sidebar Semantics, connection-label fallback,
+  /// and detail-panel name row.
+  ///
+  /// SSH carries `host` / `user` / `port` on the in-memory `Session`
+  /// row (loaded off `ssh_session_details` after the v16 schema
+  /// split), so the SSH branch renders the familiar
+  /// `"label (user@host)"` / `"user@host:port"` shape.
+  ///
+  /// WebDAV / S3 keep their transport tuple on the matching join
+  /// table (`webdav_session_details.base_url`,
+  /// `s3_session_details.endpoint`) — the SSH-shaped fields on
+  /// `Session` read empty for those kinds, so rendering
+  /// `"$user@$host:$port"` would emit `"@:22"`. Fall back to the
+  /// label, or — when the user has not yet labelled the session —
+  /// a kind-specific token so the surface is never blank.
+  String get displayName {
+    if (kind != SessionKind.ssh) {
+      if (label.isNotEmpty) return label;
+      switch (kind) {
+        case SessionKind.webdav:
+          return 'WebDAV session';
+        case SessionKind.s3:
+          return 'S3 session';
+        case SessionKind.ssh:
+          break;
+      }
+    }
+    return label.isNotEmpty ? '$label ($user@$host)' : '$user@$host:$port';
+  }
 
   /// Full folder path with label for tree display.
   String get fullPath => folder.isNotEmpty ? '$folder/$label' : label;

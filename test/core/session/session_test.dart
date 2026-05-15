@@ -83,6 +83,38 @@ void main() {
       expect(s.displayName, 'root@example.com:2222');
     });
 
+    test('displayName for WebDAV with label uses the label', () {
+      // WebDAV / S3 keep host / port / user on the matching join
+      // table (`webdav_session_details` / `s3_session_details`).
+      // After the v16 schema split those fields read empty on the
+      // in-memory `Session` row, so `displayName` must not render
+      // `@:22`. With a label the label wins.
+      final s = Session(
+        label: 'nextcloud',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: '', port: 0, user: ''),
+      );
+      expect(s.displayName, 'nextcloud');
+    });
+
+    test('displayName for unlabeled WebDAV falls back to kind token', () {
+      final s = Session(
+        label: '',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: '', port: 0, user: ''),
+      );
+      expect(s.displayName, 'WebDAV session');
+    });
+
+    test('displayName for unlabeled S3 falls back to kind token', () {
+      final s = Session(
+        label: '',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: '', port: 0, user: ''),
+      );
+      expect(s.displayName, 'S3 session');
+    });
+
     test('fullPath with folder', () {
       final s = Session(
         label: 'nginx',
