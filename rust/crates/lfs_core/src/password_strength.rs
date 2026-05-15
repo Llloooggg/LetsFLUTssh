@@ -27,6 +27,27 @@ pub enum PasswordStrength {
 /// code units; for the ASCII-bounded threshold ranges we work
 /// in (8 / 12 / 16), the Unicode surrogate-pair edge does not
 /// reach the strong tiers — so this delta is safe.
+///
+/// # Heuristic vs entropy
+///
+/// The classifier counts character classes (lower / upper / digit /
+/// symbol — four classes total) rather than computing Shannon
+/// entropy. The choice is deliberate:
+///
+/// - **Informational only.** The meter colours the UI bar; it
+///   never blocks a save. The blocking gates (minimum length on
+///   the master-password wizard, KDF cost on credential decrypt)
+///   live in `lfs_core::security::master_password` — see
+///   `docs/ARCHITECTURE.md §3.6`.
+/// - **Terminal-friendly inputs.** SSH passwords are typed at a
+///   prompt, often through a phone or a remote pane; long
+///   passphrases dominate in practice and a four-class diversity
+///   check distinguishes "abc" from "Abc1!" without penalising
+///   the diceware "correct-horse-battery-staple" shape.
+/// - **Entropy is misleading on short inputs.** Shannon entropy
+///   over a single string is a poor estimator at < 16 characters
+///   (sample size of 1 against a 95-char alphabet); a class-count
+///   meter is no worse and is what users intuit from the bar.
 pub fn assess(password: &str) -> PasswordStrength {
     if password.is_empty() {
         return PasswordStrength::Empty;

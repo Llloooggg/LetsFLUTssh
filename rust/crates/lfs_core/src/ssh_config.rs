@@ -141,6 +141,15 @@ fn parse_expanded(expanded: &str) -> Vec<HostEntry> {
         }
     }
 
+    // Per-host match cost is O(N · M) — every concrete host pattern
+    // (N) is checked against every wildcard block (M) so unset fields
+    // can cascade in file order. Real-world `~/.ssh/config` rarely
+    // exceeds ~100 wildcard blocks even on heavily-templated infra
+    // configs; the matcher itself is byte-level glob compare so the
+    // product stays in microseconds. A pathological config with
+    // thousands of wildcard blocks would still terminate but is not
+    // a target shape — the Include-size cap upstream
+    // (`MAX_INCLUDE_FILE_BYTES`) bounds total input.
     concrete
         .into_iter()
         .map(|(idx, pat)| resolve_entry(pat, &blocks[idx], &wildcard_blocks))
@@ -328,6 +337,17 @@ fn parse_preferred_auths(raw: &str) -> Option<Vec<AuthType>> {
     }
 }
 
+/// Recurse over `Include` directives, deduplicating via `visited`
+/// so a self-referencing config terminates instead of looping.
+///
+/// **Contract:** `base_dir` must be an absolute path. Relative
+/// include tokens are anchored to `base_dir`, so cycle detection
+/// (string-equality on the anchored path) only deduplicates
+/// correctly when the anchor itself is canonical — two callers
+/// passing the same file via different relative bases would each
+/// produce a distinct `visited` key and recurse without bound.
+/// The production callers ([`parse_openssh_config`] / its `_with_fs`
+/// sibling) feed `<home>/.ssh` which is already absolute.
 fn expand_includes(
     content: &str,
     reader: IncludeReader<'_>,
@@ -338,6 +358,14 @@ fn expand_includes(
     if remaining == 0 {
         return content.to_string();
     }
+    // Cycle detection compares canonical absolute paths; relative
+    // input would let two paths denoting the same file slip past the
+    // `visited` set. Callers that disable expansion entirely pass
+    // `remaining == 0` and skip the check.
+    debug_assert!(
+        base_dir.is_empty() || is_absolute_path(base_dir),
+        "cycle-detection requires absolute base_dir; got {base_dir:?}"
+    );
     let mut buf = String::new();
     for raw_line in content.lines() {
         let stripped = strip_comment(raw_line);
@@ -390,6 +418,14 @@ fn expand_includes_with_fs(
     if remaining == 0 {
         return content.to_string();
     }
+    // Cycle detection compares canonical absolute paths; relative
+    // input would let two paths denoting the same file slip past the
+    // `visited` set. Callers that disable expansion entirely pass
+    // `remaining == 0` and skip the check.
+    debug_assert!(
+        base_dir.is_empty() || is_absolute_path(base_dir),
+        "cycle-detection requires absolute base_dir; got {base_dir:?}"
+    );
     let mut buf = String::new();
     for raw_line in content.lines() {
         let stripped = strip_comment(raw_line);

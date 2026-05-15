@@ -68,26 +68,56 @@ pub fn evaluate(model: ThreatModel) -> Vec<(SecurityThreat, ThreatStatus)> {
     }
 
     vec![
+        // ColdDiskTheft: protects against a stolen offline drive.
+        // Any tier above Plaintext encrypts the credential store
+        // at rest, so the wrapped key alone is not enough to read
+        // the credentials without the wrapping key.
         (
             SecurityThreat::ColdDiskTheft,
             yes(model.tier != ThreatTier::Plaintext),
         ),
+        // KeyringFileTheft: protects against an attacker who reads
+        // the OS keychain file directly (T1 stores the wrapping key
+        // there in plaintext — lost to a disk attacker). T2 seals
+        // the blob with the hardware chip (chip refuses export);
+        // T1 + master password adds a user-secret KDF on top so
+        // the keychain blob alone is no longer the whole secret.
         (
             SecurityThreat::KeyringFileTheft,
             yes(model.tier == ThreatTier::Hardware
                 || model.tier == ThreatTier::Paranoid
                 || (model.tier == ThreatTier::Keychain && model.password)),
         ),
+        // OfflineBruteForce: protects against an attacker who has
+        // the full encrypted blob and grinds candidate passwords
+        // offline. Only a user-known secret (master password on
+        // T1/T2, or Paranoid's required passphrase) introduces an
+        // Argon2id cost factor an offline attacker cannot skip.
         (SecurityThreat::OfflineBruteForce, yes(has_user_secret)),
+        // BystanderUnlockedMachine: protects against someone with
+        // physical access to an unlocked session who tries to use
+        // the app. Same condition as offline brute-force — the
+        // user-known secret is required at unlock time, so an OS
+        // session alone is not enough to read credentials.
         (
             SecurityThreat::BystanderUnlockedMachine,
             yes(has_user_secret),
         ),
+        // LiveRamForensicsLocked: protects against RAM-scraping a
+        // locked-screen machine. Requires the wrapping key to be
+        // held by the chip (T2) plus a user secret on top so the
+        // unlocked-but-screen-locked state still demands re-auth.
+        // Paranoid achieves the same via its mandatory passphrase.
         (
             SecurityThreat::LiveRamForensicsLocked,
             yes(model.tier == ThreatTier::Paranoid
                 || (model.tier == ThreatTier::Hardware && model.password)),
         ),
+        // OsKernelOrKeychainBreach: protects against compromise of
+        // the OS keychain service or kernel itself. Same gating as
+        // RAM forensics — the credential decrypt must hinge on a
+        // secret the OS keychain never sees in cleartext, which
+        // only T2 + password or Paranoid achieves.
         (
             SecurityThreat::OsKernelOrKeychainBreach,
             yes(model.tier == ThreatTier::Paranoid

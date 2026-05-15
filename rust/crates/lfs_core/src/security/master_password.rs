@@ -131,8 +131,8 @@ impl KdfParams {
         if bytes.len() < 10 {
             return Err("KdfParams: truncated Argon2id params".into());
         }
-        let memory_kib = u32::from_be_bytes(bytes[1..5].try_into().unwrap());
-        let iterations = u32::from_be_bytes(bytes[5..9].try_into().unwrap());
+        let memory_kib = u32::from_be_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]);
+        let iterations = u32::from_be_bytes([bytes[5], bytes[6], bytes[7], bytes[8]]);
         let parallelism = bytes[9];
         if memory_kib == 0 || iterations == 0 || parallelism == 0 {
             return Err("KdfParams: Argon2id params must be > 0".into());
