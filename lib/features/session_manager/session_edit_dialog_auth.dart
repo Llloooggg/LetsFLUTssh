@@ -29,11 +29,11 @@ extension _AuthTab on _SessionEditDialogState {
           ),
         _buildAgentOption(),
         if (!_useAgent) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           _buildPasswordField(),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           _buildOrDivider(),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           ..._buildKeyFields(),
         ],
       ],
@@ -156,13 +156,13 @@ extension _AuthTab on _SessionEditDialogState {
   List<Widget> _buildKeyFields() {
     return [
       _buildKeyStoreSelector(),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.md),
       if (!_hasStoreKey) ...[
         _buildKeyPathField(),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _buildPemToggle(),
         if (_showKeyText) _buildPemTextField(),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
       ],
       _buildPassphraseField(),
     ];
@@ -227,7 +227,7 @@ extension _AuthTab on _SessionEditDialogState {
       child: Row(
         children: [
           Icon(Icons.vpn_key, size: 16, color: AppTheme.accent),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               _selectedKeyLabel,

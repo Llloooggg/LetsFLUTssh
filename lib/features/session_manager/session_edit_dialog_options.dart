@@ -12,7 +12,7 @@ extension _OptionsTab on _SessionEditDialogState {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildTagsSection(),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         _buildRecordSection(),
       ],
     );
@@ -105,7 +105,7 @@ class _OptionRow extends StatelessWidget {
             ],
           ),
           if (detail != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Align(alignment: Alignment.centerLeft, child: detail!),
           ],
         ],
@@ -193,7 +193,7 @@ class _EditingSessionTagsChips extends ConsumerWidget {
             height: 6,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Text(
             tag.name,
             style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fg),

@@ -17,9 +17,9 @@ extension _ConnectionTab on _SessionEditDialogState {
           controller: _labelCtrl,
           hint: l10n.hintMyServer,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         _buildKindPicker(l10n),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         if (_kind == SessionKind.ssh)
           ..._buildSshFields(l10n)
         else if (_kind == SessionKind.webdav)
@@ -100,26 +100,26 @@ extension _ConnectionTab on _SessionEditDialogState {
           hint: 'AKIA…',
           validator: _requiredValidator,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.s3Region,
           controller: _regionCtrl,
           hint: l10n.s3RegionHint,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.s3Endpoint,
           controller: _endpointCtrl,
           hint: l10n.s3EndpointHint,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             Switch(
               value: _s3PathStyleEnabled,
               onChanged: (v) => rebuild(() => _s3PathStyleEnabled = v),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,13 +145,13 @@ extension _ConnectionTab on _SessionEditDialogState {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.s3DefaultBucket,
           controller: _defaultBucketCtrl,
           hint: 'my-bucket',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.s3DefaultPrefix,
           controller: _defaultPrefixCtrl,
@@ -173,7 +173,7 @@ extension _ConnectionTab on _SessionEditDialogState {
               validator: _requiredValidator,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           SizedBox(
             width: 80,
             child: StyledFormField(
@@ -192,14 +192,14 @@ extension _ConnectionTab on _SessionEditDialogState {
           ),
         ],
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: AppSpacing.md),
       StyledFormField(
         label: l10n.usernameRequired,
         controller: _userCtrl,
         hint: l10n.hintUsername,
         validator: _requiredValidator,
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: AppSpacing.lg),
       _buildProxyJumpSection(),
     ];
   }
@@ -233,31 +233,31 @@ extension _ConnectionTab on _SessionEditDialogState {
           hint: l10n.webDavBaseUrlHint,
           validator: _webDavBaseUrlValidator,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.webDavUsername,
           controller: _userCtrl,
           hint: l10n.hintUsername,
           validator: _requiredValidator,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         FieldLabel(l10n.webDavAuthMethod),
         Row(
           children: [
             _webDavAuthChip('basic', l10n.webDavAuthBasic),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xxs),
             _webDavAuthChip('digest', l10n.webDavAuthDigest),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xxs),
             _webDavAuthChip('bearer', l10n.webDavAuthBearer),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.webDavSelfSignedFingerprint,
           controller: _fingerprintCtrl,
           hint: 'SHA256:…',
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
           l10n.webDavSelfSignedFingerprintHint,
           style: TextStyle(
@@ -293,18 +293,18 @@ extension _ConnectionTab on _SessionEditDialogState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FieldLabel(l10n.proxyJump),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             _proxyModeChip(_ProxyMode.none, l10n.proxyJumpNone),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xxs),
             _proxyModeChip(_ProxyMode.saved, l10n.proxyJumpSavedSession),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xxs),
             _proxyModeChip(_ProxyMode.custom, l10n.proxyJumpCustom),
           ],
         ),
         if (_proxyMode == _ProxyMode.saved) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
             initialValue: candidates.any((s) => s.id == _proxyViaSessionId)
                 ? _proxyViaSessionId
@@ -340,7 +340,7 @@ extension _ConnectionTab on _SessionEditDialogState {
           ),
         ],
         if (_proxyMode == _ProxyMode.custom) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(
@@ -350,7 +350,7 @@ extension _ConnectionTab on _SessionEditDialogState {
                   hint: 'bastion.example.com',
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               SizedBox(
                 width: 80,
                 child: StyledFormField(
@@ -362,13 +362,13 @@ extension _ConnectionTab on _SessionEditDialogState {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           StyledFormField(
             label: l10n.usernameRequired,
             controller: _proxyUserCtrl,
             hint: l10n.hintUsername,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Text(
             l10n.proxyJumpCustomNote,
             style: TextStyle(

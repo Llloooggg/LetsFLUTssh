@@ -124,7 +124,7 @@ class _PasswordPair extends StatelessWidget {
             isDense: true,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xxs),
         SecurePasswordField(
           controller: confirm,
           onChanged: (_) => onChanged(),

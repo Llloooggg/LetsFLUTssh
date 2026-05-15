@@ -200,7 +200,7 @@ class _SettingsRow extends StatelessWidget {
                       Expanded(child: labelBlock),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Align(alignment: Alignment.centerRight, child: child),
                 ],
               );
@@ -402,7 +402,7 @@ class _SliderField extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.md),
         Text(
           format(value),
           style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgDim),

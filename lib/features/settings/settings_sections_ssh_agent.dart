@@ -87,7 +87,7 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
           value: running,
           onChanged: unsupported || _busy ? null : _setRunning,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           unsupported
               ? l10n.agentEndpointStatusUnsupported
@@ -95,7 +95,7 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
         ),
         if (running && status.socketPath != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Expanded(
@@ -109,7 +109,7 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               AppButton.secondary(
                 label: Platform.isWindows
                     ? l10n.agentEndpointCopyPipeName

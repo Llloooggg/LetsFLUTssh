@@ -79,7 +79,7 @@ class _TierRow extends StatelessWidget {
                       ),
                     ),
                     if (current) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
@@ -99,7 +99,7 @@ class _TierRow extends StatelessWidget {
                       ),
                     ],
                     if (recommended && !current) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
@@ -273,7 +273,7 @@ class _ReducedWizardBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber_outlined, size: 18, color: AppTheme.yellow),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               reason,
@@ -315,7 +315,7 @@ class _PlaintextAckPanel extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.warning_amber, size: 18, color: AppTheme.red),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   l10n.plaintextWarningTitle,
@@ -328,12 +328,12 @@ class _PlaintextAckPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Text(
             l10n.plaintextWarningBody,
             style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Checkbox(
@@ -378,7 +378,7 @@ class _HonestyNote extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.info_outline, size: 16, color: AppTheme.yellow),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,

@@ -187,7 +187,7 @@ extension _Internals on _SessionTreeViewState {
               size: 12,
               color: AppTheme.fgFaint,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               isBulk ? S.of(context).dragItemCount(totalCount) : label,
               style: TextStyle(fontSize: AppFonts.sm),
@@ -236,13 +236,13 @@ extension _Internals on _SessionTreeViewState {
     final guideColor = AppTheme.borderLight;
     return [
       if (depth == 0)
-        const SizedBox(width: 8)
+        const SizedBox(width: AppSpacing.sm)
       else
         SizedBox(
           width: 8.0 + depth * 16.0,
           child: Row(
             children: [
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               for (var i = 0; i < depth; i++)
                 SizedBox(
                   width: 16,
@@ -251,9 +251,12 @@ extension _Internals on _SessionTreeViewState {
             ],
           ),
         ),
-      if (expandArrow != null) ...[expandArrow, const SizedBox(width: 4)],
+      if (expandArrow != null) ...[
+        expandArrow,
+        const SizedBox(width: AppSpacing.xs),
+      ],
       icon,
-      const SizedBox(width: 6),
+      const SizedBox(width: AppSpacing.xxs),
     ];
   }
 

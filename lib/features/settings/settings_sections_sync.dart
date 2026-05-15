@@ -252,7 +252,7 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
           value: c.enabled,
           onChanged: (v) => _saveConfig(enabled: v),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         StyledFormField(
           label: 'WebDAV URL',
           controller: _urlCtrl,
@@ -260,13 +260,13 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
           keyboardType: TextInputType.url,
           onSubmitted: (_) => _saveConfig(),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         StyledFormField(
           label: 'Username',
           controller: _userCtrl,
           onSubmitted: (_) => _saveConfig(),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _AuthMethodPicker(
           value: _authMethod,
           onChanged: (v) {
@@ -274,14 +274,14 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
             _saveConfig();
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         StyledFormField(
           label: _passwordStaged ? 'Password (configured)' : 'Password',
           controller: _pwCtrl,
           obscure: true,
           onSubmitted: (_) => _saveSecret(c.webdavPasswordRef, _pwCtrl),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         StyledFormField(
           label: _passphraseStaged
               ? '${l10n.syncPassphrase} (configured)'
@@ -306,14 +306,14 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
             await _saveSecret(c.passphraseRef, _passphraseCtrl);
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         StyledFormField(
           label: l10n.syncRemotePath,
           controller: _remotePathCtrl,
           hint: l10n.syncRemotePathHint,
           onSubmitted: (_) => _saveConfig(),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             AppButton.primary(
@@ -321,7 +321,7 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
               icon: Icons.cloud_upload_outlined,
               onTap: _busy ? null : _onPush,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             AppButton.secondary(
               label: l10n.syncPullNow,
               icon: Icons.cloud_download_outlined,
@@ -329,7 +329,7 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         _SyncTimestampRow(
           label: l10n.syncLastPushed(
             c.lastPushedAtMs == 0
@@ -389,7 +389,7 @@ class _AuthMethodPicker extends StatelessWidget {
     return Row(
       children: [
         const ExcludeSemantics(child: FieldLabel('Auth')),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.md),
         for (final m in const ['basic', 'digest', 'bearer'])
           Padding(
             padding: const EdgeInsets.only(right: 8),

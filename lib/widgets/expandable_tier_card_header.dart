@@ -86,8 +86,11 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-              const SizedBox(width: 4),
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                trailing!,
+              ],
+              const SizedBox(width: AppSpacing.xs),
               Icon(
                 expanded ? Icons.expand_less : Icons.expand_more,
                 size: 18,
@@ -124,7 +127,7 @@ class _CurrentBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.check, size: 12, color: AppTheme.green),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             label,
             style: TextStyle(

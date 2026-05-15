@@ -24,7 +24,7 @@ class _ExportImportTile extends ConsumerWidget {
           subtitle: S.of(context).importFromSshDirSubtitle,
           onTap: () => _showSshDirImportDialog(context, ref),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         _SectionHeader(title: S.of(context).export_),
         _ActionTile(
           icon: Icons.upload_file,

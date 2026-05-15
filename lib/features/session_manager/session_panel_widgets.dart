@@ -50,7 +50,7 @@ class _PanelHeader extends StatelessWidget {
               backgroundColor: buttonBg,
               borderRadius: AppTheme.radiusSm,
             ),
-            if (mobile) const SizedBox(width: 8),
+            if (mobile) const SizedBox(width: AppSpacing.sm),
             AppIconButton(
               icon: Icons.add,
               onTap: onAddSession,
@@ -82,7 +82,7 @@ class _SearchBar extends StatelessWidget {
         child: Row(
           children: [
             Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: TextField(
                 decoration: InputDecoration(
@@ -132,7 +132,7 @@ class _EmptyState extends StatelessWidget {
               context,
             ).colorScheme.onSurface.withValues(alpha: 0.3),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             S.of(context).noSavedSessions,
             style: TextStyle(
@@ -142,7 +142,7 @@ class _EmptyState extends StatelessWidget {
               ).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           // `SelectionContainer.disabled` keeps the ambient MainScreen
           // `SelectionArea` from registering the button's label as
           // selectable — without it drag-select caught "+ Add Session"

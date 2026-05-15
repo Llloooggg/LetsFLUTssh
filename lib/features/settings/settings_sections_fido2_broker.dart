@@ -64,18 +64,18 @@ class _Fido2BrokerSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(title: l10n.fido2BrokerSectionTitle),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           '${l10n.fido2BrokerCurrentTransportLabel}: ${_currentTransportText(l10n, snap)}',
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         _Toggle(
           label: l10n.fido2BrokerPreferDirectHidTitle,
           value: preferDirect,
           onChanged: bothPaths ? (v) => _setPrefer(ref, v) : null,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           bothPaths
               ? l10n.fido2BrokerPreferDirectHidSubtitle(_brokerLabel(l10n))

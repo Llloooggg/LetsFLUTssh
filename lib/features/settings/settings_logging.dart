@@ -263,7 +263,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildToolbar(context, mobile, buttonBg),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xxs),
         // Box height = viewport - 280 px chrome budget, floored at 200,
         // so the viewer fills the dialog on tall windows but still
         // leaves a usable strip on short ones.
@@ -296,7 +296,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
     return Row(
       children: [
         Icon(Icons.circle, size: 8, color: indicatorColor),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.xxs),
         Expanded(
           child: Text(
             titleText,
@@ -314,7 +314,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
           backgroundColor: buttonBg,
           borderRadius: AppTheme.radiusSm,
         ),
-        if (mobile) const SizedBox(width: 8),
+        if (mobile) const SizedBox(width: AppSpacing.sm),
         AppIconButton(
           icon: Icons.save_alt,
           onTap: widget.onExport,
@@ -322,7 +322,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
           backgroundColor: buttonBg,
           borderRadius: AppTheme.radiusSm,
         ),
-        if (mobile) const SizedBox(width: 8),
+        if (mobile) const SizedBox(width: AppSpacing.sm),
         AppIconButton(
           icon: Icons.delete_outline,
           onTap: _clearAndRefresh,
@@ -404,7 +404,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
               _pushFilter();
             },
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Expanded(child: _buildLogBody()),
         ],
       ),
@@ -606,7 +606,7 @@ class _LogFilterBar extends StatelessWidget {
           active: visibleLevels.contains(LogLevel.info),
           onTap: () => onLevelToggle(LogLevel.info),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         _LevelChip(
           level: LogLevel.warn,
           label: 'W',
@@ -614,7 +614,7 @@ class _LogFilterBar extends StatelessWidget {
           active: visibleLevels.contains(LogLevel.warn),
           onTap: () => onLevelToggle(LogLevel.warn),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         _LevelChip(
           level: LogLevel.error,
           label: 'E',
@@ -622,7 +622,7 @@ class _LogFilterBar extends StatelessWidget {
           active: visibleLevels.contains(LogLevel.error),
           onTap: () => onLevelToggle(LogLevel.error),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: SizedBox(
             height: 28,

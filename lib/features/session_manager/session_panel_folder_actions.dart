@@ -337,7 +337,7 @@ extension _FolderActions on SessionPanelState {
               color: AppTheme.fgFaint,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           TextFormField(
             controller: nameCtrl,
             autofocus: true,
@@ -416,7 +416,7 @@ extension _FolderActions on SessionPanelState {
         children: [
           Text(S.of(context).deleteFolderConfirm(folderName)),
           if (sessionCount > 0) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               S.of(context).willDeleteSessionsInside(sessionCount),
               style: TextStyle(

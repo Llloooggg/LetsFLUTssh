@@ -37,10 +37,10 @@ extension _Layout on _FilePaneState {
                   color: labelColor,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(child: _buildBreadcrumb()),
               if (showNav) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 _navButton(
                   Icons.arrow_back,
                   ctrl.canGoBack ? ctrl.goBack : null,
@@ -352,12 +352,12 @@ extension _Layout on _FilePaneState {
             decoration: BoxDecoration(color: AppTheme.bg3),
             child: Icon(Icons.error_outline, size: 22, color: AppTheme.red),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Text(
             S.of(context).connectionError,
             style: AppFonts.inter(fontSize: AppFonts.lg, color: AppTheme.fgDim),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             localizeError(S.of(context), ctrl.error!),
             style: AppFonts.inter(
@@ -366,7 +366,7 @@ extension _Layout on _FilePaneState {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           GestureDetector(
             onTap: ctrl.refresh,
             child: Container(
@@ -559,7 +559,7 @@ extension _Layout on _FilePaneState {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(_FilePaneState._dragIcon(dragEntries, entry), size: 14),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               dragEntries.length > 1
                   ? S.of(context).dragItemCount(dragEntries.length)

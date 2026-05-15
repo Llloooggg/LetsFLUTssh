@@ -33,7 +33,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
                 onChanged: (_) => _ctrl.toggleFolder(node.fullPath),
               ),
               const Icon(Icons.folder, size: 16),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   node.name,
@@ -72,7 +72,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
                 size: 16,
                 color: isIncomplete ? AppTheme.orange : AppTheme.fg,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   session.label.isNotEmpty
@@ -116,7 +116,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
             style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         if (widget.isQrMode) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           ClipRRect(
             borderRadius: AppTheme.radiusSm,
             child: LinearProgressIndicator(
@@ -126,7 +126,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
             ),
           ),
           if (!_ctrl.fitsInQr && _ctrl.hasSelection) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               S.of(context).qrTooLarge,
               style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.red),

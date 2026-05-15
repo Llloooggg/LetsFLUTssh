@@ -17,13 +17,13 @@ extension _MacosKeychain on _SecuritySectionState {
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           l10n.securityMacosEnableSecureTiersPrompt,
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xxs),
         AppButton.primary(
           label: l10n.securityMacosEnableSecureTiers,
           icon: Icons.vpn_key,
@@ -44,7 +44,7 @@ extension _MacosKeychain on _SecuritySectionState {
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xxs),
         AppButton.destructive(
           label: l10n.securityMacosRemoveIdentity,
           icon: Icons.vpn_key_off,

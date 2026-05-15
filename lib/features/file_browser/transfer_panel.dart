@@ -368,7 +368,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                SizedBox(width: 16, child: Text('#', style: style)),
+                SizedBox(
+                  width: AppSpacing.lg,
+                  child: Text('#', style: style),
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 SizedBox(width: 20, child: Text('', style: style)),
                 const SizedBox(width: AppSpacing.xs),
@@ -468,7 +471,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       clipBehavior: Clip.hardEdge,
       child: Row(
         children: [
-          SizedBox(width: 16, child: Text('#', style: style)),
+          SizedBox(
+            width: AppSpacing.lg,
+            child: Text('#', style: style),
+          ),
           const SizedBox(width: AppSpacing.xs),
           SizedBox(width: 20, child: Text('', style: style)),
           const SizedBox(width: AppSpacing.xs),

@@ -11,7 +11,7 @@ class _DataSection extends ConsumerWidget {
     return Column(
       children: [
         _ExportImportTile(),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         // Storage / destructive group kept under its own header so
         // the Data Location info tile + Reset All Data button do not
         // read as part of the Export / Import flow directly above.

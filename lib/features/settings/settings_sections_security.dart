@@ -462,7 +462,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           unavailableReason: null,
           l10n: l10n,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         // Biometric + auto-lock rows live inside the current tier's
         // expandable (see _activeTierExtras) — they are orthogonal
         // "settings of the current tier" and only meaningful when a
@@ -658,7 +658,7 @@ class _AutoLockTile extends ConsumerWidget {
             _label(l10n, current),
             style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
         ],
       ),

@@ -123,7 +123,7 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
               l10n.setMasterPasswordHint,
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _passwordTextField(
               widget.passwordCtrl,
               l10n.masterPassword,
@@ -132,7 +132,7 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
               textInputAction: _chain.actionAt(0),
               onSubmitted: _chain.handlerAt(0),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _passwordTextField(
               widget.confirmCtrl,
               l10n.confirmPassword,
@@ -142,7 +142,7 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
               onSubmitted: _chain.handlerAt(1),
             ),
             if (_mismatch) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -215,7 +215,7 @@ class _ImportPasswordDialogState extends State<_ImportPasswordDialog> {
               S.of(context).enterMasterPasswordPrompt,
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _passwordTextField(
               widget.passwordCtrl,
               S.of(context).masterPassword,
@@ -275,7 +275,7 @@ class _EnableBiometricDialogState extends State<_EnableBiometricDialog> {
               l10n.biometricUnlockSubtitle,
               style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             _passwordTextField(
               widget.currentCtrl,
               l10n.currentPassword,

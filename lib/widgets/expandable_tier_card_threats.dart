@@ -101,7 +101,7 @@ class _ThreatLine extends StatelessWidget {
                   color: protects ? AppTheme.green : AppTheme.red,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xxs),
               Expanded(
                 child: Row(
                   children: [
@@ -117,7 +117,7 @@ class _ThreatLine extends StatelessWidget {
                       ),
                     ),
                     if (showsPasswordHint) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: AppSpacing.xxs),
                       if (compactHint)
                         Tooltip(
                           message: l10n.modifierOnlyWithPassword,
@@ -170,7 +170,7 @@ class _UnavailableReason extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber_outlined, size: 14, color: AppTheme.yellow),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: Text(
               text,

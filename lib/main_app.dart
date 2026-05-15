@@ -521,7 +521,7 @@ class _StartupSplash extends StatelessWidget {
                   height: 32,
                   child: CircularProgressIndicator(strokeWidth: 2.5),
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: AppSpacing.lg),
                 Text('LetsFLUTssh'),
               ],
             ),
