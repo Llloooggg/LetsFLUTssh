@@ -388,12 +388,9 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
                 match result {
                     Ok(Ok(_)) => {}
                     Ok(Err(e)) => publish_recorder_failure(&app, &id, "header", e.to_string()),
-                    Err(join_err) => publish_recorder_failure(
-                        &app,
-                        &id,
-                        "header",
-                        format!("worker join: {join_err}"),
-                    ),
+                    Err(join_err) => {
+                        publish_recorder_failure(&app, &id, "header", join_err.to_string())
+                    }
                 }
             }
             QueueEntry::Event { kind, bytes } => {
@@ -410,12 +407,7 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
                         None
                     }
                     Err(join_err) => {
-                        publish_recorder_failure(
-                            &app,
-                            &id,
-                            "event",
-                            format!("worker join: {join_err}"),
-                        );
+                        publish_recorder_failure(&app, &id, "event", join_err.to_string());
                         None
                     }
                 };
@@ -441,12 +433,9 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
                 match result {
                     Ok(Ok(_)) => {}
                     Ok(Err(e)) => publish_recorder_failure(&app, &id, "rotate", e.to_string()),
-                    Err(join_err) => publish_recorder_failure(
-                        &app,
-                        &id,
-                        "rotate",
-                        format!("worker join: {join_err}"),
-                    ),
+                    Err(join_err) => {
+                        publish_recorder_failure(&app, &id, "rotate", join_err.to_string())
+                    }
                 }
                 // Reset the latched flag so the next over-cap write
                 // can request another rotation.
@@ -462,12 +451,9 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
                 match result {
                     Ok(Ok(())) => {}
                     Ok(Err(e)) => publish_recorder_failure(&app, &id, "close", e.to_string()),
-                    Err(join_err) => publish_recorder_failure(
-                        &app,
-                        &id,
-                        "close",
-                        format!("worker join: {join_err}"),
-                    ),
+                    Err(join_err) => {
+                        publish_recorder_failure(&app, &id, "close", join_err.to_string())
+                    }
                 }
                 // Slot is dropped by the higher-level `drop_worker`
                 // call so the WorkerHandle's `_join` does not point
@@ -487,9 +473,7 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
     match result {
         Ok(Ok(())) => {}
         Ok(Err(e)) => publish_recorder_failure(&app, &id, "close", e.to_string()),
-        Err(join_err) => {
-            publish_recorder_failure(&app, &id, "close", format!("worker join: {join_err}"))
-        }
+        Err(join_err) => publish_recorder_failure(&app, &id, "close", join_err.to_string()),
     }
 }
 

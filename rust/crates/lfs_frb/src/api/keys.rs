@@ -367,7 +367,8 @@ b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB\n\
 
     #[test]
     fn parse_openssh_cert_round_trips_to_summary() {
-        let summary = keys_parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes().to_vec()).unwrap();
+        let summary = keys_parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes().to_vec())
+            .expect("ED25519_CERT_FIXTURE must parse as a valid OpenSSH cert");
         assert_eq!(summary.principals, vec!["host.example.com".to_string()]);
         assert!(summary.fingerprint.starts_with("SHA256:"));
         assert!(summary.valid_before_unix > summary.valid_after_unix);

@@ -322,8 +322,11 @@ mod tests {
     #[test]
     fn unsupported_platform_returns_for_non_apple() {
         if cfg!(not(any(target_os = "macos", target_os = "ios"))) {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            let res = rt.block_on(enclave_ssh_probe()).unwrap();
+            let rt = tokio::runtime::Runtime::new()
+                .expect("tokio runtime must build under test harness");
+            let res = rt
+                .block_on(enclave_ssh_probe())
+                .expect("enclave_ssh_probe must succeed on non-Apple platforms");
             assert_eq!(res, DbEnclaveAvailability::UnsupportedPlatform);
         }
     }

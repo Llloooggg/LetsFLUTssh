@@ -434,8 +434,18 @@ mod platform_impl {
         let Ok(probe) = probe else {
             return Err(BrokerUnavailable::AppleEntitlementMissing);
         };
-        // SAFETY: parameterless probe, returns 0 / 1 / 2 per the
-        // Swift contract (see SecurityKeyBroker.swift).
+        // SAFETY: parameterless probe, returns 0 (API present,
+        // macOS 12+) or 1 (OS too old) per the Swift contract (see
+        // `macos/Runner/SecurityKeyBroker.swift`). The entitlement-
+        // missing state is NOT detectable at probe time —
+        // AuthenticationServices has no synchronous entitlement
+        // check, so a missing entitlement surfaces later as an
+        // `ASAuthorizationError` on the first get_assertion call,
+        // which routes through `BrokerError::Probe`/`Apple` and the
+        // next dispatch falls through to the direct HID path. The
+        // `AppleEntitlementMissing` arm here is retained as a safety
+        // net for any future Swift contract change that does surface
+        // a `2` return.
         let rc = unsafe { probe() };
         match rc {
             0 => Ok(()),

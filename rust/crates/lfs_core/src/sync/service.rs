@@ -73,8 +73,12 @@ pub struct SyncStatus {
 #[derive(Debug, Clone)]
 pub enum SyncResult {
     /// Pushed `bytes` archive bytes to the remote. SHA-256 of the
-    /// inner archive plaintext is stamped into `SyncConfig.last_pushed_sha256`
-    /// so the next push can skip an identical re-upload.
+    /// encrypted envelope (the bytes actually written to the remote)
+    /// is stamped into `SyncConfig.last_pushed_sha256` so the next
+    /// push can skip an identical re-upload. The envelope freshly
+    /// salts + IVs on every encrypt — identical DB state produces
+    /// different envelope hashes — so the "skip identical push"
+    /// check is an optimisation, not a correctness invariant.
     Pushed { bytes: u64, sha256: String },
     /// Pull applied a peer snapshot. Per-table counters surface to
     /// the user as "Applied N updates from remote".
@@ -190,7 +194,7 @@ pub async fn push() -> Result<SyncResult, SyncError> {
         .map_err(|e| SyncError::Network(format!("compose task: {e}")))??
     };
 
-    if composed.plaintext_sha256 == cfg.last_pushed_sha256 && !cfg.last_pushed_sha256.is_empty() {
+    if composed.envelope_sha256 == cfg.last_pushed_sha256 && !cfg.last_pushed_sha256.is_empty() {
         return Ok(SyncResult::UpToDate);
     }
 
@@ -213,12 +217,12 @@ pub async fn push() -> Result<SyncResult, SyncError> {
     let new_etag = outcome.etag.clone().unwrap_or_default();
     let mut updated = cfg.clone();
     updated.last_pushed_at_ms = now_ms;
-    updated.last_pushed_sha256 = composed.plaintext_sha256.clone();
+    updated.last_pushed_sha256 = composed.envelope_sha256.clone();
     updated.last_pushed_etag = new_etag;
     persist_sync(&updated)?;
     Ok(SyncResult::Pushed {
         bytes: bytes_pushed,
-        sha256: composed.plaintext_sha256,
+        sha256: composed.envelope_sha256,
     })
 }
 
@@ -432,7 +436,12 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 struct ComposedArchive {
     bytes: Vec<u8>,
-    plaintext_sha256: String,
+    /// SHA-256 over the encrypted envelope bytes (the same bytes
+    /// that get pushed to the remote and that the pull path hashes
+    /// off the response body). Not the inner archive plaintext —
+    /// the envelope freshly salts + IVs on every encrypt so two
+    /// pushes of the same DB state produce different hashes here.
+    envelope_sha256: String,
 }
 
 fn compose_archive(
@@ -503,11 +512,11 @@ fn compose_archive(
     // collide on plaintext but not on this hash — which is
     // fine because the "skip identical push" check is an
     // optimisation, not a correctness invariant.
-    let plaintext_sha256 = sha256_hex(&bytes);
+    let envelope_sha256 = sha256_hex(&bytes);
 
     Ok(ComposedArchive {
         bytes,
-        plaintext_sha256,
+        envelope_sha256,
     })
 }
 

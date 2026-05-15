@@ -8,6 +8,36 @@
 //!
 //! The client is `reqwest::Client`-backed so connection pooling
 //! and HTTP/2 (where the server supports it) come for free.
+//!
+//! ## Addressing styles
+//!
+//! Two ways to identify the bucket in an S3 request URL — the
+//! choice is per-`S3Config` and stays fixed for the client's
+//! lifetime. The dispatcher reads `cfg.path_style` once per
+//! request and selects:
+//!
+//! 1. **Virtual-host addressing** (`cfg.path_style == false`,
+//!    AWS default). Bucket lives in the host header:
+//!    `https://<bucket>.s3.<region>.amazonaws.com/<key>`. SigV4
+//!    canonical URI is the bucket-free `/<key>` because the host
+//!    line already carries the bucket. This is the form AWS
+//!    deprecation-notices push every new bucket toward and what
+//!    Cloudflare R2 / Wasabi / DigitalOcean Spaces accept by
+//!    default.
+//! 2. **Path-style addressing** (`cfg.path_style == true`).
+//!    Bucket lives in the path: `https://<endpoint>/<bucket>/<key>`.
+//!    SigV4 canonical URI is the full `/<bucket>/<key>` because
+//!    the host header doesn't carry the bucket. Required by
+//!    MinIO, some self-hosted Ceph / Garage deployments, and AWS
+//!    buckets whose name violates DNS rules (dots, uppercase) —
+//!    the bucket name then can't legally appear as a host segment.
+//!
+//! Choosing the right style is the user's responsibility on the
+//! S3 connection-edit dialog; the dispatcher trusts the setting
+//! and signs both URL shapes accordingly. Picking the wrong style
+//! surfaces as a SigV4 signature mismatch (the host the server
+//! sees does not match the host we signed) — diagnosed via the
+//! 403 `SignatureDoesNotMatch` XML body, not by a silent failure.
 
 use std::sync::Arc;
 
@@ -585,27 +615,21 @@ fn now_unix_seconds() -> u64 {
 }
 
 /// Convert unix-seconds → (year, month, day, hour, min, sec) using
-/// the civil-from-days algorithm (Howard Hinnant). UTC only;
-/// SigV4 mandates UTC. Saturates if the input lies pre-epoch.
+/// the civil-from-days algorithm. UTC only; SigV4 mandates UTC.
+/// Saturates if the input lies pre-epoch.
+///
+/// Thin u64-input adaptor over [`crate::archive::iso8601::unix_to_civil`]
+/// — keeps the single Hinnant implementation in one place so a
+/// bug fix to the algorithm lands once.
 fn unix_to_components(epoch_seconds: u64) -> (u32, u32, u32, u32, u32, u32) {
-    let secs_per_day: u64 = 86_400;
-    let days = (epoch_seconds / secs_per_day) as i64;
-    let secs_of_day = (epoch_seconds % secs_per_day) as u32;
-    let hour = secs_of_day / 3600;
-    let minute = (secs_of_day / 60) % 60;
-    let second = secs_of_day % 60;
-    // Days since 1970-01-01 → civil date via Hinnant's algorithm.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = (z - era * 146_097) as u64;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    let year = if m <= 2 { y + 1 } else { y } as u32;
-    (year, m, d, hour, minute, second)
+    // i64::MAX is far past any plausible SigV4 timestamp, but cap
+    // the cast to keep the function total on a hostile caller.
+    let secs = i64::try_from(epoch_seconds).unwrap_or(i64::MAX);
+    let (year, month, day, hh, mm, ss) = crate::archive::iso8601::unix_to_civil(secs);
+    // SigV4 timestamps post-1970 fit comfortably in u32 (years
+    // 1970..u32::MAX); clamp defensively on the pathological path.
+    let year_u32 = u32::try_from(year).unwrap_or(0);
+    (year_u32, month, day, hh, mm, ss)
 }
 
 /// Build the `<CompleteMultipartUpload>` XML body. Order is
@@ -664,12 +688,60 @@ fn extract_xml_error(body: &str) -> (String, String) {
     (code, message)
 }
 
+/// Pull the text content of the first `<tag>...</tag>` element out
+/// of an S3 error / metadata XML body. Parses via `quick_xml` so
+/// CDATA, embedded entities, and whitespace between elements are
+/// handled the same way the rest of the S3 client treats response
+/// bodies. Returns `None` when the element is absent or the body
+/// fails to parse — callers fall back to a generic error message
+/// rather than surface a malformed-XML error on top of the actual
+/// HTTP failure.
+///
+/// Local-name match (case-sensitive). S3 vendors all emit the
+/// AWS-canonical element names (`Code`, `Message`, `UploadId`)
+/// unprefixed; if a hostile gateway slips a namespace prefix in,
+/// the lookup falls through to `None` which is the safe answer.
 fn extract_tag(body: &str, tag: &str) -> Option<String> {
-    let open = format!("<{tag}>");
-    let close = format!("</{tag}>");
-    let start = body.find(&open)? + open.len();
-    let end = body[start..].find(&close)?;
-    Some(body[start..start + end].to_string())
+    use quick_xml::events::Event;
+    use quick_xml::Reader;
+    let mut reader = Reader::from_str(body);
+    reader.config_mut().trim_text(true);
+    let mut buf: Option<String> = None;
+    let mut in_tag = false;
+    loop {
+        match reader.read_event().ok()? {
+            Event::Start(e) if local_name_matches(e.name().as_ref(), tag.as_bytes()) => {
+                in_tag = true;
+                buf = Some(String::new());
+            }
+            Event::Text(t) if in_tag => {
+                let bytes = t.unescape().ok()?;
+                if let Some(out) = buf.as_mut() {
+                    out.push_str(&bytes);
+                }
+            }
+            Event::CData(t) if in_tag => {
+                let text = std::str::from_utf8(t.as_ref()).ok()?;
+                if let Some(out) = buf.as_mut() {
+                    out.push_str(text);
+                }
+            }
+            Event::End(e) if in_tag && local_name_matches(e.name().as_ref(), tag.as_bytes()) => {
+                return buf;
+            }
+            Event::Eof => return None,
+            _ => {}
+        }
+    }
+}
+
+/// Local-name comparison stripping any `prefix:` namespace segment.
+fn local_name_matches(name: &[u8], expected: &[u8]) -> bool {
+    let local = match name.iter().position(|b| *b == b':') {
+        Some(idx) => &name[idx + 1..],
+        None => name,
+    };
+    local == expected
 }
 
 /// Parse the `<InitiateMultipartUploadResult>` XML and return the
@@ -811,23 +883,8 @@ fn parse_iso8601_ms(input: &str) -> Option<i64> {
     } else {
         0
     };
-    let days = days_from_civil(year, month, day);
-    let total_seconds: i64 =
-        days * 86_400 + (hour as i64) * 3600 + (minute as i64) * 60 + second as i64;
-    Some(total_seconds * 1_000 + ms_part as i64)
-}
-
-/// Inverse of [`unix_to_components`] for the year/month/day part.
-/// Returns days since 1970-01-01.
-fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
-    let m = m as i64;
-    let d = d as i64;
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = y - era * 400;
-    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
+    let base_ms = crate::archive::iso8601::civil_to_unix_ms(year, month, day, hour, minute, second);
+    Some(base_ms + ms_part as i64)
 }
 
 #[cfg(test)]
@@ -884,6 +941,41 @@ mod tests {
     #[test]
     fn extract_tag_returns_none_when_missing() {
         assert_eq!(extract_tag("<a/>", "Code"), None);
+    }
+
+    #[test]
+    fn extract_tag_decodes_xml_entities() {
+        assert_eq!(
+            extract_tag(
+                "<Error><Message>Bucket &quot;x&quot; not found</Message></Error>",
+                "Message"
+            ),
+            Some("Bucket \"x\" not found".into())
+        );
+    }
+
+    #[test]
+    fn extract_tag_handles_cdata() {
+        assert_eq!(
+            extract_tag("<Error><Code><![CDATA[NoSuchKey]]></Code></Error>", "Code"),
+            Some("NoSuchKey".into())
+        );
+    }
+
+    #[test]
+    fn extract_tag_ignores_namespace_prefix() {
+        assert_eq!(
+            extract_tag(
+                "<aws:Error xmlns:aws=\"x\"><aws:Code>SignatureDoesNotMatch</aws:Code></aws:Error>",
+                "Code"
+            ),
+            Some("SignatureDoesNotMatch".into())
+        );
+    }
+
+    #[test]
+    fn extract_tag_returns_none_on_unparseable_body() {
+        assert_eq!(extract_tag("<<<not xml", "Code"), None);
     }
 
     #[test]
@@ -974,13 +1066,13 @@ mod tests {
     }
 
     #[test]
-    fn days_from_civil_round_trips_unix_to_components() {
-        // Cross-pinned with unix_to_components: the two helpers
-        // form a round-trip pair so a regression in either surfaces.
-        let (y, m, d, _, _, _) = unix_to_components(1_704_164_645);
-        assert_eq!(days_from_civil(y as i64, m, d), 19_724);
-        // 19,724 days since epoch == 2024-01-02 (52 leap years
-        // included). Pinned by the round-trip; if either side drifts
-        // the assertion changes.
+    fn parse_iso8601_ms_round_trips_unix_to_components() {
+        // The two helpers form a round-trip pair via the shared
+        // civil-from-days helper; a regression in either surfaces.
+        let unix_ms = 1_704_164_645_000_i64;
+        let parsed = parse_iso8601_ms("2024-01-02T03:04:05.000Z").expect("valid iso8601");
+        assert_eq!(parsed, unix_ms);
+        let (y, m, d, h, mi, s) = unix_to_components(1_704_164_645);
+        assert_eq!((y, m, d, h, mi, s), (2024, 1, 2, 3, 4, 5));
     }
 }

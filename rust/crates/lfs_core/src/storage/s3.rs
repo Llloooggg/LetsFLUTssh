@@ -99,11 +99,29 @@ impl Provider for S3Provider {
         })
     }
 
+    /// **Non-atomic on S3.** The S3 API has no native rename — this
+    /// implementation issues `CopyObject` from `from` to `to`
+    /// followed by `DeleteObject` against `from`. A concurrent
+    /// reader can observe three windows: source only (before copy),
+    /// both objects (after copy, before delete), destination only
+    /// (after delete). The "both objects" window is also what an
+    /// abort observes when the process crashes between the two
+    /// requests, or when `DeleteObject` fails after `CopyObject`
+    /// already succeeded — the destination is fully written, the
+    /// source is still present.
+    ///
+    /// Crash-safety contract surfaces here: on rerun the caller
+    /// re-issues `rename(from, to)`, which is safe because
+    /// `CopyObject` overwrites the destination idempotently (S3
+    /// PUT semantics) and `DeleteObject` is idempotent on a
+    /// missing key. The worst case is one extra round-trip and a
+    /// stale `from` lingering until the sync orchestrator's next
+    /// pass; never a lost rename.
+    ///
+    /// Mainstream-S3 providers (AWS S3, R2, MinIO, Backblaze B2's
+    /// S3 surface) all share the same lack of atomic rename — this
+    /// is an S3 protocol limitation, not a per-provider quirk.
     fn rename<'a>(&'a self, from: &'a str, to: &'a str) -> ProviderFuture<'a, ()> {
-        // S3 has no native rename. Provider's documented contract
-        // already states rename is "atomic when the backend
-        // supports it"; the S3 emulation is copy + delete, which
-        // means a reader can observe the source mid-operation.
         Box::pin(async move {
             let (src_bucket, src_key) = self.resolve(from)?;
             let (dst_bucket, dst_key) = self.resolve(to)?;

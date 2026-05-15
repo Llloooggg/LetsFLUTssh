@@ -42,6 +42,67 @@ pub struct S3Config {
     pub default_prefix: String,
 }
 
+/// Validate a bucket name against AWS S3 naming rules (RFC-grade
+/// subset: lowercase, 3..=63 chars, ASCII letters/digits/hyphens,
+/// no consecutive dots, no leading/trailing dot or hyphen, not
+/// formatted as an IPv4 address). Returns the original error
+/// message string AWS would surface from a 400 BadRequest so the
+/// user sees the same wording regardless of whether the rejection
+/// fired client-side or after a round-trip. Path-style endpoints
+/// accept slightly relaxed rules (dots are fine, uppercase is
+/// fine on MinIO) but the strict AWS rule set is the common
+/// denominator that travels across every vendor — rejecting here
+/// keeps every downstream signing / URL composition step from
+/// emitting a malformed request the server has to debug.
+///
+/// The empty bucket is rejected up front because empty strings
+/// would compose into `https://./host` (virtual-host) or
+/// `<endpoint>//key` (path-style); both shapes produce confusing
+/// remote errors.
+pub fn validate_bucket_name(name: &str) -> Result<(), crate::error::Error> {
+    if name.is_empty() {
+        return Err(crate::error::Error::S3(
+            "bucket name must not be empty".into(),
+        ));
+    }
+    if name.len() < 3 || name.len() > 63 {
+        return Err(crate::error::Error::S3(format!(
+            "bucket name {name:?} must be 3..=63 characters"
+        )));
+    }
+    let first = name.as_bytes()[0];
+    let last = name.as_bytes()[name.len() - 1];
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() {
+        return Err(crate::error::Error::S3(format!(
+            "bucket name {name:?} must start with a lowercase letter or digit"
+        )));
+    }
+    if !last.is_ascii_lowercase() && !last.is_ascii_digit() {
+        return Err(crate::error::Error::S3(format!(
+            "bucket name {name:?} must end with a lowercase letter or digit"
+        )));
+    }
+    for (i, b) in name.as_bytes().iter().enumerate() {
+        let ok = b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-' || *b == b'.';
+        if !ok {
+            return Err(crate::error::Error::S3(format!(
+                "bucket name {name:?} has invalid character at position {i}"
+            )));
+        }
+        if *b == b'.' && i + 1 < name.len() && name.as_bytes()[i + 1] == b'.' {
+            return Err(crate::error::Error::S3(format!(
+                "bucket name {name:?} must not contain consecutive dots"
+            )));
+        }
+    }
+    if name.parse::<std::net::Ipv4Addr>().is_ok() {
+        return Err(crate::error::Error::S3(format!(
+            "bucket name {name:?} must not be formatted as an IPv4 address"
+        )));
+    }
+    Ok(())
+}
+
 impl S3Config {
     /// Resolve the base URL for a request against `bucket`.
     /// Returns the scheme+host (no trailing slash) plus the
@@ -49,6 +110,7 @@ impl S3Config {
     /// Virtual-host returns `https://<bucket>.<host>` without a
     /// bucket path segment.
     pub fn resolve_bucket_base(&self, bucket: &str) -> Result<String, crate::error::Error> {
+        validate_bucket_name(bucket)?;
         let endpoint = self.resolve_endpoint();
         let url = url::Url::parse(&endpoint)
             .map_err(|e| crate::error::Error::S3(format!("invalid endpoint {endpoint}: {e}")))?;
@@ -90,6 +152,7 @@ impl S3Config {
     /// the host component (no scheme, no port) — SigV4 puts the
     /// `host` header into the canonical request.
     pub fn resolve_host_header(&self, bucket: &str) -> Result<String, crate::error::Error> {
+        validate_bucket_name(bucket)?;
         let endpoint = self.resolve_endpoint();
         let url = url::Url::parse(&endpoint)
             .map_err(|e| crate::error::Error::S3(format!("invalid endpoint {endpoint}: {e}")))?;
@@ -162,15 +225,55 @@ mod tests {
     #[test]
     fn resolve_host_header_path_style_drops_bucket() {
         let c = cfg("auto", "https://minio.local:9000", true);
-        assert_eq!(c.resolve_host_header("b").unwrap(), "minio.local:9000");
+        assert_eq!(c.resolve_host_header("buc").unwrap(), "minio.local:9000");
     }
 
     #[test]
     fn resolve_host_header_virtual_host_prepends_bucket() {
         let c = cfg("us-east-1", "", false);
         assert_eq!(
-            c.resolve_host_header("b").unwrap(),
-            "b.s3.us-east-1.amazonaws.com"
+            c.resolve_host_header("buc").unwrap(),
+            "buc.s3.us-east-1.amazonaws.com"
         );
+    }
+
+    #[test]
+    fn validate_bucket_name_accepts_aws_canonical_shapes() {
+        assert!(validate_bucket_name("logs").is_ok());
+        assert!(validate_bucket_name("my-bucket").is_ok());
+        assert!(validate_bucket_name("123abc").is_ok());
+        assert!(validate_bucket_name("a-b.c-d").is_ok());
+        assert!(validate_bucket_name(&"a".repeat(63)).is_ok());
+    }
+
+    #[test]
+    fn validate_bucket_name_rejects_length_violations() {
+        assert!(validate_bucket_name("").is_err());
+        assert!(validate_bucket_name("ab").is_err());
+        assert!(validate_bucket_name(&"a".repeat(64)).is_err());
+    }
+
+    #[test]
+    fn validate_bucket_name_rejects_invalid_characters() {
+        assert!(validate_bucket_name("My-Bucket").is_err()); // uppercase
+        assert!(validate_bucket_name("my_bucket").is_err()); // underscore
+        assert!(validate_bucket_name("-bucket").is_err()); // leading hyphen
+        assert!(validate_bucket_name("bucket-").is_err()); // trailing hyphen
+        assert!(validate_bucket_name(".bucket").is_err()); // leading dot
+        assert!(validate_bucket_name("bucket.").is_err()); // trailing dot
+        assert!(validate_bucket_name("my..bucket").is_err()); // consecutive dots
+        assert!(validate_bucket_name("my bucket").is_err()); // space
+    }
+
+    #[test]
+    fn validate_bucket_name_rejects_ipv4_format() {
+        assert!(validate_bucket_name("192.168.1.1").is_err());
+    }
+
+    #[test]
+    fn resolve_bucket_base_rejects_invalid_bucket() {
+        let c = cfg("us-east-1", "", false);
+        assert!(c.resolve_bucket_base("My-Bucket").is_err());
+        assert!(c.resolve_bucket_base("").is_err());
     }
 }

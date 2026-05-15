@@ -170,6 +170,16 @@ impl WebDavClient {
             return Err(map_status_error(status, "propfind"));
         }
         let bytes = response_body_capped(response).await?;
+        // Depth enforcement is server-side: WebDAV servers honour the
+        // `Depth` request header per RFC 4918 §10.2. A reverify pass
+        // here would have to know each server's href-prefixing convention
+        // (Apache mod_dav returns absolute paths under its mount root,
+        // Nextcloud returns paths under `/remote.php/dav/`, owncloud's
+        // /webdav/ root, IIS uses the trailing slash differently) — a
+        // segment-count heuristic mis-classifies legitimate responses
+        // depending on the deployment. The PROPFIND parser already caps
+        // body size + entry count via `response_body_capped`, which is
+        // the right place to guard against pathological response sizes.
         parse_propfind(&bytes)
     }
 
@@ -438,10 +448,25 @@ fn map_status_error(status: reqwest::StatusCode, verb: &str) -> Error {
 /// Buffer the response body with the 16 MiB cap. PROPFIND is
 /// the only verb that reads the body in full; GET streams
 /// directly to the caller and skips this path.
+///
+/// When the server advertises `Content-Length`, pre-allocate the
+/// buffer up to the cap so a single large response doesn't grow
+/// the `Vec` through several power-of-two doublings. The hint is
+/// untrusted (a hostile server could lie), so we clamp it against
+/// `MAX_RESPONSE_BYTES` — a bad hint can only force one harmless
+/// 16 MiB allocation, never an OOM.
 async fn response_body_capped(response: reqwest::Response) -> Result<Vec<u8>, Error> {
     use futures_util::StreamExt;
+    let hint = response
+        .content_length()
+        .map(|n| {
+            usize::try_from(n)
+                .unwrap_or(MAX_RESPONSE_BYTES)
+                .min(MAX_RESPONSE_BYTES)
+        })
+        .unwrap_or(0);
     let mut stream = response.bytes_stream();
-    let mut out: Vec<u8> = Vec::new();
+    let mut out: Vec<u8> = Vec::with_capacity(hint);
     while let Some(chunk) = stream.next().await {
         let bytes = chunk.map_err(|e| Error::WebDav(format!("body chunk: {e}")))?;
         if out.len().saturating_add(bytes.len()) > MAX_RESPONSE_BYTES {
@@ -482,7 +507,6 @@ pub(crate) fn normalise_etag_header(raw: &str) -> String {
         .unwrap_or(stripped)
         .to_string()
 }
-
 /// `https://example.com/dav/files/?x=1` → `/dav/files/?x=1`.
 /// Digest's H(A2) hashes the request URI in the form the
 /// server sees, which is the path + optional query — host

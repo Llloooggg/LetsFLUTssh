@@ -30,6 +30,20 @@
 //! quick-connect path; the staged paths read straight from
 //! sqlite into the SecretStore and never round-trip back through
 //! Dart.
+//!
+//! Empty-auth case (T0 / plaintext-tier dials). When every
+//! credential slot is empty — no `session_id` with staged rows,
+//! no `key_id`, no inline `key_data` / `password` / `passphrase`
+//! — `prepare_auth` falls through to the empty-auth path: it
+//! stages an empty-bytes blob under a fresh `conn.password.<uuid>`
+//! transient and returns it as a [`PreparedAuthRef::Password`].
+//! Funnelling the zero-credential dial through the same
+//! Ref/SecretStore shape as every other path keeps russh from
+//! seeing an alternate "no credentials" code branch through the
+//! bus; russh surfaces "no credentials" naturally when the server
+//! rejects the empty password. The transient is cleared by the
+//! same terminal-state cleanup that drops the non-empty quick-
+//! connect ids.
 
 use crate::db::{sessions, ssh_key_certificates, ssh_keys};
 use crate::error::Error;

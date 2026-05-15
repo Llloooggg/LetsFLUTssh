@@ -5,9 +5,16 @@
 // `dlopen("")` at first use:
 //
 // * `lfs_security_key_broker_is_available` — synchronous probe.
-//   Returns `0` when the API + entitlement are both ready, `1`
-//   when the OS is too old (macOS pre-12), `2` when the entitlement
-//   is missing, non-zero anything else when the probe failed.
+//   Returns `0` when the API surface is present (macOS 12+), `1`
+//   when the OS is too old (macOS pre-12). The entitlement state
+//   is NOT probed here — AuthenticationServices has no synchronous
+//   "do I have the entitlement?" check, and the probe runs before
+//   any UI is shown so a heavy entitlement-discovery dance is the
+//   wrong place to put it. The entitlement-missing arm surfaces
+//   later, on the first `get_assertion` call, as an
+//   `ASAuthorizationError` the Rust dispatcher maps to the
+//   BrokerError catch-all; the next dispatch falls through to
+//   the direct HID path with no user-visible regression.
 //
 // * `lfs_security_key_broker_get_assertion` — kicks off an
 //   `ASAuthorizationController` for a security-key assertion. The
@@ -22,9 +29,11 @@
 // Entitlement requirement: the running bundle must carry
 // `com.apple.developer.web-browser.public-key-credential`. Self-
 // signed dev builds without the Apple Developer Program identity
-// hit `kSecurityKeyAuthorizationErrorCanceled` immediately —
-// `lfs_security_key_broker_is_available` honestly reports `2`
-// (entitlement missing) on that arm.
+// hit `kSecurityKeyAuthorizationErrorCanceled` immediately on the
+// first `get_assertion` dispatch; the Rust dispatcher catches the
+// error and the next dispatch falls back to the direct HID path.
+// `lfs_security_key_broker_is_available` cannot detect this state
+// in advance (no synchronous entitlement check exists).
 
 import AuthenticationServices
 import Foundation

@@ -358,6 +358,15 @@ impl Handler for TestSshHandler {
         _session: &mut Session,
     ) -> Result<bool, Self::Error> {
         if host_to_connect != "127.0.0.1" && host_to_connect != "localhost" {
+            // Surface the rejection so a CI run using this fixture
+            // has a breadcrumb when a test accidentally asks the
+            // bastion to dial a non-loopback hop. Stays on stderr
+            // (test code, not production); production paths use
+            // `app_log_warn!`.
+            eprintln!(
+                "test_server: refused direct-tcpip to {host_to_connect}:{port_to_connect} \
+                 (fixture only proxies loopback)"
+            );
             return Ok(false);
         }
         let target = format!("127.0.0.1:{port_to_connect}");

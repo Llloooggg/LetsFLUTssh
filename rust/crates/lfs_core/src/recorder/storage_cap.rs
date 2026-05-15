@@ -116,6 +116,14 @@ pub fn enforce_storage_cap(
         match std::fs::remove_file(&entry.path) {
             Ok(()) => {
                 used = used.saturating_sub(entry.size_bytes);
+                if files_evicted == u32::MAX || bytes_reclaimed == u64::MAX {
+                    crate::app_log_warn!(
+                        "RecorderStorageCap",
+                        "eviction counter saturated (files={files_evicted}, bytes={bytes_reclaimed}) \
+                         — pathological eviction rate or counter overflow; later evictions still \
+                         happen but the tally caps at MAX"
+                    );
+                }
                 bytes_reclaimed = bytes_reclaimed.saturating_add(entry.size_bytes);
                 files_evicted = files_evicted.saturating_add(1);
             }
@@ -153,7 +161,16 @@ pub fn clear_all(recordings_root: &Path, active_paths: &[PathBuf]) -> Result<u32
             continue;
         }
         match std::fs::remove_file(&entry.path) {
-            Ok(()) => removed = removed.saturating_add(1),
+            Ok(()) => {
+                if removed == u32::MAX {
+                    crate::app_log_warn!(
+                        "RecorderStorageCap",
+                        "clear_all counter saturated at u32::MAX — pathological recording \
+                         count; later removals still happen but the tally caps at MAX"
+                    );
+                }
+                removed = removed.saturating_add(1);
+            }
             Err(e) => {
                 crate::app_log_warn!(
                     "RecorderStorageCap",
