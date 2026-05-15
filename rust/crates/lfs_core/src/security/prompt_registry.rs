@@ -34,7 +34,8 @@
 //! discipline the rest of the FRB-adjacent lock sites apply.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use tokio::sync::oneshot;
 
@@ -44,13 +45,13 @@ use tokio::sync::oneshot;
 /// enum for credential responses, a `String` for probe wire
 /// names, etc.
 pub struct PromptRegistry<R: Send + 'static> {
-    inner: Mutex<HashMap<String, oneshot::Sender<R>>>,
+    inner: Arc<Mutex<HashMap<String, oneshot::Sender<R>>>>,
 }
 
 impl<R: Send + 'static> PromptRegistry<R> {
     pub fn new() -> Self {
         Self {
-            inner: Mutex::new(HashMap::new()),
+            inner: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -60,7 +61,35 @@ impl<R: Send + 'static> PromptRegistry<R> {
     /// the prompt drives.
     pub fn register(&self, prompt_id: String) -> oneshot::Receiver<R> {
         let (tx, rx) = oneshot::channel();
-        self.lock().insert(prompt_id, tx);
+        Self::lock_arc(&self.inner).insert(prompt_id, tx);
+        rx
+    }
+
+    /// Park a fresh oneshot under `prompt_id` with an auto-cancel
+    /// guard. When the timeout elapses before any
+    /// [`resolve`](Self::resolve) / [`cancel`](Self::cancel)
+    /// removes the entry, the entry is dropped — the awaiting
+    /// receiver wakes with `Err(RecvError)`, which every caller
+    /// already maps to a fail-safe default (no destructive
+    /// action on an unanswered prompt).
+    ///
+    /// Default behaviour for callers that don't need a timeout is
+    /// unchanged: keep calling [`register`](Self::register).
+    pub fn register_with_timeout(
+        &self,
+        prompt_id: String,
+        timeout: Duration,
+    ) -> oneshot::Receiver<R> {
+        let rx = self.register(prompt_id.clone());
+        let inner = Arc::clone(&self.inner);
+        tokio::spawn(async move {
+            tokio::time::sleep(timeout).await;
+            // `remove` returns `Some` only if no resolver got there
+            // first; the resulting `Sender` drops out of scope here
+            // and the awaiter's `rx.await` returns `Err`. Idempotent
+            // on an already-resolved id.
+            Self::lock_arc(&inner).remove(&prompt_id);
+        });
         rx
     }
 
@@ -68,7 +97,7 @@ impl<R: Send + 'static> PromptRegistry<R> {
     /// `true` when a receiver was actually woken; `false` when
     /// the id was unknown or already resolved.
     pub fn resolve(&self, prompt_id: &str, response: R) -> bool {
-        let sender = self.lock().remove(prompt_id);
+        let sender = Self::lock_arc(&self.inner).remove(prompt_id);
         match sender {
             Some(tx) => tx.send(response).is_ok(),
             None => false,
@@ -79,16 +108,18 @@ impl<R: Send + 'static> PromptRegistry<R> {
     /// awaiting handler abandons the wait (connection teardown,
     /// shutdown). Idempotent on a missing id.
     pub fn cancel(&self, prompt_id: &str) {
-        self.lock().remove(prompt_id);
+        Self::lock_arc(&self.inner).remove(prompt_id);
     }
 
     /// Live entry count. Tests + diagnostics only.
     pub fn pending_count(&self) -> usize {
-        self.lock().len()
+        Self::lock_arc(&self.inner).len()
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, oneshot::Sender<R>>> {
-        self.inner.lock().unwrap_or_else(|p| p.into_inner())
+    fn lock_arc(
+        m: &Arc<Mutex<HashMap<String, oneshot::Sender<R>>>>,
+    ) -> std::sync::MutexGuard<'_, HashMap<String, oneshot::Sender<R>>> {
+        m.lock().unwrap_or_else(|p| p.into_inner())
     }
 }
 
@@ -144,8 +175,9 @@ mod tests {
         // verify subsequent calls still resolve cleanly. Mirrors
         // the FRB-side poison-recovery contract.
         let reg: &'static PromptRegistry<u32> = Box::leak(Box::new(PromptRegistry::new()));
+        let inner = Arc::clone(&reg.inner);
         let h = std::thread::spawn(move || {
-            let _g = reg.lock();
+            let _g = inner.lock().unwrap_or_else(|p| p.into_inner());
             panic!("intentional poison");
         });
         let _ = h.join();
@@ -154,5 +186,36 @@ mod tests {
         let rx = reg.register("post".into());
         assert!(reg.resolve("post", 7));
         assert_eq!(rx.await.unwrap(), 7);
+    }
+
+    #[tokio::test]
+    async fn register_with_timeout_drops_pending_entry_on_expiry() {
+        // Caller registers but the Dart subscriber never dispatches
+        // a response. After the timeout the entry must be gone from
+        // the map and the awaiter must wake with Err — every caller
+        // already routes that to a fail-safe default.
+        let reg: PromptRegistry<u32> = PromptRegistry::new();
+        let rx = reg.register_with_timeout("slow".into(), Duration::from_millis(50));
+        assert_eq!(reg.pending_count(), 1, "entry parked at register time");
+        // Awaiting the receiver yields the timeout cancellation —
+        // the spawned guard drops the sender out of the map.
+        let outcome = rx.await;
+        assert!(outcome.is_err(), "receiver must wake with Err on timeout");
+        assert_eq!(reg.pending_count(), 0, "guard removed the pending entry");
+    }
+
+    #[tokio::test]
+    async fn register_with_timeout_does_not_clobber_resolved_entry() {
+        // A resolve that lands before the timeout must win — the
+        // guard's later remove() is a no-op (the id is gone) and
+        // the awaiter sees the resolved value.
+        let reg: PromptRegistry<u32> = PromptRegistry::new();
+        let rx = reg.register_with_timeout("fast".into(), Duration::from_millis(200));
+        assert!(reg.resolve("fast", 99));
+        assert_eq!(rx.await.unwrap(), 99);
+        // Let the timeout fire; the late guard must not bring the
+        // pending_count above zero.
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        assert_eq!(reg.pending_count(), 0);
     }
 }

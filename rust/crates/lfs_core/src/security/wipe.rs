@@ -175,12 +175,33 @@ pub fn has_pending_wipe(support_dir: &Path) -> bool {
     let Ok(bytes) = crate::path::read_bytes_secure(&path) else {
         return false;
     };
-    if bytes.len() < WIPE_PENDING_HEADER_LEN
-        || &bytes[..WIPE_PENDING_MAGIC.len()] != WIPE_PENDING_MAGIC
-    {
+    if bytes.len() < WIPE_PENDING_HEADER_LEN {
+        crate::app_log_warn!(
+            "Wipe",
+            "pending-wipe marker present but rejected: length {len} < header {header}",
+            len = bytes.len(),
+            header = WIPE_PENDING_HEADER_LEN
+        );
         return false;
     }
-    bytes[WIPE_PENDING_MAGIC.len()] == WIPE_PENDING_VERSION
+    if &bytes[..WIPE_PENDING_MAGIC.len()] != WIPE_PENDING_MAGIC {
+        let prefix: Vec<u8> = bytes[..WIPE_PENDING_MAGIC.len()].to_vec();
+        crate::app_log_warn!(
+            "Wipe",
+            "pending-wipe marker present but rejected: magic mismatch (got {prefix:?})"
+        );
+        return false;
+    }
+    if bytes[WIPE_PENDING_MAGIC.len()] != WIPE_PENDING_VERSION {
+        crate::app_log_warn!(
+            "Wipe",
+            "pending-wipe marker present but rejected: version {found} != expected {expected}",
+            found = bytes[WIPE_PENDING_MAGIC.len()],
+            expected = WIPE_PENDING_VERSION
+        );
+        return false;
+    }
+    true
 }
 
 /// True when **any security-bearing** managed artefact lives in the
@@ -230,6 +251,7 @@ pub fn sweep_files(support_dir: &Path) -> FileSweepReport {
         if !path.exists() {
             continue;
         }
+        warn_if_unexpected_perms(name, &path);
         match fs::remove_file(&path) {
             Ok(()) => deleted.push((*name).to_string()),
             Err(_) => failed.push((*name).to_string()),
@@ -274,6 +296,31 @@ fn clear_pending_marker(support_dir: &Path) -> Result<(), String> {
     }
     fs::remove_file(&path).map_err(|e| format!("delete {}: {e}", path.display()))
 }
+
+/// Pure diagnostics: surface managed files whose UNIX permissions
+/// drift away from the `0o600` invariant the app writes them with.
+/// A non-`0o600` mode means either the user copied the file in from
+/// another install or a different tool wrote it — in both cases the
+/// sweep still deletes the file, the warning just leaves a trail
+/// for forensics. Windows skips this — POSIX `mode_t` bits do not
+/// model the file's NTFS ACL.
+#[cfg(unix)]
+fn warn_if_unexpected_perms(name: &str, path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let Ok(meta) = fs::metadata(path) else {
+        return;
+    };
+    let mode = meta.permissions().mode() & 0o777;
+    if mode != 0 && mode != 0o600 {
+        crate::app_log_warn!(
+            "Wipe",
+            "managed file {name} has perms {mode:o} != 0600 before delete"
+        );
+    }
+}
+
+#[cfg(not(unix))]
+fn warn_if_unexpected_perms(_name: &str, _path: &Path) {}
 
 fn wipe_logs_dir(support_dir: &Path) -> Result<(), String> {
     let logs = support_dir.join("logs");
@@ -331,6 +378,97 @@ mod tests {
         bytes.extend_from_slice(b"42");
         std::fs::write(dir.path().join(WIPE_PENDING_MARKER), &bytes).unwrap();
         assert!(!has_pending_wipe(dir.path()));
+    }
+
+    /// When the marker exists but the magic is wrong (foreign drop /
+    /// stale leftover from an unrelated tool), `has_pending_wipe`
+    /// must still return `false` AND emit a `CoreLog` warn so a
+    /// future support call can see "the marker was on disk, we
+    /// rejected it".
+    #[tokio::test]
+    async fn pending_wipe_rejection_emits_warn_log() {
+        use crate::bus::{CoreLogLevel, Event, EventTopic};
+
+        let app = crate::app::init();
+        let mut rx = app.bus.subscribe(EventTopic::CoreLog);
+        let dir = TempDir::new().unwrap();
+        // Foreign content under the marker name.
+        std::fs::write(dir.path().join(WIPE_PENDING_MARKER), b"stamp").unwrap();
+        assert!(!has_pending_wipe(dir.path()));
+
+        // Drain CoreLog until either a matching Wipe-tagged warn lands
+        // or the channel is empty.
+        let mut saw_warn = false;
+        for _ in 0..32 {
+            match rx.try_recv() {
+                Ok(Event::CoreLog {
+                    level: CoreLogLevel::Warn,
+                    name,
+                    message,
+                }) if name == "Wipe" && message.contains("magic mismatch") => {
+                    saw_warn = true;
+                    break;
+                }
+                Ok(_) => continue,
+                Err(_) => break,
+            }
+        }
+        assert!(
+            saw_warn,
+            "Wipe warn for magic mismatch must publish on the bus"
+        );
+    }
+
+    /// Managed files written with non-0600 perms log a Wipe warn
+    /// before the delete. The delete still proceeds — pure
+    /// diagnostics. UNIX only; Windows does not model POSIX mode bits.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn sweep_warns_on_non_0600_managed_file() {
+        use crate::bus::{CoreLogLevel, Event, EventTopic};
+        use std::os::unix::fs::PermissionsExt;
+
+        let _ = crate::app::init();
+        let app = crate::app::instance();
+        let mut rx = app.bus.subscribe(EventTopic::CoreLog);
+
+        let dir = TempDir::new().unwrap();
+        let bad = dir.path().join("credentials.kdf");
+        std::fs::write(&bad, [0u8; 8]).unwrap();
+        std::fs::set_permissions(&bad, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        let report = sweep_files(dir.path());
+        assert!(report
+            .deleted_files
+            .contains(&"credentials.kdf".to_string()));
+        assert!(!bad.exists(), "delete must still proceed on perm drift");
+
+        // The bus is broadcast — drain it until the matching Wipe warn
+        // shows up. `app::init()` is process-singleton across tests, so
+        // a few unrelated CoreLog lines may interleave.
+        let mut saw_warn = false;
+        for _ in 0..64 {
+            match rx.try_recv() {
+                Ok(Event::CoreLog {
+                    level: CoreLogLevel::Warn,
+                    name,
+                    message,
+                }) if name == "Wipe"
+                    && message.contains("credentials.kdf")
+                    && message.contains("644")
+                    && message.contains("!= 0600") =>
+                {
+                    saw_warn = true;
+                    break;
+                }
+                Ok(_) => continue,
+                Err(_) => break,
+            }
+        }
+        assert!(
+            saw_warn,
+            "Wipe warn for non-0600 perms must publish on the bus"
+        );
     }
 
     #[test]
