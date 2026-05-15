@@ -503,7 +503,21 @@ mod tests {
         // arboard returns Err in that case and the test asserts only
         // "no panic". Same for the other platforms when their
         // pasteboard isn't reachable in test contexts.
-        let _ = set_secure_text("hello");
+        //
+        // Trap: on a headed dev host this write lands on the real
+        // user pasteboard. Capture the current value before the
+        // write and restore it after so `cargo test` does not leak
+        // a sentinel string into the developer's clipboard history.
+        let saved = current_text();
+        let _ = set_secure_text("__lfs_secure_clipboard_test_sentinel__");
+        if let Some(prev) = saved {
+            let _ = set_secure_text(&prev);
+        } else {
+            // Nothing was on the clipboard before — drop the
+            // sentinel if it survived the write rather than leak it.
+            let sentinel_sha = sha256_hex_lower(b"__lfs_secure_clipboard_test_sentinel__");
+            let _ = compare_and_clear(&sentinel_sha);
+        }
     }
 
     #[test]
