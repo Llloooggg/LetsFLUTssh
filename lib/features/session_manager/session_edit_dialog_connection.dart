@@ -181,13 +181,8 @@ extension _ConnectionTab on _SessionEditDialogState {
               controller: _portCtrl,
               hint: l10n.hintPort,
               keyboardType: TextInputType.number,
-              validator: (v) {
-                final port = int.tryParse(v ?? '');
-                if (port == null || port < 1 || port > 65535) {
-                  return l10n.portRange;
-                }
-                return null;
-              },
+              validator: (v) =>
+                  isValidConnectionPort(v) ? null : l10n.portRange,
             ),
           ),
         ],

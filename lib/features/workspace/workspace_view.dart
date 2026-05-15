@@ -658,7 +658,7 @@ class _WorkspaceDividerLayoutState extends State<_WorkspaceDividerLayout> {
   final _stackKey = GlobalKey();
 
   static const _hitSize = 6.0;
-  static const _minPanelSize = 120.0;
+  static const _minPanelSize = AppTheme.workspacePanelMin;
 
   void _onPanUpdate(DragUpdateDetails details) {
     final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;

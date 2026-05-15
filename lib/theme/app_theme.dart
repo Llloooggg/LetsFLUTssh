@@ -313,6 +313,23 @@ abstract final class AppTheme {
   /// 56 px — mobile bottom navigation bar.
   static const double itemHeightXl = 56;
 
+  // ── Split / pane minimums ──
+  // Floor enforced by the divider drag handlers when the user resizes a
+  // tiled layout. Two scales because the surfaces have different content:
+  // a terminal pane stays usable at a smaller width (single-column text
+  // grid, one cell per glyph) than a workspace panel (session sidebar,
+  // file browser, terminal stack — each needs room for icons + labels).
+  //
+  /// 80 px — minimum width or height of a terminal pane in a tiling
+  /// layout. Below this the cell grid collapses below ~10 columns and
+  /// becomes unreadable for most shells.
+  static const double terminalPaneMin = 80;
+
+  /// 120 px — minimum width or height of a workspace panel in a tiling
+  /// layout. Below this the session list / file row layouts truncate
+  /// labels before the icon column.
+  static const double workspacePanelMin = 120;
+
   // ── Icon button sizing ──
   // Mobile needs ≥44 px touch targets — Apple HIG §accessibility +
   // Material Design accessibility guideline both pin 44 dp / 48 dp

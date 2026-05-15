@@ -12,6 +12,28 @@ part of 'settings_screen.dart';
 /// [SecurityTierSwitcher] so a mid-switch crash leaves the
 /// `.tier-transition-pending` marker on disk; recovery happens at
 /// next launch through `main._initSecurity`.
+///
+/// Dart-vs-Rust split for this file:
+/// - **Dart-side** (here): user-confirmation prompts (current-password
+///   re-verify, wipe-on-exit controllers), Riverpod provider lookups
+///   (`masterPasswordProvider`, `keychainPasswordGateProvider`,
+///   `hardwareTierVaultProvider`, `secureKeyStorageProvider`,
+///   `biometricKeyVaultProvider`), the per-tier dispatch on the
+///   `SecurityTier` enum + modifier flags, and the toast/UI feedback
+///   after a finished transition.
+/// - **Rust-side** (`lfs_core::security`, reached through the
+///   `apply*Tier` helpers in `core/security/security_section_logic.dart`
+///   and the FRB shims under `rust/crates/lfs_frb/src/api/`): the
+///   actual key derivation, the AES-GCM wrap / unwrap of the DB
+///   master key, the rekey of the live rusqlite database under the
+///   new key, the persistent `.tier-transition-pending` marker, and
+///   the `SecretStore` lifecycle that holds the staged key bytes so
+///   the plaintext never crosses FRB more than once.
+///
+/// The Dart helpers in this file pass only opaque `SecretRef` ids and
+/// callback closures back into the Rust pipeline; raw key bytes never
+/// live in a Dart heap object beyond the wipe-on-exit controllers used
+/// for the typed password.
 extension _TierApply on _SecuritySectionState {
   /// Prompt for the current password before a password-dropping
   /// transition. Returns true to proceed, false to abort (user

@@ -37,6 +37,7 @@ import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
 import '../tags/tag_assign_dialog.dart';
 import 'session_forwards_tab.dart';
+import 'session_port_validator.dart';
 
 // Per-tab UI extracted into part siblings — auth / connection /
 // options each own their tab build chain. The dialog state stays
@@ -267,6 +268,13 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   String _webdavAuthMethod = 'basic';
   bool _loadingWebDav = false;
 
+  /// Wire values the WebDAV auth-method chip-group surfaces. Used to
+  /// gate the hydration step in [_loadWebDavDetails] so a legacy row
+  /// with an empty or unrecognised `auth_method` falls back to the
+  /// constructor default (`basic`) instead of leaving every chip
+  /// unselected.
+  static const _webDavAuthMethodWireValues = {'basic', 'digest', 'bearer'};
+
   /// S3 transport-config controllers. Hydrated from the
   /// `s3_session_details` join row on edit (async — the dialog
   /// renders the same inline loader as the WebDAV path until
@@ -399,8 +407,19 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     );
     _proxyUserCtrl = TextEditingController(text: s?.viaOverride?.user ?? '');
     if (s?.viaSessionId != null) {
-      _proxyMode = _ProxyMode.saved;
-      _proxyViaSessionId = s!.viaSessionId;
+      // Re-edit cycle: the stored proxy target may have been deleted
+      // between dialog opens. Resolve it against the live session list
+      // before pinning `_proxyMode.saved` — when the target is gone,
+      // fall to `none` so the dropdown does not render an empty
+      // "saved" selection with no value beside it.
+      final liveSessions = ref.read(sessionProvider);
+      final stillExists = liveSessions.any((row) => row.id == s!.viaSessionId);
+      if (stillExists) {
+        _proxyMode = _ProxyMode.saved;
+        _proxyViaSessionId = s!.viaSessionId;
+      } else {
+        _proxyMode = _ProxyMode.none;
+      }
     } else if (s?.viaOverride != null) {
       _proxyMode = _ProxyMode.custom;
     }
@@ -469,7 +488,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         if (detail != null) {
           _baseUrlCtrl.text = detail.baseUrl;
           _userCtrl.text = detail.username;
-          _webdavAuthMethod = detail.authMethod;
+          // Legacy rows may have an empty / unrecognised authMethod —
+          // keep the constructor default (`basic`) in that case so
+          // none of the chips render unselected. Only overwrite when
+          // the stored value is one of the wire variants the editor
+          // exposes (`basic` / `digest` / `bearer`).
+          if (_webDavAuthMethodWireValues.contains(detail.authMethod)) {
+            _webdavAuthMethod = detail.authMethod;
+          }
           _fingerprintCtrl.text = detail.selfSignedFingerprint ?? '';
         }
         _loadingWebDav = false;
@@ -496,10 +522,13 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Future<void> _resolveKeyLabel() async {
     final store = ref.read(sshKeysMutatorProvider);
     final metadata = await store.loadAllMetadata();
+    // The dialog can close while the metadata fetch is in flight (user
+    // hits Cancel, navigates away). Bail before `setState` if the State
+    // already disposed.
+    if (!mounted) return;
     final entry = metadata[_selectedKeyId];
-    if (entry != null && mounted) {
-      setState(() => _selectedKeyLabel = entry.label);
-    }
+    if (entry == null) return;
+    setState(() => _selectedKeyLabel = entry.label);
   }
 
   @override
@@ -769,8 +798,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     }
     // Connection tab (0): host, port, username
     if (_requiredValidator(_hostCtrl.text) != null) return 0;
-    final port = int.tryParse(_portCtrl.text);
-    if (port == null || port < 1 || port > 65535) return 0;
+    if (!isValidConnectionPort(_portCtrl.text)) return 0;
     if (_requiredValidator(_userCtrl.text) != null) return 0;
     // Auth tab (1): credentials
     return 1;

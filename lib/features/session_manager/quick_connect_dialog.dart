@@ -12,6 +12,7 @@ import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
+import 'session_port_validator.dart';
 
 /// Quick Connect — shown as a bottom sheet.
 class QuickConnectDialog extends StatefulWidget {
@@ -172,13 +173,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                             hint: S.of(context).hintPort,
                             keyboardType: TextInputType.number,
                             fixedHeight: true,
-                            validator: (v) {
-                              final port = int.tryParse(v ?? '');
-                              if (port == null || port < 1 || port > 65535) {
-                                return S.of(context).portRange;
-                              }
-                              return null;
-                            },
+                            validator: (v) => isValidConnectionPort(v)
+                                ? null
+                                : S.of(context).portRange,
                           ),
                         ),
                       ],

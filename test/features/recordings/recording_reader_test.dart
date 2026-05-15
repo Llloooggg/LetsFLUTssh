@@ -124,6 +124,24 @@ void main() {
     expect(meta.eventCount, 1);
   });
 
+  test('open() surfaces decoder failure as RecordingFormatException', () async {
+    // `readMeta` swallows the error so the panel can still list the
+    // file; the streaming `open()` path is what the playback view uses
+    // and it has the opposite contract — errors get re-thrown so the
+    // catch surface in `RecordingPlaybackView` can render the toast.
+    // Stage the active key so the reader reaches the AEAD step before
+    // failing on the planted bad bytes.
+    final key = Uint8List.fromList(List.generate(32, (i) => i));
+    rust_secrets.secretsPut(id: kActiveDbKeySecretId, bytes: key);
+    addTearDown(() => rust_secrets.secretsDrop(id: kActiveDbKeySecretId));
+    final f = File(p.join(tempDir.path, 'bad-aead.lfsr'));
+    await f.writeAsBytes([0xFF, 0xFE, 0xFD, 0xFC, 0x01]);
+    expect(
+      () => RecordingReader.open(f.path).toList(),
+      throwsA(isA<RecordingFormatException>()),
+    );
+  });
+
   test('readMeta returns null on a corrupt encrypted file', () async {
     // Active SecretStore slot must be populated; otherwise the reader
     // throws "no active key" before it ever gets to the corrupt-bytes

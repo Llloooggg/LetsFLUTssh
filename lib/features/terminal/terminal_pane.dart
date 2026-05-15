@@ -910,7 +910,6 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return Container(
       height: AppTheme.barHeightSm,

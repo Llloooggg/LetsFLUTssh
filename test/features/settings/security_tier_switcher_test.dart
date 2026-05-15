@@ -165,6 +165,40 @@ void main() {
     );
 
     test(
+      'clearPrevious failure leaves the marker behind — startup recovers',
+      () async {
+        // Pin the contract for step 6: if the old-tier teardown
+        // throws, the marker must survive so the next startup sees
+        // the pending transition and can finish or roll back. Step 7
+        // (clearMarker) is gated on step 6 completing, so a thrown
+        // clearPrevious naturally preserves the marker.
+        final dir = '${tempDir.path}/clear-prev-fail';
+        final clearFailSwitcher = SecurityTierSwitcher(
+          supportDirFactory: () async => dir,
+          rekeyFromSecret: (_) async {},
+        );
+        await expectLater(
+          clearFailSwitcher.switchTierFromSecret(
+            secretId: 'tier-switch.dbkey.test',
+            targetMarkerPayload: '{"tier":"keychain"}',
+            applyWrapperFromSecret: (_) async {},
+            persistConfigFromSecret: (_) async {},
+            clearPrevious: () async =>
+                throw StateError('previous slot teardown failed'),
+          ),
+          throwsA(isA<StateError>()),
+        );
+        expect(
+          await clearFailSwitcher.readPendingMarker(),
+          '{"tier":"keychain"}',
+          reason:
+              'a thrown clearPrevious must leave the marker so recovery '
+              'can finish on next launch',
+        );
+      },
+    );
+
+    test(
       'each (src, dst) tier pair runs marker + rekey + callbacks once',
       () async {
         // Enumerate the tier-label cross product (L0/L1/L2/L3/Paranoid

@@ -125,7 +125,7 @@ class _TilingViewState extends State<TilingView> {
 
   Widget _buildDivider(BranchNode node, bool isVertical, double totalSize) {
     const hitSize = 6.0;
-    const minPaneSize = 80.0;
+    const minPaneSize = AppTheme.terminalPaneMin;
 
     return MouseRegion(
       cursor: isVertical
