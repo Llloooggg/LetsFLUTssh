@@ -28,10 +28,39 @@
 
 import AuthenticationServices
 import Foundation
+import os.log
 
 #if canImport(AppKit)
 import AppKit
 #endif
+
+// Status codes mirror the Rust `on_complete` contract in
+// `lfs_os_security::fido2_broker::apple` (see SwiftCallback doc in
+// `rust/crates/lfs_os_security/src/fido2_broker.rs`): the Swift
+// glue must hand back exactly these integers so the Rust side can
+// map them to `BrokerError`. Keep the numeric values in lockstep
+// with the iOS variant and the Rust match arm.
+private enum BrokerStatus {
+    static let ok: Int32 = 0
+    static let cancelled: Int32 = 1
+    static let timeout: Int32 = 2
+    static let noCredential: Int32 = 4
+    static let transport: Int32 = 5
+    static let other: Int32 = 6
+}
+
+// Reaper window. ASAuthorizationController's callbacks are not
+// guaranteed to fire on every code path (app deactivated, force-
+// quit mid-prompt, OS dialog dismissed by some system event) —
+// the pending map would leak the delegate + controller until
+// process exit. 30 s comfortably outlasts a real user tap on a
+// security key while still bounding orphan retention.
+private let pendingTimeoutSeconds: TimeInterval = 30
+
+private let brokerLog = OSLog(
+    subsystem: "io.lfs.securitykey",
+    category: "SecurityKeyBroker",
+)
 
 @available(macOS 12.0, *)
 private final class SecurityKeyDelegate: NSObject,
@@ -72,7 +101,7 @@ private final class SecurityKeyDelegate: NSObject,
         guard let cred =
             authorization.credential as? ASAuthorizationSecurityKeyPublicKeyCredentialAssertion
         else {
-            callback(tag, 6, nil, 0, nil, 0, nil, 0, "unexpected credential type")
+            callback(tag, BrokerStatus.other, nil, 0, nil, 0, nil, 0, "unexpected credential type")
             cleanup()
             return
         }
@@ -84,7 +113,7 @@ private final class SecurityKeyDelegate: NSObject,
                 userHandle.withUnsafeBufferPointer { uhBuf in
                     callback(
                         tag,
-                        0,
+                        BrokerStatus.ok,
                         sigBuf.baseAddress,
                         sigBuf.count,
                         authBuf.baseAddress,
@@ -107,15 +136,15 @@ private final class SecurityKeyDelegate: NSObject,
         let nsErr = error as NSError
         switch nsErr.code {
         case ASAuthorizationError.canceled.rawValue:
-            status = 1
+            status = BrokerStatus.cancelled
         case ASAuthorizationError.failed.rawValue:
-            status = 5
+            status = BrokerStatus.transport
         case ASAuthorizationError.notHandled.rawValue:
-            status = 4
+            status = BrokerStatus.noCredential
         case ASAuthorizationError.notInteractive.rawValue:
-            status = 6
+            status = BrokerStatus.other
         default:
-            status = 6
+            status = BrokerStatus.other
         }
         let msg = nsErr.localizedDescription.cString(using: .utf8)
         msg?.withUnsafeBufferPointer { ptr in
@@ -131,11 +160,42 @@ private final class SecurityKeyDelegate: NSObject,
     }
 }
 
+// Pending-entry lifetime invariant: a tag registered via `retain`
+// cannot outlive the OS-level prompt. Exactly one of three paths
+// removes it and signals Rust:
+//   1. The `ASAuthorizationController` callback runs → the delegate
+//      invokes the C callback, then calls `drop(tag:)`.
+//   2. The 30 s reaper scheduled in `retain` fires → if the tag is
+//      still present it is force-removed and the Rust callback is
+//      invoked with `BrokerStatus.timeout`.
+//   3. `NSApplication.didResignActiveNotification` fires → every
+//      remaining entry is drained with `BrokerStatus.timeout`.
+// Whichever wins, the others find the tag absent and no-op.
 @available(macOS 12.0, *)
 private final class SecurityKeyBroker {
     static let shared = SecurityKeyBroker()
+
     private var pending: [UInt64: (SecurityKeyDelegate, ASAuthorizationController)] = [:]
     private let lock = NSLock()
+    private var resignActiveObserver: NSObjectProtocol?
+
+    init() {
+        #if canImport(AppKit)
+        resignActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main,
+        ) { [weak self] _ in
+            self?.drainAllAsTimeout(reason: "app resigned active")
+        }
+        #endif
+    }
+
+    deinit {
+        if let observer = resignActiveObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 
     func retain(
         tag: UInt64,
@@ -145,12 +205,63 @@ private final class SecurityKeyBroker {
         lock.lock()
         pending[tag] = (delegate, controller)
         lock.unlock()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + pendingTimeoutSeconds) { [weak self] in
+            self?.reapIfStillPending(tag: tag)
+        }
     }
 
     func drop(tag: UInt64) {
         lock.lock()
         pending.removeValue(forKey: tag)
         lock.unlock()
+    }
+
+    private func reapIfStillPending(tag: UInt64) {
+        lock.lock()
+        let entry = pending.removeValue(forKey: tag)
+        lock.unlock()
+        guard let entry = entry else { return }
+        os_log(
+            "Security-key prompt for tag %{public}llu timed out after %.0fs",
+            log: brokerLog,
+            type: .info,
+            tag,
+            pendingTimeoutSeconds,
+        )
+        signalTimeout(tag: tag, delegate: entry.0)
+    }
+
+    private func drainAllAsTimeout(reason: String) {
+        lock.lock()
+        let drained = pending
+        pending.removeAll()
+        lock.unlock()
+        guard !drained.isEmpty else { return }
+        os_log(
+            "Draining %d pending security-key prompt(s) as timeout (%{public}@)",
+            log: brokerLog,
+            type: .info,
+            drained.count,
+            reason,
+        )
+        for (tag, entry) in drained {
+            signalTimeout(tag: tag, delegate: entry.0)
+        }
+    }
+
+    private func signalTimeout(tag: UInt64, delegate: SecurityKeyDelegate) {
+        let msg = "security-key prompt timed out".cString(using: .utf8)
+        msg?.withUnsafeBufferPointer { ptr in
+            delegate.callback(
+                tag,
+                BrokerStatus.timeout,
+                nil, 0,
+                nil, 0,
+                nil, 0,
+                ptr.baseAddress,
+            )
+        }
     }
 }
 
