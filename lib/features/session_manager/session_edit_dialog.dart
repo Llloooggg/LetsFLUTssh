@@ -909,14 +909,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                             offstage: _tabIndex != 2,
                             child: _buildOptionsTab(),
                           ),
-                          Offstage(
-                            offstage: _tabIndex != 3,
-                            child: SessionForwardsTab(
-                              rules: _forwards,
-                              onChanged: (next) =>
-                                  setState(() => _forwards = next),
+                          // Port forwarding is an SSH-only capability —
+                          // WebDAV / S3 transports do not multiplex
+                          // arbitrary TCP streams over the connection.
+                          // Drop the body entirely for non-SSH so the
+                          // hidden Stack child does not even build.
+                          if (_kind == SessionKind.ssh)
+                            Offstage(
+                              offstage: _tabIndex != 3,
+                              child: SessionForwardsTab(
+                                rules: _forwards,
+                                onChanged: (next) =>
+                                    setState(() => _forwards = next),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -945,18 +951,27 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   // ── Tab bar ──
 
   Widget _buildTabBar() {
+    final showForwarding = _kind == SessionKind.ssh;
     return Container(
       decoration: BoxDecoration(border: AppTheme.borderBottom),
-      // Four Expanded tabs — each one caps content at a quarter of the
-      // bar width and truncates via ellipsis if the translation overflows.
+      // Each Expanded slot caps content at an equal share of the bar
+      // width and truncates via ellipsis if the translation overflows.
+      // The Forwarding tab only appears for SSH transports — WebDAV
+      // and S3 cannot tunnel TCP, so the tab would render an inert
+      // section for them.
       child: Row(
         children: [
           Expanded(child: _buildTab(0, Icons.dns, S.of(context).connection)),
           Expanded(child: _buildTab(1, Icons.shield, S.of(context).auth)),
           Expanded(child: _buildTab(2, Icons.folder, S.of(context).options)),
-          Expanded(
-            child: _buildTab(3, Icons.swap_horiz, S.of(context).portForwarding),
-          ),
+          if (showForwarding)
+            Expanded(
+              child: _buildTab(
+                3,
+                Icons.swap_horiz,
+                S.of(context).portForwarding,
+              ),
+            ),
         ],
       ),
     );
@@ -1031,4 +1046,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// keeps the rebuild path inside the class while letting the
   /// connection / auth / options part files mutate the same fields.
   void rebuild(VoidCallback fn) => setState(fn);
+
+  /// Flip the active session kind and clamp `_tabIndex` to a valid
+  /// position. The Forwarding tab (index 3) only exists for SSH —
+  /// the kind picker lives on the Connection tab, so a live user
+  /// cannot currently fire this with `_tabIndex == 3` (the picker
+  /// is itself offstage at that moment). The clamp is defensive:
+  /// any future code path that mutates `_kind` while the dialog is
+  /// open will still leave `_tabIndex` pointing at a rendered tab.
+  void _switchKind(SessionKind next) {
+    setState(() {
+      _kind = next;
+      if (next != SessionKind.ssh && _tabIndex == 3) {
+        _tabIndex = 0;
+      }
+    });
+  }
 }

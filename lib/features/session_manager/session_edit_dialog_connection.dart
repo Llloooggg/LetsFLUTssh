@@ -50,19 +50,19 @@ extension _ConnectionTab on _SessionEditDialogState {
             AppPickerChip(
               active: _kind == SessionKind.ssh,
               label: l10n.sessionKindSsh,
-              onTap: () => rebuild(() => _kind = SessionKind.ssh),
+              onTap: () => _switchKind(SessionKind.ssh),
               expand: false,
             ),
             AppPickerChip(
               active: _kind == SessionKind.webdav,
               label: l10n.sessionKindWebDav,
-              onTap: () => rebuild(() => _kind = SessionKind.webdav),
+              onTap: () => _switchKind(SessionKind.webdav),
               expand: false,
             ),
             AppPickerChip(
               active: _kind == SessionKind.s3,
               label: l10n.sessionKindS3,
-              onTap: () => rebuild(() => _kind = SessionKind.s3),
+              onTap: () => _switchKind(SessionKind.s3),
               expand: false,
             ),
           ],
@@ -199,10 +199,12 @@ extension _ConnectionTab on _SessionEditDialogState {
     ];
   }
 
-  /// WebDAV transport-config block. Base URL + username + auth
-  /// method + optional self-signed fingerprint pin. The password
-  /// lives on the Auth tab next to the SSH password field — same
-  /// widget, kind-aware contract on save.
+  /// WebDAV transport-config block. Base URL + username only — the
+  /// auth method picker + credential field + self-signed-cert
+  /// fingerprint live on the Auth tab next to the SSH credential
+  /// block. Connection answers "where are we connecting"; Auth
+  /// answers "how do we prove it" — fingerprint pin is a trust
+  /// anchor, so it belongs in Auth.
   Widget _buildWebDavSection(S l10n) {
     if (_loadingWebDav) {
       return Padding(
@@ -234,32 +236,6 @@ extension _ConnectionTab on _SessionEditDialogState {
           controller: _userCtrl,
           hint: l10n.hintUsername,
           validator: _requiredValidator,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        FieldLabel(l10n.webDavAuthMethod),
-        Row(
-          children: [
-            _webDavAuthChip('basic', l10n.webDavAuthBasic),
-            const SizedBox(width: AppSpacing.xxs),
-            _webDavAuthChip('digest', l10n.webDavAuthDigest),
-            const SizedBox(width: AppSpacing.xxs),
-            _webDavAuthChip('bearer', l10n.webDavAuthBearer),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        StyledFormField(
-          label: l10n.webDavSelfSignedFingerprint,
-          controller: _fingerprintCtrl,
-          hint: 'SHA256:…',
-        ),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          l10n.webDavSelfSignedFingerprintHint,
-          style: TextStyle(
-            color: AppTheme.fgFaint,
-            fontFamily: AppFonts.interFamily,
-            fontSize: AppFonts.xs,
-          ),
         ),
       ],
     );

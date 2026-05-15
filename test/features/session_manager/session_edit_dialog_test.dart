@@ -2458,6 +2458,161 @@ void main() {
       );
     });
   });
+
+  group('SessionEditDialog — protocol-branched Auth tab', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'SSH kind shows ssh-agent + password + key fields on Auth tab',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+
+        // SSH is the default — agent toggle + password divider + key
+        // passphrase all present.
+        expect(find.text('Use system ssh-agent'), findsOneWidget);
+        expect(find.text('PASSWORD'), findsOneWidget);
+        expect(find.text('KEY PASSPHRASE'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WebDAV kind hides SSH key fields and shows auth-method chips + fingerprint on Auth tab',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+        await switchToAuth(tester);
+
+        // Auth-method picker + bearer chip belong on Auth now.
+        expect(find.text('Basic'), findsOneWidget);
+        expect(find.text('Digest'), findsOneWidget);
+        expect(find.text('Bearer token'), findsOneWidget);
+        // Self-signed fingerprint pin lives next to the credential.
+        expect(
+          find.text('SELF-SIGNED CERT FINGERPRINT (OPTIONAL)'),
+          findsOneWidget,
+        );
+
+        // SSH controls must NOT render for WebDAV.
+        expect(find.text('Use system ssh-agent'), findsNothing);
+        expect(find.text('KEY PASSPHRASE'), findsNothing);
+        expect(find.text('Select Key File'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WebDAV credential field label flips when bearer chip selected',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+        await switchToAuth(tester);
+
+        // Basic is the default — credential field label = PASSWORD.
+        expect(find.text('PASSWORD'), findsOneWidget);
+
+        // Tap the bearer chip — the field above becomes the token.
+        await tester.tap(find.text('Bearer token').first);
+        await tester.pumpAndSettle();
+        // Chip text stays mixed-case ("Bearer token"); the field
+        // label routes through `FieldLabel` which uppercases
+        // ("BEARER TOKEN"). Two distinct strings now own the
+        // bearer-token surface — the password label is gone.
+        expect(find.text('Bearer token'), findsOneWidget);
+        expect(find.text('BEARER TOKEN'), findsOneWidget);
+        expect(find.text('PASSWORD'), findsNothing);
+      },
+    );
+
+    testWidgets('S3 kind shows only the secret access key field on Auth tab', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await selectKind(tester, 'S3');
+      await switchToAuth(tester);
+
+      expect(find.text('SECRET ACCESS KEY'), findsOneWidget);
+
+      // No SSH controls, no WebDAV chips.
+      expect(find.text('Use system ssh-agent'), findsNothing);
+      expect(find.text('KEY PASSPHRASE'), findsNothing);
+      expect(find.text('Basic'), findsNothing);
+      expect(find.text('Bearer token'), findsNothing);
+      expect(
+        find.text('SELF-SIGNED CERT FINGERPRINT (OPTIONAL)'),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'WebDAV Connection tab no longer carries auth-method or fingerprint',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+
+        // Connection tab only carries transport — base URL, username.
+        // The WebDAV `webDavUsername` ARB key is "Username" (no
+        // required-marker suffix, unlike the SSH `usernameRequired`
+        // = "Username *" key) — the StyledFormField label simply
+        // uppercases the raw string.
+        expect(find.text('BASE URL'), findsOneWidget);
+        expect(find.text('USERNAME'), findsOneWidget);
+        // Auth-method picker + fingerprint moved to the Auth tab.
+        expect(find.text('Basic'), findsNothing);
+        expect(find.text('Digest'), findsNothing);
+        expect(
+          find.text('SELF-SIGNED CERT FINGERPRINT (OPTIONAL)'),
+          findsNothing,
+        );
+      },
+    );
+  });
+
+  group('SessionEditDialog — Forwarding tab visibility', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('SSH renders the Forwarding tab', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.text('Forwarding'), findsOneWidget);
+    });
+
+    testWidgets('WebDAV hides the Forwarding tab', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'WebDAV');
+      expect(find.text('Forwarding'), findsNothing);
+    });
+
+    testWidgets('S3 hides the Forwarding tab', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'S3');
+      expect(find.text('Forwarding'), findsNothing);
+    });
+  });
 }
 
 /// Minimal [SshKeysMutator] test double — returns the seeded

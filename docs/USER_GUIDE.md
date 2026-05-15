@@ -69,6 +69,10 @@ End-user reference for every feature shipped in the app. Walks through the typic
 
 - Sidebar search field filters by label / host / user. Case-insensitive.
 
+### Per-protocol row icon
+
+- SSH sessions show a terminal glyph; WebDAV sessions show a cloud outline; S3 sessions show a bucket-shaped inventory outline. The icon colour still tracks connection state (green = connected, yellow = connecting, faint = disconnected) — only the shape changes between protocols.
+
 ### Drag-and-drop
 
 - Drag a session onto another folder / the root area.
@@ -483,16 +487,16 @@ LetsFLUTssh can also browse a WebDAV server (Nextcloud, ownCloud, Apache mod_dav
 
 ### Creating a WebDAV session
 
-- Session manager → New session → set **Session kind** to `WebDAV` at the top of the dialog.
+- Session manager → New session → set **Session kind** to `WebDAV` at the top of the Connection tab. The dialog reshapes itself for the WebDAV transport: the Connection tab now only asks for Base URL + Username, the Auth tab holds the auth method picker + credential + fingerprint pin, and the Forwarding tab disappears (WebDAV cannot tunnel TCP).
 - Fill **Base URL** with the WebDAV root collection, including the trailing slash. Examples:
   - Nextcloud: `https://cloud.example.com/remote.php/dav/files/alice/`
   - ownCloud: `https://files.example.com/remote.php/webdav/`
   - Apache mod_dav: `https://example.com/webdav/`
-- Pick **Auth method**:
+- Switch to the **Auth tab** and pick **Auth method**:
   - `Basic` — username + password, always sent (only safe over TLS).
   - `Digest` — challenge / response, MD5. Use when the server insists; password never crosses the wire in clear.
-  - `Bearer token` — OAuth-style. Paste the access token into the password field; the username is ignored.
-- Switch to the **Auth tab** and type the password or bearer token into the Password field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
+  - `Bearer token` — OAuth-style. Paste the access token into the credential field below; the username is ignored at request time.
+- Fill the credential field below the method picker. The field label tracks the chosen method — `PASSWORD` for basic / digest, `BEARER TOKEN` for bearer. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
 - Optional: paste a **Self-signed cert fingerprint** (SHA-256, `aa:bb:cc:…` or `SHA256:…`) when the server uses a self-signed certificate that the system trust store rejects. Leave empty for the default system trust.
 
 ### Connecting and browsing
@@ -514,7 +518,7 @@ LetsFLUTssh can also browse any S3-compatible object store (AWS S3, MinIO, Wasab
 
 ### Creating an S3 session
 
-- Session manager → New session → set **Session kind** to `S3` at the top of the dialog.
+- Session manager → New session → set **Session kind** to `S3` at the top of the Connection tab. The dialog reshapes itself for the S3 transport: the Connection tab carries the access-key / region / endpoint / addressing block, the Auth tab holds a single Secret access key field, and the Forwarding tab disappears (S3 cannot tunnel TCP).
 - Fill **Access key ID** with the public-side key (AWS `AKIA…`, MinIO console-generated key, R2 access key id, etc.).
 - Fill **Region** with the bucket's region wire value:
   - AWS: `us-east-1`, `eu-west-2`, etc.
@@ -531,7 +535,7 @@ LetsFLUTssh can also browse any S3-compatible object store (AWS S3, MinIO, Wasab
 - Toggle **Path-style addressing** when the server requires it. MinIO needs it; AWS, R2, Spaces, Wasabi all default to virtual-host and the toggle stays off.
 - Fill **Default bucket** with the bucket the browser should open at. Leave empty to require the `s3://bucket/key` shorthand on every navigation.
 - Optional: fill **Default prefix** with the prefix the browser should open under (`logs/`, `2024/`). The browser still walks above the prefix when the user types an `s3://` path that points elsewhere.
-- Switch to the **Auth tab** and type the **Secret access key** into the Password field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
+- Switch to the **Auth tab** and type the **Secret access key** into the single `SECRET ACCESS KEY` field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
 
 ### Connecting and browsing
 

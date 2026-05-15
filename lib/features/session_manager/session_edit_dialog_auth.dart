@@ -1,12 +1,16 @@
 part of 'session_edit_dialog.dart';
 
-/// Auth-tab UI — the system-ssh-agent toggle plus the password /
-/// key-store / inline-PEM / passphrase fields and the picker +
-/// drop-target helpers. Lives as an extension on the dialog state
-/// so the helpers reach the per-field controllers (`_passwordCtrl`,
-/// `_keyDataCtrl`, …) and the dirty-bit flags directly without
-/// going through a public surface; `part of` joins the file into
-/// the same library so library-private names stay reachable.
+/// Auth-tab UI — protocol-branched. For SSH renders the
+/// system-ssh-agent toggle plus password / key-store / inline-PEM /
+/// passphrase block. For WebDAV renders the auth-method picker
+/// (basic / digest / bearer) + a single credential field whose label
+/// flips with the method + the self-signed-cert fingerprint pin. For
+/// S3 renders the secret access key field. Lives as an extension on
+/// the dialog state so the helpers reach the per-field controllers
+/// (`_passwordCtrl`, `_keyDataCtrl`, …) and the dirty-bit flags
+/// directly without going through a public surface; `part of` joins
+/// the file into the same library so library-private names stay
+/// reachable.
 extension _AuthTab on _SessionEditDialogState {
   Widget _buildAuthTab() {
     return Column(
@@ -27,17 +31,136 @@ extension _AuthTab on _SessionEditDialogState {
               ),
             ),
           ),
-        _buildAgentOption(),
-        if (!_useAgent) ...[
-          const SizedBox(height: AppSpacing.lg),
-          _buildPasswordField(),
-          const SizedBox(height: AppSpacing.lg),
-          _buildOrDivider(),
-          const SizedBox(height: AppSpacing.lg),
-          ..._buildKeyFields(),
-        ],
+        if (_kind == SessionKind.ssh)
+          ..._buildSshAuthSection()
+        else if (_kind == SessionKind.webdav)
+          ..._buildWebDavAuthSection()
+        else
+          ..._buildS3AuthSection(),
       ],
     );
+  }
+
+  List<Widget> _buildSshAuthSection() {
+    return [
+      _buildAgentOption(),
+      if (!_useAgent) ...[
+        const SizedBox(height: AppSpacing.lg),
+        _buildPasswordField(),
+        const SizedBox(height: AppSpacing.lg),
+        _buildOrDivider(),
+        const SizedBox(height: AppSpacing.lg),
+        ..._buildKeyFields(),
+      ],
+    ];
+  }
+
+  /// WebDAV auth section — method picker plus the credential field
+  /// (password for basic / digest, bearer token for bearer) plus the
+  /// optional self-signed-cert fingerprint pin. The pin is a trust
+  /// anchor — conceptually part of "how the client proves it's
+  /// talking to the right server", so it belongs here next to the
+  /// credential rather than on the Connection tab.
+  List<Widget> _buildWebDavAuthSection() {
+    final l10n = S.of(context);
+    if (_loadingWebDav) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.accent,
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      FieldLabel(l10n.webDavAuthMethod),
+      Row(
+        children: [
+          _webDavAuthChip('basic', l10n.webDavAuthBasic),
+          const SizedBox(width: AppSpacing.xxs),
+          _webDavAuthChip('digest', l10n.webDavAuthDigest),
+          const SizedBox(width: AppSpacing.xxs),
+          _webDavAuthChip('bearer', l10n.webDavAuthBearer),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.lg),
+      _buildWebDavCredentialField(),
+      const SizedBox(height: AppSpacing.lg),
+      StyledFormField(
+        label: l10n.webDavSelfSignedFingerprint,
+        controller: _fingerprintCtrl,
+        hint: 'SHA256:…',
+      ),
+      const SizedBox(height: AppSpacing.xxs),
+      Text(
+        l10n.webDavSelfSignedFingerprintHint,
+        style: TextStyle(
+          color: AppTheme.fgFaint,
+          fontFamily: AppFonts.interFamily,
+          fontSize: AppFonts.xs,
+        ),
+      ),
+    ];
+  }
+
+  /// Credential field for WebDAV. The label tracks the active
+  /// method: "Password" for basic / digest, "Bearer token" for
+  /// bearer — the underlying controller (`_passwordCtrl`) is the
+  /// same widget the SSH path uses; the connect path interprets
+  /// the value per `auth_method`.
+  Widget _buildWebDavCredentialField() {
+    final hasStored = widget.session?.auth.hasStoredPassword ?? false;
+    final l10n = S.of(context);
+    final label = _webdavAuthMethod == 'bearer'
+        ? l10n.webDavAuthBearer
+        : l10n.password;
+    return StyledFormField(
+      label: label,
+      controller: _passwordCtrl,
+      hint: hasStored ? l10n.savedTypeToChange : '••••••••',
+      obscure: _obscurePassword,
+      suffixIcon: GestureDetector(
+        onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),
+        child: Icon(
+          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+          size: 12,
+          color: AppTheme.fgFaint,
+        ),
+      ),
+    );
+  }
+
+  /// S3 auth section — a single Secret Access Key field. SigV4 has
+  /// no other credential dimension; the access key id is the
+  /// identity column (Connection tab) and the secret is what proves
+  /// possession of that identity (this tab).
+  List<Widget> _buildS3AuthSection() {
+    final l10n = S.of(context);
+    final hasStored = widget.session?.auth.hasStoredPassword ?? false;
+    return [
+      StyledFormField(
+        label: l10n.s3SecretKey,
+        controller: _passwordCtrl,
+        hint: hasStored ? l10n.savedTypeToChange : '••••••••',
+        obscure: _obscurePassword,
+        suffixIcon: GestureDetector(
+          onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),
+          child: Icon(
+            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+            size: 12,
+            color: AppTheme.fgFaint,
+          ),
+        ),
+      ),
+    ];
   }
 
   /// Renders the "Use system ssh-agent" toggle at the top of the
