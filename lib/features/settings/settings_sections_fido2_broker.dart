@@ -60,10 +60,14 @@ class _Fido2BrokerSection extends ConsumerWidget {
     // Android: broker only — toggle is irrelevant.
     final bothPaths = snap.brokerAvailable && snap.directHidAvailable;
     final preferDirect = snap.preferDirectHid;
+    // No inline `_SectionHeader` — the outer settings scaffold
+    // (`_CollapsibleSection` on mobile, right-pane title on desktop)
+    // already paints the section title from `_Section.title`.
+    // Repeating it here doubles "Hardware security keys" on every
+    // render.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.fido2BrokerSectionTitle),
         const SizedBox(height: AppSpacing.xs),
         Text(
           '${l10n.fido2BrokerCurrentTransportLabel}: ${_currentTransportText(l10n, snap)}',

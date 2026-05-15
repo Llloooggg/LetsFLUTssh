@@ -78,10 +78,13 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
     final status = ref.watch(_sshAgentStatusProvider);
     final unsupported = status.unsupported;
     final running = status.running;
+    // No inline `_SectionHeader` — the outer `_CollapsibleSection`
+    // (mobile) and the right-pane scaffold (desktop) already paint
+    // the section title from `_Section.title`. Repeating it here
+    // doubles "External SSH client integration" on every render.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.agentEndpointSectionTitle),
         _Toggle(
           label: l10n.agentEndpointToggleTitle,
           value: running,

@@ -243,10 +243,13 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
     if (c == null) {
       return const SizedBox.shrink();
     }
+    // No inline `_SectionHeader` — the outer settings scaffold
+    // (`_CollapsibleSection` on mobile, right-pane title on desktop)
+    // already paints the section title from `_Section.title`.
+    // Repeating it here doubles "Sync" on every render.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.syncSection),
         _Toggle(
           label: l10n.syncEnable,
           value: c.enabled,
