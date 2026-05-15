@@ -195,11 +195,27 @@ impl Default for PromptRegistry {
 
 /// Outcome of [`check_host`] — what the russh handler should do
 /// next. `Accepted` means the offered key matched the stored
-/// entry; `Unknown` / `Changed` should escalate to a TOFU prompt.
+/// entry; `Mismatch` carries a [`HostCheckMismatch`] the caller
+/// must escalate to a TOFU prompt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostCheckResult {
     Accepted,
+    Mismatch(HostCheckMismatch),
+}
+
+/// A mismatch surfaced by [`check_host`] that the caller must
+/// resolve via a user-facing TOFU prompt. Splitting this out of
+/// [`HostCheckResult`] makes [`prompt_kind_for`] infallible — every
+/// variant maps to a [`KnownHostPromptKind`] by construction, so
+/// adding a new mismatch later is a compile error until the
+/// mapping is updated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostCheckMismatch {
+    /// No row exists for `(host, port)` — first contact.
     Unknown,
+    /// A row exists but the offered key bytes / type differ from
+    /// what is stored. `stored_key_b64` is the on-disk value the
+    /// UI can diff against the freshly-offered key.
     Changed { stored_key_b64: String },
 }
 
@@ -217,25 +233,27 @@ pub fn check_host(
     db.with_conn(|conn| {
         let row = crate::db::known_hosts::get_by_host_port(conn, host, port)?;
         let result = match row {
-            None => HostCheckResult::Unknown,
+            None => HostCheckResult::Mismatch(HostCheckMismatch::Unknown),
             Some(r) if r.key_type == key_type && r.key_base64 == key_base64 => {
                 HostCheckResult::Accepted
             }
-            Some(r) => HostCheckResult::Changed {
+            Some(r) => HostCheckResult::Mismatch(HostCheckMismatch::Changed {
                 stored_key_b64: r.key_base64,
-            },
+            }),
         };
         Ok::<HostCheckResult, Error>(result)
     })
 }
 
-/// Map a [`HostCheckResult`] mismatch to the matching
-/// [`KnownHostPromptKind`] for the bus event.
-pub fn prompt_kind_for(result: &HostCheckResult) -> Option<KnownHostPromptKind> {
-    match result {
-        HostCheckResult::Unknown => Some(KnownHostPromptKind::NewHost),
-        HostCheckResult::Changed { .. } => Some(KnownHostPromptKind::KeyChanged),
-        HostCheckResult::Accepted => None,
+/// Map a [`HostCheckMismatch`] to the matching
+/// [`KnownHostPromptKind`] for the bus event. Infallible — the
+/// input enum excludes the `Accepted` case by construction, so
+/// every variant has a defined prompt kind and the compiler will
+/// flag any new variant added later.
+pub fn prompt_kind_for(mismatch: &HostCheckMismatch) -> KnownHostPromptKind {
+    match mismatch {
+        HostCheckMismatch::Unknown => KnownHostPromptKind::NewHost,
+        HostCheckMismatch::Changed { .. } => KnownHostPromptKind::KeyChanged,
     }
 }
 
@@ -311,5 +329,55 @@ mod tests {
         assert_eq!(split_host_port("[::1:2222"), None);
         assert_eq!(split_host_port("[::1]"), None);
         assert_eq!(split_host_port("[::1]:abc"), None);
+    }
+
+    // Exhaustive mapping of every `HostCheckMismatch` variant to
+    // its `KnownHostPromptKind`. The match inside `prompt_kind_for`
+    // is exhaustive at compile time; this test pins the
+    // *semantics* of that mapping so a future variant added to
+    // `HostCheckMismatch` cannot silently relabel an existing case.
+    #[test]
+    fn prompt_kind_for_covers_every_mismatch_variant() {
+        assert_eq!(
+            prompt_kind_for(&HostCheckMismatch::Unknown),
+            KnownHostPromptKind::NewHost,
+        );
+        assert_eq!(
+            prompt_kind_for(&HostCheckMismatch::Changed {
+                stored_key_b64: "AAAA".to_string(),
+            }),
+            KnownHostPromptKind::KeyChanged,
+        );
+    }
+
+    // `HostCheckResult` carries two top-level shapes — `Accepted`
+    // short-circuits the TOFU handler, `Mismatch` carries the data
+    // the prompt needs. The caller in `ssh::check_server_key_via_tofu`
+    // matches both arms exhaustively; this test pins the surface so
+    // a future variant added to `HostCheckResult` cannot bypass the
+    // mismatch path silently.
+    #[test]
+    fn host_check_result_round_trip() {
+        let accepted = HostCheckResult::Accepted;
+        match accepted {
+            HostCheckResult::Accepted => {}
+            HostCheckResult::Mismatch(_) => panic!("Accepted must not match Mismatch"),
+        }
+
+        let unknown = HostCheckResult::Mismatch(HostCheckMismatch::Unknown);
+        match unknown {
+            HostCheckResult::Mismatch(HostCheckMismatch::Unknown) => {}
+            other => panic!("expected Mismatch(Unknown), got {other:?}"),
+        }
+
+        let changed = HostCheckResult::Mismatch(HostCheckMismatch::Changed {
+            stored_key_b64: "AAAA".to_string(),
+        });
+        match changed {
+            HostCheckResult::Mismatch(HostCheckMismatch::Changed { stored_key_b64 }) => {
+                assert_eq!(stored_key_b64, "AAAA");
+            }
+            other => panic!("expected Mismatch(Changed), got {other:?}"),
+        }
     }
 }

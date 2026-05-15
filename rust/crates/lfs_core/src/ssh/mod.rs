@@ -363,11 +363,11 @@ async fn check_server_key_via_tofu(
         .await
         .map_err(|e| Error::Io(format!("known-hosts blocking task: {e}")))??
     };
-    if matches!(result, crate::known_hosts::HostCheckResult::Accepted) {
-        return Ok(true);
-    }
-    let kind = crate::known_hosts::prompt_kind_for(&result)
-        .expect("non-Accepted result must have a prompt kind");
+    let mismatch = match result {
+        crate::known_hosts::HostCheckResult::Accepted => return Ok(true),
+        crate::known_hosts::HostCheckResult::Mismatch(m) => m,
+    };
+    let kind = crate::known_hosts::prompt_kind_for(&mismatch);
     let fingerprint = format_fingerprint(&key_bytes);
     let prompt_id = generate_prompt_id();
     let receiver = app.known_hosts_prompts.register(prompt_id.clone());
