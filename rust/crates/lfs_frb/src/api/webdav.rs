@@ -244,12 +244,17 @@ pub async fn webdav_connect(
     self_signed_fingerprint: Option<String>,
 ) -> Result<WebDavConnection, String> {
     let method = parse_auth_method(&auth_method)?;
+    // Borrow UTF-8 via `&secret_bytes` so the `Zeroizing<Vec<u8>>`
+    // scrubs on the early-return path. `String::from_utf8(_.to_vec())`
+    // would shed the bytes into a `FromUtf8Error` that drops without
+    // scrubbing — a plaintext leak on invalid input.
     let secret_bytes = lfs_core::app::instance()
         .secrets
         .get(&password_secret_id)
         .ok_or_else(|| format!("WebDAV secret not staged: {password_secret_id}"))?;
-    let secret = String::from_utf8(secret_bytes.to_vec())
-        .map_err(|e| format!("WebDAV secret not UTF-8: {e}"))?;
+    let secret_str =
+        std::str::from_utf8(&secret_bytes).map_err(|e| format!("WebDAV secret not UTF-8: {e}"))?;
+    let secret = Zeroizing::new(secret_str.to_owned());
     let creds = Credentials {
         method,
         username: if username.is_empty() {
@@ -257,7 +262,7 @@ pub async fn webdav_connect(
         } else {
             Some(username)
         },
-        password_or_token: Zeroizing::new(secret),
+        password_or_token: secret,
     };
     let client =
         WebDavClient::new(&base_url, creds).map_err(|e| crate::api::frb_err::from_core(&e))?;
@@ -332,5 +337,65 @@ mod tests {
         };
         let mapped: WebDavFileMetadata = m.into();
         assert!(mapped.is_dir);
+    }
+
+    #[tokio::test]
+    async fn webdav_connect_rejects_secret_with_invalid_utf8() {
+        // Pin the contract: when the staged secret is not valid
+        // UTF-8, the connect path returns the UTF-8 error before
+        // any WebDavClient / network construction runs. This is
+        // the failure branch where leaking a plaintext copy
+        // through `FromUtf8Error` would matter — the test fixes
+        // the shape so the regression cannot return.
+        let app = lfs_core::app::init();
+        let secret_id = "test.webdav.invalid-utf8";
+        // 0xFF / 0xFE / 0xFD are illegal as the first byte of a
+        // UTF-8 sequence, so `str::from_utf8` rejects deterministically.
+        app.secrets.put(secret_id, &[0xFF, 0xFE, 0xFD]);
+        let result = webdav_connect(
+            "https://example.invalid/dav".into(),
+            "alice".into(),
+            secret_id.into(),
+            "basic".into(),
+            None,
+        )
+        .await;
+        app.secrets.drop_id(secret_id);
+        // `WebDavConnection` is `#[frb(opaque)]` and intentionally
+        // does not implement `Debug`, so `expect_err` is unavailable
+        // here.
+        let err = match result {
+            Ok(_) => panic!("invalid UTF-8 secret must fail"),
+            Err(e) => e,
+        };
+        assert!(
+            err.contains("WebDAV secret not UTF-8"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn webdav_connect_rejects_missing_secret_id() {
+        // Pin the sibling early-return: an unknown secret id
+        // surfaces "not staged" before any network construction.
+        // Together with the UTF-8 test, this pins both branches
+        // of the resolve-then-validate step.
+        let _app = lfs_core::app::init();
+        let result = webdav_connect(
+            "https://example.invalid/dav".into(),
+            "alice".into(),
+            "test.webdav.does-not-exist".into(),
+            "basic".into(),
+            None,
+        )
+        .await;
+        let err = match result {
+            Ok(_) => panic!("missing secret id must fail"),
+            Err(e) => e,
+        };
+        assert!(
+            err.contains("WebDAV secret not staged"),
+            "unexpected error: {err}"
+        );
     }
 }

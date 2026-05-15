@@ -210,15 +210,20 @@ pub async fn s3_connect(
     default_bucket: String,
     default_prefix: String,
 ) -> Result<S3Connection, String> {
+    // Borrow UTF-8 via `&secret_bytes` so the `Zeroizing<Vec<u8>>`
+    // scrubs on the early-return path. `String::from_utf8(_.to_vec())`
+    // would shed the bytes into a `FromUtf8Error` that drops without
+    // scrubbing — a plaintext leak on invalid input.
     let secret_bytes = lfs_core::app::instance()
         .secrets
         .get(&secret_key_secret_id)
         .ok_or_else(|| format!("S3 secret not staged: {secret_key_secret_id}"))?;
-    let secret = String::from_utf8(secret_bytes.to_vec())
-        .map_err(|e| format!("S3 secret not UTF-8: {e}"))?;
+    let secret_str =
+        std::str::from_utf8(&secret_bytes).map_err(|e| format!("S3 secret not UTF-8: {e}"))?;
+    let secret = Zeroizing::new(secret_str.to_owned());
     let cfg = S3Config {
         access_key_id,
-        secret_access_key: Zeroizing::new(secret),
+        secret_access_key: secret,
         region,
         endpoint,
         path_style,
@@ -239,4 +244,72 @@ pub async fn s3_connect(
     }
     let provider = Arc::new(S3Provider::new(Arc::clone(&client)));
     Ok(S3Connection { provider, client })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn s3_connect_rejects_secret_with_invalid_utf8() {
+        // Pin the contract: when the staged secret is not valid
+        // UTF-8, the connect path returns the UTF-8 error before
+        // any S3Client / network construction runs. This is the
+        // failure branch where leaking a plaintext copy through
+        // `FromUtf8Error` would matter — the test fixes the shape
+        // so the regression cannot return.
+        let app = lfs_core::app::init();
+        let secret_id = "test.s3.invalid-utf8";
+        // 0xFF / 0xFE / 0xFD are illegal as the first byte of a
+        // UTF-8 sequence, so `str::from_utf8` rejects deterministically.
+        app.secrets.put(secret_id, &[0xFF, 0xFE, 0xFD]);
+        let result = s3_connect(
+            "AKIATESTKEY".into(),
+            secret_id.into(),
+            "us-east-1".into(),
+            String::new(),
+            false,
+            String::new(),
+            String::new(),
+        )
+        .await;
+        app.secrets.drop_id(secret_id);
+        // `S3Connection` is `#[frb(opaque)]` and intentionally does
+        // not implement `Debug`, so `expect_err` is unavailable here.
+        let err = match result {
+            Ok(_) => panic!("invalid UTF-8 secret must fail"),
+            Err(e) => e,
+        };
+        assert!(
+            err.contains("S3 secret not UTF-8"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn s3_connect_rejects_missing_secret_id() {
+        // Pin the sibling early-return: an unknown secret id
+        // surfaces "not staged" before any network construction.
+        // Together with the UTF-8 test, this pins both branches
+        // of the resolve-then-validate step.
+        let _app = lfs_core::app::init();
+        let result = s3_connect(
+            "AKIATESTKEY".into(),
+            "test.s3.does-not-exist".into(),
+            "us-east-1".into(),
+            String::new(),
+            false,
+            String::new(),
+            String::new(),
+        )
+        .await;
+        let err = match result {
+            Ok(_) => panic!("missing secret id must fail"),
+            Err(e) => e,
+        };
+        assert!(
+            err.contains("S3 secret not staged"),
+            "unexpected error: {err}"
+        );
+    }
 }
