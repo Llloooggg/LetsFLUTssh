@@ -242,16 +242,48 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
         )
         .map_err(|e| Error::Db(format!("sessions upsert: {e}")))?;
 
-    // The SSH-specific block lands on `ssh_session_details` only
-    // when the row carries the SSH transport tag. A WebDAV / S3
-    // upsert drops any stale join row left over from a prior SSH
-    // edit under the same id so a kind change does not leak the
-    // old credential blob.
+    // Protocol-specific detail rows. Each kind owns one join table;
+    // the upsert keeps the live kind's row in sync and drops any
+    // stale row from the other two so a kind change does not leak
+    // the previous transport's URL / credentials under the same
+    // session id. Idempotent — already-empty deletes are no-ops.
     if kind == SESSION_KIND_SSH {
         upsert_ssh_details(conn, row)?;
     } else {
         delete_ssh_details(conn, &row.id)?;
     }
+    if kind != SESSION_KIND_WEBDAV {
+        delete_webdav_details(conn, &row.id)?;
+    }
+    if kind != SESSION_KIND_S3 {
+        delete_s3_details(conn, &row.id)?;
+    }
+    Ok(())
+}
+
+/// Physically remove the `webdav_session_details` row for a session
+/// id. Issued when an upsert lands a non-WebDAV kind so a prior
+/// WebDAV row does not stay reachable as stale transport config.
+fn delete_webdav_details(conn: &impl crate::db::DbAccess, id: &str) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "DELETE FROM webdav_session_details WHERE session_id = ?1",
+            params![id],
+        )
+        .map_err(|e| Error::Db(format!("webdav_session_details delete: {e}")))?;
+    Ok(())
+}
+
+/// Physically remove the `s3_session_details` row for a session id.
+/// Same shape as [`delete_webdav_details`] — fires on a kind change
+/// away from S3.
+fn delete_s3_details(conn: &impl crate::db::DbAccess, id: &str) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "DELETE FROM s3_session_details WHERE session_id = ?1",
+            params![id],
+        )
+        .map_err(|e| Error::Db(format!("s3_session_details delete: {e}")))?;
     Ok(())
 }
 
@@ -699,6 +731,45 @@ pub fn duplicate_session(
             params![new_id, now_ms, src_id],
         )
         .map_err(|e| Error::Db(format!("ssh_session_details duplicate: {e}")))?;
+
+    // WebDAV transport tuple — same `INSERT … SELECT` shape so a
+    // non-WebDAV source set is a no-op. The duplicate gets its own
+    // copy of the URL / username / auth method / fingerprint pin;
+    // the password / bearer token in SecretStore is NOT cloned (a
+    // duplicate is a fresh row and re-uses the source's secret id
+    // only if the caller explicitly re-stages — typically the
+    // operator re-enters it on first connect of the copy).
+    conn.raw()
+        .execute(
+            "INSERT INTO webdav_session_details ( \
+               session_id, base_url, username, auth_method, self_signed_fingerprint, updated_at \
+             ) \
+             SELECT \
+               ?1 AS session_id, base_url, username, auth_method, self_signed_fingerprint, \
+               ?2 AS updated_at \
+             FROM webdav_session_details WHERE session_id = ?3",
+            params![new_id, now_ms, src_id],
+        )
+        .map_err(|e| Error::Db(format!("webdav_session_details duplicate: {e}")))?;
+
+    // S3 transport tuple — same `INSERT … SELECT` shape. SigV4
+    // identity (access_key_id) clones to the copy; the secret access
+    // key stays under the source's SecretStore id and the copy
+    // re-stages on first save / re-enter.
+    conn.raw()
+        .execute(
+            "INSERT INTO s3_session_details ( \
+               session_id, access_key_id, region, endpoint, path_style, default_bucket, \
+               default_prefix, updated_at \
+             ) \
+             SELECT \
+               ?1 AS session_id, access_key_id, region, endpoint, path_style, default_bucket, \
+               default_prefix, ?2 AS updated_at \
+             FROM s3_session_details WHERE session_id = ?3",
+            params![new_id, now_ms, src_id],
+        )
+        .map_err(|e| Error::Db(format!("s3_session_details duplicate: {e}")))?;
+
     Ok(())
 }
 

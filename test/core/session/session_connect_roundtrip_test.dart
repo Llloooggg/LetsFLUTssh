@@ -339,7 +339,332 @@ void main() {
     },
   );
 
-  // ── Kind change ──────────────────────────────────────────────────
+  // ── Edit roundtrips: preserve / replace stored credentials ──────
+
+  test('SSH session: updateMetadata preserves the stored password', () async {
+    final session = Session(
+      id: 'ssh-preserve-1',
+      label: 'preserve',
+      kind: SessionKind.ssh,
+      server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+      auth: const SessionAuth(
+        authType: AuthType.password,
+        password: 'original-pw',
+      ),
+    );
+    await rust_db.dbSessionsUpsert(
+      row: sessionToRustRow(session, folderId: null),
+    );
+    var list = await rust_db.dbSessionsListAll();
+    var reloaded = list.firstWhere((s) => s.id == session.id);
+    expect(reloaded.password, 'original-pw');
+
+    // Mirrors the dialog's `updatePartial` path (passwordDirty=false).
+    // `db_sessions_update_metadata` leaves the credential triplet
+    // untouched — editing the label preserves the password.
+    await rust_db.dbSessionsUpdateMetadata(
+      metadata: rust_db.DbSessionMetadata(
+        id: session.id,
+        label: 'preserve-renamed',
+        folderId: null,
+        host: 'h',
+        port: 22,
+        user: 'u',
+        authType: 'password',
+        keyPath: '',
+        keyId: null,
+        sortOrder: 0,
+        notes: '',
+        extras: '{}',
+        viaSessionId: null,
+        viaHost: null,
+        viaPort: null,
+        viaUser: null,
+        updatedAtMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+
+    list = await rust_db.dbSessionsListAll();
+    reloaded = list.firstWhere((s) => s.id == session.id);
+    expect(reloaded.label, 'preserve-renamed');
+    expect(reloaded.password, 'original-pw');
+  });
+
+  test(
+    'WebDAV: re-upsert detail row without restaging keeps the secret',
+    () async {
+      final session = Session(
+        id: 'webdav-preserve-1',
+        label: 'preserve',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(
+          host: 'cloud.example.com',
+          port: 443,
+          user: 'alice',
+        ),
+      );
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(session, folderId: null),
+      );
+      await rust_db.dbWebdavSessionDetailsUpsert(
+        rec: rust_db.DbWebDavSessionDetails(
+          sessionId: session.id,
+          baseUrl: 'https://cloud.example.com/',
+          username: 'alice',
+          authMethod: 'basic',
+          selfSignedFingerprint: null,
+        ),
+      );
+      final secretId = rust_db.dbWebdavSessionDetailsSecretId(
+        sessionId: session.id,
+      );
+      await rust_app.secretsPut(
+        id: secretId,
+        bytes: Uint8List.fromList(utf8.encode('original-webdav-pw')),
+      );
+
+      // Re-upsert detail row only (no secret stage) — same shape
+      // the dialog uses when user edits label / fingerprint /
+      // username without touching the password field
+      // (`passwordDirty=false`).
+      await rust_db.dbWebdavSessionDetailsUpsert(
+        rec: rust_db.DbWebDavSessionDetails(
+          sessionId: session.id,
+          baseUrl: 'https://cloud.example.com/',
+          username: 'alice-renamed',
+          authMethod: 'basic',
+          selfSignedFingerprint: 'SHA256:newpin',
+        ),
+      );
+
+      expect(rust_app.secretsHas(id: secretId), isTrue);
+      final got = rust_app.secretsGet(id: secretId);
+      expect(utf8.decode(got!), 'original-webdav-pw');
+    },
+  );
+
+  test('S3: re-upsert detail row without restaging keeps the secret', () async {
+    final session = Session(
+      id: 's3-preserve-1',
+      label: 'preserve-s3',
+      kind: SessionKind.s3,
+      server: const ServerAddress(
+        host: 's3.amazonaws.com',
+        port: 443,
+        user: 'AKIA',
+      ),
+    );
+    await rust_db.dbSessionsUpsert(
+      row: sessionToRustRow(session, folderId: null),
+    );
+    await rust_db.dbS3SessionDetailsUpsert(
+      rec: rust_db.DbS3SessionDetails(
+        sessionId: session.id,
+        accessKeyId: 'AKIA',
+        region: 'us-east-1',
+        endpoint: '',
+        pathStyle: false,
+        defaultBucket: '',
+        defaultPrefix: '',
+      ),
+    );
+    final secretId = rust_db.dbS3SessionDetailsSecretId(sessionId: session.id);
+    await rust_app.secretsPut(
+      id: secretId,
+      bytes: Uint8List.fromList(utf8.encode('original-secret-key')),
+    );
+
+    // Re-upsert with new region only — secret should be untouched.
+    await rust_db.dbS3SessionDetailsUpsert(
+      rec: rust_db.DbS3SessionDetails(
+        sessionId: session.id,
+        accessKeyId: 'AKIA',
+        region: 'eu-west-1',
+        endpoint: '',
+        pathStyle: false,
+        defaultBucket: '',
+        defaultPrefix: '',
+      ),
+    );
+
+    expect(rust_app.secretsHas(id: secretId), isTrue);
+    final got = rust_app.secretsGet(id: secretId);
+    expect(utf8.decode(got!), 'original-secret-key');
+  });
+
+  // ── Duplicate per kind ──────────────────────────────────────────
+
+  test('duplicate copies the ssh_session_details join row for SSH', () async {
+    final session = Session(
+      id: 'ssh-dup-src',
+      label: 'src',
+      kind: SessionKind.ssh,
+      server: const ServerAddress(host: '10.0.0.1', port: 22, user: 'root'),
+      auth: const SessionAuth(authType: AuthType.password, password: 'secret'),
+    );
+    await rust_db.dbSessionsUpsert(
+      row: sessionToRustRow(session, folderId: null),
+    );
+
+    await rust_db.dbSessionsDuplicate(
+      srcId: 'ssh-dup-src',
+      newId: 'ssh-dup-copy',
+      newLabel: 'src (copy)',
+      targetFolderId: null,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    final list = await rust_db.dbSessionsListAll();
+    final copy = list.firstWhere((s) => s.id == 'ssh-dup-copy');
+    expect(copy.label, 'src (copy)');
+    expect(copy.host, '10.0.0.1');
+    expect(copy.user, 'root');
+    expect(
+      copy.password,
+      'secret',
+      reason:
+          'SSH credential triplet must flow column-to-column inside '
+          'SQLite during duplicate — no plaintext on the Dart heap.',
+    );
+  });
+
+  test('duplicate for WebDAV copies the webdav_session_details row', () async {
+    final session = Session(
+      id: 'webdav-dup-src',
+      label: 'src',
+      kind: SessionKind.webdav,
+      server: const ServerAddress(
+        host: 'cloud.example.com',
+        port: 443,
+        user: 'alice',
+      ),
+    );
+    await rust_db.dbSessionsUpsert(
+      row: sessionToRustRow(session, folderId: null),
+    );
+    await rust_db.dbWebdavSessionDetailsUpsert(
+      rec: const rust_db.DbWebDavSessionDetails(
+        sessionId: 'webdav-dup-src',
+        baseUrl: 'https://cloud.example.com/dav/',
+        username: 'alice',
+        authMethod: 'digest',
+        selfSignedFingerprint: 'SHA256:abc',
+      ),
+    );
+
+    await rust_db.dbSessionsDuplicate(
+      srcId: 'webdav-dup-src',
+      newId: 'webdav-dup-copy',
+      newLabel: 'src (copy)',
+      targetFolderId: null,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    final copyDetail = await rust_db.dbWebdavSessionDetailsGet(
+      sessionId: 'webdav-dup-copy',
+    );
+    expect(
+      copyDetail,
+      isNotNull,
+      reason:
+          'WebDAV duplicate must copy the webdav_session_details '
+          'row too — otherwise the copy points at no transport config.',
+    );
+    expect(copyDetail!.baseUrl, 'https://cloud.example.com/dav/');
+    expect(copyDetail.username, 'alice');
+    expect(copyDetail.authMethod, 'digest');
+    expect(copyDetail.selfSignedFingerprint, 'SHA256:abc');
+  });
+
+  test('duplicate for S3 copies the s3_session_details row', () async {
+    final session = Session(
+      id: 's3-dup-src',
+      label: 'src',
+      kind: SessionKind.s3,
+      server: const ServerAddress(
+        host: 's3.amazonaws.com',
+        port: 443,
+        user: 'AKIA',
+      ),
+    );
+    await rust_db.dbSessionsUpsert(
+      row: sessionToRustRow(session, folderId: null),
+    );
+    await rust_db.dbS3SessionDetailsUpsert(
+      rec: const rust_db.DbS3SessionDetails(
+        sessionId: 's3-dup-src',
+        accessKeyId: 'AKIASOURCE',
+        region: 'us-west-2',
+        endpoint: 'https://minio.local:9000',
+        pathStyle: true,
+        defaultBucket: 'src-bucket',
+        defaultPrefix: 'src/',
+      ),
+    );
+
+    await rust_db.dbSessionsDuplicate(
+      srcId: 's3-dup-src',
+      newId: 's3-dup-copy',
+      newLabel: 'src (copy)',
+      targetFolderId: null,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    final copyDetail = await rust_db.dbS3SessionDetailsGet(
+      sessionId: 's3-dup-copy',
+    );
+    expect(
+      copyDetail,
+      isNotNull,
+      reason: 'S3 duplicate must copy the s3_session_details row too.',
+    );
+    expect(copyDetail!.accessKeyId, 'AKIASOURCE');
+    expect(copyDetail.region, 'us-west-2');
+    expect(copyDetail.endpoint, 'https://minio.local:9000');
+    expect(copyDetail.pathStyle, isTrue);
+    expect(copyDetail.defaultBucket, 'src-bucket');
+    expect(copyDetail.defaultPrefix, 'src/');
+  });
+
+  // ── Soft-delete ─────────────────────────────────────────────────
+
+  test('soft-delete tombstones every kind so listAll skips them', () async {
+    final ssh = Session(
+      id: 'soft-ssh',
+      label: 's',
+      kind: SessionKind.ssh,
+      server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+    );
+    final dav = Session(
+      id: 'soft-dav',
+      label: 's',
+      kind: SessionKind.webdav,
+      server: const ServerAddress(host: 'h', port: 443, user: 'u'),
+    );
+    final s3 = Session(
+      id: 'soft-s3',
+      label: 's',
+      kind: SessionKind.s3,
+      server: const ServerAddress(host: 'h', port: 443, user: 'A'),
+    );
+    for (final s in [ssh, dav, s3]) {
+      await rust_db.dbSessionsUpsert(row: sessionToRustRow(s, folderId: null));
+    }
+
+    var list = await rust_db.dbSessionsListAll();
+    expect(
+      list.map((s) => s.id),
+      containsAll(['soft-ssh', 'soft-dav', 'soft-s3']),
+    );
+
+    await rust_db.dbSessionsDelete(id: 'soft-dav');
+    list = await rust_db.dbSessionsListAll();
+    expect(list.any((s) => s.id == 'soft-dav'), isFalse);
+    expect(list.any((s) => s.id == 'soft-ssh'), isTrue);
+    expect(list.any((s) => s.id == 'soft-s3'), isTrue);
+  });
+
+  // ── Kind-change cleanup matrix ──────────────────────────────────
 
   test('Kind change SSH → WebDAV drops the ssh_session_details join row '
       'so the old SSH credential blob does not stay reachable', () async {
@@ -383,4 +708,154 @@ void main() {
           'on the write path.',
     );
   });
+
+  test('Kind change SSH → S3 drops the ssh_session_details join row', () async {
+    final ssh = Session(
+      id: 'kc-ssh-to-s3',
+      label: 'morph',
+      kind: SessionKind.ssh,
+      server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+      auth: const SessionAuth(authType: AuthType.password, password: 'secret'),
+    );
+    await rust_db.dbSessionsUpsert(row: sessionToRustRow(ssh, folderId: null));
+
+    final s3 = ssh.copyWith(kind: SessionKind.s3);
+    await rust_db.dbSessionsUpsert(row: sessionToRustRow(s3, folderId: null));
+
+    final list = await rust_db.dbSessionsListAll();
+    final reloaded = list.firstWhere((s) => s.id == ssh.id);
+    final domain = dbSessionToSession(reloaded, const {});
+    expect(domain.kind, SessionKind.s3);
+    expect(domain.auth.hasStoredPassword, isFalse);
+  });
+
+  test(
+    'Kind change WebDAV → SSH drops the webdav_session_details join row',
+    () async {
+      final dav = Session(
+        id: 'kc-dav-to-ssh',
+        label: 'morph',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: 'h', port: 443, user: 'alice'),
+      );
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(dav, folderId: null),
+      );
+      await rust_db.dbWebdavSessionDetailsUpsert(
+        rec: rust_db.DbWebDavSessionDetails(
+          sessionId: dav.id,
+          baseUrl: 'https://cloud.example.com/',
+          username: 'alice',
+          authMethod: 'basic',
+          selfSignedFingerprint: null,
+        ),
+      );
+
+      final ssh = dav.copyWith(kind: SessionKind.ssh);
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(ssh, folderId: null),
+      );
+
+      // Kind is now SSH; the WebDAV detail row must NOT survive
+      // under the same session id — otherwise a future re-flip
+      // back to WebDAV would surface stale base_url / username.
+      final detail = await rust_db.dbWebdavSessionDetailsGet(sessionId: dav.id);
+      expect(
+        detail,
+        isNull,
+        reason:
+            'Kind change away from WebDAV must drop the matching '
+            'webdav_session_details row.',
+      );
+    },
+  );
+
+  test(
+    'Kind change WebDAV → S3 drops the webdav_session_details join row',
+    () async {
+      final dav = Session(
+        id: 'kc-dav-to-s3',
+        label: 'morph',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: 'h', port: 443, user: 'alice'),
+      );
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(dav, folderId: null),
+      );
+      await rust_db.dbWebdavSessionDetailsUpsert(
+        rec: rust_db.DbWebDavSessionDetails(
+          sessionId: dav.id,
+          baseUrl: 'https://cloud.example.com/',
+          username: 'alice',
+          authMethod: 'basic',
+          selfSignedFingerprint: null,
+        ),
+      );
+
+      final s3 = dav.copyWith(kind: SessionKind.s3);
+      await rust_db.dbSessionsUpsert(row: sessionToRustRow(s3, folderId: null));
+
+      final detail = await rust_db.dbWebdavSessionDetailsGet(sessionId: dav.id);
+      expect(detail, isNull);
+    },
+  );
+
+  test('Kind change S3 → SSH drops the s3_session_details join row', () async {
+    final s3 = Session(
+      id: 'kc-s3-to-ssh',
+      label: 'morph',
+      kind: SessionKind.s3,
+      server: const ServerAddress(host: 'h', port: 443, user: 'AKIA'),
+    );
+    await rust_db.dbSessionsUpsert(row: sessionToRustRow(s3, folderId: null));
+    await rust_db.dbS3SessionDetailsUpsert(
+      rec: rust_db.DbS3SessionDetails(
+        sessionId: s3.id,
+        accessKeyId: 'AKIA',
+        region: 'us-east-1',
+        endpoint: '',
+        pathStyle: false,
+        defaultBucket: '',
+        defaultPrefix: '',
+      ),
+    );
+
+    final ssh = s3.copyWith(kind: SessionKind.ssh);
+    await rust_db.dbSessionsUpsert(row: sessionToRustRow(ssh, folderId: null));
+
+    final detail = await rust_db.dbS3SessionDetailsGet(sessionId: s3.id);
+    expect(detail, isNull);
+  });
+
+  test(
+    'Kind change S3 → WebDAV drops the s3_session_details join row',
+    () async {
+      final s3 = Session(
+        id: 'kc-s3-to-dav',
+        label: 'morph',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: 'h', port: 443, user: 'AKIA'),
+      );
+      await rust_db.dbSessionsUpsert(row: sessionToRustRow(s3, folderId: null));
+      await rust_db.dbS3SessionDetailsUpsert(
+        rec: rust_db.DbS3SessionDetails(
+          sessionId: s3.id,
+          accessKeyId: 'AKIA',
+          region: 'us-east-1',
+          endpoint: '',
+          pathStyle: false,
+          defaultBucket: '',
+          defaultPrefix: '',
+        ),
+      );
+
+      final dav = s3.copyWith(kind: SessionKind.webdav);
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(dav, folderId: null),
+      );
+
+      final detail = await rust_db.dbS3SessionDetailsGet(sessionId: s3.id);
+      expect(detail, isNull);
+    },
+  );
 }

@@ -706,6 +706,22 @@ hop; the v15 → v16 hop extracts the SSH-shaped columns out of
 `Sessions` into the new `SshSessionDetails` join table. See §11
 for the migration shape.
 
+**Kind-change cleanup.** `db::sessions::upsert` keeps the live
+kind's detail row in sync and drops the rows from the other two
+join tables (`ssh_session_details` / `webdav_session_details` /
+`s3_session_details`) so re-saving a session under a new kind does
+not leak the previous transport's URL / credentials under the same
+session id. Idempotent — already-empty deletes are no-ops, so the
+common case (kind unchanged) is a single UPSERT plus two trivial
+DELETEs. The `db::sessions::duplicate_session` path follows the
+same shape but in the INSERT direction: the SSH / WebDAV / S3
+detail rows clone column-to-column inside SQLite via
+`INSERT INTO ... SELECT FROM ... WHERE session_id = ?` so a non-
+matching source set is a clean no-op, and a kind-aware duplicate
+always carries its transport tuple (secrets stay under the source's
+SecretStore id; the operator re-enters them on first connect of
+the copy).
+
 The file browser dispatches on `Connection.kind` (mirrored off
 `Session.kind` on connect): the SSH path wraps the live SFTP channel
 in `RemoteFS(RustSftpFs)`; the WebDAV path wraps the
