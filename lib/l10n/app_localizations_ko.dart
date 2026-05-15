@@ -1058,6 +1058,24 @@ class SKo extends S {
   String get liveLog => '실시간 로그';
 
   @override
+  String get archivedLog => '보관된 로그';
+
+  @override
+  String get loggingLevel => '로그 레벨';
+
+  @override
+  String get loggingLevelSubtitleInfo => '일반 항목 + 경고 + 오류';
+
+  @override
+  String get loggingLevelSubtitleWarn => '성능 저하 경로와 오류만';
+
+  @override
+  String get loggingLevelSubtitleError => '오류만';
+
+  @override
+  String get loggingLevelSubtitleOff => '일반 로그가 기록되지 않습니다';
+
+  @override
   String transferNItems(int count) {
     return '$count개 항목 전송';
   }

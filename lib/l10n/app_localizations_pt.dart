@@ -1129,6 +1129,24 @@ class SPt extends S {
   String get liveLog => 'Log ao vivo';
 
   @override
+  String get archivedLog => 'Log arquivado';
+
+  @override
+  String get loggingLevel => 'Nível de log';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Entradas rotineiras + avisos + erros';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Apenas caminhos degradados e erros';
+
+  @override
+  String get loggingLevelSubtitleError => 'Apenas erros';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Logs rotineiros não são gravados';
+
+  @override
   String transferNItems(int count) {
     return 'Transferir $count itens';
   }

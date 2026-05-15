@@ -1115,6 +1115,24 @@ class SEn extends S {
   String get liveLog => 'Live Log';
 
   @override
+  String get archivedLog => 'Archived log';
+
+  @override
+  String get loggingLevel => 'Logging level';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Routine entries + warnings + errors';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Degraded paths + errors only';
+
+  @override
+  String get loggingLevelSubtitleError => 'Failures only';
+
+  @override
+  String get loggingLevelSubtitleOff => 'No routine logs written';
+
+  @override
   String transferNItems(int count) {
     return 'Transfer $count items';
   }

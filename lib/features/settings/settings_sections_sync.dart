@@ -257,15 +257,17 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
         ),
         const SizedBox(height: AppSpacing.sm),
         StyledFormField(
-          label: 'WebDAV URL',
+          // Reuses the `webDavBaseUrl` ARB key from the session edit
+          // dialog — same input shape, same protocol, same wire form.
+          label: l10n.webDavBaseUrl,
           controller: _urlCtrl,
-          hint: 'https://example.com/remote.php/dav/files/<user>/',
+          hint: l10n.webDavBaseUrlHint,
           keyboardType: TextInputType.url,
           onSubmitted: (_) => _saveConfig(),
         ),
         const SizedBox(height: AppSpacing.sm),
         StyledFormField(
-          label: 'Username',
+          label: l10n.webDavUsername,
           controller: _userCtrl,
           onSubmitted: (_) => _saveConfig(),
         ),
@@ -279,19 +281,24 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
         ),
         const SizedBox(height: AppSpacing.sm),
         StyledFormField(
-          label: _passwordStaged ? 'Password (configured)' : 'Password',
+          // Same "Saved — type to change" pattern as the session
+          // edit dialog: label stays constant, the hint switches to
+          // `savedTypeToChange` when SecretStore already has bytes
+          // for this slot so an empty save preserves them.
+          label: l10n.password,
           controller: _pwCtrl,
+          hint: _passwordStaged ? l10n.savedTypeToChange : '••••••••',
           obscure: true,
           onSubmitted: (_) => _saveSecret(c.webdavPasswordRef, _pwCtrl),
         ),
         const SizedBox(height: AppSpacing.sm),
         StyledFormField(
-          label: _passphraseStaged
-              ? '${l10n.syncPassphrase} (configured)'
-              : l10n.syncPassphrase,
+          label: l10n.syncPassphrase,
           controller: _passphraseCtrl,
           obscure: true,
-          hint: l10n.syncPassphraseHint,
+          hint: _passphraseStaged
+              ? l10n.savedTypeToChange
+              : l10n.syncPassphraseHint,
           onSubmitted: (_) async {
             // Block the save when the typed passphrase exactly
             // matches the master password — a leaked sync

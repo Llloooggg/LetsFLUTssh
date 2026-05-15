@@ -1075,6 +1075,24 @@ class SFa extends S {
   String get liveLog => 'گزارش زنده';
 
   @override
+  String get archivedLog => 'گزارش بایگانی‌شده';
+
+  @override
+  String get loggingLevel => 'سطح گزارش';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'ورودی‌های معمول + هشدارها + خطاها';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'فقط مسیرهای تنزل‌یافته و خطاها';
+
+  @override
+  String get loggingLevelSubtitleError => 'فقط خطاها';
+
+  @override
+  String get loggingLevelSubtitleOff => 'گزارش‌های معمول نوشته نمی‌شوند';
+
+  @override
   String transferNItems(int count) {
     return 'انتقال $count مورد';
   }

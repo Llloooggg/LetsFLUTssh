@@ -1079,6 +1079,24 @@ class STr extends S {
   String get liveLog => 'Canlı Günlük';
 
   @override
+  String get archivedLog => 'Arşivlenmiş günlük';
+
+  @override
+  String get loggingLevel => 'Log seviyesi';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Rutin kayıtlar + uyarılar + hatalar';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Sadece sorunlu yollar ve hatalar';
+
+  @override
+  String get loggingLevelSubtitleError => 'Sadece hatalar';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Rutin log yazılmıyor';
+
+  @override
   String transferNItems(int count) {
     return '$count öğeyi transfer et';
   }

@@ -286,7 +286,9 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
     final indicatorColor = widget.active
         ? AppTheme.green
         : theme.colorScheme.onSurface.withValues(alpha: 0.35);
-    final titleText = widget.active ? S.of(context).liveLog : 'Archived log';
+    final titleText = widget.active
+        ? S.of(context).liveLog
+        : S.of(context).archivedLog;
     // Title sits in `Expanded` (tight flex) so it takes all remaining
     // width between the indicator dot and the buttons, ellipsising
     // when too narrow. Without `Expanded` the buttons are visually
@@ -637,7 +639,7 @@ class _LogFilterBar extends StatelessWidget {
               ),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Filter…',
+                hintText: S.of(context).filter,
                 hintStyle: TextStyle(
                   fontSize: AppFonts.sm,
                   color: AppTheme.fg.withValues(alpha: 0.4),
@@ -748,9 +750,10 @@ class _LogLevelSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = S.of(context);
     return _SettingsRow(
-      label: 'Logging level',
-      subtitle: _subtitleFor(selected),
+      label: l10n.loggingLevel,
+      subtitle: _subtitleFor(l10n, selected),
       icon: Icons.article_outlined,
       child: AppPopupSelect<LogLevel?>(
         value: selected,
@@ -762,10 +765,16 @@ class _LogLevelSelector extends StatelessWidget {
     );
   }
 
-  String _subtitleFor(LogLevel? level) => switch (level) {
-    LogLevel.info => 'Routine entries + warnings + errors',
-    LogLevel.warn => 'Degraded paths + errors only',
-    LogLevel.error => 'Failures only',
-    null => 'No routine logs written',
+  // Log-level *labels* (Info / Warn / Error / Off) stay English by
+  // design — they are protocol-level terms every dev tool (Logcat,
+  // IDE consoles, Slack admin) ships untranslated. CLAUDE.md's
+  // `Watchlist` keeps log-related terms in their native IT form.
+  // The *subtitles* describing what each level prints ARE prose, so
+  // those route through ARB.
+  String _subtitleFor(S l10n, LogLevel? level) => switch (level) {
+    LogLevel.info => l10n.loggingLevelSubtitleInfo,
+    LogLevel.warn => l10n.loggingLevelSubtitleWarn,
+    LogLevel.error => l10n.loggingLevelSubtitleError,
+    null => l10n.loggingLevelSubtitleOff,
   };
 }

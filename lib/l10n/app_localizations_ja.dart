@@ -1059,6 +1059,24 @@ class SJa extends S {
   String get liveLog => 'ライブログ';
 
   @override
+  String get archivedLog => 'アーカイブログ';
+
+  @override
+  String get loggingLevel => 'ログレベル';
+
+  @override
+  String get loggingLevelSubtitleInfo => '通常エントリ + 警告 + エラー';
+
+  @override
+  String get loggingLevelSubtitleWarn => '降格パスとエラーのみ';
+
+  @override
+  String get loggingLevelSubtitleError => 'エラーのみ';
+
+  @override
+  String get loggingLevelSubtitleOff => '通常ログは書き込まれません';
+
+  @override
   String transferNItems(int count) {
     return '$count 項目を転送';
   }

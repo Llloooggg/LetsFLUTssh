@@ -1078,6 +1078,25 @@ class SHi extends S {
   String get liveLog => 'लाइव लॉग';
 
   @override
+  String get archivedLog => 'संग्रहीत लॉग';
+
+  @override
+  String get loggingLevel => 'लॉगिंग स्तर';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'नियमित प्रविष्टियाँ + चेतावनियाँ + त्रुटियाँ';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'केवल degraded पथ और त्रुटियाँ';
+
+  @override
+  String get loggingLevelSubtitleError => 'केवल त्रुटियाँ';
+
+  @override
+  String get loggingLevelSubtitleOff => 'नियमित लॉग नहीं लिखे जाते';
+
+  @override
   String transferNItems(int count) {
     return '$count आइटम ट्रांसफ़र करें';
   }

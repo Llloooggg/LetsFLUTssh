@@ -1079,6 +1079,24 @@ class SId extends S {
   String get liveLog => 'Log Langsung';
 
   @override
+  String get archivedLog => 'Log terarsip';
+
+  @override
+  String get loggingLevel => 'Level log';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Entri rutin + warning + error';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Hanya path degraded dan error';
+
+  @override
+  String get loggingLevelSubtitleError => 'Hanya error';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Log rutin tidak ditulis';
+
+  @override
   String transferNItems(int count) {
     return 'Transfer $count item';
   }

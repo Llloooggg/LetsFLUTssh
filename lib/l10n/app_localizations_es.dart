@@ -1130,6 +1130,25 @@ class SEs extends S {
   String get liveLog => 'Log en vivo';
 
   @override
+  String get archivedLog => 'Log archivado';
+
+  @override
+  String get loggingLevel => 'Nivel de log';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'Entradas rutinarias + avisos + errores';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Solo rutas degradadas y errores';
+
+  @override
+  String get loggingLevelSubtitleError => 'Solo errores';
+
+  @override
+  String get loggingLevelSubtitleOff => 'No se escriben logs rutinarios';
+
+  @override
   String transferNItems(int count) {
     return 'Transferir $count elementos';
   }

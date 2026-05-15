@@ -1074,6 +1074,24 @@ class SVi extends S {
   String get liveLog => 'Live log';
 
   @override
+  String get archivedLog => 'Log lưu trữ';
+
+  @override
+  String get loggingLevel => 'Mức log';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Mục thường + cảnh báo + lỗi';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Chỉ đường dẫn suy giảm và lỗi';
+
+  @override
+  String get loggingLevelSubtitleError => 'Chỉ lỗi';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Không ghi log thường';
+
+  @override
   String transferNItems(int count) {
     return 'Truyền $count mục';
   }

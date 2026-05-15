@@ -1085,6 +1085,24 @@ class SAr extends S {
   String get liveLog => 'سجل مباشر';
 
   @override
+  String get archivedLog => 'سجل مؤرشف';
+
+  @override
+  String get loggingLevel => 'مستوى السجل';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'إدخالات روتينية + تحذيرات + أخطاء';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'المسارات المتدهورة والأخطاء فقط';
+
+  @override
+  String get loggingLevelSubtitleError => 'الأخطاء فقط';
+
+  @override
+  String get loggingLevelSubtitleOff => 'لا تُكتب سجلات روتينية';
+
+  @override
   String transferNItems(int count) {
     return 'نقل $count عنصر';
   }

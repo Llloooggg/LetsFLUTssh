@@ -1055,6 +1055,24 @@ class SZh extends S {
   String get liveLog => '实时日志';
 
   @override
+  String get archivedLog => '归档日志';
+
+  @override
+  String get loggingLevel => '日志级别';
+
+  @override
+  String get loggingLevelSubtitleInfo => '常规条目 + 警告 + 错误';
+
+  @override
+  String get loggingLevelSubtitleWarn => '仅降级路径和错误';
+
+  @override
+  String get loggingLevelSubtitleError => '仅错误';
+
+  @override
+  String get loggingLevelSubtitleOff => '不写入常规日志';
+
+  @override
   String transferNItems(int count) {
     return '传输 $count 个项目';
   }

@@ -1126,6 +1126,25 @@ class SDe extends S {
   String get liveLog => 'Live-Log';
 
   @override
+  String get archivedLog => 'Archiviertes Log';
+
+  @override
+  String get loggingLevel => 'Log-Level';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'Routine-Einträge + Warnungen + Fehler';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Nur degradierte Pfade und Fehler';
+
+  @override
+  String get loggingLevelSubtitleError => 'Nur Fehler';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Keine Routine-Logs werden geschrieben';
+
+  @override
   String transferNItems(int count) {
     return '$count Elemente übertragen';
   }

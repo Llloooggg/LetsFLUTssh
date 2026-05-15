@@ -2007,6 +2007,42 @@ abstract class S {
   /// **'Live Log'**
   String get liveLog;
 
+  /// Title of the log viewer when logging has been turned off but the file still has entries from a previous session. Same surface as `liveLog` (the title flips when the level is set to Off).
+  ///
+  /// In en, this message translates to:
+  /// **'Archived log'**
+  String get archivedLog;
+
+  /// Settings → Logging row label for the level selector that drives `AppLogger.setThreshold`. Pairs with the per-level subtitle that describes what the level prints.
+  ///
+  /// In en, this message translates to:
+  /// **'Logging level'**
+  String get loggingLevel;
+
+  /// Subtitle below the logging-level selector when `Info` is selected. Describes that the noisiest level captures every routine entry plus the warn / error rungs.
+  ///
+  /// In en, this message translates to:
+  /// **'Routine entries + warnings + errors'**
+  String get loggingLevelSubtitleInfo;
+
+  /// Subtitle below the logging-level selector when `Warn` is selected. Routine entries are dropped; only degraded-but-recoverable code paths and outright errors get persisted.
+  ///
+  /// In en, this message translates to:
+  /// **'Degraded paths + errors only'**
+  String get loggingLevelSubtitleWarn;
+
+  /// Subtitle below the logging-level selector when `Error` is selected. Only unrecoverable / data-at-risk lines are persisted.
+  ///
+  /// In en, this message translates to:
+  /// **'Failures only'**
+  String get loggingLevelSubtitleError;
+
+  /// Subtitle below the logging-level selector when `Off` (null level) is selected. Routine logs do not get written; `logCritical` crash breadcrumbs still bypass the threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'No routine logs written'**
+  String get loggingLevelSubtitleOff;
+
   /// No description provided for @transferNItems.
   ///
   /// In en, this message translates to:

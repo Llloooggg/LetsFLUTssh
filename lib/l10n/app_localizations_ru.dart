@@ -1086,6 +1086,25 @@ class SRu extends S {
   String get liveLog => 'Лог в реальном времени';
 
   @override
+  String get archivedLog => 'Архивный лог';
+
+  @override
+  String get loggingLevel => 'Уровень логирования';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'Обычные записи + предупреждения + ошибки';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Только проблемные пути и ошибки';
+
+  @override
+  String get loggingLevelSubtitleError => 'Только ошибки';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Обычные логи не пишутся';
+
+  @override
   String transferNItems(int count) {
     return 'Передать $count элементов';
   }

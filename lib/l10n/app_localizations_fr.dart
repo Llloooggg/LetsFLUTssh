@@ -1133,6 +1133,26 @@ class SFr extends S {
   String get liveLog => 'Log en direct';
 
   @override
+  String get archivedLog => 'Log archivé';
+
+  @override
+  String get loggingLevel => 'Niveau de log';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'Entrées routinières + avertissements + erreurs';
+
+  @override
+  String get loggingLevelSubtitleWarn =>
+      'Uniquement les chemins dégradés et les erreurs';
+
+  @override
+  String get loggingLevelSubtitleError => 'Uniquement les erreurs';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Aucun log routinier n\'est écrit';
+
+  @override
   String transferNItems(int count) {
     return 'Transférer $count éléments';
   }

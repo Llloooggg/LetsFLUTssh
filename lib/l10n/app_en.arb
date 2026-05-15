@@ -622,6 +622,30 @@
   "resizePanelDivider": "Resize panel divider",
   "youreRunningLatest": "You're running the latest version",
   "liveLog": "Live Log",
+  "archivedLog": "Archived log",
+  "@archivedLog": {
+    "description": "Title of the log viewer when logging has been turned off but the file still has entries from a previous session. Same surface as `liveLog` (the title flips when the level is set to Off)."
+  },
+  "loggingLevel": "Logging level",
+  "@loggingLevel": {
+    "description": "Settings → Logging row label for the level selector that drives `AppLogger.setThreshold`. Pairs with the per-level subtitle that describes what the level prints."
+  },
+  "loggingLevelSubtitleInfo": "Routine entries + warnings + errors",
+  "@loggingLevelSubtitleInfo": {
+    "description": "Subtitle below the logging-level selector when `Info` is selected. Describes that the noisiest level captures every routine entry plus the warn / error rungs."
+  },
+  "loggingLevelSubtitleWarn": "Degraded paths + errors only",
+  "@loggingLevelSubtitleWarn": {
+    "description": "Subtitle below the logging-level selector when `Warn` is selected. Routine entries are dropped; only degraded-but-recoverable code paths and outright errors get persisted."
+  },
+  "loggingLevelSubtitleError": "Failures only",
+  "@loggingLevelSubtitleError": {
+    "description": "Subtitle below the logging-level selector when `Error` is selected. Only unrecoverable / data-at-risk lines are persisted."
+  },
+  "loggingLevelSubtitleOff": "No routine logs written",
+  "@loggingLevelSubtitleOff": {
+    "description": "Subtitle below the logging-level selector when `Off` (null level) is selected. Routine logs do not get written; `logCritical` crash breadcrumbs still bypass the threshold."
+  },
   "transferNItems": "Transfer {count} items",
   "time": "Time",
   "failed": "Failed",
