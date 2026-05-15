@@ -552,32 +552,24 @@ mod tests {
         key_data: &str,
         passphrase: &str,
     ) {
+        // Slim `sessions` row first — the v16 schema split moved
+        // the SSH credential columns onto `ssh_session_details`.
         conn.raw()
             .execute(
-                "INSERT INTO sessions (\
-                id, label, host, port, user, auth_type, password, key_data, \
-                passphrase, key_path, key_id, sort_order, created_at, updated_at, \
-                notes, extras\
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, \
-                       ?14, ?15, ?16)",
-                rusqlite::params![
-                    id,
-                    "label",
-                    "host",
-                    22_i64,
-                    "user",
-                    "password",
-                    password,
-                    key_data,
-                    passphrase,
-                    "",
-                    Option::<String>::None,
-                    0_i64,
-                    0_i64,
-                    0_i64,
-                    "",
-                    "",
-                ],
+                "INSERT INTO sessions (id, label, kind, sort_order, notes, extras, \
+                 created_at, updated_at) VALUES (?1, ?2, 'ssh', 0, '', '', 0, 0)",
+                rusqlite::params![id, "label"],
+            )
+            .unwrap();
+        // SSH-specific join row carries host / user / auth_type +
+        // the credential triplet the prepare_auth path reads back.
+        conn.raw()
+            .execute(
+                "INSERT INTO ssh_session_details (\
+                   session_id, host, port, user, auth_type, password, key_path, \
+                   key_data, key_id, passphrase, updated_at\
+                 ) VALUES (?1, 'host', 22, 'user', 'password', ?2, '', ?3, NULL, ?4, 0)",
+                rusqlite::params![id, password, key_data, passphrase],
             )
             .unwrap();
     }

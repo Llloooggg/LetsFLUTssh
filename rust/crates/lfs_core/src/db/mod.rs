@@ -481,7 +481,7 @@ impl Db {
 /// carries `created_at`) and `updated_at = 0` for the detail tables
 /// (which did not). The composer / apply paths emit tombstones in
 /// `ApplyMode::Sync` only; archive imports filter them upstream.
-pub const SCHEMA_VERSION: i32 = 15;
+pub const SCHEMA_VERSION: i32 = 16;
 
 /// On-disk file name of the encrypted sqlite database under the
 /// app support directory. Single source of truth — every Rust-side
@@ -686,6 +686,21 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // from `SCHEMA_SQL` and skip this arm.
         if (1..15).contains(&current) {
             add_v15_tombstone_columns(conn)?;
+        }
+        // v15 -> v16: split SSH-specific columns out of `sessions`
+        // into the new `ssh_session_details` join table. The
+        // legacy table carries `host` / `port` / `user` /
+        // `auth_type` / `password` / `key_path` / `key_data` /
+        // `key_id` / `passphrase` / `via_*` columns that only
+        // ever applied to SSH; WebDAV / S3 rows wrote empty
+        // strings into them. Backfill the join row from the
+        // legacy columns for every SSH session, then rebuild
+        // `sessions` in the slim shape that `SCHEMA_SQL` now
+        // declares for fresh installs. Fresh installs
+        // (`current == 0`) get the slim shape directly from
+        // `SCHEMA_SQL` and skip this arm.
+        if (1..16).contains(&current) {
+            split_ssh_session_details(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -1055,6 +1070,114 @@ fn add_v15_tombstone_columns(conn: &Connection) -> Result<(), Error> {
     Ok(())
 }
 
+/// v15 → v16 migration: move SSH-specific columns out of
+/// `sessions` into the new `ssh_session_details` join table.
+///
+/// **Backfill step.** Each pre-existing SSH session
+/// (`kind = 'ssh'`) gets a row in `ssh_session_details` whose
+/// columns are copied from the legacy columns on `sessions`.
+/// `INSERT OR IGNORE` keeps the step idempotent against a
+/// half-failed prior bootstrap; existing rows take priority.
+///
+/// **Recreate step.** `sessions` is rebuilt in the slim
+/// shape declared by `SCHEMA_SQL` for fresh installs:
+/// `CREATE sessions_new (slim) → INSERT SELECT common columns →
+/// DROP sessions → RENAME sessions_new`. Inbound FKs from
+/// `webdav_session_details.session_id`, `s3_session_details.session_id`,
+/// `tags_sessions.session_id`, `mru_paths.session_id`, etc. survive
+/// the swap because SQLite resolves FK targets by table name —
+/// the rename re-binds every reference to the new slim shape.
+/// `foreign_keys = OFF` for the duration of the rebuild matches the
+/// official SQLite 12-step procedure; the closing `PRAGMA
+/// foreign_key_check` asserts no row dangles before the txn commits.
+///
+/// Idempotency: re-running this on a v16 DB sees `kind` already
+/// absent from the legacy column list (recreate already ran) and
+/// the `column_exists` probe short-circuits. Fresh installs
+/// (`current == 0`) skip this arm entirely — `bootstrap_schema`
+/// gates it behind `(1..16).contains(&current)`.
+fn split_ssh_session_details(conn: &Connection) -> Result<(), Error> {
+    if !column_exists(conn, "sessions", "auth_type")? {
+        return Ok(());
+    }
+    conn.inner()
+        .execute_batch(
+            r#"
+            BEGIN TRANSACTION;
+            INSERT OR IGNORE INTO ssh_session_details
+                (session_id, host, port, user, auth_type,
+                 password, key_path, key_data, key_id, passphrase,
+                 via_session_id, via_host, via_port, via_user,
+                 updated_at, deleted_at)
+            SELECT id, host, port, user, auth_type,
+                   password, key_path, key_data, key_id, passphrase,
+                   via_session_id, via_host, via_port, via_user,
+                   updated_at, deleted_at
+              FROM sessions
+              WHERE kind = 'ssh';
+            COMMIT;
+            "#,
+        )
+        .map_err(|e| {
+            Error::Db(format!(
+                "bootstrap schema: backfill ssh_session_details: {e}"
+            ))
+        })?;
+
+    conn.inner()
+        .execute_batch(
+            r#"
+            PRAGMA foreign_keys = OFF;
+            BEGIN TRANSACTION;
+            CREATE TABLE sessions_new (
+                id TEXT PRIMARY KEY,
+                label TEXT NOT NULL DEFAULT '',
+                folder_id TEXT,
+                kind TEXT NOT NULL DEFAULT 'ssh',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                notes TEXT NOT NULL DEFAULT '',
+                last_connected_at INTEGER,
+                extras TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                deleted_at INTEGER NULL,
+                FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+            );
+            INSERT INTO sessions_new
+                (id, label, folder_id, kind, sort_order, notes,
+                 last_connected_at, extras, created_at, updated_at, deleted_at)
+            SELECT id, label, folder_id, kind, sort_order, notes,
+                   last_connected_at, extras, created_at, updated_at, deleted_at
+              FROM sessions;
+            DROP TABLE sessions;
+            ALTER TABLE sessions_new RENAME TO sessions;
+            COMMIT;
+            PRAGMA foreign_keys = ON;
+            "#,
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: recreate sessions slim: {e}")))?;
+
+    // SQLite-recommended post-recreate assertion: every FK in the
+    // database is satisfied. A single dangling reference (e.g.,
+    // `mru_paths.session_id` pointing at a row that didn't survive
+    // the INSERT SELECT) would surface here rather than as a
+    // mystery ON DELETE cascade weeks later.
+    let mut bad = false;
+    conn.inner()
+        .pragma_query(None, "foreign_key_check", |_row| {
+            bad = true;
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("bootstrap schema: foreign_key_check: {e}")))?;
+    if bad {
+        return Err(Error::Db(
+            "bootstrap schema: foreign_key_check reported dangling rows after sessions recreate"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 /// `pragma_table_info`-backed column-existence probe. Used by the
 /// v14 -> v15 migration arm so the ADD COLUMN step stays a no-op
 /// when `SCHEMA_SQL` already minted the column on the same bootstrap
@@ -1210,35 +1333,61 @@ CREATE TABLE IF NOT EXISTS ssh_key_certificates (
     FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE CASCADE
 );
 
+-- Common session row — protocol-neutral. SSH-specific config
+-- (host / port / user / auth_type / password / key_path /
+-- key_data / key_id / passphrase / via_*) lives in
+-- `ssh_session_details`, WebDAV-specific in `webdav_session_details`,
+-- S3-specific in `s3_session_details`. Pre-v16 databases land here
+-- with extra SSH-shaped columns; the v15 → v16 migration arm
+-- recreates the table in this slim shape after backfilling the
+-- join row from the legacy columns.
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL DEFAULT '',
     folder_id TEXT,
     kind TEXT NOT NULL DEFAULT 'ssh',
-    host TEXT NOT NULL,
-    port INTEGER NOT NULL DEFAULT 22,
-    user TEXT NOT NULL,
-    auth_type TEXT NOT NULL DEFAULT 'password',
-    password TEXT NOT NULL DEFAULT '',
-    key_path TEXT NOT NULL DEFAULT '',
-    key_data TEXT NOT NULL DEFAULT '',
-    key_id TEXT,
-    passphrase TEXT NOT NULL DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT '',
     last_connected_at INTEGER,
     extras TEXT NOT NULL DEFAULT '{}',
-    via_session_id TEXT,
-    via_host TEXT,
-    via_port INTEGER,
-    via_user TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER NULL,
-    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL,
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+);
+
+-- SSH-specific session configuration. Keyed by session id with
+-- `ON DELETE CASCADE` so removing a session physically purges its
+-- SSH row. The credential columns (`password` / `key_data` /
+-- `passphrase`) are persisted on the column for archive / wire
+-- continuity; the runtime `stage_secrets` path migrates the
+-- plaintext into the SecretStore on session open so the in-memory
+-- session row never carries the secret material. `via_session_id`
+-- references the bastion session (saved-session ProxyJump); the
+-- `via_host` / `via_port` / `via_user` columns carry a one-off
+-- override when no saved session is referenced.
+CREATE TABLE IF NOT EXISTS ssh_session_details (
+    session_id     TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    host           TEXT NOT NULL DEFAULT '',
+    port           INTEGER NOT NULL DEFAULT 22,
+    user           TEXT NOT NULL DEFAULT '',
+    auth_type      TEXT NOT NULL DEFAULT 'password',
+    password       TEXT NOT NULL DEFAULT '',
+    key_path       TEXT NOT NULL DEFAULT '',
+    key_data       TEXT NOT NULL DEFAULT '',
+    key_id         TEXT,
+    passphrase     TEXT NOT NULL DEFAULT '',
+    via_session_id TEXT,
+    via_host       TEXT,
+    via_port       INTEGER,
+    via_user       TEXT,
+    updated_at     INTEGER NOT NULL DEFAULT 0,
+    deleted_at     INTEGER NULL,
     FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL,
     FOREIGN KEY (via_session_id) REFERENCES sessions(id) ON DELETE SET NULL
 );
+CREATE INDEX IF NOT EXISTS idx_ssh_session_details_session_id
+    ON ssh_session_details(session_id);
 
 -- WebDAV-specific configuration. Keyed by session id with ON DELETE
 -- CASCADE so removing a session physically purges its WebDAV row;
@@ -1378,10 +1527,14 @@ CREATE TABLE IF NOT EXISTS sftp_bookmarks (
 -- migration bump (`IF NOT EXISTS` is idempotent).
 CREATE INDEX IF NOT EXISTS idx_sessions_folder_id
     ON sessions(folder_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_via_session_id
-    ON sessions(via_session_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_key_id
-    ON sessions(key_id);
+-- `via_session_id` and `key_id` moved to `ssh_session_details` on
+-- the v15 → v16 schema split. The indexes follow the columns so
+-- the ProxyJump bastion lookup and the saved-key lookup keep their
+-- O(log n) shape under the new layout.
+CREATE INDEX IF NOT EXISTS idx_ssh_session_details_via_session_id
+    ON ssh_session_details(via_session_id);
+CREATE INDEX IF NOT EXISTS idx_ssh_session_details_key_id
+    ON ssh_session_details(key_id);
 CREATE INDEX IF NOT EXISTS idx_folders_parent_id
     ON folders(parent_id);
 CREATE INDEX IF NOT EXISTS idx_port_forward_rules_session_id

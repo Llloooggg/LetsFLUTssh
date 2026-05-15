@@ -686,20 +686,25 @@ enum SessionKind { ssh, webdav, s3 }
 
 ##### Session kind — SSH vs WebDAV vs S3
 
-`SessionKind` picks which transport the runtime opens. SSH sessions
-keep the existing `(host, port, user, auth)` tuple and route through
-the russh + `lfs_core::sftp` stack for shell and file transfer.
-WebDAV sessions ignore the SSH-shaped fields at connect time and
-instead read the configured transport tuple from `WebDavSessionDetails`
-(base URL, username, auth method, optional self-signed fingerprint)
-plus the password / bearer token from the `SecretStore` under the
-`session.webdav.<id>` id. S3 sessions follow the same shape but with
-their own join table (`s3_session_details`): access key id, region,
-endpoint, addressing style, default bucket, default prefix; the
-secret access key lives in the `SecretStore` under `session.s3.<id>`.
-The `kind` column is `NOT NULL DEFAULT 'ssh'` so legacy rows backfill
-on the v4 → v5 hop; existing call sites that never set `kind`
-continue to see the SSH transport.
+`SessionKind` picks which transport the runtime opens. The
+`Sessions` table only carries the protocol-neutral row (id, label,
+folder_id, kind, sort_order, notes, last_connected_at, extras,
+timestamps) — every protocol-specific column lives on its own
+join table keyed by `session_id`. SSH sessions read host / port /
+user / auth_type / password / key_data / key_id / passphrase plus
+the `via_*` ProxyJump tuple from `SshSessionDetails` and route
+through the russh + `lfs_core::sftp` stack for shell and file
+transfer. WebDAV sessions read the transport tuple from
+`WebDavSessionDetails` (base URL, username, auth method, optional
+self-signed fingerprint) plus the password / bearer token from the
+`SecretStore` under `session.webdav.<id>`. S3 sessions read from
+`s3_session_details` (access key id, region, endpoint, addressing
+style, default bucket, default prefix) plus the secret access key
+from `session.s3.<id>` in the `SecretStore`. The `kind` column is
+`NOT NULL DEFAULT 'ssh'` so legacy rows backfill on the v4 → v5
+hop; the v15 → v16 hop extracts the SSH-shaped columns out of
+`Sessions` into the new `SshSessionDetails` join table. See §11
+for the migration shape.
 
 The file browser dispatches on `Connection.kind` (mirrored off
 `Session.kind` on connect): the SSH path wraps the live SFTP channel
@@ -5529,7 +5534,8 @@ All application data is stored in a single SQLite database, opened Rust-side via
 
 | Table | Purpose | Key relationships | Soft-delete |
 |-------|---------|-------------------|-------------|
-| `Sessions` | Saved sessions (SSH or WebDAV — see `kind` column; metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys | yes |
+| `Sessions` | Saved sessions — protocol-neutral row only (id, label, folder_id, `kind`, sort_order, notes, last_connected_at, `extras` JSON bag, timestamps). Every protocol-specific column lives on its matching join table. | FK → Folders | yes |
+| `SshSessionDetails` | Per-session SSH transport config + credentials (host, port, user, auth_type, password, key_path, key_data, key_id, passphrase, via_session_id, via_host, via_port, via_user). Extracted out of `Sessions` on the v15 → v16 split so non-SSH rows do not carry SSH-shaped columns. | FK → Sessions, cascade on delete; PK = `session_id`; FK → SshKeys (key_id) | yes |
 | `WebDavSessionDetails` | Per-session WebDAV transport config (base URL, username, auth method, optional self-signed fingerprint) | FK → Sessions, cascade on delete; PK = `session_id` | no (1-to-1 with `Sessions` kind=webdav) |
 | `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK | no |
 | `SshKeys` | SSH key pairs | — | yes |
@@ -5745,6 +5751,42 @@ same column shape. Future bumps:
   collides; `imported_as_stub` clears via the upsert). Existing
   v13 installs backfill to `0` via the additive `ALTER` gated by
   `(1..14).contains(&current)`.
+- **v16** — splits SSH-specific columns out of `sessions` into the
+  new `ssh_session_details` join table (PK = `session_id`, FK →
+  `sessions.id` ON DELETE CASCADE, FK → `ssh_keys.id` ON DELETE
+  SET NULL on `key_id`). After the hop, `sessions` carries only
+  the protocol-neutral row (`id`, `label`, `folder_id`, `kind`,
+  `sort_order`, `notes`, `last_connected_at`, `extras`, timestamps);
+  every SSH-shaped column (`host`, `port`, `user`, `auth_type`,
+  `password`, `key_path`, `key_data`, `key_id`, `passphrase`,
+  `via_session_id`, `via_host`, `via_port`, `via_user`) lives on the
+  join row. The `idx_sessions_via_session_id` and
+  `idx_sessions_key_id` indexes follow the columns and become
+  `idx_ssh_session_details_via_session_id` /
+  `idx_ssh_session_details_key_id`. The bump is motivated by the
+  "общие поля в одной таблице, специфичные — в отдельной" rule —
+  WebDAV / S3 sessions previously carried empty SSH columns purely
+  for shape symmetry. **Migration**: existing v15 installs run a
+  two-phase upgrade inside the `(1..16).contains(&current)` arm —
+  (a) `INSERT OR IGNORE INTO ssh_session_details SELECT … FROM
+  sessions WHERE kind = 'ssh'` backfills the join row from the
+  legacy columns; (b) the SQLite 12-step recreate
+  (`CREATE sessions_new (slim) → INSERT SELECT common cols → DROP
+  sessions → RENAME sessions_new TO sessions`) inside a
+  `foreign_keys = OFF` window rebuilds the table in the slim
+  shape. `PRAGMA foreign_key_check` runs after the swap as a
+  fail-fast assertion. Inbound FKs from `webdav_session_details`,
+  `s3_session_details`, `session_tags`, `session_snippets`,
+  `sftp_bookmarks`, `port_forward_rules` survive because SQLite
+  resolves FK targets by table name and the rename re-binds every
+  reference. Idempotency: the second bootstrap sees `auth_type`
+  already absent from `sessions` and short-circuits the migration.
+  Fresh installs (`current == 0`) pick up the slim shape directly
+  from `SCHEMA_SQL` and skip this arm. **Wire format**:
+  `SessionRow` keeps the same field list — the archive / QR codecs
+  (`archive/compose`, `archive/apply`, `qr_compose`) continue to
+  operate on the struct verbatim; only the `WHERE` of the read /
+  write paths changed.
 
 ### Export portability per table
 
@@ -5757,7 +5799,8 @@ is a quick reference.
 | Table | Export portability | Notes |
 |---|---|---|
 | `folders` | Full | Path-keyed reconstruction on apply. |
-| `sessions` | Full (passwords inside GCM envelope) | LWW on `updated_at` for sync. |
+| `sessions` | Full | Slim protocol-neutral row — `id`, `label`, `folder_id`, `kind`, `sort_order`, `notes`, `last_connected_at`, `extras`, timestamps. LWW on `updated_at` for sync. |
+| `ssh_session_details` | Full (passwords inside GCM envelope) | SSH-specific config + credentials; LWW on `updated_at`. The composer flattens this back into the `Session` archive entry so the wire format stays stable across the v15 → v16 schema split. |
 | `ssh_keys` | Backend-dependent | `software` + `fido2` + `pkcs11` round-trip; `enclave` / `hello` / `tpm` / `keystore` ship as stubs. See §3.9. |
 | `ssh_key_certificates` | Full | Cert blob is the public half; safe verbatim. |
 | `webdav_session_details` | Opaque-pointer | Endpoint config + secret-id pointer travels; password bytes stay in source device's SecretStore. |

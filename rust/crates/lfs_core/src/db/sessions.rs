@@ -1,23 +1,50 @@
 //! Sessions DAO. Mirrors `lib/core/db/dao/session_dao.dart`.
-//! Largest table — 20+ columns including the FK to folders /
-//! ssh_keys / self (ProxyJump bastion).
+//!
+//! **Layout**: the `sessions` table carries only the
+//! protocol-neutral row (id, label, folder_id, kind, sort_order,
+//! notes, last_connected_at, extras, timestamps); every
+//! protocol-specific column lives on a separate join table keyed
+//! by `session_id`. SSH config (host / port / user / auth_type /
+//! password / key_path / key_data / key_id / passphrase / via_*)
+//! lives on `ssh_session_details`. WebDAV config (base URL, auth
+//! method, self-signed fingerprint) lives on
+//! `webdav_session_details`. S3 config (access key id, region,
+//! endpoint, path-style flag, default bucket / prefix) lives on
+//! `s3_session_details`. The v15 → v16 migration extracts the SSH
+//! columns out of `sessions` for pre-existing databases; fresh
+//! installs see the slim shape from the first bootstrap.
+//!
+//! **Read path** — [`list_all`] / [`get`] LEFT JOIN
+//! `ssh_session_details` and `COALESCE` the joined columns to the
+//! struct defaults (empty string / `22` / `'password'`) so non-SSH
+//! rows surface a sane `SessionRow` without populating
+//! protocol-irrelevant fields. The SSH-shaped fields stay on
+//! `SessionRow` because the archive / QR codecs (`archive/compose`,
+//! `archive/apply`, `qr_compose`) operate on the struct verbatim
+//! and the wire format must stay stable across migrations.
+//!
+//! **Write path** — [`upsert`] inserts the common columns into
+//! `sessions` and, when `kind == 'ssh'`, upserts the SSH-shaped
+//! row into `ssh_session_details`. A `kind != 'ssh'` upsert
+//! deletes the join row (defensive — handles a kind change away
+//! from SSH). The credential triplet (`password` / `key_data` /
+//! `passphrase`) reaches `ssh_session_details` for archive / wire
+//! continuity; the runtime [`stage_secrets_into_store`] path
+//! migrates each non-empty slot into the SecretStore on open so
+//! the in-memory `SessionRow` is the only path that ever carries
+//! plaintext on the Rust heap.
 //!
 //! **Secret-store angle**: the `password`, `key_data`, `passphrase`
-//! columns will eventually move out of this table into the
-//! SecretStore (the row carries opaque ids; plaintext lives only
-//! in Rust). For now the DAO mirrors drift's plaintext columns
-//! verbatim so the data backfill can do a straight copy; the
-//! follow-up adds an `auth_secret_id` column and drops the
-//! plaintext ones.
+//! columns will eventually move out of this DAO entirely (the row
+//! carries opaque ids; plaintext lives only in the SecretStore).
+//! For now `ssh_session_details` mirrors the plaintext slots so
+//! the data backfill can do a straight copy; the follow-up adds an
+//! `auth_secret_id` column and drops the plaintext ones.
 //!
 //! **Session kind**: `kind` is the transport tag. `SESSION_KIND_SSH`,
 //! `SESSION_KIND_WEBDAV` and `SESSION_KIND_S3` are the three values
 //! in play; the column is `NOT NULL DEFAULT 'ssh'` so existing rows
-//! backfill cleanly on the v4 → v5 hop. WebDAV-specific config
-//! (base URL, auth method, self-signed fingerprint) lives on the
-//! `webdav_session_details` join table; S3-specific config (access
-//! key id, region, endpoint, path-style flag, default bucket /
-//! prefix) lives on `s3_session_details`. Reads dispatch to the
+//! backfill cleanly on the v4 → v5 hop. Reads dispatch to the
 //! right join by inspecting `kind` first.
 
 use crate::db::Connection;
@@ -101,10 +128,38 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
     })
 }
 
-const SELECT_COLS: &str =
-    "id, label, folder_id, kind, host, port, user, auth_type, password, key_path, key_data, \
-     key_id, passphrase, sort_order, notes, last_connected_at, extras, via_session_id, via_host, \
-     via_port, via_user, created_at, updated_at";
+/// Slim-side columns owned by the `sessions` table after the v16
+/// schema split. Used by every read query — the SSH-specific
+/// columns are pulled separately via [`SSH_JOIN_COLS`] off the
+/// `ssh_session_details` join.
+const SESSIONS_COLS: &str =
+    "s.id, s.label, s.folder_id, s.kind, s.sort_order, s.notes, s.last_connected_at, \
+     s.extras, s.created_at, s.updated_at";
+
+/// SSH-specific columns pulled from `ssh_session_details` via a
+/// LEFT JOIN. `COALESCE` resolves the joined value when the
+/// session is SSH (the row exists) and to the struct-default zero
+/// values for every other kind (WebDAV / S3 leave the join row
+/// absent). The default literals match the schema defaults on
+/// `ssh_session_details` for round-trip stability.
+const SSH_JOIN_COLS: &str = "COALESCE(j.host, '') AS host, \
+     COALESCE(j.port, 22) AS port, \
+     COALESCE(j.user, '') AS user, \
+     COALESCE(j.auth_type, 'password') AS auth_type, \
+     COALESCE(j.password, '') AS password, \
+     COALESCE(j.key_path, '') AS key_path, \
+     COALESCE(j.key_data, '') AS key_data, \
+     j.key_id AS key_id, \
+     COALESCE(j.passphrase, '') AS passphrase, \
+     j.via_session_id AS via_session_id, \
+     j.via_host AS via_host, \
+     j.via_port AS via_port, \
+     j.via_user AS via_user";
+
+/// `FROM` + `LEFT JOIN` fragment used by every full-row read.
+/// Lifted into a constant so the read paths share one source of
+/// truth for the join shape.
+const FROM_JOIN: &str = "FROM sessions s LEFT JOIN ssh_session_details j ON j.session_id = s.id";
 
 /// Normalise an empty-string `kind` to the SSH wire value so a
 /// caller that constructed `SessionRow` via the `Default` impl
@@ -122,9 +177,9 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Erro
     let mut stmt = conn
         .raw()
         .prepare_cached(&format!(
-            "SELECT {SELECT_COLS} FROM sessions \
-             WHERE deleted_at IS NULL \
-             ORDER BY sort_order ASC, label ASC"
+            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS} {FROM_JOIN} \
+             WHERE s.deleted_at IS NULL \
+             ORDER BY s.sort_order ASC, s.label ASC"
         ))
         .map_err(|e| Error::Db(format!("sessions prepare: {e}")))?;
     let rows = stmt
@@ -141,7 +196,8 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SessionRo
     let mut stmt = conn
         .raw()
         .prepare_cached(&format!(
-            "SELECT {SELECT_COLS} FROM sessions WHERE id = ?1 AND deleted_at IS NULL"
+            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS} {FROM_JOIN} \
+             WHERE s.id = ?1 AND s.deleted_at IS NULL"
         ))
         .map_err(|e| Error::Db(format!("sessions get prepare: {e}")))?;
     let mut rows = stmt
@@ -158,33 +214,17 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
     let kind = normalise_kind(&row.kind);
     conn.raw()
         .execute(
-            "INSERT INTO sessions (id, label, folder_id, kind, host, port, user, auth_type, \
-           password, key_path, key_data, key_id, passphrase, sort_order, notes, \
-           last_connected_at, extras, via_session_id, via_host, via_port, via_user, created_at, \
-           updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, \
-           ?18, ?19, ?20, ?21, ?22, ?23) \
+            "INSERT INTO sessions (id, label, folder_id, kind, sort_order, notes, \
+           last_connected_at, extras, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            folder_id = excluded.folder_id, \
            kind = excluded.kind, \
-           host = excluded.host, \
-           port = excluded.port, \
-           user = excluded.user, \
-           auth_type = excluded.auth_type, \
-           password = excluded.password, \
-           key_path = excluded.key_path, \
-           key_data = excluded.key_data, \
-           key_id = excluded.key_id, \
-           passphrase = excluded.passphrase, \
            sort_order = excluded.sort_order, \
            notes = excluded.notes, \
            last_connected_at = excluded.last_connected_at, \
            extras = excluded.extras, \
-           via_session_id = excluded.via_session_id, \
-           via_host = excluded.via_host, \
-           via_port = excluded.via_port, \
-           via_user = excluded.via_user, \
            updated_at = excluded.updated_at, \
            deleted_at = NULL",
             params![
@@ -192,6 +232,60 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
                 row.label,
                 row.folder_id,
                 kind,
+                row.sort_order,
+                row.notes,
+                row.last_connected_at_ms,
+                row.extras,
+                row.created_at_ms,
+                row.updated_at_ms,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("sessions upsert: {e}")))?;
+
+    // The SSH-specific block lands on `ssh_session_details` only
+    // when the row carries the SSH transport tag. A WebDAV / S3
+    // upsert drops any stale join row left over from a prior SSH
+    // edit under the same id so a kind change does not leak the
+    // old credential blob.
+    if kind == SESSION_KIND_SSH {
+        upsert_ssh_details(conn, row)?;
+    } else {
+        delete_ssh_details(conn, &row.id)?;
+    }
+    Ok(())
+}
+
+/// Push the SSH-shaped row into `ssh_session_details`. Single-
+/// statement UPSERT keyed by `session_id` — the FK to `sessions`
+/// is `ON DELETE CASCADE`, so a soft- or hard-deleted parent
+/// drops the join row automatically; this path covers the
+/// straight-edit case where the parent stays alive.
+fn upsert_ssh_details(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO ssh_session_details \
+               (session_id, host, port, user, auth_type, password, key_path, key_data, \
+                key_id, passphrase, via_session_id, via_host, via_port, via_user, \
+                updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15) \
+             ON CONFLICT(session_id) DO UPDATE SET \
+                host = excluded.host, \
+                port = excluded.port, \
+                user = excluded.user, \
+                auth_type = excluded.auth_type, \
+                password = excluded.password, \
+                key_path = excluded.key_path, \
+                key_data = excluded.key_data, \
+                key_id = excluded.key_id, \
+                passphrase = excluded.passphrase, \
+                via_session_id = excluded.via_session_id, \
+                via_host = excluded.via_host, \
+                via_port = excluded.via_port, \
+                via_user = excluded.via_user, \
+                updated_at = excluded.updated_at, \
+                deleted_at = NULL",
+            params![
+                row.id,
                 row.host,
                 row.port,
                 row.user,
@@ -201,19 +295,28 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
                 row.key_data,
                 row.key_id,
                 row.passphrase,
-                row.sort_order,
-                row.notes,
-                row.last_connected_at_ms,
-                row.extras,
                 row.via_session_id,
                 row.via_host,
                 row.via_port,
                 row.via_user,
-                row.created_at_ms,
                 row.updated_at_ms,
             ],
         )
-        .map_err(|e| Error::Db(format!("sessions upsert: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_session_details upsert: {e}")))?;
+    Ok(())
+}
+
+/// Physically drop the `ssh_session_details` row for a session id.
+/// Issued whenever a session's `kind` lands on a non-SSH value —
+/// re-saving an SSH session as WebDAV must not leave the old SSH
+/// credential blob discoverable on the join table.
+fn delete_ssh_details(conn: &impl crate::db::DbAccess, id: &str) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "DELETE FROM ssh_session_details WHERE session_id = ?1",
+            params![id],
+        )
+        .map_err(|e| Error::Db(format!("ssh_session_details delete: {e}")))?;
     Ok(())
 }
 
@@ -335,11 +438,20 @@ pub fn stage_secrets_into_store(
     conn: &impl crate::db::DbAccess,
     session_id: &str,
 ) -> Result<Option<StagedSecrets>, Error> {
+    // SSH-only path. The credential triplet lives on
+    // `ssh_session_details`; non-SSH sessions never had `password`
+    // / `key_data` / `passphrase` columns at all, so the LEFT JOIN
+    // resolves them to NULL — `COALESCE` materialises empty strings
+    // and the `has_*` flags below stay false.
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT auth_type, password, key_data, passphrase \
-             FROM sessions WHERE id = ?1 AND deleted_at IS NULL",
+            "SELECT COALESCE(j.auth_type, 'password') AS auth_type, \
+                    COALESCE(j.password, '') AS password, \
+                    COALESCE(j.key_data, '') AS key_data, \
+                    COALESCE(j.passphrase, '') AS passphrase \
+             FROM sessions s LEFT JOIN ssh_session_details j ON j.session_id = s.id \
+             WHERE s.id = ?1 AND s.deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("sessions stage_secrets prepare: {e}")))?;
     let row: Option<(String, String, String, String)> = stmt
@@ -412,26 +524,67 @@ pub fn update_metadata(
     conn: &impl crate::db::DbAccess,
     m: &SessionMetadata,
 ) -> Result<usize, Error> {
-    conn.raw()
+    // Protocol-neutral metadata lives on `sessions`. The function
+    // returns the row count from this statement so callers can
+    // still detect "missing parent" (0 rows) before the join-table
+    // update step touches `ssh_session_details`.
+    let n = conn
+        .raw()
         .execute(
             "UPDATE sessions SET \
-           label = ?1, folder_id = ?2, host = ?3, port = ?4, user = ?5, \
-           auth_type = ?6, key_path = ?7, key_id = ?8, sort_order = ?9, \
-           notes = ?10, extras = ?11, via_session_id = ?12, via_host = ?13, \
-           via_port = ?14, via_user = ?15, updated_at = ?16 \
-         WHERE id = ?17 AND deleted_at IS NULL",
+               label = ?1, folder_id = ?2, sort_order = ?3, \
+               notes = ?4, extras = ?5, updated_at = ?6 \
+             WHERE id = ?7 AND deleted_at IS NULL",
             params![
                 m.label,
                 m.folder_id,
+                m.sort_order,
+                m.notes,
+                m.extras,
+                m.updated_at_ms,
+                m.id,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("sessions update_metadata: {e}")))?;
+    if n == 0 {
+        return Ok(0);
+    }
+
+    // SSH-shaped fields then land on `ssh_session_details` for
+    // SSH sessions. The caller is the session-edit dialog, which
+    // carries `host` / `port` / `user` / `auth_type` / `key_path` /
+    // `key_id` / `via_*` for SSH and empty strings / zeros for the
+    // other kinds (the WebDAV / S3 transport tuple lives on its own
+    // join). The straightforward way to keep the contract is to
+    // inspect the row's join shape: a row with an
+    // `ssh_session_details` entry already on file is SSH; one
+    // without is not. The dialog only mutates SSH metadata through
+    // this entry point, so the gate is sufficient.
+    let has_join: bool = conn
+        .raw()
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM ssh_session_details WHERE session_id = ?1)",
+            params![m.id],
+            |row| row.get(0),
+        )
+        .map_err(|e| Error::Db(format!("sessions update_metadata probe: {e}")))?;
+    if !has_join {
+        return Ok(n);
+    }
+    conn.raw()
+        .execute(
+            "UPDATE ssh_session_details SET \
+               host = ?1, port = ?2, user = ?3, auth_type = ?4, key_path = ?5, key_id = ?6, \
+               via_session_id = ?7, via_host = ?8, via_port = ?9, via_user = ?10, \
+               updated_at = ?11 \
+             WHERE session_id = ?12",
+            params![
                 m.host,
                 m.port,
                 m.user,
                 m.auth_type,
                 m.key_path,
                 m.key_id,
-                m.sort_order,
-                m.notes,
-                m.extras,
                 m.via_session_id,
                 m.via_host,
                 m.via_port,
@@ -440,7 +593,8 @@ pub fn update_metadata(
                 m.id,
             ],
         )
-        .map_err(|e| Error::Db(format!("sessions update_metadata: {e}")))
+        .map_err(|e| Error::Db(format!("ssh_session_details update_metadata: {e}")))?;
+    Ok(n)
 }
 
 /// Replace a single credential column on a session row. `slot` is one
@@ -464,13 +618,30 @@ pub fn set_secret_column(
         "passphrase" => "passphrase",
         other => return Err(Error::Db(format!("unknown secret slot: {other}"))),
     };
+    // The credential triplet lives on `ssh_session_details`. The
+    // caller (`db_sessions_set_secret`) is only fired for SSH
+    // sessions; a sanity guard here makes the call a no-op on
+    // missing-row rather than minting an orphaned `ssh_session_details`
+    // entry. The parent `sessions.updated_at` also moves so the
+    // sync layer's LWW timestamp on the row reflects the edit.
     let sql = format!(
-        "UPDATE sessions SET {column} = ?1, updated_at = ?2 \
-         WHERE id = ?3 AND deleted_at IS NULL"
+        "UPDATE ssh_session_details SET {column} = ?1, updated_at = ?2 \
+         WHERE session_id = ?3"
     );
-    conn.raw()
+    let n = conn
+        .raw()
         .execute(&sql, params![value, updated_at_ms, id])
-        .map_err(|e| Error::Db(format!("sessions set_secret_column: {e}")))
+        .map_err(|e| Error::Db(format!("ssh_session_details set_secret_column: {e}")))?;
+    if n > 0 {
+        conn.raw()
+            .execute(
+                "UPDATE sessions SET updated_at = ?1 \
+                 WHERE id = ?2 AND deleted_at IS NULL",
+                params![updated_at_ms, id],
+            )
+            .map_err(|e| Error::Db(format!("sessions set_secret_column parent stamp: {e}")))?;
+    }
+    Ok(n)
 }
 
 /// Copy a session row by id, allocating a new id + label and
@@ -487,20 +658,20 @@ pub fn duplicate_session(
     target_folder_id: Option<&str>,
     now_ms: i64,
 ) -> Result<(), Error> {
+    // Slim `sessions` row first. Common columns copy
+    // column-to-column; `id`, `label`, `folder_id`, `created_at`,
+    // `updated_at` are overridden; `last_connected_at` resets so
+    // the duplicate looks "never connected".
     let n = conn
         .raw()
         .execute(
             "INSERT INTO sessions ( \
-               id, label, folder_id, kind, host, port, user, auth_type, password, \
-               key_path, key_data, key_id, passphrase, sort_order, notes, \
-               last_connected_at, extras, via_session_id, via_host, via_port, \
-               via_user, created_at, updated_at \
+               id, label, folder_id, kind, sort_order, notes, \
+               last_connected_at, extras, created_at, updated_at \
              ) \
              SELECT \
-               ?1 AS id, ?2 AS label, ?3 AS folder_id, kind, host, port, user, auth_type, \
-               password, key_path, key_data, key_id, passphrase, sort_order, notes, \
-               NULL AS last_connected_at, extras, via_session_id, via_host, \
-               via_port, via_user, ?4 AS created_at, ?4 AS updated_at \
+               ?1 AS id, ?2 AS label, ?3 AS folder_id, kind, sort_order, notes, \
+               NULL AS last_connected_at, extras, ?4 AS created_at, ?4 AS updated_at \
              FROM sessions WHERE id = ?5 AND deleted_at IS NULL",
             params![new_id, new_label, target_folder_id, now_ms, src_id],
         )
@@ -508,6 +679,26 @@ pub fn duplicate_session(
     if n == 0 {
         return Err(Error::Io("sessions duplicate: source row missing".into()));
     }
+
+    // The SSH-specific join row copies separately when the source
+    // had one. Credentials flow column-to-column inside SQLite and
+    // never round-trip to Dart. Non-SSH sources (no join row) skip
+    // this step — `INSERT … SELECT` against an empty source set is
+    // a no-op, so the predicate-free shape stays correct for every
+    // transport.
+    conn.raw()
+        .execute(
+            "INSERT INTO ssh_session_details ( \
+               session_id, host, port, user, auth_type, password, key_path, key_data, \
+               key_id, passphrase, via_session_id, via_host, via_port, via_user, updated_at \
+             ) \
+             SELECT \
+               ?1 AS session_id, host, port, user, auth_type, password, key_path, key_data, \
+               key_id, passphrase, via_session_id, via_host, via_port, via_user, ?2 AS updated_at \
+             FROM ssh_session_details WHERE session_id = ?3",
+            params![new_id, now_ms, src_id],
+        )
+        .map_err(|e| Error::Db(format!("ssh_session_details duplicate: {e}")))?;
     Ok(())
 }
 
@@ -1094,5 +1285,323 @@ mod tombstone_tests {
         seed(&db, "s1");
         assert!(db.with_conn(|c| get(c, "s1")).unwrap().is_some());
         assert!(raw_deleted_at(&db, "s1").is_none());
+    }
+}
+
+#[cfg(test)]
+mod split_v16_tests {
+    //! Coverage for the v15 → v16 schema split: SSH-only columns
+    //! moved off `sessions` into `ssh_session_details`. The tests
+    //! cover three angles — runtime correctness of the new write
+    //! path, the read-path COALESCE defaults for non-SSH kinds,
+    //! and the legacy migration that runs on first open of a v15
+    //! database.
+
+    use super::*;
+    use crate::db::{bootstrap_schema, Db, SCHEMA_VERSION};
+
+    fn db() -> Db {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    /// Mirror of the private `db::mod::read_schema_version` —
+    /// duplicated here because the original is `#[cfg(test)]`
+    /// inside `db/mod.rs` and not reachable from sibling test
+    /// modules without exporting it crate-wide.
+    fn read_schema_version(conn: &Connection) -> i32 {
+        let mut v: i32 = 0;
+        conn.inner()
+            .pragma_query(None, "user_version", |row| {
+                v = row.get::<_, i32>(0)?;
+                Ok(())
+            })
+            .unwrap();
+        v
+    }
+
+    fn ssh_join_row_count(db: &Db, id: &str) -> i64 {
+        db.with_conn(|c| {
+            let n: i64 = c
+                .raw()
+                .query_row(
+                    "SELECT COUNT(*) FROM ssh_session_details WHERE session_id = ?1",
+                    params![id],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            Ok(n)
+        })
+        .unwrap()
+    }
+
+    /// SSH `upsert` writes the credential triplet + transport
+    /// tuple into `ssh_session_details`; `get` returns the same
+    /// values via the LEFT JOIN. End-to-end round-trip after the
+    /// split — the SessionRow struct shape is unchanged.
+    #[test]
+    fn ssh_upsert_round_trips_through_join_table() {
+        let db = db();
+        let row = SessionRow {
+            id: "ssh-1".into(),
+            label: "production".into(),
+            kind: SESSION_KIND_SSH.into(),
+            host: "10.0.0.1".into(),
+            port: 2222,
+            user: "deploy".into(),
+            auth_type: "key".into(),
+            password: "".into(),
+            key_data: "PRIVATE-PEM".into(),
+            passphrase: "p".into(),
+            via_host: Some("bastion.example.com".into()),
+            via_port: Some(22),
+            via_user: Some("ops".into()),
+            ..Default::default()
+        };
+        db.with_conn(|c| upsert(c, &row)).unwrap();
+
+        assert_eq!(ssh_join_row_count(&db, "ssh-1"), 1);
+
+        let got = db.with_conn(|c| get(c, "ssh-1")).unwrap().unwrap();
+        assert_eq!(got.host, "10.0.0.1");
+        assert_eq!(got.port, 2222);
+        assert_eq!(got.user, "deploy");
+        assert_eq!(got.auth_type, "key");
+        assert_eq!(got.key_data, "PRIVATE-PEM");
+        assert_eq!(got.passphrase, "p");
+        assert_eq!(got.via_host.as_deref(), Some("bastion.example.com"));
+    }
+
+    /// Non-SSH `upsert` (WebDAV / S3) creates no
+    /// `ssh_session_details` row. The transport-specific tuple
+    /// lives on the matching join table (`webdav_session_details`
+    /// / `s3_session_details`); the SSH join must stay empty so
+    /// stage_secrets / connect paths never observe ghost
+    /// credentials under a non-SSH session id.
+    #[test]
+    fn webdav_upsert_leaves_ssh_join_empty() {
+        let db = db();
+        let row = SessionRow {
+            id: "dav-1".into(),
+            label: "cloud".into(),
+            kind: SESSION_KIND_WEBDAV.into(),
+            // The legacy SessionRow fields stay populated by the
+            // dialog for round-trip parity (it derives host/port
+            // from base_url); they must not land on the SSH join.
+            host: "cloud.example.com".into(),
+            port: 443,
+            user: "alice".into(),
+            password: "should-not-leak".into(),
+            ..Default::default()
+        };
+        db.with_conn(|c| upsert(c, &row)).unwrap();
+        assert_eq!(ssh_join_row_count(&db, "dav-1"), 0);
+
+        // Read-back surfaces the COALESCE defaults — non-SSH
+        // kinds get empty strings / port = 22 / auth_type =
+        // 'password' on the SSH-shaped fields.
+        let got = db.with_conn(|c| get(c, "dav-1")).unwrap().unwrap();
+        assert_eq!(got.kind, SESSION_KIND_WEBDAV);
+        assert_eq!(got.host, "");
+        assert_eq!(got.port, 22);
+        assert_eq!(got.user, "");
+        assert_eq!(got.auth_type, "password");
+        assert_eq!(got.password, "");
+    }
+
+    /// Re-saving an SSH session as WebDAV deletes the
+    /// `ssh_session_details` row so a kind change does not leak
+    /// the old SSH credential blob under the same session id.
+    #[test]
+    fn kind_change_ssh_to_webdav_deletes_ssh_join_row() {
+        let db = db();
+        let ssh_row = SessionRow {
+            id: "kc-1".into(),
+            label: "morphing".into(),
+            kind: SESSION_KIND_SSH.into(),
+            host: "10.0.0.1".into(),
+            user: "deploy".into(),
+            password: "leaky".into(),
+            ..Default::default()
+        };
+        db.with_conn(|c| upsert(c, &ssh_row)).unwrap();
+        assert_eq!(ssh_join_row_count(&db, "kc-1"), 1);
+
+        let dav_row = SessionRow {
+            id: "kc-1".into(),
+            kind: SESSION_KIND_WEBDAV.into(),
+            ..Default::default()
+        };
+        db.with_conn(|c| upsert(c, &dav_row)).unwrap();
+        assert_eq!(
+            ssh_join_row_count(&db, "kc-1"),
+            0,
+            "kind change away from SSH must wipe ssh_session_details"
+        );
+    }
+
+    /// Simulate a v15 database (legacy `sessions` shape with all
+    /// SSH-shaped columns in-line) and verify bootstrap migrates
+    /// it to the slim v16 shape with data preserved in
+    /// `ssh_session_details`.
+    #[test]
+    fn bootstrap_v15_to_v16_splits_ssh_columns_into_join_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+
+        // Revert the schema to v15 shape: drop the new join table
+        // + indexes (CASCADE not needed — nothing references them
+        // yet) and re-attach the SSH-shaped columns on `sessions`.
+        // Then stamp user_version back to v15 so the bootstrap arm
+        // fires on the next call.
+        conn.raw()
+            .execute_batch(
+                "DROP INDEX IF EXISTS idx_ssh_session_details_session_id; \
+                 DROP INDEX IF EXISTS idx_ssh_session_details_via_session_id; \
+                 DROP INDEX IF EXISTS idx_ssh_session_details_key_id; \
+                 DROP TABLE IF EXISTS ssh_session_details; \
+                 ALTER TABLE sessions ADD COLUMN host TEXT NOT NULL DEFAULT ''; \
+                 ALTER TABLE sessions ADD COLUMN port INTEGER NOT NULL DEFAULT 22; \
+                 ALTER TABLE sessions ADD COLUMN user TEXT NOT NULL DEFAULT ''; \
+                 ALTER TABLE sessions ADD COLUMN auth_type TEXT NOT NULL DEFAULT 'password'; \
+                 ALTER TABLE sessions ADD COLUMN password TEXT NOT NULL DEFAULT ''; \
+                 ALTER TABLE sessions ADD COLUMN key_path TEXT NOT NULL DEFAULT ''; \
+                 ALTER TABLE sessions ADD COLUMN key_data TEXT NOT NULL DEFAULT ''; \
+                 ALTER TABLE sessions ADD COLUMN key_id TEXT; \
+                 ALTER TABLE sessions ADD COLUMN passphrase TEXT NOT NULL DEFAULT ''; \
+                 ALTER TABLE sessions ADD COLUMN via_session_id TEXT; \
+                 ALTER TABLE sessions ADD COLUMN via_host TEXT; \
+                 ALTER TABLE sessions ADD COLUMN via_port INTEGER; \
+                 ALTER TABLE sessions ADD COLUMN via_user TEXT;",
+            )
+            .unwrap();
+        // Seed an SSH session row directly via the legacy columns
+        // — exactly the shape a v15-shipped build would have left
+        // behind on disk.
+        conn.raw()
+            .execute(
+                "INSERT INTO sessions (\
+                   id, label, kind, sort_order, notes, extras, created_at, updated_at, \
+                   host, port, user, auth_type, password, key_path, key_data, \
+                   key_id, passphrase, via_session_id, via_host, via_port, via_user\
+                 ) VALUES (\
+                   ?1, ?2, 'ssh', 0, '', '', 0, 0, \
+                   ?3, ?4, ?5, ?6, ?7, '', ?8, NULL, ?9, NULL, NULL, NULL, NULL\
+                 )",
+                rusqlite::params![
+                    "legacy-1",
+                    "old-server",
+                    "10.1.2.3",
+                    2222_i64,
+                    "deploy",
+                    "key",
+                    "legacy-pw",
+                    "PEM-BYTES",
+                    "phrase",
+                ],
+            )
+            .unwrap();
+        // Seed a WebDAV session — the v15 build still wrote the
+        // SessionRow host/user columns even for non-SSH sessions,
+        // so the migration must not invent a phantom SSH join row
+        // for it (the `WHERE kind = 'ssh'` filter is the gate).
+        conn.raw()
+            .execute(
+                "INSERT INTO sessions (\
+                   id, label, kind, sort_order, notes, extras, created_at, updated_at, \
+                   host, port, user, auth_type, password, key_path, key_data, \
+                   key_id, passphrase, via_session_id, via_host, via_port, via_user\
+                 ) VALUES (\
+                   ?1, ?2, 'webdav', 0, '', '', 0, 0, \
+                   'cloud.example.com', 443, 'alice', 'password', '', '', '', \
+                   NULL, '', NULL, NULL, NULL, NULL\
+                 )",
+                rusqlite::params!["legacy-dav", "nextcloud"],
+            )
+            .unwrap();
+
+        conn.inner()
+            .pragma_update(None, "user_version", 15)
+            .unwrap();
+
+        // Migration fires here. After it, sessions is slim and
+        // ssh_session_details carries the SSH session's columns.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn), SCHEMA_VERSION);
+
+        let mut sessions_cols: std::collections::HashSet<String> = Default::default();
+        conn.inner()
+            .pragma(None, "table_info", "sessions", |row| {
+                sessions_cols.insert(row.get::<_, String>("name")?);
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            !sessions_cols.contains("auth_type"),
+            "post-v16 sessions must not carry auth_type"
+        );
+        assert!(
+            !sessions_cols.contains("host"),
+            "post-v16 sessions must not carry host"
+        );
+        assert!(
+            !sessions_cols.contains("key_data"),
+            "post-v16 sessions must not carry key_data"
+        );
+
+        // SSH row backfilled with all the legacy column values.
+        let join_row: (String, i64, String, String, String, String, String) = conn
+            .raw()
+            .query_row(
+                "SELECT host, port, user, auth_type, password, key_data, passphrase \
+                 FROM ssh_session_details WHERE session_id = ?1",
+                rusqlite::params!["legacy-1"],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(join_row.0, "10.1.2.3");
+        assert_eq!(join_row.1, 2222);
+        assert_eq!(join_row.2, "deploy");
+        assert_eq!(join_row.3, "key");
+        assert_eq!(join_row.4, "legacy-pw");
+        assert_eq!(join_row.5, "PEM-BYTES");
+        assert_eq!(join_row.6, "phrase");
+
+        // WebDAV row does NOT mint a phantom SSH join row.
+        let dav_join: i64 = conn
+            .raw()
+            .query_row(
+                "SELECT COUNT(*) FROM ssh_session_details WHERE session_id = ?1",
+                rusqlite::params!["legacy-dav"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            dav_join, 0,
+            "WebDAV sessions must not be backfilled into ssh_session_details"
+        );
+
+        // Second bootstrap is a no-op — the version stamp gate +
+        // `column_exists` probe inside `split_ssh_session_details`
+        // both short-circuit on a v16 database.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn), SCHEMA_VERSION);
     }
 }

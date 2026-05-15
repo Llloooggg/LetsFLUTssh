@@ -157,9 +157,8 @@ mod tombstone_tests {
         db.with_conn(|c| {
             c.raw()
                 .execute(
-                    "INSERT INTO sessions (id, host, user, created_at, updated_at) \
-                     VALUES (?1, ?2, ?3, ?4, ?4)",
-                    params![id, "h", "u", 0_i64],
+                    "INSERT INTO sessions (id, created_at, updated_at) VALUES (?1, ?2, ?2)",
+                    params![id, 0_i64],
                 )
                 .map(|_| ())
                 .map_err(|e| crate::error::Error::Db(format!("insert session: {e}")))
