@@ -36,7 +36,7 @@ jobs:
 
       - name: Bump patch version
         run: |
-          # `scripts/bump-version.sh` runs `git commit`, which needs an
+          # `dev/scripts/bump-version.sh` runs `git commit`, which needs an
           # identity on the runner. Set the dependabot bot's identity
           # so the bump commit is attributed to the same author as the
           # dependency update it rides on top of.
@@ -50,7 +50,7 @@ jobs:
             exit 0
           fi
 
-          scripts/bump-version.sh
+          dev/scripts/bump-version.sh
           git push
 
   automerge:

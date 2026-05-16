@@ -13,7 +13,7 @@
 #    from outcomes.json so callers don't have to parse logs.
 #
 # Usage:
-#   scripts/run-mutants.sh <scope>
+#   dev/scripts/run-mutants.sh <scope>
 #
 # Scopes:
 #   archive   — lfs_core::archive::*

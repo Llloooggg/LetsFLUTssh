@@ -11,7 +11,7 @@ concurrency:
 # Triggers after CI completes on main. Reads the version from
 # pubspec.yaml and creates an annotated tag if it doesn't exist yet.
 #
-# Version bumps happen on dev before the PR (scripts/bump-version.sh).
+# Version bumps happen on dev before the PR (dev/scripts/bump-version.sh).
 # This workflow only creates tags — it never modifies code.
 
 on:

@@ -76,16 +76,16 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@# local and CI coverage numbers agree. Dart-native filter so no
 	@# host dependency is added beyond the Flutter toolchain we
 	@# already need.
-	@dart run scripts/filter_lcov.dart coverage/lcov.info
+	@dart run dev/scripts/filter_lcov.dart coverage/lcov.info
 
 dart-lint: ## Run Dart analyzer (fatal on infos)
 	$(FLUTTER) analyze --fatal-infos
 
 dart-format: ## Format Dart sources in place
-	dart format lib test integration_test fuzz scripts
+	dart format lib test integration_test fuzz dev/scripts
 
 dart-format-check: ## Verify Dart formatting (exit non-zero if changes needed)
-	dart format --output=none --set-exit-if-changed lib test integration_test fuzz scripts
+	dart format --output=none --set-exit-if-changed lib test integration_test fuzz dev/scripts
 
 # Pinned actionlint version + checksum. Update both together when bumping.
 ACTIONLINT_VERSION := 1.7.5
@@ -155,7 +155,7 @@ check: format-check lint lint-workflows lint-release-hardening rust-machete ## F
 	@$(MAKE) test
 
 hooks: ## Install local git hooks (pre-commit runs make check)
-	@bash scripts/install-hooks.sh
+	@bash dev/scripts/install-hooks.sh
 
 gen: ## Code generation (freezed, json_serializable)
 	dart run build_runner build --delete-conflicting-outputs
@@ -436,7 +436,7 @@ rust-mutants: ## Mutation-test a scope of lfs_core (e.g. `make rust-mutants SCOP
 		echo "Examples: SCOPE=archive | SCOPE=security | SCOPE=ssh"; \
 		exit 64; \
 	fi
-	@bash scripts/run-mutants.sh "$(SCOPE)"
+	@bash dev/scripts/run-mutants.sh "$(SCOPE)"
 
 ## ─── Utility ──────────────────────────────────────────────────
 

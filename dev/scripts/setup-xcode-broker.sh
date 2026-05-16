@@ -64,7 +64,7 @@ check_target "iOS" \
 if (( missing )); then
   echo
   echo "setup-xcode-broker: one or both Xcode targets need the manual add above."
-  echo "  Re-run \`scripts/setup-xcode-broker.sh\` after the file is in place; it will pass silently."
+  echo "  Re-run \`dev/scripts/setup-xcode-broker.sh\` after the file is in place; it will pass silently."
   exit 1
 fi
 

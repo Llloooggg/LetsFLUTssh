@@ -20,7 +20,7 @@ If conflicts: STOP and tell user. If fast-forward or clean merge, push: `git pus
 ### Step 3: Version bump
 Run the bump script to calculate and apply the version bump from conventional commits:
 ```bash
-scripts/bump-version.sh
+dev/scripts/bump-version.sh
 ```
 - If it says "nothing to bump" — skip (docs/test/ci-only PR, no version change needed)
 - If it bumps — push the bump commit: `git push`

@@ -11,7 +11,7 @@ set -euo pipefail
 #     Dependabot "Bump ..."                                               → patch
 #   docs: / test: / ci: / chore: / style: / revert:                       → no bump
 #
-# Usage: scripts/bump-version.sh [--dry-run]
+# Usage: dev/scripts/bump-version.sh [--dry-run]
 
 DRY_RUN=false
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=true

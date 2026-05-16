@@ -283,7 +283,7 @@ Target: 100% coverage (excluding OS-specific edges + integration tests). One tes
 - **HARD STOP between fixes.** Implement → tests → docs → **post-fix summary** → ask to commit. Don't start the next fix until current is committed. Exceptions: batch-mode signal; series of related doc/rule edits in a single session — batch into one commit at natural arc end.
 - **Post-fix summary is mandatory.** Per bug: **Symptom** (user-visible behaviour that was wrong), **Root cause** (why, named with file/function/field), **Fix** (what you changed). One bug per paragraph, ≤5 lines. Batch mode → single combined report at arc end. The user reads the summary to decide whether you understood the bug — don't skip because the diff "speaks for itself".
 - Format per CONTRIBUTING.md → Commit messages. Drives auto-changelog — keep user-readable. Use `type(scope):` with parenthesized scope for module-specific commits (`refactor(import): ...`, `test(known-hosts): ...`); drop scope only when genuinely cross-cutting.
-- **Version bumps are automatic.** `/pr` skill runs `scripts/bump-version.sh` — parses conventional commits since last tag, bumps `pubspec.yaml` (patch for fix/refactor/perf/build/deps, minor for feat, major for BREAKING CHANGE; chore/docs/test/ci/Revert = no bump). Don't bump manually.
+- **Version bumps are automatic.** `/pr` skill runs `dev/scripts/bump-version.sh` — parses conventional commits since last tag, bumps `pubspec.yaml` (patch for fix/refactor/perf/build/deps, minor for feat, major for BREAKING CHANGE; chore/docs/test/ci/Revert = no bump). Don't bump manually.
 - **Green CI before merging to main** — pre-commit hook runs `make check` automatically.
 
 ---

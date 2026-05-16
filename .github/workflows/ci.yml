@@ -85,7 +85,7 @@ jobs:
         run: make gen
 
       - name: Verify ARB parity (every locale has the same keys as app_en.arb)
-        run: bash scripts/check-arb-parity.sh
+        run: bash dev/scripts/check-arb-parity.sh
 
       - name: Verify generated localisations are up to date
         # Re-run flutter gen-l10n in place and fail if it mutated any of

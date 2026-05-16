@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Agent-only plan-ID gate. Installed as the `commit-msg` hook by
-# `scripts/install-hooks.sh`.
+# `dev/scripts/install-hooks.sh`.
 #
 # Fires only when the commit message carries a
 # `Co-Authored-By: Claude` trailer — the maintainer's own commits
@@ -42,7 +42,7 @@ if ! grep -qiE '^Co-Authored-By:.*Claude' "$msg_file"; then
 fi
 
 # Path-level allowlist for the staged-diff scan.
-allowlist_re='^(docs/AGENT_RULES\.md|CLAUDE\.md|\.claude/plans/|assets/fonts/LICENSES/|scripts/agent-plan-id-gate\.sh)'
+allowlist_re='^(docs/AGENT_RULES\.md|CLAUDE\.md|\.claude/plans/|assets/fonts/LICENSES/|dev/scripts/agent-plan-id-gate\.sh)'
 
 # Plan-id shapes per docs/AGENT_RULES.md § Plan-Item IDs Stay
 # Internal. mawk does not support `\b` reliably; explicit

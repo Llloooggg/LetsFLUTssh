@@ -17,7 +17,7 @@
 //
 // Usage:
 //
-//     dart run scripts/filter_lcov.dart coverage/lcov.info
+//     dart run dev/scripts/filter_lcov.dart coverage/lcov.info
 
 import 'dart:io';
 
@@ -38,7 +38,7 @@ bool _shouldExclude(String path) {
 Future<int> main(List<String> argv) async {
   if (argv.length != 1) {
     stderr.writeln(
-      'usage: dart run scripts/filter_lcov.dart <path-to-lcov.info>',
+      'usage: dart run dev/scripts/filter_lcov.dart <path-to-lcov.info>',
     );
     return 2;
   }
