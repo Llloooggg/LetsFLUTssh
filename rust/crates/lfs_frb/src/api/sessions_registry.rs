@@ -29,6 +29,12 @@ pub struct DbSessionRegistryView {
     pub folders: Vec<DbFolder>,
     pub empty_folders: Vec<String>,
     pub collapsed_folders: Vec<String>,
+    /// Per-session-id non-SSH credential-presence flags. Empty for
+    /// SSH-only setups; populated for every WebDAV / S3 session by
+    /// the registry reload. The Dart session-tree uses this to
+    /// render the "credentials not set" warning on rows whose
+    /// password / secret-access-key column is empty.
+    pub credential_flags: Vec<crate::api::db::DbSessionCredentialFlags>,
 }
 
 /// Force a re-hydration of the Rust-side registry view from the
@@ -63,11 +69,23 @@ pub async fn sessions_registry_reload() -> Result<(), String> {
 pub fn sessions_registry_snapshot() -> DbSessionRegistryView {
     let app = lfs_core::app::instance();
     let view = app.sessions_registry.snapshot();
+    let credential_flags = view
+        .credential_flags
+        .iter()
+        .map(
+            |(session_id, flags)| crate::api::db::DbSessionCredentialFlags {
+                session_id: session_id.clone(),
+                has_webdav_password: flags.has_webdav_password,
+                has_s3_secret_access_key: flags.has_s3_secret_access_key,
+            },
+        )
+        .collect();
     DbSessionRegistryView {
         sessions: view.sessions.into_iter().map(DbSession::from).collect(),
         folders: view.folders.into_values().map(DbFolder::from).collect(),
         empty_folders: view.empty_folders.into_iter().collect(),
         collapsed_folders: view.collapsed_folders.into_iter().collect(),
+        credential_flags,
     }
 }
 

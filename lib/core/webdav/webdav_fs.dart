@@ -80,4 +80,20 @@ class WebDavFileSystem implements FileSystem {
     final size = await _connection.dirSize(path: path);
     return size.toInt();
   }
+
+  /// Cheap presence probe — one `PROPFIND depth=0` via
+  /// `WebDavConnection.stat`. Beats the trait's parent-listing
+  /// default for transports where a single-resource probe is
+  /// cheaper than a directory walk (every server in practice).
+  /// Any error collapses to `false` so the upload-conflict path
+  /// treats "404 / 410 / network blip" all as "target absent".
+  @override
+  Future<bool> exists(String path) async {
+    try {
+      await _connection.stat(path: path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

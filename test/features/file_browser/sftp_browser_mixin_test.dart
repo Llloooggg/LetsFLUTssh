@@ -114,7 +114,7 @@ void main() {
       // `transportReady` gate inside `SftpBrowserMixin.initSftp`
       // would hang `pumpAndSettle` forever. Drive the completer
       // straight so the mixin proceeds to call `sftpInitFactory`.
-      conn.debugMarkTransportAdopted();
+      conn.markTransportAdopted();
 
       await tester.pumpWidget(
         ProviderScope(
@@ -146,7 +146,7 @@ void main() {
       );
       // Same gate as the failure test above — synthetic Connection
       // has no actor to drive `_transportAdopted`, drive it manually.
-      conn.debugMarkTransportAdopted();
+      conn.markTransportAdopted();
 
       // We need a fake SFTPInitResult — but it requires real controllers.
       // Test that the factory path works by verifying onSftpReady is called.

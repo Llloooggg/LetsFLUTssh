@@ -52,6 +52,74 @@ void main() {
       expect(validate(s), isNull);
     });
 
+    // ── isValid kind-aware gate ────────────────────────────────────
+    //
+    // The session-tree UI calls `session.isValid` to decide whether
+    // to render the "credentials not set" warning icon. After the
+    // v17 schema bump, WebDAV / S3 rows finally carry a persistent
+    // password column; `isValid` for those kinds must now require
+    // `hasCredentials` (just like SSH always has) instead of the
+    // earlier unconditional `true`. Without this the warning never
+    // fired for incomplete non-SSH rows — the original user
+    // regression report.
+
+    test('isValid is false for a WebDAV session with no stored password', () {
+      final s = Session(
+        id: 'webdav-no-pw',
+        label: 'dav',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: 'dav.example.com', user: 'alice'),
+      );
+      expect(
+        s.isValid,
+        isFalse,
+        reason:
+            'WebDAV row without `auth.hasStoredSecret` must trigger '
+            'the session-tree credential warning. Until v17 this '
+            'returned true unconditionally and the warning never '
+            'fired for non-SSH rows.',
+      );
+    });
+
+    test('isValid is true for a WebDAV session with a stored password', () {
+      final s = Session(
+        id: 'webdav-pw',
+        label: 'dav',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: 'dav.example.com', user: 'alice'),
+        auth: const SessionAuth(hasStoredPassword: true),
+      );
+      expect(s.isValid, isTrue);
+    });
+
+    test('isValid is false for an S3 session with no stored secret key', () {
+      final s = Session(
+        id: 's3-no-secret',
+        label: 's3',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: 's3.example.com', user: 'AKIA'),
+      );
+      expect(
+        s.isValid,
+        isFalse,
+        reason:
+            'S3 row without a stored secret access key must trigger '
+            'the session-tree credential warning — same root cause '
+            'as the WebDAV case.',
+      );
+    });
+
+    test('isValid is true for an S3 session with a stored secret key', () {
+      final s = Session(
+        id: 's3-secret',
+        label: 's3',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: 's3.example.com', user: 'AKIA'),
+        auth: const SessionAuth(hasStoredPassword: true),
+      );
+      expect(s.isValid, isTrue);
+    });
+
     test('validate rejects negative port directly', () {
       // The grammar now lives Rust-side and accepts the full i32
       // range; the historical Dart-side wrapper used to clamp the
@@ -576,25 +644,35 @@ void main() {
       expect(s.isValid, isFalse);
     });
 
-    test('WebDAV session is valid even when host / user are empty', () {
-      // Regression: after the v16 schema split, host / user / port
-      // are stored on `ssh_session_details` and read back as the
-      // COALESCE defaults (empty / 22) for non-SSH kinds. The
-      // SSH-shape `isValid` check would have rejected every saved
-      // WebDAV session, breaking Connect with "WebDAV secret not
-      // staged" further down the chain. The transport tuple lives
-      // on `webdav_session_details` (FRB-only, async) so the
-      // connect path is the authoritative validity gate for the
-      // non-SSH kinds — `isValid` defers to it.
-      final s = Session(
-        label: 'nextcloud',
-        kind: SessionKind.webdav,
-        server: const ServerAddress(host: '', port: 0, user: ''),
-      );
-      expect(s.isValid, isTrue);
-    });
+    test(
+      'WebDAV session with empty host / user but a stored secret is valid',
+      () {
+        // Regression: after the v16 schema split, host / user / port
+        // are stored on `ssh_session_details` and read back as the
+        // COALESCE defaults (empty / 22) for non-SSH kinds. The
+        // SSH-shape `isValid` check would have rejected every saved
+        // WebDAV session, breaking Connect with "WebDAV secret not
+        // staged" further down the chain. The transport tuple lives
+        // on `webdav_session_details` (FRB-only, async) so the
+        // connect path is the authoritative validity gate for the
+        // non-SSH kinds — `isValid` defers to it.
+        //
+        // After v17 the `isValid` gate additionally requires
+        // `hasCredentials` for non-SSH rows so the session-tree
+        // warning fires for password-less WebDAV rows. The
+        // empty-host / empty-user case still passes the gate as
+        // long as a credential is present.
+        final s = Session(
+          label: 'nextcloud',
+          kind: SessionKind.webdav,
+          server: const ServerAddress(host: '', port: 0, user: ''),
+          auth: const SessionAuth(hasStoredPassword: true),
+        );
+        expect(s.isValid, isTrue);
+      },
+    );
 
-    test('S3 session is valid even when host / user are empty', () {
+    test('S3 session with empty host / user but a stored secret is valid', () {
       // Same regression coverage for the S3 transport — the SigV4
       // credential pair lives on `s3_session_details` +
       // SecretStore, not on the session row.
@@ -602,6 +680,7 @@ void main() {
         label: 'backups',
         kind: SessionKind.s3,
         server: const ServerAddress(host: '', port: 0, user: ''),
+        auth: const SessionAuth(hasStoredPassword: true),
       );
       expect(s.isValid, isTrue);
     });

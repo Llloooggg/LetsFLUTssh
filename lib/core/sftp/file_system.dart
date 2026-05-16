@@ -17,8 +17,55 @@ abstract class FileSystem {
   Future<void> removeDir(String path);
   Future<void> rename(String oldPath, String newPath);
 
+  /// Whether `path` exists on this backend. Used by the conflict
+  /// resolver in `TransferHelpers` to decide between
+  /// skip / keep-both / replace before enqueueing an upload. The
+  /// default implementation falls back to a one-shot directory
+  /// listing of the parent so backends that don't expose a
+  /// dedicated probe (the legacy `RemoteFS` shim, in-process test
+  /// stubs) still answer correctly; native implementations
+  /// (`RemoteSftpFs`, `WebDavFileSystem`, `S3FileSystem`) override
+  /// with their cheap path. Errors collapse to `false` so the
+  /// callers treat them as "target does not exist" (the SFTP
+  /// LSTAT-NotFound shape).
+  Future<bool> exists(String path) async {
+    try {
+      final dir = _posixDirname(path);
+      final name = _posixBasename(path);
+      if (name.isEmpty) return false;
+      final entries = await list(dir);
+      for (final entry in entries) {
+        if (entry.name == name) return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Recursively calculate the total size of a directory.
   Future<int> dirSize(String path);
+}
+
+String _posixDirname(String path) {
+  if (path.isEmpty) return '/';
+  final trimmed = path.endsWith('/') && path.length > 1
+      ? path.substring(0, path.length - 1)
+      : path;
+  final i = trimmed.lastIndexOf('/');
+  if (i < 0) return '';
+  if (i == 0) return '/';
+  return trimmed.substring(0, i);
+}
+
+String _posixBasename(String path) {
+  if (path.isEmpty) return '';
+  final trimmed = path.endsWith('/') && path.length > 1
+      ? path.substring(0, path.length - 1)
+      : path;
+  final i = trimmed.lastIndexOf('/');
+  if (i < 0) return trimmed;
+  return trimmed.substring(i + 1);
 }
 
 /// Local file system implementation.
@@ -145,6 +192,20 @@ class LocalFS implements FileSystem {
   Future<int> dirSize(String path) async {
     final size = await rust_local_fs.localFsDirSize(path: path);
     return size.toInt();
+  }
+
+  /// Cheap presence probe — `localFsSymlinkStat` returns `null`
+  /// when the path doesn't exist and a populated record otherwise,
+  /// without following symlinks. The trait's default parent-list
+  /// fallback would burn a full directory listing per probe; the
+  /// symlink-aware stat is one syscall.
+  @override
+  Future<bool> exists(String path) async {
+    try {
+      return await rust_local_fs.localFsSymlinkStat(path: path) != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

@@ -43,6 +43,9 @@ class _MockFS implements FileSystem {
     if (dirSizeErrors.contains(path)) throw Exception('Size error: $path');
     return dirSizeResults[path] ?? 0;
   }
+
+  @override
+  Future<bool> exists(String path) async => dirs.containsKey(path);
 }
 
 void main() {

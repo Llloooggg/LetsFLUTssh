@@ -355,7 +355,19 @@ class Session {
             hasCredentials;
       case SessionKind.webdav:
       case SessionKind.s3:
-        return true;
+        // After the v17 schema bump (`webdav_session_details.password`
+        // / `s3_session_details.secret_access_key`), the
+        // `credential_flags` view exposes a per-row presence bool
+        // that `dbSessionToSession` folds into
+        // `SessionAuth.hasStoredPassword`. A WebDAV / S3 row without
+        // a saved credential surfaces here as `hasCredentials =
+        // false` and gets the "credentials not set" warning in the
+        // session tree — same UX as SSH. The transport-tuple fields
+        // (base_url / endpoint) live on the join table and aren't
+        // visible to this sync getter; the edit dialog already
+        // refuses to save a session with an empty base_url, so a
+        // row that exists at all has the transport metadata set.
+        return hasCredentials;
     }
   }
 
@@ -364,6 +376,17 @@ class Session {
   // so the storable-field grammar (host non-empty, port 1..=65535,
   // user non-empty) lives Rust-side with no Dart-side wrapper.
   // [isValid] above stays as the connect-time credential check.
+
+  /// Transport capability: does this session kind expose a remote
+  /// shell (PTY)? Defers to [`SessionKindCapabilities.hasTerminal`]
+  /// so the same answer is reachable from a bare [`SessionKind`]
+  /// (e.g. `Connection.kind`, which doesn't hold a full `Session`).
+  bool get hasTerminal => kind.hasTerminal;
+
+  /// Transport capability: does this session kind expose a file
+  /// browser surface? Defers to
+  /// [`SessionKindCapabilities.hasFileBrowser`].
+  bool get hasFileBrowser => kind.hasFileBrowser;
 
   /// Sanitised copy of this session — plaintext credentials cleared,
   /// `hasStoredX` markers preserved (or computed from the live
@@ -742,4 +765,35 @@ rust_sess.DbSessionJsonValue _extrasLeafToRust(Object? value) {
     );
   }
   return const rust_sess.DbSessionJsonValue.null_();
+}
+
+/// Transport-capability matrix on [`SessionKind`]. Lives as an
+/// extension on the FRB-generated enum so the answer is reachable
+/// from both [`Session`] and [`Connection`] (whose `kind` field is
+/// `SessionKind` — no `Session` instance in scope).
+///
+/// Add a new kind → flip the matching bool here, and every UI gate
+/// (`SessionConnect.connectTerminal` dispatch, workspace
+/// companion-button, session-row context menu, mobile action sheet)
+/// updates automatically. No `kind == SessionKind.foo` literals
+/// downstream.
+extension SessionKindCapabilities on SessionKind {
+  /// Whether this kind carries a remote shell. Only SSH today; a
+  /// future Telnet / serial / mosh kind would flip this on.
+  bool get hasTerminal => switch (this) {
+    SessionKind.ssh => true,
+    SessionKind.webdav => false,
+    SessionKind.s3 => false,
+  };
+
+  /// Whether this kind exposes a file-browser surface. Always true
+  /// today (SSH→SFTP, WebDAV→PROPFIND, S3→ListObjectsV2). The
+  /// getter is symmetric with [`hasTerminal`] so a future kind that
+  /// lacks browsing flips a single bool here instead of growing a
+  /// new gate.
+  bool get hasFileBrowser => switch (this) {
+    SessionKind.ssh => true,
+    SessionKind.webdav => true,
+    SessionKind.s3 => true,
+  };
 }

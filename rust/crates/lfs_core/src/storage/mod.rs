@@ -46,9 +46,12 @@ use futures_util::stream::BoxStream;
 
 use crate::error::Error;
 
+pub mod registry;
 pub mod s3;
 pub mod sftp;
 pub mod webdav;
+
+pub use registry::{ProviderRegistration, ProviderRegistry};
 
 /// One directory entry returned by [`Provider::list`].
 ///

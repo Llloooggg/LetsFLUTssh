@@ -21,11 +21,19 @@ Session dbSessionToSession(
   rust_db.DbSession db,
   Map<String, rust_db.DbFolder> folderMap, {
   bool withCredentials = false,
+  rust_db.DbSessionCredentialFlags? credentialFlags,
 }) {
   // Per-slot stored-secret flags so the edit dialog can render
   // "[Saved]" badges next to each field whose underlying column has
   // a value, without ever pre-filling the controller. Without these
   // an embedded-key session would look broken after a restart.
+  // `credentialFlags` carries the WebDAV / S3 password column
+  // presence — populated by the registry snapshot's
+  // `credentialFlags` list. SSH sessions ignore the WebDAV / S3
+  // entries (they're always false for them).
+  final hasNonSshSecret =
+      (credentialFlags?.hasWebdavPassword ?? false) ||
+      (credentialFlags?.hasS3SecretAccessKey ?? false);
   return Session(
     id: db.id,
     label: db.label,
@@ -35,7 +43,7 @@ Session dbSessionToSession(
     auth: SessionAuth(
       authType: rust_sess.authTypeFromWire(value: db.authType),
       keyId: db.keyId ?? '',
-      hasStoredPassword: db.password.isNotEmpty,
+      hasStoredPassword: db.password.isNotEmpty || hasNonSshSecret,
       hasStoredKeyData: db.keyData.isNotEmpty,
       hasStoredPassphrase: db.passphrase.isNotEmpty,
       password: withCredentials ? db.password : '',

@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
+import '../l10n/app_localizations.dart';
 import '../widgets/context_menu.dart';
-import '../widgets/shortcut_registry.dart';
+import '../widgets/shortcut_registry.dart' show AppShortcut;
 import '../theme/app_theme.dart';
 import '../utils/terminal_clipboard.dart';
 
@@ -28,30 +29,77 @@ class ReadOnlyTerminalView extends StatefulWidget {
 class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
   late final TerminalController _controller;
 
+  /// Last non-empty selected text snapshot. Kept up-to-date by
+  /// [`_onControllerChanged`] so a secondary-tap (which starts a
+  /// fresh xterm gesture that immediately clears
+  /// `_controller.selection`) still has a stable source for the
+  /// "Copy" menu item. Without this cache the right-click reads
+  /// `selection` *after* xterm has already cleared it on the new
+  /// pointer-down, the if-branch in [`_onPointerDown`] sees no
+  /// selection, and the menu silently doesn't open — the original
+  /// user-reported "выбор просто спадает и нет контекстного меню"
+  /// symptom.
+  String? _cachedSelection;
+
   @override
   void initState() {
     super.initState();
     _controller = TerminalController();
+    _controller.addListener(_onControllerChanged);
     widget.terminal.write('\x1B[?25l'); // hide cursor — read-only view
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     super.dispose();
   }
 
-  /// Intercept the terminal-copy shortcut before xterm swallows the
-  /// key event. xterm's `TerminalView` consumes most key combos as
-  /// raw terminal input; without this hook the read-only progress
-  /// view would silently drop Ctrl+C / Cmd+C even when the user
-  /// has selected text. Copy is the only shortcut we honour here —
-  /// paste and resize don't apply to a read-only progress overlay.
+  /// Cache the latest non-empty selection text. Fires on every
+  /// controller mutation — `xterm`'s drag-select calls
+  /// `notifyListeners` as the selection range grows, so the cache
+  /// holds the most-recent populated range. Selection-clear
+  /// notifications (range goes null) deliberately do *not* reset
+  /// the cache: right-click on a primary-cleared selection still
+  /// needs the prior text.
+  void _onControllerChanged() {
+    final sel = _controller.selection;
+    if (sel == null) return;
+    final text = widget.terminal.buffer.getText(sel);
+    if (text.isNotEmpty) {
+      _cachedSelection = text;
+    }
+  }
+
+  /// Activators that copy the current selection out of this
+  /// read-only log surface. We use plain `Ctrl+C` / `Cmd+C` here —
+  /// not [`AppShortcut.terminalCopy`] (`Ctrl+Shift+C`) — because
+  /// this widget renders a connection-progress log, not a live
+  /// PTY: there is no foreground process to SIGINT, so the Unix
+  /// convention of reserving Ctrl+C for interrupt doesn't apply.
+  /// Ctrl+C is what the user reaches for when copying out of any
+  /// non-terminal text surface.
+  static const _copyActivators = <ShortcutActivator>[
+    SingleActivator(LogicalKeyboardKey.keyC, control: true),
+    SingleActivator(LogicalKeyboardKey.keyC, meta: true),
+  ];
+
+  /// Intercept the copy shortcut before xterm dispatches the key
+  /// event to its built-in `_shortcutManager`. xterm calls
+  /// `widget.onKeyEvent` first and short-circuits on a non-ignored
+  /// return — so passing this directly as
+  /// [`TerminalView.onKeyEvent`] is the only ordering that
+  /// reliably wins against xterm's defaults. An ancestor
+  /// `Focus(onKeyEvent:)` runs AFTER the inner Focus and gets
+  /// nothing because xterm already returned `handled`.
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (AppShortcutRegistry.instance.matches(AppShortcut.terminalCopy, event)) {
-      TerminalClipboard.copy(widget.terminal, _controller);
-      return KeyEventResult.handled;
+    for (final activator in _copyActivators) {
+      if (activator.accepts(event, HardwareKeyboard.instance)) {
+        TerminalClipboard.copy(widget.terminal, _controller);
+        return KeyEventResult.handled;
+      }
     }
     return KeyEventResult.ignored;
   }
@@ -68,44 +116,76 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
   /// recogniser ends up winning the arena.
   void _onPointerDown(PointerDownEvent event, BuildContext menuContext) {
     if (event.buttons != kSecondaryButton) return;
-    final selection = _controller.selection;
-    if (selection == null) return;
-    final text = widget.terminal.buffer.getText(selection);
-    if (text.isEmpty) return;
+    final text = _cachedSelection;
+    final hasSelection = text != null && text.isNotEmpty;
     showAppContextMenu(
       context: menuContext,
       position: event.position,
       items: [
-        StandardMenuAction.copy.item(
-          menuContext,
-          shortcut: AppShortcut.terminalCopy,
-          onTap: () {
-            TerminalClipboard.copyText(text);
-            _controller.clearSelection();
-          },
+        if (hasSelection)
+          StandardMenuAction.copy.item(
+            menuContext,
+            // The on-wire activator on this surface is `Ctrl+C`, not
+            // `Ctrl+Shift+C` — this is a log view, not a live PTY (see
+            // `_copyActivators` for the rationale). `fileCopy` is the
+            // existing registry entry that resolves to that binding;
+            // reusing it keeps the hint label accurate without growing
+            // the registry.
+            shortcut: AppShortcut.fileCopy,
+            onTap: () {
+              TerminalClipboard.copyText(text);
+              _controller.clearSelection();
+              _cachedSelection = null;
+            },
+          ),
+        // "Select all" is always visible — gives the user a way to
+        // grab the full log buffer without dragging end-to-end. xterm
+        // exposes `setSelection` via the controller; the buffer
+        // length sets the upper bound.
+        ContextMenuItem(
+          label: S.of(menuContext).selectAll,
+          icon: Icons.select_all,
+          onTap: _selectAll,
         ),
       ],
     );
   }
 
+  /// Set the controller's selection to the entire scrollback +
+  /// viewport. Mirrors the shape xterm's built-in
+  /// `SelectAllTextIntent` action uses
+  /// (`terminal.buffer.createAnchor(col, row)`), which is the only
+  /// public API xterm 4 exposes for synthesising selection anchors
+  /// outside a live drag. The cache populates via
+  /// [`_onControllerChanged`] so the immediate Copy on the user's
+  /// next tap fires off the full-buffer text.
+  void _selectAll() {
+    final terminal = widget.terminal;
+    final buffer = terminal.buffer;
+    if (buffer.height == 0) return;
+    _controller.setSelection(
+      buffer.createAnchor(0, buffer.height - terminal.viewHeight),
+      buffer.createAnchor(terminal.viewWidth, buffer.height - 1),
+      mode: SelectionMode.line,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      onKeyEvent: _handleKey,
-      child: Listener(
-        onPointerDown: (event) => _onPointerDown(event, context),
-        child: TerminalView(
-          widget.terminal,
-          controller: _controller,
-          autofocus: false,
-          hardwareKeyboardOnly: true,
-          backgroundOpacity: 1.0,
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          theme: AppTheme.terminalTheme,
-          textStyle: TerminalStyle(
-            fontSize: widget.fontSize,
-            fontFamily: AppFonts.monoFamily,
-          ),
+    return Listener(
+      onPointerDown: (event) => _onPointerDown(event, context),
+      child: TerminalView(
+        widget.terminal,
+        controller: _controller,
+        autofocus: false,
+        hardwareKeyboardOnly: true,
+        onKeyEvent: _handleKey,
+        backgroundOpacity: 1.0,
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        theme: AppTheme.terminalTheme,
+        textStyle: TerminalStyle(
+          fontSize: widget.fontSize,
+          fontFamily: AppFonts.monoFamily,
         ),
       ),
     );

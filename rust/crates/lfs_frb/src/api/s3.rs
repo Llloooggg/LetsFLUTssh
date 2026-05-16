@@ -82,10 +82,18 @@ pub fn s3_server_address_from_endpoint(
 /// Live S3 client tied to a single session. Drop on the Dart side
 /// releases the inner `Arc`; the underlying `reqwest::Client` drops
 /// its connection pool when the last reference goes away.
+///
+/// Holds an optional [`ProviderRegistration`] guard that unregisters
+/// this connection's id from [`crate::app::AppState::providers`]
+/// on `Drop`. Same role as the equivalent guard on `WebDavConnection`
+/// — without it the transfer worker can't reach the S3 provider.
 #[frb(opaque)]
 pub struct S3Connection {
     provider: Arc<S3Provider>,
     client: Arc<S3Client>,
+    // Drop order: this field runs before `provider`, so the
+    // unregister sees the live `Arc` still in the registry.
+    _registration: Option<lfs_core::storage::ProviderRegistration>,
 }
 
 impl S3Connection {
@@ -201,15 +209,35 @@ impl S3Connection {
 /// when none is configured) as a connect probe — so a bad
 /// credential / wrong region / missing bucket surfaces at connect
 /// time rather than at the first list.
-pub async fn s3_connect(
-    access_key_id: String,
-    secret_key_secret_id: String,
-    region: String,
-    endpoint: String,
-    path_style: bool,
-    default_bucket: String,
-    default_prefix: String,
-) -> Result<S3Connection, String> {
+/// Configuration tuple for [`s3_connect`]. Bundled into a struct
+/// because the field count would otherwise cross clippy's
+/// `too_many_arguments` ceiling — every field is a connect-time
+/// required input (none has a meaningful default the call site
+/// could omit), so factoring them out of the positional argument
+/// list is a readability win as well.
+#[derive(Debug, Clone)]
+pub struct S3ConnectRequest {
+    pub connection_id: String,
+    pub access_key_id: String,
+    pub secret_key_secret_id: String,
+    pub region: String,
+    pub endpoint: String,
+    pub path_style: bool,
+    pub default_bucket: String,
+    pub default_prefix: String,
+}
+
+pub async fn s3_connect(req: S3ConnectRequest) -> Result<S3Connection, String> {
+    let S3ConnectRequest {
+        connection_id,
+        access_key_id,
+        secret_key_secret_id,
+        region,
+        endpoint,
+        path_style,
+        default_bucket,
+        default_prefix,
+    } = req;
     // Borrow UTF-8 via `&secret_bytes` so the `Zeroizing<Vec<u8>>`
     // scrubs on the early-return path. `String::from_utf8(_.to_vec())`
     // would shed the bytes into a `FromUtf8Error` that drops without
@@ -243,7 +271,19 @@ pub async fn s3_connect(
             .map_err(|e| crate::api::frb_err::from_core(&e))?;
     }
     let provider = Arc::new(S3Provider::new(Arc::clone(&client)));
-    Ok(S3Connection { provider, client })
+    // Register the live provider so the transfer worker pool can
+    // dispatch by connection id. See `WebDavConnection` for the
+    // matching guard contract.
+    let app = lfs_core::app::instance();
+    let registry = app.providers.clone();
+    registry.register(&connection_id, provider.clone());
+    let registration =
+        lfs_core::storage::ProviderRegistration::new(Arc::downgrade(&registry), connection_id);
+    Ok(S3Connection {
+        provider,
+        client,
+        _registration: Some(registration),
+    })
 }
 
 #[cfg(test)]
@@ -263,15 +303,16 @@ mod tests {
         // 0xFF / 0xFE / 0xFD are illegal as the first byte of a
         // UTF-8 sequence, so `str::from_utf8` rejects deterministically.
         app.secrets.put(secret_id, &[0xFF, 0xFE, 0xFD]);
-        let result = s3_connect(
-            "AKIATESTKEY".into(),
-            secret_id.into(),
-            "us-east-1".into(),
-            String::new(),
-            false,
-            String::new(),
-            String::new(),
-        )
+        let result = s3_connect(S3ConnectRequest {
+            connection_id: "test-conn-utf8".into(),
+            access_key_id: "AKIATESTKEY".into(),
+            secret_key_secret_id: secret_id.into(),
+            region: "us-east-1".into(),
+            endpoint: String::new(),
+            path_style: false,
+            default_bucket: String::new(),
+            default_prefix: String::new(),
+        })
         .await;
         app.secrets.drop_id(secret_id);
         // `S3Connection` is `#[frb(opaque)]` and intentionally does
@@ -293,15 +334,16 @@ mod tests {
         // Together with the UTF-8 test, this pins both branches
         // of the resolve-then-validate step.
         let _app = lfs_core::app::init();
-        let result = s3_connect(
-            "AKIATESTKEY".into(),
-            "test.s3.does-not-exist".into(),
-            "us-east-1".into(),
-            String::new(),
-            false,
-            String::new(),
-            String::new(),
-        )
+        let result = s3_connect(S3ConnectRequest {
+            connection_id: "test-conn-missing-secret".into(),
+            access_key_id: "AKIATESTKEY".into(),
+            secret_key_secret_id: "test.s3.does-not-exist".into(),
+            region: "us-east-1".into(),
+            endpoint: String::new(),
+            path_style: false,
+            default_bucket: String::new(),
+            default_prefix: String::new(),
+        })
         .await;
         let err = match result {
             Ok(_) => panic!("missing secret id must fail"),

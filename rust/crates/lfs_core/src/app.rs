@@ -28,6 +28,7 @@ use crate::recorder::queue::RecorderQueue;
 use crate::recorder::RecorderRegistry;
 use crate::secrets::SecretStore;
 use crate::sessions::Registry as SessionsRegistry;
+use crate::storage::ProviderRegistry;
 use crate::transfer::driver::WorkerPool;
 use crate::transfer::TransferQueue;
 use crate::transfer_conflict::BatchStateRegistry;
@@ -112,6 +113,14 @@ pub struct AppState {
     /// Rust-side dispatcher without re-inventing the state
     /// machine.
     pub conflict_resolvers: BatchStateRegistry,
+    /// Process-singleton registry of live non-SSH transport
+    /// providers keyed by connection id. WebDAV / S3 connects
+    /// register their `Arc<dyn Provider>` here so the transfer
+    /// worker can reach them — SSH uses [`connections`] (the russh
+    /// actor map) for the same lookup. Held inside an `Arc` so the
+    /// FRB-opaque connect handles can carry a `Weak` reference for
+    /// their drop-time unregister guard without a circular ref.
+    pub providers: Arc<ProviderRegistry>,
 }
 
 impl AppState {
@@ -133,6 +142,7 @@ impl AppState {
             rate_limiters: InMemoryRateLimiterRegistry::new(),
             sessions_registry: SessionsRegistry::new(),
             conflict_resolvers: BatchStateRegistry::new(),
+            providers: Arc::new(ProviderRegistry::new()),
         }
     }
 

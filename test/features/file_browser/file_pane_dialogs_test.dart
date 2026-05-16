@@ -35,6 +35,8 @@ class _MockFS implements FileSystem {
       renames.add((oldPath, newPath));
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// FS that throws on mkdir.
@@ -53,6 +55,8 @@ class _ErrorMkdirFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// FS that throws on rename.
@@ -72,6 +76,8 @@ class _ErrorRenameFS implements FileSystem {
       throw Exception('rename failed');
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// FS that throws on remove/removeDir.
@@ -90,6 +96,8 @@ class _ErrorDeleteFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 void main() {

@@ -80,11 +80,19 @@ class DbSessionRegistryView {
   final List<String> emptyFolders;
   final List<String> collapsedFolders;
 
+  /// Per-session-id non-SSH credential-presence flags. Empty for
+  /// SSH-only setups; populated for every WebDAV / S3 session by
+  /// the registry reload. The Dart session-tree uses this to
+  /// render the "credentials not set" warning on rows whose
+  /// password / secret-access-key column is empty.
+  final List<DbSessionCredentialFlags> credentialFlags;
+
   const DbSessionRegistryView({
     required this.sessions,
     required this.folders,
     required this.emptyFolders,
     required this.collapsedFolders,
+    required this.credentialFlags,
   });
 
   @override
@@ -92,7 +100,8 @@ class DbSessionRegistryView {
       sessions.hashCode ^
       folders.hashCode ^
       emptyFolders.hashCode ^
-      collapsedFolders.hashCode;
+      collapsedFolders.hashCode ^
+      credentialFlags.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -102,5 +111,6 @@ class DbSessionRegistryView {
           sessions == other.sessions &&
           folders == other.folders &&
           emptyFolders == other.emptyFolders &&
-          collapsedFolders == other.collapsedFolders;
+          collapsedFolders == other.collapsedFolders &&
+          credentialFlags == other.credentialFlags;
 }

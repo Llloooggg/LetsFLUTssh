@@ -285,7 +285,7 @@ Self-build users without a paid Developer Program account fall back gracefully:
 
 If your CI signs the build outside Xcode, the `xcodebuild -exportArchive` step picks up the team ID from your `ExportOptions.plist` — set `signingStyle = automatic` + `teamID = <your team ID>` and the entitlements file is wired automatically.
 
-> The two Swift glue files (`macos/Runner/SecurityKeyBroker.swift` + `ios/Runner/SecurityKeyBroker.swift`) ship in the repo and need to be added to the Xcode target's "Compile Sources" build phase once per fork. Newer Xcode versions auto-detect Swift files under `Runner/`; older versions need the manual drag-and-drop. The repo's `scripts/setup-xcode-broker.sh` automates this for both targets — run once after cloning if Xcode hasn't already picked the files up.
+> The two Swift glue files (`macos/Runner/SecurityKeyBroker.swift` + `ios/Runner/SecurityKeyBroker.swift`) ship in the repo and need to be added to the Xcode target's "Compile Sources" build phase once per fork. Newer Xcode versions auto-detect Swift files under `Runner/`; older versions need the manual drag-and-drop. The repo's `dev/scripts/setup-xcode-broker.sh` automates this for both targets — run once after cloning if Xcode hasn't already picked the files up.
 
 ## Development
 
@@ -327,6 +327,10 @@ make dart-format-check   # Verify Dart formatting
 
 For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — module structure, data models, API references, state management, data flows, and design decisions.
 
+### Local test backends (S3 / WebDAV / SSH)
+
+For manual QA of the `lfs_core::{s3, webdav, ssh, sftp}` transports against real servers without renting cloud accounts, the repo ships a Docker Compose stack under [`dev/compose/`](../dev/compose/README.md). It brings up MinIO, Apache mod_dav with Basic and Digest auth, a Nextcloud (for Bearer tokens), and `linuxserver/openssh-server`, all bound to `127.0.0.1` with hard-coded dev credentials. See `dev/compose/README.md` for endpoint URLs and the per-session settings to plug into the app.
+
 ## Coding Conventions
 
 - **Reuse first** — before adding a new widget, helper, mixin, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent and extend it (add a parameter) instead of forking. Full rule and canonical primitives: [§1 Reuse principle](ARCHITECTURE.md#reuse-principle)
@@ -367,7 +371,7 @@ Format: `type: short description`
 
 Ordering in release notes: Security (pinned callout) → Features → Reverts → Improvements → Fixes → Localization → Dependencies. Empty sections are omitted.
 
-**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`, `fix(session_manager):`, `refactor(keys+tags):`, `fix(scripts/macos-resign):`) — lowercase, alphanumeric plus `_ + - /`. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
+**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`, `fix(session_manager):`, `refactor(keys+tags):`, `fix(dev/scripts/macos-resign):`) — lowercase, alphanumeric plus `_ + - /`. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
 
 **Examples:**
 
@@ -390,7 +394,7 @@ ci: add commit message linting for PRs
 
 ## Version Bumps
 
-Version bumps are **fully automated**. The bump script (`scripts/bump-version.sh`) parses conventional commit prefixes since the last tag and bumps `pubspec.yaml`. It runs on `dev` before creating a PR to `main`; for Dependabot PRs, CI runs it automatically.
+Version bumps are **fully automated**. The bump script (`dev/scripts/bump-version.sh`) parses conventional commit prefixes since the last tag and bumps `pubspec.yaml`. It runs on `dev` before creating a PR to `main`; for Dependabot PRs, CI runs it automatically.
 
 | Commit prefix                           | Bump      |
 |-----------------------------------------|-----------|
@@ -433,7 +437,7 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 | `reproducibility-check.yml` | Nightly cron: builds the Linux artefacts twice on the same SHA + diffs sha256 to verify the `SOURCE_DATE_EPOCH`-pinned reproducibility claim | No |
 | `pages.yml` | Publishes the project landing site to GitHub Pages | No (main only) |
 
-**Dependabot auto-releases:** when Dependabot opens a Dart dependency update PR (`pub` ecosystem), `dependabot-auto.yml` runs `scripts/bump-version.sh` in the PR branch to bump the patch version, then auto-merges. CI runs on `main` after merge; if it passes, `ci-auto-tag.yml` creates a tag and triggers the full build + release pipeline. If CI fails — no tag, no release. GitHub Actions updates are auto-merged but do not trigger a version bump (they don't affect the shipped app).
+**Dependabot auto-releases:** when Dependabot opens a Dart dependency update PR (`pub` ecosystem), `dependabot-auto.yml` runs `dev/scripts/bump-version.sh` in the PR branch to bump the patch version, then auto-merges. CI runs on `main` after merge; if it passes, `ci-auto-tag.yml` creates a tag and triggers the full build + release pipeline. If CI fails — no tag, no release. GitHub Actions updates are auto-merged but do not trigger a version bump (they don't affect the shipped app).
 
 ## Security
 

@@ -317,25 +317,37 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       final secretId = rust_db.dbS3SessionDetailsSecretId(
         sessionId: session.id,
       );
-      // Stage the secret access key into SecretStore for the
-      // connect call. Same posture as the WebDAV path — the
-      // Dart-side cache holds it while editing; the SecretStore
-      // is the only handoff for the Rust connect.
+      // Two-arm staging: fresh-from-edit transient secret in
+      // `session.password`, otherwise pull from
+      // `s3_session_details.secret_access_key`. See the WebDAV
+      // path above for the full rationale — the S3 connect surface
+      // hits the same SecretStore-by-id contract.
       if (session.password.isNotEmpty) {
         await rust_app.secretsPut(
           id: secretId,
           bytes: utf8.encode(session.password),
         );
         conn.transientSecretIds.add(secretId);
+      } else {
+        await rust_db.dbS3SessionDetailsStageSecret(sessionId: session.id);
       }
+      // `connectionId` plumbs through to
+      // `lfs_core::storage::ProviderRegistry` so the Rust-side
+      // transfer worker pool can look the live `Arc<dyn Provider>`
+      // up by id (drag-drop upload / download for S3). The
+      // FRB-opaque handle holds a `ProviderRegistration` guard
+      // that unregisters on Drop — disconnect tears the slot down.
       final handle = await rust_s3.s3Connect(
-        accessKeyId: detail.accessKeyId,
-        secretKeySecretId: secretId,
-        region: detail.region,
-        endpoint: detail.endpoint,
-        pathStyle: detail.pathStyle,
-        defaultBucket: detail.defaultBucket,
-        defaultPrefix: detail.defaultPrefix,
+        req: rust_s3.S3ConnectRequest(
+          connectionId: conn.id,
+          accessKeyId: detail.accessKeyId,
+          secretKeySecretId: secretId,
+          region: detail.region,
+          endpoint: detail.endpoint,
+          pathStyle: detail.pathStyle,
+          defaultBucket: detail.defaultBucket,
+          defaultPrefix: detail.defaultPrefix,
+        ),
       );
       conn.s3Connection = handle;
       // Initial-dir maps to `s3://<bucket>/<prefix>` when an
@@ -346,6 +358,10 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
             's3://${detail.defaultBucket}/${detail.defaultPrefix}';
       }
       conn.state = SSHConnectionState.connected;
+      // Same `transportReady` completion as the WebDAV path; see
+      // the note in [`_doWebDavConnect`] for why the gate has to
+      // be released here for non-SSH transports.
+      conn.markTransportAdopted();
       conn.addProgressStep(
         const ConnectionStep(
           phase: ConnectionPhase.authenticate,
@@ -362,6 +378,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       );
       conn.connectionError = e;
       conn.state = SSHConnectionState.disconnected;
+      conn.markTransportAdopted(adopted: false);
       conn.addProgressStep(
         ConnectionStep(
           phase: ConnectionPhase.authenticate,
@@ -388,21 +405,42 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       final secretId = rust_db.dbWebdavSessionDetailsSecretId(
         sessionId: session.id,
       );
-      // Stage the password into SecretStore for the connect call.
-      // The Dart-side cache holds the password while editing; the
-      // SecretStore is the only handoff for the Rust connect.
+      // The Rust `webdav_connect` resolves the password by id from
+      // the in-memory SecretStore. Two paths populate that slot,
+      // tried in order:
+      //
+      //  1. If the connect was kicked off right after an edit that
+      //     typed a password into the dialog, the cached
+      //     `session.password` carries the plaintext — stage it
+      //     directly and mark the slot transient so the bus
+      //     listener evicts it after the attempt terminates.
+      //  2. Otherwise the password lives on
+      //     `webdav_session_details.password` (SQLCipher-encrypted
+      //     at rest) but the SecretStore was wiped at process exit.
+      //     `dbWebdavSessionDetailsStageSecret` copies the column
+      //     value into the SecretStore under the same id; the slot
+      //     is NOT marked transient because the user explicitly
+      //     persisted it and disconnect must not drop it.
+      //
+      // Falling through with neither populated lets the Rust connect
+      // surface the canonical "WebDAV secret not staged: ..." error
+      // so the UI can show a meaningful message.
       if (session.password.isNotEmpty) {
-        // `secretsPut` lives behind the FRB app surface; the Dart
-        // session edit dialog already routes WebDAV passwords
-        // through it when saving, so a fresh connect attempt
-        // typically finds the secret already staged.
         await rust_app.secretsPut(
           id: secretId,
           bytes: utf8.encode(session.password),
         );
         conn.transientSecretIds.add(secretId);
+      } else {
+        await rust_db.dbWebdavSessionDetailsStageSecret(sessionId: session.id);
       }
+      // `connectionId` plumbs through to
+      // `lfs_core::storage::ProviderRegistry` so the Rust-side
+      // transfer worker pool can dispatch upload / download by id
+      // for this WebDAV connection. The FRB-opaque handle holds a
+      // `ProviderRegistration` guard that unregisters on Drop.
       final handle = await rust_webdav.webdavConnect(
+        connectionId: conn.id,
         baseUrl: detail.baseUrl,
         username: detail.username,
         passwordSecretId: secretId,
@@ -412,6 +450,13 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       conn.webdavConnection = handle;
       conn.webdavBaseUrl = detail.baseUrl;
       conn.state = SSHConnectionState.connected;
+      // Complete the `transportReady` gate the file browser
+      // mixin awaits before adding its `openChannel` step. SSH
+      // gets this for free through the bus listener's
+      // `_adoptSession` path; WebDAV has no russh actor, so
+      // without this the gate hangs forever and the user sits on
+      // `[✓] Authenticating as <user>` with no further progress.
+      conn.markTransportAdopted();
       // Surface the WebDAV connect through the same progress
       // channel the SSH path uses so the UI's progress drawer
       // stays uniform across transports.
@@ -431,6 +476,10 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       );
       conn.connectionError = e;
       conn.state = SSHConnectionState.disconnected;
+      // Wake the gate on failure too so the file browser's await
+      // resolves with `adopted=false` and renders the error
+      // state instead of spinning.
+      conn.markTransportAdopted(adopted: false);
       conn.addProgressStep(
         ConnectionStep(
           phase: ConnectionPhase.authenticate,

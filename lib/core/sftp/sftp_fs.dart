@@ -373,6 +373,14 @@ class RemoteFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) =>
       sftp.rename(oldPath, newPath);
 
+  /// Cheap presence probe — delegates to the SFTP-native
+  /// [`RemoteSftpFs.exists`] which issues a single `LSTAT` rather
+  /// than walking the parent directory. The trait's default
+  /// fall-back works correctly but burns one full directory
+  /// listing per probe; SFTP's `LSTAT` is one round-trip.
+  @override
+  Future<bool> exists(String path) => sftp.exists(path);
+
   /// Maximum directory recursion depth to prevent runaway traversals.
   /// Matches the Rust-side `dir_size_recursive` cap; the FRB call
   /// runs the entire walk over one SFTP channel pair instead of

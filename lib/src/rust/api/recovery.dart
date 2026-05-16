@@ -89,8 +89,7 @@ Future<DbRecoveryOutcome> recoveryHandleLegacyState({
   orphanArtefacts: orphanArtefacts,
 );
 
-/// Compose the destructive cascade Dart used to drive across five
-/// separate FRB hops:
+/// Compose the destructive cascade in one Rust-side transaction:
 ///
 /// 1. `db_close` — release the SQLCipher handle.
 /// 2. `wipe_sweep_files` — Rust-side file sweep + log directory wipe.
@@ -102,8 +101,8 @@ Future<DbRecoveryOutcome> recoveryHandleLegacyState({
 ///    biometric-overlay drop, same dispatch shape.
 /// 6. (Implicit) `config.json` is in the managed-files list so
 ///    step 2 leaves the install without a config; the next
-///    `configStoreInit` re-seeds defaults, dropping the explicit
-///    Riverpod patch the controller used to issue.
+///    `configStoreInit` re-seeds defaults — no explicit Riverpod
+///    patch needed.
 Future<DbDestructiveResetReport> recoveryRunDestructiveReset({
   required String supportDir,
 }) => RustLib.instance.api.crateApiRecoveryRecoveryRunDestructiveReset(

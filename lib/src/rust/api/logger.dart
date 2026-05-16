@@ -13,7 +13,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// log-path string.
 ///
 /// Idempotent — calling twice with the same directory keeps the
-/// same sink. Switching directory closes the prior sink and
+/// same sink. Switching directory closes the held sink and
 /// reopens at the new path.
 Future<String> loggerOpenSink({required String appSupportDir}) => RustLib
     .instance

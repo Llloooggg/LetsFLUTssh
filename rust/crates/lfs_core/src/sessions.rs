@@ -73,6 +73,15 @@ pub struct RegistryView {
     pub folders: BTreeMap<String, FolderRow>,
     pub empty_folders: BTreeSet<String>,
     pub collapsed_folders: BTreeSet<String>,
+    /// Per-session-id WebDAV / S3 credential-presence flags
+    /// synthesised off the detail-table joins by
+    /// [`crate::db::sessions::list_all_with_flags`]. The session-tree
+    /// UI reads this map to render the "credentials not set"
+    /// warning for incomplete WebDAV / S3 rows without an N+1
+    /// lookup hop. Entries are present for every session id in
+    /// [`sessions`]; SSH rows still resolve to `{false, false}`
+    /// because the LEFT JOIN returns no detail row for them.
+    pub credential_flags: BTreeMap<String, crate::db::sessions::SessionCredentialFlags>,
 }
 
 /// Process-singleton sessions registry. Wraps a [`RegistryView`]
@@ -111,13 +120,13 @@ impl Registry {
     /// stale state rather than an empty cache + a fault.
     pub fn reload(&self, db: &Db) -> Result<(), Error> {
         let view = db.with_conn(|conn| {
-            let sessions = crate::db::sessions::list_all(conn)?;
+            let session_rows = crate::db::sessions::list_all_with_flags(conn)?;
             let folder_rows = crate::db::folders::list_all(conn)?;
             let folders: BTreeMap<String, FolderRow> =
                 folder_rows.into_iter().map(|f| (f.id.clone(), f)).collect();
-            let used_folder_ids: std::collections::HashSet<String> = sessions
+            let used_folder_ids: std::collections::HashSet<String> = session_rows
                 .iter()
-                .filter_map(|s| s.folder_id.clone())
+                .filter_map(|(s, _)| s.folder_id.clone())
                 .collect();
             let empty_folders: BTreeSet<String> =
                 folder_path::derive_empty_folders(&folders, &used_folder_ids)
@@ -127,11 +136,22 @@ impl Registry {
                 folder_path::derive_collapsed_folders(&folders)
                     .into_iter()
                     .collect();
+            // Unzip the (row, flags) pairs into the two-collection
+            // shape the snapshot exposes. The flags map keys by
+            // session_id so the Dart consumer can look up a row by
+            // id without scanning a parallel Vec.
+            let mut sessions = Vec::with_capacity(session_rows.len());
+            let mut credential_flags = BTreeMap::new();
+            for (row, flags) in session_rows {
+                credential_flags.insert(row.id.clone(), flags);
+                sessions.push(row);
+            }
             Ok::<_, Error>(RegistryView {
                 sessions,
                 folders,
                 empty_folders,
                 collapsed_folders,
+                credential_flags,
             })
         })?;
         let mut g = self.inner.write().unwrap_or_else(|e| e.into_inner());

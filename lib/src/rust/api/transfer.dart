@@ -34,10 +34,9 @@ Future<DbTransferSnapshot> transferEnqueue({
   bytesTotal: bytesTotal,
 );
 
-/// Dispatch a previously-enqueued task into the worker pool.
-/// Used by paths that build the row out-of-band (not through
-/// [`transfer_enqueue`]) — kept around for symmetry with the
-/// older single-step shape.
+/// Dispatch an already-enqueued task into the worker pool. Used by
+/// paths that build the row out-of-band (not through
+/// [`transfer_enqueue`]).
 Future<void> transferDispatch({required String taskId}) =>
     RustLib.instance.api.crateApiTransferTransferDispatch(taskId: taskId);
 

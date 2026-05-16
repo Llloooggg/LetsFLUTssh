@@ -37,12 +37,14 @@ DbServerAddressFields webdavServerAddressFromBaseUrl({
 /// the Dart UI persist the value before the transport-side
 /// hookup lands.
 Future<WebDavConnection> webdavConnect({
+  required String connectionId,
   required String baseUrl,
   required String username,
   required String passwordSecretId,
   required String authMethod,
   String? selfSignedFingerprint,
 }) => RustLib.instance.api.crateApiWebdavWebdavConnect(
+  connectionId: connectionId,
   baseUrl: baseUrl,
   username: username,
   passwordSecretId: passwordSecretId,

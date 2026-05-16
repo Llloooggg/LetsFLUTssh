@@ -449,8 +449,7 @@ sealed class BusEvent with _$BusEvent {
   /// `keychain` / `hardware` / `paranoid`).
   /// `has_key`: whether the canonical
   /// `ACTIVE_DBKEY_SECRET_ID` slot carries a staged key —
-  /// follows the same SecretStore probe shape the Dart
-  /// listener used to perform.
+  /// matches the SecretStore probe shape Dart listeners need.
   const factory BusEvent.unlockCascadeReady({
     required String tierWire,
     required bool hasKey,

@@ -218,10 +218,10 @@ Future<DbRecorderSnapshot> recorderRotateTo({
 Future<void> recorderClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderClose(id: id);
 
-/// Spawn the per-id write worker. Pair with a prior
+/// Spawn the per-id write worker. Pair with an existing
 /// [`recorder_register`] so the actor row exists. Idempotent on a
-/// re-spawn for the same id (the prior worker exits cleanly on its
-/// next mailbox `recv`).
+/// re-spawn for the same id — the displaced worker exits cleanly on
+/// its next mailbox `recv`.
 Future<void> recorderQueueSpawn({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderQueueSpawn(id: id);
 

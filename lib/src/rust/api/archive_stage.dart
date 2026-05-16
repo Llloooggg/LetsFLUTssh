@@ -233,11 +233,9 @@ class DbStagedSessionSnippetLink {
           snippetId == other.snippetId;
 }
 
-/// FRB mirrors of the link-table envelope rows. The shape was
-/// previously built Dart-side via `jsonEncode([...])`; routing
-/// through typed structs keeps the wire format Rust-authoritative
-/// and lets the apply driver consume the same JSON the stager
-/// emits.
+/// FRB mirrors of the link-table envelope rows. Typed structs
+/// keep the wire format Rust-authoritative so the apply driver
+/// consumes the same JSON the stager emits.
 class DbStagedSessionTagLink {
   final String sessionId;
   final String tagId;

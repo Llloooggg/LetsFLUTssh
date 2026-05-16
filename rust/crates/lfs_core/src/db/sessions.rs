@@ -100,6 +100,23 @@ pub struct SessionRow {
     pub updated_at_ms: i64,
 }
 
+/// Per-session credential-presence flags pulled from the WebDAV / S3
+/// detail join tables. Lives outside [`SessionRow`] so the write
+/// path (every `SessionRow { ... }` construction site) stays
+/// untouched — the flags are read-only synthesis driven by the
+/// LEFT JOIN, and only the session-tree UI's "credentials not
+/// set" warning consumes them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SessionCredentialFlags {
+    /// `webdav_session_details.password` exists and is non-empty
+    /// for this session id. `false` for SSH / S3 sessions and for
+    /// WebDAV sessions that haven't saved a password yet.
+    pub has_webdav_password: bool,
+    /// `s3_session_details.secret_access_key` exists and is
+    /// non-empty for this session id.
+    pub has_s3_secret_access_key: bool,
+}
+
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
     Ok(SessionRow {
         id: row.get("id")?,
@@ -125,6 +142,26 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
         via_user: row.get("via_user")?,
         created_at_ms: row.get("created_at")?,
         updated_at_ms: row.get("updated_at")?,
+    })
+}
+
+/// Read the synthesised non-SSH credential flags off the same JOIN
+/// shape `row_from` consumes. Pulled out into its own function so a
+/// caller that only needs the flags (e.g. the session-tree UI's
+/// fast-path) can skip the full row materialisation; the
+/// list / get queries call this alongside [`row_from`] and pair
+/// the results.
+///
+/// SQLite's BOOLEAN is INTEGER under the hood; the synthesised
+/// columns arrive as `0` / `1`. The `COALESCE(..., 0)` in
+/// [`NON_SSH_SECRET_FLAGS`] collapses any NULL the LEFT JOIN could
+/// produce to `0`, so a missing column maps to `false`.
+fn flags_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionCredentialFlags> {
+    let has_webdav_password: i64 = row.get("has_webdav_password").unwrap_or(0);
+    let has_s3_secret_access_key: i64 = row.get("has_s3_secret_access_key").unwrap_or(0);
+    Ok(SessionCredentialFlags {
+        has_webdav_password: has_webdav_password != 0,
+        has_s3_secret_access_key: has_s3_secret_access_key != 0,
     })
 }
 
@@ -156,10 +193,34 @@ const SSH_JOIN_COLS: &str = "COALESCE(j.host, '') AS host, \
      j.via_port AS via_port, \
      j.via_user AS via_user";
 
+/// Non-SSH credential presence flags. The session-tree UI's
+/// "credentials not set" warning needs to know, per row, whether a
+/// password / secret access key has been persisted — for SSH this
+/// falls out of `j.password` (already in [`SSH_JOIN_COLS`]); for
+/// WebDAV / S3 we synthesise a bool from the matching column on
+/// the respective join. `IS NOT NULL` guards the path where the
+/// detail row hasn't been inserted yet (the LEFT JOIN leaves every
+/// `w.*` / `t.*` reference NULL); `<> ''` handles the case where
+/// the user cleared the credential. `COALESCE(..., 0)` collapses
+/// the NULL to 0 so the bool the `row_from` reader sees is always
+/// a defined integer.
+const NON_SSH_SECRET_FLAGS: &str =
+    "COALESCE(w.password IS NOT NULL AND w.password <> '', 0) AS has_webdav_password, \
+     COALESCE(t.secret_access_key IS NOT NULL AND t.secret_access_key <> '', 0) \
+        AS has_s3_secret_access_key";
+
 /// `FROM` + `LEFT JOIN` fragment used by every full-row read.
 /// Lifted into a constant so the read paths share one source of
-/// truth for the join shape.
-const FROM_JOIN: &str = "FROM sessions s LEFT JOIN ssh_session_details j ON j.session_id = s.id";
+/// truth for the join shape. The two non-SSH joins are filtered on
+/// `deleted_at IS NULL` so a tombstoned detail row doesn't keep
+/// flagging credentials as present after a soft-delete on the
+/// matching kind.
+const FROM_JOIN: &str = "FROM sessions s \
+     LEFT JOIN ssh_session_details j ON j.session_id = s.id \
+     LEFT JOIN webdav_session_details w \
+        ON w.session_id = s.id AND w.deleted_at IS NULL \
+     LEFT JOIN s3_session_details t \
+        ON t.session_id = s.id AND t.deleted_at IS NULL";
 
 /// Normalise an empty-string `kind` to the SSH wire value so a
 /// caller that constructed `SessionRow` via the `Default` impl
@@ -174,16 +235,29 @@ fn normalise_kind(kind: &str) -> &str {
 }
 
 pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Error> {
+    Ok(list_all_with_flags(conn)?
+        .into_iter()
+        .map(|(row, _)| row)
+        .collect())
+}
+
+/// Same shape as [`list_all`] but pairs every session row with the
+/// non-SSH credential-presence flags synthesised off the WebDAV / S3
+/// detail joins. Used by the session-tree provider to render the
+/// "credentials not set" warning without an N+1 lookup hop.
+pub fn list_all_with_flags(
+    conn: &impl crate::db::DbAccess,
+) -> Result<Vec<(SessionRow, SessionCredentialFlags)>, Error> {
     let mut stmt = conn
         .raw()
         .prepare_cached(&format!(
-            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS} {FROM_JOIN} \
+            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS}, {NON_SSH_SECRET_FLAGS} {FROM_JOIN} \
              WHERE s.deleted_at IS NULL \
              ORDER BY s.sort_order ASC, s.label ASC"
         ))
         .map_err(|e| Error::Db(format!("sessions prepare: {e}")))?;
     let rows = stmt
-        .query_map([], row_from)
+        .query_map([], |row| Ok((row_from(row)?, flags_from(row)?)))
         .map_err(|e| Error::Db(format!("sessions query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
@@ -193,15 +267,25 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Erro
 }
 
 pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SessionRow>, Error> {
+    Ok(get_with_flags(conn, id)?.map(|(row, _)| row))
+}
+
+/// Same as [`get`] but also returns the non-SSH credential-presence
+/// flags. Used by callers that need to render the "credentials not
+/// set" warning on a single row (refresh after edit dialog Save).
+pub fn get_with_flags(
+    conn: &impl crate::db::DbAccess,
+    id: &str,
+) -> Result<Option<(SessionRow, SessionCredentialFlags)>, Error> {
     let mut stmt = conn
         .raw()
         .prepare_cached(&format!(
-            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS} {FROM_JOIN} \
+            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS}, {NON_SSH_SECRET_FLAGS} {FROM_JOIN} \
              WHERE s.id = ?1 AND s.deleted_at IS NULL"
         ))
         .map_err(|e| Error::Db(format!("sessions get prepare: {e}")))?;
     let mut rows = stmt
-        .query_map(params![id], row_from)
+        .query_map(params![id], |row| Ok((row_from(row)?, flags_from(row)?)))
         .map_err(|e| Error::Db(format!("sessions get query: {e}")))?;
     match rows.next() {
         Some(Ok(r)) => Ok(Some(r)),

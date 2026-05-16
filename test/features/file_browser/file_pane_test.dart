@@ -37,6 +37,8 @@ class _MockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// A file system whose list() never completes until complete() is called.
@@ -58,6 +60,8 @@ class _NeverCompleteFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// Find FilePane's outermost Listener (the one with back/forward mouse handling).
@@ -3074,4 +3078,6 @@ class _WindowsMockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }

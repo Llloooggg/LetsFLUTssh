@@ -21,20 +21,34 @@ import '../workspace/workspace_controller.dart';
 class SessionConnect {
   SessionConnect._();
 
-  /// Open a terminal tab and connect to session in background.
-  /// Returns false if session is invalid (missing credentials).
+  /// Default action when the user taps a session row — picks the
+  /// kind-appropriate tab. SSH gets a terminal pane; kinds without
+  /// a PTY ([`Session.hasTerminal`] == false — WebDAV / S3 today)
+  /// always open a file-browser tab. Callers that don't know the
+  /// kind in advance (the session-row tap, the "open the new
+  /// session" path after Save) route through here so the dispatch
+  /// lives in one place. Falling through to `addTerminalTab` on a
+  /// non-PTY kind would open a terminal pane against a null
+  /// `transport` and crash on `Bad state` the moment the pane tried
+  /// to read the russh handle.
   static Future<bool> connectTerminal(
     BuildContext context,
     WidgetRef ref,
     Session session,
   ) async {
+    if (!session.hasTerminal) {
+      return connectSftp(context, ref, session);
+    }
     final conn = await _createConnection(context, ref, session, 'terminal');
     if (conn == null) return false;
     ref.read(workspaceProvider.notifier).addTerminalTab(conn);
     return true;
   }
 
-  /// Open an SFTP tab and connect to session in background.
+  /// Open a file-browser tab. Works for every kind: SSH gets an
+  /// SFTP browser; WebDAV / S3 get the matching file-browser
+  /// dispatch picked up by `SFTPInitializer` from
+  /// [`Connection.kind`].
   /// Returns false if session is invalid (missing credentials).
   static Future<bool> connectSftp(
     BuildContext context,

@@ -24,6 +24,8 @@ class _MockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// Configurable in-memory `RemoteSftpFs` for the init tests. Each

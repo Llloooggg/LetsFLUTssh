@@ -271,12 +271,29 @@ void main() {
         final container = makeContainer();
         final notifier = container.read(connectionsProvider.notifier);
         final conn = notifier.connectWebDavAsync(fresh);
-        // WebDAV / S3 paths set `state` synchronously inside
-        // `_doWebDavConnect` / `_doS3Connect` before firing
-        // `completeReady`, so `waitUntilReady` is the only gate
-        // needed (the SSH-specific `transportReady` completer hangs
-        // for non-SSH because no russh actor publishes Adopt).
         await conn.waitUntilReady().timeout(const Duration(seconds: 10));
+        // `transportReady` MUST resolve for non-SSH transports too —
+        // the SFTP file-browser mixin awaits this gate before adding
+        // its `openChannel` step, so a Completer left dangling here
+        // is what kept the WebDAV browser stuck on
+        // `[✓] Authenticating as <user>` indefinitely in production.
+        // The original carve-out ("transportReady completer hangs
+        // for non-SSH") papered over that gap in the test instead
+        // of fixing the connect helper; the regression returns the
+        // moment we drop the `markTransportAdopted` call from
+        // `_doWebDavConnect`. See connection.dart →
+        // [`markTransportAdopted`].
+        final adopted = await conn.transportReady.timeout(
+          const Duration(seconds: 10),
+        );
+        expect(
+          adopted,
+          isTrue,
+          reason:
+              'transportReady must complete with true after a '
+              'successful WebDAV connect so the file browser can '
+              'proceed to open its remote view.',
+        );
 
         expect(conn.state, SSHConnectionState.connected);
         expect(
@@ -336,6 +353,21 @@ void main() {
         final notifier = container.read(connectionsProvider.notifier);
         final conn = notifier.connectWebDavAsync(fresh);
         await conn.waitUntilReady().timeout(const Duration(seconds: 10));
+        // Failure path: `markTransportAdopted(adopted: false)` must
+        // wake the gate so the file browser renders the error state
+        // instead of spinning forever — same root-cause as the
+        // success-path assertion above.
+        final adopted = await conn.transportReady.timeout(
+          const Duration(seconds: 10),
+        );
+        expect(
+          adopted,
+          isFalse,
+          reason:
+              'transportReady must complete with false when the '
+              'connect throws so the file browser exits its waiting '
+              'state and surfaces the error.',
+        );
         expect(conn.state, SSHConnectionState.disconnected);
         expect(
           conn.connectionError,
@@ -346,6 +378,91 @@ void main() {
         );
       },
     );
+
+    test('WebDAV password survives a SecretStore wipe — proves the save → '
+        'restart → connect persistence chain', () async {
+      // Reproduces the user-reported regression: the in-memory
+      // `SecretStore` was the only landing pad for the WebDAV
+      // password, so a process restart wiped it and the next
+      // connect failed even though every other field on the row
+      // had been written to disk. The fix persists the password on
+      // `webdav_session_details.password` (SQLCipher-encrypted at
+      // rest) and stages it back into the SecretStore on the
+      // connect call. We simulate a restart by dropping the
+      // SecretStore slot directly after save.
+      final baseUrl = 'http://127.0.0.1:$port/';
+      final session = Session(
+        id: 'webdav-persist-1',
+        label: 'fixture-dav-persist',
+        kind: SessionKind.webdav,
+        server: ServerAddress(host: '127.0.0.1', port: port, user: 'alice'),
+      );
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(session, folderId: null),
+      );
+      await rust_db.dbWebdavSessionDetailsUpsert(
+        rec: rust_db.DbWebDavSessionDetails(
+          sessionId: session.id,
+          baseUrl: baseUrl,
+          username: 'alice',
+          authMethod: 'basic',
+          selfSignedFingerprint: null,
+        ),
+      );
+      // Save flow: persist the password through the new column
+      // setter (mirrors `_syncWebDavDetails`).
+      await rust_db.dbWebdavSessionDetailsSetPassword(
+        sessionId: session.id,
+        password: 'persist-me',
+      );
+      // Has-password probe surfaces to the edit dialog as the
+      // "[Saved] type to change" hint.
+      expect(
+        await rust_db.dbWebdavSessionDetailsHasPassword(sessionId: session.id),
+        isTrue,
+      );
+      // Simulate process restart by dropping the in-memory
+      // SecretStore slot. The DB column survives.
+      final secretId = rust_db.dbWebdavSessionDetailsSecretId(
+        sessionId: session.id,
+      );
+      rust_app.secretsDropMany(ids: [secretId]);
+      expect(rust_app.secretsHas(id: secretId), isFalse);
+
+      final list = await rust_db.dbSessionsListAll();
+      final fresh = dbSessionToSession(
+        list.firstWhere((s) => s.id == session.id),
+        const {},
+      );
+
+      final container = makeContainer();
+      final notifier = container.read(connectionsProvider.notifier);
+      final conn = notifier.connectWebDavAsync(fresh);
+      await conn.waitUntilReady().timeout(const Duration(seconds: 10));
+      final adopted = await conn.transportReady.timeout(
+        const Duration(seconds: 10),
+      );
+
+      expect(
+        adopted,
+        isTrue,
+        reason:
+            'Connect must succeed without re-typing the password '
+            'after the SecretStore is wiped — the connect path '
+            'stages the password back from '
+            'webdav_session_details.password.',
+      );
+      expect(conn.state, SSHConnectionState.connected);
+      expect(
+        lastAuthorization,
+        startsWith('Basic '),
+        reason: 'The wire request must have carried the staged credential.',
+      );
+      final decoded = utf8.decode(
+        base64.decode(lastAuthorization!.substring(6)),
+      );
+      expect(decoded, 'alice:persist-me');
+    });
   });
 
   // ── S3 end-to-end ───────────────────────────────────────────────
@@ -453,9 +570,22 @@ void main() {
         final container = makeContainer();
         final notifier = container.read(connectionsProvider.notifier);
         final conn = notifier.connectS3Async(fresh);
-        // Non-SSH paths set `state` synchronously before
-        // `completeReady`; `transportReady` is SSH-only.
         await conn.waitUntilReady().timeout(const Duration(seconds: 10));
+        // Same `transportReady` invariant as WebDAV — the gate must
+        // resolve so the file browser can open. The S3 connect path
+        // had the identical bug (no `markTransportAdopted` call)
+        // before the fix.
+        final adopted = await conn.transportReady.timeout(
+          const Duration(seconds: 10),
+        );
+        expect(
+          adopted,
+          isTrue,
+          reason:
+              'transportReady must complete with true after a '
+              'successful S3 connect so the file browser can '
+              'proceed to open its remote view.',
+        );
 
         expect(conn.state, SSHConnectionState.connected);
         expect(
@@ -518,9 +648,125 @@ void main() {
         final notifier = container.read(connectionsProvider.notifier);
         final conn = notifier.connectS3Async(fresh);
         await conn.waitUntilReady().timeout(const Duration(seconds: 10));
+        final adopted = await conn.transportReady.timeout(
+          const Duration(seconds: 10),
+        );
+        expect(
+          adopted,
+          isFalse,
+          reason:
+              'transportReady must complete with false when the '
+              'S3 connect throws so the file browser exits its '
+              'waiting state.',
+        );
         expect(conn.state, SSHConnectionState.disconnected);
         expect(conn.connectionError, isNotNull);
       },
+    );
+
+    test('S3 secret access key survives a SecretStore wipe — proves the save → '
+        'restart → connect persistence chain', () async {
+      // Same regression class as the WebDAV persistence test:
+      // before the fix the secret access key only lived in
+      // `SecretStore` (RAM), so a process restart wiped it. After
+      // the fix it persists on `s3_session_details.secret_access_key`
+      // and the connect path stages it back into the SecretStore.
+      final endpoint = 'http://127.0.0.1:$port';
+      final session = Session(
+        id: 's3-persist-1',
+        label: 'fixture-s3-persist',
+        kind: SessionKind.s3,
+        server: ServerAddress(host: '127.0.0.1', port: port, user: 'AKIATEST'),
+      );
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(session, folderId: null),
+      );
+      await rust_db.dbS3SessionDetailsUpsert(
+        rec: rust_db.DbS3SessionDetails(
+          sessionId: session.id,
+          accessKeyId: 'AKIATEST',
+          region: 'us-east-1',
+          endpoint: endpoint,
+          pathStyle: true,
+          defaultBucket: 'my-bucket',
+          defaultPrefix: '',
+        ),
+      );
+      await rust_db.dbS3SessionDetailsSetSecretAccessKey(
+        sessionId: session.id,
+        secretAccessKey: 'persist-secret-key',
+      );
+      expect(
+        await rust_db.dbS3SessionDetailsHasSecretAccessKey(
+          sessionId: session.id,
+        ),
+        isTrue,
+      );
+      // Simulate process restart.
+      final secretId = rust_db.dbS3SessionDetailsSecretId(
+        sessionId: session.id,
+      );
+      rust_app.secretsDropMany(ids: [secretId]);
+      expect(rust_app.secretsHas(id: secretId), isFalse);
+
+      final list = await rust_db.dbSessionsListAll();
+      final fresh = dbSessionToSession(
+        list.firstWhere((s) => s.id == session.id),
+        const {},
+      );
+
+      final container = makeContainer();
+      final notifier = container.read(connectionsProvider.notifier);
+      final conn = notifier.connectS3Async(fresh);
+      await conn.waitUntilReady().timeout(const Duration(seconds: 10));
+      final adopted = await conn.transportReady.timeout(
+        const Duration(seconds: 10),
+      );
+
+      expect(
+        adopted,
+        isTrue,
+        reason:
+            'Connect must succeed without re-typing the secret '
+            'access key after the SecretStore is wiped — the '
+            'connect path stages it back from '
+            's3_session_details.secret_access_key.',
+      );
+      expect(conn.state, SSHConnectionState.connected);
+      expect(
+        lastAuthorization,
+        startsWith('AWS4-HMAC-SHA256 '),
+        reason: 'The wire request must have carried a SigV4 signature.',
+      );
+      expect(
+        lastAuthorization,
+        contains('Credential=AKIATEST/'),
+        reason:
+            'The signature scope must reference the access key id '
+            'from s3_session_details.',
+      );
+    });
+  });
+
+  // ── Routing: connectTerminal for WebDAV/S3 opens SFTP tab ───────
+
+  group('SessionConnect.connectTerminal kind dispatch', () {
+    test(
+      'WebDAV / S3 kinds always route to addSftpTab even when the caller '
+      'invokes connectTerminal',
+      () {
+        // The routing logic lives in `SessionConnect.connectTerminal`;
+        // a unit test would exercise it through a fake workspace
+        // notifier. Adding a widget-level test for that path lives in
+        // `test/features/session_manager/session_connect_test.dart`
+        // (where the existing connectTerminal/connectSftp suites
+        // already wire up the harness). The integration assertion
+        // here is the persistence chain above — we keep the routing
+        // expectations alongside the suite that builds the matching
+        // harness, not duplicated here.
+      },
+      skip:
+          'covered by test/features/session_manager/session_connect_test.dart',
     );
   });
 }

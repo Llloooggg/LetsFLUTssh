@@ -102,6 +102,8 @@ class FakeFileSystem implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// Error-throwing file system for testing error states.
@@ -127,6 +129,8 @@ class ErrorFileSystem implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+  @override
+  Future<bool> exists(String path) async => false;
 }
 
 /// Standard test entries used across tests.
@@ -965,7 +969,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -994,7 +998,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1024,7 +1028,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1058,7 +1062,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1081,7 +1085,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1097,7 +1101,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(
         ProviderScope(
@@ -1130,7 +1134,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1150,7 +1154,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1171,7 +1175,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1192,7 +1196,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1256,7 +1260,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1280,7 +1284,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1304,7 +1308,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1329,7 +1333,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1358,7 +1362,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1385,7 +1389,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1410,7 +1414,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1436,7 +1440,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1467,7 +1471,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1489,7 +1493,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      )..debugMarkTransportAdopted();
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();

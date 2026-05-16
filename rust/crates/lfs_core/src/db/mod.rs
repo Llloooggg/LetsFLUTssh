@@ -481,7 +481,7 @@ impl Db {
 /// carries `created_at`) and `updated_at = 0` for the detail tables
 /// (which did not). The composer / apply paths emit tombstones in
 /// `ApplyMode::Sync` only; archive imports filter them upstream.
-pub const SCHEMA_VERSION: i32 = 16;
+pub const SCHEMA_VERSION: i32 = 17;
 
 /// On-disk file name of the encrypted sqlite database under the
 /// app support directory. Single source of truth — every Rust-side
@@ -701,6 +701,15 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // `SCHEMA_SQL` and skip this arm.
         if (1..16).contains(&current) {
             split_ssh_session_details(conn)?;
+        }
+        // v16 -> v17: stamp `password` on `webdav_session_details`
+        // and `secret_access_key` on `s3_session_details` so the
+        // non-SSH credentials persist across process restart. See
+        // [`add_v17_non_ssh_secret_columns`] for the full rationale.
+        // Fresh installs (`current == 0`) get the columns directly
+        // from `SCHEMA_SQL` and skip this arm.
+        if (1..17).contains(&current) {
+            add_v17_non_ssh_secret_columns(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -1070,6 +1079,48 @@ fn add_v15_tombstone_columns(conn: &Connection) -> Result<(), Error> {
     Ok(())
 }
 
+/// v16 -> v17: stamp persistent secret columns on the non-SSH
+/// detail tables. The WebDAV / S3 save paths used to stage the
+/// password / secret-access-key into the in-memory `SecretStore`
+/// on save and read it from there on connect. Process restart
+/// wiped the store, so the user had to re-type the credential
+/// every launch even though every other field on the row had
+/// survived. The fix is to mirror the SSH shape: a plaintext
+/// column on the join table (encrypted at rest by SQLCipher), with
+/// a `set_*` setter for the save path and a
+/// `stage_secret_into_store` reader the connect path calls before
+/// touching SecretStore. Backfill is empty-string — pre-existing
+/// rows have no stored secret and will prompt for one on the first
+/// reconnect. Fresh installs (`current == 0`) get the columns from
+/// `SCHEMA_SQL` and skip this arm.
+fn add_v17_non_ssh_secret_columns(conn: &Connection) -> Result<(), Error> {
+    if !column_exists(conn, "webdav_session_details", "password")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE webdav_session_details \
+                    ADD COLUMN password TEXT NOT NULL DEFAULT '';",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add webdav_session_details.password: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "s3_session_details", "secret_access_key")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE s3_session_details \
+                    ADD COLUMN secret_access_key TEXT NOT NULL DEFAULT '';",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add s3_session_details.secret_access_key: {e}"
+                ))
+            })?;
+    }
+    Ok(())
+}
+
 /// v15 → v16 migration: move SSH-specific columns out of
 /// `sessions` into the new `ssh_session_details` join table.
 ///
@@ -1392,15 +1443,20 @@ CREATE INDEX IF NOT EXISTS idx_ssh_session_details_session_id
 -- WebDAV-specific configuration. Keyed by session id with ON DELETE
 -- CASCADE so removing a session physically purges its WebDAV row;
 -- soft-deletes on `sessions` leave this row in place until the
--- sync-merge purge removes the parent. Password / bearer token is
--- staged into the SecretStore under `session.webdav.<id>` rather
--- than persisted alongside the URL.
+-- sync-merge purge removes the parent. The password / bearer token
+-- lives on the `password` column (encrypted at rest by SQLCipher,
+-- same posture as `ssh_session_details.password`); the connect path
+-- stages it into the in-memory `SecretStore` via
+-- [`webdav_sessions::stage_secret_into_store`] just before calling
+-- `webdav_connect`. The plaintext never crosses the FRB boundary
+-- back to Dart — the edit dialog reads only the `has_password` bool.
 CREATE TABLE IF NOT EXISTS webdav_session_details (
     session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
     base_url TEXT NOT NULL,
     username TEXT NOT NULL DEFAULT '',
     auth_method TEXT NOT NULL,
     self_signed_fingerprint TEXT NULL,
+    password TEXT NOT NULL DEFAULT '',
     updated_at INTEGER NOT NULL DEFAULT 0,
     deleted_at INTEGER NULL
 );
@@ -1410,21 +1466,26 @@ CREATE INDEX IF NOT EXISTS idx_webdav_session_details_session_id
 -- S3-compatible session configuration. Same join-table shape as
 -- `webdav_session_details`: keyed by session id, ON DELETE CASCADE
 -- so the row physically drops when the parent session is purged.
--- The secret access key never lands on a column here — it lives
--- in the SecretStore under `session.s3.<session_id>` and the
--- connect path resolves it from there. `path_style` is an INTEGER
--- boolean (0 = virtual-host addressing, 1 = path addressing) so
--- the column stores stay compatible with the SQLite type system.
+-- The secret access key lives on the `secret_access_key` column
+-- (encrypted at rest by SQLCipher); the connect path stages it
+-- into the in-memory `SecretStore` via
+-- [`s3_sessions::stage_secret_into_store`] just before calling
+-- `s3_connect`. The plaintext never crosses the FRB boundary back
+-- to Dart — the edit dialog reads only the `has_secret` bool.
+-- `path_style` is an INTEGER boolean (0 = virtual-host, 1 = path
+-- addressing) so the column stays compatible with SQLite's type
+-- system.
 CREATE TABLE IF NOT EXISTS s3_session_details (
-    session_id     TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-    access_key_id  TEXT NOT NULL DEFAULT '',
-    region         TEXT NOT NULL DEFAULT '',
-    endpoint       TEXT NOT NULL DEFAULT '',
-    path_style     INTEGER NOT NULL DEFAULT 0,
-    default_bucket TEXT NOT NULL DEFAULT '',
-    default_prefix TEXT NOT NULL DEFAULT '',
-    updated_at     INTEGER NOT NULL DEFAULT 0,
-    deleted_at     INTEGER NULL
+    session_id        TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    access_key_id     TEXT NOT NULL DEFAULT '',
+    region            TEXT NOT NULL DEFAULT '',
+    endpoint          TEXT NOT NULL DEFAULT '',
+    path_style        INTEGER NOT NULL DEFAULT 0,
+    default_bucket    TEXT NOT NULL DEFAULT '',
+    default_prefix    TEXT NOT NULL DEFAULT '',
+    secret_access_key TEXT NOT NULL DEFAULT '',
+    updated_at        INTEGER NOT NULL DEFAULT 0,
+    deleted_at        INTEGER NULL
 );
 CREATE INDEX IF NOT EXISTS idx_s3_session_details_session_id
     ON s3_session_details(session_id);
@@ -2533,5 +2594,134 @@ mod tests {
         folders::delete(&conn, "f1").unwrap();
         let s = sessions::get(&conn, "s1").unwrap().unwrap();
         assert_eq!(s.folder_id, None);
+    }
+
+    /// v16 → v17 upgrade hop. A database stamped at v16 with the
+    /// pre-v17 join-table shape (no `password` on
+    /// `webdav_session_details` and no `secret_access_key` on
+    /// `s3_session_details`) must pick up the new columns on
+    /// bootstrap. The fresh-install path already carries them via
+    /// `CREATE TABLE IF NOT EXISTS` so the ALTER arm only runs in
+    /// `[1, 17)`. Pre-existing rows backfill to empty string —
+    /// the user re-enters the credential on the first reconnect.
+    ///
+    /// This test pins the regression that shipped on the first cut:
+    /// `SCHEMA_VERSION` stayed at 16 and the password ALTER was
+    /// folded into `add_v15_tombstone_columns` (gated on
+    /// `(1..15).contains(&current)`), so a real user DB at v16
+    /// skipped the migration entirely and hit
+    /// `no such column: password` on the first save.
+    #[test]
+    fn bootstrap_v16_to_v17_adds_password_column_to_webdav_and_secret_access_key_to_s3() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Strip the new columns to mimic a v16 install. `ALTER
+        // TABLE … DROP COLUMN` is available on the SQLCipher 4.x
+        // build (sqlite3 >= 3.35.0). Rewind user_version to v16 so
+        // the upgrade arm re-runs.
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE webdav_session_details DROP COLUMN password; \
+                 ALTER TABLE s3_session_details DROP COLUMN secret_access_key;",
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 16)
+            .unwrap();
+        // Seed one row per detail table — exercises that the
+        // backfill default lands cleanly on pre-existing rows.
+        conn.inner()
+            .execute(
+                "INSERT INTO sessions (id, label, kind, sort_order, notes, extras, \
+                                       created_at, updated_at) \
+                 VALUES ('s-webdav', 'old-dav', 'webdav', 0, '', '{}', 0, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO webdav_session_details \
+                    (session_id, base_url, username, auth_method, \
+                     self_signed_fingerprint, updated_at) \
+                 VALUES ('s-webdav', 'https://example.com/dav/', 'alice', \
+                         'basic', NULL, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO sessions (id, label, kind, sort_order, notes, extras, \
+                                       created_at, updated_at) \
+                 VALUES ('s-s3', 'old-s3', 's3', 0, '', '{}', 0, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO s3_session_details \
+                    (session_id, access_key_id, region, endpoint, path_style, \
+                     default_bucket, default_prefix, updated_at) \
+                 VALUES ('s-s3', 'AKIA', 'us-east-1', '', 0, 'b', '', 0)",
+                [],
+            )
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        // Both new columns must exist after the upgrade hop.
+        let mut webdav_has_password = false;
+        conn.inner()
+            .pragma(None, "table_info", "webdav_session_details", |row| {
+                let name: String = row.get("name")?;
+                if name == "password" {
+                    webdav_has_password = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            webdav_has_password,
+            "webdav_session_details.password missing after v16 → v17"
+        );
+        let mut s3_has_secret = false;
+        conn.inner()
+            .pragma(None, "table_info", "s3_session_details", |row| {
+                let name: String = row.get("name")?;
+                if name == "secret_access_key" {
+                    s3_has_secret = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            s3_has_secret,
+            "s3_session_details.secret_access_key missing after v16 → v17"
+        );
+
+        // Backfill: pre-existing rows take the empty-string schema
+        // default — they have no stored secret yet.
+        let p: String = conn
+            .inner()
+            .query_row(
+                "SELECT password FROM webdav_session_details WHERE session_id = 's-webdav'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(p, "");
+        let k: String = conn
+            .inner()
+            .query_row(
+                "SELECT secret_access_key FROM s3_session_details WHERE session_id = 's-s3'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(k, "");
+
+        // Idempotent re-run — second bootstrap is a no-op.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 }

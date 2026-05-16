@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db_mut_writing_keys`, `run_db_mut_writing_sessions_when`, `run_db_mut_writing_sessions`, `run_db_mut`, `run_db_writing_keys_and_sessions_when`, `run_db_writing_keys_when`, `run_db_writing_keys`, `run_db_writing_known_hosts_when`, `run_db_writing_known_hosts`, `run_db_writing_sessions_when`, `run_db_writing_sessions`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -153,6 +153,15 @@ Future<int> dbFoldersDeleteRecursive({required String id}) =>
 
 Future<List<DbSession>> dbSessionsListAll() =>
     RustLib.instance.api.crateApiDbDbSessionsListAll();
+
+/// Same shape as [`db_sessions_list_all`] but each row pairs with
+/// the non-SSH credential-presence flags synthesised off the
+/// WebDAV / S3 detail joins. The session-tree UI calls this when
+/// rendering the "credentials not set" warning for incomplete
+/// non-SSH rows so the warning fires without an N+1 lookup hop.
+Future<List<(DbSession, DbSessionCredentialFlags)>>
+dbSessionsListAllWithFlags() =>
+    RustLib.instance.api.crateApiDbDbSessionsListAllWithFlags();
 
 Future<DbSession?> dbSessionsGet({required String id}) =>
     RustLib.instance.api.crateApiDbDbSessionsGet(id: id);
@@ -450,6 +459,41 @@ String dbWebdavSessionDetailsSecretId({required String sessionId}) => RustLib
     .api
     .crateApiDbDbWebdavSessionDetailsSecretId(sessionId: sessionId);
 
+/// Persist the WebDAV password / bearer token onto the
+/// `webdav_session_details.password` column. The plaintext crosses
+/// FRB one-way (Dart → Rust) and is encrypted at rest by SQLCipher
+/// — it never travels back to Dart. The save dialog calls this
+/// right after [`db_webdav_session_details_upsert`] when its dirty
+/// flag fires.
+Future<int> dbWebdavSessionDetailsSetPassword({
+  required String sessionId,
+  required String password,
+}) => RustLib.instance.api.crateApiDbDbWebdavSessionDetailsSetPassword(
+  sessionId: sessionId,
+  password: password,
+);
+
+/// Whether the WebDAV row for `session_id` has a non-empty
+/// persisted password. The edit dialog uses this to render the
+/// "[Saved] type to change" hint without ever reading the plaintext
+/// back over FRB.
+Future<bool> dbWebdavSessionDetailsHasPassword({required String sessionId}) =>
+    RustLib.instance.api.crateApiDbDbWebdavSessionDetailsHasPassword(
+      sessionId: sessionId,
+    );
+
+/// Stage the persisted WebDAV password into the process-singleton
+/// `SecretStore` under `db_webdav_session_details_secret_id(...)`.
+/// Returns `true` when a non-empty password was staged. The connect
+/// path calls this right before `webdav_connect` so the canonical
+/// SecretStore slot is populated from the DB column without the
+/// plaintext crossing FRB. Idempotent — safe to call twice on the
+/// same session id within one process.
+Future<bool> dbWebdavSessionDetailsStageSecret({required String sessionId}) =>
+    RustLib.instance.api.crateApiDbDbWebdavSessionDetailsStageSecret(
+      sessionId: sessionId,
+    );
+
 /// Fetch the S3 detail row paired with `session_id`. `None` when
 /// the session is not an S3 kind or has not been configured yet —
 /// not an error.
@@ -484,6 +528,36 @@ String dbS3SessionDetailsSecretId({required String sessionId}) => RustLib
     .instance
     .api
     .crateApiDbDbS3SessionDetailsSecretId(sessionId: sessionId);
+
+/// Persist the S3 secret access key onto the
+/// `s3_session_details.secret_access_key` column. Same one-way
+/// FRB discipline + at-rest encryption as the WebDAV setter.
+Future<int> dbS3SessionDetailsSetSecretAccessKey({
+  required String sessionId,
+  required String secretAccessKey,
+}) => RustLib.instance.api.crateApiDbDbS3SessionDetailsSetSecretAccessKey(
+  sessionId: sessionId,
+  secretAccessKey: secretAccessKey,
+);
+
+/// Whether the S3 row for `session_id` has a non-empty persisted
+/// secret access key. Edit-dialog hint signal; never reads the
+/// plaintext.
+Future<bool> dbS3SessionDetailsHasSecretAccessKey({
+  required String sessionId,
+}) => RustLib.instance.api.crateApiDbDbS3SessionDetailsHasSecretAccessKey(
+  sessionId: sessionId,
+);
+
+/// Stage the persisted S3 secret access key into the
+/// process-singleton `SecretStore` under
+/// `db_s3_session_details_secret_id(...)`. Returns `true` when a
+/// non-empty key was staged. The connect path calls this right
+/// before `s3_connect`.
+Future<bool> dbS3SessionDetailsStageSecret({required String sessionId}) =>
+    RustLib.instance.api.crateApiDbDbS3SessionDetailsStageSecret(
+      sessionId: sessionId,
+    );
 
 Future<List<DbTag>> dbTagsListAll() =>
     RustLib.instance.api.crateApiDbDbTagsListAll();
@@ -1003,6 +1077,36 @@ class DbSession {
           updatedAtMs == other.updatedAtMs;
 }
 
+/// Per-session credential-presence flags returned alongside the
+/// row in [`db_sessions_list_all_with_flags`]. Mirrors
+/// [`lfs_core::db::sessions::SessionCredentialFlags`].
+class DbSessionCredentialFlags {
+  final String sessionId;
+  final bool hasWebdavPassword;
+  final bool hasS3SecretAccessKey;
+
+  const DbSessionCredentialFlags({
+    required this.sessionId,
+    required this.hasWebdavPassword,
+    required this.hasS3SecretAccessKey,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      hasWebdavPassword.hashCode ^
+      hasS3SecretAccessKey.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionCredentialFlags &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          hasWebdavPassword == other.hasWebdavPassword &&
+          hasS3SecretAccessKey == other.hasS3SecretAccessKey;
+}
+
 /// Mirror of [`lfs_core::db::sessions::SessionMetadata`] crossing
 /// FRB. Carries every column except the credential triplet so the
 /// edit dialog can save metadata without reading old secret bytes
@@ -1213,8 +1317,8 @@ class DbSshKey {
   /// the SHA-256 matches before reuse.
   final String? pkcs11ModulePath;
 
-  /// PKCS#11 token serial captured at import — used to confirm the
-  /// same physical token is inserted before signing.
+  /// PKCS#11 token serial captured at import — the signer
+  /// confirms the same physical token is inserted before signing.
   final String? pkcs11TokenSerial;
 
   /// `CKA_ID` of the private-key object on the token. Opaque to
@@ -1405,8 +1509,8 @@ class DbSshKey {
 /// String>`); the JSON encoding for the underlying SQL columns is
 /// owned by the DAO ([`lfs_core::db::ssh_key_certificates`]) so the
 /// Dart caller never sees the wire grammar. A malformed stored JSON
-/// blob now logs and collapses to the empty list / map inside Rust
-/// — same observable shape as the prior Dart-side parser fallback.
+/// blob logs and collapses to the empty list / map inside Rust so
+/// a single bad row never sinks the listing.
 class DbSshKeyCertificate {
   final String keyId;
   final Uint8List certificate;

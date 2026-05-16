@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
-import '../../core/sftp/sftp_fs.dart';
+import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/conflict_resolver.dart';
 import '../../core/transfer/unique_name.dart';
@@ -30,7 +30,7 @@ class TransferHelpers {
   /// still resolve via [conflictResolver].
   static Future<bool> enqueueUpload({
     required TransfersNotifier manager,
-    required RemoteSftpFs sftp,
+    required FileSystem remoteFs,
     required String connectionId,
     required FileEntry entry,
     required String remoteDirPath,
@@ -42,7 +42,7 @@ class TransferHelpers {
     if (entry.isDir) {
       final enqueued = await _enqueueUploadDir(
         manager: manager,
-        sftp: sftp,
+        remoteFs: remoteFs,
         connectionId: connectionId,
         localDir: entry.path,
         remoteDir: remotePath,
@@ -57,7 +57,7 @@ class TransferHelpers {
     String? resolvedRemote = remotePath;
     if (conflictResolver != null) {
       resolvedRemote = await _resolveUploadConflict(
-        sftp: sftp,
+        remoteFs: remoteFs,
         targetPath: remotePath,
         resolver: conflictResolver,
       );
@@ -77,7 +77,7 @@ class TransferHelpers {
   /// Enqueue a download for [entry] to the local [localDirPath].
   static Future<bool> enqueueDownload({
     required TransfersNotifier manager,
-    required RemoteSftpFs sftp,
+    required FileSystem remoteFs,
     required String connectionId,
     required FileEntry entry,
     required String localDirPath,
@@ -89,7 +89,7 @@ class TransferHelpers {
     if (entry.isDir) {
       final enqueued = await _enqueueDownloadDir(
         manager: manager,
-        sftp: sftp,
+        remoteFs: remoteFs,
         connectionId: connectionId,
         remoteDir: entry.path,
         localDir: localPath,
@@ -127,7 +127,7 @@ class TransferHelpers {
   /// so `dart:io` never participates in upload enumeration.
   static Future<int> _enqueueUploadDir({
     required TransfersNotifier manager,
-    required RemoteSftpFs sftp,
+    required FileSystem remoteFs,
     required String connectionId,
     required String localDir,
     required String remoteDir,
@@ -135,7 +135,7 @@ class TransferHelpers {
   }) async {
     var enqueued = 0;
     try {
-      await sftp.mkdir(remoteDir);
+      await remoteFs.mkdir(remoteDir);
     } catch (_) {
       // Already exists or other transient — per-file upserts will fail
       // if the dir is genuinely unwritable; let those surface there.
@@ -149,7 +149,7 @@ class TransferHelpers {
       if (child.isDir) {
         enqueued += await _enqueueUploadDir(
           manager: manager,
-          sftp: sftp,
+          remoteFs: remoteFs,
           connectionId: connectionId,
           localDir: child.path,
           remoteDir: remoteChild,
@@ -160,7 +160,7 @@ class TransferHelpers {
       String? resolved = remoteChild;
       if (conflictResolver != null) {
         resolved = await _resolveUploadConflict(
-          sftp: sftp,
+          remoteFs: remoteFs,
           targetPath: remoteChild,
           resolver: conflictResolver,
         );
@@ -182,7 +182,7 @@ class TransferHelpers {
   /// file. Mirrors [_enqueueUploadDir] in shape.
   static Future<int> _enqueueDownloadDir({
     required TransfersNotifier manager,
-    required RemoteSftpFs sftp,
+    required FileSystem remoteFs,
     required String connectionId,
     required String remoteDir,
     required String localDir,
@@ -190,7 +190,7 @@ class TransferHelpers {
   }) async {
     var enqueued = 0;
     await rust_local_fs.localFsMkdir(path: localDir);
-    final entries = await sftp.list(remoteDir);
+    final entries = await remoteFs.list(remoteDir);
     for (final remoteEntry in entries) {
       final base = remoteEntry.name;
       if (!_isSafeRemoteEntryName(base)) {
@@ -213,7 +213,7 @@ class TransferHelpers {
       if (remoteEntry.isDir) {
         enqueued += await _enqueueDownloadDir(
           manager: manager,
-          sftp: sftp,
+          remoteFs: remoteFs,
           connectionId: connectionId,
           remoteDir: remoteChild,
           localDir: localChild,
@@ -255,18 +255,18 @@ class TransferHelpers {
   /// the user chose to skip or cancel. When the user picks "keep
   /// both", the returned path is a renamed sibling.
   static Future<String?> _resolveUploadConflict({
-    required RemoteSftpFs sftp,
+    required FileSystem remoteFs,
     required String targetPath,
     required BatchConflictResolver resolver,
   }) async {
-    if (!await sftp.exists(targetPath)) return targetPath;
+    if (!await remoteFs.exists(targetPath)) return targetPath;
     final action = await resolver.resolve(targetPath, isRemote: true);
     switch (action) {
       case ConflictAction.skip:
       case ConflictAction.cancel:
         return null;
       case ConflictAction.keepBoth:
-        return uniqueSiblingName(targetPath, sftp.exists, isPosix: true);
+        return uniqueSiblingName(targetPath, remoteFs.exists, isPosix: true);
       case ConflictAction.replace:
         return targetPath;
     }

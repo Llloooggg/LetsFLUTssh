@@ -128,6 +128,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
 
   @override
   void dispose() {
+    disposeSftpBrowser();
     sftpResult?.dispose();
     _pathController.dispose();
     _pathFocusNode.dispose();

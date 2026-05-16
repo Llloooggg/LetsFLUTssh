@@ -11,10 +11,17 @@
 //! table mirrors `webdav_session_details`; the schema docstring
 //! for `webdav_sessions` explains the same trade-off in detail.
 //!
-//! **Secret discipline.** The secret access key never lands on a
-//! column here — `lfs_core::secrets::SecretStore` holds it under
-//! `session.s3.<session_id>` and the connect path resolves it
-//! from there. Same posture as the SSH and WebDAV auth paths.
+//! **Secret discipline.** The secret access key persists on the
+//! `secret_access_key` column (encrypted at rest by SQLCipher,
+//! same posture as `ssh_session_details.password` /
+//! `webdav_session_details.password`). The connect path calls
+//! [`stage_secret_into_store`] right before `s3_connect`, which
+//! copies the bytes from the column into the process-singleton
+//! `SecretStore` under `session.s3.<session_id>` — the FRB
+//! `s3_connect` reads by id so the plaintext never crosses back to
+//! Dart. Plaintext travels FRB only one-way (Dart → Rust on save
+//! via [`set_secret_access_key`]); the typed [`S3SessionRow`] read
+//! path returns metadata only.
 //!
 //! **Tombstone discipline.** Same shape as `webdav_session_details`:
 //! `delete` flips `deleted_at` to `now_unix_ms()` and bumps
@@ -26,6 +33,7 @@ use rusqlite::params;
 
 use crate::db::DbAccess;
 use crate::error::Error;
+use crate::secrets::SecretStore;
 
 /// Canonical SecretStore id for an S3 session's secret access
 /// key. Connect-path callers compose the id through this helper
@@ -138,6 +146,97 @@ pub fn upsert_with_stamp(
         )
         .map_err(|e| Error::Db(format!("s3_session_details upsert: {e}")))?;
     Ok(())
+}
+
+/// Replace the persisted secret access key for `session_id`. Empty
+/// `value` clears the credential. Returns rows affected (`0` when
+/// the S3 detail row hasn't been inserted yet — the caller must
+/// `upsert` first). Bumps the parent `s3_session_details.updated_at`
+/// so the sync LWW gate moves forward; the parent
+/// `sessions.updated_at` is bumped too so a listing query that
+/// watches the parent row sees the edit.
+///
+/// `value` reaches us through FRB but never crosses back to Dart —
+/// combined with [`stage_secret_into_store`] this lets the edit
+/// dialog save a fresh secret access key without ever pre-filling
+/// the old one onto the Dart heap.
+pub fn set_secret_access_key(
+    conn: &impl DbAccess,
+    session_id: &str,
+    value: &str,
+) -> Result<usize, Error> {
+    let now_ms = now_unix_ms();
+    let n = conn
+        .raw()
+        .execute(
+            "UPDATE s3_session_details \
+                SET secret_access_key = ?1, updated_at = ?2 \
+                WHERE session_id = ?3 AND deleted_at IS NULL",
+            params![value, now_ms, session_id],
+        )
+        .map_err(|e| Error::Db(format!("s3_session_details set_secret_access_key: {e}")))?;
+    if n > 0 {
+        conn.raw()
+            .execute(
+                "UPDATE sessions SET updated_at = ?1 \
+                    WHERE id = ?2 AND deleted_at IS NULL",
+                params![now_ms, session_id],
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "s3_session_details set_secret_access_key parent stamp: {e}"
+                ))
+            })?;
+    }
+    Ok(n)
+}
+
+/// Cheap presence probe — the edit dialog needs to render the
+/// "[Saved] type to change" hint without ever reading the
+/// plaintext back over FRB. Returns `false` for a missing row, a
+/// tombstoned row, or an empty-string column.
+pub fn has_secret_access_key(conn: &impl DbAccess, session_id: &str) -> Result<bool, Error> {
+    let row: Option<String> = conn
+        .raw()
+        .query_row(
+            "SELECT secret_access_key FROM s3_session_details \
+                WHERE session_id = ?1 AND deleted_at IS NULL",
+            params![session_id],
+            |r| r.get(0),
+        )
+        .ok();
+    Ok(row.map(|s| !s.is_empty()).unwrap_or(false))
+}
+
+/// Read the persisted secret access key and push it into the
+/// process-singleton `SecretStore` under [`s3_secret_id`]`(session_id)`.
+/// Returns `true` when a non-empty key was staged, `false` otherwise
+/// (missing row, tombstoned row, or empty-string column).
+///
+/// Pairs with [`set_secret_access_key`]: the save path commits to
+/// the column, the connect path stages from the column into the
+/// SecretStore right before [`crate::s3::client::S3Client`] runs
+/// its connect probe.
+pub fn stage_secret_into_store(
+    conn: &impl DbAccess,
+    store: &SecretStore,
+    session_id: &str,
+) -> Result<bool, Error> {
+    let row: Option<String> = conn
+        .raw()
+        .query_row(
+            "SELECT secret_access_key FROM s3_session_details \
+                WHERE session_id = ?1 AND deleted_at IS NULL",
+            params![session_id],
+            |r| r.get(0),
+        )
+        .ok();
+    let Some(key) = row else { return Ok(false) };
+    if key.is_empty() {
+        return Ok(false);
+    }
+    store.put(&s3_secret_id(session_id), key.as_bytes());
+    Ok(true)
 }
 
 /// Soft-delete every live row. Tombstones share one stamp so the
@@ -471,5 +570,81 @@ mod tests {
     #[test]
     fn s3_secret_id_is_stable() {
         assert_eq!(s3_secret_id("abc"), "session.s3.abc");
+    }
+
+    #[test]
+    fn set_secret_access_key_roundtrips_into_has_and_stage() {
+        // Save → reopen → connect path. Mirrors the WebDAV test —
+        // the S3 path had the same regression (in-memory-only secret
+        // staging) and gets the same coverage so future refactors
+        // can't silently re-introduce it on one side.
+        let db = db();
+        seed_session(&db, "s1");
+        db.with_conn(|c| upsert(c, &s3("s1"))).unwrap();
+        let n = db
+            .with_conn(|c| set_secret_access_key(c, "s1", "AKIA-SECRET"))
+            .unwrap();
+        assert_eq!(n, 1);
+        assert!(db.with_conn(|c| has_secret_access_key(c, "s1")).unwrap());
+
+        let store = SecretStore::new();
+        let staged = db
+            .with_conn(|c| stage_secret_into_store(c, &store, "s1"))
+            .unwrap();
+        assert!(staged);
+        let bytes = store.get(&s3_secret_id("s1")).expect("staged slot");
+        assert_eq!(bytes.as_slice(), b"AKIA-SECRET");
+    }
+
+    #[test]
+    fn set_secret_access_key_empty_clears_and_unstages() {
+        let db = db();
+        seed_session(&db, "s1");
+        db.with_conn(|c| upsert(c, &s3("s1"))).unwrap();
+        db.with_conn(|c| set_secret_access_key(c, "s1", "first"))
+            .unwrap();
+        db.with_conn(|c| set_secret_access_key(c, "s1", ""))
+            .unwrap();
+        assert!(!db.with_conn(|c| has_secret_access_key(c, "s1")).unwrap());
+        let store = SecretStore::new();
+        assert!(!db
+            .with_conn(|c| stage_secret_into_store(c, &store, "s1"))
+            .unwrap());
+    }
+
+    #[test]
+    fn set_secret_access_key_returns_zero_when_row_missing() {
+        let db = db();
+        seed_session(&db, "s1");
+        let n = db
+            .with_conn(|c| set_secret_access_key(c, "s1", "x"))
+            .unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn upsert_after_set_secret_preserves_credential() {
+        let db = db();
+        seed_session(&db, "s1");
+        db.with_conn(|c| upsert(c, &s3("s1"))).unwrap();
+        db.with_conn(|c| set_secret_access_key(c, "s1", "keep-me"))
+            .unwrap();
+        let row = S3SessionRow {
+            region: "eu-west-2".into(),
+            ..s3("s1")
+        };
+        db.with_conn(|c| upsert(c, &row)).unwrap();
+        assert!(db.with_conn(|c| has_secret_access_key(c, "s1")).unwrap());
+    }
+
+    #[test]
+    fn stage_secret_into_store_returns_false_on_missing_row() {
+        let db = db();
+        seed_session(&db, "s1");
+        let store = SecretStore::new();
+        let staged = db
+            .with_conn(|c| stage_secret_into_store(c, &store, "s1"))
+            .unwrap();
+        assert!(!staged);
     }
 }

@@ -139,35 +139,51 @@ void main() {
         ),
       );
 
-      // Stage the password into SecretStore under the canonical id
-      // the connect path looks up. Mirrors `_syncWebDavDetails` in
-      // the dialog's save handler.
+      // Stage the password through the v17 column setter so a
+      // restart-survives roundtrip is exercised end-to-end. Also
+      // mirror into SecretStore (the dialog save path does both)
+      // so an immediate connect attempt doesn't pay an extra
+      // staging hop.
       final secretId = rust_db.dbWebdavSessionDetailsSecretId(
         sessionId: session.id,
+      );
+      await rust_db.dbWebdavSessionDetailsSetPassword(
+        sessionId: session.id,
+        password: 'webdav-password-123',
       );
       await rust_app.secretsPut(
         id: secretId,
         bytes: Uint8List.fromList(utf8.encode('webdav-password-123')),
       );
 
-      // Reload from the slim `sessions` row + the WebDAV join row.
-      final list = await rust_db.dbSessionsListAll();
-      final reloaded = list.firstWhere((s) => s.id == session.id);
-      final domain = dbSessionToSession(reloaded, const {});
+      // Reload from the slim `sessions` row + the v17 credential
+      // flags. After the schema bump, `isValid` for WebDAV /
+      // S3 demands `hasCredentials` — so the test must pull the
+      // flags alongside the row to surface the session-tree
+      // "credentials not set" check correctly.
+      final view = await rust_db.dbSessionsListAllWithFlags();
+      final reloaded = view.firstWhere((p) => p.$1.id == session.id);
+      final domain = dbSessionToSession(
+        reloaded.$1,
+        const {},
+        credentialFlags: reloaded.$2,
+      );
 
       // After the v16 schema split, host / port / user load as the
       // COALESCE defaults (empty / 22 / empty) for non-SSH kinds —
       // the SSH columns moved to `ssh_session_details` and WebDAV
       // sessions never get a join row there. `isValid` MUST still
-      // return true so the connect path proceeds.
+      // return true so the connect path proceeds — the v17 flag
+      // for a stored password is what flips it.
       expect(domain.kind, SessionKind.webdav);
       expect(
         domain.isValid,
         isTrue,
         reason:
-            'WebDAV session must be valid even with empty host / port / '
-            'user — the transport tuple lives on webdav_session_details '
-            'and the connect path reads it directly from there.',
+            'WebDAV session with stored password must be valid even '
+            'with empty host / port / user — the transport tuple '
+            'lives on webdav_session_details and the connect path '
+            'reads it directly from there.',
       );
 
       // Transport tuple readback — every field the connect path
@@ -269,23 +285,31 @@ void main() {
     );
 
     final secretId = rust_db.dbS3SessionDetailsSecretId(sessionId: session.id);
+    await rust_db.dbS3SessionDetailsSetSecretAccessKey(
+      sessionId: session.id,
+      secretAccessKey: 's3-secret-access-key',
+    );
     await rust_app.secretsPut(
       id: secretId,
       bytes: Uint8List.fromList(utf8.encode('s3-secret-access-key')),
     );
 
-    final list = await rust_db.dbSessionsListAll();
-    final reloaded = list.firstWhere((s) => s.id == session.id);
-    final domain = dbSessionToSession(reloaded, const {});
+    final view = await rust_db.dbSessionsListAllWithFlags();
+    final reloaded = view.firstWhere((p) => p.$1.id == session.id);
+    final domain = dbSessionToSession(
+      reloaded.$1,
+      const {},
+      credentialFlags: reloaded.$2,
+    );
 
     expect(domain.kind, SessionKind.s3);
     expect(
       domain.isValid,
       isTrue,
       reason:
-          'S3 session must be valid even with empty host / port / user '
-          '— the SigV4 credential pair lives on s3_session_details + '
-          'SecretStore.',
+          'S3 session with stored secret must be valid even with '
+          'empty host / port / user — the SigV4 credential pair '
+          'lives on s3_session_details + SecretStore.',
     );
 
     final detail = await rust_db.dbS3SessionDetailsGet(sessionId: session.id);

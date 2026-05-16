@@ -90,6 +90,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   void dispose() {
     widget.sidebarActivated?.removeListener(_onSidebarActivated);
+    disposeSftpBrowser();
     sftpResult?.dispose();
     super.dispose();
   }

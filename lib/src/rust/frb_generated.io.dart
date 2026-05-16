@@ -548,6 +548,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (String, String) dco_decode_box_autoadd_record_string_string(dynamic raw);
 
   @protected
+  S3ConnectRequest dco_decode_box_autoadd_s_3_connect_request(dynamic raw);
+
+  @protected
   SshConnectPubkeySkCertArgs
   dco_decode_box_autoadd_ssh_connect_pubkey_sk_cert_args(dynamic raw);
 
@@ -942,6 +945,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSession dco_decode_db_session(dynamic raw);
 
   @protected
+  DbSessionCredentialFlags dco_decode_db_session_credential_flags(dynamic raw);
+
+  @protected
   DbSessionHistoryEnvelope dco_decode_db_session_history_envelope(dynamic raw);
 
   @protected
@@ -1228,6 +1234,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSession> dco_decode_list_db_session(dynamic raw);
 
   @protected
+  List<DbSessionCredentialFlags> dco_decode_list_db_session_credential_flags(
+    dynamic raw,
+  );
+
+  @protected
   List<DbSessionJsonExtra> dco_decode_list_db_session_json_extra(dynamic raw);
 
   @protected
@@ -1324,6 +1335,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<(DbSession, DbSessionCredentialFlags)>
+  dco_decode_list_record_db_session_db_session_credential_flags(dynamic raw);
 
   @protected
   List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
@@ -1502,7 +1517,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   QrSessionCompactInputs dco_decode_qr_session_compact_inputs(dynamic raw);
 
   @protected
+  (DbSession, DbSessionCredentialFlags)
+  dco_decode_record_db_session_db_session_credential_flags(dynamic raw);
+
+  @protected
   (String, String) dco_decode_record_string_string(dynamic raw);
+
+  @protected
+  S3ConnectRequest dco_decode_s_3_connect_request(dynamic raw);
 
   @protected
   S3DirEntry dco_decode_s_3_dir_entry(dynamic raw);
@@ -2044,6 +2066,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  S3ConnectRequest sse_decode_box_autoadd_s_3_connect_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SshConnectPubkeySkCertArgs
   sse_decode_box_autoadd_ssh_connect_pubkey_sk_cert_args(
     SseDeserializer deserializer,
@@ -2580,6 +2607,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSession sse_decode_db_session(SseDeserializer deserializer);
 
   @protected
+  DbSessionCredentialFlags sse_decode_db_session_credential_flags(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSessionHistoryEnvelope sse_decode_db_session_history_envelope(
     SseDeserializer deserializer,
   );
@@ -2968,6 +3000,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSession> sse_decode_list_db_session(SseDeserializer deserializer);
 
   @protected
+  List<DbSessionCredentialFlags> sse_decode_list_db_session_credential_flags(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbSessionJsonExtra> sse_decode_list_db_session_json_extra(
     SseDeserializer deserializer,
   );
@@ -3090,6 +3127,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<(DbSession, DbSessionCredentialFlags)>
+  sse_decode_list_record_db_session_db_session_credential_flags(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<(String, String)> sse_decode_list_record_string_string(
@@ -3312,9 +3355,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (DbSession, DbSessionCredentialFlags)
+  sse_decode_record_db_session_db_session_credential_flags(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (String, String) sse_decode_record_string_string(
     SseDeserializer deserializer,
   );
+
+  @protected
+  S3ConnectRequest sse_decode_s_3_connect_request(SseDeserializer deserializer);
 
   @protected
   S3DirEntry sse_decode_s_3_dir_entry(SseDeserializer deserializer);
@@ -3964,6 +4016,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_record_string_string(
     (String, String) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_s_3_connect_request(
+    S3ConnectRequest self,
     SseSerializer serializer,
   );
 
@@ -4664,6 +4722,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_session(DbSession self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_session_credential_flags(
+    DbSessionCredentialFlags self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_session_history_envelope(
     DbSessionHistoryEnvelope self,
     SseSerializer serializer,
@@ -5150,6 +5214,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_session_credential_flags(
+    List<DbSessionCredentialFlags> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_session_json_extra(
     List<DbSessionJsonExtra> self,
     SseSerializer serializer,
@@ -5308,6 +5378,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_record_db_session_db_session_credential_flags(
+    List<(DbSession, DbSessionCredentialFlags)> self,
     SseSerializer serializer,
   );
 
@@ -5578,8 +5654,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_record_db_session_db_session_credential_flags(
+    (DbSession, DbSessionCredentialFlags) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_string_string(
     (String, String) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_s_3_connect_request(
+    S3ConnectRequest self,
     SseSerializer serializer,
   );
 

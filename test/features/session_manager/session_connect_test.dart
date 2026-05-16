@@ -55,6 +55,8 @@ class _FakeConnectionManager extends ConnectionsNotifier {
   String? lastLabel;
   String? lastSessionId;
   SSHConfig? lastConfig;
+  Session? lastWebDavSession;
+  Session? lastS3Session;
 
   @override
   List<Connection> build() => const [];
@@ -77,6 +79,32 @@ class _FakeConnectionManager extends ConnectionsNotifier {
       sessionId: sessionId,
       state: SSHConnectionState.connected,
     );
+  }
+
+  @override
+  Connection connectWebDavAsync(Session session) {
+    lastWebDavSession = session;
+    final conn = Connection(
+      id: 'fake-conn-webdav',
+      label: session.label.isEmpty ? session.host : session.label,
+      sshConfig: session.toSSHConfig(),
+      sessionId: session.id,
+      state: SSHConnectionState.connected,
+    )..kind = SessionKind.webdav;
+    return conn;
+  }
+
+  @override
+  Connection connectS3Async(Session session) {
+    lastS3Session = session;
+    final conn = Connection(
+      id: 'fake-conn-s3',
+      label: session.label.isEmpty ? session.host : session.label,
+      sshConfig: session.toSSHConfig(),
+      sessionId: session.id,
+      state: SSHConnectionState.connected,
+    )..kind = SessionKind.s3;
+    return conn;
   }
 }
 
@@ -970,6 +998,223 @@ void main() {
 
       // Clean up toast overlay
       Toast.clearAllForTest();
+    });
+  });
+
+  group('SessionConnect.connectTerminal — kind dispatch', () {
+    // Background: until the routing fix, `connectTerminal` blindly
+    // called `addTerminalTab` even when `_createConnection` had
+    // returned a WebDAV / S3 connection. The terminal pane then
+    // tried to read `conn.transport` (null for non-SSH) and crashed
+    // with `Bad state`. The fix dispatches by `session.kind` at the
+    // top of `connectTerminal`; these tests pin that dispatch so a
+    // future refactor can't silently re-introduce the regression.
+
+    testWidgets('WebDAV session tapped via connectTerminal opens an SFTP tab, '
+        'not a terminal tab, and routes through connectWebDavAsync', (
+      tester,
+    ) async {
+      final fakeManager = _FakeConnectionManager();
+      late WidgetRef capturedRef;
+      late Future<bool> pending;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        id: 'webdav-route-1',
+                        label: 'webdav-row',
+                        kind: SessionKind.webdav,
+                        server: const ServerAddress(
+                          host: 'dav.example.com',
+                          port: 443,
+                          user: 'alice',
+                        ),
+                        // After the v17 schema bump a WebDAV session
+                        // without a saved password fails `isValid` and
+                        // `connectTerminal` refuses to dispatch. This
+                        // test exercises the kind dispatch, not the
+                        // validity gate — supply credentials so the
+                        // gate passes and the dispatch fires.
+                        auth: const SessionAuth(password: 'dav-pw'),
+                      );
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await pumpUntilFrbSettles(tester, pending);
+
+      // The fake's WebDAV connect hook was reached — a SSH-shaped
+      // `connectAsync` would have left this null and would have
+      // crashed the terminal pane downstream.
+      expect(fakeManager.lastWebDavSession?.id, 'webdav-route-1');
+      expect(fakeManager.lastConfig, isNull);
+
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(
+        allTabs.first.kind,
+        TabKind.sftp,
+        reason:
+            'connectTerminal MUST open an SFTP-kind tab for a '
+            'WebDAV session — opening a terminal tab there feeds '
+            'a null `transport` into the terminal pane and crashes '
+            'with `Bad state` (the original user-reported bug).',
+      );
+    });
+
+    testWidgets('S3 session tapped via connectTerminal opens an SFTP tab, '
+        'not a terminal tab, and routes through connectS3Async', (
+      tester,
+    ) async {
+      final fakeManager = _FakeConnectionManager();
+      late WidgetRef capturedRef;
+      late Future<bool> pending;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        id: 's3-route-1',
+                        label: 's3-row',
+                        kind: SessionKind.s3,
+                        server: const ServerAddress(
+                          host: 's3.example.com',
+                          port: 443,
+                          user: 'AKIATEST',
+                        ),
+                        // Supply a "stored secret access key" so the
+                        // v17 `isValid` check passes — this test
+                        // exercises the kind dispatch, not the
+                        // validity gate.
+                        auth: const SessionAuth(password: 's3-secret'),
+                      );
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await pumpUntilFrbSettles(tester, pending);
+
+      expect(fakeManager.lastS3Session?.id, 's3-route-1');
+      expect(fakeManager.lastConfig, isNull);
+
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(
+        allTabs.first.kind,
+        TabKind.sftp,
+        reason:
+            'connectTerminal MUST open an SFTP-kind tab for an '
+            'S3 session — same root cause as the WebDAV case '
+            '(no PTY exists for the kind).',
+      );
+    });
+
+    testWidgets('SSH session via connectTerminal still opens a terminal tab '
+        '(no regression in the canonical path)', (tester) async {
+      // Belt-and-braces: the kind dispatch must NOT spill onto SSH.
+      // Without this guard, a future tweak to the if-condition
+      // (say, inverting the kind check) would silently turn every
+      // SSH connect into an SFTP tab.
+      final fakeManager = _FakeConnectionManager();
+      late WidgetRef capturedRef;
+      late Future<bool> pending;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        id: 'ssh-route-1',
+                        label: 'ssh-row',
+                        server: const ServerAddress(
+                          host: '10.0.0.1',
+                          port: 22,
+                          user: 'root',
+                        ),
+                        auth: const SessionAuth(password: 'secret'),
+                      );
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await pumpUntilFrbSettles(tester, pending);
+
+      expect(fakeManager.lastWebDavSession, isNull);
+      expect(fakeManager.lastS3Session, isNull);
+      expect(fakeManager.lastSessionId, 'ssh-route-1');
+
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.terminal);
     });
   });
 }

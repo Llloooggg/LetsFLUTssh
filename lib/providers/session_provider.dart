@@ -76,8 +76,20 @@ Future<SessionWorkspaceSnapshot> _loadSnapshot() async {
     await rust_registry.sessionsRegistryReload();
     final view = rust_registry.sessionsRegistrySnapshot();
     final folderMap = buildFolderMap(view.folders);
+    // Build a session-id → flags lookup once so the per-session
+    // mapping stays O(1). `credentialFlags` is a parallel list keyed
+    // by session_id; rare for it to outsize the session list.
+    final flagsById = <String, rust_db.DbSessionCredentialFlags>{
+      for (final f in view.credentialFlags) f.sessionId: f,
+    };
     final sessions = view.sessions
-        .map((s) => dbSessionToSession(s, folderMap))
+        .map(
+          (s) => dbSessionToSession(
+            s,
+            folderMap,
+            credentialFlags: flagsById[s.id],
+          ),
+        )
         .toList(growable: false);
     AppLogger.instance.log(
       'Loaded ${sessions.length} sessions, ${folderMap.length} folders',

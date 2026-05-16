@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
+// Imported for the `SessionKindCapabilities` extension on
+// `SessionKind` (companion-button gate consults `kind.hasTerminal`).
+import '../../core/session/session.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/clipped_row.dart';
@@ -532,6 +535,15 @@ class _PanelConnectionBar extends ConsumerWidget {
     WidgetRef ref,
     ColorScheme scheme,
   ) {
+    // The companion toggle swaps between the terminal pane and the
+    // file browser. It only makes sense for kinds that own a PTY —
+    // for the others (WebDAV / S3 today) the "open terminal" half
+    // of the swap is meaningless, so hide the button entirely. The
+    // capability lives on `SessionKind` (extension in `session.dart`)
+    // so a future kind that gains a PTY needs no edit here.
+    if (!activeTab.connection.kind.hasTerminal) {
+      return const SizedBox.shrink();
+    }
     final s = S.of(context);
     final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
     final label = isTerminal ? s.files : s.terminal;

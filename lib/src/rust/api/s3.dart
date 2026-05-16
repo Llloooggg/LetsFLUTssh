@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'webdav.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Parse `endpoint` + `region` and return the S3 session's host
 /// + port projection. Empty `endpoint` falls back to
@@ -24,33 +24,8 @@ DbServerAddressFields s3ServerAddressFromEndpoint({
   region: region,
 );
 
-/// Open an S3 session.
-///
-/// `secret_key_secret_id` is the SecretStore id under which the
-/// secret access key has been staged (canonical form
-/// `session.s3.<session_id>`). The connect path resolves the id,
-/// builds the `S3Config`, constructs the `S3Client`, and runs a
-/// `ListObjectsV2` against `default_bucket` (or the empty bucket
-/// when none is configured) as a connect probe — so a bad
-/// credential / wrong region / missing bucket surfaces at connect
-/// time rather than at the first list.
-Future<S3Connection> s3Connect({
-  required String accessKeyId,
-  required String secretKeySecretId,
-  required String region,
-  required String endpoint,
-  required bool pathStyle,
-  required String defaultBucket,
-  required String defaultPrefix,
-}) => RustLib.instance.api.crateApiS3S3Connect(
-  accessKeyId: accessKeyId,
-  secretKeySecretId: secretKeySecretId,
-  region: region,
-  endpoint: endpoint,
-  pathStyle: pathStyle,
-  defaultBucket: defaultBucket,
-  defaultPrefix: defaultPrefix,
-);
+Future<S3Connection> s3Connect({required S3ConnectRequest req}) =>
+    RustLib.instance.api.crateApiS3S3Connect(req: req);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<S3Connection>>
 abstract class S3Connection implements RustOpaqueInterface {
@@ -94,6 +69,69 @@ abstract class S3Connection implements RustOpaqueInterface {
 
   /// HEAD the object. Errors when the key does not exist.
   Future<S3FileMetadata> stat({required String path});
+}
+
+/// Open an S3 session.
+///
+/// `secret_key_secret_id` is the SecretStore id under which the
+/// secret access key has been staged (canonical form
+/// `session.s3.<session_id>`). The connect path resolves the id,
+/// builds the `S3Config`, constructs the `S3Client`, and runs a
+/// `ListObjectsV2` against `default_bucket` (or the empty bucket
+/// when none is configured) as a connect probe — so a bad
+/// credential / wrong region / missing bucket surfaces at connect
+/// time rather than at the first list.
+/// Configuration tuple for [`s3_connect`]. Bundled into a struct
+/// because the field count would otherwise cross clippy's
+/// `too_many_arguments` ceiling — every field is a connect-time
+/// required input (none has a meaningful default the call site
+/// could omit), so factoring them out of the positional argument
+/// list is a readability win as well.
+class S3ConnectRequest {
+  final String connectionId;
+  final String accessKeyId;
+  final String secretKeySecretId;
+  final String region;
+  final String endpoint;
+  final bool pathStyle;
+  final String defaultBucket;
+  final String defaultPrefix;
+
+  const S3ConnectRequest({
+    required this.connectionId,
+    required this.accessKeyId,
+    required this.secretKeySecretId,
+    required this.region,
+    required this.endpoint,
+    required this.pathStyle,
+    required this.defaultBucket,
+    required this.defaultPrefix,
+  });
+
+  @override
+  int get hashCode =>
+      connectionId.hashCode ^
+      accessKeyId.hashCode ^
+      secretKeySecretId.hashCode ^
+      region.hashCode ^
+      endpoint.hashCode ^
+      pathStyle.hashCode ^
+      defaultBucket.hashCode ^
+      defaultPrefix.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is S3ConnectRequest &&
+          runtimeType == other.runtimeType &&
+          connectionId == other.connectionId &&
+          accessKeyId == other.accessKeyId &&
+          secretKeySecretId == other.secretKeySecretId &&
+          region == other.region &&
+          endpoint == other.endpoint &&
+          pathStyle == other.pathStyle &&
+          defaultBucket == other.defaultBucket &&
+          defaultPrefix == other.defaultPrefix;
 }
 
 /// One directory entry surfaced by [`S3Connection::list`]. Field

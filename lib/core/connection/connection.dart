@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
-
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/s3.dart' as rust_s3;
@@ -100,17 +98,31 @@ class Connection {
   /// Buffered progress steps — replayed to late subscribers.
   final _progressHistory = <ConnectionStep>[];
 
-  /// Resolves once `_adoptSession` has finished — `true` when the
-  /// russh handle was fetched + wrapped in [`RustTransport`] (so
-  /// [`transport`] is non-null), `false` when adoption failed
-  /// (`connectionGetSession` returned null, FRB error, etc.) or
-  /// the actor moved straight to Disconnected.
+  /// Resolves once the kind-appropriate transport handle is ready
+  /// for the file browser / terminal pane to dispatch against:
+  ///
+  /// - SSH: `true` when [`_adoptSession`] fetched the russh handle
+  ///   and wrapped it in [`RustTransport`] (so [`transport`] is
+  ///   non-null), `false` on adoption failure or a straight-to-
+  ///   Disconnected transition.
+  /// - WebDAV: `true` when [`_doWebDavConnect`] stamped
+  ///   [`webdavConnection`] / [`webdavBaseUrl`] and flipped state
+  ///   to `connected`; `false` when the connect threw.
+  /// - S3: `true` when [`_doS3Connect`] stamped [`s3Connection`]
+  ///   and flipped state to `connected`; `false` when the connect
+  ///   threw.
   ///
   /// Connect-flow consumers (terminal pane, SFTP browser) await
-  /// this AFTER [waitUntilReady] before reading [`transport`] —
-  /// otherwise they race the async adoption and see a null
-  /// transport even though `state == connected` already flipped
-  /// via [_onBusStateChanged].
+  /// this AFTER [waitUntilReady] before reading [`transport`] /
+  /// [`webdavConnection`] / [`s3Connection`] — otherwise they
+  /// race the async adoption / stamping and see a null handle
+  /// even though `state == connected` already flipped.
+  ///
+  /// Trap if you ever remove the WebDAV / S3 completion path:
+  /// `await conn.transportReady` then hangs forever for those
+  /// kinds, the file browser never reaches its `openChannel`
+  /// step, and the user sits on a `[✓] Authenticating` log with
+  /// no further progress.
   Completer<bool> _transportAdopted = Completer<bool>();
 
   /// Resolves when the Rust connection actor publishes
@@ -298,15 +310,22 @@ class Connection {
   /// `await` after completion returns the same value.
   Future<bool> get transportReady => _transportAdopted.future;
 
-  /// Test-only: short-circuit the [transportReady] gate so widgets
-  /// driven by [SftpBrowserMixin] / similar `await conn.transportReady`
-  /// flows resolve under a synthetic [Connection] built directly
-  /// with `state: SSHConnectionState.connected` (no actor, no
-  /// `_adoptSession`). Production never calls this — the bus
-  /// listener is the only path that completes the underlying
-  /// completer in real flows.
-  @visibleForTesting
-  void debugMarkTransportAdopted({bool adopted = true}) {
+  /// Complete the [transportReady] gate. Idempotent — a second
+  /// call after completion is a no-op (the underlying [`Completer`]
+  /// is one-shot).
+  ///
+  /// Called by:
+  ///
+  /// - SSH path: indirectly, through [`_adoptSession`] when the
+  ///   bus listener observes `BusConnectionState.connected`.
+  /// - WebDAV path: directly, by [`ConnectionsNotifier._doWebDavConnect`]
+  ///   on the success branch (after [`webdavConnection`] is
+  ///   stamped) and on the failure branch.
+  /// - S3 path: directly, by [`ConnectionsNotifier._doS3Connect`]
+  ///   on the success and failure branches.
+  /// - Tests: directly on synthetic [`Connection`]s that don't
+  ///   run a real actor or connect call.
+  void markTransportAdopted({bool adopted = true}) {
     if (!_transportAdopted.isCompleted) {
       _transportAdopted.complete(adopted);
     }

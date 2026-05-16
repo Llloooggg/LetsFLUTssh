@@ -105,9 +105,22 @@ pub fn webdav_server_address_from_base_url(base_url: String) -> DbServerAddressF
 /// Live WebDAV client tied to a single session. Drop on the Dart
 /// side releases the inner `Arc`; the underlying `reqwest` client
 /// drops its connection pool when the last reference goes away.
+///
+/// Holds an optional [`ProviderRegistration`] guard that unregisters
+/// this connection's id from [`crate::app::AppState::providers`]
+/// on `Drop`. The registry-driven transfer worker uses that id to
+/// dispatch upload / download tasks to the matching `dyn Provider`;
+/// without the registration the worker can't reach a non-SSH
+/// transport from outside the FRB-opaque handle.
 #[frb(opaque)]
 pub struct WebDavConnection {
     provider: Arc<WebDavProvider>,
+    // Drop order is field declaration order — the guard runs
+    // before `provider`, so the unregister sees the live `Arc`
+    // still in the map (consistent with the registry's contract).
+    // `None` only in synthetic test contexts that bypass the
+    // connect path; production always registers.
+    _registration: Option<lfs_core::storage::ProviderRegistration>,
 }
 
 impl WebDavConnection {
@@ -237,6 +250,7 @@ fn parse_auth_method(raw: &str) -> Result<AuthMethod, String> {
 /// the Dart UI persist the value before the transport-side
 /// hookup lands.
 pub async fn webdav_connect(
+    connection_id: String,
     base_url: String,
     username: String,
     password_secret_id: String,
@@ -274,9 +288,19 @@ pub async fn webdav_connect(
         .map_err(|e| crate::api::frb_err::from_core(&e))?;
     // Reserved — pin the fingerprint when the TOFU surface lands.
     let _ = self_signed_fingerprint;
-    let provider = WebDavProvider::new(Arc::new(client));
+    let provider = Arc::new(WebDavProvider::new(Arc::new(client)));
+    // Register the live provider in the global registry so the
+    // transfer worker pool can reach it from outside the FRB-opaque
+    // handle. The `ProviderRegistration` guard on the returned
+    // struct unregisters when Dart drops its handle.
+    let app = lfs_core::app::instance();
+    let registry = app.providers.clone();
+    registry.register(&connection_id, provider.clone());
+    let registration =
+        lfs_core::storage::ProviderRegistration::new(Arc::downgrade(&registry), connection_id);
     Ok(WebDavConnection {
-        provider: Arc::new(provider),
+        provider,
+        _registration: Some(registration),
     })
 }
 
@@ -353,6 +377,7 @@ mod tests {
         // UTF-8 sequence, so `str::from_utf8` rejects deterministically.
         app.secrets.put(secret_id, &[0xFF, 0xFE, 0xFD]);
         let result = webdav_connect(
+            "test-conn-utf8".into(),
             "https://example.invalid/dav".into(),
             "alice".into(),
             secret_id.into(),
@@ -382,6 +407,7 @@ mod tests {
         // of the resolve-then-validate step.
         let _app = lfs_core::app::init();
         let result = webdav_connect(
+            "test-conn-missing-secret".into(),
             "https://example.invalid/dav".into(),
             "alice".into(),
             "test.webdav.does-not-exist".into(),

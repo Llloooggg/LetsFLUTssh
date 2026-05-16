@@ -153,7 +153,7 @@ void main() {
 
       // Resolve the second gate after dispose.
       conn.state = SSHConnectionState.disconnected;
-      conn.debugMarkTransportAdopted(adopted: false);
+      conn.markTransportAdopted(adopted: false);
 
       await tester.pumpAndSettle();
 

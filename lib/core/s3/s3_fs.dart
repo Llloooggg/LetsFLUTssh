@@ -85,4 +85,21 @@ class S3FileSystem implements FileSystem {
     final size = await _connection.dirSize(path: path);
     return size.toInt();
   }
+
+  /// Cheap presence probe — one `HeadObject` via
+  /// `S3Connection.stat`. Beats the trait's parent-listing default
+  /// because `ListObjectsV2` over an unknown prefix is heavier
+  /// than a single HEAD. Errors collapse to `false` so the
+  /// upload-conflict path treats every failure ("key not found",
+  /// "access denied", network blip) as "target absent" — the
+  /// SFTP-side conflict resolver has the same shape.
+  @override
+  Future<bool> exists(String path) async {
+    try {
+      await _connection.stat(path: path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

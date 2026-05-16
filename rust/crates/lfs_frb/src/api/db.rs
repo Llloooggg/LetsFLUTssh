@@ -919,6 +919,42 @@ pub async fn db_sessions_list_all() -> Result<Vec<DbSession>, String> {
         .map(|rows| rows.into_iter().map(DbSession::from).collect())
 }
 
+/// Per-session credential-presence flags returned alongside the
+/// row in [`db_sessions_list_all_with_flags`]. Mirrors
+/// [`lfs_core::db::sessions::SessionCredentialFlags`].
+#[derive(Debug, Clone)]
+pub struct DbSessionCredentialFlags {
+    pub session_id: String,
+    pub has_webdav_password: bool,
+    pub has_s3_secret_access_key: bool,
+}
+
+/// Same shape as [`db_sessions_list_all`] but each row pairs with
+/// the non-SSH credential-presence flags synthesised off the
+/// WebDAV / S3 detail joins. The session-tree UI calls this when
+/// rendering the "credentials not set" warning for incomplete
+/// non-SSH rows so the warning fires without an N+1 lookup hop.
+pub async fn db_sessions_list_all_with_flags(
+) -> Result<Vec<(DbSession, DbSessionCredentialFlags)>, String> {
+    run_db(lfs_core::db::sessions::list_all_with_flags)
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(|(row, flags)| {
+                    let session_id = row.id.clone();
+                    (
+                        DbSession::from(row),
+                        DbSessionCredentialFlags {
+                            session_id,
+                            has_webdav_password: flags.has_webdav_password,
+                            has_s3_secret_access_key: flags.has_s3_secret_access_key,
+                        },
+                    )
+                })
+                .collect()
+        })
+}
+
 pub async fn db_sessions_get(id: String) -> Result<Option<DbSession>, String> {
     run_db(move |c| lfs_core::db::sessions::get(c, &id))
         .await
@@ -1737,6 +1773,46 @@ pub fn db_webdav_session_details_secret_id(session_id: String) -> String {
     lfs_core::db::webdav_sessions::webdav_secret_id(&session_id)
 }
 
+/// Persist the WebDAV password / bearer token onto the
+/// `webdav_session_details.password` column. The plaintext crosses
+/// FRB one-way (Dart → Rust) and is encrypted at rest by SQLCipher
+/// — it never travels back to Dart. The save dialog calls this
+/// right after [`db_webdav_session_details_upsert`] when its dirty
+/// flag fires.
+pub async fn db_webdav_session_details_set_password(
+    session_id: String,
+    password: String,
+) -> Result<u32, String> {
+    run_db_writing_sessions(move |c| {
+        lfs_core::db::webdav_sessions::set_password(c, &session_id, &password)
+    })
+    .await
+    .map(|n| n as u32)
+}
+
+/// Whether the WebDAV row for `session_id` has a non-empty
+/// persisted password. The edit dialog uses this to render the
+/// "[Saved] type to change" hint without ever reading the plaintext
+/// back over FRB.
+pub async fn db_webdav_session_details_has_password(session_id: String) -> Result<bool, String> {
+    run_db(move |c| lfs_core::db::webdav_sessions::has_password(c, &session_id)).await
+}
+
+/// Stage the persisted WebDAV password into the process-singleton
+/// `SecretStore` under `db_webdav_session_details_secret_id(...)`.
+/// Returns `true` when a non-empty password was staged. The connect
+/// path calls this right before `webdav_connect` so the canonical
+/// SecretStore slot is populated from the DB column without the
+/// plaintext crossing FRB. Idempotent — safe to call twice on the
+/// same session id within one process.
+pub async fn db_webdav_session_details_stage_secret(session_id: String) -> Result<bool, String> {
+    run_db(move |c| {
+        let store = &lfs_core::app::instance().secrets;
+        lfs_core::db::webdav_sessions::stage_secret_into_store(c, store, &session_id)
+    })
+    .await
+}
+
 // ---- s3_session_details ------------------------------------------------
 
 /// FRB mirror of
@@ -1826,6 +1902,42 @@ pub async fn db_s3_session_details_list_all() -> Result<Vec<DbS3SessionDetails>,
 #[flutter_rust_bridge::frb(sync)]
 pub fn db_s3_session_details_secret_id(session_id: String) -> String {
     lfs_core::db::s3_sessions::s3_secret_id(&session_id)
+}
+
+/// Persist the S3 secret access key onto the
+/// `s3_session_details.secret_access_key` column. Same one-way
+/// FRB discipline + at-rest encryption as the WebDAV setter.
+pub async fn db_s3_session_details_set_secret_access_key(
+    session_id: String,
+    secret_access_key: String,
+) -> Result<u32, String> {
+    run_db_writing_sessions(move |c| {
+        lfs_core::db::s3_sessions::set_secret_access_key(c, &session_id, &secret_access_key)
+    })
+    .await
+    .map(|n| n as u32)
+}
+
+/// Whether the S3 row for `session_id` has a non-empty persisted
+/// secret access key. Edit-dialog hint signal; never reads the
+/// plaintext.
+pub async fn db_s3_session_details_has_secret_access_key(
+    session_id: String,
+) -> Result<bool, String> {
+    run_db(move |c| lfs_core::db::s3_sessions::has_secret_access_key(c, &session_id)).await
+}
+
+/// Stage the persisted S3 secret access key into the
+/// process-singleton `SecretStore` under
+/// `db_s3_session_details_secret_id(...)`. Returns `true` when a
+/// non-empty key was staged. The connect path calls this right
+/// before `s3_connect`.
+pub async fn db_s3_session_details_stage_secret(session_id: String) -> Result<bool, String> {
+    run_db(move |c| {
+        let store = &lfs_core::app::instance().secrets;
+        lfs_core::db::s3_sessions::stage_secret_into_store(c, store, &session_id)
+    })
+    .await
 }
 
 // ---- tags + M2M --------------------------------------------------------

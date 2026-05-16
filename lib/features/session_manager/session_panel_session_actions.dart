@@ -33,12 +33,15 @@ extension _SessionActions on SessionPanelState {
   }
 
   /// Persist the S3 transport tuple alongside the parent session
-  /// row, and stage the secret access key into SecretStore when
-  /// the dialog's dirty bit fires + the field is non-empty. The
-  /// secret rooms under the canonical
-  /// `dbS3SessionDetailsSecretId` so the connect path picks it up
-  /// without the dialog ever needing to keep it in Dart memory
-  /// past the navigator pop.
+  /// row. When the dialog's dirty bit fires and the secret access
+  /// key field is non-empty, commit the secret to
+  /// `s3_session_details.secret_access_key` (SQLCipher-encrypted at
+  /// rest) AND stage it into the in-memory `SecretStore` so the
+  /// connect path that follows the navigator pop picks it up
+  /// without a re-stage round-trip. Process restart wipes the
+  /// SecretStore but the DB column survives, so the next launch's
+  /// connect path stages from the column via
+  /// `dbS3SessionDetailsStageSecret`.
   Future<void> _syncS3Details(String sessionId, S3SaveData data) async {
     await rust_db.dbS3SessionDetailsUpsert(
       rec: rust_db.DbS3SessionDetails(
@@ -52,21 +55,29 @@ extension _SessionActions on SessionPanelState {
       ),
     );
     if (data.passwordDirty && data.secretAccessKey.isNotEmpty) {
-      final secretId = rust_db.dbS3SessionDetailsSecretId(sessionId: sessionId);
+      // 1) Persist on the join-table column — survives restart.
+      await rust_db.dbS3SessionDetailsSetSecretAccessKey(
+        sessionId: sessionId,
+        secretAccessKey: data.secretAccessKey,
+      );
+      // 2) Mirror into the running SecretStore so an immediate
+      //    connect after Save doesn't have to re-stage from DB.
       await rust_app.secretsPut(
-        id: secretId,
+        id: rust_db.dbS3SessionDetailsSecretId(sessionId: sessionId),
         bytes: utf8.encode(data.secretAccessKey),
       );
     }
   }
 
   /// Persist the WebDAV transport tuple alongside the parent session
-  /// row, and stage the password into SecretStore when the dialog's
-  /// dirty bit fires + the field is non-empty. The `_secrets` API
-  /// rooms the bytes under the canonical
-  /// `dbWebdavSessionDetailsSecretId` so the connect path picks them
-  /// up without the dialog ever needing to keep them in Dart memory
-  /// past the navigator pop.
+  /// row. When the dialog's dirty bit fires and the password /
+  /// bearer-token field is non-empty, commit the secret to
+  /// `webdav_session_details.password` (SQLCipher-encrypted at rest)
+  /// AND stage it into the in-memory `SecretStore` so the connect
+  /// path that follows the navigator pop picks it up without a
+  /// re-stage round-trip. Process restart wipes the SecretStore
+  /// but the DB column survives, so the next launch's connect path
+  /// stages from the column via `dbWebdavSessionDetailsStageSecret`.
   Future<void> _syncWebDavDetails(String sessionId, WebDavSaveData data) async {
     await rust_db.dbWebdavSessionDetailsUpsert(
       rec: rust_db.DbWebDavSessionDetails(
@@ -78,11 +89,15 @@ extension _SessionActions on SessionPanelState {
       ),
     );
     if (data.passwordDirty && data.password.isNotEmpty) {
-      final secretId = rust_db.dbWebdavSessionDetailsSecretId(
+      // 1) Persist on the join-table column — survives restart.
+      await rust_db.dbWebdavSessionDetailsSetPassword(
         sessionId: sessionId,
+        password: data.password,
       );
+      // 2) Mirror into the running SecretStore so an immediate
+      //    connect after Save doesn't have to re-stage from DB.
       await rust_app.secretsPut(
-        id: secretId,
+        id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: sessionId),
         bytes: utf8.encode(data.password),
       );
     }
@@ -126,18 +141,32 @@ extension _SessionActions on SessionPanelState {
       _showMobileSessionSheet(context, ref, session);
       return;
     }
+    // Kinds without a PTY (WebDAV / S3 today) cannot open a
+    // terminal pane, so the "Open terminal" item is meaningless on
+    // those rows — show only Files. The capability lives on
+    // `SessionKind` (extension in `session.dart`) so a future kind
+    // that gains a PTY needs no edit here.
+    final hasTerminal = session.hasTerminal;
     showAppContextMenu(
       context: context,
       position: position,
       items: [
-        StandardMenuAction.terminal.item(
-          context,
-          onTap: () => widget.onConnect(session),
-        ),
+        if (hasTerminal)
+          StandardMenuAction.terminal.item(
+            context,
+            onTap: () => widget.onConnect(session),
+          ),
         if (widget.onSftpConnect != null)
           StandardMenuAction.files.item(
             context,
-            onTap: () => widget.onSftpConnect?.call(session),
+            // For kinds without a PTY, the row-tap action is already
+            // the file browser (via `SessionConnect.connectTerminal`'s
+            // kind dispatch), so funnel the menu pick through the
+            // same path — keeps the `onConnect` and `onSftpConnect`
+            // semantics aligned with what the user sees on tap.
+            onTap: () => hasTerminal
+                ? widget.onSftpConnect?.call(session)
+                : widget.onConnect(session),
           ),
         const ContextMenuItem.divider(),
         StandardMenuAction.copy.item(
@@ -218,21 +247,32 @@ extension _SessionActions on SessionPanelState {
                   ),
                 ),
               const AppDivider(),
-              ListTile(
-                leading: Icon(Icons.terminal, color: AppTheme.blue),
-                title: Text(S.of(ctx).terminal),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onConnect(session);
-                },
-              ),
+              if (session.hasTerminal)
+                ListTile(
+                  leading: Icon(Icons.terminal, color: AppTheme.blue),
+                  title: Text(S.of(ctx).terminal),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onConnect(session);
+                  },
+                ),
               if (widget.onSftpConnect != null)
                 ListTile(
                   leading: Icon(Icons.folder, color: AppTheme.yellow),
                   title: Text(S.of(ctx).files),
                   onTap: () {
                     Navigator.pop(ctx);
-                    widget.onSftpConnect?.call(session);
+                    // For kinds without a PTY, route the Files tap
+                    // through `onConnect` — `SessionConnect.connectTerminal`
+                    // already dispatches by `hasTerminal`, and
+                    // funnelling through it keeps both UI surfaces
+                    // (this sheet + the desktop context menu)
+                    // consistent.
+                    if (session.hasTerminal) {
+                      widget.onSftpConnect?.call(session);
+                    } else {
+                      widget.onConnect(session);
+                    }
                   },
                 ),
               const AppDivider(),

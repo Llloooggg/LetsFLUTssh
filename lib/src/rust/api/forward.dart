@@ -218,9 +218,9 @@ Future<int> sshRequestRemoteForward({
   port: port,
 );
 
-/// Withdraw a previously-requested remote forward. Idempotent on
-/// the server side (sending CANCEL after the listener is gone is
-/// a no-op).
+/// Withdraw an outstanding remote forward. Idempotent on the
+/// server side (sending CANCEL after the listener is gone is a
+/// no-op).
 Future<void> sshCancelRemoteForward({
   required SshSession session,
   required String address,
@@ -314,8 +314,8 @@ enum DbPortForwardKind { local, remote, dynamic_ }
 /// shape (`session_id` + `created_at_ms`).
 ///
 /// `description` is allowed to be empty; the codec helpers below
-/// drop the key on serialise when empty so the wire round-trips
-/// byte-identically with the prior Dart codec.
+/// drop the key on serialise when empty so a freshly built rule
+/// does not grow a spurious empty field on the wire.
 class DbPortForwardRuleJson {
   final String id;
   final DbPortForwardKind kind;

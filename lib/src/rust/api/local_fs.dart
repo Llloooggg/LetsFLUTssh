@@ -63,8 +63,7 @@ Future<void> localFsCopyFile({required String src, required String dst}) =>
 /// symlinks: a symlink at the root returns
 /// `Err("symlink_in_source")`, symlinks inside the tree are
 /// silently skipped, and recursion is bounded by `max_depth`.
-/// The Dart file-browser drop path passes 100, matching the
-/// constant it previously enforced inline.
+/// The Dart file-browser drop path passes 100.
 Future<void> localFsCopyRecursiveNoSymlinks({
   required String src,
   required String dst,

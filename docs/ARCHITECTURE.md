@@ -285,6 +285,15 @@ lib/
 └── utils/                            # Utilities: logger, format, platform
 ```
 
+### `dev/` — non-shipping dev tooling
+
+The `dev/` tree holds tooling that never ends up in a release artefact:
+
+- `dev/scripts/` — repo-management shell + Dart scripts (`install-hooks.sh`, `bump-version.sh`, `run-mutants.sh`, `check-arb-parity.sh`, `filter_lcov.dart`, `agent-plan-id-gate.sh`, `setup-xcode-broker.sh`). Wired into the Makefile and the CI workflows. `make hooks` installs the pre-commit gate from here.
+- `dev/compose/` — Docker Compose stack for manual QA of the `lfs_core::{s3, webdav, ssh, sftp}` transports against real servers (MinIO, two Apache mod_dav variants for Basic + Digest, Nextcloud for Bearer, `linuxserver/openssh-server`). All services bind to `127.0.0.1` with hard-coded dev credentials. See `dev/compose/README.md`.
+
+Both subtrees are git-tracked but excluded from every build target — Flutter and Cargo neither read nor copy from `dev/`.
+
 ---
 
 ## 3. Core Modules
@@ -2815,8 +2824,8 @@ Child-table portability — every child row is keyed by its parent's id
 | Table | Wire fields | Secret discipline |
 |---|---|---|
 | `ssh_key_certificates` | key_id, certificate, valid_after, valid_before, principals, critical_options, fingerprint | Cert blob is the public half of a CA-signed pair; safe to travel verbatim. Apply drops the row with a warning when the parent key didn't land. |
-| `webdav_session_details` | session_id, base_url, username, auth_method, self_signed_fingerprint, credential_secret_id | The password / bearer token stays in the source device's SecretStore. Only the opaque pointer (`session.webdav.<session_id>`) travels; the receiving device finds it missing and surfaces "re-enter password" on first connect. |
-| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes stay in SecretStore. Same opaque-pointer discipline as WebDAV. |
+| `webdav_session_details` | session_id, base_url, username, auth_method, self_signed_fingerprint, credential_secret_id | The password / bearer token lives on the local `password` column (encrypted at rest by SQLCipher, v17 schema), but the archive / sync codec ships only the opaque pointer (`session.webdav.<session_id>`) rather than the bytes. The receiving device finds the SecretStore slot empty and surfaces "re-enter password" on first connect — same UX contract as before v17, just with on-disk persistence at the source. |
+| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes persist locally on the v17 `secret_access_key` column but stay off the wire — the codec ships the opaque pointer. Same opaque-pointer discipline as WebDAV. |
 | `sftp_bookmarks` | id, session_id, remote_path, label, created_at | Full round-trip; tombstone-aware. |
 | `port_forward_rules` | id, session_id, kind, bind_host, bind_port, remote_host, remote_port, description, enabled, sort_order, created_at_ms | Full round-trip. |
 
@@ -5804,6 +5813,45 @@ same column shape. Future bumps:
   (`archive/compose`, `archive/apply`, `qr_compose`) continue to
   operate on the struct verbatim; only the `WHERE` of the read /
   write paths changed.
+- **v17** — adds persistent secret columns to the two non-SSH
+  detail tables: `webdav_session_details.password TEXT NOT NULL
+  DEFAULT ''` and `s3_session_details.secret_access_key TEXT NOT
+  NULL DEFAULT ''`. The v5 / v6 introduction of those tables left
+  the credential out on purpose — the design assumed
+  `lfs_core::secrets::SecretStore` would be a durable landing pad
+  for non-SSH secrets the same way it was for SSH credentials at
+  connect time. `SecretStore` is a `Mutex<HashMap<String,
+  Zeroizing<Vec<u8>>>>` (`lfs_core::secrets`), process-local with
+  no on-disk back-end, so every restart wiped the WebDAV password
+  and S3 secret access key. The user re-typed the credential on
+  every launch, and the connect path returned `WebDAV secret not
+  staged: session.webdav.<id>` on first reconnect. **Migration**:
+  existing v16 installs land the columns via additive `ALTER
+  TABLE ... ADD COLUMN ... DEFAULT ''` gated by
+  `add_v17_non_ssh_secret_columns` in the `(1..17).contains(&current)`
+  arm; pre-existing rows backfill to empty string, which the new
+  `set_password` / `set_secret_access_key` setters overwrite on the
+  first edit-dialog Save after the upgrade. Fresh installs pick
+  the columns up from `SCHEMA_SQL`. **DAO surface**: each
+  detail-table module gains a `set_*` setter (Dart → Rust on save,
+  one-way through FRB), a `has_*` presence probe (cheap bool the
+  edit dialog reads for its "[Saved] type to change" hint without
+  the plaintext crossing FRB), and a `stage_secret_into_store`
+  reader the connect path calls just before `webdav_connect` /
+  `s3_connect`. **Read path**: `sessions::list_all_with_flags` joins
+  the two detail tables and synthesises `has_webdav_password` /
+  `has_s3_secret_access_key` bools per session id, surfaced to the
+  Dart session-tree provider through `RegistryView.credential_flags`
+  so `Session.isValid` for WebDAV / S3 rows fires the "credentials
+  not set" warning on rows whose column is empty — same UX as the
+  SSH branch already had. **Wire format**: `WebDavSessionRow` /
+  `S3SessionRow` keep their field lists (no password / secret on
+  the struct); the `set_*` setters land the plaintext directly on
+  the column, the `upsert` path leaves the existing value untouched,
+  so saving metadata without re-entering the credential preserves
+  it. The archive / sync wire format is unchanged — those
+  composers still ship the opaque secret-id pointer per the v6
+  contract above.
 
 ### Export portability per table
 
@@ -5820,8 +5868,8 @@ is a quick reference.
 | `ssh_session_details` | Full (passwords inside GCM envelope) | SSH-specific config + credentials; LWW on `updated_at`. The composer flattens this back into the `Session` archive entry so the wire format stays stable across the v15 → v16 schema split. |
 | `ssh_keys` | Backend-dependent | `software` + `fido2` + `pkcs11` round-trip; `enclave` / `hello` / `tpm` / `keystore` ship as stubs. See §3.9. |
 | `ssh_key_certificates` | Full | Cert blob is the public half; safe verbatim. |
-| `webdav_session_details` | Opaque-pointer | Endpoint config + secret-id pointer travels; password bytes stay in source device's SecretStore. |
-| `s3_session_details` | Opaque-pointer | Access key id travels; secret access key bytes stay in source device's SecretStore. |
+| `webdav_session_details` | Opaque-pointer | Endpoint config + secret-id pointer travels; password bytes stay on the source device's `webdav_session_details.password` column (v17+, SQLCipher-encrypted at rest) and never cross the wire. |
+| `s3_session_details` | Opaque-pointer | Access key id travels; secret access key bytes stay on the source device's `s3_session_details.secret_access_key` column (v17+). |
 | `known_hosts` | Full | Per-device TOFU; archive import unions rows. Sync explicitly does NOT replicate host trust between devices. |
 | `tags` / `session_tags` / `folder_tags` | Full | M2M edges union via `INSERT OR IGNORE`. |
 | `snippets` / `session_snippets` | Full | LWW on `updated_at` for sync. |
@@ -6585,7 +6633,7 @@ The fixture exists because the four race-window bugs that landed on `feat/rust-c
 
 ### Mutation testing (`cargo-mutants`)
 
-`make rust-mutants SCOPE=<dir>` (e.g. `SCOPE=archive`) drives [`cargo-mutants`](https://mutants.rs) over a curated module under `rust/crates/lfs_core/src/<dir>/`. The wrapper at `scripts/run-mutants.sh` enumerates every `*.rs` basename in the chosen scope, feeds each as a `--file` flag, and prints the per-file caught/missed roll-up after the run.
+`make rust-mutants SCOPE=<dir>` (e.g. `SCOPE=archive`) drives [`cargo-mutants`](https://mutants.rs) over a curated module under `rust/crates/lfs_core/src/<dir>/`. The wrapper at `dev/scripts/run-mutants.sh` enumerates every `*.rs` basename in the chosen scope, feeds each as a `--file` flag, and prints the per-file caught/missed roll-up after the run.
 
 | Outcome | Meaning |
 |---|---|
@@ -6686,7 +6734,7 @@ flowchart TD
     dep --> da["dependabot-auto.yml<br/>bump version in PR branch → auto-merge<br/>→ ci.yml → ci-auto-tag.yml → build-release.yml → Release"]
 
     bump["Version bump (on dev, before PR)"]
-    bump --> bs["scripts/bump-version.sh<br/>parse commits → bump pubspec.yaml → commit"]
+    bump --> bs["dev/scripts/bump-version.sh<br/>parse commits → bump pubspec.yaml → commit"]
 
     man["Manual build"]
     man --> mb["gh workflow run build-release.yml<br/>CI not passed? → fail immediately (no polling)"]
