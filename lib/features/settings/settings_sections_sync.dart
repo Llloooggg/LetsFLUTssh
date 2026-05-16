@@ -257,8 +257,10 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
         ),
         const SizedBox(height: AppSpacing.sm),
         StyledFormField(
-          // Reuses the `webDavBaseUrl` ARB key from the session edit
-          // dialog — same input shape, same protocol, same wire form.
+          // Reuses the `webDavBaseUrl` + `webDavBaseUrlHint` ARB
+          // keys from the session edit dialog — same input shape,
+          // same protocol, same wire form. One translation source
+          // for the same WebDAV base URL field across the app.
           label: l10n.webDavBaseUrl,
           controller: _urlCtrl,
           hint: l10n.webDavBaseUrlHint,

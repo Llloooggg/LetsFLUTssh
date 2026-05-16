@@ -132,72 +132,14 @@ class _Section {
   });
 }
 
-/// Ordered list of all settings sections (mobile — includes SSH Keys/tools).
+/// Single source of truth for the settings section list. The mobile
+/// collapsible-list and the desktop two-pane modal both read this —
+/// every section appears on every platform with one ordering, one
+/// icon set, one set of titles. SSH Keys / Snippets / Tags used to
+/// have separate desktop entries here but they live in the Tools
+/// dialog instead now (the historical "desktop excludes them" carve-
+/// out is gone — there is nothing for the carve-out to exclude).
 List<_Section> _buildSections(BuildContext context) => [
-  _Section(
-    title: S.of(context).appearance,
-    icon: Icons.palette,
-    builder: _AppearanceSection.new,
-  ),
-  _Section(
-    title: S.of(context).terminal,
-    icon: Icons.terminal,
-    builder: _TerminalSection.new,
-  ),
-  _Section(
-    title: S.of(context).connectionSection,
-    icon: Icons.lan,
-    builder: _ConnectionSection.new,
-  ),
-  _Section(
-    title: S.of(context).transfers,
-    icon: Icons.swap_horiz,
-    builder: _TransferSection.new,
-  ),
-  _Section(
-    title: S.of(context).security,
-    icon: Icons.security,
-    builder: _SecuritySection.new,
-  ),
-  _Section(
-    title: S.of(context).agentEndpointSectionTitle,
-    icon: Icons.dns,
-    builder: _SshAgentSection.new,
-  ),
-  _Section(
-    title: S.of(context).fido2BrokerSectionTitle,
-    icon: Icons.usb,
-    builder: _Fido2BrokerSection.new,
-  ),
-  _Section(
-    title: S.of(context).data,
-    icon: Icons.storage,
-    builder: _DataSection.new,
-  ),
-  _Section(
-    title: S.of(context).syncSection,
-    icon: Icons.sync,
-    builder: _SyncSection.new,
-  ),
-  _Section(
-    title: S.of(context).logging,
-    icon: Icons.description,
-    builder: _LoggingSection.new,
-  ),
-  _Section(
-    title: S.of(context).updates,
-    icon: Icons.system_update,
-    builder: _UpdateSection.new,
-  ),
-  _Section(
-    title: S.of(context).about,
-    icon: Icons.info_outline,
-    builder: _AboutSection.new,
-  ),
-];
-
-/// Desktop sections — excludes SSH Keys/Snippets/Tags (moved to Tools dialog).
-List<_Section> _buildDesktopSections(BuildContext context) => [
   _Section(
     title: S.of(context).appearance,
     icon: Icons.palette,
@@ -416,7 +358,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final sections = _buildDesktopSections(context);
+    final sections = _buildSections(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 

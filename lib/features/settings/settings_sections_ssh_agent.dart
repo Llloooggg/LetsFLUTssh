@@ -106,7 +106,7 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
                   status.socketPath!,
                   style: TextStyle(
                     fontSize: AppFonts.xs,
-                    fontFamily: 'monospace',
+                    fontFamily: AppFonts.monoFamily,
                     color: AppTheme.fgDim,
                   ),
                   overflow: TextOverflow.ellipsis,
