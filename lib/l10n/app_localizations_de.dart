@@ -3644,9 +3644,6 @@ class SDe extends S {
   String get fido2BrokerTransportNone => 'Auf dieser Plattform nicht verfügbar';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Aktueller Transport';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Direktes USB HID dem System-Dialog vorziehen';
 

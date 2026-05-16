@@ -3468,9 +3468,6 @@ class SJa extends S {
   String get fido2BrokerTransportNone => 'このプラットフォームでは利用不可';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => '現在のトランスポート';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle => 'システムダイアログより直接 USB HID を優先';
 
   @override

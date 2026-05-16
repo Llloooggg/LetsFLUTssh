@@ -3561,9 +3561,6 @@ class STr extends S {
   String get fido2BrokerTransportNone => 'Bu platformda kullanılamıyor';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Geçerli transport';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Sistem diyaloğu yerine doğrudan USB HID tercih edilsin';
 

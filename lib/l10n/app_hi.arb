@@ -1289,7 +1289,6 @@
   "fido2BrokerAndroidLabel": "सिस्टम security key (USB / NFC / BLE)",
   "fido2BrokerTransportDirectHid": "डायरेक्ट USB HID (CTAP2)",
   "fido2BrokerTransportNone": "इस प्लेटफ़ॉर्म पर उपलब्ध नहीं",
-  "fido2BrokerCurrentTransportLabel": "मौजूदा transport",
   "fido2BrokerPreferDirectHidTitle": "सिस्टम डायलॉग की जगह डायरेक्ट USB HID को प्राथमिकता दें",
   "fido2BrokerPreferDirectHidSubtitle": "एडवांस्ड: जिन प्लेटफ़ॉर्म पर दोनों paths काम करते हैं वहाँ {brokerLabel} को बायपास करें। डायरेक्ट HID authenticator के ज़्यादा फ़ीचर देता है पर हर app के लिए permission grant ज़रूरी होती है।",
   "@fido2BrokerPreferDirectHidSubtitle": {

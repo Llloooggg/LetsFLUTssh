@@ -3543,9 +3543,6 @@ class SVi extends S {
   String get fido2BrokerTransportNone => 'Không khả dụng trên platform này';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Transport hiện tại';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Ưu tiên USB HID trực tiếp thay vì dialog hệ thống';
 

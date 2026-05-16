@@ -3594,9 +3594,6 @@ class SEn extends S {
   String get fido2BrokerTransportNone => 'Not available on this platform';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Current transport';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Prefer direct USB HID over system dialog';
 

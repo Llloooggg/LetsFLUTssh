@@ -194,12 +194,6 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   final _scrollController = ScrollController();
   late final LogStore _store;
 
-  /// Auto-scroll to the bottom on new entries while the user has not
-  /// manually scrolled up. Flips off when the scroll position drifts
-  /// from the bottom; flips back on when the user scrolls to the
-  /// bottom again.
-  bool _follow = true;
-
   /// Which severity levels render in the viewer. All three start on;
   /// users can hide info noise to focus on warnings + errors during a
   /// support session.
@@ -213,8 +207,6 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   void initState() {
     super.initState();
     _store = ref.read(logStoreProvider);
-    _store.addListener(_onStoreChanged);
-    _scrollController.addListener(_onScroll);
     // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
     // already kicked the seed at boot. This just reads the
     // already-primed singleton; if the seed is still running the
@@ -224,34 +216,19 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
 
   @override
   void dispose() {
-    _store.removeListener(_onStoreChanged);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onStoreChanged() {
-    if (!_follow) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    });
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final atBottom =
-        _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 8;
-    if (atBottom != _follow) setState(() => _follow = atBottom);
-  }
-
   void _pushFilter() {
     _store.applyFilter(visibleLevels: _visibleLevels, query: _query);
-    // The store rebuilds the filtered list and notifies; force a
-    // re-snap to bottom so the viewer doesn't sit at a now-invalid
-    // scroll offset.
-    _follow = true;
+    // No re-snap to bottom needed — with `reverse: true` on the
+    // viewer ListView, offset 0 IS the bottom and the default
+    // position. If the user had scrolled up before changing the
+    // filter, the new filtered list keeps the same pixel offset,
+    // which is the closest analogue we can provide without tracking
+    // the focused entry across filter changes.
   }
 
   @override
@@ -444,11 +421,29 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
         return Scrollbar(
           controller: _scrollController,
           child: SelectionArea(
+            // `reverse: true` paints items bottom-up: scroll offset 0
+            // sits at the visual bottom (newest entry visible). New
+            // entries land at index 0 (transformed below) and naturally
+            // appear at the bottom without any manual scroll — sticky
+            // tail by construction. A user scrolled up keeps their pixel
+            // offset across rebuilds, so reading older entries while
+            // new ones arrive doesn't yank the view. The previous
+            // `_follow` + `jumpTo(maxScrollExtent)` post-frame dance
+            // produced a visible jump on tab open (the lazy sliver's
+            // first `maxScrollExtent` estimate didn't match the post-
+            // layout extent, so the position clamped backward by a
+            // few rows). With `reverse: true` there is no initial jump
+            // because the natural starting offset (0) is already the
+            // tail.
             child: ListView.builder(
               controller: _scrollController,
+              reverse: true,
               padding: EdgeInsets.zero,
               itemCount: entries.length,
-              itemBuilder: (context, i) => _LogRow(entry: entries[i]),
+              // Index 0 in a reverse list is the bottom item, which
+              // must be the newest entry (last in `entries`).
+              itemBuilder: (context, i) =>
+                  _LogRow(entry: entries[entries.length - 1 - i]),
             ),
           ),
         );

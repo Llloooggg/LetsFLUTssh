@@ -3585,9 +3585,6 @@ class SRu extends S {
   String get fido2BrokerTransportNone => 'Недоступно на этой платформе';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Текущий транспорт';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Использовать прямой USB HID вместо системного диалога';
 

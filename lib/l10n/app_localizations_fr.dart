@@ -3661,9 +3661,6 @@ class SFr extends S {
   String get fido2BrokerTransportNone => 'Indisponible sur cette plateforme';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Transport actuel';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Préférer l\'USB HID direct au dialogue système';
 

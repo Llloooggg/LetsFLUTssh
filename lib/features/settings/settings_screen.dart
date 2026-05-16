@@ -468,13 +468,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                               // Security grew taller. Eager-build keeps
                               // every row in the tree regardless of
                               // scroll position.
+                              //
+                              // No content-pane title — the nav rail on
+                              // the left already shows which section is
+                              // selected. Repeating the section name as
+                              // a `_SectionHeader` at the top of the
+                              // pane was visual duplication with no
+                              // information value.
                               cacheExtent: 10000,
-                              children: [
-                                _SectionHeader(
-                                  title: sections[_selectedIndex].title,
-                                ),
-                                sections[_selectedIndex].builder(),
-                              ],
+                              children: [sections[_selectedIndex].builder()],
                             ),
                           ),
                         ),

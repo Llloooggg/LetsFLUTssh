@@ -3463,9 +3463,6 @@ class SKo extends S {
   String get fido2BrokerTransportNone => '이 플랫폼에서 사용할 수 없음';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => '현재 전송';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle => '시스템 다이얼로그보다 직접 USB HID 우선';
 
   @override

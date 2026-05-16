@@ -10,7 +10,17 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `width: double.infinity` so the Container always spans the full
+    // cross-axis of its parent Column. Without it, the Container shrinks
+    // to its child Text's intrinsic width, which makes the bottom-border
+    // underline only as long as the title text — and the position of
+    // the header drifts with the Column's `crossAxisAlignment`
+    // (centered when the parent defaults to `center`, left when the
+    // parent explicitly sets `start`). Full-width keeps every
+    // sub-header looking the same regardless of parent alignment:
+    // long horizontal divider with the title on the left.
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.only(bottom: 12),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(border: AppTheme.borderBottom),
@@ -275,14 +285,20 @@ class _Toggle extends StatelessWidget {
         ),
       ),
     );
-    // Expand the tap target to the Material/WCAG 2.5.5 minimum
-    // (48×48 dp). The visual knob stays the design's 32×18 pill
-    // centered inside the larger hit area, so users with motor /
-    // touch precision issues hit the toggle reliably without the
-    // visual changing. Semantics(toggled:) communicates on/off
-    // state so TalkBack / VoiceOver / NVDA announce the toggle's
-    // current value rather than just "button".
-    Widget row = _SettingsRow(
+    // Tap target = the whole row, not a 48×48 box around the knob.
+    // The previous shape wrapped the knob in `SizedBox(48, 48)` to
+    // meet the Material / WCAG 2.5.5 minimum hit-target, but its
+    // 48 px height made `_SettingsRow`'s `Row(crossAxisAlignment:
+    // center)` lift the label block by 6 px against neighbouring
+    // `_ActionTile` rows (whose intrinsic row height matches the
+    // label block). Move the hit area to the surrounding
+    // `HoverRegion` so a tap anywhere on the row toggles the value —
+    // same pattern as `_ActionTile` — and the knob becomes a purely
+    // visual 32×18 pill that no longer dictates row height. The row
+    // itself is still well above the WCAG minimum.
+    // Semantics(toggled:) keeps TalkBack / VoiceOver / NVDA
+    // announcing the on/off state instead of just "button".
+    final Widget settingsRow = _SettingsRow(
       label: label,
       subtitle: subtitle,
       icon: icon,
@@ -291,11 +307,18 @@ class _Toggle extends StatelessWidget {
         enabled: enabled,
         label: label,
         button: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: tap,
-          child: SizedBox(width: 48, height: 48, child: Center(child: knob)),
-        ),
+        child: knob,
+      ),
+    );
+    Widget row = HoverRegion(
+      onTap: tap,
+      builder: (hovered) => Container(
+        color: enabled && hovered ? AppTheme.hover : null,
+        // Note: refer to `settingsRow` (captured at construction),
+        // NOT `row` — the variable below is reassigned to this
+        // `HoverRegion`, so `child: row` would close over the
+        // outer Widget and recurse on mount (stack overflow).
+        child: settingsRow,
       ),
     );
     // Fade the entire row (icon + label + subtitle + knob) when the

@@ -6231,12 +6231,6 @@ abstract class S {
   /// **'Not available on this platform'**
   String get fido2BrokerTransportNone;
 
-  /// No description provided for @fido2BrokerCurrentTransportLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Current transport'**
-  String get fido2BrokerCurrentTransportLabel;
-
   /// No description provided for @fido2BrokerPreferDirectHidTitle.
   ///
   /// In en, this message translates to:

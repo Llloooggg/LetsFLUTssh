@@ -78,29 +78,24 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
     final status = ref.watch(_sshAgentStatusProvider);
     final unsupported = status.unsupported;
     final running = status.running;
-    // The agent-endpoint block is now a sub-section inside the
-    // combined `SSH integration` parent — the parent's
-    // `_CollapsibleSection` paints the umbrella title; this inner
-    // `_SectionHeader` distinguishes the agent-endpoint sub-group
-    // from the FIDO2-transport sub-group rendered below it.
+    // The agent-endpoint block is a sub-section inside the combined
+    // `SSH integration` parent — `_SectionHeader` distinguishes the
+    // agent-endpoint sub-group from the FIDO2-transport sub-group
+    // rendered below it.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(title: l10n.agentEndpointSectionTitle),
         _Toggle(
           label: l10n.agentEndpointToggleTitle,
+          subtitle: unsupported
+              ? l10n.agentEndpointStatusUnsupported
+              : l10n.agentEndpointToggleSubtitle,
           value: running,
           onChanged: unsupported || _busy ? null : _setRunning,
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          unsupported
-              ? l10n.agentEndpointStatusUnsupported
-              : l10n.agentEndpointToggleSubtitle,
-          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-        ),
         if (running && status.socketPath != null) ...[
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(

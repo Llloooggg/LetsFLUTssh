@@ -3630,9 +3630,6 @@ class SPt extends S {
   String get fido2BrokerTransportNone => 'Indisponível nesta plataforma';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Transporte atual';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Preferir USB HID direto ao diálogo do sistema';
 

@@ -3562,9 +3562,6 @@ class SAr extends S {
   String get fido2BrokerTransportNone => 'غير متاح على هذه المنصة';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'النقل الحالي';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'تفضيل USB HID المباشر على حوار النظام';
 

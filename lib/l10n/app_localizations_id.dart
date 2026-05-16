@@ -3558,9 +3558,6 @@ class SId extends S {
   String get fido2BrokerTransportNone => 'Tidak tersedia di platform ini';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Transport saat ini';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Pilih USB HID langsung daripada dialog sistem';
 

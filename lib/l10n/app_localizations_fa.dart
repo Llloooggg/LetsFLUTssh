@@ -3548,9 +3548,6 @@ class SFa extends S {
   String get fido2BrokerTransportNone => 'در این پلتفرم در دسترس نیست';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'ترنسپورت فعلی';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'USB HID مستقیم به دیالوگ سیستم ترجیح داده شود';
 

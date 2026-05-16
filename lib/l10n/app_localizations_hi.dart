@@ -3562,9 +3562,6 @@ class SHi extends S {
   String get fido2BrokerTransportNone => 'इस प्लेटफ़ॉर्म पर उपलब्ध नहीं';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'मौजूदा transport';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'सिस्टम डायलॉग की जगह डायरेक्ट USB HID को प्राथमिकता दें';
 

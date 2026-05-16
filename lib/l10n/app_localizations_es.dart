@@ -3645,9 +3645,6 @@ class SEs extends S {
   String get fido2BrokerTransportNone => 'No disponible en esta plataforma';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => 'Transporte actual';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle =>
       'Preferir USB HID directo en lugar del diálogo del sistema';
 

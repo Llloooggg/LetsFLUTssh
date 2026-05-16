@@ -243,10 +243,10 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
     if (c == null) {
       return const SizedBox.shrink();
     }
-    // No inline `_SectionHeader` — the outer settings scaffold
-    // (`_CollapsibleSection` on mobile, right-pane title on desktop)
-    // already paints the section title from `_Section.title`.
-    // Repeating it here doubles "Sync" on every render.
+    // No inline `_SectionHeader` — on mobile `_CollapsibleSection`
+    // paints the section title from `_Section.title`; on desktop the
+    // nav rail label is the title. Repeating it here would just
+    // duplicate "Sync".
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

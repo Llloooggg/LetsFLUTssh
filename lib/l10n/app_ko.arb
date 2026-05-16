@@ -1289,7 +1289,6 @@
   "fido2BrokerAndroidLabel": "시스템 security key (USB / NFC / BLE)",
   "fido2BrokerTransportDirectHid": "직접 USB HID (CTAP2)",
   "fido2BrokerTransportNone": "이 플랫폼에서 사용할 수 없음",
-  "fido2BrokerCurrentTransportLabel": "현재 전송",
   "fido2BrokerPreferDirectHidTitle": "시스템 다이얼로그보다 직접 USB HID 우선",
   "fido2BrokerPreferDirectHidSubtitle": "고급: 두 경로가 모두 동작하는 플랫폼에서 {brokerLabel}을 우회합니다. 직접 HID는 더 많은 authenticator 기능을 지원하지만 앱별 권한 부여가 필요합니다.",
   "@fido2BrokerPreferDirectHidSubtitle": {

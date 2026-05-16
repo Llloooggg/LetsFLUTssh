@@ -1289,7 +1289,6 @@
   "fido2BrokerAndroidLabel": "系统 security key (USB / NFC / BLE)",
   "fido2BrokerTransportDirectHid": "直接 USB HID (CTAP2)",
   "fido2BrokerTransportNone": "此平台不可用",
-  "fido2BrokerCurrentTransportLabel": "当前传输",
   "fido2BrokerPreferDirectHidTitle": "优先使用直接 USB HID 而非系统对话框",
   "fido2BrokerPreferDirectHidSubtitle": "高级：在两种路径都可用的平台上绕过 {brokerLabel}。直接 HID 支持更多 authenticator 特性，但需要按应用授予权限。",
   "@fido2BrokerPreferDirectHidSubtitle": {

@@ -3428,9 +3428,6 @@ class SZh extends S {
   String get fido2BrokerTransportNone => '此平台不可用';
 
   @override
-  String get fido2BrokerCurrentTransportLabel => '当前传输';
-
-  @override
   String get fido2BrokerPreferDirectHidTitle => '优先使用直接 USB HID 而非系统对话框';
 
   @override
