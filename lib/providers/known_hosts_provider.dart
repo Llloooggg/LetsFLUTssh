@@ -24,8 +24,12 @@ import '../utils/logger.dart';
 /// state.
 ///
 /// Cold-start: the first `_loadEntries` call runs lazily on first
-/// watch. Pre-FRB-init contexts catch the `StateError` and yield an
-/// empty map so the known-hosts manager paints without crashing.
+/// watch and may race `db_init` (provider mounts between FRB init
+/// and `securityController.bootstrap`). The `"db not initialized"`
+/// branch yields an empty map silently; the post-unlock cascade's
+/// `KnownHostsChanged` publish drives the first real load.
+/// Pre-FRB-init contexts (flutter_test without the native lib)
+/// catch the `StateError` through the same branch.
 final knownHostsStreamProvider = StreamProvider<Map<String, String>>((
   ref,
 ) async* {
@@ -253,10 +257,18 @@ Future<Map<String, String>> _loadEntries() async {
     );
     return next;
   } catch (e) {
+    // Cold-start race: see `_loadSnapshot` in session_provider.dart.
+    // The post-unlock cascade republishes `KnownHostsChanged` once
+    // `db_init` lands, which re-enters this function with the DB
+    // ready — degrade to empty without surfacing it as an error.
+    if (e.toString().contains('db not initialized')) {
+      return const <String, String>{};
+    }
     AppLogger.instance.log(
       'Failed to load known hosts',
       name: 'KnownHostsStream',
       error: e,
+      level: LogLevel.warn,
     );
     return const <String, String>{};
   }

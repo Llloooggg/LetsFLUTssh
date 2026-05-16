@@ -47,11 +47,15 @@ class SessionWorkspaceSnapshot {
 /// through FRB (`db_sessions_*`, `db_folders_*`), Rust publishes
 /// `SessionsChanged`, this stream re-fetches. No Dart-cached state.
 ///
-/// Cold-start: the first `_loadSnapshot` call runs lazily on first
-/// watch. Pre-FRB-init contexts (Riverpod provider mounted during
-/// the first runApp frame, flutter_test without the native lib
-/// loaded) catch the `StateError` and yield [SessionWorkspaceSnapshot.empty]
-/// so the sidebar paints its empty / loading state without crashing.
+/// Cold-start: the provider mounts on the first runApp frame, which
+/// sits between FRB init and `securityController.bootstrap` (DB
+/// open). The first `_loadSnapshot` therefore races `db_init` and
+/// reads back `"db not initialized"` from the FRB layer — this
+/// path returns [SessionWorkspaceSnapshot.empty] silently, and the
+/// `SessionsChanged` event the post-unlock cascade publishes once
+/// `db_init` lands drives the first real load. Pre-FRB-init contexts
+/// (flutter_test without the native lib loaded) catch the
+/// `StateError` through the same branch.
 final sessionsWorkspaceStreamProvider =
     StreamProvider<SessionWorkspaceSnapshot>((ref) async* {
       yield await _loadSnapshot();
@@ -86,10 +90,19 @@ Future<SessionWorkspaceSnapshot> _loadSnapshot() async {
       folderMap: folderMap,
     );
   } catch (e) {
+    // Cold-start race: the provider mounts before the post-unlock
+    // cascade runs `db_init`. The post-unlock `SessionsChanged`
+    // publish re-enters this function with the DB ready, so the
+    // pre-init read is an expected step — degrade to empty without
+    // surfacing it as an error. Mirrors `SshKeysMutator.loadAllMetadata`.
+    if (e.toString().contains('db not initialized')) {
+      return SessionWorkspaceSnapshot.empty;
+    }
     AppLogger.instance.log(
       'Failed to load sessions snapshot',
       name: 'SessionWorkspace',
       error: e,
+      level: LogLevel.warn,
     );
     return SessionWorkspaceSnapshot.empty;
   }
