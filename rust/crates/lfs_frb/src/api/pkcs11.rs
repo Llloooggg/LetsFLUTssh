@@ -102,10 +102,9 @@ pub async fn pkcs11_resolve_module_for_key(key_id: String) -> Result<Option<Stri
         if row.pkcs11_module_path.is_some() {
             return Ok(row.pkcs11_module_path);
         }
-        let Some(candidate) = resolve_native(token_serial) else {
+        let Some(path_str) = resolve_native(token_serial) else {
             return Ok(None);
         };
-        let path_str = candidate.path.to_string_lossy().into_owned();
         let path_for_persist = path_str.clone();
         let key_id_for_persist = key_id.clone();
         db.with_conn(move |c| {
@@ -129,17 +128,21 @@ pub async fn pkcs11_resolve_module_for_key(key_id: String) -> Result<Option<Stri
     .map_err(|e| frb_err::wire(frb_err::kind::PKCS11, &format!("spawn_blocking: {e}")))?
 }
 
+// Resolve a token serial to a module path. Desktop walks the live
+// candidates; iOS / Android never have a PKCS#11 library to enumerate
+// so the fallback is `None`. The shared return type stays
+// `Option<String>` rather than the desktop-only
+// `lfs_os_security::pkcs11::discovery::ModuleCandidate` so the
+// signature compiles on every target — `discovery` itself is
+// `#[cfg]`-gated to desktop in `lfs_os_security::pkcs11::mod.rs`.
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-fn resolve_native(
-    token_serial: &str,
-) -> Option<lfs_os_security::pkcs11::discovery::ModuleCandidate> {
+fn resolve_native(token_serial: &str) -> Option<String> {
     lfs_os_security::pkcs11::discovery::find_module_for_token_serial(token_serial)
+        .map(|c| c.path.to_string_lossy().into_owned())
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-fn resolve_native(
-    _token_serial: &str,
-) -> Option<lfs_os_security::pkcs11::discovery::ModuleCandidate> {
+fn resolve_native(_token_serial: &str) -> Option<String> {
     None
 }
 
