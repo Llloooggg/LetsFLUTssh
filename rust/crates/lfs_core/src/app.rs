@@ -17,6 +17,7 @@ use std::sync::OnceLock;
 use crate::archive::ImportRegistry;
 use crate::autolock::AutoLockMachine;
 use crate::bus::EventBus;
+use crate::clipboard::FileBrowserClipboard;
 use crate::connection::ConnectionRegistry;
 use crate::db::Db;
 use crate::deeplink::DeeplinkDispatcher;
@@ -121,6 +122,12 @@ pub struct AppState {
     /// FRB-opaque connect handles can carry a `Weak` reference for
     /// their drop-time unregister guard without a circular ref.
     pub providers: Arc<ProviderRegistry>,
+    /// Process-singleton file-browser clipboard. Holds the
+    /// last-copied entry set for the desktop / mobile file panes
+    /// across tab switches. Plain `Arc` because every clipboard op
+    /// runs through a short critical section — no need for the
+    /// `Weak`-guarded handle pattern `providers` uses.
+    pub file_clipboard: Arc<FileBrowserClipboard>,
 }
 
 impl AppState {
@@ -143,6 +150,7 @@ impl AppState {
             sessions_registry: SessionsRegistry::new(),
             conflict_resolvers: BatchStateRegistry::new(),
             providers: Arc::new(ProviderRegistry::new()),
+            file_clipboard: Arc::new(FileBrowserClipboard::new()),
         }
     }
 

@@ -29,6 +29,7 @@ pub mod archive;
 pub mod archive_stage;
 pub(crate) mod autolock;
 pub mod bus;
+pub mod clipboard;
 pub mod config;
 pub mod config_store;
 pub mod connection;

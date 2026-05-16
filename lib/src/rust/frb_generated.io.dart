@@ -19,6 +19,7 @@ import 'api/db.dart';
 import 'api/deeplink.dart';
 import 'api/enclave.dart';
 import 'api/fido2.dart';
+import 'api/file_clipboard.dart';
 import 'api/folder_path.dart';
 import 'api/format.dart';
 import 'api/forward.dart';
@@ -642,6 +643,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbChangelogRelease dco_decode_db_changelog_release(dynamic raw);
 
   @protected
+  DbClipboardEntry dco_decode_db_clipboard_entry(dynamic raw);
+
+  @protected
   DbConflictAction dco_decode_db_conflict_action(dynamic raw);
 
   @protected
@@ -1150,6 +1154,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
 
   @protected
+  List<DbClipboardEntry> dco_decode_list_db_clipboard_entry(dynamic raw);
+
+  @protected
   List<DbEnclaveOrphan> dco_decode_list_db_enclave_orphan(dynamic raw);
 
   @protected
@@ -1504,6 +1511,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  List<DbClipboardEntry>? dco_decode_opt_list_db_clipboard_entry(dynamic raw);
 
   @protected
   List<DbOpenSshAuthType>? dco_decode_opt_list_db_open_ssh_auth_type(
@@ -2182,6 +2192,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbChangelogRelease sse_decode_db_changelog_release(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbClipboardEntry sse_decode_db_clipboard_entry(SseDeserializer deserializer);
 
   @protected
   DbConflictAction sse_decode_db_conflict_action(SseDeserializer deserializer);
@@ -2876,6 +2889,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DbClipboardEntry> sse_decode_list_db_clipboard_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbEnclaveOrphan> sse_decode_list_db_enclave_orphan(
     SseDeserializer deserializer,
   );
@@ -3340,6 +3358,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  List<DbClipboardEntry>? sse_decode_opt_list_db_clipboard_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbOpenSshAuthType>? sse_decode_opt_list_db_open_ssh_auth_type(
@@ -4160,6 +4183,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_changelog_release(
     DbChangelogRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_clipboard_entry(
+    DbClipboardEntry self,
     SseSerializer serializer,
   );
 
@@ -5061,6 +5090,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_clipboard_entry(
+    List<DbClipboardEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_enclave_orphan(
     List<DbEnclaveOrphan> self,
     SseSerializer serializer,
@@ -5634,6 +5669,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_db_clipboard_entry(
+    List<DbClipboardEntry>? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_list_db_open_ssh_auth_type(

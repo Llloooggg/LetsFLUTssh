@@ -8,6 +8,7 @@ import '../../utils/logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
+import '../../src/rust/api/file_clipboard.dart' as rust_clip;
 import '../../src/rust/api/local_fs.dart' as rust_local_fs;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_empty_state.dart';
@@ -68,9 +69,16 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   final progressKey = GlobalKey<ConnectionProgressState>();
 
-  // SFTP clipboard for Ctrl+C / Ctrl+V across panes.
-  List<FileEntry>? _clipboardEntries;
-  String? _clipboardSourcePane;
+  // The file-browser clipboard for Ctrl+C / Ctrl+V across panes
+  // lives Rust-side on `lfs_core::clipboard::FileBrowserClipboard`
+  // (process-singleton). Routing through FRB lets the slot survive
+  // tab swaps + future cross-tab paste, and aligns with the
+  // CLAUDE.md "Rust owns data" rule for any user-data the app
+  // holds across UI surfaces — paths today, bytes when the
+  // file-viewer feature lands. The tab id below scopes paste
+  // matching so a cut-then-paste in a sibling tab doesn't drain
+  // this tab's clipboard.
+  late final String _clipboardTabId;
 
   @override
   Connection get sftpConnection => widget.connection;
@@ -83,6 +91,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   void initState() {
     super.initState();
+    // The connection id doubles as the per-tab clipboard scope —
+    // it's unique per file-browser tab instance (one Connection
+    // per tab) and stable for the tab's lifetime.
+    _clipboardTabId = widget.connection.id;
     initSftp();
     widget.sidebarActivated?.addListener(_onSidebarActivated);
   }
@@ -90,6 +102,14 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   void dispose() {
     widget.sidebarActivated?.removeListener(_onSidebarActivated);
+    // Drop the clipboard slot when this tab owns it — without
+    // this the next file-browser tab opens to a paste-enabled
+    // menu hinting at entries the user can no longer reach.
+    // `is_set` + source-tab probe stays sync (no FRB await on
+    // dispose).
+    if (rust_clip.fileClipboardSourceTabId() == _clipboardTabId) {
+      unawaited(rust_clip.fileClipboardClear());
+    }
     disposeSftpBrowser();
     sftpResult?.dispose();
     super.dispose();
@@ -246,10 +266,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
       showFolderSizes: showFolderSizes,
       onTransfer: (entry) => actions.transfer([entry]),
       onTransferMultiple: actions.transfer,
-      onCopy: () => setState(() {
-        _clipboardEntries = List.of(controller.selectedEntries);
-        _clipboardSourcePane = paneId;
-      }),
+      onCopy: () => _copyToClipboard(controller, paneId),
       onPaste: () =>
           _pasteFromClipboard(actions.oppositeSourcePane, actions.paste),
       onDropReceived: actions.drop,
@@ -258,13 +275,56 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
     );
   }
 
-  void _pasteFromClipboard(
+  /// Push the current pane's selection onto the Rust-side
+  /// clipboard slot, tagged with this tab's id + source pane. The
+  /// matching paste in the opposite pane consumes it via
+  /// [`_pasteFromClipboard`].
+  void _copyToClipboard(FilePaneController controller, String sourcePane) {
+    final selected = controller.selectedEntries;
+    if (selected.isEmpty) return;
+    final entries = selected
+        .map(
+          (e) => rust_clip.DbClipboardEntry(
+            name: e.name,
+            path: e.path,
+            size: BigInt.from(e.size),
+            isDir: e.isDir,
+          ),
+        )
+        .toList(growable: false);
+    unawaited(
+      rust_clip.fileClipboardPut(
+        tabId: _clipboardTabId,
+        sourcePane: sourcePane,
+        entries: entries,
+      ),
+    );
+  }
+
+  /// Take the clipboard slot when this tab owns it and the source
+  /// pane matches `expectedSource`. The Rust side drains the slot
+  /// on a matching take so the same entries can't paste twice
+  /// without a fresh copy.
+  Future<void> _pasteFromClipboard(
     String expectedSource,
     void Function(List<FileEntry>) action,
-  ) {
-    final entries = _clipboardEntries;
-    if (entries == null || entries.isEmpty) return;
-    if (_clipboardSourcePane != expectedSource) return;
+  ) async {
+    final taken = await rust_clip.fileClipboardTake(
+      expectedTabId: _clipboardTabId,
+      expectedSourcePane: expectedSource,
+    );
+    if (taken == null || taken.isEmpty) return;
+    final entries = taken
+        .map(
+          (e) => FileEntry(
+            name: e.name,
+            path: e.path,
+            size: e.size.toInt(),
+            modTime: DateTime.fromMillisecondsSinceEpoch(0),
+            isDir: e.isDir,
+          ),
+        )
+        .toList(growable: false);
     action(entries);
   }
 

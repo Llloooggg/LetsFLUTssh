@@ -23,6 +23,7 @@ pub mod db;
 pub mod deeplink;
 pub mod enclave;
 pub mod fido2;
+pub mod file_clipboard;
 pub mod folder_path;
 pub mod format;
 pub mod forward;
