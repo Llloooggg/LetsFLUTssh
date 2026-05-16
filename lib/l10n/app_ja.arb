@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH 連携",
+  "fido2BrokerNoTransportSubtitle": "このデバイスではハードウェアキーのサポートを利用できません。",
   "fido2BrokerSinglePathSubtitle": "このデバイスでは {transport} のみ利用可能です。トグルは無効化されています。",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

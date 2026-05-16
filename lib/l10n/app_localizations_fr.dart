@@ -3673,6 +3673,13 @@ class SFr extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'Intégration SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'La prise en charge des clés matérielles n\'est pas disponible sur cet appareil.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Seul $transport est disponible sur cet appareil ; le toggle est désactivé.';
   }

@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "Integración SSH",
+  "fido2BrokerNoTransportSubtitle": "El soporte de claves de hardware no está disponible en este dispositivo.",
   "fido2BrokerSinglePathSubtitle": "Solo {transport} está disponible en este dispositivo; el switch está deshabilitado.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

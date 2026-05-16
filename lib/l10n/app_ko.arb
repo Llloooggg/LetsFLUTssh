@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH 통합",
+  "fido2BrokerNoTransportSubtitle": "이 기기에서는 하드웨어 키를 지원하지 않습니다.",
   "fido2BrokerSinglePathSubtitle": "이 기기에서는 {transport}만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

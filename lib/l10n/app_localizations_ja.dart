@@ -3479,6 +3479,12 @@ class SJa extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH 連携';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle => 'このデバイスではハードウェアキーのサポートを利用できません。';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'このデバイスでは $transport のみ利用可能です。トグルは無効化されています。';
   }

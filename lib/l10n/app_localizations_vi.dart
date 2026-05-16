@@ -3555,6 +3555,13 @@ class SVi extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'Tích hợp SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Hỗ trợ hardware key không khả dụng trên thiết bị này.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Thiết bị này chỉ có $transport; toggle bị vô hiệu.';
   }

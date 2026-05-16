@@ -3657,6 +3657,13 @@ class SEs extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'Integración SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'El soporte de claves de hardware no está disponible en este dispositivo.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Solo $transport está disponible en este dispositivo; el switch está deshabilitado.';
   }

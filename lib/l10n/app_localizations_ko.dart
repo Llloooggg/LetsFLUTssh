@@ -3474,6 +3474,12 @@ class SKo extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH 통합';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle => '이 기기에서는 하드웨어 키를 지원하지 않습니다.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return '이 기기에서는 $transport만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.';
   }

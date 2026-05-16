@@ -3597,6 +3597,13 @@ class SRu extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH-интеграция';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Поддержка аппаратных ключей недоступна на этом устройстве.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'На этом устройстве доступен только $transport; переключатель отключён.';
   }

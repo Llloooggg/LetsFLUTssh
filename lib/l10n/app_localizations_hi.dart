@@ -3574,6 +3574,13 @@ class SHi extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH एकीकरण';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'इस डिवाइस पर hardware key सपोर्ट उपलब्ध नहीं है।';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'इस डिवाइस पर सिर्फ़ $transport उपलब्ध है; toggle disabled है।';
   }

@@ -3642,6 +3642,13 @@ class SPt extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'Integração SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'O suporte a chaves de hardware não está disponível neste dispositivo.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Apenas $transport está disponível neste dispositivo; o toggle está desativado.';
   }

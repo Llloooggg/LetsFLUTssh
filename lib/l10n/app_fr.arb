@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "Intégration SSH",
+  "fido2BrokerNoTransportSubtitle": "La prise en charge des clés matérielles n'est pas disponible sur cet appareil.",
   "fido2BrokerSinglePathSubtitle": "Seul {transport} est disponible sur cet appareil ; le toggle est désactivé.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH-Integration",
+  "fido2BrokerNoTransportSubtitle": "Hardware-Key-Unterstützung ist auf diesem Gerät nicht verfügbar.",
   "fido2BrokerSinglePathSubtitle": "Auf diesem Gerät ist nur {transport} verfügbar; der Schalter ist deaktiviert.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

@@ -3606,6 +3606,13 @@ class SEn extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH integration';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Hardware-key support is not available on this device.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Only $transport is available on this device; the toggle is disabled.';
   }

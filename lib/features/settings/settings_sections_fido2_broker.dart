@@ -55,20 +55,34 @@ class _Fido2BrokerSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
     final snap = ref.watch(_fido2TransportSnapshotProvider);
-    // Disable the toggle when only one transport exists on this
-    // host. Linux: direct HID only — toggle is irrelevant. iOS /
-    // Android: broker only — toggle is irrelevant.
+    // Three cases for the toggle subtitle (the `bothPaths` boolean
+    // alone is not enough — the "neither path available" branch
+    // produced "Only `Not available on this platform` is available
+    // on this device" by feeding the no-transport label into the
+    // single-path template):
+    //   1. Both broker + direct-HID present → preference toggle
+    //      subtitle.
+    //   2. Exactly one transport present → "Only <name> is
+    //      available; the toggle is disabled".
+    //   3. Neither transport present → "Hardware key support not
+    //      available on this device" prose, no toggle hint.
     final bothPaths = snap.brokerAvailable && snap.directHidAvailable;
+    final neitherPath = !snap.brokerAvailable && !snap.directHidAvailable;
     final preferDirect = snap.preferDirectHid;
-    // No inline `_SectionHeader` — the outer settings scaffold
-    // (`_CollapsibleSection` on mobile, right-pane title on desktop)
-    // already paints the section title from `_Section.title`.
-    // Repeating it here doubles "Hardware security keys" on every
-    // render.
+    final String subtitle;
+    if (bothPaths) {
+      subtitle = l10n.fido2BrokerPreferDirectHidSubtitle(_brokerLabel(l10n));
+    } else if (neitherPath) {
+      subtitle = l10n.fido2BrokerNoTransportSubtitle;
+    } else {
+      subtitle = l10n.fido2BrokerSinglePathSubtitle(
+        _currentTransportText(l10n, snap),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: AppSpacing.xs),
+        _SectionHeader(title: l10n.fido2BrokerSectionTitle),
         Text(
           '${l10n.fido2BrokerCurrentTransportLabel}: ${_currentTransportText(l10n, snap)}',
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
@@ -81,11 +95,7 @@ class _Fido2BrokerSection extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          bothPaths
-              ? l10n.fido2BrokerPreferDirectHidSubtitle(_brokerLabel(l10n))
-              : l10n.fido2BrokerSinglePathSubtitle(
-                  _currentTransportText(l10n, snap),
-                ),
+          subtitle,
           style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
         ),
       ],

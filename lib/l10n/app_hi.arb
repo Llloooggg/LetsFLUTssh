@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH एकीकरण",
+  "fido2BrokerNoTransportSubtitle": "इस डिवाइस पर hardware key सपोर्ट उपलब्ध नहीं है।",
   "fido2BrokerSinglePathSubtitle": "इस डिवाइस पर सिर्फ़ {transport} उपलब्ध है; toggle disabled है।",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

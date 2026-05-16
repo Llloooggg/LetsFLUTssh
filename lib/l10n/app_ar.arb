@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "تكامل SSH",
+  "fido2BrokerNoTransportSubtitle": "دعم مفاتيح الأجهزة غير متاح على هذا الجهاز.",
   "fido2BrokerSinglePathSubtitle": "فقط {transport} متاح على هذا الجهاز؛ التبديل معطّل.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

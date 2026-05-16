@@ -78,13 +78,15 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
     final status = ref.watch(_sshAgentStatusProvider);
     final unsupported = status.unsupported;
     final running = status.running;
-    // No inline `_SectionHeader` — the outer `_CollapsibleSection`
-    // (mobile) and the right-pane scaffold (desktop) already paint
-    // the section title from `_Section.title`. Repeating it here
-    // doubles "External SSH client integration" on every render.
+    // The agent-endpoint block is now a sub-section inside the
+    // combined `SSH integration` parent — the parent's
+    // `_CollapsibleSection` paints the umbrella title; this inner
+    // `_SectionHeader` distinguishes the agent-endpoint sub-group
+    // from the FIDO2-transport sub-group rendered below it.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _SectionHeader(title: l10n.agentEndpointSectionTitle),
         _Toggle(
           label: l10n.agentEndpointToggleTitle,
           value: running,
@@ -124,6 +126,28 @@ class _SshAgentSectionState extends ConsumerState<_SshAgentSection> {
             ],
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// Parent section that stacks the SSH-key plumbing sub-blocks under
+/// one umbrella. The previous layout exposed each sub-block as its
+/// own top-level Settings card with a single toggle inside, which
+/// read as collapsible-card-per-toggle noise; here they share a
+/// single card and the per-protocol context lives in inline
+/// `_SectionHeader` sub-headers each sub-block paints itself.
+class _SshIntegrationSection extends StatelessWidget {
+  const _SshIntegrationSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SshAgentSection(),
+        SizedBox(height: AppSpacing.lg),
+        _Fido2BrokerSection(),
       ],
     );
   }

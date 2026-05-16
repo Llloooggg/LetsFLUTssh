@@ -3656,6 +3656,13 @@ class SDe extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH-Integration';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Hardware-Key-Unterstützung ist auf diesem Gerät nicht verfügbar.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Auf diesem Gerät ist nur $transport verfügbar; der Schalter ist deaktiviert.';
   }

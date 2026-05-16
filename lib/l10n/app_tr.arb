@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH entegrasyonu",
+  "fido2BrokerNoTransportSubtitle": "Bu cihazda donanım anahtarı desteği mevcut değil.",
   "fido2BrokerSinglePathSubtitle": "Bu cihazda yalnızca {transport} mevcut; toggle devre dışı.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

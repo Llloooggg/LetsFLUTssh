@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH-интеграция",
+  "fido2BrokerNoTransportSubtitle": "Поддержка аппаратных ключей недоступна на этом устройстве.",
   "fido2BrokerSinglePathSubtitle": "На этом устройстве доступен только {transport}; переключатель отключён.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

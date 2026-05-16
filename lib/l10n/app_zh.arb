@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "SSH 集成",
+  "fido2BrokerNoTransportSubtitle": "此设备不支持硬件密钥。",
   "fido2BrokerSinglePathSubtitle": "此设备仅支持 {transport}；开关已禁用。",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

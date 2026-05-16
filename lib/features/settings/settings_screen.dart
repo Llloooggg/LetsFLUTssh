@@ -146,11 +146,6 @@ List<_Section> _buildSections(BuildContext context) => [
     builder: _AppearanceSection.new,
   ),
   _Section(
-    title: S.of(context).terminal,
-    icon: Icons.terminal,
-    builder: _TerminalSection.new,
-  ),
-  _Section(
     title: S.of(context).connectionSection,
     icon: Icons.lan,
     builder: _ConnectionSection.new,
@@ -165,15 +160,15 @@ List<_Section> _buildSections(BuildContext context) => [
     icon: Icons.security,
     builder: _SecuritySection.new,
   ),
+  // Combined parent for the SSH-key plumbing toggles. The
+  // agent-endpoint switch + the FIDO2 transport preference were two
+  // separate top-level sections with one control each; merged into
+  // a single section with sub-headers inside so the settings list
+  // does not surface a collapsible-card-per-toggle.
   _Section(
-    title: S.of(context).agentEndpointSectionTitle,
-    icon: Icons.dns,
-    builder: _SshAgentSection.new,
-  ),
-  _Section(
-    title: S.of(context).fido2BrokerSectionTitle,
-    icon: Icons.usb,
-    builder: _Fido2BrokerSection.new,
+    title: S.of(context).sshIntegrationSection,
+    icon: Icons.vpn_key_outlined,
+    builder: _SshIntegrationSection.new,
   ),
   _Section(
     title: S.of(context).data,

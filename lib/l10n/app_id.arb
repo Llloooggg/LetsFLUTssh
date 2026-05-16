@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "Integrasi SSH",
+  "fido2BrokerNoTransportSubtitle": "Dukungan hardware key tidak tersedia di device ini.",
   "fido2BrokerSinglePathSubtitle": "Hanya {transport} yang tersedia di device ini; toggle dinonaktifkan.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

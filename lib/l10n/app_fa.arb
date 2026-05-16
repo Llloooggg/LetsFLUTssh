@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "ادغام SSH",
+  "fido2BrokerNoTransportSubtitle": "پشتیبانی از کلید سخت‌افزاری روی این دستگاه در دسترس نیست.",
   "fido2BrokerSinglePathSubtitle": "فقط {transport} روی این دستگاه در دسترس است؛ کلید غیرفعال است.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

@@ -6249,6 +6249,18 @@ abstract class S {
   /// **'Advanced: bypass the {brokerLabel} on platforms where both paths work. Direct HID supports more authenticator features but requires per-app permission grants.'**
   String fido2BrokerPreferDirectHidSubtitle(String brokerLabel);
 
+  /// Parent section title in Settings that groups the SSH-key plumbing toggles: the agent-endpoint switch (exposes our SSH keys to external SSH clients via $SSH_AUTH_SOCK / OpenSSH named pipe) and the FIDO2 transport preference (broker vs direct CTAP2 HID). Each subgroup retains its own subtitle (`agentEndpointSectionTitle` / `fido2BrokerSectionTitle`) as a sub-header inside this section's body.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH integration'**
+  String get sshIntegrationSection;
+
+  /// Subtitle under the disabled Hardware-security-keys preference toggle when neither the OS broker (Windows Hello / Apple AuthenticationServices / Android Credential Manager) nor the direct CTAP2 HID transport is available — pre-built Linux without HID permission, mobile builds before the broker hook landed. Replaces the broken `Only {transport} is available` template that interpolated the literal `Not available on this platform` into the `{transport}` slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-key support is not available on this device.'**
+  String get fido2BrokerNoTransportSubtitle;
+
   /// No description provided for @fido2BrokerSinglePathSubtitle.
   ///
   /// In en, this message translates to:

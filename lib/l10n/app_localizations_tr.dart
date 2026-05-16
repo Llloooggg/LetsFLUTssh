@@ -3573,6 +3573,13 @@ class STr extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH entegrasyonu';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Bu cihazda donanım anahtarı desteği mevcut değil.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Bu cihazda yalnızca $transport mevcut; toggle devre dışı.';
   }

@@ -3574,6 +3574,13 @@ class SAr extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'تكامل SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'دعم مفاتيح الأجهزة غير متاح على هذا الجهاز.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'فقط $transport متاح على هذا الجهاز؛ التبديل معطّل.';
   }

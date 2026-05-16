@@ -1299,6 +1299,8 @@
       }
     }
   },
+  "sshIntegrationSection": "Tích hợp SSH",
+  "fido2BrokerNoTransportSubtitle": "Hỗ trợ hardware key không khả dụng trên thiết bị này.",
   "fido2BrokerSinglePathSubtitle": "Thiết bị này chỉ có {transport}; toggle bị vô hiệu.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

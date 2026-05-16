@@ -1926,6 +1926,14 @@
       "brokerLabel": { "type": "String" }
     }
   },
+  "sshIntegrationSection": "SSH integration",
+  "@sshIntegrationSection": {
+    "description": "Parent section title in Settings that groups the SSH-key plumbing toggles: the agent-endpoint switch (exposes our SSH keys to external SSH clients via $SSH_AUTH_SOCK / OpenSSH named pipe) and the FIDO2 transport preference (broker vs direct CTAP2 HID). Each subgroup retains its own subtitle (`agentEndpointSectionTitle` / `fido2BrokerSectionTitle`) as a sub-header inside this section's body."
+  },
+  "fido2BrokerNoTransportSubtitle": "Hardware-key support is not available on this device.",
+  "@fido2BrokerNoTransportSubtitle": {
+    "description": "Subtitle under the disabled Hardware-security-keys preference toggle when neither the OS broker (Windows Hello / Apple AuthenticationServices / Android Credential Manager) nor the direct CTAP2 HID transport is available — pre-built Linux without HID permission, mobile builds before the broker hook landed. Replaces the broken `Only {transport} is available` template that interpolated the literal `Not available on this platform` into the `{transport}` slot."
+  },
   "fido2BrokerSinglePathSubtitle": "Only {transport} is available on this device; the toggle is disabled.",
   "@fido2BrokerSinglePathSubtitle": {
     "placeholders": {

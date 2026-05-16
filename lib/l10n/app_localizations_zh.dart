@@ -3439,6 +3439,12 @@ class SZh extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'SSH 集成';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle => '此设备不支持硬件密钥。';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return '此设备仅支持 $transport；开关已禁用。';
   }

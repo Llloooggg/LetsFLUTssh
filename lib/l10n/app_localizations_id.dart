@@ -3570,6 +3570,13 @@ class SId extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'Integrasi SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Dukungan hardware key tidak tersedia di device ini.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'Hanya $transport yang tersedia di device ini; toggle dinonaktifkan.';
   }

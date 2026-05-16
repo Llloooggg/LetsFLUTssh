@@ -3560,6 +3560,13 @@ class SFa extends S {
   }
 
   @override
+  String get sshIntegrationSection => 'ادغام SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'پشتیبانی از کلید سخت‌افزاری روی این دستگاه در دسترس نیست.';
+
+  @override
   String fido2BrokerSinglePathSubtitle(String transport) {
     return 'فقط $transport روی این دستگاه در دسترس است؛ کلید غیرفعال است.';
   }
