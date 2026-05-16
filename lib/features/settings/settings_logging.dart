@@ -483,58 +483,13 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
 /// `Container`, `height: 1.55` on the `TextStyle`) — the `Text.rich`
 /// fills the row vertically, so drag-select doesn't drop on inter-row
 /// gaps or in-row padding zones.
-class _LogRow extends StatelessWidget {
+class _LogRow extends StatefulWidget {
   final LogEntry entry;
 
   const _LogRow({required this.entry});
 
   @override
-  Widget build(BuildContext context) {
-    final baseStyle = TextStyle(
-      fontSize: AppFonts.sm,
-      fontFamily: AppFonts.monoFamily,
-      fontFamilyFallback: AppFonts.monoFallback,
-      color: AppTheme.fg,
-      height: 1.55,
-    );
-
-    final BoxBorder? border;
-    final List<InlineSpan> spans;
-
-    if (entry.isHeader) {
-      // The `--- Log started ... ---` session-start row gets a green
-      // left stripe so the run-boundary catches the eye while keeping
-      // the same Container + Text.rich shape (one Selectable, no
-      // bespoke widgets, drag-select stays uninterrupted). Other
-      // header rows (`Platform: ...`, `Dart: ...` from rotated legacy
-      // files) stay unstriped — they're not session boundaries.
-      final isBanner = entry.message.startsWith('--- ');
-      border = isBanner
-          ? Border(left: BorderSide(color: AppTheme.green, width: 2))
-          : null;
-      spans = [TextSpan(text: '  ${entry.message}', style: _dim(baseStyle))];
-    } else {
-      final color = _levelColor(entry.level);
-      border = Border(left: BorderSide(color: color, width: 2));
-      spans = _routineSpans(entry, color, baseStyle);
-    }
-
-    return Container(
-      decoration: border == null ? null : BoxDecoration(border: border),
-      // No `Container.padding` on purpose — paddings sit OUTSIDE the
-      // child `Text.rich` and are not part of any `Selectable`, so
-      // clicks landing on them dropped the active selection. The
-      // 2-space leading TextSpan in `spans` carries the visual indent
-      // INSIDE the row's single Selectable, and `textWidthBasis:
-      // parent` stretches that Selectable to the full row width so
-      // the right-side empty area also belongs to it.
-      child: Text.rich(
-        TextSpan(children: spans),
-        softWrap: true,
-        textWidthBasis: TextWidthBasis.parent,
-      ),
-    );
-  }
+  State<_LogRow> createState() => _LogRowState();
 
   /// Spans for a routine entry: timestamp + `[TAG]` + message + any
   /// continuation lines below. Tag is inline text, NOT a
@@ -575,6 +530,111 @@ class _LogRow extends StatelessWidget {
     LogLevel.info => AppTheme.blue,
     null => AppTheme.fgDim,
   };
+}
+
+class _LogRowState extends State<_LogRow> {
+  /// Per-row `SelectionContainer` delegate that appends `\n` to the
+  /// row's selected text on copy. Each row owns its own instance —
+  /// the delegate carries selection-tracking state that must not be
+  /// shared across rows.
+  late final _RowNewlineSuffixDelegate _selectionDelegate =
+      _RowNewlineSuffixDelegate();
+
+  @override
+  void dispose() {
+    _selectionDelegate.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final baseStyle = TextStyle(
+      fontSize: AppFonts.sm,
+      fontFamily: AppFonts.monoFamily,
+      fontFamilyFallback: AppFonts.monoFallback,
+      color: AppTheme.fg,
+      height: 1.55,
+    );
+
+    final BoxBorder? border;
+    final List<InlineSpan> spans;
+
+    if (entry.isHeader) {
+      // The `--- Log started ... ---` session-start row gets a green
+      // left stripe so the run-boundary catches the eye while keeping
+      // the same Container + Text.rich shape (one Selectable, no
+      // bespoke widgets, drag-select stays uninterrupted). Other
+      // header rows (`Platform: ...`, `Dart: ...` from rotated legacy
+      // files) stay unstriped — they're not session boundaries.
+      final isBanner = entry.message.startsWith('--- ');
+      border = isBanner
+          ? Border(left: BorderSide(color: AppTheme.green, width: 2))
+          : null;
+      spans = [
+        TextSpan(text: '  ${entry.message}', style: _LogRow._dim(baseStyle)),
+      ];
+    } else {
+      final color = _LogRow._levelColor(entry.level);
+      border = Border(left: BorderSide(color: color, width: 2));
+      spans = _LogRow._routineSpans(entry, color, baseStyle);
+    }
+
+    // `SelectionContainer` wraps the row so the outer `SelectionArea`
+    // sees this row as ONE Selectable. The delegate's
+    // `getSelectedContent` override appends `\n` to whatever the
+    // inner `Text.rich` reports as selected text — without that,
+    // `SelectableRegion._copy` concatenates per-row content with no
+    // separator and drag-select + Ctrl+C lands on the clipboard as
+    // one run-on line. The newline lives in the copy pipeline only,
+    // never in the rendered spans, so on-screen row geometry is
+    // unchanged.
+    return SelectionContainer(
+      delegate: _selectionDelegate,
+      child: Container(
+        decoration: border == null ? null : BoxDecoration(border: border),
+        // No `Container.padding` on purpose — paddings sit OUTSIDE the
+        // child `Text.rich` and are not part of any `Selectable`, so
+        // clicks landing on them dropped the active selection. The
+        // 2-space leading TextSpan in `spans` carries the visual indent
+        // INSIDE the row's single Selectable, and `textWidthBasis:
+        // parent` stretches that Selectable to the full row width so
+        // the right-side empty area also belongs to it.
+        child: Text.rich(
+          TextSpan(children: spans),
+          softWrap: true,
+          textWidthBasis: TextWidthBasis.parent,
+        ),
+      ),
+    );
+  }
+}
+
+/// `SelectionContainer` delegate for `_LogRow`. Wraps the default
+/// `MultiSelectableSelectionContainerDelegate` aggregation and
+/// appends `\n` to the joined plain text so that the surrounding
+/// `SelectionArea` sees each row's content terminated by a line
+/// break. The single overridden method runs only when Flutter
+/// builds the clipboard payload (`SelectableRegion._copy`,
+/// `onSelectionChanged` callbacks); render geometry is unaffected.
+///
+/// `ensureChildUpdated` is a no-op: a `_LogRow` mounts with exactly
+/// one child `Text.rich` (one `Selectable`) for its entire lifetime,
+/// so the synthesised-edge-event bookkeeping the base class relies
+/// on for mid-selection inserts never has a Selectable to catch up.
+class _RowNewlineSuffixDelegate
+    extends MultiSelectableSelectionContainerDelegate {
+  @override
+  void ensureChildUpdated(Selectable selectable) {}
+
+  @override
+  SelectedContent? getSelectedContent() {
+    final base = super.getSelectedContent();
+    if (base == null) return null;
+    final text = base.plainText;
+    if (text.isEmpty || text.endsWith('\n')) return base;
+    return SelectedContent(plainText: '$text\n');
+  }
 }
 
 /// Filter toolbar mounted above the log list.
