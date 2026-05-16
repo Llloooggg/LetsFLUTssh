@@ -87,6 +87,11 @@ fuzz/out/
 docs/REVIEW_*.md
 docs/_audit/
 
+# Local dev-stack state (dev/compose). Never commit generated keys,
+# bind-mounted server state, or runtime credentials.
+dev/compose/ssh/keys/id_*
+dev/compose/.state/
+
 # Local planning doc — kept untracked intentionally.
 SECURITY_BACKLOG.md
 
