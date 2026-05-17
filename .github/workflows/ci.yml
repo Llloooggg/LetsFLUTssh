@@ -23,7 +23,141 @@ concurrency:
 permissions: read-all
 
 jobs:
-  ci:
+  # Rust-side gates: format / lint / unused-deps / tests / (optional)
+  # coverage. Split out of the legacy single `ci` job so the Rust
+  # work (heavy compile + 1700+ unit tests) runs concurrently with
+  # the Dart side instead of serially blocking it. Cache is
+  # job-scoped via Swatinem/rust-cache (the action keys on
+  # `github.job` automatically), so the two jobs build independent
+  # cargo targets without overwriting each other's restore.
+  ci-rust:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        # `libsecret-1-dev` is linked by `secret-service` on Linux.
+        # `libtss2-dev` is required by `tss-esapi` for the native
+        # TPM2 backend (`lfs_core::platform::linux::tpm_native`).
+        # `libudev-dev` ships `libudev.pc` for pkg-config; `hidapi`
+        # (pulled by `cryptoki` / pkcs11 paths) needs it under
+        # `--all-features` (rust-coverage path).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev
+
+      - name: Activate Rust toolchain (rust-toolchain.toml)
+        # `cargo --version` inside `rust/` triggers rustup to read
+        # `rust-toolchain.toml` and install the pinned channel
+        # (1.95.0). The Swatinem cache below then keys against the
+        # active toolchain hash, not the runner's pre-existing
+        # stable, so a toolchain bump cleanly invalidates the
+        # cache.
+        working-directory: rust
+        run: |
+          cargo --version
+          rustc --version
+          rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        # Purpose-built Rust cache: stores `~/.cargo/registry`,
+        # `~/.cargo/git`, and `rust/target/` keyed on Cargo.lock +
+        # toolchain hash, AND restores mtimes so cargo's
+        # fingerprint check accepts the cached artefacts. Replaces
+        # the plain `actions/cache` step that the previous `ci` job
+        # used — actions/cache sets mtime to "now" on restore which
+        # cargo treats as "source is newer than artefact" and
+        # triggers full rebuild on every restore, defeating the
+        # cache.
+        #
+        # `add-rust-environment-hash-key: false` + an explicit
+        # `key:` based on `rust-toolchain.toml` keeps the cache key
+        # deterministic. The default behaviour hashes every
+        # installed toolchain (the runner ships preinstalled
+        # stable; toolchain.toml triggers a second install) which
+        # changes per-run and never matches a saved cache.
+        with:
+          workspaces: rust
+          save-if: 'true'
+          add-rust-environment-hash-key: 'false'
+          key: ${{ hashFiles('rust/rust-toolchain.toml') }}
+
+      - name: Install pinned cargo plugins (machete + llvm-cov)
+        # `cargo machete` (unused-dep gate inside `make check`) and
+        # `cargo llvm-cov` (the conditional `rust-coverage` step
+        # below). Both pinned by `setup-rust-tools`.
+        run: make setup-rust-tools
+
+      - name: Rust format check
+        run: make rust-format-check
+
+      - name: Rust clippy (host)
+        # Host clippy only. Cross-target clippy
+        # (`rust-lint-android`, `rust-lint-windows-gnu`, Apple) is
+        # covered by the separate `rust-cross-check` matrix below,
+        # which runs in parallel — `RUST_CROSS_LINT_TARGETS=` keeps
+        # `make rust-lint` from doing the same work serially.
+        env:
+          RUST_CROSS_LINT_TARGETS: ''
+        run: make rust-lint
+
+      - name: Rust unused-deps gate (cargo machete)
+        run: make rust-machete
+
+      - name: Rust tests
+        run: make rust-test
+
+      - name: Generate Rust coverage (lcov)
+        # Only on push to main: `cargo llvm-cov` rebuilds the entire
+        # workspace under `-C instrument-coverage`, can't share
+        # cache with the debug-profile artefacts the prior steps
+        # populated. ~10 min on cold cache, ~5 min warm. PR-time
+        # SonarCloud annotations focus on changed lines and survive
+        # without the lcov upload; the full-coverage report only
+        # matters for trunk's quality history.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: make rust-coverage
+
+      - name: Upload Rust coverage artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-coverage
+          path: rust-lcov.info
+          retention-days: 1
+
+      - name: Upload SonarCloud source artifact
+        # Sources only — the coverage uploads above are picked up by
+        # `ci-sonarcloud.yml` from the artefacts named here. PR runs
+        # still upload the source tree so SonarCloud can compute
+        # quality-gate changes, but the Rust lcov is trunk-only.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sonar-source
+          retention-days: 1
+          path: |
+            lib/**
+            test/**
+            rust/crates/**
+            rust/Cargo.toml
+            rust/Cargo.lock
+            pubspec.yaml
+            pubspec.lock
+            sonar-project.properties
+
+  # Dart-side gates: codegen, ARB / l10n parity, format / analyze,
+  # tests. Runs in parallel with `ci-rust`. Both jobs independently
+  # compile `liblfs_frb.so` (via `make rust-build` triggered by
+  # `make dart-test`) — Swatinem cache makes the compile cheap on a
+  # warm cache, and parallelism cuts wallclock from ~30 min
+  # (serial) to ~12-15 min (max of the two parallel jobs).
+  ci-dart:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,68 +173,35 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
-        # `libtss2-dev` is required by `tss-esapi` for the native TPM2
-        # backend (`lfs_core::platform::linux::tpm_native`).
-        # `gcc-mingw-w64-x86-64` provides `x86_64-w64-mingw32-gcc`,
-        # which `cc-rs` invokes when build scripts (ring, openssl-src,
-        # etc.) compile C for the `x86_64-pc-windows-gnu` target used
-        # by `make rust-lint-windows-gnu`.
-        # `libudev-dev` ships `libudev.pc` for pkg-config; `hidapi`
-        # (pulled by `cryptoki` / pkcs11 paths) needs it on Linux.
-        # Only activated under `make rust-coverage` (`--all-features`)
-        # — base `make rust-test` doesn't flip the cryptoki flag.
+        # Same libsecret / libtss2 / libudev as `ci-rust` — the
+        # Rust release lib that `make dart-test` builds before the
+        # flutter_test runner loads it needs these to link.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev gcc-mingw-w64-x86-64
+          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev
 
-      - name: Install Rust toolchain
-        # FRB native blob (`rust/target/release/liblfs_frb.so`) must
-        # be in place before flutter_test loads it via
-        # `requireFrbLoaded`; `make check` covers the build via the
-        # `dart-test` -> `rust-build` prereq chain. Toolchain version
-        # is pinned in `rust/rust-toolchain.toml`; rustup auto-installs
-        # on the first cargo invocation when `working-directory: rust`.
-        #
-        # Cross-target rustup installs cover the targets `make
-        # rust-lint` exercises — `rust-lint-android` clippy-lints
-        # `lfs_os_security` against `aarch64-linux-android`, and
-        # `rust-lint-windows-gnu` lints the workspace against
-        # `x86_64-pc-windows-gnu`. Both gate Apple-cfg / Linux-cfg
-        # divergence before release. Targets must attach to the
-        # rust-toolchain.toml-pinned channel (the working-directory
-        # context above activates it), not to the runner's
-        # pre-existing `stable` — otherwise cargo errors with
-        # `E0463: can't find crate for 'core'` even when rustup
-        # reports the target installed under a different toolchain.
+      - name: Activate Rust toolchain (rust-toolchain.toml)
+        # Same activation as `ci-rust`. `make rust-build` (called
+        # transitively by `make dart-test`) runs in `rust/` and
+        # picks up the toolchain.toml-pinned channel.
         working-directory: rust
         run: |
-          rustup show active-toolchain
-          rustup component add rustfmt clippy
-          rustup target add aarch64-linux-android x86_64-pc-windows-gnu
+          cargo --version
+          rustc --version
 
-      - name: Cache cargo registry + workspace target
-        # Single cargo cache for the whole CI job — release-profile
-        # (`make rust-build`), debug-profile (`make rust-test`), and
-        # llvm-cov instrumented profile (`make rust-coverage`) all
-        # land under `rust/target/`.
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        # Job-scoped cache. Swatinem keys against `github.job` by
+        # default, so `ci-dart` doesn't collide with `ci-rust`'s
+        # cache slot. Same toolchain pin + Cargo.lock invalidation
+        # contract.
         with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            rust/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          workspaces: rust
+          save-if: 'true'
+          add-rust-environment-hash-key: 'false'
+          key: ${{ hashFiles('rust/rust-toolchain.toml') }}
 
       - name: Install pub dependencies
         run: make deps
-
-      - name: Install pinned cargo plugins (machete + llvm-cov)
-        # `make check` calls `cargo machete`; `make rust-coverage`
-        # calls `cargo llvm-cov`. Both pinned by `setup-rust-tools`.
-        run: make setup-rust-tools
 
       - name: Generate code
         run: make gen
@@ -123,20 +224,16 @@ jobs:
             exit 1
           fi
 
-      - name: Run check (Dart + Rust quality gates + tests)
-        # Single source of truth: identical command runs locally
-        # (pre-commit hook) and in CI. Covers format-check, lint,
-        # workflow lint, release hardening, unused-deps, then tests
-        # for both Dart and Rust. Cargo.lock parity falls out of the
-        # `--locked` flag baked into `rust-test` / `rust-build`.
-        run: make check
+      - name: Dart format check
+        run: make dart-format-check
 
-      - name: Generate Rust coverage (lcov)
-        # Separate from `make check` because cargo-llvm-cov rebuilds
-        # the workspace under `-C instrument-coverage` — heavier than
-        # plain `cargo test`, and only the SonarCloud upload below
-        # needs it. Local devs can run `make rust-coverage` ad-hoc.
-        run: make rust-coverage
+      - name: Dart analyzer (flutter analyze --fatal-infos)
+        run: make dart-lint
+
+      - name: Dart tests
+        # `make dart-test` runs `make rust-build` first so
+        # `liblfs_frb.so` is in place for the FRB-loading tests.
+        run: make dart-test
 
       - name: Upload Dart coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -144,28 +241,6 @@ jobs:
           name: coverage
           path: coverage/lcov.info
           retention-days: 1
-
-      - name: Upload Rust coverage artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: rust-coverage
-          path: rust-lcov.info
-          retention-days: 1
-
-      - name: Upload SonarCloud source artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sonar-source
-          retention-days: 1
-          path: |
-            lib/**
-            test/**
-            rust/crates/**
-            rust/Cargo.toml
-            rust/Cargo.lock
-            pubspec.yaml
-            pubspec.lock
-            sonar-project.properties
 
   commit-lint:
     if: github.event_name == 'pull_request'
