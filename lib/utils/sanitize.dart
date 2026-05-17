@@ -156,11 +156,30 @@ final RegExp _ipRe = RegExp(
 /// compose user@host's match with a separate host:port match
 /// because each `replaceAllMapped` callback span is consumed and
 /// the engine continues from after the match.
+///
+/// Two guards keep a Dart stack-trace `file.dart:LINE:COL`
+/// fragment (`errors_patch.dart:1234:5`) from being mistaken for
+/// `host:port` and ending up as `<port>:5` in the viewer:
+///
+/// 1. The `hostport_host` slot of the bare host:port branch
+///    requires **at least one letter** — pure-digit "hosts" are
+///    line numbers from a `LINE:COL` chain, never network
+///    endpoints. Real hosts after pass 1 are either the `<ip>`
+///    placeholder or a domain name with at least one letter.
+/// 2. `(?!:\d)` after every port slot: a `:digit` immediately
+///    AFTER the would-be port disqualifies the match — the `:COL`
+///    tail of `:LINE:COL` lookahead-blocks the `:LINE` capture.
+///
+/// Rust's `regex` crate has no lookarounds; the mirror impl in
+/// `lfs_core::log_sanitize` checks `(?!:\d)` manually in the
+/// replace closure. Guard (1) is pure regex so both engines
+/// share it verbatim — keeps the cross-impl drift gate
+/// (`test/utils/sanitize_drift_test.dart`) green.
 final RegExp _restRe = RegExp(
-  r'(?<userhost>[a-zA-Z0-9_.\-]+@(?<userhost_host>[a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)(?::(?<userhost_port>\d{2,5}))?)'
+  r'(?<userhost>[a-zA-Z0-9_.\-]+@(?<userhost_host>[a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)(?::(?<userhost_port>\d{2,5})(?!:\d))?)'
   r'|(?<asuser>\bas\s+[a-zA-Z0-9_.\-]+)'
   r'|(?<usereq>\b(?<usereq_key>user|login)=[a-zA-Z0-9_.\-]+)'
-  r'|(?<hostport>(?<hostport_host><ip>|[a-zA-Z0-9_.\-]+):(?:\d{2,5}))\b'
+  r'|(?<hostport>(?<hostport_host><ip>|[a-zA-Z0-9_.\-]*[a-zA-Z][a-zA-Z0-9_.\-]*):(?:\d{2,5})(?!:\d))\b'
   r'|(?<winpath>[A-Z]:\\Users\\[^\\\r\n]+)'
   r'|(?<unixpath>/(?:Users|home)/[^/\s]+)',
 );

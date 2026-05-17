@@ -120,6 +120,14 @@ fn ip_re() -> &'static Regex {
 /// alternation can't compose user@host's match with a separate
 /// host:port match because each `replace_all` callback span is
 /// consumed and the engine continues from after the match.
+///
+/// `hostport_host` REQUIRES at least one letter
+/// (`(?:[a-zA-Z0-9_.\-]*[a-zA-Z][a-zA-Z0-9_.\-]*)`) — pure-digit
+/// "hosts" are line numbers from a `file.dart:LINE:COL` stack
+/// trace, never network endpoints. The matching `:digit`
+/// look-ahead guard that Dart expresses with `(?!:\d)` lives in
+/// the replace closure below as a manual post-match check
+/// (Rust's `regex` crate has no lookarounds).
 fn rest_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
@@ -127,7 +135,7 @@ fn rest_re() -> &'static Regex {
             r"(?P<userhost>([a-zA-Z0-9_.\-]+)@(?P<userhost_host>[a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)(?::(?P<userhost_port>\d{2,5}))?)",
             r"|(?P<asuser>\bas\s+[a-zA-Z0-9_.\-]+)",
             r"|(?P<usereq>\b(?P<usereq_key>user|login)=[a-zA-Z0-9_.\-]+)",
-            r"|(?P<hostport>(?P<hostport_host><ip>|[a-zA-Z0-9_.\-]+):(?:\d{2,5}))\b",
+            r"|(?P<hostport>(?P<hostport_host><ip>|[a-zA-Z0-9_.\-]*[a-zA-Z][a-zA-Z0-9_.\-]*):(?:\d{2,5}))\b",
             r"|(?P<winpath>[A-Z]:\\Users\\[^\\\r\n]+)",
             r"|(?P<unixpath>/(?:Users|home)/[^/\s]+)",
         ))
@@ -158,7 +166,21 @@ pub fn sanitize_error_message(input: &str) -> String {
                 let key = c.name("usereq_key").map_or("user", |m| m.as_str());
                 return format!("{key}=<user>");
             }
-            if c.name("hostport").is_some() {
+            if let Some(m) = c.name("hostport") {
+                // Manual lookahead — Dart writes `(?!:\d)` in the regex,
+                // Rust's `regex` crate has no lookaround so we check
+                // here. If the byte AFTER the match is `:` followed by
+                // a digit, the candidate is a `LINE:COL` continuation
+                // of a `file.dart:LINE:COL` stack-trace fragment and
+                // we must NOT redact it. Returning the match's literal
+                // span preserves the source unchanged.
+                let tail = after_ip.as_bytes();
+                let end = m.end();
+                if matches!(tail.get(end), Some(b':'))
+                    && tail.get(end + 1).is_some_and(|b| b.is_ascii_digit())
+                {
+                    return m.as_str().to_string();
+                }
                 let host = c.name("hostport_host").map_or("<host>", |m| m.as_str());
                 return format!("{host}:<port>");
             }

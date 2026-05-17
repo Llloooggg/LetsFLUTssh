@@ -132,6 +132,34 @@ void main() {
       expect(sanitizeErrorMessage('example.com:2222'), contains(':<port>'));
     });
 
+    test('leaves Dart stack-trace file:line:col positions untouched '
+        '(line slot is not a port)', () {
+      // Regression: the `host:port` rule used to greedily eat the
+      // LINE slot of a `file.dart:LINE:COL` fragment in stack
+      // traces, leaving the user with `paragraph.dart:<port>:12`
+      // in the log viewer. The negative lookahead `(?!:\d)` on the
+      // port guards against this — a `:digit` immediately after
+      // the would-be port disqualifies the match.
+      final stackFrame = sanitizeErrorMessage(
+        'RenderParagraph.getBoxesForSelection '
+        '(package:flutter/src/rendering/paragraph.dart:1070:12)',
+      );
+      expect(
+        stackFrame,
+        isNot(contains('<port>')),
+        reason: 'line:col in stack frame should not be redacted as host:port',
+      );
+      expect(stackFrame, contains('paragraph.dart:1070:12'));
+
+      // `dart:core-patch/errors_patch.dart:NNNN:N` shape from the
+      // same crash report.
+      final coreFrame = sanitizeErrorMessage(
+        '_AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:5)',
+      );
+      expect(coreFrame, isNot(contains('<port>')));
+      expect(coreFrame, contains('errors_patch.dart:46:5'));
+    });
+
     test('redacts user@<ip>:<port> pattern', () {
       // This is the real-world case: admin@192.168.1.100:22
       final result = sanitizeErrorMessage('admin@192.168.1.100:22');
