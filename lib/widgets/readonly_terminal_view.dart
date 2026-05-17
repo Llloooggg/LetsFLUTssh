@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
@@ -104,33 +103,33 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
     return KeyEventResult.ignored;
   }
 
-  /// Right-click handler. xterm's gesture stack does not surface a
-  /// secondary-tap callback when none is wired through `TerminalView`,
-  /// and worse: even with no secondary handler, competing recognisers
-  /// (the pan recogniser among them) can snip the active selection
-  /// off the controller as the gesture arena resolves the right-click.
-  /// We therefore use a [`Listener`] that fires synchronously on
-  /// `PointerDownEvent`, BEFORE the gesture arena runs — that gives
-  /// us a stable read of the selection's text to bake into the menu's
-  /// Copy item, and the menu itself appears regardless of which
-  /// recogniser ends up winning the arena.
-  void _onPointerDown(PointerDownEvent event, BuildContext menuContext) {
-    if (event.buttons != kSecondaryButton) return;
+  /// Right-click handler. The earlier shape used a `Listener` on
+  /// `PointerDownEvent` filtered by `kSecondaryButton`, which
+  /// silently never fired in practice — xterm's internal
+  /// `PanGestureRecognizer` accepts every button and the parent
+  /// `Listener` only sees the event when the deepest child's
+  /// hit-test passes through. `GestureDetector.onSecondaryTapUp`
+  /// is the canonical Flutter shape for right-click; xterm has no
+  /// competing secondary-tap recogniser so the arena awards it to
+  /// us cleanly. `HitTestBehavior.translucent` keeps xterm's
+  /// primary-button drag-select working — events propagate to
+  /// both this detector AND the child.
+  void _onSecondaryTap(TapUpDetails details, BuildContext menuContext) {
     final text = _cachedSelection;
     final hasSelection = text != null && text.isNotEmpty;
     showAppContextMenu(
       context: menuContext,
-      position: event.position,
+      position: details.globalPosition,
       items: [
         if (hasSelection)
           StandardMenuAction.copy.item(
             menuContext,
             // The on-wire activator on this surface is `Ctrl+C`, not
-            // `Ctrl+Shift+C` — this is a log view, not a live PTY (see
-            // `_copyActivators` for the rationale). `fileCopy` is the
-            // existing registry entry that resolves to that binding;
-            // reusing it keeps the hint label accurate without growing
-            // the registry.
+            // `Ctrl+Shift+C` — this is a log view, not a live PTY
+            // (see `_copyActivators` for the rationale). `fileCopy`
+            // is the registry entry that resolves to that binding;
+            // reusing it keeps the hint label accurate without
+            // growing the registry.
             shortcut: AppShortcut.fileCopy,
             onTap: () {
               TerminalClipboard.copyText(text);
@@ -139,9 +138,9 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
             },
           ),
         // "Select all" is always visible — gives the user a way to
-        // grab the full log buffer without dragging end-to-end. xterm
-        // exposes `setSelection` via the controller; the buffer
-        // length sets the upper bound.
+        // grab the full log buffer without dragging end-to-end. The
+        // cache populates via `_onControllerChanged` so an immediate
+        // Copy on the next right-click fires off the full text.
         ContextMenuItem(
           label: S.of(menuContext).selectAll,
           icon: Icons.select_all,
@@ -172,8 +171,12 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (event) => _onPointerDown(event, context),
+    return GestureDetector(
+      // `translucent` so xterm's own primary-button drag-select
+      // recogniser still receives the pointer alongside us —
+      // `opaque` would consume all events and break selection.
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapUp: (details) => _onSecondaryTap(details, context),
       child: TerminalView(
         widget.terminal,
         controller: _controller,

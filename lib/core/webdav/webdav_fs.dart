@@ -12,16 +12,42 @@ import '../sftp/sftp_models.dart';
 /// walk routes through the Provider trait's recursive helper on
 /// the Rust side, so a deep tree still pays one FRB call.
 class WebDavFileSystem implements FileSystem {
-  WebDavFileSystem(this._connection, this._initialDir);
+  /// `baseUrl` is the configured WebDAV root (`https://nc.example.com/remote.php/dav/files/admin/`,
+  /// `http://localhost:8080/dav/`, ...). The initial directory the
+  /// browser opens at is the **server-absolute path** component of
+  /// that URL — every PROPFIND `href` the server returns lives in
+  /// the same shape, so navigation paths stay symmetric across
+  /// list / mkdir / rename / remove. Stuffing the full URL into
+  /// `currentPath` (the earlier shape) only worked for the
+  /// initial list (`Url::join` of an absolute URL replaces the
+  /// base entirely) and broke every subsequent action because
+  /// child paths landed in server-path space and joined to a
+  /// doubled-up component (`http://h/dav/dav/x`) — every write
+  /// verb 404'd.
+  WebDavFileSystem(this._connection, String baseUrl)
+    : _initialDir = _serverPathOf(baseUrl);
 
   final rust_webdav.WebDavConnection _connection;
   final String _initialDir;
 
-  /// Last-known root path the browser opens at. WebDAV does not
-  /// publish a "current working directory" — the configured base
-  /// URL is the implicit root and the caller hands it through at
-  /// construction time. The empty string maps to the base URL
-  /// itself.
+  /// Extract the path component from a configured base URL,
+  /// preserving the trailing slash. Falls back to `/` when the
+  /// URL has no path (unusual; the configured base normally has
+  /// at least `/`).
+  static String _serverPathOf(String baseUrl) {
+    try {
+      final uri = Uri.parse(baseUrl);
+      final path = uri.path;
+      return path.isEmpty ? '/' : path;
+    } catch (_) {
+      return '/';
+    }
+  }
+
+  /// Server-absolute path the browser opens at. Maps directly to
+  /// what the WebDAV server returns as `href` in PROPFIND, so the
+  /// pane controller's `currentPath` and every entry's `path` live
+  /// in the same coordinate space.
   @override
   Future<String> initialDir() async => _initialDir;
 

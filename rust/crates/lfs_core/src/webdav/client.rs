@@ -322,13 +322,34 @@ impl WebDavClient {
         Ok(())
     }
 
-    /// Join `path` onto `base_url`. Empty / `.` / leading `/`
-    /// all flow through `Url::join` which handles the
-    /// percent-encoding per RFC 3986.
+    /// Resolve `path` against [`base_url`] per RFC 3986. The
+    /// callers pass one of three shapes:
+    ///
+    /// - **Relative** (`"probe.txt"`, `"sub/"`) — merged into the
+    ///   base path. `merge` drops the last segment of `base.path`
+    ///   unless it ends in `/`; the configured base URL is required
+    ///   to end in `/` (asserted at construction), so a relative
+    ///   reference appends cleanly.
+    /// - **Server-absolute** (`"/dav/probe.txt"`, `"/dav/sub/"`) —
+    ///   replaces the path component while keeping scheme + host.
+    ///   The Dart pane normalises every navigation path to this
+    ///   shape (the configured base URL's path is what
+    ///   `WebDavFileSystem.initialDir` returns); PROPFIND returns
+    ///   `href` values in this shape too.
+    /// - **Full URI** (`"http://other.example/x"`) — replaces
+    ///   everything. Used by the initial-list path when the Dart
+    ///   side still has a full-URL `currentPath` (legacy callers).
+    ///
+    /// Prior shape trimmed the leading `/` before calling
+    /// `Url::join`, which silently collapsed server-absolute paths
+    /// to relative — `/dav/x` against base `http://h/dav/` became
+    /// `http://h/dav/dav/x`, which the server 404'd. The
+    /// regression surfaced as the user-reported "DELETE 404" /
+    /// "drag-drop lands on the wrong path" — every write verb fed
+    /// a doubled-up path component to the server.
     fn join(&self, path: &str) -> Result<Url, Error> {
-        let trimmed = path.trim_start_matches('/');
         self.base_url
-            .join(trimmed)
+            .join(path)
             .map_err(|e| Error::WebDav(format!("path join: {e}")))
     }
 
@@ -785,5 +806,67 @@ mod tests {
         let base = format!("{}/dav", server.uri());
         let client = make_client(&base);
         client.delete("a.txt").await.unwrap();
+    }
+
+    /// Regression: every Dart caller (file pane navigation, the
+    /// drag-drop `enqueueUpload` path, the right-click delete) hands
+    /// `WebDavClient` a **server-absolute** path (`/dav/probe.txt`)
+    /// because that's the shape PROPFIND returns in `href` fields
+    /// and the shape `WebDavFileSystem.initialDir()` now emits. The
+    /// earlier `trim_start_matches('/')` in `join` collapsed the
+    /// absolute reference to relative, doubling the base path
+    /// component (`http://h/dav/dav/probe.txt`) and 404-ing every
+    /// write verb — surfaced as the user-reported "delete failed:
+    /// HTTP 404: not found" and silent drag-drop landing.
+    #[tokio::test]
+    async fn delete_with_server_absolute_path_hits_base_relative_target() {
+        let server = MockServer::start().await;
+        Mock::given(match_method("DELETE"))
+            .and(match_path("/dav/probe.txt"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        let base = format!("{}/dav/", server.uri());
+        let client = make_client(&base);
+        client.delete("/dav/probe.txt").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn put_with_server_absolute_path_lands_under_base_path() {
+        // Same regression class on the write side — `put` must
+        // also reach `/dav/<key>`, not `/dav/dav/<key>`.
+        let server = MockServer::start().await;
+        Mock::given(match_method("PUT"))
+            .and(match_path("/dav/uploaded.bin"))
+            .respond_with(ResponseTemplate::new(201))
+            .mount(&server)
+            .await;
+        let base = format!("{}/dav/", server.uri());
+        let client = make_client(&base);
+        client
+            .put("/dav/uploaded.bin", bytes::Bytes::from_static(b"x"), None)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn propfind_with_relative_path_still_works_for_legacy_callers() {
+        // Defensive: a caller that still passes a relative path
+        // (`""`, `"sub/"`) must keep resolving against the base.
+        // The fix dropped the leading-slash trim but kept relative
+        // resolution unchanged — `Url::join` handles both shapes.
+        let server = MockServer::start().await;
+        Mock::given(match_method("PROPFIND"))
+            .and(match_path("/dav/sub/"))
+            .respond_with(ResponseTemplate::new(207).set_body_string(
+                "<?xml version=\"1.0\"?><D:multistatus xmlns:D=\"DAV:\">\
+                       <D:response><D:href>/dav/sub/</D:href></D:response>\
+                     </D:multistatus>",
+            ))
+            .mount(&server)
+            .await;
+        let base = format!("{}/dav/", server.uri());
+        let client = make_client(&base);
+        client.propfind("sub/", 1).await.unwrap();
     }
 }
