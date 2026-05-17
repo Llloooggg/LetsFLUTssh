@@ -132,14 +132,11 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   }
 
   Future<void> _copyCommand(Snippet snippet) async {
-    // Snippets routinely contain inline credentials (e.g.
-    // `sshpass -p 'secret' ssh user@host`). SecureClipboard pins
-    // per-platform "no-cloud" flags inside the same write session
-    // as the text and refuses on Rust-side failure rather than
-    // bypassing the audit perimeter through Flutter's stock
-    // channel — a stock fallback would leak the bytes into the
-    // OS-level cloud-sync ring on Windows 10+ history, macOS
-    // Universal Clipboard, iOS Handoff or Android 13+ history.
+    // Snippets can carry credentials; SecureClipboard pins the
+    // per-platform "no-cloud" flag so bytes don't reach Windows
+    // clipboard history, macOS Universal Clipboard, iOS Handoff
+    // or Android 13+ history. Refuse on Rust-side failure rather
+    // than fall back to Flutter's stock channel.
     bool ok;
     try {
       ok = await SecureClipboard().setText(snippet.command);
