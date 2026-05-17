@@ -21,23 +21,21 @@ fn cfg() -> LibCfg {
     LibCfg::init().with_enable_log(false)
 }
 
-/// True when [`get_fidokey_devices`] returns without throwing.
-/// Returning an empty list is fine — `is_available` only asks
-/// "is the HID transport reachable on this host" (the desktop
-/// build's runner has `libusb` / `hidapi` available even when no
-/// authenticator is plugged in). The connect path discriminates
-/// "no device plugged in" with [`list_devices`].
+/// True when at least one FIDO2 authenticator is currently
+/// enumerable through HID. `ctap-hid-fido2` 3.5.x swallows HID
+/// transport failures and returns an empty Vec for both
+/// "transport unreachable" (no udev rules, sandboxed runner,
+/// missing `libusb`/`hidapi`) and "no device plugged in", so the
+/// two cases aren't distinguishable through the public API; the
+/// availability signal degrades to "device currently present",
+/// which matches the honest UI question (the FIDO2 connect row
+/// disables when no key is plugged in regardless of why).
 pub(crate) fn probe_available() -> bool {
-    // hidapi will return an `Err` when the udev / hidraw layer is
-    // unreachable (Linux without the rules file, sandboxed runner);
-    // in that branch we honestly report the path as unavailable so
-    // the UI surfaces the install-rules toast instead of pretending
-    // the row works.
-    get_fidokey_devices().is_ok()
+    !get_fidokey_devices().is_empty()
 }
 
 pub(crate) fn list_devices() -> Result<Vec<DeviceInfo>, Error> {
-    let devices = get_fidokey_devices().map_err(|e| Error::Fido2(format!("hid enumerate: {e}")))?;
+    let devices = get_fidokey_devices();
     let mut out = Vec::with_capacity(devices.len());
     for info in devices {
         let path = match &info.param {
@@ -67,7 +65,7 @@ pub(crate) fn get_assertion_blocking(
     challenge: &[u8],
     pin: Option<&str>,
 ) -> Result<SkAssertion, Error> {
-    let devices = get_fidokey_devices().map_err(|e| Error::Fido2(format!("hid enumerate: {e}")))?;
+    let devices = get_fidokey_devices();
     if devices.is_empty() {
         return Err(Error::Fido2("no hardware key plugged in".into()));
     }
