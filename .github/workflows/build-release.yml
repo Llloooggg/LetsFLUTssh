@@ -631,9 +631,9 @@ jobs:
         shell: bash
         run: |
           if [ -d "build/windows/arm64/runner/Release" ]; then
-            echo "BUILD_DIR=build\\windows\\arm64\\runner\\Release" >> "$GITHUB_ENV"
+            printf '%s\n' 'BUILD_DIR=build\windows\arm64\runner\Release' >> "$GITHUB_ENV"
           elif [ -d "build/windows/x64/runner/Release" ]; then
-            echo "BUILD_DIR=build\\windows\\x64\\runner\\Release" >> "$GITHUB_ENV"
+            printf '%s\n' 'BUILD_DIR=build\windows\x64\runner\Release' >> "$GITHUB_ENV"
           else
             echo "::error::Flutter produced no recognised Windows build dir"
             ls -la build/windows/ || true
