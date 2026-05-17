@@ -376,6 +376,21 @@ jobs:
         if: matrix.ndk == true
         run: cargo install --locked --version 4.1.2 cargo-ndk
 
+      - name: Install missing Perl modules (Windows MSVC)
+        # The `windows-2025-vs2026` runner ships Strawberry Perl with
+        # a stripped-down `cpan` library — `Locale::Maketext::Simple`,
+        # `Params::Check`, and `IPC::Cmd` are missing from `@INC` even
+        # though the perl binary itself is on PATH. `openssl-sys`'s
+        # build script invokes `perl Configure` which transitively
+        # `require`s those modules and aborts with
+        # `Can't locate Locale/Maketext/Simple.pm`. Pull them via
+        # `cpan` before cargo runs so the openssl-src vendored build
+        # can configure on this runner image.
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: cmd
+        run: |
+          cpan -T -i Locale::Maketext::Simple Params::Check IPC::Cmd
+
       - name: Cache cargo registry + workspace target
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
