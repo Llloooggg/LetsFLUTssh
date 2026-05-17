@@ -1747,20 +1747,42 @@ mod tests {
         while rx.try_recv().is_ok() {}
     }
 
-    /// Pull the next N events off a receiver under a short tokio
-    /// timeout so a missing publish fails the test instead of
-    /// hanging the suite.
+    /// Extract the connection id from any Connection-topic event so
+    /// the test helper below can filter out cross-test noise. Every
+    /// variant on the Connection topic carries an `id`
+    /// ([`crate::bus`]) except `ConnectionActiveCountChanged`
+    /// (counter-only) which never appears in these tests.
+    fn connection_event_id(event: &crate::bus::Event) -> Option<&str> {
+        match event {
+            crate::bus::Event::ConnectionStateChanged { id, .. }
+            | crate::bus::Event::ConnectionProgress { id, .. }
+            | crate::bus::Event::ConnectionError { id, .. }
+            | crate::bus::Event::ConnectionRemoved { id } => Some(id.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Pull the next N events for `expected_id` off a receiver under
+    /// a short tokio timeout so a missing publish fails the test
+    /// instead of hanging the suite. Events for other ids — the
+    /// noise that flakes the suite when these tests race with their
+    /// siblings under `cargo test` parallelism — get silently
+    /// dropped. The fixture publishes exactly N events per id, so
+    /// the deadline applies to the matching subset only.
     async fn recv_n_events(
         rx: &mut tokio::sync::broadcast::Receiver<crate::bus::Event>,
         n: usize,
+        expected_id: &str,
     ) -> Vec<crate::bus::Event> {
         let mut out = Vec::with_capacity(n);
-        for _ in 0..n {
+        while out.len() < n {
             let ev = tokio::time::timeout(std::time::Duration::from_millis(500), rx.recv())
                 .await
                 .expect("event did not arrive within 500 ms")
                 .expect("broadcast channel closed");
-            out.push(ev);
+            if connection_event_id(&ev) == Some(expected_id) {
+                out.push(ev);
+            }
         }
         out
     }
@@ -1804,7 +1826,7 @@ mod tests {
         // is what the actor currently shows.
         emit_stale_attempt_closure(&app, id.clone(), ConnectionState::Connecting);
 
-        let events = recv_n_events(&mut rx, 2).await;
+        let events = recv_n_events(&mut rx, 2, &id).await;
         match &events[0] {
             crate::bus::Event::ConnectionError { id: e_id, detail } => {
                 assert_eq!(e_id, &id);
@@ -1870,7 +1892,7 @@ mod tests {
 
         emit_stale_attempt_closure(&app, id.clone(), ConnectionState::Disconnected);
 
-        let events = recv_n_events(&mut rx, 2).await;
+        let events = recv_n_events(&mut rx, 2, &id).await;
         assert!(matches!(
             &events[0],
             crate::bus::Event::ConnectionError { .. }
