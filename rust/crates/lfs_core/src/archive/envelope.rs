@@ -46,8 +46,7 @@
 //! KDF, with the mobile cap halved so a 2 GB-baseline phone does not
 //! get terminated by the OOM killer mid-derive.
 
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::Rng;
 use zeroize::Zeroizing;
 
 use crate::crypto::{aes_gcm_decrypt_raw, aes_gcm_encrypt_raw, argon2id_derive};
@@ -120,8 +119,8 @@ pub(super) fn encrypt_with_password(
     }
     let mut salt = [0u8; SALT_LEN];
     let mut iv = [0u8; IV_LEN];
-    OsRng.fill_bytes(&mut salt);
-    OsRng.fill_bytes(&mut iv);
+    rand::rng().fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut iv);
 
     let derived = argon2id_derive(
         password.as_bytes(),
@@ -444,8 +443,8 @@ mod tests {
         // ciphertext was signed with empty AAD.
         let mut salt = [0u8; SALT_LEN];
         let mut iv = [0u8; IV_LEN];
-        OsRng.fill_bytes(&mut salt);
-        OsRng.fill_bytes(&mut iv);
+        rand::rng().fill_bytes(&mut salt);
+        rand::rng().fill_bytes(&mut iv);
         let memory_kib = 16u32;
         let iterations = 1u32;
         let parallelism = 1u32;

@@ -64,7 +64,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use rand::RngCore;
+use rand::Rng;
 use reqwest::header::HeaderValue;
 use reqwest::Method;
 use url::Url;
@@ -544,7 +544,7 @@ fn uri_path_and_query(url: &Url) -> String {
 /// per-request uniqueness, which 64 bits of entropy satisfies.
 fn random_cnonce() -> String {
     let mut buf = [0u8; 8];
-    rand::thread_rng().fill_bytes(&mut buf);
+    rand::rng().fill_bytes(&mut buf);
     let mut s = String::with_capacity(16);
     use std::fmt::Write as _;
     for b in buf.iter() {

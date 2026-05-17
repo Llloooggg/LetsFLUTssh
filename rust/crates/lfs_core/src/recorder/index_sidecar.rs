@@ -65,7 +65,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
-use rand::RngCore;
+use rand::Rng;
 
 use super::NONCE_LEN;
 use crate::crypto;
@@ -206,7 +206,7 @@ fn build_encrypted_block(
     seq: u64,
 ) -> Result<Vec<u8>, Error> {
     let mut nonce = [0u8; NONCE_LEN];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    rand::rng().fill_bytes(&mut nonce);
     let aad = seq.to_le_bytes();
     let ct = crypto::aes_gcm_encrypt_raw(key, &nonce, plaintext, &aad)?;
     let mut block = Vec::with_capacity(4 + NONCE_LEN + ct.len());

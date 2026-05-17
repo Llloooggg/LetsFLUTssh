@@ -69,7 +69,7 @@ fn finish(mut key: PrivateKey, comment: &str) -> Result<KeyMaterial, Error> {
 
 /// Generate a new Ed25519 keypair. Fast — runs synchronously.
 pub fn generate_ed25519(comment: &str) -> Result<KeyMaterial, Error> {
-    let key = PrivateKey::random(&mut rand::rngs::OsRng, Algorithm::Ed25519)
+    let key = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519)
         .map_err(|e| Error::KeyParse(format!("ed25519 keygen: {e}")))?;
     finish(key, comment)
 }
@@ -82,7 +82,7 @@ pub fn generate_rsa(bits: usize, comment: &str) -> Result<KeyMaterial, Error> {
             "rsa key size {bits} is below the 2048-bit minimum"
         )));
     }
-    let rsa = RsaKeypair::random(&mut rand::rngs::OsRng, bits)
+    let rsa = RsaKeypair::random(&mut rand::rng(), bits)
         .map_err(|e| Error::KeyParse(format!("rsa keygen: {e}")))?;
     let key = PrivateKey::new(KeypairData::from(rsa), comment.to_string())
         .map_err(|e| Error::KeyParse(format!("rsa wrap: {e}")))?;

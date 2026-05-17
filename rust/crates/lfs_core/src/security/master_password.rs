@@ -33,8 +33,7 @@
 use std::fs;
 use std::path::Path;
 
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::Rng;
 use zeroize::Zeroizing;
 
 use crate::crypto;
@@ -303,7 +302,7 @@ pub fn enable(
     params: &KdfParams,
 ) -> Result<Zeroizing<Vec<u8>>, String> {
     let mut salt = [0u8; SALT_LENGTH];
-    OsRng.fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut salt);
     let key = derive_key(password, &salt, params)?;
     let kdf_bytes = encode_kdf_record(params, &salt);
     let verifier = encrypt_verifier(&key, &kdf_bytes)?;
@@ -422,9 +421,9 @@ fn derive_key(
 }
 
 fn encrypt_verifier(key: &[u8], kdf_header: &[u8]) -> Result<Vec<u8>, String> {
-    use rand::RngCore;
+    use rand::Rng;
     let mut nonce = [0u8; IV_LENGTH];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    rand::rng().fill_bytes(&mut nonce);
     let body = crypto::aes_gcm_encrypt_raw(key, &nonce, VERIFIER_PLAINTEXT, kdf_header)
         .map_err(|e| format!("aes-gcm encrypt-raw: {e}"))?;
     let mut out = Vec::with_capacity(IV_LENGTH + body.len());

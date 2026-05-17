@@ -636,9 +636,9 @@ fn read_install_id() -> String {
             // this process within the same launch is what we
             // explicitly want to skip; a peer launch would mint a
             // different id and the merge runs.
-            use rand::RngCore;
+            use rand::Rng;
             let mut bytes = [0u8; 12];
-            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            rand::rng().fill_bytes(&mut bytes);
             bytes.iter().map(|b| format!("{b:02x}")).collect()
         })
         .clone()

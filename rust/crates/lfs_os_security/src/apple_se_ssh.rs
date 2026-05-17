@@ -563,9 +563,9 @@ pub fn delete(handle: &EnclaveKeyHandle) -> Result<(), Error> {
 /// the tag as opaque so any byte string would work; we use a UTF-8
 /// shape so the on-disk DB rows stay grep-friendly during audits.
 fn mint_application_tag() -> Vec<u8> {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     format!("letsflutssh.ssh.{hex}").into_bytes()
 }

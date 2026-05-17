@@ -843,9 +843,9 @@ pub fn delete_silent(handle: &TpmSilentKeyHandle) -> Result<(), Error> {
 }
 
 fn mint_credential_name_tpm() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 8];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let suffix: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     let user_hash = user_hash_prefix();
     format!("{CNG_NAME_PREFIX_TPM}{user_hash}-{suffix}")
@@ -1229,9 +1229,9 @@ fn algo_from_alg_name(name: &str) -> Option<SshKeyAlgo> {
 }
 
 fn mint_credential_name() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 8];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let suffix: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     // User-prefix protects shared-workstation installs from name
     // collisions across user profiles. The hash is `username -> SHA-256
@@ -1242,9 +1242,9 @@ fn mint_credential_name() -> String {
 }
 
 fn mint_probe_name() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 8];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let suffix: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     format!("letsflutssh-probe-{suffix}")
 }

@@ -42,7 +42,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use rand::RngCore;
+use rand::Rng;
 
 use crate::bus::{Event, EventBus};
 use crate::error::Error;
@@ -929,7 +929,7 @@ fn build_frame(
         return Ok(plaintext.to_vec());
     };
     let mut nonce = [0u8; NONCE_LEN];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    rand::rng().fill_bytes(&mut nonce);
     let aad = frame_index.to_le_bytes();
     let ct = crate::crypto::aes_gcm_encrypt_raw(key, &nonce, plaintext, &aad)?;
     let mut frame = Vec::with_capacity(4 + NONCE_LEN + ct.len());

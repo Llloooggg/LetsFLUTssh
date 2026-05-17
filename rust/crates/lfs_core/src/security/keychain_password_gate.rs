@@ -24,8 +24,7 @@
 //! 32-byte pepper matches the SHA-256 block-input size.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::Rng;
 use serde_json::Value;
 
 /// Per-blob random-bytes lengths. Mirrors the Dart-side
@@ -42,8 +41,8 @@ pub const PEPPER_LENGTH: usize = 32;
 pub fn random_salt_and_pepper() -> (Vec<u8>, Vec<u8>) {
     let mut salt = vec![0u8; SALT_LENGTH];
     let mut pepper = vec![0u8; PEPPER_LENGTH];
-    OsRng.fill_bytes(&mut salt);
-    OsRng.fill_bytes(&mut pepper);
+    rand::rng().fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut pepper);
     (salt, pepper)
 }
 

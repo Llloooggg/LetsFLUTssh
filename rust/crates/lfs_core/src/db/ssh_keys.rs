@@ -767,7 +767,7 @@ fn now_unix_ms() -> i64 {
 /// insert sequence atomic and lets the Dart caller drop to a
 /// single FRB call.
 pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Result<String, Error> {
-    use rand::RngCore;
+    use rand::Rng;
     let tx = conn
         .inner_mut()
         .transaction()
@@ -805,7 +805,7 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
     let id_collision = metadata.iter().any(|m| m.id == proposed.id);
     let new_id = if id_collision {
         let mut bytes = [0u8; 16];
-        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
         bytes.iter().map(|b| format!("{b:02x}")).collect::<String>()
     } else {
         proposed.id.clone()

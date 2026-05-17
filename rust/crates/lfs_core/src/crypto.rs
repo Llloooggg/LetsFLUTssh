@@ -22,7 +22,7 @@ use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -181,7 +181,7 @@ pub fn ed25519_verify(public_key: &[u8], message: &[u8], signature: &[u8]) -> bo
 /// Sized at [`AES_GCM_KEY_LEN`] = 32 bytes.
 pub fn aes_gcm_random_key() -> Zeroizing<Vec<u8>> {
     let mut key = Zeroizing::new(vec![0u8; AES_GCM_KEY_LEN]);
-    rand::rngs::OsRng.fill_bytes(&mut key);
+    rand::rng().fill_bytes(&mut key);
     key
 }
 
@@ -190,7 +190,7 @@ pub fn aes_gcm_random_key() -> Zeroizing<Vec<u8>> {
 pub fn aes_gcm_encrypt(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = build_cipher(key)?;
     let mut nonce_bytes = [0u8; AES_GCM_IV_LEN];
-    rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
+    rand::rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
     let ct = cipher
         .encrypt(nonce, plaintext)

@@ -54,7 +54,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine as _;
-use russh::keys::ssh_key::rand_core::OsRng;
 use russh::keys::{Algorithm, PrivateKey};
 use russh::server::{Auth, Config, Handle as ServerHandle, Handler, Msg, Server, Session};
 use russh::{Channel, ChannelId};
@@ -133,7 +132,7 @@ impl TestServerHandle {
 /// Start the in-process SSH fixture. Must be called from inside a
 /// tokio runtime — uses `tokio::spawn` for the accept loop.
 pub async fn start() -> Result<TestServerHandle, Error> {
-    let host_key = PrivateKey::random(&mut OsRng, Algorithm::Ed25519)
+    let host_key = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519)
         .map_err(|e| Error::Transport(format!("test_server: host key gen: {e}")))?;
 
     let host_pub = host_key.public_key();

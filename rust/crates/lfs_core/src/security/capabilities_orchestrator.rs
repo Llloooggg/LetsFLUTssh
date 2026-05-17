@@ -35,9 +35,9 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 /// UUIDv4-shaped prompt id. Mirrors the same id-shape every
 /// other prompt registry uses.
 fn generate_prompt_id() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 

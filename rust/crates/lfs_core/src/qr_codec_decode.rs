@@ -488,9 +488,9 @@ fn decode_session(
 /// (used by the recorder + session id mints); reuse it here so QR
 /// imports get the same RNG quality.
 fn generate_uuid_v4() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     bytes[6] = (bytes[6] & 0x0F) | 0x40; // version 4
     bytes[8] = (bytes[8] & 0x3F) | 0x80; // variant 10
     format!(

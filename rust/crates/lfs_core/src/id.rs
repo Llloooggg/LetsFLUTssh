@@ -15,7 +15,7 @@
 //! must not own randomness — the workspace policy keeps `rand`
 //! out of the FRB layer's dep graph.
 
-use rand::RngCore;
+use rand::Rng;
 use uuid::Uuid;
 
 /// Produce a 32-character lowercase-hex handle id from 16
@@ -24,7 +24,7 @@ use uuid::Uuid;
 /// overhead. Single source for handle-id minting across modules.
 pub fn random_handle_hex_32() -> String {
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let mut hex = String::with_capacity(32);
     for b in bytes {
         use std::fmt::Write as _;

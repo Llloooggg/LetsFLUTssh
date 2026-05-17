@@ -734,7 +734,7 @@ mod tests {
         use ssh_agent_lib::proto::{Credential, KeyConstraint, Unparsed};
         use ssh_key::private::{Ed25519Keypair, KeypairData};
         let mut ep = Endpoint::default();
-        let keypair = Ed25519Keypair::random(&mut rand::rngs::OsRng);
+        let keypair = Ed25519Keypair::random(&mut ssh_key::rand_core::OsRng);
         let identity = AddIdentity {
             credential: Credential::Key {
                 privkey: KeypairData::Ed25519(keypair),
@@ -771,7 +771,7 @@ mod tests {
         use ssh_agent_lib::proto::{Credential, KeyConstraint};
         use ssh_key::private::{Ed25519Keypair, KeypairData};
         let mut ep = Endpoint::default();
-        let keypair = Ed25519Keypair::random(&mut rand::rngs::OsRng);
+        let keypair = Ed25519Keypair::random(&mut ssh_key::rand_core::OsRng);
         let identity = AddIdentity {
             credential: Credential::Key {
                 privkey: KeypairData::Ed25519(keypair),

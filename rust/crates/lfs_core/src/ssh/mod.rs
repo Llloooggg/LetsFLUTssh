@@ -439,9 +439,9 @@ pub fn format_fingerprint(key_bytes: &[u8]) -> String {
 }
 
 fn generate_prompt_id() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let mut hex = String::with_capacity(32);
     for b in bytes {
         use std::fmt::Write as _;
@@ -2570,8 +2570,7 @@ mod tests {
     use russh::keys::{ssh_key::LineEnding, Algorithm, PrivateKey};
 
     fn random_ed25519_pem() -> Vec<u8> {
-        let key = PrivateKey::random(&mut rand::thread_rng(), Algorithm::Ed25519)
-            .expect("ed25519 keygen");
+        let key = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("ed25519 keygen");
         key.to_openssh(LineEnding::LF)
             .expect("openssh encode")
             .as_bytes()

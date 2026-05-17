@@ -418,10 +418,10 @@ impl WorkDir {
         // std doesn't ship a `mkdtemp`; build one against a
         // monotonic counter + pid + random suffix. Collisions
         // get retried up to 16 times.
-        use rand::RngCore;
+        use rand::Rng;
         let base = std::env::temp_dir();
         let pid = std::process::id();
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         for _ in 0..16 {
             let mut bytes = [0u8; 8];
             rng.fill_bytes(&mut bytes);

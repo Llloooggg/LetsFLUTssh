@@ -874,7 +874,7 @@ pub fn duplicate_with_path(
     target_folder_path: &str,
     now_ms: i64,
 ) -> Result<String, Error> {
-    use rand::RngCore;
+    use rand::Rng;
     let tx = conn
         .inner_mut()
         .transaction()
@@ -912,7 +912,7 @@ pub fn duplicate_with_path(
 
     // Fresh id.
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let new_id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
 
     duplicate_session(

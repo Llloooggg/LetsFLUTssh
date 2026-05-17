@@ -315,7 +315,7 @@ pub fn create_dir_all_secure(path: &std::path::Path) -> Result<(), String> {
 /// `create_dir_all` step earlier in the flow + the implicit
 /// behaviour would mask "support dir was never resolved" bugs.
 pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
-    use rand::RngCore;
+    use rand::Rng;
     use std::io::Write as _;
     // Random 32-bit suffix on the tmp filename so concurrent
     // writers to the same destination do not collide on the
@@ -324,7 +324,7 @@ pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), St
     // enough for the rename to land; collisions across processes
     // are caught by the rename step itself.
     let mut salt = [0u8; 4];
-    rand::rngs::OsRng.fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut salt);
     let suffix = u32::from_le_bytes(salt);
     let parent = path.parent().unwrap_or(std::path::Path::new("."));
     let stem = path

@@ -35,9 +35,11 @@ tokio = { workspace = true }
 async-channel = { workspace = true }
 zeroize = { workspace = true }
 subtle = { workspace = true }
-# Used by `keys::generate_*` for keypair RNG. Kept on rand 0.8 to
-# match the trait bound on russh-keys 0.6.16's `PrivateKey::random`.
-rand = "0.8"
+# Used by `keys::generate_*` for keypair RNG. russh-keys 0.6.18
+# (pulled by russh 0.60) consumes a `rand_core 0.10` CryptoRng;
+# rand 0.10 brings rand_core 0.10, so `rand::rng()` (ThreadRng)
+# satisfies the bound.
+rand = "0.10"
 # Crypto envelopes — HKDF-SHA-256 + Ed25519 verify in
 # `lfs_core::crypto`. Replaces pointycastle / pinenacl on the Dart
 # side once the call sites flip.

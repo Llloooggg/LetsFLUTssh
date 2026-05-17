@@ -203,7 +203,7 @@ pub fn hardware_password_set_wizard_required(support_dir: &std::path::Path) -> b
 pub mod salt {
     use std::path::Path;
 
-    use rand::RngCore;
+    use rand::Rng;
 
     #[cfg(not(target_os = "linux"))]
     use crate::path::write_bytes_atomic;
@@ -239,7 +239,7 @@ pub mod salt {
     /// re-provisions cleanly.
     pub fn provision(support_dir: &Path) -> std::io::Result<Vec<u8>> {
         let mut salt = vec![0u8; LEN];
-        rand::rngs::OsRng.fill_bytes(&mut salt);
+        rand::rng().fill_bytes(&mut salt);
         #[cfg(not(target_os = "linux"))]
         {
             write_bytes_atomic(&salt_path(support_dir), &salt)

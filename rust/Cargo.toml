@@ -33,23 +33,6 @@ rust-version = "1.85"
 [workspace.dependencies]
 anyhow = "1"
 flutter_rust_bridge = "=2.12.0"
-# Pinned to 0.59. Latest is 0.60.1 (2026-04-20) but it transitively
-# pulls `pkcs8 0.11.0-rc.11` (RustCrypto RC, last published Feb 2026)
-# which calls `pkcs5::pbes2::Parameters::recommended(..)` — a method
-# that no longer exists. RustCrypto renamed it to `generate_recommended`
-# when graduating `pkcs5` to stable 0.8.0 on 2026-04-24, but pkcs8
-# never got a follow-up RC. Cargo resolves to the broken pair
-# (pkcs8 RC + pkcs5 stable). Re-tested 2026-04-25, build fails at
-# the `recommended` call. russh 0.59 sticks with stable pkcs8 0.10.2
-# (which uses pkcs5 ^0.7), so the resolver picks two compatible
-# stable releases.
-#
-# Bump back when either:
-#   - russh ships a release that pins pkcs8 stable
-#   - pkcs8 0.11.0-rc.12+ catches up to pkcs5 0.8 stable, OR
-#   - pkcs8 0.11 / pkcs5 0.9 graduate together to stable
-#
-# Track: https://github.com/RustCrypto/formats/pull/* (pkcs8 / pkcs5)
 # russh defaults to `aws-lc-rs` for crypto, which transitively
 # pulls `aws-lc-sys` — a vendored AWS-LC C codebase. Two problems
 # with the default for our matrix:
@@ -61,20 +44,21 @@ flutter_rust_bridge = "=2.12.0"
 #      run, dominating Android + Windows build wall-clock (8 → 22
 #      minutes regression observed against pre-rust v7.3.2).
 # `ring` is the alternative pure-Rust + minimal-C backend russh
-# 0.59 supports out of the box. It builds cleanly on every
-# target our matrix covers, has prebuilt assembly for ARM/ARM64,
-# and produces functionally equivalent ssh crypto. We keep the
-# rest of the russh defaults (`flate2`, `rsa`) untouched.
-russh = { version = "0.59", default-features = false, features = ["flate2", "ring", "rsa"] }
+# supports out of the box. It builds cleanly on every target our
+# matrix covers, has prebuilt assembly for ARM/ARM64, and produces
+# functionally equivalent ssh crypto. We keep the rest of the
+# russh defaults (`flate2`, `rsa`) untouched.
+#
+# 0.60.x closes GHSA-f5v4-2wr6-hqmg (pre-auth DoS via unbounded
+# allocation in the keyboard-interactive auth handler).
+russh = { version = "0.60", default-features = false, features = ["flate2", "ring", "rsa"] }
 # russh's forked ssh-key crate. russh pulls it transitively (the
-# `internal-russh-forked-` prefix is the upstream's choice — exact
-# pin `=0.6.16+upstream-0.6.7` matches what russh 0.59 resolves
-# against its own Cargo.toml). We re-declare it as a direct dep
-# only to flip on the `ppk` feature, which russh itself does not
-# re-export (russh 0.59 features list does not include `ppk`).
-# Same crate, same version — Cargo unions the feature set, no
-# duplicate compile.
-internal-russh-forked-ssh-key = { version = "=0.6.16", features = [
+# `internal-russh-forked-` prefix is the upstream's choice — pin
+# matches the exact version russh 0.60 resolves to). We re-declare
+# it as a direct dep only to flip on the `ppk` feature, which
+# russh itself does not re-export. Same crate, same version —
+# Cargo unions the feature set, no duplicate compile.
+internal-russh-forked-ssh-key = { version = "=0.6.18", features = [
     "ppk",
     "ed25519",
     "rsa",
@@ -283,7 +267,7 @@ ssh-agent-lib = "0.5.2"
 # The russh fork (`internal-russh-forked-ssh-key`) is a separate
 # crate identity — Cargo resolves both side by side. cfg-gated to
 # desktop targets alongside `ssh-agent-lib`.
-ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ecdsa", "ed25519", "rsa"] }
+ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ecdsa", "ed25519", "rsa", "rand_core"] }
 # async-trait — ssh-agent-lib re-exports this and our `impl Session`
 # block needs the proc-macro attribute. Pinning at the workspace
 # level keeps it pinned to the same major ssh-agent-lib resolves.

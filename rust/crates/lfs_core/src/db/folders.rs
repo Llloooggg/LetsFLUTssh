@@ -103,7 +103,7 @@ pub fn ensure_folder_path(
     if path.is_empty() {
         return Ok(None);
     }
-    use rand::RngCore;
+    use rand::Rng;
     let folders = list_all(conn)?;
     let mut by_parent: std::collections::HashMap<(Option<String>, String), String> =
         std::collections::HashMap::new();
@@ -118,7 +118,7 @@ pub fn ensure_folder_path(
             continue;
         }
         let mut bytes = [0u8; 16];
-        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
         let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
         let row = FolderRow {
             id: id.clone(),

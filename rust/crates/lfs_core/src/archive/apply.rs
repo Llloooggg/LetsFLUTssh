@@ -484,7 +484,7 @@ fn apply_folder_tree(
     now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) -> HashMap<String, String> {
-    use rand::RngCore;
+    use rand::Rng;
     let arr = match serde_json::from_str::<Vec<Value>>(sessions_json) {
         Ok(a) => a,
         Err(_) => return HashMap::new(),
@@ -544,7 +544,7 @@ fn apply_folder_tree(
             }
             warn_if_windows_reserved_folder_label(seg);
             let mut bytes = [0u8; 16];
-            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            rand::rng().fill_bytes(&mut bytes);
             let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
             let row = folders::FolderRow {
                 id: id.clone(),
@@ -621,7 +621,7 @@ fn apply_empty_folders(
     now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
-    use rand::RngCore;
+    use rand::Rng;
     let arr: Vec<String> = match serde_json::from_str(json) {
         Ok(a) => a,
         Err(e) => {
@@ -648,7 +648,7 @@ fn apply_empty_folders(
             }
             warn_if_windows_reserved_folder_label(seg);
             let mut bytes = [0u8; 16];
-            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            rand::rng().fill_bytes(&mut bytes);
             let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
             let row = folders::FolderRow {
                 id: id.clone(),
