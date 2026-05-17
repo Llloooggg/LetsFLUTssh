@@ -508,9 +508,22 @@ jobs:
         # symbol still triggers the failure here. `--locked` so the
         # check resolves against the committed Cargo.lock — the same
         # lock parity the upcoming Wave 2 check enforces.
+        #
+        # Windows-MSVC: `shell: bash` invokes Git Bash, whose start-up
+        # forcibly prepends `/usr/bin` (Git's MSYS2 perl) to PATH and
+        # squashes the GITHUB_PATH-level prepend the Strawberry-Perl
+        # step did. `openssl-sys`'s build script then resolves bare
+        # `perl` to MSYS2 perl, which lacks the CPAN modules the
+        # vendored OpenSSL `Configure` needs (`Locale::Maketext::Simple`
+        # etc.). Re-export PATH inside this bash step so the cargo
+        # child inherits Strawberry-first PATH.
         working-directory: rust
         shell: bash
         run: |
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            export PATH="/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+            echo "Using perl: $(which perl)"
+          fi
           if [ "${{ matrix.ndk }}" = "true" ]; then
             cargo ndk --target ${{ matrix.target }} -- check --workspace --all-targets --locked
           else
@@ -534,9 +547,17 @@ jobs:
         # Windows-target clippy reuses the same scoping convention via
         # an inline `cargo clippy` invocation because `make` is not
         # a first-class tool on the windows runner image.
+        #
+        # Windows-MSVC PATH override mirrors the `cargo check` step
+        # above — Git Bash startup squashes GITHUB_PATH and would
+        # otherwise re-elect MSYS2 perl when openssl-sys's build
+        # script runs alongside clippy's full dep compilation.
         working-directory: rust
         shell: bash
         run: |
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            export PATH="/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+          fi
           if [ "${{ matrix.ndk }}" = "true" ]; then
             cargo ndk --target ${{ matrix.target }} -- clippy -p lfs_os_security --all-targets --locked -- -D warnings
           else
