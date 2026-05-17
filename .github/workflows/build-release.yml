@@ -432,6 +432,24 @@ jobs:
         with:
           submodules: recursive
 
+      # Pin x64 Temurin so the `jni` Flutter plugin links against an
+      # x64 `jvm.lib`. The default `JAVA_HOME` on the
+      # `windows-2025-vs2026` runner points at an ARM64 Temurin tree
+      # (`Java_Temurin-Hotspot_jdk\<ver>\aarch64`), and the `jni`
+      # plugin's Windows vcxproj resolves `jvm.lib` through that
+      # path — link fails with `LNK4272: library machine type 'ARM64'
+      # conflicts with target machine type 'x64'` + an unresolved
+      # `__imp_JNI_CreateJavaVM`. `jni` is a transitive dep of
+      # `path_provider_android` (Android-only at runtime) but its
+      # plugin descriptor declares a Windows build target, so
+      # Flutter compiles it on every Windows release. Fix is the
+      # explicit x64 architecture pin.
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+          architecture: x64
+
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
