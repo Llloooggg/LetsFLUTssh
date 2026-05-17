@@ -75,7 +75,7 @@ class _FileConflictDialogState extends State<FileConflictDialog> {
             style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.sm),
           ),
           if (widget.showApplyToAll) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _ApplyToAllCheckbox(
               value: _applyToAll,
               onChanged: (v) => setState(() => _applyToAll = v),
@@ -120,7 +120,7 @@ class _ApplyToAllCheckbox extends StatelessWidget {
             onChanged: (v) => onChanged(v ?? false),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             loc.fileConflictApplyAll,
             style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.sm),

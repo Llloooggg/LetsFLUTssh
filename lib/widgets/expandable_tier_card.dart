@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../core/security/security_tier.dart';
 import '../core/security/threat_vocabulary.dart';
+import 'expandable_tier_card_logic.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_button.dart';
 import 'secure_password_field.dart';
 import 'security_threat_list.dart' show threatTitle;
+
+// Part files keep the private helper widgets next to the main card
+// without polluting the public widgets/ namespace. Library-private
+// underscore classes stay reachable from `_ExpandableTierCardState`
+// because `part of` joins them into the same library.
+part 'expandable_tier_card_header.dart';
+part 'expandable_tier_card_inputs.dart';
+part 'expandable_tier_card_threats.dart';
 
 /// Callback the Settings Security section supplies to each card.
 /// Invoked when the user taps the card's `Select` button with a
@@ -19,7 +28,7 @@ typedef TierSelectCallback =
       required SecurityTier tier,
       required SecurityTierModifiers modifiers,
       String? shortPassword,
-      String? pin,
+      String? hardwarePassword,
       String? masterPassword,
       bool? pendingBiometric,
     });
@@ -148,10 +157,9 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// spec reports as the current applied value; the toggle mutates
   /// this flag only — the actual enable / disable work (platform
   /// biometric prompt + vault stash) is deferred until the user taps
-  /// Apply. That batches the password prompt with the tier change
-  /// instead of asking on every toggle flip, which was the prior
-  /// behaviour and surprised users who flipped the toggle twice
-  /// before Applying.
+  /// Apply, which batches the password prompt with the tier change.
+  /// Trap: prompting on every toggle flip surprises users who flip
+  /// the toggle twice before Applying.
   late bool _pendingBiometric;
   late bool _initialBiometric;
 
@@ -216,30 +224,15 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     super.dispose();
   }
 
-  bool _derivePassword(SecurityTier current, SecurityTierModifiers mods) {
-    if (widget.tier != current &&
-        !(widget.tier == SecurityTier.keychain &&
-            current == SecurityTier.keychainWithPassword)) {
-      // Non-current tier card: start with password off (T1/T2) or
-      // on (Paranoid — always on by design). This is the pending
-      // selection the user can tweak before tapping Select.
-      return widget.tier == SecurityTier.paranoid;
-    }
-    return mods.password ||
-        current == SecurityTier.keychainWithPassword ||
-        current == SecurityTier.paranoid;
-  }
+  bool _derivePassword(SecurityTier current, SecurityTierModifiers mods) =>
+      derivePasswordModifierForCard(
+        cardTier: widget.tier,
+        currentTier: current,
+        currentModifiers: mods,
+      );
 
-  bool get _isCurrent {
-    final t = widget.tier;
-    final c = widget.currentTier;
-    if (t == c) return true;
-    // T1 card matches both `keychain` and `keychainWithPassword`.
-    if (t == SecurityTier.keychain && c == SecurityTier.keychainWithPassword) {
-      return true;
-    }
-    return false;
-  }
+  bool get _isCurrent =>
+      tierCardIsCurrent(cardTier: widget.tier, currentTier: widget.currentTier);
 
   /// True when the current config exactly matches the card's pending
   /// state. Drives whether Select reads "Current" (disabled) or
@@ -257,8 +250,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   }
 
   bool get _passwordToggleAvailable =>
-      widget.tier == SecurityTier.keychain ||
-      widget.tier == SecurityTier.hardware;
+      tierCardPasswordToggleAvailable(widget.tier);
 
   /// T1 and T2 use the same short-password input path when the
   /// password modifier toggle is on. T2 historically had a
@@ -276,26 +268,20 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// the user to re-type the password twice (card fields + dialog)
   /// was the user-report bug that "two password fields are showing
   /// on my own tier".
-  bool get _requiresPasswordInput {
-    if (widget.tier != SecurityTier.keychain &&
-        widget.tier != SecurityTier.hardware) {
-      return false;
-    }
-    if (!_passwordEnabled) return false;
-    if (_isCurrent && _currentHasPassword) return false;
-    return true;
-  }
+  bool get _requiresPasswordInput => requiresShortPasswordInput(
+    cardTier: widget.tier,
+    passwordModifierEnabled: _passwordEnabled,
+    isCurrent: _isCurrent,
+    currentHasPassword: _currentHasPassword,
+  );
 
   /// Same reasoning as [_requiresPasswordInput]: on Paranoid a
   /// biometric-only toggle does not change the master password, and
   /// the post-Apply biometric step re-prompts via the shared dialog,
   /// so rendering the master-password pair on the current card is
   /// redundant UI.
-  bool get _requiresMasterPasswordInput {
-    if (widget.tier != SecurityTier.paranoid) return false;
-    if (_isCurrent) return false;
-    return true;
-  }
+  bool get _requiresMasterPasswordInput =>
+      requiresMasterPasswordInput(cardTier: widget.tier, isCurrent: _isCurrent);
 
   /// Whether the currently-applied tier + modifiers already carry a
   /// user-typed password. Paranoid is always true; T1+password is
@@ -303,13 +289,10 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// applied state the parent pushed down, not the pending card
   /// state, because this predicate exists to tell the render code
   /// whether we need a fresh password from the user.
-  bool get _currentHasPassword {
-    final current = widget.currentTier;
-    final mods = widget.currentModifiers;
-    return mods.password ||
-        current == SecurityTier.keychainWithPassword ||
-        current == SecurityTier.paranoid;
-  }
+  bool get _currentHasPassword => currentConfigHasPassword(
+    currentTier: widget.currentTier,
+    currentModifiers: widget.currentModifiers,
+  );
 
   bool get _inputsReady {
     if (_requiresPasswordInput) {
@@ -343,7 +326,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return ThreatTier.plaintext;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return ThreatTier.keychain;
       case SecurityTier.hardware:
         return ThreatTier.hardware;
@@ -353,20 +335,27 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   }
 
   /// Normalize the card's tier to the target tier the apply pipeline
-  /// expects. The UI treats T1 as a single tier card; on apply, the
-  /// presence of a short password flips it to `keychainWithPassword`
-  /// so `_applyTierChange` routes to the right handler.
-  SecurityTier _resolveTargetTier() {
-    if (widget.tier == SecurityTier.keychain && _passwordEnabled) {
-      return SecurityTier.keychainWithPassword;
-    }
-    return widget.tier;
-  }
+  /// expects. Bank-style v3: the UI treats T1 as a single tier card
+  /// and the password signal lives on `result.modifiers.password`,
+  /// which `_applyTierChange` reads to decide whether to drive the
+  /// gate-bearing flow. The tier itself stays `keychain` regardless
+  /// of the password modifier value.
+  SecurityTier _resolveTargetTier() => widget.tier;
 
-  SecurityTierModifiers _resolveModifiers() => SecurityTierModifiers(
-    password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
-    biometric: widget.currentModifiers.biometric,
-  );
+  SecurityTierModifiers _resolveModifiers() {
+    // Paranoid and Hardware both carry a mandatory password by
+    // tier — `_passwordEnabled` is locked on for those cards but
+    // the resolved modifier still has to be coherent in case the
+    // toggle row was bypassed (e.g. the password row is hidden on
+    // these cards, so the local pending flag is irrelevant).
+    final passwordRequired =
+        widget.tier == SecurityTier.paranoid ||
+        widget.tier == SecurityTier.hardware;
+    return SecurityTierModifiers(
+      password: passwordRequired || _passwordEnabled,
+      biometric: widget.currentModifiers.biometric,
+    );
+  }
 
   String? _shortPasswordPayload() {
     if (!_requiresPasswordInput) return null;
@@ -374,7 +363,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     return _passwordCtrl.text;
   }
 
-  String? _pinPayload() {
+  String? _hardwarePasswordPayload() {
     if (!_requiresPasswordInput) return null;
     if (widget.tier != SecurityTier.hardware) return null;
     return _passwordCtrl.text;
@@ -395,14 +384,15 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     setState(() => _busy = true);
     try {
       // T1 uses `shortPassword` against the keychain-password gate;
-      // T2 uses the same value as the PIN HMAC input to the hw
-      // vault. Same UX field, different backend consumer — the
-      // tier switcher routes it. Paranoid uses `masterPassword`.
+      // T2 uses `hardwarePassword` — the typed gate fed to the
+      // hw-vault HMAC. Same UX field, different backend consumer
+      // — the tier switcher routes it. Paranoid uses
+      // `masterPassword`.
       await widget.onSelect(
         tier: _resolveTargetTier(),
         modifiers: _resolveModifiers(),
         shortPassword: _shortPasswordPayload(),
-        pin: _pinPayload(),
+        hardwarePassword: _hardwarePasswordPayload(),
         masterPassword: _requiresMasterPasswordInput
             ? _masterPasswordCtrl.text
             : null,
@@ -499,25 +489,25 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// inside `build` pushed the method past the limit.
   Widget _buildExpandedBody(S l10n) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ThreatListFixed(model: _previewModel, l10n: l10n),
           if (!widget.tierAvailable && widget.unavailableReason != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _UnavailableReason(text: widget.unavailableReason!),
           ],
           if (_hasModifierSection) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             const Divider(height: 1),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
           ],
           if (_passwordToggleAvailable) _buildPasswordToggleRow(l10n),
           if (widget.biometricSpec != null) _buildBiometricRow(l10n),
           if (widget.autoLockRow != null) widget.autoLockRow!,
           if (_requiresPasswordInput) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _PasswordPair(
               primary: _passwordCtrl,
               confirm: _passwordConfirmCtrl,
@@ -527,7 +517,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
             ),
           ],
           if (_requiresMasterPasswordInput) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _PasswordPair(
               primary: _masterPasswordCtrl,
               confirm: _masterPasswordConfirmCtrl,
@@ -536,7 +526,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               onChanged: () => setState(() {}),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Align(
             alignment: Alignment.centerRight,
             child: AppButton.primary(
@@ -551,9 +541,9 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
           // not as pending changes gated by Apply. Only the
           // current tier card passes a non-null widget here.
           if (widget.activeTierExtras != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Divider(height: 1, color: AppTheme.border),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             widget.activeTierExtras!,
           ],
         ],
@@ -612,7 +602,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return 'T0';
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return 'T1';
       case SecurityTier.hardware:
         return 'T2';
@@ -626,7 +615,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return l10n.tierPlaintextLabel;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return l10n.tierKeychainLabel;
       case SecurityTier.hardware:
         return l10n.tierHardwareLabel;
@@ -640,7 +628,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return l10n.tierPlaintextSubtitle;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return l10n.tierKeychainSubtitle(_keychainName());
       case SecurityTier.hardware:
         return l10n.tierHardwareSubtitleHonest;
@@ -672,449 +659,5 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       return 'Keystore';
     }
     return 'libsecret';
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.badge,
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.expanded,
-    required this.trailing,
-    required this.onTap,
-  });
-
-  final String badge;
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final bool expanded;
-  final Widget? trailing;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // The whole header is clickable (tap → expand/collapse), so its
-    // contents opt out of the ambient settings `SelectionArea`. Without
-    // this wrap the title / subtitle were selectable yet the cursor
-    // stayed a pointer (the InkWell's click cursor wins over the
-    // ambient Selectable text cursor), which users read as "half-
-    // broken". Rule: clickable tile ≠ selectable.
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppTheme.radiusSm,
-      child: SelectionContainer.disabled(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 30,
-                height: 20,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: accent, width: 1),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: AppFonts.xs,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: AppTheme.fg,
-                        fontSize: AppFonts.sm,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: AppTheme.fgDim,
-                        fontSize: AppFonts.xs,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-              const SizedBox(width: 4),
-              Icon(
-                expanded ? Icons.expand_less : Icons.expand_more,
-                size: 18,
-                color: AppTheme.fgDim,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CurrentBadge extends StatelessWidget {
-  const _CurrentBadge({required this.label, required this.accent});
-
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.green.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppTheme.green, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check, size: 12, color: AppTheme.green),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: AppTheme.green,
-              fontSize: AppFonts.xs,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Fixed-order threat list — same 8 items, same positions, on every
-/// tier card. Users scanning four cards side-by-side compare the
-/// ✓/✗ column vertically without re-reading labels.
-///
-/// *Status rule:* rows render the **best-case** status for this
-/// tier — i.e. what the tier protects against once all applicable
-/// modifiers are on. Rows that the password modifier unlocks carry
-/// an "only with password" hint (text on wide layouts, key icon on
-/// narrow). The hint disambiguates "this tier can protect it, but
-/// only if you enable the password toggle" from "this tier protects
-/// it unconditionally" — which is what separates T1 from T2 on the
-/// `keyringFileTheft` row without needing to flip the checkmark
-/// itself. Showing the live ✗ when the toggle is off flattened the
-/// T1-vs-T2 comparison because both tiers ended up with the same
-/// checkmark shape — the hint is the signal users rely on instead.
-class _ThreatListFixed extends StatelessWidget {
-  const _ThreatListFixed({required this.model, required this.l10n});
-
-  final ThreatModel model;
-  final S l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    // Evaluate the tier at its best-case config — password on where
-    // the tier supports the modifier, always on for Paranoid. The
-    // rendered ✓/✗ does not depend on the user's current toggle
-    // state; only the per-row "only with password" hint does.
-    final bestModel = ThreatModel(
-      tier: model.tier,
-      password: model.tier != ThreatTier.plaintext,
-    );
-    final statusMap = evaluate(bestModel);
-    final withoutPassword = evaluate(ThreatModel(tier: model.tier));
-    // "This row is password-gated" — best case is ✓ but the
-    // no-password version is ✗. The hint surfaces regardless of
-    // whether the toggle is currently on: the user should always
-    // know which rows depend on the password modifier, even when
-    // that modifier is already enabled. Keeps the comparison
-    // between tier cards stable — same hint pattern on T1 vs T2
-    // no matter what the pending selection is.
-    final passwordGated = <SecurityThreat>{};
-    for (final t in SecurityThreat.values) {
-      if (statusMap[t] == ThreatStatus.protects &&
-          withoutPassword[t] == ThreatStatus.doesNotProtect) {
-        passwordGated.add(t);
-      }
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final t in SecurityThreat.values)
-          _ThreatLine(
-            threat: t,
-            protects: statusMap[t] == ThreatStatus.protects,
-            showsPasswordHint: passwordGated.contains(t),
-            l10n: l10n,
-          ),
-      ],
-    );
-  }
-}
-
-class _ThreatLine extends StatelessWidget {
-  const _ThreatLine({
-    required this.threat,
-    required this.protects,
-    required this.showsPasswordHint,
-    required this.l10n,
-  });
-
-  final SecurityThreat threat;
-  final bool protects;
-  final bool showsPasswordHint;
-  final S l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    // Layout threshold — below this width the text form of the
-    // "(only with password)" hint runs out of room next to a
-    // translated threat title (German / Russian / Portuguese grow
-    // the title by 30-50 %), so we fall back to a key icon that
-    // conveys the same "needs password" signal in ~12 px instead
-    // of ~120 px. Keeps the two-line ellipsis workaround from
-    // triggering on phones. Tooltip on the icon carries the full
-    // text for accessibility and desktop-wide hover.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compactHint = constraints.maxWidth < 340;
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Icon(
-                  protects ? Icons.check : Icons.close,
-                  size: 12,
-                  color: protects ? AppTheme.green : AppTheme.red,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        threatTitle(threat, l10n),
-                        style: TextStyle(
-                          color: AppTheme.fg,
-                          fontSize: AppFonts.xs,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (showsPasswordHint) ...[
-                      const SizedBox(width: 6),
-                      if (compactHint)
-                        Tooltip(
-                          message: l10n.modifierOnlyWithPassword,
-                          child: Icon(
-                            Icons.key,
-                            size: 12,
-                            color: AppTheme.fgDim,
-                          ),
-                        )
-                      else
-                        Flexible(
-                          child: Text(
-                            '(${l10n.modifierOnlyWithPassword})',
-                            style: TextStyle(
-                              color: AppTheme.fgDim,
-                              fontSize: AppFonts.xs,
-                              fontStyle: FontStyle.italic,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _UnavailableReason extends StatelessWidget {
-  const _UnavailableReason({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppTheme.yellow.withValues(alpha: 0.1),
-        borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.yellow.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.warning_amber_outlined, size: 14, color: AppTheme.yellow),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.xs),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModifierRow extends StatelessWidget {
-  const _ModifierRow({
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-    this.icon,
-    this.subtitle,
-    this.disabledReason,
-  });
-
-  final String label;
-  final bool value;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  /// Leading icon rendered in the muted `fgDim` tone at size 16 to
-  /// match the [_SettingsRow] leading-icon style that the auto-lock
-  /// tile uses. Null hides the icon column — kept optional so
-  /// unrelated callers (if any) can skip it.
-  final IconData? icon;
-
-  /// Second line under the label — one-sentence caption in `fgDim`
-  /// at `AppFonts.xs`, mirrors the `_SettingsRow.subtitle` shape the
-  /// auto-lock tile renders with. Shared so the three modifier rows
-  /// (password / biometric / auto-lock) read as the same kind of
-  /// setting instead of password+biometric looking like bare
-  /// switches next to an explanatory auto-lock tile.
-  final String? subtitle;
-
-  /// Shown as a hover tooltip when the row is disabled — explains
-  /// *why* the toggle cannot flip (tier not current, password not
-  /// set, biometric unsupported by the platform, etc.). Tooltip is
-  /// skipped when the row is enabled so the active state does not
-  /// carry stale copy.
-  final String? disabledReason;
-
-  @override
-  Widget build(BuildContext context) {
-    final labelBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          // Muted (`fgDim`) across every modifier row so password
-          // / biometric / auto-lock labels sit at the same visual
-          // weight. Earlier revisions used `fg` (full white) on
-          // password + biometric while auto-lock used a
-          // `_SettingsRow` with its default mix of `fg` label +
-          // `fgDim` subtitle, which read as "three different
-          // kinds of setting" instead of "three rows of the
-          // same kind". Consistent muting keeps the Switch /
-          // selector as the only element that draws attention.
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-        if (subtitle != null && subtitle!.isNotEmpty)
-          Text(
-            subtitle!,
-            style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.xs),
-          ),
-      ],
-    );
-    Widget row = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: AppTheme.fgDim),
-            const SizedBox(width: 10),
-          ],
-          Expanded(child: labelBlock),
-          Switch(value: value, onChanged: enabled ? onChanged : null),
-        ],
-      ),
-    );
-    if (!enabled && disabledReason != null && disabledReason!.isNotEmpty) {
-      row = Tooltip(message: disabledReason!, child: row);
-    }
-    return row;
-  }
-}
-
-class _PasswordPair extends StatelessWidget {
-  const _PasswordPair({
-    required this.primary,
-    required this.confirm,
-    required this.primaryHint,
-    required this.confirmHint,
-    required this.onChanged,
-  });
-
-  final TextEditingController primary;
-  final TextEditingController confirm;
-  final String primaryHint;
-  final String confirmHint;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SecurePasswordField(
-          controller: primary,
-          onChanged: (_) => onChanged(),
-          decoration: InputDecoration(
-            labelText: primaryHint,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 6),
-        SecurePasswordField(
-          controller: confirm,
-          onChanged: (_) => onChanged(),
-          decoration: InputDecoration(
-            labelText: confirmHint,
-            border: const OutlineInputBorder(),
-            isDense: true,
-            errorText: confirm.text.isNotEmpty && confirm.text != primary.text
-                ? S.of(context).passwordsDoNotMatch
-                : null,
-          ),
-        ),
-      ],
-    );
   }
 }

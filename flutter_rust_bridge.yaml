@@ -1,0 +1,8 @@
+# flutter_rust_bridge codegen config — consumed by
+# `flutter_rust_bridge_codegen generate` (run via `make rust-codegen`).
+# `rust_input` walks `crate::api` and exposes every `pub` item annotated
+# for FRB. See ARCHITECTURE.md §3.14.
+
+rust_input: crate::api
+rust_root: rust/crates/lfs_frb/
+dart_output: lib/src/rust/

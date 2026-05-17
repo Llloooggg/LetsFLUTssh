@@ -18,14 +18,13 @@ import '../widgets/update_progress_indicator.dart';
 ///
 /// The dialog's body + actions sit inside a `Consumer` so the widget
 /// tree reacts to `updateProvider` transitions while the download is
-/// in flight — the button swap to a progress indicator used to be
-/// the visible regression when the dialog popped synchronously and
-/// the download happened invisibly in the background.
+/// in flight — the button must swap to a progress indicator instead
+/// of the dialog popping synchronously and the download happening
+/// invisibly in the background.
 ///
-/// Moved out of `MainScreen` so main.dart no longer carries ~180 LOC
-/// of update-flow wiring inline. The caller ([MainScreen]) keeps the
-/// `_updateDialogShown` latch + the `ref.listenManual(updateProvider)`
-/// entry point; this module owns only the dialog composition.
+/// Owns only the dialog composition — the caller ([MainScreen])
+/// keeps the `_updateDialogShown` latch + the
+/// `ref.listenManual(updateProvider)` entry point.
 void showUpdateDialog({
   required BuildContext context,
   required WidgetRef ref,
@@ -37,12 +36,9 @@ void showUpdateDialog({
     // `AppDialog` is a StatelessWidget, so its `content` + `actions`
     // are captured at construction. Wrapping them in a `Consumer`
     // lets the dialog react to `updateProvider` state changes while
-    // the download runs — previously the "Download and Install"
-    // button popped the dialog immediately and the user was left
-    // with zero visibility into the in-flight transfer. Now the
-    // dialog stays open, swaps its body for a
-    // `UpdateProgressIndicator`, and collapses its footer to just
-    // Cancel while the state machine walks through
+    // the download runs: the dialog stays open, swaps its body for
+    // an `UpdateProgressIndicator`, and collapses its footer to
+    // just Cancel while the state machine walks through
     // `downloading → downloaded → (autoInstall) installing`.
     builder: (ctx) => Consumer(
       builder: (ctx, innerRef, _) {
@@ -68,10 +64,10 @@ void showUpdateDialog({
                 style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
               ),
               if (inFlight) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 UpdateProgressIndicator(state: state),
               ] else if (hasError) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   state.error != null
                       ? localizeError(S.of(ctx), state.error!)
@@ -80,7 +76,7 @@ void showUpdateDialog({
                 ),
               ] else if (info.changelog != null &&
                   info.changelog!.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   S.of(ctx).releaseNotes,
                   style: TextStyle(
@@ -89,7 +85,7 @@ void showUpdateDialog({
                     color: AppTheme.fg,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 200),
                   child: SingleChildScrollView(

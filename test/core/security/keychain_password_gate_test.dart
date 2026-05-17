@@ -1,249 +1,79 @@
+/// Coverage for [KeychainPasswordGate] — Dart-side branches that
+/// run on every platform / CI runner.
+///
+/// The full set / verify / clear lifecycle round-trip is intentionally
+/// out of scope here: it requires a reachable OS keychain (libsecret
+/// + running keyring daemon on Linux, login keychain on macOS,
+/// Credential Manager on Windows). Headless GitHub-Actions Linux
+/// runners do not have libsecret wired up, so a lifecycle test
+/// would always print `[skipped]` there — which is no test at all.
+/// Real-keychain coverage lives in the user's release-QA matrix on
+/// dev / production hardware.
+///
+/// What's portable: the Dart-side `rateLimiter()` fallback chain
+/// (missing file → null without an FRB call, AnyhowException → null,
+/// generic factory failure → null), and the default-constructor
+/// wiring path. Each branch survives without a working keychain
+/// because the early returns short-circuit before the FRB / OS-API
+/// edge.
+library;
+
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
-import 'package:letsflutssh/core/security/password_rate_limiter.dart';
-import 'package:path/path.dart' as p;
+
+import '../../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
 
-  late Directory tempDir;
-  late Map<String, String> fakeKeychain;
+  late Directory tmp;
+  late KeychainPasswordGate gate;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('l2_gate_test_');
-    fakeKeychain = {};
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-          (call) async {
-            final args =
-                (call.arguments as Map?)?.cast<String, Object?>() ?? {};
-            switch (call.method) {
-              case 'write':
-                fakeKeychain[args['key'] as String] = args['value'] as String;
-                return null;
-              case 'read':
-                return fakeKeychain[args['key']];
-              case 'delete':
-                fakeKeychain.remove(args['key']);
-                return null;
-              case 'containsKey':
-                return fakeKeychain.containsKey(args['key']);
-              case 'deleteAll':
-                fakeKeychain.clear();
-                return null;
-            }
-            return null;
-          },
-        );
+    tmp = Directory.systemTemp.createTempSync('lfs_keychain_gate_');
+    gate = KeychainPasswordGate(
+      hashFileFactory: () async => File('${tmp.path}/security_pass_hash.bin'),
+    );
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-          null,
-        );
-    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
-  KeychainPasswordGate newGate() => KeychainPasswordGate(
-    keychain: const FlutterSecureStorage(),
-    hashFileFactory: () async => File('${tempDir.path}/security_pass_hash.bin'),
-  );
-
-  group('KeychainPasswordGate', () {
-    test('isConfigured starts false on a clean install', () async {
-      expect(await newGate().isConfigured(), isFalse);
-    });
-
-    test('setPassword writes both disk hash + keychain pepper', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      expect(await gate.isConfigured(), isTrue);
-      expect(fakeKeychain.keys, contains('letsflutssh_l2_pepper'));
-      expect(
-        File('${tempDir.path}/security_pass_hash.bin').existsSync(),
-        isTrue,
-      );
-    });
-
-    test('verify returns true for the correct password', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      expect(await gate.verify('hunter2'), isTrue);
-    });
-
-    test('verify returns false for a wrong password', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      expect(await gate.verify('hunter3'), isFalse);
-    });
-
-    test('verify is false when either half of the state is missing', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-
-      // Drop only the keychain pepper — disk hash alone is useless.
-      fakeKeychain.clear();
-      expect(await gate.verify('hunter2'), isFalse);
-
-      // Reset, then drop the disk hash.
-      await gate.setPassword('hunter2');
-      File('${tempDir.path}/security_pass_hash.bin').deleteSync();
-      expect(await gate.verify('hunter2'), isFalse);
-    });
-
-    test('verify is false when the disk blob is corrupt', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      File(
-        '${tempDir.path}/security_pass_hash.bin',
-      ).writeAsStringSync('not json');
-      expect(await gate.verify('hunter2'), isFalse);
-    });
-
-    test('clear drops hash file + pepper', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      await gate.clear();
-      expect(await gate.isConfigured(), isFalse);
-      expect(
-        File('${tempDir.path}/security_pass_hash.bin').existsSync(),
-        isFalse,
-      );
-      expect(fakeKeychain.containsKey('letsflutssh_l2_pepper'), isFalse);
-    });
-
-    test('setPassword twice rotates salt + pepper (hash changes)', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      final first = File(
-        '${tempDir.path}/security_pass_hash.bin',
-      ).readAsStringSync();
-      await gate.setPassword('hunter2');
-      final second = File(
-        '${tempDir.path}/security_pass_hash.bin',
-      ).readAsStringSync();
-      expect(second, isNot(equals(first)));
-      // The new state still verifies the same password.
-      expect(await gate.verify('hunter2'), isTrue);
-    });
-
-    test('rateLimiter is null before setPassword runs', () async {
-      final gate = newGate();
+  group('rateLimiter — Dart-side fallback paths', () {
+    test('returns null when the hash file does not exist', () async {
+      // No setPassword was called → no on-disk hash → the early
+      // `await file.exists()` short-circuits without an FRB decode.
       expect(await gate.rateLimiter(), isNull);
     });
 
-    test('rateLimiter records and persists failure + cooldown', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      final limiter = await gate.rateLimiter();
-      expect(limiter, isNotNull);
-      limiter!.recordFailure();
-      limiter.recordFailure();
-      // Any locked limiter reports a non-zero cooldown.
-      expect(limiter.status().failureCount, greaterThanOrEqualTo(1));
+    test('returns null on a malformed hash file (AnyhowException)', () async {
+      // Drop garbage where the gate expects a JSON envelope. The
+      // Rust decoder raises AnyhowException; the Dart catch maps to
+      // null so the caller falls through to "no rate limiter
+      // available" instead of bubbling the throw.
+      final file = File('${tmp.path}/security_pass_hash.bin');
+      await file.writeAsString('not a valid keychain hash blob');
+      expect(await gate.rateLimiter(), isNull);
     });
 
-    test('setPassword writes atomically — no .tmp sibling survives', () async {
-      // A `File.writeAsBytes(flush: true)` crash mid-write used to
-      // truncate the disk hash. `writeBytesAtomic` renames an
-      // already-fsynced tmp file into place, so the target path is
-      // only visible in a fully-written state. This test asserts the
-      // atomic-rename pattern is wired up by looking for leftover
-      // `.tmp*` siblings after a successful call.
-      await newGate().setPassword('hunter2');
-      final siblings = tempDir
-          .listSync()
-          .whereType<File>()
-          .where((f) => p.basename(f.path).contains('.tmp'))
-          .toList();
-      expect(
-        siblings,
-        isEmpty,
-        reason:
-            'writeBytesAtomic must rename the tmp file into place; no '
-            '.tmp* sibling should remain.',
+    test('factory failure surfaces null, not an exception', () async {
+      final broken = KeychainPasswordGate(
+        hashFileFactory: () async => throw StateError('factory boom'),
       );
+      expect(await broken.rateLimiter(), isNull);
     });
+  });
 
-    test(
-      'setPassword writes disk hash before keychain pepper (order invariant)',
-      () async {
-        // Load-bearing for L2 recovery. Disk-first order: a crash
-        // between the two writes leaves the OLD hash still verifiable
-        // under the OLD pepper still in the keychain. Keychain-first
-        // would leave the keychain holding the NEW pepper with the
-        // OLD disk hash — correct password stops verifying, user is
-        // locked out until full reset.
-        //
-        // Fail the keychain write on purpose; expect the disk hash to
-        // NOT survive (rollback) so `isConfigured()` stays false and
-        // the wizard can re-provision cleanly.
-        const keyHandler = MethodChannel(
-          'plugins.it_nomads.com/flutter_secure_storage',
-        );
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(keyHandler, (call) async {
-              if (call.method == 'write') {
-                throw PlatformException(
-                  code: 'keychain_unavailable',
-                  message: 'simulated failure',
-                );
-              }
-              return null;
-            });
-
-        final gate = newGate();
-        await expectLater(
-          () => gate.setPassword('hunter2'),
-          throwsA(isA<PlatformException>()),
-        );
-        expect(
-          File('${tempDir.path}/security_pass_hash.bin').existsSync(),
-          isFalse,
-          reason:
-              'Keychain failure must roll back the disk hash — otherwise '
-              'isConfigured() returns true but verify() can never succeed.',
-        );
-      },
-    );
-
-    test(
-      'setPassword wipes rate_limit_state so a new HMAC does not look tampered',
-      () async {
-        // Regression gate: a user who set a password, failed a couple
-        // of unlock attempts, then re-set the password used to land on
-        // a 60-second cooldown on the next app launch. Cause: the
-        // persisted rate-limit file was still signed with the *old*
-        // HMAC, so the fresh limiter's HMAC-verify tripped the
-        // tamper branch. Fix: setPassword deletes the state file;
-        // this test pins that cleanup.
-        final gate = newGate();
-        await gate.setPassword('hunter2');
-        final limiter1 = await gate.rateLimiter();
-        limiter1!.recordFailure();
-        limiter1.recordFailure();
-        // Wait for the fire-and-forget save to land on disk.
-        await (limiter1 as PersistedRateLimiter).awaitPendingSave();
-        expect(limiter1.status().failureCount, greaterThanOrEqualTo(1));
-
-        await gate.setPassword('newpass');
-        final limiter2 = await gate.rateLimiter();
-        expect(limiter2, isNotNull);
-        final status = await (limiter2! as PersistedRateLimiter).statusAsync();
-        expect(
-          status.failureCount,
-          0,
-          reason: 'setPassword must wipe rate-limit state',
-        );
-        expect(status.cooldownRemaining, Duration.zero);
-      },
-    );
+  group('default constructor', () {
+    test('builds without arguments — production wiring path', () {
+      // Constructor must not throw — it captures the default support-dir
+      // factory but does not invoke it until the first call. Production
+      // bootstrap pins one of these for the entire process lifetime.
+      expect(KeychainPasswordGate.new, returnsNormally);
+    });
   });
 }

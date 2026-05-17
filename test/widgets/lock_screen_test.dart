@@ -1,48 +1,94 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/app/tier_unlocked_listener.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
-import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/widgets/lock_screen.dart';
 
+/// Test-only listener that resolves `awaitNextUnlock` immediately
+/// with `unlocked`. The real listener + production
+/// `LockStateNotifier` both subscribe to `AppBus`, which requires
+/// the FRB native lib (not loaded in flutter_test); a real
+/// `awaitNextUnlock` future would never complete. The fake
+/// short-circuits so the lock-screen tests can pump through the
+/// orchestrator round-trip; the parallel `BusEvent::UnlockCascadeReady`
+/// flip the production notifier consumes is staged by the fake
+/// master-password manager on a successful `unlockAttempt`.
+class _ImmediateListener extends TierUnlockedListener {
+  _ImmediateListener(super.ref);
+
+  @override
+  void start() {}
+
+  @override
+  Future<TierUnlockOutcome> awaitNextUnlock({bool onlyUnlocked = false}) =>
+      Future.value(TierUnlockOutcome.unlocked);
+
+  @override
+  void cancelPending() {}
+
+  @override
+  void stop() {}
+}
+
 class _FakeMasterPassword extends MasterPasswordManager {
-  _FakeMasterPassword({required this.expectedPassword, required this.keyBytes});
+  _FakeMasterPassword({
+    required this.expectedPassword,
+    required this.keyBytes,
+    this.onStaged,
+  });
 
   final String expectedPassword;
   final Uint8List keyBytes;
-  int verifyAndDeriveCalls = 0;
 
-  @override
-  Future<Uint8List?> verifyAndDerive(
-    String password, {
-    bool useRateLimit = false,
-  }) async {
-    verifyAndDeriveCalls++;
-    if (password != expectedPassword) return null;
-    return keyBytes;
-  }
+  /// Called inside `unlockAttempt` when the password matches —
+  /// mirrors the side-effect chain Rust's `run_post_unlock_cascade`
+  /// drives off a staged key (publishes the store-changed events
+  /// and `BusEvent::UnlockCascadeReady`). The lock-screen tests use
+  /// this hook to stage the overlay flip through
+  /// `LockStateNotifier.debugForceUnlocked` since the real bus event
+  /// can't fire without the FRB native lib.
+  final void Function()? onStaged;
 
-  @override
-  Future<bool> verify(String password) async =>
-      (await verifyAndDerive(password)) != null;
+  int unlockAttemptCalls = 0;
 
-  @override
-  Future<Uint8List> deriveKey(String password) async {
-    final key = await verifyAndDerive(password);
-    if (key == null) {
-      throw const MasterPasswordException('wrong password');
+  bool _matches(Uint8List password) {
+    final expected = utf8.encode(expectedPassword);
+    if (expected.length != password.length) return false;
+    for (var i = 0; i < expected.length; i++) {
+      if (expected[i] != password[i]) return false;
     }
-    return key;
+    return true;
   }
+
+  @override
+  Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
+    unlockAttemptCalls++;
+    if (_matches(password)) {
+      onStaged?.call();
+      return TierUnlockAttempt.staged;
+    }
+    return TierUnlockAttempt.wrongSecret;
+  }
+
+  @override
+  Future<Uint8List?> verifyAndDerive(Uint8List password) async {
+    return _matches(password) ? keyBytes : null;
+  }
+
+  @override
+  Future<bool> verify(Uint8List password) async => _matches(password);
 }
 
 class _NoBiometricVault extends BiometricKeyVault {
@@ -50,7 +96,7 @@ class _NoBiometricVault extends BiometricKeyVault {
   Future<bool> isStored() async => false;
 
   @override
-  Future<Uint8List?> read() async => null;
+  Future<bool> readToActive() async => false;
 }
 
 class _NoBiometricAuth extends BiometricAuth {
@@ -83,21 +129,32 @@ void main() {
   testWidgets(
     'enter correct password → lockState flips to unlocked with derived key',
     (tester) async {
+      late final ProviderContainer container;
       final mp = _FakeMasterPassword(
         expectedPassword: 'letmein',
         keyBytes: zeroKey,
+        // Mirror Rust's `run_post_unlock_cascade` → `UnlockCascadeReady`
+        // bus event that `LockStateNotifier` flips on in production.
+        // The FRB native lib isn't loaded under flutter_test so the
+        // real event never lands; staging the same transition through
+        // the test seam keeps the contract under observation.
+        onStaged: () =>
+            container.read(lockStateProvider.notifier).debugForceUnlocked(),
       );
-      final container = ProviderContainer(
+      container = ProviderContainer(
         overrides: [
           masterPasswordProvider.overrideWithValue(mp),
           biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
           biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+          tierUnlockedListenerProvider.overrideWith(
+            (ref) => _ImmediateListener(ref),
+          ),
         ],
       );
       addTearDown(container.dispose);
 
       // Start locked.
-      container.read(lockStateProvider.notifier).lock();
+      container.read(lockStateProvider.notifier).debugForceLocked();
       expect(container.read(lockStateProvider), true);
 
       await tester.pumpWidget(
@@ -117,26 +174,20 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        mp.verifyAndDeriveCalls,
+        mp.unlockAttemptCalls,
         1,
         reason:
-            'unlock must run PBKDF2 exactly once — the old verify() + '
-            'deriveKey() pair doubled unlock latency on mobile',
+            'unlock must dispatch a single Paranoid orchestrator '
+            'attempt — the old verify() + deriveKey() pair doubled '
+            'unlock latency on mobile',
       );
       expect(
         container.read(lockStateProvider),
         false,
-        reason: 'correct password must release the lock',
-      );
-      expect(
-        container.read(securityStateProvider).level,
-        SecurityTier.paranoid,
-        reason: 'security level is promoted after unlock',
-      );
-      expect(
-        container.read(securityStateProvider).encryptionKey,
-        isNotNull,
-        reason: 'derived key must land in securityStateProvider',
+        reason:
+            'correct password must release the lock — production flips '
+            'on `BusEvent::UnlockCascadeReady` from Rust, the fake '
+            'stages the same flip through `onStaged`.',
       );
     },
   );
@@ -153,10 +204,13 @@ void main() {
         masterPasswordProvider.overrideWithValue(mp),
         biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
         biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+        tierUnlockedListenerProvider.overrideWith(
+          (ref) => _ImmediateListener(ref),
+        ),
       ],
     );
     addTearDown(container.dispose);
-    container.read(lockStateProvider.notifier).lock();
+    container.read(lockStateProvider.notifier).debugForceLocked();
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -174,7 +228,7 @@ void main() {
     await tester.tap(find.byWidgetPredicate((w) => w is AppButton));
     await tester.pumpAndSettle();
 
-    expect(mp.verifyAndDeriveCalls, 1);
+    expect(mp.unlockAttemptCalls, 1);
     expect(container.read(lockStateProvider), true);
 
     // The localised error label must appear. We don't pin the exact
@@ -193,10 +247,13 @@ void main() {
           masterPasswordProvider.overrideWithValue(mp),
           biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
           biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+          tierUnlockedListenerProvider.overrideWith(
+            (ref) => _ImmediateListener(ref),
+          ),
         ],
       );
       addTearDown(container.dispose);
-      container.read(lockStateProvider.notifier).lock();
+      container.read(lockStateProvider.notifier).debugForceLocked();
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -215,9 +272,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        mp.verifyAndDeriveCalls,
+        mp.unlockAttemptCalls,
         0,
-        reason: 'empty input must not trigger a verify round-trip',
+        reason: 'empty input must not trigger an orchestrator round-trip',
       );
       expect(container.read(lockStateProvider), true);
     },
@@ -237,7 +294,7 @@ void main() {
         overrides: [masterPasswordProvider.overrideWithValue(mp)],
       );
       addTearDown(container.dispose);
-      container.read(lockStateProvider.notifier).lock();
+      container.read(lockStateProvider.notifier).debugForceLocked();
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

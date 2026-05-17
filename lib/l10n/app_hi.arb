@@ -21,7 +21,10 @@
   "select": "चुनें",
   "copyModeTapToStart": "चयन आरंभ चिह्नित करने के लिए स्पर्श करें",
   "copyModeExtending": "चयन बढ़ाने के लिए खींचें",
+  "copyModeSetAnchor": "एंकर सेट करें",
+  "copyModeCopySelection": "चयन कॉपी करें",
   "required": "आवश्यक",
+  "errFillRequiredFields": "* से चिह्नित आवश्यक फ़ील्ड भरें",
   "settings": "सेटिंग्स",
   "appSettings": "ऐप सेटिंग्स",
   "includePasswords": "सेशन पासवर्ड",
@@ -104,6 +107,13 @@
   "deleteSessionConfirm": "\"{name}\" हटाएं?",
   "connection": "कनेक्शन",
   "auth": "प्रमाणीकरण",
+  "sectionAuthentication": "प्रमाणीकरण",
+  "sectionAdvanced": "उन्नत",
+  "forwardRulesSummary": "{count, plural, =0{कोई पोर्ट-फॉरवर्ड नियम नहीं} one{1 पोर्ट-फॉरवर्ड नियम} other{{count} पोर्ट-फॉरवर्ड नियम}}",
+  "manageRules": "प्रबंधित करें…",
+  "authMethodAgent": "सिस्टम ssh-agent इस्तेमाल करें",
+  "authMethodAgentSubtitle": "$SSH_AUTH_SOCK (Linux/macOS) या OpenSSH named pipe (Windows) के through authenticate करें। काम का है अगर keys gpg-agent, Pageant या system ssh-agent में हैं।",
+  "authMethodAgentMobileUnsupported": "मोबाइल पर उपलब्ध नहीं — system ssh-agent endpoint सिर्फ desktop के लिए है।",
   "options": "विकल्प",
   "sessionName": "सत्र का नाम",
   "hintMyServer": "मेरा सर्वर",
@@ -117,6 +127,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "कुंजी पासफ़्रेज़",
   "hintOptional": "वैकल्पिक",
+  "savedTypeToChange": "सहेजा गया — बदलने के लिए टाइप करें",
   "hidePemText": "PEM टेक्स्ट छिपाएं",
   "pastePemKeyText": "PEM कुंजी टेक्स्ट पेस्ट करें",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +163,6 @@
   "confirmPassword": "पासवर्ड की पुष्टि करें",
   "importModeMergeDescription": "नए सत्र जोड़ें, मौजूदा रखें",
   "importModeReplaceDescription": "सभी सत्रों को आयातित से बदलें",
-  "errorPrefix": "त्रुटि: {error}",
   "folderName": "फ़ोल्डर का नाम",
   "newName": "नया नाम",
   "deleteItems": "{names} हटाएं?",
@@ -274,7 +284,6 @@
   "urlCopied": "URL क्लिपबोर्ड पर कॉपी किया गया",
   "aboutSubtitle": "v{version} — SSH/SFTP क्लाइंट",
   "sourceCode": "सोर्स कोड",
-  "enableLogging": "लॉगिंग सक्षम करें",
   "logIsEmpty": "लॉग खाली है",
   "logExportedTo": "लॉग निर्यात किया गया: {path}",
   "logExportFailed": "लॉग निर्यात विफल: {error}",
@@ -307,20 +316,56 @@
   "completed": "पूर्ण",
   "connected": "कनेक्टेड",
   "disconnected": "डिस्कनेक्टेड",
+  "a11yConnectingTo": "{host} से कनेक्ट हो रहा है",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "{host} से कनेक्ट हो गया",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "{host} से डिस्कनेक्ट हो गया",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "{host} से कनेक्ट नहीं हो सका",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "बाहर निकलें",
   "exitConfirmation": "सक्रिय सत्र डिस्कनेक्ट हो जाएंगे। बाहर निकलें?",
   "hintFolderExample": "उदा. Production",
   "credentialsNotSet": "क्रेडेंशियल सेट नहीं हैं",
   "exportSessionsViaQr": "QR से सत्र निर्यात करें",
-  "qrNoCredentialsWarning": "पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।",
   "qrTooManyForSingleCode": "एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।",
   "qrTooLarge": "बहुत बड़ा — कुछ आइटम अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।",
-  "exportAll": "सभी निर्यात करें",
   "showQr": "QR दिखाएं",
   "sort": "क्रमबद्ध करें",
   "resizePanelDivider": "पैनल डिवाइडर का आकार बदलें",
   "youreRunningLatest": "आप नवीनतम संस्करण चला रहे हैं",
   "liveLog": "लाइव लॉग",
+  "archivedLog": "संग्रहीत लॉग",
+  "loggingLevel": "लॉगिंग स्तर",
+  "loggingLevelSubtitleInfo": "नियमित प्रविष्टियाँ + चेतावनियाँ + त्रुटियाँ",
+  "loggingLevelSubtitleWarn": "केवल degraded पथ और त्रुटियाँ",
+  "loggingLevelSubtitleError": "केवल त्रुटियाँ",
+  "loggingLevelSubtitleOff": "नियमित लॉग नहीं लिखे जाते",
   "transferNItems": "{count} आइटम ट्रांसफ़र करें",
   "time": "समय",
   "failed": "विफल",
@@ -401,14 +446,6 @@
   "errLfsUnsupportedVersion": "संग्रह स्कीमा v{found} का उपयोग करता है, लेकिन यह बिल्ड केवल v{supported} तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.",
   "progressReadingArchive": "संग्रह पढ़ा जा रहा है…",
   "progressDecrypting": "डिक्रिप्ट किया जा रहा है…",
-  "progressParsingArchive": "संग्रह पार्स किया जा रहा है…",
-  "progressImportingSessions": "सत्र आयात किए जा रहे हैं",
-  "progressImportingFolders": "फ़ोल्डर आयात किए जा रहे हैं",
-  "progressImportingManagerKeys": "SSH कुंजियाँ आयात की जा रही हैं",
-  "progressImportingTags": "टैग आयात किए जा रहे हैं",
-  "progressImportingSnippets": "स्निपेट्स आयात किए जा रहे हैं",
-  "progressApplyingConfig": "कॉन्फ़िगरेशन लागू किया जा रहा है…",
-  "progressImportingKnownHosts": "known_hosts आयात किया जा रहा है…",
   "progressCollectingData": "डेटा एकत्र किया जा रहा है…",
   "progressEncrypting": "एन्क्रिप्ट किया जा रहा है…",
   "progressWritingArchive": "संग्रह लिखा जा रहा है…",
@@ -447,11 +484,6 @@
   "transferTooltipEnded": "समाप्त: {time}",
   "transferTooltipDuration": "अवधि: {duration}",
   "transferStatusQueued": "कतार में",
-  "transferStartingUpload": "अपलोड शुरू हो रहा है...",
-  "transferStartingDownload": "डाउनलोड शुरू हो रहा है...",
-  "transferCopying": "कॉपी हो रहा है...",
-  "transferDone": "पूर्ण",
-  "transferFilesProgress": "{done}/{total} फ़ाइलें",
   "fileConflictTitle": "फ़ाइल पहले से मौजूद है",
   "fileConflictMessage": "\"{fileName}\" पहले से {targetDir} में मौजूद है। आप क्या करना चाहते हैं?",
   "fileConflictSkip": "छोड़ें",
@@ -502,20 +534,36 @@
   "keyDeleted": "कुंजी हटाई गई: {label}",
   "publicKey": "सार्वजनिक कुंजी",
   "publicKeyCopied": "सार्वजनिक कुंजी क्लिपबोर्ड पर कॉपी की गई",
+  "sshCertificate": "Certificate",
+  "certImport": "Certificate इम्पोर्ट करें",
+  "certImportPickerTitle": "OpenSSH certificate फ़ाइल चुनें",
+  "certValidFrom": "वैध from",
+  "certValidTo": "वैध until",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "यह certificate जल्द ही expire हो जाएगा।",
+  "certExpired": "Expired",
+  "certRemove": "Certificate हटाएं",
+  "certRemoveConfirmTitle": "Certificate हटाएं?",
+  "certRemoveConfirmBody": "हटाने के बाद session फिर से सामान्य public-key auth path से connect होगा।",
+  "errCertParse": "Certificate parse नहीं हुआ: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "यह certificate चुनी हुई key के साथ pair नहीं है।",
   "pastePrivateKey": "निजी कुंजी चिपकाएं (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "अमान्य PEM कुंजी डेटा",
   "selectFromKeyStore": "कुंजी भंडार से चुनें",
   "keyCount": "{count, plural, =0{कोई कुंजी नहीं} =1{1 कुंजी} other{{count} कुंजियाँ}}",
   "generated": "जनरेट की गई",
-  "passphraseRequired": "पासफ़्रेज़ आवश्यक",
-  "passphrasePrompt": "{host} की SSH कुंजी एन्क्रिप्टेड है। अनलॉक करने के लिए पासफ़्रेज़ दर्ज करें।",
-  "passphraseWrong": "गलत पासफ़्रेज़। कृपया पुनः प्रयास करें।",
   "passphrase": "पासफ़्रेज़",
-  "rememberPassphrase": "इस सत्र के लिए याद रखें",
   "enterMasterPassword": "सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।",
   "wrongMasterPassword": "गलत पासवर्ड। कृपया पुनः प्रयास करें।",
-  "newPassword": "नया पासवर्ड",
   "currentPassword": "वर्तमान पासवर्ड",
   "forgotPassword": "पासवर्ड भूल गए?",
   "credentialsReset": "सभी सहेजे गए क्रेडेंशियल हटा दिए गए",
@@ -556,7 +604,6 @@
   "maxHistorySubtitle": "इतिहास में अधिकतम सहेजी गई कमांड्स",
   "calculateFolderSizesSubtitle": "साइडबार में फ़ोल्डर के बगल में कुल आकार दिखाएँ",
   "checkForUpdatesOnStartupSubtitle": "ऐप शुरू होने पर GitHub से नया संस्करण जाँचें",
-  "enableLoggingSubtitle": "ऐप की घटनाओं को एक रोटेटिंग लॉग फ़ाइल में लिखें",
   "snippets": "स्निपेट्स",
   "snippetsSubtitle": "पुन: प्रयोज्य कमांड स्निपेट प्रबंधित करें",
   "noSnippets": "अभी तक कोई स्निपेट नहीं",
@@ -582,7 +629,6 @@
   "snippetCustomTokensHint": "डबल ब्रेसेस वाला कुछ भी और स्निपेट चलाने पर मान मांगता है।",
   "snippetFillTitle": "स्निपेट पैरामीटर भरें",
   "snippetFillSubmit": "चलाएँ",
-  "snippetPreview": "पूर्वावलोकन",
   "broadcastSetDriver": "इस पैन से प्रसारण",
   "broadcastClearDriver": "इस पैन से प्रसारण बंद करें",
   "broadcastAddReceiver": "यहाँ प्रसारण प्राप्त करें",
@@ -590,7 +636,16 @@
   "broadcastClearAll": "सभी प्रसारण बंद करें",
   "broadcastPasteTitle": "पेस्ट सभी पैनों पर भेजें?",
   "broadcastPasteBody": "{chars} वर्ण {count} अन्य पैनों पर भेजे जाएँगे।",
-  "@broadcastPasteBody": {"placeholders": {"chars": {"type": "int"}, "count": {"type": "int"}}},
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "broadcastPasteSend": "भेजें",
   "portForwarding": "फ़ॉरवर्डिंग",
   "portForwardingEmpty": "अभी कोई नियम नहीं",
@@ -608,26 +663,22 @@
   "forwardDescription": "विवरण (वैकल्पिक)",
   "forwardEnabled": "सक्षम",
   "forwardBindWildcardWarning": "0.0.0.0 से बाइंड करने पर फ़ॉरवर्ड हर इंटरफ़ेस पर प्रकाशित होता है — आमतौर पर 127.0.0.1 चाहिए।",
-  "forwardOnlyLocalSupported": "स्थानीय (-L), दूरस्थ (-R) और गतिशील SOCKS5 (-D) फ़ॉरवर्ड सभी सक्रिय हैं।",
   "forwardKindLocalHelp": "स्थानीय: इस डिवाइस पर एक पोर्ट खोलता है जो SSH सर्वर से पहुँच योग्य लक्ष्य तक टनल करता है। localhost:bindPort के माध्यम से दूरस्थ डेटाबेस या एडमिन UI तक पहुँच के लिए उपयोगी।",
   "forwardKindRemoteHelp": "दूरस्थ: SSH सर्वर से एक पोर्ट खोलने को कहता है जो इस डिवाइस से पहुँच योग्य लक्ष्य तक वापस टनल करता है। दूरस्थ होस्ट के साथ स्थानीय dev server साझा करने के लिए उपयोगी (सर्वर को non-loopback binds के लिए GatewayPorts yes चाहिए हो सकता है)।",
   "forwardKindDynamicHelp": "गतिशील: इस डिवाइस पर एक SOCKS5 प्रॉक्सी जो हर कनेक्शन को SSH सर्वर के माध्यम से रूट करता है। सभी ट्रैफ़िक SSH के माध्यम से भेजने के लिए ब्राउज़र या curl को localhost:bindPort पर पॉइंट करें।",
-  "forwardExample": "उदाहरण",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → localhost:8080 के माध्यम से दूरस्थ DB तक पहुँच",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → सर्वर पोर्ट 9000 पर dev server को उजागर करें",
-  "forwardDynamicExample": "ssh -D 1080 → ब्राउज़र SOCKS5 को localhost:1080 पर सेट करें",
   "proxyJump": "इसके माध्यम से जुड़ें",
   "proxyJumpNone": "सीधा कनेक्शन",
   "proxyJumpSavedSession": "सहेजा गया सत्र",
   "proxyJumpCustom": "कस्टम",
   "proxyJumpCustomNote": "कस्टम हॉप्स इसी सत्र के क्रेडेंशियल उपयोग करते हैं। अलग बेस्टियन ऑथ के लिए बेस्टियन को अलग सत्र के रूप में सहेजें।",
-  "errProxyJumpCycle": "प्रॉक्सी श्रृंखला स्वयं को लूप करती है।",
-  "errProxyJumpDepth": "प्रॉक्सी श्रृंखला बहुत गहरी है (अधिकतम {max} हॉप्स)।",
-  "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
-  "errProxyJumpBastionFailed": "बेस्टियन {label} कनेक्ट नहीं हो सका।",
-  "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
   "viaSessionLabel": "{label} के माध्यम से",
-  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "सत्र रिकॉर्ड करें",
   "recordSessionHelp": "इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या हार्डवेयर कुंजी सक्षम होने पर रेस्ट में एन्क्रिप्टेड।",
   "recordingsBrowserTitle": "रिकॉर्डिंग",
@@ -638,6 +689,18 @@
   "recordingPlaybackTitle": "रिकॉर्डिंग रीप्ले करें",
   "recordingSpeed": "गति",
   "recordingSpeedInstant": "तुरंत",
+  "recordingScrubTooltipUnavailable": "Scrub bar के लिए sidecar index चाहिए — पुरानी रिकॉर्डिंग (इस build से पहले की) में यह नहीं है। नई रिकॉर्डिंग scrub हो सकेंगी।",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "टैग",
   "tagsSubtitle": "रंगीन टैग के साथ सत्र और फ़ोल्डर व्यवस्थित करें",
   "noTags": "अभी तक कोई टैग नहीं",
@@ -659,9 +722,6 @@
   "invalidImportLink": "लिंक में मान्य LetsFLUTssh पेलोड नहीं है",
   "importAction": "आयात करें",
   "emptyFolder": "खाली फ़ोल्डर",
-  "exportWithoutPassword": "पासवर्ड के बिना निर्यात करें?",
-  "exportWithoutPasswordWarning": "संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।",
-  "continueWithoutPassword": "बिना पासवर्ड के जारी रखें",
   "tierHardwareUnavailable": "इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।",
   "pinLabel": "पासवर्ड",
   "l2UnlockTitle": "पासवर्ड आवश्यक",
@@ -687,8 +747,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है।",
   "firstLaunchSecurityOpenSettings": "सेटिंग्स खोलें",
   "wizardReducedBanner": "इस इंस्टॉलेशन में OS कीचेन उपलब्ध नहीं है। कोई एन्क्रिप्शन नहीं (T0) और मास्टर पासवर्ड (Paranoid) में से चुनें। Keychain स्तर सक्षम करने के लिए gnome-keyring, kwallet या कोई अन्य libsecret प्रदाता स्थापित करें।",
-  "tierBlockProtectsEmpty": "इस स्तर पर कुछ नहीं।",
-  "tierBlockDoesNotProtectEmpty": "कोई खुला खतरा नहीं।",
   "tierBadgeCurrent": "वर्तमान",
   "securitySetupEnable": "सक्षम करें",
   "securitySetupApply": "लागू करें",
@@ -752,7 +810,6 @@
   "colT1": "T1 कीचेन",
   "colT1Password": "T1 + पासवर्ड",
   "colT1PasswordBiometric": "T1 + पासवर्ड + बायोमेट्रिक",
-  "colT2": "T2 हार्डवेयर",
   "colT2Password": "T2 + पासवर्ड",
   "colT2PasswordBiometric": "T2 + पासवर्ड + बायोमेट्रिक",
   "colParanoid": "पैरानॉइड",
@@ -763,9 +820,40 @@
   "resetAllDataConfirmTitle": "सभी डेटा रीसेट करें?",
   "resetAllDataConfirmBody": "सभी सत्र, SSH कुंजियाँ, known hosts, स्निपेट, टैग, वरीयताएँ और सभी सुरक्षा आर्टिफ़ैक्ट (कीचेन प्रविष्टियाँ, हार्डवेयर-वॉल्ट डेटा, बायोमेट्रिक ओवरले) स्थायी रूप से हटा दिए जाएँगे। इसे पूर्ववत नहीं किया जा सकता।",
   "resetAllDataConfirmAction": "सब कुछ रीसेट करें",
+  "resetAllDataConfirmTypePrompt": "पुष्टि के लिए नीचे {phrase} टाइप करें:",
   "resetAllDataInProgress": "रीसेट हो रहा है…",
   "resetAllDataDone": "सभी डेटा रीसेट हो गया",
   "resetAllDataFailed": "रीसेट विफल",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "उपयोग में",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "recordings/ फ़ोल्डर पर hard cap। पार होने पर सबसे पुरानी recording पहले हटाई जाती है; चालू recording को कभी नहीं छुआ जाता।",
+  "recordingsClearAllAction": "सभी recordings हटाएँ",
+  "recordingsClearAllConfirmTitle": "सभी recordings हटाएँ?",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ के अंदर हर रिकॉर्ड की गई session हटा दी जाएगी। चालू recording (यदि कोई हो) बनी रहेगी। यह क्रिया वापस नहीं ली जा सकती।",
+  "recordingsClearAllResult": "{count} recordings हटाई गईं",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap अपडेट हो गया। {bytes} खाली हुआ।",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap अपडेट हो गया। हटाने के लिए कुछ नहीं।",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "वर्तमान",
   "paranoidAlternativeHeader": "विकल्प",
   "modifierPasswordLabel": "पासवर्ड",
@@ -777,7 +865,24 @@
   "autoLockRequiresActiveTier": "ऑटो-लॉक कॉन्फ़िगर करने के लिए पहले इस स्तर को चुनें",
   "biometricForbiddenParanoid": "Paranoid डिज़ाइन के अनुसार बायोमेट्रिक की अनुमति नहीं देता।",
   "fprintdNotAvailable": "fprintd संस्थापित नहीं है या कोई फिंगरप्रिंट पंजीकृत नहीं है।",
-  "linuxTpmWithoutPasswordNote": "पासवर्ड के बिना TPM पृथक्करण प्रदान करता है, प्रमाणीकरण नहीं। जो कोई भी इस ऐप को चला सकता है, वह डेटा को अनलॉक कर सकता है।",
+  "modifierPasswordRequired": "आवश्यक — Hardware tier हमेशा पासवर्ड से सुरक्षित होता है।",
+  "t2RequiresPasswordTitle": "Hardware tier के लिए master password सेट करें",
+  "t2RequiresPasswordBody": "Hardware tier को modifier के रूप में पासवर्ड की आवश्यकता है। बायोमेट्रिक उसके ऊपर एक वैकल्पिक shortcut है।",
+  "t2MigrationPromptTitle": "Hardware tier को पासवर्ड चाहिए",
+  "t2MigrationPromptBody": "बिना पासवर्ड वाले मौजूदा Hardware installs को आगे बढ़ने के लिए अब एक सेट करना होगा।",
+  "t2MigrationContinue": "जारी रखें",
+  "t2MigrationSetPasswordTitle": "Hardware tier रखने के लिए पासवर्ड सेट करें",
+  "t2MigrationSetPasswordBody": "एक नया master password टाइप करें। hardware module में पहले से sealed DB key इस password के तहत re-seal हो जाएगी — sessions और keys बरकरार रहेंगे।",
+  "t2MigrationWipeAndRestart": "Wipe करके नए सिरे से शुरू करें",
+  "t2MigrationResealFailed": "Hardware tier का re-seal विफल — दूसरा password चुनें या wipe करें।",
+  "biometricOverlayEnable": "Hardware tier पर बायोमेट्रिक shortcut सक्षम करें",
+  "biometricOverlayEnableSubtitle": "आपके पासवर्ड को बायोमेट्रिक-गेटेड OS slot से रिलीज़ करता है।",
+  "biometricOverlayUnavailable": "इस प्लेटफ़ॉर्म पर बायोमेट्रिक overlay अभी उपलब्ध नहीं है।",
+  "biometricOverlayRequiresPassword": "पहले Hardware tier का पासवर्ड सेट करें।",
+  "t2UnlockTitle": "अपने master password से अनलॉक करें",
+  "t2UnlockSubtitle": "Hardware-bound कुंजी आपके पासवर्ड से सुरक्षित है।",
+  "t2UnlockUseBiometricButton": "बायोमेट्रिक का उपयोग करें",
+  "t2PasswordChanged": "Hardware tier का पासवर्ड अपडेट किया गया।",
   "paranoidMasterPasswordNote": "एक लंबे पासफ़्रेज़ की दृढ़ता से अनुशंसा की जाती है — Argon2id केवल ब्रूट फ़ोर्स को धीमा करता है, रोकता नहीं।",
   "plaintextWarningTitle": "सादा पाठ: कोई एन्क्रिप्शन नहीं",
   "plaintextWarningBody": "सत्र, कुंजियाँ और known hosts एन्क्रिप्शन के बिना संग्रहीत किए जाएँगे। इस कंप्यूटर के फ़ाइल सिस्टम तक पहुँच रखने वाला कोई भी व्यक्ति उन्हें पढ़ सकता है।",
@@ -787,7 +892,454 @@
   "masterPasswordLabel": "मास्टर पासवर्ड",
   "autoLockRequiresPassword": "ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।",
   "recommendedBadge": "अनुशंसित",
-  "tierHardwareSubtitleHonest": "उन्नत: हार्डवेयर-बाध्य कुंजी। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।",
+  "tierHardwareSubtitleHonest": "उन्नत: हार्डवेयर-बाध्य कुंजी, हमेशा पासवर्ड से सुरक्षित। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।",
   "tierParanoidSubtitleHonest": "विकल्प: master password, OS पर भरोसा नहीं। OS compromise होने पर बचाता है। T1/T2 की तुलना में runtime security बेहतर नहीं करता।",
-  "mitigationsNoteRuntimeThreats": "runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।"
+  "mitigationsNoteRuntimeThreats": "runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH सक्रिय",
+  "foregroundServiceConnections": "{count, plural, =1{1 सक्रिय कनेक्शन} other{{count} सक्रिय कनेक्शन}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Session प्रकार",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Auth विधि",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Self-signed प्रमाणपत्र का fingerprint (वैकल्पिक)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, सिस्टम trust के लिए खाली छोड़ें",
+  "webDavCopyUrl": "WebDAV URL कॉपी करें",
+  "webDavOpenInBrowser": "Browser में खोलें",
+  "errWebDavAuthFailed": "WebDAV auth असफल",
+  "errWebDavNotFound": "Path नहीं मिला",
+  "errWebDavConflict": "Operation मौजूदा state से टकराता है",
+  "errWebDavGeneric": "WebDAV server ने request अस्वीकार किया: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV base URL ज़रूरी है",
+  "errWebDavBaseUrlInvalid": "Base URL http:// या https:// होना चाहिए",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS के लिए खाली छोड़ें, या MinIO / R2 / Spaces के लिए set करें",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "MinIO के लिए ज़रूरी; AWS के लिए off रखें",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Presigned URL बनाएं",
+  "s3PresignedUrlExpiry": "खत्म होगा",
+  "s3CopyUri": "s3://bucket/key URI कॉपी करें",
+  "s3PresignedUrlExpiry15min": "15 मिनट",
+  "s3PresignedUrlExpiry1hour": "1 घंटा",
+  "s3PresignedUrlExpiry4hour": "4 घंटे",
+  "s3PresignedUrlExpiry24hour": "24 घंटे",
+  "s3PresignedUrlExpiry7day": "7 दिन",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret जाँचें)",
+  "errS3NoSuchBucket": "Bucket मौजूद नहीं या पहुँच नहीं है",
+  "errS3RegionMismatch": "Bucket configured region से अलग region में है",
+  "errS3Generic": "S3 server ने request reject किया: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync चालू करें",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Sync archive एन्क्रिप्ट करता है। Master password से अलग होना चाहिए।",
+  "syncPassphraseSameAsMasterError": "Sync passphrase master password जैसा नहीं हो सकता।",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "WebDAV base URL के नीचे path — default letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "पिछला push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "पिछला pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "कभी नहीं",
+  "syncUpToDate": "Sync up to date है",
+  "syncPushedBytes": "{bytes} push किया",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote से {count} updates apply हुए",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync disabled है",
+  "errSyncEtagMismatch": "Remote बदल गया — पहले pull, फिर push",
+  "errSyncUnauthorized": "WebDAV authentication fail हुआ",
+  "errSyncNetwork": "Network error: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote sync archive के लिए नया build चाहिए",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "अपने hardware key को टैप करें",
+  "hardwareKeyPin": "Hardware key PIN",
+  "hardwareKeyTimeout": "Hardware key ने जवाब नहीं दिया",
+  "hardwareKeyNotFound": "कोई hardware key नहीं मिला",
+  "hardwareKeyUnsupported": "इस platform पर direct hardware key access उपलब्ध नहीं है",
+  "hardwareKeyAppleEntitlementRequired": "Apple Developer Program entitlement चाहिए; macOS पर ssh-agent इस्तेमाल करें",
+  "skKeyRequiresDevice": "इस SSH key के लिए hardware key चाहिए — auth के लिए टैप करें",
+  "errSkWrongPin": "PIN गलत है",
+  "hardwareKeyImport": "Hardware key import करें (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Hardware key prompt cancel कर दिया",
+  "agentEndpointSectionTitle": "External SSH client integration",
+  "agentEndpointToggleTitle": "Hardware-bound keys को system SSH clients के लिए expose करें",
+  "agentEndpointToggleSubtitle": "इस device पर git, ssh और IDE plugins को आपकी FIDO2 / smart-card / TPM keys use करने देता है.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "export command copy करें",
+  "agentEndpointCopyPipeName": "pipe name copy करें",
+  "agentEndpointSignatureRequestTitle": "Signature request",
+  "agentEndpointSignatureRequestBody": "{requester} {keyLabel} से sign करना चाहता है",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "एक external SSH client",
+  "agentEndpointAuthorizeOnce": "एक बार authorize करें",
+  "agentEndpointAuthorizeAlways": "Authorize करें और याद रखें",
+  "agentEndpointDeny": "Deny",
+  "agentEndpointStatusRunning": "Running",
+  "agentEndpointStatusStopped": "Stopped",
+  "agentEndpointStatusUnsupported": "इस platform पर supported नहीं है",
+  "agentEndpointRefusedAddIdentity": "Refused: external clients keys add नहीं कर सकते.",
+  "agentEndpointStartFailed": "ssh-agent endpoint start नहीं हुआ: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "Smart-card / token key add करें",
+  "pkcs11ModuleLabel": "PKCS#11 module",
+  "pkcs11ModuleAutoDetected": "Auto-detect हुआ",
+  "pkcs11ModuleCustom": "Custom module...",
+  "pkcs11ModulePickerTitle": "PKCS#11 library चुनें",
+  "pkcs11NoModuleFound": "PKCS#11 module नहीं मिला। OpenSC install करें या vendor library चुनें।",
+  "pkcs11InitializeFailed": "PKCS#11 module initialise नहीं हुआ।",
+  "pkcs11NoTokenPresent": "किसी reader में token नहीं है।",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "Token को login की ज़रूरत है।",
+  "pkcs11PinPrompt": "{token} का PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "Token के PIN-pad पर confirm करें।",
+  "pkcs11PinIncorrect": "PIN गलत है। {remaining} attempts बाकी।",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "Token का PIN locked है। PUK से unblock करें।",
+  "pkcs11NoSignableKeys": "Token पर SSH-usable keys नहीं हैं (RSA, ECDSA, Ed25519)।",
+  "pkcs11GostUnsupported": "GOST keys SSH में नहीं चलतीं।",
+  "pkcs11TokenUnplugged": "Token \"{label}\" connect नहीं है।",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Saved token नहीं मिला। फिर से plug करें।",
+  "pkcs11SignFailed": "Signing fail हो गयी: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / PKCS#11 tokens इस platform पर available नहीं हैं।",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "PKCS#11 module चुनें",
+  "pkcs11WizardStepToken": "Token चुनें",
+  "pkcs11WizardStepKey": "Key चुनें",
+  "pkcs11WizardStepPin": "PIN दर्ज करें",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Key import करें",
+  "pkcs11SaveInProgress": "Token से public key पढ़ रहा है...",
+  "pkcs11SaveSuccess": "Smart-card key जोड़ी गई।",
+  "pkcs11ScanInProgress": "PKCS#11 modules scan कर रहा है...",
+  "pkcs11LoadingTokens": "Tokens load हो रहे हैं...",
+  "pkcs11LoadingKeys": "Keys load हो रही हैं...",
+  "pkcs11ModuleStatusReady": "Module load हो गया।",
+  "pkcs11ModuleStatusNoToken": "Token नहीं है।",
+  "pkcs11ModuleStatusFailed": "Module load fail हुआ।",
+  "pkcs11PinPadHint": "(Device पर PIN pad)",
+  "pkcs11WizardBack": "वापस",
+  "pkcs11WizardNext": "आगे",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Hardware key जोड़ें",
+  "sshKeyHardwareBoundExplainer": "Private key device के secure hardware में रहती है और export नहीं हो सकती।",
+  "sshKeyEnclaveDeviceBound": "यह key केवल इस Mac पर काम करती है।",
+  "sshKeyEnclaveDeviceBoundIos": "यह key केवल इस iPhone पर काम करती है।",
+  "sshKeyHelloDeviceBound": "यह key केवल इस PC पर काम करती है।",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID अनिवार्य करें",
+  "sshKeyEnclavePasscodeFallback": "Device passcode को fallback के रूप में अनुमति दें",
+  "sshKeyHelloPinRequired": "Windows Hello अनिवार्य करें (PIN, fingerprint या face)",
+  "sshKeyHardwareUnavailableTitle": "Hardware keys उपलब्ध नहीं हैं",
+  "sshKeyHardwareUnavailableSe": "Secure Enclave के लिए app code-signed होना चाहिए।",
+  "sshKeyHardwareUnavailableHello": "इस PC पर Windows Hello configured नहीं है।",
+  "sshKeyHardwareUnavailableTpm": "TPM detect नहीं हुआ — केवल software-backed।",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Generate करें",
+  "sshKeyGenerateInProgress": "Secure hardware में key generate हो रही है...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing आवश्यक — USER_GUIDE.md → Hardware-bound keys देखें।",
+  "sshKeySignInProgress": "Secure hardware से sign हो रहा है...",
+  "sshKeyPublicCopy": "Public key copy करें",
+  "sshKeyAuthorizedKeysHint": "इस लाइन को सर्वर पर ~/.ssh/authorized_keys में जोड़ें।",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Key का नाम",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH key",
+  "helloWizardLabelHint": "Key label",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello से authenticate करें",
+  "helloPromptDescription": "PIN, फिंगरप्रिंट या face — Windows Hello इस SSH challenge को sign करेगा.",
+  "helloSoftwareGatedWarning": "इस device में TPM नहीं है. Key user storage में रहेगी; Windows Hello हर signature पर gate रहेगा.",
+  "helloP384NotSupported": "TPM firmware P-384 support नहीं करता. P-256 या RSA-2048 चुनें.",
+  "helloConfigureFirst": "पहले Windows Hello को Settings -> Sign-in options में सेट करें.",
+  "tpmSshTitle": "TPM-समर्थित SSH key बनाएं",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (अनुशंसित)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "इस TPM फ़र्मवेयर पर यह algorithm समर्थित नहीं है।",
+  "tpmSshPinProtect": "PIN से सुरक्षित करें",
+  "tpmSshPinLockoutWarning": "गलत PIN बार-बार डालने पर TPM key को लॉक कर देता है।",
+  "tpmSshPinMismatch": "PIN मेल नहीं खा रहे।",
+  "tpmSshStorageBlob": "wrapped key को app data में स्टोर करें",
+  "tpmSshStorageHandle": "TPM memory slot में रखें",
+  "tpmSshStorageHandleHelp": "तेज़ signing. TPM के persistent slots में से एक का उपयोग करता है।",
+  "tpmSshLabel": "Key label",
+  "tpmSshImportTitle": "TPM-protected SSH key import करें",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} के लिए TPM PIN",
+  "tpmSshPinIncorrect": "PIN गलत है।",
+  "tpmSshPinLockedCooldown": "TPM lockout cooldown में है। {duration} रुकें और दोबारा प्रयास करें।",
+  "tpmSshGenerating": "TPM में key बना रहे हैं...",
+  "tpmSshSigning": "TPM से sign कर रहे हैं...",
+  "tpmSshUnavailable": "इस device पर TPM नहीं मिला।",
+  "tpmSshUnavailableFwDisabled": "TPM firmware में disabled है।",
+  "tpmSshUnavailableNoPermission": "App TPM तक नहीं पहुंच सकता। user को `tss` group में जोड़ें।",
+  "tpmSshHandleInUse": "Persistent slot {handle} पहले से उपयोग में है।",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "यह key Hello / PIN prompt के बिना sign करती है — जब तक आप logged in हैं, desktop access वाला कोई भी इसका उपयोग कर सकता है।",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Hardware-bound key generate हो रही है...",
+  "keystoreKeyAuthPrompt": "SSH key use करने के लिए authenticate करें",
+  "keystoreKeyInvalidatedByEnrollment": "Key destroy हो गई: नई biometric register हुई है। Server पर public key फिर से register करें।",
+  "keystoreKeyStrongBoxUnavailable": "इस device पर StrongBox HSM उपलब्ध नहीं",
+  "keystoreKeyUserAuthRequired": "हर signature के लिए biometric / device unlock require करें",
+  "keystoreKeyExportDisabled": "Hardware-bound keys export नहीं की जा सकतीं",
+  "keystoreKeyDeleteWarning": "इस key को delete करने पर यह hardware store से हट जाएगी। जब तक आप नई register नहीं करते, server इसे reject करेंगे।",
+  "keystoreKeyBiometricNotEnrolled": "पहले biometric या device PIN enroll करें",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, सिर्फ TEE)",
+  "keystoreAlgRsa2048": "RSA-2048 (widest compatibility)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM उपलब्ध नहीं",
+  "keystoreStrongBoxFallbackBody": "आपका डिवाइस StrongBox HSM expose नहीं करता। इसके बजाय TEE-backed key बनाएँ? यह अभी भी hardware-backed है, बस StrongBox isolation के बिना।",
+  "keystoreStrongBoxFallbackConfirm": "TEE use करें",
+  "keystoreStrongBoxFallbackCancel": "रद्द करें",
+  "fido2BrokerSectionTitle": "हार्डवेयर सिक्योरिटी keys",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "सिस्टम security key डायलॉग",
+  "fido2BrokerIosLabel": "सिस्टम security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "सिस्टम security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "डायरेक्ट USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "इस प्लेटफ़ॉर्म पर उपलब्ध नहीं",
+  "fido2BrokerPreferDirectHidTitle": "सिस्टम डायलॉग की जगह डायरेक्ट USB HID को प्राथमिकता दें",
+  "fido2BrokerPreferDirectHidSubtitle": "एडवांस्ड: जिन प्लेटफ़ॉर्म पर दोनों paths काम करते हैं वहाँ {brokerLabel} को बायपास करें। डायरेक्ट HID authenticator के ज़्यादा फ़ीचर देता है पर हर app के लिए permission grant ज़रूरी होती है।",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "SSH एकीकरण",
+  "fido2BrokerNoTransportSubtitle": "इस डिवाइस पर hardware key सपोर्ट उपलब्ध नहीं है।",
+  "fido2BrokerSinglePathSubtitle": "इस डिवाइस पर सिर्फ़ {transport} उपलब्ध है; toggle disabled है।",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "इम्पोर्टेड स्टब",
+  "hardwareKeyStubSubtitle": "दूसरे डिवाइस पर था — उपयोग के लिए यहाँ रीजेनरेट करें",
+  "hardwareKeyStubRegenerateAction": "यहाँ रीजेनरेट करें",
+  "hardwareKeyStubRemoveAction": "स्टब हटाएँ",
+  "hardwareKeyStubPickerTooltip": "उपयोग से पहले इस डिवाइस पर इस कुंजी को रीजेनरेट करें",
+  "pkcs11ModuleResolveOnFirstUse": "टोकन \"{token}\" के लिए PKCS#11 मॉड्यूल खोजें",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  }
 }

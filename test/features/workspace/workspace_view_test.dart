@@ -2,11 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/tabs/welcome_screen.dart';
@@ -20,6 +16,8 @@ import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
+import '../../helpers/fake_session_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
 Connection _conn(
@@ -52,6 +50,12 @@ TabEntry _tab({
 }
 
 void main() {
+  // WorkspaceView renders widgets that log via AppLogger which
+  // routes through `lfs_core::log_sanitize` + format helpers —
+  // bootstrap FRB so the canonical Rust pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   Widget buildWorkspaceView({
     WorkspaceState? workspaceState,
     VoidCallback? onActivated,
@@ -60,15 +64,14 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        sessionStoreProvider.overrideWithValue(SessionStore()),
-        sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-        knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(
-          ConnectionManager(knownHosts: KnownHostsManager()),
+        ...FakeSessionNotifier().overrides(),
+        sessionsLoadingProvider.overrideWithValue(false),
+        knownHostsStreamProvider.overrideWith(
+          (_) => const Stream<Map<String, String>>.empty(),
         ),
-        connectionsProvider.overrideWith((ref) => Stream.value(<Connection>[])),
-        configStoreProvider.overrideWithValue(ConfigStore()),
+        connectionsProvider.overrideWith(
+          () => StaticConnectionsNotifier(<Connection>[]),
+        ),
         configProvider.overrideWith(TestConfigNotifier.new),
         if (workspaceState != null)
           workspaceProvider.overrideWith(
@@ -355,17 +358,14 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
             connectionsProvider.overrideWith(
-              (ref) => Stream.value(<Connection>[]),
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
-            configStoreProvider.overrideWithValue(ConfigStore()),
             configProvider.overrideWith(TestConfigNotifier.new),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(ws),

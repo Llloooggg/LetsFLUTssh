@@ -57,6 +57,7 @@ class MobileTerminalView extends ConsumerStatefulWidget {
 
 class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   late final Terminal _terminal;
+  late final void Function() _scrubFn;
   late final TerminalController _terminalController;
 
   /// Shared with the copy overlay. Passing a `ScrollController`
@@ -127,7 +128,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     super.initState();
     final config = ref.read(configProvider);
     _terminal = Terminal(maxLines: config.scrollback);
-    TerminalScrubber.instance.register(_terminal);
+    _scrubFn = () {
+      _terminal.buffer.clear();
+      _terminal.setCursor(0, 0);
+    };
+    TerminalScrubber.instance.register(_scrubFn);
     _terminalController = TerminalController();
     // Hard-block xterm's built-in touch selection (long-press → word,
     // finger-drag → character select). xterm's [TerminalGestureHandler]
@@ -193,6 +198,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
     _progressSub = writer.subscribe(tracker);
     await conn.waitUntilReady();
+    // `state == connected` flips before [Connection._adoptSession]
+    // assigns the russh handle to `transport`; wait for the adopt
+    // to settle so `_openShell` doesn't see a null transport.
+    if (conn.isConnecting || conn.isConnected) {
+      await conn.transportReady;
+    }
     _progressSub?.cancel();
     _progressSub = null;
     tracker.dispose();
@@ -238,7 +249,10 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _terminal.onOutput = (data) {
         final transformed =
             _keyboardKey.currentState?.applyModifiers(data) ?? data;
-        _shellConn?.shell.write(Uint8List.fromList(utf8.encode(transformed)));
+        // `utf8.encode` already returns Uint8List on dart:convert
+        // ≥ 2.18 — the wrapping `Uint8List.fromList` was a no-op
+        // copy on every keystroke.
+        _shellConn?.write(utf8.encode(transformed));
       };
 
       if (mounted) setState(() {});
@@ -258,7 +272,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   @override
   void dispose() {
-    TerminalScrubber.instance.unregister(_terminal);
+    TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
     _shellConn?.close();
     _insetSettleTimer?.cancel();
@@ -269,7 +283,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   void _onKeyboardInput(String data) {
-    _shellConn?.shell.write(Uint8List.fromList(utf8.encode(data)));
+    _shellConn?.write(Uint8List.fromList(utf8.encode(data)));
   }
 
   void _paste() {
@@ -280,7 +294,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   /// command to the shell with a trailing newline — matching the desktop
   /// terminal pane behaviour.
   Future<void> _showSnippets() async {
-    final shell = _shellConn?.shell;
+    final shell = _shellConn;
     if (shell == null) return;
     final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
@@ -486,8 +500,8 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       builder: (context, constraints) {
         // Cell height mirrors xterm's painter: fontSize × the shared
         // `kTerminalLineHeight` multiplier. Padding is the same
-        // `EdgeInsets.all(4)` we pass to TerminalView below.
-        const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+        // `EdgeInsets.all(AppSpacing.xs)` we pass to TerminalView below.
+        const verticalPadding = 8.0; // EdgeInsets.all(AppSpacing.xs).vertical
         final cellHeight = _fontSize * kTerminalLineHeight;
         final usable = constraints.maxHeight - verticalPadding;
         final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
@@ -547,7 +561,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               // into a separate `TerminalPane`, untouched.
               autofocus: false,
               backgroundOpacity: 1.0,
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppSpacing.xs),
               theme: AppTheme.terminalTheme,
               textStyle: TerminalStyle(
                 fontSize: _fontSize,

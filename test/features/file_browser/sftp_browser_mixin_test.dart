@@ -8,6 +8,8 @@ import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/connection_progress.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// Minimal widget that applies the mixin so we can unit-test the shared logic.
 class _TestBrowser extends ConsumerStatefulWidget {
   final Connection connection;
@@ -66,6 +68,12 @@ class _TestBrowserState extends ConsumerState<_TestBrowser>
 }
 
 void main() {
+  // SftpBrowserMixin logs failures via AppLogger which routes
+  // through `lfs_core::log_sanitize` + format helpers — bootstrap
+  // FRB so the canonical Rust pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SftpBrowserMixin', () {
     testWidgets('sets error when connection fails', (tester) async {
       final conn = Connection(
@@ -102,6 +110,11 @@ void main() {
         ),
         state: SSHConnectionState.connected,
       );
+      // No actor backs this synthetic connection, so the
+      // `transportReady` gate inside `SftpBrowserMixin.initSftp`
+      // would hang `pumpAndSettle` forever. Drive the completer
+      // straight so the mixin proceeds to call `sftpInitFactory`.
+      conn.markTransportAdopted();
 
       await tester.pumpWidget(
         ProviderScope(
@@ -131,6 +144,9 @@ void main() {
         ),
         state: SSHConnectionState.connected,
       );
+      // Same gate as the failure test above — synthetic Connection
+      // has no actor to drive `_transportAdopted`, drive it manually.
+      conn.markTransportAdopted();
 
       // We need a fake SFTPInitResult — but it requires real controllers.
       // Test that the factory path works by verifying onSftpReady is called.

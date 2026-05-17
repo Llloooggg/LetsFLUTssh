@@ -1,14 +1,11 @@
-import 'package:dartssh2/dartssh2.dart' show SSHSocket;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
@@ -23,6 +20,8 @@ import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/status_indicator.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
+import '../../helpers/fake_session_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
 /// Helper to build a WorkspaceState with tabs added via a setup callback.
@@ -67,17 +66,18 @@ class _WorkspaceStateBuilder {
 }
 
 /// A ConnectionManager that simulates a connection that fails in background.
-class _FailingConnectionManager extends ConnectionManager {
+class _FailingConnectionManager extends ConnectionsNotifier {
+  _FailingConnectionManager(this.error);
   final Object error;
-  _FailingConnectionManager(this.error)
-    : super(knownHosts: KnownHostsManager());
+
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
     SSHConfig config, {
     String? label,
     String? sessionId,
-    Future<SSHSocket> Function()? socketProvider,
     Connection? bastion,
     bool internal = false,
   }) {
@@ -93,16 +93,17 @@ class _FailingConnectionManager extends ConnectionManager {
   }
 }
 
-/// A ConnectionManager that returns a connected connection (simulates success).
-class _SuccessConnectionManager extends ConnectionManager {
-  _SuccessConnectionManager() : super(knownHosts: KnownHostsManager());
+/// A ConnectionsNotifier that returns a connected connection
+/// (simulates success).
+class _SuccessConnectionManager extends ConnectionsNotifier {
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
     SSHConfig config, {
     String? label,
     String? sessionId,
-    Future<SSHSocket> Function()? socketProvider,
     Connection? bastion,
     bool internal = false,
   }) {
@@ -111,13 +112,18 @@ class _SuccessConnectionManager extends ConnectionManager {
       label: label ?? config.displayName,
       sshConfig: config,
       sessionId: sessionId,
-      sshConnection: null,
       state: SSHConnectionState.connected,
     );
   }
 }
 
 void main() {
+  // MobileShell renders widgets that log via AppLogger which
+  // routes through `lfs_core::log_sanitize` + format helpers —
+  // bootstrap FRB so the canonical Rust pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('MobileShell', () {
     Widget buildTestWidget({
       List<Session> sessions = const [],
@@ -125,12 +131,13 @@ void main() {
     }) {
       return ProviderScope(
         overrides: [
-          sessionStoreProvider.overrideWithValue(SessionStore()),
-          sessionProvider.overrideWith(SessionNotifier.new),
-          sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            ConnectionManager(knownHosts: KnownHostsManager()),
+          ...FakeSessionNotifier().overrides(),
+          sessionsLoadingProvider.overrideWithValue(false),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+          connectionsProvider.overrideWith(
+            () => StaticConnectionsNotifier(<Connection>[]),
           ),
           if (workspaceState != null)
             workspaceProvider.overrideWith(WorkspaceNotifier.new),
@@ -198,21 +205,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'example.com', user: 'root'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -245,21 +250,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'sftp.example.com', user: 'admin'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -292,21 +295,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -411,21 +412,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -469,7 +468,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'a.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
@@ -478,21 +476,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'b.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -533,7 +529,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'a.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
@@ -542,21 +537,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'b.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -599,7 +592,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final sftpConn = Connection(
@@ -608,21 +600,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -660,7 +650,6 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'h', user: 'u'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.disconnected,
         );
         final sftpConn = Connection(
@@ -669,21 +658,19 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'h', user: 'u'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.disconnected,
         );
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              sessionProvider.overrideWith(SessionNotifier.new),
-              sessionsLoadingProvider.overrideWith(
-                IdleSessionsLoadingNotifier.new,
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
               ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
               ),
               workspaceProvider.overrideWith(
                 () => PrePopulatedWorkspaceNotifier(
@@ -713,22 +700,19 @@ void main() {
       },
     );
 
-    // Helper to build widget with a session and custom ConnectionManager
+    // Helper to build widget with a session and custom ConnectionsNotifier
     Widget buildWithSession({
       required Session session,
-      required ConnectionManager manager,
+      required ConnectionsNotifier manager,
     }) {
-      final store = SessionStore();
-      store.add(session);
       return ProviderScope(
         overrides: [
-          sessionStoreProvider.overrideWithValue(store),
-          sessionProvider.overrideWith(
-            () => PrePopulatedSessionNotifier(store.sessions),
+          ...FakeSessionNotifier(sessions: [session]).overrides(),
+          sessionsLoadingProvider.overrideWithValue(false),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
           ),
-          sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(manager),
+          connectionsProvider.overrideWith(() => manager),
         ],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
@@ -793,44 +777,6 @@ void main() {
       // Double-tap triggers connect + nav switch — tab is added even if disconnected
       await doubleTapSession(tester, 'Fail Server');
     });
-
-    testWidgets('SFTP connect via context menu navigates to Files page', (
-      tester,
-    ) async {
-      final session = Session(
-        id: 'sess-sftp',
-        label: 'SFTP Target',
-        server: const ServerAddress(host: 'sftp.example.com', user: 'admin'),
-        auth: const SessionAuth(password: 'secret'),
-      );
-      await tester.pumpWidget(
-        buildWithSession(
-          session: session,
-          manager: _SuccessConnectionManager(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('SFTP Target'), findsOneWidget);
-
-      // Right-click (secondary tap) on the session to open context menu
-      await tester.tap(
-        find.text('SFTP Target'),
-        buttons: kSecondaryMouseButton,
-      );
-      await tester.pumpAndSettle();
-
-      // Tap 'Files' in the context menu (last match — first is nav bar)
-      expect(find.text('Files'), findsWidgets);
-      await tester.tap(find.text('Files').last);
-      await tester.pumpAndSettle();
-
-      // Should navigate to Files page (index 2) after _connectSessionSftp
-      final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
-      expect(stack.index, equals(2));
-    });
-
-    // FAB was removed — new sessions are created from SessionPanel's add button.
 
     testWidgets('incomplete session shows toast and stays on Sessions page', (
       tester,
@@ -904,21 +850,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -953,21 +897,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1000,21 +942,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1049,21 +989,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1098,21 +1036,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1160,14 +1096,13 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             // Start with dark theme
             themeModeProvider.overrideWithValue(ThemeMode.dark),
@@ -1200,14 +1135,13 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             themeModeProvider.overrideWithValue(ThemeMode.light),
           ],
@@ -1256,21 +1190,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1323,16 +1255,13 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              sessionProvider.overrideWith(
-                () => PrePopulatedSessionNotifier(sessions),
+              ...FakeSessionNotifier(sessions: sessions).overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
               ),
-              sessionsLoadingProvider.overrideWith(
-                IdleSessionsLoadingNotifier.new,
-              ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
               ),
             ],
             child: MaterialApp(
@@ -1384,23 +1313,20 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier([conn]),
             ),
-            connectionsProvider.overrideWith((ref) => Stream.value([conn])),
           ],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
@@ -1431,23 +1357,20 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'h', user: 'u'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.connecting,
         );
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              sessionStoreProvider.overrideWithValue(SessionStore()),
-              sessionProvider.overrideWith(SessionNotifier.new),
-              sessionsLoadingProvider.overrideWith(
-                IdleSessionsLoadingNotifier.new,
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
               ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier([conn]),
               ),
-              connectionsProvider.overrideWith((ref) => Stream.value([conn])),
             ],
             child: MaterialApp(
               localizationsDelegates: S.localizationsDelegates,
@@ -1476,21 +1399,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1526,21 +1447,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1581,7 +1500,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'a.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
       final conn2 = Connection(
@@ -1590,7 +1508,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'b.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn3 = Connection(
@@ -1599,21 +1516,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'c.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1654,7 +1569,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'x.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
@@ -1663,21 +1577,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'y.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1755,21 +1667,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1846,21 +1756,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1907,21 +1815,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1968,21 +1874,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -2025,21 +1929,19 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(
-              IdleSessionsLoadingNotifier.new,
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(

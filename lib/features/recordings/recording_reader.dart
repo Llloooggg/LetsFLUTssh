@@ -1,14 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:pointycastle/api.dart';
-import 'package:pointycastle/block/aes.dart';
-import 'package:pointycastle/block/modes/gcm.dart';
-import 'package:pointycastle/digests/sha256.dart';
-import 'package:pointycastle/key_derivators/api.dart';
-import 'package:pointycastle/key_derivators/hkdf.dart';
+import '../../core/security/active_dbkey.dart';
+import '../../src/rust/api/app.dart' as rust_secrets;
+import '../../src/rust/api/recorder.dart' as rust_recorder;
 
 /// One asciinema-v2 event read out of a recording file. The fields
 /// mirror the JSON-Lines schema 1:1 — `timestamp` is seconds-since-
@@ -25,6 +19,12 @@ class RecordingFrame {
 
 /// Decoded asciinema-v2 header — carries the dimensions the
 /// recorded shell ran at so playback can resize xterm to match.
+///
+/// Parsed Rust-side via `lfs_core::recorder::reader::decode_header_line`
+/// over the FRB sync shim `recorder_decode_header_line`. The Dart
+/// class is a thin value holder around the FRB-typed mirror so the
+/// asciinema-v2 wire-shape grammar (field set, default fallbacks,
+/// `env.SHELL` extraction) stays in one place Rust-side.
 class RecordingHeader {
   final int width;
   final int height;
@@ -38,14 +38,16 @@ class RecordingHeader {
     this.shellLabel,
   });
 
-  static RecordingHeader fromJson(Map<String, Object?> json) => RecordingHeader(
-    width: (json['width'] as num?)?.toInt() ?? 80,
-    height: (json['height'] as num?)?.toInt() ?? 24,
-    wallClockEpochSeconds: (json['timestamp'] as num?)?.toInt() ?? 0,
-    shellLabel: (json['env'] is Map<String, Object?>)
-        ? ((json['env'] as Map<String, Object?>)['SHELL'] as String?)
-        : null,
-  );
+  /// Lift the FRB-typed mirror into the Dart value class. The JSON
+  /// parse runs Rust-side (`recorder_decode_header_line`); this
+  /// factory is the sole constructor every reader path uses.
+  factory RecordingHeader.fromRust(rust_recorder.DbRecordingHeader header) =>
+      RecordingHeader(
+        width: header.width,
+        height: header.height,
+        wallClockEpochSeconds: header.wallClockEpochSeconds,
+        shellLabel: header.shellLabel,
+      );
 }
 
 /// Pure decoder for the recording files the [SessionRecorder] writes.
@@ -57,105 +59,158 @@ class RecordingHeader {
 ///   version + a stream of `[len(4 LE)][nonce(12)][cipher][tag(16)]`
 ///   AES-256-GCM frames whose plaintext is the same JSON-Lines.
 ///
-/// The reader takes ownership of the file's read lifecycle:
-/// [openCast] / [openEncrypted] both expose a `Stream<RecordingFrame>`
-/// that yields header-then-events lazily, so a multi-MB recording
-/// can be played back without staging the whole timeline in memory.
+/// LFR encrypted versions:
+/// * `0x01` — per-frame AES-GCM with empty AAD (legacy). Files
+///   written before the AAD-binding upgrade keep decoding through
+///   this path; new files never emit at this level.
+/// * `0x02` — per-frame AAD = `frame_index_u64_le`. The writer
+///   tracks a monotonic counter per recording (resets on rotate);
+///   the reader recomputes it from frame position so a swap of two
+///   frames invalidates the GCM tag at both swapped positions.
+///
+/// Both branches route through the same Rust-side
+/// [`recorderOpenForPlayback`] FRB stream — Rust dispatches on the
+/// file extension internally, so the Dart consumer hands the path
+/// in once without branching. Reads stay sequential (no random
+/// access into the timeline); a multi-MB recording plays back
+/// without staging the whole timeline on the Dart heap.
+///
+/// Scrub-bar seek routes through [`recorderSeek`] + the
+/// `recorderOpenForPlaybackAt` variant: the FRB layer binary-searches
+/// `<recording>.idx` for the largest entry at or before `targetMs`,
+/// returns the matched offset, and the playback adapter restarts the
+/// iterator pre-positioned at that frame boundary. Legacy recordings
+/// without a sidecar return `null` from `recorderSeek` and the dialog
+/// disables the scrub bar with a tooltip.
 class RecordingReader {
   RecordingReader._();
 
-  static const _hkdfInfo = 'letsflutssh-recording-v1';
-  static const List<int> _expectedMagic = [0x4C, 0x46, 0x52, 0x31];
-
-  /// Walk a `.cast` plaintext recording. The first event is the
-  /// asciinema header (a JSON object); subsequent events are
-  /// `[t, dir, data]` arrays.
-  static Stream<RecordingDecodedLine> openCast(File file) async* {
-    await for (final line
-        in file
-            .openRead()
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())) {
-      if (line.isEmpty) continue;
-      yield RecordingDecodedLine(line);
+  /// Walk a recording file (either `.cast` plaintext or `.lfsr`
+  /// encrypted) and yield every JSON-Lines record. The first event
+  /// is the asciinema header (a JSON object); subsequent events are
+  /// `[t, dir, data]` arrays. Errors during open / decrypt / decode
+  /// surface as in-stream `DbPlaybackEvent.error` values which the
+  /// loop maps to a [`RecordingFormatException`] so the playback UI
+  /// keeps its existing branch shape.
+  static Stream<RecordingDecodedLine> open(String filePath) async* {
+    // The Rust playback adapter emits a tagged `DbPlaybackEvent`
+    // per frame: `line` carries the decoded record, `error` (when
+    // set) carries the abort reason. The shape works around FRB's
+    // unawaited return-channel future: a `Result::Err` from the
+    // Rust side would leak as an uncaught zone error, never
+    // reaching `await for`. Emitting errors as in-stream events
+    // keeps them on the consumer's catch surface.
+    await for (final event in rust_recorder.recorderOpenForPlayback(
+      path: filePath,
+    )) {
+      final err = event.error;
+      if (err != null) {
+        throw RecordingFormatException(err);
+      }
+      final line = event.line;
+      if (line != null) {
+        yield RecordingDecodedLine(line);
+      }
     }
   }
 
-  /// Walk an encrypted `.lfsr` recording. [dbKey] is the running
-  /// session's DB encryption key; the recording key is derived
-  /// from it via the same HKDF-SHA-256 chain the recorder used.
-  static Stream<RecordingDecodedLine> openEncrypted(File file, Uint8List dbKey) async* {
-    final key = _deriveKey(dbKey);
-    final raf = file.openSync();
-    try {
-      // Magic + version sniff. Throw early so the playback UI can
-      // show "wrong format" instead of feeding garbage to GCM.
-      final head = raf.readSync(5);
-      if (head.length < 5) {
-        throw const RecordingFormatException('Truncated header');
+  /// Variant of [`open`] that pre-positions the decoder at
+  /// `byteOffset` + `startFrameIndex` returned by [`seek`]. The
+  /// FRB sink yields events starting from the next frame past the
+  /// offset — the asciinema header is NOT re-emitted, so the caller
+  /// must already have the geometry from a prior `readMeta` /
+  /// initial-open call.
+  static Stream<RecordingDecodedLine> openAt(
+    String filePath, {
+    required int byteOffset,
+    required int startFrameIndex,
+  }) async* {
+    await for (final event in rust_recorder.recorderOpenForPlaybackAt(
+      path: filePath,
+      startOffset: BigInt.from(byteOffset),
+      startFrameIndex: BigInt.from(startFrameIndex),
+    )) {
+      final err = event.error;
+      if (err != null) {
+        throw RecordingFormatException(err);
       }
-      for (var i = 0; i < 4; i++) {
-        if (head[i] != _expectedMagic[i]) {
-          throw const RecordingFormatException('Bad magic — not an LFR1 file');
-        }
+      final line = event.line;
+      if (line != null) {
+        yield RecordingDecodedLine(line);
       }
-      if (head[4] != 1) {
-        throw RecordingFormatException(
-          'Unsupported recording version ${head[4]}',
-        );
-      }
-      while (raf.positionSync() < raf.lengthSync()) {
-        final lenBytes = raf.readSync(4);
-        if (lenBytes.length < 4) break;
-        final ptLen = ByteData.sublistView(
-          lenBytes,
-        ).getUint32(0, Endian.little);
-        final nonce = raf.readSync(12);
-        // ciphertext = plaintext-len + 16 (GCM tag)
-        final ct = raf.readSync(ptLen + 16);
-        final cipher = GCMBlockCipher(AESEngine())
-          ..init(
-            false,
-            AEADParameters(KeyParameter(key), 128, nonce, Uint8List(0)),
-          );
-        final pt = cipher.process(ct);
-        // Each frame's plaintext is one JSON-Lines record with a
-        // trailing newline — strip the newline before yielding so
-        // the parsed JSON does not carry surprise whitespace.
-        yield RecordingDecodedLine(utf8.decode(pt).trimRight());
-      }
-    } finally {
-      raf.closeSync();
     }
+  }
+
+  /// Resolve `<filePath>.idx` and binary-search for the largest entry
+  /// at or before `targetMs`. Returns the matched entry's byte offset
+  /// into the main file plus the sidecar's entry index (the AAD
+  /// counter the next encrypted frame is signed under). Returns null
+  /// when no sidecar exists, the sidecar is empty, or the target
+  /// lands before the first event — caller falls back to either a
+  /// full re-decode (target after first event) or a no-op (target
+  /// before first event).
+  static Future<RecordingSeekHit?> seek(
+    String filePath, {
+    required int targetMs,
+    required bool encrypted,
+  }) async {
+    final hit = await rust_recorder.recorderSeek(
+      recordingPath: filePath,
+      targetMs: BigInt.from(targetMs),
+      encrypted: encrypted,
+    );
+    if (hit == null) return null;
+    return RecordingSeekHit(
+      byteOffset: hit.offset.toInt(),
+      startFrameIndex: hit.entryIndex.toInt(),
+      timestampMs: hit.timestampMs,
+    );
   }
 
   /// Read just the header line of a recording — used to populate
   /// the browser list (duration / dimensions / wall-clock) without
   /// streaming the whole file. Returns null when the recording is
   /// empty or unparseable.
+  ///
+  /// `encrypted` short-circuits the FRB round-trip when the
+  /// running tier has no active DB key — an encrypted recording
+  /// cannot be decrypted, so the meta read would surface as a
+  /// stream error and we'd still return null. Avoiding the
+  /// spawn_blocking task per row keeps the browser scan cheap when
+  /// the user opens it on a plaintext / auto-locked tier.
   static Future<RecordingMeta?> readMeta(
-    File file, {
+    String filePath, {
     required bool encrypted,
-    required Uint8List? dbKey,
   }) async {
+    if (encrypted && !rust_secrets.secretsHas(id: kActiveDbKeySecretId)) {
+      return null;
+    }
     try {
-      final stream = encrypted ? openEncrypted(file, dbKey!) : openCast(file);
       RecordingHeader? header;
       var lastTimestamp = 0.0;
       var eventCount = 0;
-      await for (final line in stream) {
-        final json = jsonDecode(line.value);
-        if (header == null && json is Map<String, Object?>) {
-          header = RecordingHeader.fromJson(json);
-        } else if (json is List && json.length >= 3) {
-          eventCount++;
-          final ts = (json[0] as num).toDouble();
-          if (ts > lastTimestamp) lastTimestamp = ts;
-        }
+      await for (final line in open(filePath)) {
+        // Dispatch on the typed `DbRecordingLine` enum the Rust
+        // decoder returns — header (object) lands on `Header`,
+        // event (3-tuple) lands on `Event`, malformed lines and
+        // unrelated shapes collapse to `Other` and are skipped.
+        // No Dart-side `jsonDecode` lives in this loop.
+        final decoded = rust_recorder.recorderDecodeLine(line: line.value);
+        decoded.when(
+          header: (h) {
+            header ??= RecordingHeader.fromRust(h);
+          },
+          event: (e) {
+            eventCount++;
+            if (e.timestamp > lastTimestamp) lastTimestamp = e.timestamp;
+          },
+          other: () {},
+        );
       }
-      if (header == null) return null;
+      final resolvedHeader = header;
+      if (resolvedHeader == null) return null;
       return RecordingMeta(
-        header: header,
+        header: resolvedHeader,
         durationSeconds: lastTimestamp,
         eventCount: eventCount,
       );
@@ -166,40 +221,31 @@ class RecordingReader {
       return null;
     }
   }
-
-  static Uint8List _deriveKey(Uint8List dbKey) {
-    final hkdf = HKDFKeyDerivator(SHA256Digest())
-      ..init(
-        HkdfParameters(
-          dbKey,
-          32,
-          Uint8List(0),
-          Uint8List.fromList(_hkdfInfo.codeUnits),
-        ),
-      );
-    final out = Uint8List(32);
-    hkdf.deriveKey(null, 0, out, 0);
-    return out;
-  }
 }
 
 /// Parse a raw JSON-Lines record from the recording into either a
-/// header object or an event tuple. Caller dispatches on
-/// [RecordingFrame] vs [RecordingHeader].
+/// header object or an event tuple. Routes through the Rust-side
+/// `recorder_decode_event_line` so the asciinema-v2 wire shape
+/// stays in one place — the encrypted-envelope decode that
+/// produces this line already lives Rust-side. Caller dispatches
+/// on [RecordingFrame] vs the header (returned as `null` from
+/// here; the playback dialog reads the header line through a
+/// dedicated path).
 RecordingFrame? decodeEventLine(String line) {
-  try {
-    final v = jsonDecode(line);
-    if (v is List && v.length >= 3) {
-      return RecordingFrame(
-        (v[0] as num).toDouble(),
-        v[1] as String,
-        v[2] as String,
-      );
-    }
-  } catch (_) {
-    // Header line or malformed record — caller treats as skip.
-  }
-  return null;
+  final event = rust_recorder.recorderDecodeEventLine(line: line);
+  if (event == null) return null;
+  return RecordingFrame(event.timestamp, event.direction, event.data);
+}
+
+/// Parse a raw JSON-Lines record as the asciinema-v2 header object.
+/// Routes through the Rust-side `recorder_decode_header_line` FRB
+/// sync helper — same wire-shape ownership as [`decodeEventLine`].
+/// Returns `null` for event tuples and any malformed shape so the
+/// caller can fall through to the event-decode path.
+RecordingHeader? decodeHeaderLine(String line) {
+  final header = rust_recorder.recorderDecodeHeaderLine(line: line);
+  if (header == null) return null;
+  return RecordingHeader.fromRust(header);
 }
 
 /// Thin wrapper around a single JSON-Lines record yielded by the
@@ -209,6 +255,24 @@ RecordingFrame? decodeEventLine(String line) {
 class RecordingDecodedLine {
   final String value;
   RecordingDecodedLine(this.value);
+}
+
+/// Hit returned from [`RecordingReader.seek`]. Carries everything the
+/// playback dialog needs to resume from a scrub target: the byte
+/// offset to restart the decoder at, the sidecar entry index (= AAD
+/// counter for the next encrypted frame), and the timestamp of the
+/// matched entry (so the UI can snap the scrub thumb to the actual
+/// frame boundary instead of the requested target).
+class RecordingSeekHit {
+  final int byteOffset;
+  final int startFrameIndex;
+  final int timestampMs;
+
+  const RecordingSeekHit({
+    required this.byteOffset,
+    required this.startFrameIndex,
+    required this.timestampMs,
+  });
 }
 
 /// Aggregated metadata for the browser list view.

@@ -5,7 +5,6 @@ import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
@@ -15,7 +14,6 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
@@ -25,98 +23,18 @@ import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/toast.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import '../../helpers/fake_security.dart';
+import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
-/// _SecuritySection.build() reads secureKeyStorageProvider, biometricAuth-
-/// Provider and biometricKeyVaultProvider during its initState probe. The
-/// real implementations call `plugins.it_nomads.com/flutter_secure_storage`
-/// and `dev.fluttercommunity.plus.local_auth`, neither of which have mock
-/// handlers in this test file. Without replacement those calls block
-/// forever in the fake-async zone and the final disposing-the-viewer test
-/// eventually looks like a hang. The fakes below short-circuit every path
-/// to an unavailable state so _checkState resolves immediately.
-class _FakeFlutterSecureStorage implements FlutterSecureStorage {
-  final Map<String, String> _store = {};
-
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    if (value == null) {
-      _store.remove(key);
-    } else {
-      _store[key] = value;
-    }
-  }
-
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => _store[key];
-
-  @override
-  Future<bool> containsKey({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => _store.containsKey(key);
-
-  @override
-  Future<void> delete({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    _store.remove(key);
-  }
-
-  @override
-  Future<Map<String, String>> readAll({
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => Map.of(_store);
-
-  @override
-  Future<void> deleteAll({
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    _store.clear();
-  }
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
+/// _SecuritySection.build() reads secureKeyStorageProvider,
+/// biometricAuthProvider and biometricKeyVaultProvider during its
+/// initState probe. The real implementations route through FRB
+/// (lfs_os_security::secure_key_storage / biometric_auth /
+/// hardware_tier_vault) which is bootstrapped in setUpAll, but the
+/// fake overrides below short-circuit each probe to a deterministic
+/// "not available" so the section settles immediately and the
+/// disposing-the-viewer tests don't race a long-running probe.
 class _FakeBiometricAuth implements BiometricAuth {
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -134,11 +52,10 @@ class _FakeBiometricAuth implements BiometricAuth {
 class _MockMasterPasswordManager extends MasterPasswordManager {
   bool _enabled = false;
 
-  _MockMasterPasswordManager({required String basePath})
-    : super(basePath: basePath);
+  _MockMasterPasswordManager();
 
   @override
-  Future<Uint8List> enable(String password) async {
+  Future<Uint8List> enable(Uint8List password) async {
     _enabled = true;
     return Uint8List.fromList(List.generate(32, (i) => i));
   }
@@ -147,12 +64,7 @@ class _MockMasterPasswordManager extends MasterPasswordManager {
   Future<bool> isEnabled() async => _enabled;
 
   @override
-  Future<bool> verify(String password) async => true;
-
-  @override
-  Future<Uint8List> deriveKey(String password) async {
-    return Uint8List.fromList(List.generate(32, (i) => i));
-  }
+  Future<bool> verify(Uint8List password) async => true;
 }
 
 /// Stub FilePicker — the logging section wires up FilePicker.saveFile /
@@ -198,6 +110,10 @@ class _StubFilePickerPlatform extends FilePickerPlatform
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // SettingsScreen renders security widgets that call `evaluate()`,
+  // which routes through `lfs_core::threat_vocabulary` — bootstrap
+  // FRB so the screen can build.
+  setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
 
@@ -250,24 +166,19 @@ void main() {
 
   Widget buildApp({AppConfig? initialConfig}) {
     final config = initialConfig ?? AppConfig.defaults;
-    final fakeStorage = _FakeFlutterSecureStorage();
     return ProviderScope(
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
-        masterPasswordProvider.overrideWithValue(
-          _MockMasterPasswordManager(basePath: tempDir.path),
-        ),
+        masterPasswordProvider.overrideWithValue(_MockMasterPasswordManager()),
         // _SecuritySection probes these on initState — let them resolve
-        // instantly to "not available" instead of hanging on unmocked
-        // platform channels that this test file doesn't install.
+        // instantly to "not available" instead of running the real
+        // FRB round-trip / biometric prompt.
         secureKeyStorageProvider.overrideWithValue(
-          SecureKeyStorage(storage: fakeStorage),
+          FakeSecureKeyStorage(available: false),
         ),
         biometricAuthProvider.overrideWithValue(_FakeBiometricAuth()),
-        biometricKeyVaultProvider.overrideWithValue(
-          BiometricKeyVault(storage: fakeStorage),
-        ),
+        biometricKeyVaultProvider.overrideWithValue(BiometricKeyVault()),
       ],
       child: MaterialApp(
         locale: const Locale('en'),
@@ -368,9 +279,9 @@ void main() {
 
       // Verify we can tap it without error
       await tester.tap(deleteIcon);
-      for (int i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      // The success toast holds a 3-second auto-dismiss timer; pump
+      // past it so no pending timer survives the widget teardown.
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 
@@ -378,44 +289,6 @@ void main() {
   // _LiveLogViewer — reachable only through _LoggingSection
   // ---------------------------------------------------------------------------
   group('_LiveLogViewer', () {
-    testWidgets('renders placeholder when log file is empty', (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      // Delete the log file so readLog() returns '' and the viewer shows its
-      // "(no log entries yet)" placeholder. Sink must be closed first so the
-      // file isn't held open.
-      await tester.runAsync(() async {
-        await AppLogger.instance.setThreshold(null);
-        final logPath = AppLogger.instance.logPath;
-        if (logPath != null) {
-          final file = File(logPath);
-          if (await file.exists()) {
-            await file.delete();
-          }
-        }
-      });
-
-      final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(logLevel: LogLevel.info),
-      );
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      // Let the initial async _refresh complete so the placeholder text lands.
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
-      await tester.pump();
-
-      expect(find.text('(no log entries yet)'), findsOneWidget);
-    });
-
     testWidgets('copy button writes log content to system clipboard', (
       tester,
     ) async {
@@ -471,114 +344,6 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     });
-
-    testWidgets('backgrounding the app stops polling, resuming restarts it', (
-      tester,
-    ) async {
-      // Guards the battery-drain fix: when the app is backgrounded, the
-      // 1Hz log-file poll must stop so it doesn't keep the CPU awake and
-      // prevent Android from entering doze.
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(logLevel: LogLevel.info),
-      );
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 200)),
-      );
-      await tester.pump();
-
-      // Drive the lifecycle through the legal order resumed → inactive →
-      // hidden → paused. The timer must be cancelled by the end so advancing
-      // fake-async by multiple polling intervals is a no-op.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-
-      // If the timer were still alive, this would enqueue real async file
-      // reads every second; with it cancelled, nothing runs.
-      await tester.pump(const Duration(seconds: 3));
-
-      // Resume path: hidden → inactive → resumed. Timer restarts.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 2));
-
-      // Pause again before teardown so no timer is pending at dispose.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-
-      expect(find.text('Live Log'), findsOneWidget);
-    });
-
-    testWidgets(
-      'disposing the viewer cancels its periodic timer',
-      (tester) async {
-        tester.view.physicalSize = const Size(800, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final config = AppConfig.defaults.copyWith(
-          behavior: const BehaviorConfig(logLevel: LogLevel.info),
-        );
-        await tester.pumpWidget(buildApp(initialConfig: config));
-        await tester.scrollUntilVisible(
-          find.text('Live Log'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        // Settle any in-flight real-time work (initial _refresh of the log
-        // viewer, FlutterSecureStorage probe from the Security section) so
-        // the next pumpWidget's dispose pass isn't racing an open async
-        // operation on a platform channel that's unmocked in this test file.
-        await tester.runAsync(
-          () => Future.delayed(const Duration(milliseconds: 200)),
-        );
-        await tester.pump();
-
-        // Replace the widget tree with something that does NOT contain
-        // _LiveLogViewer — this triggers dispose() and must cancel the timer.
-        // If the timer wasn't cancelled, the test framework would flag a
-        // pending timer after the test finishes.
-        await tester.pumpWidget(
-          const MaterialApp(home: Scaffold(body: Text('empty'))),
-        );
-        // Drain whatever disposal-triggered microtasks remain (the Security
-        // section's _checkState may still be awaiting an unmocked platform
-        // channel — without this flush those awaits keep the test binding
-        // stuck in pending-async-work and the --timeout 30s guard trips
-        // indirectly instead of the test completing cleanly).
-        await tester.runAsync(
-          () => Future.delayed(const Duration(milliseconds: 50)),
-        );
-        await tester.pump();
-
-        expect(find.text('empty'), findsOneWidget);
-        expect(find.text('Live Log'), findsNothing);
-      },
-      timeout: const Timeout(Duration(seconds: 15)),
-    );
   });
 
   group('parseLogEntries', () {

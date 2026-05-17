@@ -2,10 +2,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/session/session.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart' as plat;
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/hover_region.dart';
+import '../../widgets/session_kind_icon.dart';
 import '../../widgets/threshold_draggable.dart';
 import '../tabs/tab_model.dart';
 
@@ -240,20 +242,14 @@ class _PanelTabItemState extends State<_PanelTabItem> {
                     color: _dotColor(),
                   ),
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  widget.tab.kind == TabKind.terminal
-                      ? Icons.terminal
-                      : Icons.folder,
-                  size: 12,
-                  color: _iconColor(),
-                ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(_tabIcon(widget.tab), size: 12, color: _iconColor()),
+                const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
                     widget.tab.label,
                     style: TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.interFamily,
                       fontSize: AppFonts.sm,
                       color: widget.isActive ? AppTheme.fg : AppTheme.fgDim,
                     ),
@@ -341,16 +337,12 @@ class _TabDragChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            tab.kind == TabKind.terminal ? Icons.terminal : Icons.folder,
-            size: 12,
-            color: AppTheme.fgDim,
-          ),
-          const SizedBox(width: 6),
+          Icon(_tabIcon(tab), size: 12, color: AppTheme.fgDim),
+          const SizedBox(width: AppSpacing.xxs),
           Text(
             tab.label,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.sm,
               color: AppTheme.fg,
             ),
@@ -359,4 +351,26 @@ class _TabDragChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Tab-strip glyph picker.
+///
+/// * Terminal role → always [Icons.terminal] — the role itself is
+///   what the icon communicates.
+/// * File-browser role on a kind with a terminal pane
+///   ([`SessionKindCapabilities.hasTerminal`] — SSH today) →
+///   [Icons.folder_outlined]. The sftp pane sits next to a
+///   terminal pane on the same session, both inheriting the same
+///   sidebar `Icons.terminal` row; the file pane needs a distinct
+///   glyph so the user can tell the two open tabs apart at a
+///   glance. Outline-weight matches the protocol glyphs below.
+/// * File-browser role on a no-terminal kind (WebDAV, S3) →
+///   the session's protocol icon (`cloud_outlined`,
+///   `inventory_2_outlined`). There is no co-existing terminal
+///   tab to compete with, so the tab can wear the sidebar's
+///   protocol glyph and keep the two surfaces visually symmetric.
+IconData _tabIcon(TabEntry tab) {
+  if (tab.kind == TabKind.terminal) return Icons.terminal;
+  if (tab.connection.kind.hasTerminal) return Icons.folder_outlined;
+  return tab.connection.kind.icon;
 }

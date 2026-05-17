@@ -9,6 +9,12 @@ class _AppearanceSection extends ConsumerWidget {
     final theme = ref.watch(configProvider.select((c) => c.theme));
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
+    final scrollback = ref.watch(configProvider.select((c) => c.scrollback));
+    // Terminal-specific knobs (font size, theme, scrollback) live here
+    // alongside locale + UI scale: every dimension that changes how the
+    // user *sees* the app, in one place. The previous standalone
+    // "Terminal" section held a single `scrollback` row — a whole
+    // collapsible card for one int input was UX noise.
     return Column(
       children: [
         _LanguageTile(
@@ -53,29 +59,20 @@ class _AppearanceSection extends ConsumerWidget {
                 (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: v)),
               ),
         ),
+        _IntTile(
+          title: S.of(context).scrollbackLines,
+          subtitle: S.of(context).scrollbackLinesSubtitle,
+          icon: Icons.history,
+          value: scrollback,
+          min: 100,
+          max: 100000,
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWith(terminal: c.terminal.copyWith(scrollback: v)),
+              ),
+        ),
       ],
-    );
-  }
-}
-
-class _TerminalSection extends ConsumerWidget {
-  const _TerminalSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scrollback = ref.watch(configProvider.select((c) => c.scrollback));
-    return _IntTile(
-      title: S.of(context).scrollbackLines,
-      subtitle: S.of(context).scrollbackLinesSubtitle,
-      icon: Icons.history,
-      value: scrollback,
-      min: 100,
-      max: 100000,
-      onChanged: (v) => ref
-          .read(configProvider.notifier)
-          .update(
-            (c) => c.copyWith(terminal: c.terminal.copyWith(scrollback: v)),
-          ),
     );
   }
 }
@@ -175,4 +172,3 @@ class _TransferSection extends ConsumerWidget {
     );
   }
 }
-

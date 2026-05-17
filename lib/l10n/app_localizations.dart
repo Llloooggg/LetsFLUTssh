@@ -249,11 +249,29 @@ abstract class S {
   /// **'Drag to extend selection'**
   String get copyModeExtending;
 
+  /// Screen-reader / semantic label for the crosshair-style button in the mobile terminal's copy-mode bar that commits the current cursor position as the selection's start cell (anchor).
+  ///
+  /// In en, this message translates to:
+  /// **'Set anchor'**
+  String get copyModeSetAnchor;
+
+  /// Screen-reader / semantic label for the copy button shown in the mobile terminal's copy-mode bar once the anchor has been set; tapping it copies the selected text to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy selection'**
+  String get copyModeCopySelection;
+
   /// No description provided for @required.
   ///
   /// In en, this message translates to:
   /// **'Required'**
   String get required;
+
+  /// Toast shown when the user presses Save on the session-edit dialog but one or more required fields are empty / invalid. The form already routes focus to the failing tab + renders inline error text; this toast is the global heads-up so the user notices the rejection even when their eye was off the field.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill the required fields marked *'**
+  String get errFillRequiredFields;
 
   /// No description provided for @settings.
   ///
@@ -558,7 +576,7 @@ abstract class S {
   /// No description provided for @importedSessions.
   ///
   /// In en, this message translates to:
-  /// **'Imported {count} session(s)'**
+  /// **'{count, plural, =0{No sessions imported} =1{Imported 1 session} other{Imported {count} sessions}}'**
   String importedSessions(int count);
 
   /// No description provided for @importFailed.
@@ -726,13 +744,13 @@ abstract class S {
   /// No description provided for @nSessions.
   ///
   /// In en, this message translates to:
-  /// **'{count} session(s)'**
+  /// **'{count, plural, =0{0 sessions} =1{1 session} other{{count} sessions}}'**
   String nSessions(int count);
 
   /// No description provided for @nFolders.
   ///
   /// In en, this message translates to:
-  /// **'{count} folder(s)'**
+  /// **'{count, plural, =0{0 folders} =1{1 folder} other{{count} folders}}'**
   String nFolders(int count);
 
   /// No description provided for @deleteFolderConfirm.
@@ -744,7 +762,7 @@ abstract class S {
   /// No description provided for @willDeleteSessionsInside.
   ///
   /// In en, this message translates to:
-  /// **'This will also delete {count} session(s) inside.'**
+  /// **'{count, plural, =1{This will also delete 1 session inside.} other{This will also delete {count} sessions inside.}}'**
   String willDeleteSessionsInside(int count);
 
   /// No description provided for @deleteSessionConfirm.
@@ -764,6 +782,48 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Auth'**
   String get auth;
+
+  /// Section header for the credential block in the session edit dialog. The dialog uses a single-form layout (no tabs); the header sits above the per-protocol auth fields (ssh-agent toggle / password / key block for SSH; method chips + credential for WebDAV; secret access key for S3).
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get sectionAuthentication;
+
+  /// Section header for the collapsible Advanced block in the session edit dialog. Holds tags (universal), port forwarding (SSH only), and the record-session toggle (SSH only). Collapsed by default so the default form stays compact.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get sectionAdvanced;
+
+  /// Compact pluralised summary shown in the Advanced section of the session edit dialog (SSH only) next to the 'Manage…' button that opens the Forwarding rule editor sub-dialog. {count} is the current number of rules on the session.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No port-forward rules} =1{1 port-forward rule} other{{count} port-forward rules}}'**
+  String forwardRulesSummary(int count);
+
+  /// Button label in the Advanced section of the session edit dialog (SSH only) that opens the Forwarding rule editor sub-dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage…'**
+  String get manageRules;
+
+  /// No description provided for @authMethodAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Use system ssh-agent'**
+  String get authMethodAgent;
+
+  /// No description provided for @authMethodAgentSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate via \$SSH_AUTH_SOCK (Linux/macOS) or the OpenSSH named pipe (Windows). Useful if you keep your keys in gpg-agent, Pageant, or a system ssh-agent.'**
+  String get authMethodAgentSubtitle;
+
+  /// No description provided for @authMethodAgentMobileUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on mobile — the system ssh-agent endpoint is desktop-only.'**
+  String get authMethodAgentMobileUnsupported;
 
   /// No description provided for @options.
   ///
@@ -842,6 +902,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Optional'**
   String get hintOptional;
+
+  /// No description provided for @savedTypeToChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved — type to change'**
+  String get savedTypeToChange;
 
   /// No description provided for @hidePemText.
   ///
@@ -1058,12 +1124,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Replace all sessions with imported'**
   String get importModeReplaceDescription;
-
-  /// No description provided for @errorPrefix.
-  ///
-  /// In en, this message translates to:
-  /// **'Error: {error}'**
-  String errorPrefix(String error);
 
   /// No description provided for @folderName.
   ///
@@ -1374,7 +1434,7 @@ abstract class S {
   /// No description provided for @sshConfigPreviewHostsFound.
   ///
   /// In en, this message translates to:
-  /// **'{count} host(s) found'**
+  /// **'{count, plural, =0{0 hosts found} =1{1 host found} other{{count} hosts found}}'**
   String sshConfigPreviewHostsFound(int count);
 
   /// No description provided for @sshConfigPreviewNoHosts.
@@ -1458,7 +1518,7 @@ abstract class S {
   /// No description provided for @importSshKeysFound.
   ///
   /// In en, this message translates to:
-  /// **'{count} key(s) found — pick which to import'**
+  /// **'{count, plural, =1{1 key found — pick to import} other{{count} keys found — pick which to import}}'**
   String importSshKeysFound(int count);
 
   /// No description provided for @importSshKeysNoneFound.
@@ -1659,12 +1719,6 @@ abstract class S {
   /// **'Source Code'**
   String get sourceCode;
 
-  /// No description provided for @enableLogging.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Logging'**
-  String get enableLogging;
-
   /// No description provided for @logIsEmpty.
   ///
   /// In en, this message translates to:
@@ -1857,6 +1911,30 @@ abstract class S {
   /// **'Disconnected'**
   String get disconnected;
 
+  /// No description provided for @a11yConnectingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {host}'**
+  String a11yConnectingTo(String host);
+
+  /// No description provided for @a11yConnectedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to {host}'**
+  String a11yConnectedTo(String host);
+
+  /// No description provided for @a11yDisconnectedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected from {host}'**
+  String a11yDisconnectedFrom(String host);
+
+  /// No description provided for @a11yConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection to {host} failed'**
+  String a11yConnectionFailed(String host);
+
   /// No description provided for @exit.
   ///
   /// In en, this message translates to:
@@ -1887,12 +1965,6 @@ abstract class S {
   /// **'Export Sessions via QR'**
   String get exportSessionsViaQr;
 
-  /// No description provided for @qrNoCredentialsWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.'**
-  String get qrNoCredentialsWarning;
-
   /// No description provided for @qrTooManyForSingleCode.
   ///
   /// In en, this message translates to:
@@ -1904,12 +1976,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Too large — deselect some items or use .lfs file export.'**
   String get qrTooLarge;
-
-  /// No description provided for @exportAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Export All'**
-  String get exportAll;
 
   /// No description provided for @showQr.
   ///
@@ -1940,6 +2006,42 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Live Log'**
   String get liveLog;
+
+  /// Title of the log viewer when logging has been turned off but the file still has entries from a previous session. Same surface as `liveLog` (the title flips when the level is set to Off).
+  ///
+  /// In en, this message translates to:
+  /// **'Archived log'**
+  String get archivedLog;
+
+  /// Settings → Logging row label for the level selector that drives `AppLogger.setThreshold`. Pairs with the per-level subtitle that describes what the level prints.
+  ///
+  /// In en, this message translates to:
+  /// **'Logging level'**
+  String get loggingLevel;
+
+  /// Subtitle below the logging-level selector when `Info` is selected. Describes that the noisiest level captures every routine entry plus the warn / error rungs.
+  ///
+  /// In en, this message translates to:
+  /// **'Routine entries + warnings + errors'**
+  String get loggingLevelSubtitleInfo;
+
+  /// Subtitle below the logging-level selector when `Warn` is selected. Routine entries are dropped; only degraded-but-recoverable code paths and outright errors get persisted.
+  ///
+  /// In en, this message translates to:
+  /// **'Degraded paths + errors only'**
+  String get loggingLevelSubtitleWarn;
+
+  /// Subtitle below the logging-level selector when `Error` is selected. Only unrecoverable / data-at-risk lines are persisted.
+  ///
+  /// In en, this message translates to:
+  /// **'Failures only'**
+  String get loggingLevelSubtitleError;
+
+  /// Subtitle below the logging-level selector when `Off` (null level) is selected. Routine logs do not get written; `logCritical` crash breadcrumbs still bypass the threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'No routine logs written'**
+  String get loggingLevelSubtitleOff;
 
   /// No description provided for @transferNItems.
   ///
@@ -2421,54 +2523,6 @@ abstract class S {
   /// **'Decrypting…'**
   String get progressDecrypting;
 
-  /// No description provided for @progressParsingArchive.
-  ///
-  /// In en, this message translates to:
-  /// **'Parsing archive…'**
-  String get progressParsingArchive;
-
-  /// No description provided for @progressImportingSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing sessions'**
-  String get progressImportingSessions;
-
-  /// No description provided for @progressImportingFolders.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing folders'**
-  String get progressImportingFolders;
-
-  /// No description provided for @progressImportingManagerKeys.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing SSH keys'**
-  String get progressImportingManagerKeys;
-
-  /// No description provided for @progressImportingTags.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing tags'**
-  String get progressImportingTags;
-
-  /// No description provided for @progressImportingSnippets.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing snippets'**
-  String get progressImportingSnippets;
-
-  /// No description provided for @progressApplyingConfig.
-  ///
-  /// In en, this message translates to:
-  /// **'Applying configuration…'**
-  String get progressApplyingConfig;
-
-  /// No description provided for @progressImportingKnownHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing known_hosts…'**
-  String get progressImportingKnownHosts;
-
   /// No description provided for @progressCollectingData.
   ///
   /// In en, this message translates to:
@@ -2586,7 +2640,7 @@ abstract class S {
   /// No description provided for @nSubitems.
   ///
   /// In en, this message translates to:
-  /// **'{count} item(s)'**
+  /// **'{count, plural, =0{0 items} =1{1 item} other{{count} items}}'**
   String nSubitems(int count);
 
   /// No description provided for @subitems.
@@ -2690,36 +2744,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Queued'**
   String get transferStatusQueued;
-
-  /// No description provided for @transferStartingUpload.
-  ///
-  /// In en, this message translates to:
-  /// **'Starting upload...'**
-  String get transferStartingUpload;
-
-  /// No description provided for @transferStartingDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Starting download...'**
-  String get transferStartingDownload;
-
-  /// No description provided for @transferCopying.
-  ///
-  /// In en, this message translates to:
-  /// **'Copying...'**
-  String get transferCopying;
-
-  /// No description provided for @transferDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Done'**
-  String get transferDone;
-
-  /// No description provided for @transferFilesProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'{done}/{total} files'**
-  String transferFilesProgress(int done, int total);
 
   /// No description provided for @fileConflictTitle.
   ///
@@ -3021,6 +3045,90 @@ abstract class S {
   /// **'Public key copied to clipboard'**
   String get publicKeyCopied;
 
+  /// No description provided for @sshCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'Certificate'**
+  String get sshCertificate;
+
+  /// No description provided for @certImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import certificate'**
+  String get certImport;
+
+  /// No description provided for @certImportPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select OpenSSH certificate file'**
+  String get certImportPickerTitle;
+
+  /// No description provided for @certValidFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid from'**
+  String get certValidFrom;
+
+  /// No description provided for @certValidTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid until'**
+  String get certValidTo;
+
+  /// No description provided for @certPrincipals.
+  ///
+  /// In en, this message translates to:
+  /// **'Principals'**
+  String get certPrincipals;
+
+  /// No description provided for @certCriticalOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Critical options'**
+  String get certCriticalOptions;
+
+  /// No description provided for @certExpiringBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'This certificate expires soon.'**
+  String get certExpiringBanner;
+
+  /// No description provided for @certExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get certExpired;
+
+  /// No description provided for @certRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove certificate'**
+  String get certRemove;
+
+  /// No description provided for @certRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove certificate?'**
+  String get certRemoveConfirmTitle;
+
+  /// No description provided for @certRemoveConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The session will fall back to the plain public-key auth path if it tries to connect after the certificate is removed.'**
+  String get certRemoveConfirmBody;
+
+  /// No description provided for @errCertParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not parse certificate: {detail}'**
+  String errCertParse(String detail);
+
+  /// No description provided for @errCertPairFingerprintMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'This certificate is not paired to the selected key.'**
+  String get errCertPairFingerprintMismatch;
+
   /// No description provided for @pastePrivateKey.
   ///
   /// In en, this message translates to:
@@ -3057,35 +3165,11 @@ abstract class S {
   /// **'Generated'**
   String get generated;
 
-  /// No description provided for @passphraseRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Passphrase Required'**
-  String get passphraseRequired;
-
-  /// No description provided for @passphrasePrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'The SSH key for {host} is encrypted. Enter the passphrase to unlock it.'**
-  String passphrasePrompt(String host);
-
-  /// No description provided for @passphraseWrong.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrong passphrase. Please try again.'**
-  String get passphraseWrong;
-
   /// No description provided for @passphrase.
   ///
   /// In en, this message translates to:
   /// **'Passphrase'**
   String get passphrase;
-
-  /// No description provided for @rememberPassphrase.
-  ///
-  /// In en, this message translates to:
-  /// **'Remember for this session'**
-  String get rememberPassphrase;
 
   /// No description provided for @enterMasterPassword.
   ///
@@ -3098,12 +3182,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Wrong password. Please try again.'**
   String get wrongMasterPassword;
-
-  /// No description provided for @newPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'New Password'**
-  String get newPassword;
 
   /// No description provided for @currentPassword.
   ///
@@ -3266,18 +3344,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.'**
   String get wizardReducedBanner;
-
-  /// No description provided for @tierBlockProtectsEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing on this tier.'**
-  String get tierBlockProtectsEmpty;
-
-  /// No description provided for @tierBlockDoesNotProtectEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing left uncovered.'**
-  String get tierBlockDoesNotProtectEmpty;
 
   /// No description provided for @tierBadgeCurrent.
   ///
@@ -3657,12 +3723,6 @@ abstract class S {
   /// **'Run'**
   String get snippetFillSubmit;
 
-  /// No description provided for @snippetPreview.
-  ///
-  /// In en, this message translates to:
-  /// **'Preview'**
-  String get snippetPreview;
-
   /// No description provided for @broadcastSetDriver.
   ///
   /// In en, this message translates to:
@@ -3744,19 +3804,19 @@ abstract class S {
   /// No description provided for @localForward.
   ///
   /// In en, this message translates to:
-  /// **'Local (-L)'**
+  /// **'Local'**
   String get localForward;
 
   /// No description provided for @remoteForward.
   ///
   /// In en, this message translates to:
-  /// **'Remote (-R)'**
+  /// **'Remote'**
   String get remoteForward;
 
   /// No description provided for @dynamicForward.
   ///
   /// In en, this message translates to:
-  /// **'Dynamic (-D)'**
+  /// **'Dynamic'**
   String get dynamicForward;
 
   /// No description provided for @forwardKind.
@@ -3807,12 +3867,6 @@ abstract class S {
   /// **'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.'**
   String get forwardBindWildcardWarning;
 
-  /// No description provided for @forwardOnlyLocalSupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.'**
-  String get forwardOnlyLocalSupported;
-
   /// No description provided for @forwardKindLocalHelp.
   ///
   /// In en, this message translates to:
@@ -3830,30 +3884,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.'**
   String get forwardKindDynamicHelp;
-
-  /// No description provided for @forwardExample.
-  ///
-  /// In en, this message translates to:
-  /// **'Example'**
-  String get forwardExample;
-
-  /// No description provided for @forwardLocalExample.
-  ///
-  /// In en, this message translates to:
-  /// **'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080'**
-  String get forwardLocalExample;
-
-  /// No description provided for @forwardRemoteExample.
-  ///
-  /// In en, this message translates to:
-  /// **'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000'**
-  String get forwardRemoteExample;
-
-  /// No description provided for @forwardDynamicExample.
-  ///
-  /// In en, this message translates to:
-  /// **'ssh -D 1080 → set browser SOCKS5 to localhost:1080'**
-  String get forwardDynamicExample;
 
   /// No description provided for @proxyJump.
   ///
@@ -3876,7 +3906,7 @@ abstract class S {
   /// No description provided for @proxyJumpCustom.
   ///
   /// In en, this message translates to:
-  /// **'Custom (user@host:port)'**
+  /// **'Custom'**
   String get proxyJumpCustom;
 
   /// No description provided for @proxyJumpCustomNote.
@@ -3884,24 +3914,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.'**
   String get proxyJumpCustomNote;
-
-  /// No description provided for @errProxyJumpCycle.
-  ///
-  /// In en, this message translates to:
-  /// **'Proxy chain loops back on itself.'**
-  String get errProxyJumpCycle;
-
-  /// No description provided for @errProxyJumpDepth.
-  ///
-  /// In en, this message translates to:
-  /// **'Proxy chain is too deep (max {max} hops).'**
-  String errProxyJumpDepth(int max);
-
-  /// No description provided for @errProxyJumpBastionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Bastion {label} failed to connect.'**
-  String errProxyJumpBastionFailed(String label);
 
   /// No description provided for @viaSessionLabel.
   ///
@@ -3968,6 +3980,18 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Instant'**
   String get recordingSpeedInstant;
+
+  /// No description provided for @recordingScrubTooltipUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrub bar requires a sidecar index, which legacy recordings (made before this build) do not have. Future recordings will scrub.'**
+  String get recordingScrubTooltipUnavailable;
+
+  /// No description provided for @recordingScrubPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total}'**
+  String recordingScrubPositionLabel(String current, String total);
 
   /// No description provided for @tags.
   ///
@@ -4179,30 +4203,6 @@ abstract class S {
   /// **'Query GitHub for a new release when the app launches'**
   String get checkForUpdatesOnStartupSubtitle;
 
-  /// No description provided for @enableLoggingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Write app events to a rotating log file'**
-  String get enableLoggingSubtitle;
-
-  /// No description provided for @exportWithoutPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Without Password?'**
-  String get exportWithoutPassword;
-
-  /// No description provided for @exportWithoutPasswordWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.'**
-  String get exportWithoutPasswordWarning;
-
-  /// No description provided for @continueWithoutPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue Without Password'**
-  String get continueWithoutPassword;
-
   /// No description provided for @threatColdDiskTheft.
   ///
   /// In en, this message translates to:
@@ -4317,12 +4317,6 @@ abstract class S {
   /// **'T1 + password + biometric'**
   String get colT1PasswordBiometric;
 
-  /// No description provided for @colT2.
-  ///
-  /// In en, this message translates to:
-  /// **'T2 Hardware'**
-  String get colT2;
-
   /// No description provided for @colT2Password.
   ///
   /// In en, this message translates to:
@@ -4383,6 +4377,12 @@ abstract class S {
   /// **'Reset everything'**
   String get resetAllDataConfirmAction;
 
+  /// No description provided for @resetAllDataConfirmTypePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Type {phrase} below to confirm:'**
+  String resetAllDataConfirmTypePrompt(String phrase);
+
   /// No description provided for @resetAllDataInProgress.
   ///
   /// In en, this message translates to:
@@ -4401,6 +4401,102 @@ abstract class S {
   /// **'Reset failed'**
   String get resetAllDataFailed;
 
+  /// No description provided for @recordingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recordings'**
+  String get recordingsTitle;
+
+  /// No description provided for @recordingsStorageUsedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage used'**
+  String get recordingsStorageUsedLabel;
+
+  /// No description provided for @recordingsCapLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap'**
+  String get recordingsCapLabel;
+
+  /// No description provided for @recordingsCapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard cap on the recordings/ folder. Oldest recording deleted first when exceeded; the live recording is never touched.'**
+  String get recordingsCapHint;
+
+  /// No description provided for @recordingsClearAllAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all recordings'**
+  String get recordingsClearAllAction;
+
+  /// No description provided for @recordingsClearAllConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all recordings?'**
+  String get recordingsClearAllConfirmTitle;
+
+  /// No description provided for @recordingsClearAllConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every recorded session under <app>/recordings/ will be deleted. The recording currently in progress (if any) stays. This action cannot be undone.'**
+  String get recordingsClearAllConfirmBody;
+
+  /// No description provided for @recordingsClearAllResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} recordings'**
+  String recordingsClearAllResult(int count);
+
+  /// No description provided for @recordingsCapChangedReclaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap updated. Reclaimed {bytes}.'**
+  String recordingsCapChangedReclaimed(String bytes);
+
+  /// No description provided for @recordingsCapChangedNoChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap updated. Nothing to evict.'**
+  String get recordingsCapChangedNoChange;
+
+  /// No description provided for @recordingsCapPreset100Mb.
+  ///
+  /// In en, this message translates to:
+  /// **'100 MiB'**
+  String get recordingsCapPreset100Mb;
+
+  /// No description provided for @recordingsCapPreset250Mb.
+  ///
+  /// In en, this message translates to:
+  /// **'250 MiB'**
+  String get recordingsCapPreset250Mb;
+
+  /// No description provided for @recordingsCapPreset500Mb.
+  ///
+  /// In en, this message translates to:
+  /// **'500 MiB'**
+  String get recordingsCapPreset500Mb;
+
+  /// No description provided for @recordingsCapPreset1Gb.
+  ///
+  /// In en, this message translates to:
+  /// **'1 GiB'**
+  String get recordingsCapPreset1Gb;
+
+  /// No description provided for @recordingsCapPreset2Gb.
+  ///
+  /// In en, this message translates to:
+  /// **'2 GiB'**
+  String get recordingsCapPreset2Gb;
+
+  /// No description provided for @recordingsCapPreset5Gb.
+  ///
+  /// In en, this message translates to:
+  /// **'5 GiB'**
+  String get recordingsCapPreset5Gb;
+
   /// No description provided for @autoLockRequiresPassword.
   ///
   /// In en, this message translates to:
@@ -4416,7 +4512,7 @@ abstract class S {
   /// No description provided for @tierHardwareSubtitleHonest.
   ///
   /// In en, this message translates to:
-  /// **'Advanced: hardware-bound key. Data is irrecoverable if this device\'s chip is lost or replaced.'**
+  /// **'Advanced: hardware-bound key, always password-gated. Data is irrecoverable if this device\'s chip is lost or replaced.'**
   String get tierHardwareSubtitleHonest;
 
   /// No description provided for @tierParanoidSubtitleHonest.
@@ -4454,6 +4550,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Typed secret gate before the vault unlocks.'**
   String get modifierPasswordSubtitle;
+
+  /// No description provided for @modifierPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required — Hardware tier is always password-gated.'**
+  String get modifierPasswordRequired;
 
   /// No description provided for @modifierBiometricLabel.
   ///
@@ -4497,11 +4599,107 @@ abstract class S {
   /// **'fprintd not installed or no enrolled finger.'**
   String get fprintdNotAvailable;
 
-  /// No description provided for @linuxTpmWithoutPasswordNote.
+  /// No description provided for @t2RequiresPasswordTitle.
   ///
   /// In en, this message translates to:
-  /// **'TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.'**
-  String get linuxTpmWithoutPasswordNote;
+  /// **'Set a master password for Hardware tier'**
+  String get t2RequiresPasswordTitle;
+
+  /// No description provided for @t2RequiresPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound tier needs a password as a modifier. Biometric is an optional shortcut on top.'**
+  String get t2RequiresPasswordBody;
+
+  /// No description provided for @t2MigrationPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware tier needs a password'**
+  String get t2MigrationPromptTitle;
+
+  /// No description provided for @t2MigrationPromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing Hardware-tier installs without a password need one set now to continue.'**
+  String get t2MigrationPromptBody;
+
+  /// No description provided for @t2MigrationContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get t2MigrationContinue;
+
+  /// No description provided for @t2MigrationSetPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a Hardware-tier password'**
+  String get t2MigrationSetPasswordTitle;
+
+  /// No description provided for @t2MigrationSetPasswordBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a new master password. The DB key already sealed in the hardware module gets re-sealed under this password — your sessions and keys stay intact.'**
+  String get t2MigrationSetPasswordBody;
+
+  /// No description provided for @t2MigrationWipeAndRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe and start over'**
+  String get t2MigrationWipeAndRestart;
+
+  /// No description provided for @t2MigrationResealFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-tier re-seal failed — pick a different password or wipe to start over.'**
+  String get t2MigrationResealFailed;
+
+  /// No description provided for @biometricOverlayEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable biometric shortcut on Hardware tier'**
+  String get biometricOverlayEnable;
+
+  /// No description provided for @biometricOverlayEnableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Releases your password from a biometric-gated OS slot.'**
+  String get biometricOverlayEnableSubtitle;
+
+  /// No description provided for @biometricOverlayUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric overlay not available on this platform yet.'**
+  String get biometricOverlayUnavailable;
+
+  /// No description provided for @biometricOverlayRequiresPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the Hardware-tier password first.'**
+  String get biometricOverlayRequiresPassword;
+
+  /// No description provided for @t2UnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock with your master password'**
+  String get t2UnlockTitle;
+
+  /// No description provided for @t2UnlockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound key is gated by your password.'**
+  String get t2UnlockSubtitle;
+
+  /// No description provided for @t2UnlockUseBiometricButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Use biometric instead'**
+  String get t2UnlockUseBiometricButton;
+
+  /// No description provided for @t2PasswordChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-tier password updated.'**
+  String get t2PasswordChanged;
 
   /// No description provided for @paranoidMasterPasswordNote.
   ///
@@ -4544,6 +4742,1560 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Master password'**
   String get masterPasswordLabel;
+
+  /// No description provided for @globalErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected Error'**
+  String get globalErrorTitle;
+
+  /// No description provided for @globalErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred. The app will continue running.'**
+  String get globalErrorBody;
+
+  /// No description provided for @globalErrorLogSavedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Full details have been saved to the log file.'**
+  String get globalErrorLogSavedNote;
+
+  /// No description provided for @globalErrorLogDisabledNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable logging in Settings to save error details.'**
+  String get globalErrorLogDisabledNote;
+
+  /// No description provided for @globalErrorTechnicalLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {detail}'**
+  String globalErrorTechnicalLine(String detail);
+
+  /// No description provided for @globalErrorEnableLoggingButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Logging'**
+  String get globalErrorEnableLoggingButton;
+
+  /// No description provided for @globalErrorLoggingEnabledToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Logging enabled — errors will be saved to log file'**
+  String get globalErrorLoggingEnabledToast;
+
+  /// No description provided for @fatalErrorQuitButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit'**
+  String get fatalErrorQuitButton;
+
+  /// No description provided for @fatalErrorWipeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe all data'**
+  String get fatalErrorWipeButton;
+
+  /// No description provided for @fatalErrorWipingButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Wiping…'**
+  String get fatalErrorWipingButton;
+
+  /// No description provided for @fatalErrorWipeExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.'**
+  String get fatalErrorWipeExplanation;
+
+  /// No description provided for @fatalErrorWipeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe all data?'**
+  String get fatalErrorWipeConfirmTitle;
+
+  /// No description provided for @fatalErrorWipeConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?'**
+  String get fatalErrorWipeConfirmBody;
+
+  /// No description provided for @fatalErrorWipeConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe everything'**
+  String get fatalErrorWipeConfirmAction;
+
+  /// Warning shown on the import dialog when the user picked a plain-ZIP .lfs archive (no password protection).
+  ///
+  /// In en, this message translates to:
+  /// **'This archive is not password-protected. Anyone with the file can read its contents.'**
+  String get unencryptedArchiveWarning;
+
+  /// Toast shown when SecureClipboard.setText refused the write (cloud-sync gate unavailable).
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to clipboard failed.'**
+  String get clipboardCopyFailed;
+
+  /// TOFU host-key dialog warning when the hostname contains non-ASCII codepoints (IDN homograph hint).
+  ///
+  /// In en, this message translates to:
+  /// **'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.'**
+  String get nonAsciiHostnameWarning;
+
+  /// Tooltip / disabled-row hint when an encrypted recording cannot be played because the active DB key slot is empty (plaintext tier or auto-locked).
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock the app to play this encrypted recording'**
+  String get recordingPlayLocked;
+
+  /// No description provided for @foregroundServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH active'**
+  String get foregroundServiceTitle;
+
+  /// No description provided for @foregroundServiceConnections.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 active connection} other{{count} active connections}}'**
+  String foregroundServiceConnections(int count);
+
+  /// No description provided for @sessionKindSsh.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH / SFTP'**
+  String get sessionKindSsh;
+
+  /// No description provided for @sessionKindWebDav.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV'**
+  String get sessionKindWebDav;
+
+  /// No description provided for @sessionKindLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Session kind'**
+  String get sessionKindLabel;
+
+  /// No description provided for @webDavBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get webDavBaseUrl;
+
+  /// No description provided for @webDavBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com/remote.php/dav/files/alice/'**
+  String get webDavBaseUrlHint;
+
+  /// No description provided for @webDavUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get webDavUsername;
+
+  /// No description provided for @webDavAuthMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Auth method'**
+  String get webDavAuthMethod;
+
+  /// No description provided for @webDavAuthBasic.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic'**
+  String get webDavAuthBasic;
+
+  /// No description provided for @webDavAuthDigest.
+  ///
+  /// In en, this message translates to:
+  /// **'Digest'**
+  String get webDavAuthDigest;
+
+  /// No description provided for @webDavAuthBearer.
+  ///
+  /// In en, this message translates to:
+  /// **'Bearer token'**
+  String get webDavAuthBearer;
+
+  /// No description provided for @webDavSelfSignedFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-signed cert fingerprint (optional)'**
+  String get webDavSelfSignedFingerprint;
+
+  /// No description provided for @webDavSelfSignedFingerprintHint.
+  ///
+  /// In en, this message translates to:
+  /// **'SHA-256, leave empty to use system trust'**
+  String get webDavSelfSignedFingerprintHint;
+
+  /// No description provided for @webDavCopyUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy WebDAV URL'**
+  String get webDavCopyUrl;
+
+  /// No description provided for @webDavOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get webDavOpenInBrowser;
+
+  /// No description provided for @errWebDavAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV authentication failed'**
+  String get errWebDavAuthFailed;
+
+  /// No description provided for @errWebDavNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Path not found'**
+  String get errWebDavNotFound;
+
+  /// No description provided for @errWebDavConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation conflicts with current state'**
+  String get errWebDavConflict;
+
+  /// No description provided for @errWebDavGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV server rejected the request: {detail}'**
+  String errWebDavGeneric(String detail);
+
+  /// No description provided for @errWebDavBaseUrlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV base URL is required'**
+  String get errWebDavBaseUrlRequired;
+
+  /// No description provided for @errWebDavBaseUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL must be http:// or https://'**
+  String get errWebDavBaseUrlInvalid;
+
+  /// No description provided for @sessionKindS3.
+  ///
+  /// In en, this message translates to:
+  /// **'S3'**
+  String get sessionKindS3;
+
+  /// No description provided for @s3AccessKeyId.
+  ///
+  /// In en, this message translates to:
+  /// **'Access key ID'**
+  String get s3AccessKeyId;
+
+  /// No description provided for @s3SecretKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret access key'**
+  String get s3SecretKey;
+
+  /// No description provided for @s3Region.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get s3Region;
+
+  /// No description provided for @s3RegionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'us-east-1, eu-west-2, auto'**
+  String get s3RegionHint;
+
+  /// No description provided for @s3Endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint'**
+  String get s3Endpoint;
+
+  /// No description provided for @s3EndpointHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for AWS, or set for MinIO / R2 / Spaces'**
+  String get s3EndpointHint;
+
+  /// No description provided for @s3PathStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Path-style addressing'**
+  String get s3PathStyle;
+
+  /// No description provided for @s3PathStyleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required for MinIO; leave off for AWS'**
+  String get s3PathStyleHint;
+
+  /// No description provided for @s3DefaultBucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Default bucket'**
+  String get s3DefaultBucket;
+
+  /// No description provided for @s3DefaultPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Default prefix'**
+  String get s3DefaultPrefix;
+
+  /// No description provided for @s3GeneratePresignedUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate presigned URL'**
+  String get s3GeneratePresignedUrl;
+
+  /// No description provided for @s3PresignedUrlExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in'**
+  String get s3PresignedUrlExpiry;
+
+  /// No description provided for @s3CopyUri.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy s3://bucket/key URI'**
+  String get s3CopyUri;
+
+  /// No description provided for @s3PresignedUrlExpiry15min.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes'**
+  String get s3PresignedUrlExpiry15min;
+
+  /// No description provided for @s3PresignedUrlExpiry1hour.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get s3PresignedUrlExpiry1hour;
+
+  /// No description provided for @s3PresignedUrlExpiry4hour.
+  ///
+  /// In en, this message translates to:
+  /// **'4 hours'**
+  String get s3PresignedUrlExpiry4hour;
+
+  /// No description provided for @s3PresignedUrlExpiry24hour.
+  ///
+  /// In en, this message translates to:
+  /// **'24 hours'**
+  String get s3PresignedUrlExpiry24hour;
+
+  /// No description provided for @s3PresignedUrlExpiry7day.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get s3PresignedUrlExpiry7day;
+
+  /// No description provided for @errS3AuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'S3 authentication failed (check access key + secret)'**
+  String get errS3AuthFailed;
+
+  /// No description provided for @errS3NoSuchBucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Bucket does not exist or is not accessible'**
+  String get errS3NoSuchBucket;
+
+  /// No description provided for @errS3RegionMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Bucket is in a different region than configured'**
+  String get errS3RegionMismatch;
+
+  /// No description provided for @errS3Generic.
+  ///
+  /// In en, this message translates to:
+  /// **'S3 server rejected the request: {detail}'**
+  String errS3Generic(String detail);
+
+  /// No description provided for @syncSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncSection;
+
+  /// No description provided for @syncEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable WebDAV sync'**
+  String get syncEnable;
+
+  /// No description provided for @syncPassphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync passphrase'**
+  String get syncPassphrase;
+
+  /// No description provided for @syncPassphraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypts the sync archive. Must differ from the master password.'**
+  String get syncPassphraseHint;
+
+  /// No description provided for @syncPassphraseSameAsMasterError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync passphrase cannot match the master password.'**
+  String get syncPassphraseSameAsMasterError;
+
+  /// No description provided for @syncRemotePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote path'**
+  String get syncRemotePath;
+
+  /// No description provided for @syncRemotePathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Path under the WebDAV base URL — default letsflutssh.lfs'**
+  String get syncRemotePathHint;
+
+  /// No description provided for @syncPushNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Push now'**
+  String get syncPushNow;
+
+  /// No description provided for @syncPullNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull now'**
+  String get syncPullNow;
+
+  /// No description provided for @syncLastPushed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last push: {when}'**
+  String syncLastPushed(String when);
+
+  /// No description provided for @syncLastPulled.
+  ///
+  /// In en, this message translates to:
+  /// **'Last pull: {when}'**
+  String syncLastPulled(String when);
+
+  /// No description provided for @syncNeverRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get syncNeverRun;
+
+  /// No description provided for @syncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync is up to date'**
+  String get syncUpToDate;
+
+  /// No description provided for @syncPushedBytes.
+  ///
+  /// In en, this message translates to:
+  /// **'Pushed {bytes}'**
+  String syncPushedBytes(String bytes);
+
+  /// No description provided for @syncPullApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied {count} updates from remote'**
+  String syncPullApplied(int count);
+
+  /// No description provided for @errSyncDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync is disabled'**
+  String get errSyncDisabled;
+
+  /// No description provided for @errSyncEtagMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote changed — pull first, then push'**
+  String get errSyncEtagMismatch;
+
+  /// No description provided for @errSyncUnauthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV authentication failed'**
+  String get errSyncUnauthorized;
+
+  /// No description provided for @errSyncNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error: {detail}'**
+  String errSyncNetwork(String detail);
+
+  /// No description provided for @errSyncArchiveFutureVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync archive needs a newer build to read'**
+  String get errSyncArchiveFutureVersion;
+
+  /// No description provided for @hardwareKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key'**
+  String get hardwareKey;
+
+  /// No description provided for @hardwareKeyTapPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your hardware key'**
+  String get hardwareKeyTapPrompt;
+
+  /// No description provided for @hardwareKeyPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key PIN'**
+  String get hardwareKeyPin;
+
+  /// No description provided for @hardwareKeyTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key did not respond'**
+  String get hardwareKeyTimeout;
+
+  /// No description provided for @hardwareKeyNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No hardware key found'**
+  String get hardwareKeyNotFound;
+
+  /// No description provided for @hardwareKeyUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct hardware key access is not available on this platform'**
+  String get hardwareKeyUnsupported;
+
+  /// No description provided for @hardwareKeyAppleEntitlementRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires Apple Developer Program entitlement; use ssh-agent on macOS'**
+  String get hardwareKeyAppleEntitlementRequired;
+
+  /// No description provided for @skKeyRequiresDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This SSH key requires a hardware key — tap it to authenticate'**
+  String get skKeyRequiresDevice;
+
+  /// No description provided for @errSkWrongPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect PIN'**
+  String get errSkWrongPin;
+
+  /// No description provided for @hardwareKeyImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import hardware key (sk-*)'**
+  String get hardwareKeyImport;
+
+  /// No description provided for @hardwareKeyBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound (FIDO2)'**
+  String get hardwareKeyBadge;
+
+  /// No description provided for @hardwareKeyPromptCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware key prompt cancelled'**
+  String get hardwareKeyPromptCancelled;
+
+  /// No description provided for @agentEndpointSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'External SSH client integration'**
+  String get agentEndpointSectionTitle;
+
+  /// No description provided for @agentEndpointToggleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Expose hardware-bound keys to system SSH clients'**
+  String get agentEndpointToggleTitle;
+
+  /// No description provided for @agentEndpointToggleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allows git, ssh, IDE plugins on this device to use your FIDO2 / smart-card / TPM keys.'**
+  String get agentEndpointToggleSubtitle;
+
+  /// No description provided for @agentEndpointPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH_AUTH_SOCK'**
+  String get agentEndpointPathLabel;
+
+  /// No description provided for @agentEndpointPathLabelWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenSSH named pipe'**
+  String get agentEndpointPathLabelWindows;
+
+  /// No description provided for @agentEndpointCopyEnvVar.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy export command'**
+  String get agentEndpointCopyEnvVar;
+
+  /// No description provided for @agentEndpointCopyPipeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy pipe name'**
+  String get agentEndpointCopyPipeName;
+
+  /// No description provided for @agentEndpointSignatureRequestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature request'**
+  String get agentEndpointSignatureRequestTitle;
+
+  /// No description provided for @agentEndpointSignatureRequestBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{requester} wants to sign with {keyLabel}'**
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel);
+
+  /// No description provided for @agentEndpointRequesterUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'An external SSH client'**
+  String get agentEndpointRequesterUnknown;
+
+  /// No description provided for @agentEndpointAuthorizeOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorize once'**
+  String get agentEndpointAuthorizeOnce;
+
+  /// No description provided for @agentEndpointAuthorizeAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorize and remember'**
+  String get agentEndpointAuthorizeAlways;
+
+  /// No description provided for @agentEndpointDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get agentEndpointDeny;
+
+  /// No description provided for @agentEndpointStatusRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get agentEndpointStatusRunning;
+
+  /// No description provided for @agentEndpointStatusStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get agentEndpointStatusStopped;
+
+  /// No description provided for @agentEndpointStatusUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Not supported on this platform'**
+  String get agentEndpointStatusUnsupported;
+
+  /// No description provided for @agentEndpointRefusedAddIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused: external clients cannot add keys.'**
+  String get agentEndpointRefusedAddIdentity;
+
+  /// No description provided for @agentEndpointStartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start the SSH agent endpoint: {detail}'**
+  String agentEndpointStartFailed(String detail);
+
+  /// No description provided for @pkcs11AddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add smart-card / token key'**
+  String get pkcs11AddTitle;
+
+  /// No description provided for @pkcs11ModuleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PKCS#11 module'**
+  String get pkcs11ModuleLabel;
+
+  /// No description provided for @pkcs11ModuleAutoDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detected'**
+  String get pkcs11ModuleAutoDetected;
+
+  /// No description provided for @pkcs11ModuleCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom module...'**
+  String get pkcs11ModuleCustom;
+
+  /// No description provided for @pkcs11ModulePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose PKCS#11 library'**
+  String get pkcs11ModulePickerTitle;
+
+  /// No description provided for @pkcs11NoModuleFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No PKCS#11 module found. Install OpenSC or pick a vendor library.'**
+  String get pkcs11NoModuleFound;
+
+  /// No description provided for @pkcs11InitializeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'PKCS#11 module did not initialise.'**
+  String get pkcs11InitializeFailed;
+
+  /// No description provided for @pkcs11NoTokenPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'No token present in any reader.'**
+  String get pkcs11NoTokenPresent;
+
+  /// No description provided for @pkcs11TokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Token: {label}'**
+  String pkcs11TokenLabel(String label);
+
+  /// No description provided for @pkcs11TokenSerial.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial: {serial}'**
+  String pkcs11TokenSerial(String serial);
+
+  /// No description provided for @pkcs11LoginRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Token requires login.'**
+  String get pkcs11LoginRequired;
+
+  /// No description provided for @pkcs11PinPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN for {token}'**
+  String pkcs11PinPrompt(String token);
+
+  /// No description provided for @pkcs11PinPad.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm on the token\'s PIN pad.'**
+  String get pkcs11PinPad;
+
+  /// No description provided for @pkcs11PinIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN incorrect. {remaining} tries left.'**
+  String pkcs11PinIncorrect(String remaining);
+
+  /// No description provided for @pkcs11PinLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Token PIN is locked. Unblock with the PUK.'**
+  String get pkcs11PinLocked;
+
+  /// No description provided for @pkcs11NoSignableKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Token has no SSH-usable keys (RSA, ECDSA, Ed25519).'**
+  String get pkcs11NoSignableKeys;
+
+  /// No description provided for @pkcs11GostUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'GOST keys cannot be used with SSH.'**
+  String get pkcs11GostUnsupported;
+
+  /// No description provided for @pkcs11TokenUnplugged.
+  ///
+  /// In en, this message translates to:
+  /// **'Token \"{label}\" is not currently inserted.'**
+  String pkcs11TokenUnplugged(String label);
+
+  /// No description provided for @pkcs11UriRebindFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved token not found. Replug and retry.'**
+  String get pkcs11UriRebindFailed;
+
+  /// No description provided for @pkcs11SignFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing failed: {reason}'**
+  String pkcs11SignFailed(String reason);
+
+  /// No description provided for @pkcs11HwUnavailableMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-card / PKCS#11 tokens are not available on this platform.'**
+  String get pkcs11HwUnavailableMobile;
+
+  /// No description provided for @pkcs11Badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart card / token'**
+  String get pkcs11Badge;
+
+  /// No description provided for @pkcs11InfoModulePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Module: {path}'**
+  String pkcs11InfoModulePath(String path);
+
+  /// No description provided for @pkcs11InfoTokenSerial.
+  ///
+  /// In en, this message translates to:
+  /// **'Token serial: {serial}'**
+  String pkcs11InfoTokenSerial(String serial);
+
+  /// No description provided for @pkcs11InfoObjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Object: {label}'**
+  String pkcs11InfoObjectLabel(String label);
+
+  /// No description provided for @pkcs11WizardStepModule.
+  ///
+  /// In en, this message translates to:
+  /// **'Select PKCS#11 module'**
+  String get pkcs11WizardStepModule;
+
+  /// No description provided for @pkcs11WizardStepToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Select token'**
+  String get pkcs11WizardStepToken;
+
+  /// No description provided for @pkcs11WizardStepKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Select key'**
+  String get pkcs11WizardStepKey;
+
+  /// No description provided for @pkcs11WizardStepPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter PIN'**
+  String get pkcs11WizardStepPin;
+
+  /// No description provided for @pkcs11AlgoRsa.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA'**
+  String get pkcs11AlgoRsa;
+
+  /// No description provided for @pkcs11AlgoEcdsa.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA'**
+  String get pkcs11AlgoEcdsa;
+
+  /// No description provided for @pkcs11AlgoEd25519.
+  ///
+  /// In en, this message translates to:
+  /// **'Ed25519'**
+  String get pkcs11AlgoEd25519;
+
+  /// No description provided for @pkcs11AlgoGost.
+  ///
+  /// In en, this message translates to:
+  /// **'GOST'**
+  String get pkcs11AlgoGost;
+
+  /// No description provided for @pkcs11KeyMetaFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'{algo} {detail}'**
+  String pkcs11KeyMetaFormat(String algo, String detail);
+
+  /// No description provided for @pkcs11SaveCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Import key'**
+  String get pkcs11SaveCta;
+
+  /// No description provided for @pkcs11SaveInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading public key from token...'**
+  String get pkcs11SaveInProgress;
+
+  /// No description provided for @pkcs11SaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart-card key added.'**
+  String get pkcs11SaveSuccess;
+
+  /// No description provided for @pkcs11ScanInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for PKCS#11 modules...'**
+  String get pkcs11ScanInProgress;
+
+  /// No description provided for @pkcs11LoadingTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading tokens...'**
+  String get pkcs11LoadingTokens;
+
+  /// No description provided for @pkcs11LoadingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading keys...'**
+  String get pkcs11LoadingKeys;
+
+  /// No description provided for @pkcs11ModuleStatusReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Module loaded.'**
+  String get pkcs11ModuleStatusReady;
+
+  /// No description provided for @pkcs11ModuleStatusNoToken.
+  ///
+  /// In en, this message translates to:
+  /// **'No token present.'**
+  String get pkcs11ModuleStatusNoToken;
+
+  /// No description provided for @pkcs11ModuleStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Module load failed.'**
+  String get pkcs11ModuleStatusFailed;
+
+  /// No description provided for @pkcs11PinPadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'(PIN pad on device)'**
+  String get pkcs11PinPadHint;
+
+  /// No description provided for @pkcs11WizardBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get pkcs11WizardBack;
+
+  /// No description provided for @pkcs11WizardNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get pkcs11WizardNext;
+
+  /// No description provided for @sshKeyBackendSoftware.
+  ///
+  /// In en, this message translates to:
+  /// **'Software'**
+  String get sshKeyBackendSoftware;
+
+  /// No description provided for @sshKeyBackendEnclave.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave'**
+  String get sshKeyBackendEnclave;
+
+  /// No description provided for @sshKeyBackendHello.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello'**
+  String get sshKeyBackendHello;
+
+  /// No description provided for @sshKeyBackendFido2.
+  ///
+  /// In en, this message translates to:
+  /// **'Security key'**
+  String get sshKeyBackendFido2;
+
+  /// No description provided for @sshKeyAddHardwareBound.
+  ///
+  /// In en, this message translates to:
+  /// **'Add hardware-bound key'**
+  String get sshKeyAddHardwareBound;
+
+  /// No description provided for @sshKeyHardwareBoundExplainer.
+  ///
+  /// In en, this message translates to:
+  /// **'The private key lives in the device\'s secure hardware and cannot be exported.'**
+  String get sshKeyHardwareBoundExplainer;
+
+  /// No description provided for @sshKeyEnclaveDeviceBound.
+  ///
+  /// In en, this message translates to:
+  /// **'This key works only on this Mac.'**
+  String get sshKeyEnclaveDeviceBound;
+
+  /// No description provided for @sshKeyEnclaveDeviceBoundIos.
+  ///
+  /// In en, this message translates to:
+  /// **'This key works only on this iPhone.'**
+  String get sshKeyEnclaveDeviceBoundIos;
+
+  /// No description provided for @sshKeyHelloDeviceBound.
+  ///
+  /// In en, this message translates to:
+  /// **'This key works only on this PC.'**
+  String get sshKeyHelloDeviceBound;
+
+  /// No description provided for @sshKeyEnclaveTouchIdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Require Touch ID / Face ID'**
+  String get sshKeyEnclaveTouchIdRequired;
+
+  /// No description provided for @sshKeyEnclavePasscodeFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow device passcode as fallback'**
+  String get sshKeyEnclavePasscodeFallback;
+
+  /// No description provided for @sshKeyHelloPinRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Require Windows Hello (PIN, fingerprint, or face)'**
+  String get sshKeyHelloPinRequired;
+
+  /// No description provided for @sshKeyHardwareUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound keys are not available'**
+  String get sshKeyHardwareUnavailableTitle;
+
+  /// No description provided for @sshKeyHardwareUnavailableSe.
+  ///
+  /// In en, this message translates to:
+  /// **'App must be code-signed to use the Secure Enclave.'**
+  String get sshKeyHardwareUnavailableSe;
+
+  /// No description provided for @sshKeyHardwareUnavailableHello.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello is not configured on this PC.'**
+  String get sshKeyHardwareUnavailableHello;
+
+  /// No description provided for @sshKeyHardwareUnavailableTpm.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM detected — software-backed only.'**
+  String get sshKeyHardwareUnavailableTpm;
+
+  /// No description provided for @sshKeyHardwareUnavailableTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Software-gated'**
+  String get sshKeyHardwareUnavailableTier;
+
+  /// No description provided for @sshKeyEnclaveAlgorithm.
+  ///
+  /// In en, this message translates to:
+  /// **'ecdsa-sha2-nistp256'**
+  String get sshKeyEnclaveAlgorithm;
+
+  /// No description provided for @sshKeyHelloAlgorithmEcdsa256.
+  ///
+  /// In en, this message translates to:
+  /// **'ecdsa-sha2-nistp256 (TPM)'**
+  String get sshKeyHelloAlgorithmEcdsa256;
+
+  /// No description provided for @sshKeyHelloAlgorithmEcdsa384.
+  ///
+  /// In en, this message translates to:
+  /// **'ecdsa-sha2-nistp384 (TPM)'**
+  String get sshKeyHelloAlgorithmEcdsa384;
+
+  /// No description provided for @sshKeyHelloAlgorithmRsa.
+  ///
+  /// In en, this message translates to:
+  /// **'rsa-sha2-256 (TPM)'**
+  String get sshKeyHelloAlgorithmRsa;
+
+  /// No description provided for @sshKeyGenerateCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get sshKeyGenerateCta;
+
+  /// No description provided for @sshKeyGenerateInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating key in secure hardware...'**
+  String get sshKeyGenerateInProgress;
+
+  /// No description provided for @sshKeyGenerateMissingEntitlement.
+  ///
+  /// In en, this message translates to:
+  /// **'Code-signing required — see USER_GUIDE.md → Hardware-bound keys.'**
+  String get sshKeyGenerateMissingEntitlement;
+
+  /// No description provided for @sshKeySignInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing with secure hardware...'**
+  String get sshKeySignInProgress;
+
+  /// No description provided for @sshKeyPublicCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy public key'**
+  String get sshKeyPublicCopy;
+
+  /// No description provided for @sshKeyAuthorizedKeysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this line to ~/.ssh/authorized_keys on the server.'**
+  String get sshKeyAuthorizedKeysHint;
+
+  /// No description provided for @sshKeyEnclaveWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave SSH key'**
+  String get sshKeyEnclaveWizardTitle;
+
+  /// No description provided for @sshKeyEnclaveWizardLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Key label'**
+  String get sshKeyEnclaveWizardLabelHint;
+
+  /// No description provided for @sshKeyEnclaveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave'**
+  String get sshKeyEnclaveBadge;
+
+  /// No description provided for @helloWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello SSH key'**
+  String get helloWizardTitle;
+
+  /// No description provided for @helloWizardLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Key label'**
+  String get helloWizardLabelHint;
+
+  /// No description provided for @helloBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello'**
+  String get helloBadge;
+
+  /// No description provided for @helloPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate with Windows Hello'**
+  String get helloPromptTitle;
+
+  /// No description provided for @helloPromptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your PIN, fingerprint, or face to sign this SSH challenge.'**
+  String get helloPromptDescription;
+
+  /// No description provided for @helloSoftwareGatedWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device has no TPM. The key lives in user-space storage; Windows Hello still gates every signature.'**
+  String get helloSoftwareGatedWarning;
+
+  /// No description provided for @helloP384NotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM firmware does not support P-384. Choose P-256 or RSA-2048.'**
+  String get helloP384NotSupported;
+
+  /// No description provided for @helloConfigureFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Windows Hello first in Settings -> Sign-in options.'**
+  String get helloConfigureFirst;
+
+  /// No description provided for @tpmSshTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate TPM-backed SSH key'**
+  String get tpmSshTitle;
+
+  /// No description provided for @tpmSshAlgEcdsa.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA P-256 (recommended)'**
+  String get tpmSshAlgEcdsa;
+
+  /// No description provided for @tpmSshAlgRsa.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA-2048'**
+  String get tpmSshAlgRsa;
+
+  /// No description provided for @tpmSshAlgUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Algorithm not supported by this TPM firmware.'**
+  String get tpmSshAlgUnsupported;
+
+  /// No description provided for @tpmSshPinProtect.
+  ///
+  /// In en, this message translates to:
+  /// **'Protect with PIN'**
+  String get tpmSshPinProtect;
+
+  /// No description provided for @tpmSshPinLockoutWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM locks the key after repeated wrong PINs.'**
+  String get tpmSshPinLockoutWarning;
+
+  /// No description provided for @tpmSshPinMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs do not match.'**
+  String get tpmSshPinMismatch;
+
+  /// No description provided for @tpmSshStorageBlob.
+  ///
+  /// In en, this message translates to:
+  /// **'Store wrapped key in app data'**
+  String get tpmSshStorageBlob;
+
+  /// No description provided for @tpmSshStorageHandle.
+  ///
+  /// In en, this message translates to:
+  /// **'Persist in TPM memory slot'**
+  String get tpmSshStorageHandle;
+
+  /// No description provided for @tpmSshStorageHandleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster signing. Consumes one of the TPM\'s persistent slots.'**
+  String get tpmSshStorageHandleHelp;
+
+  /// No description provided for @tpmSshLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Key label'**
+  String get tpmSshLabel;
+
+  /// No description provided for @tpmSshImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import TPM-protected SSH key'**
+  String get tpmSshImportTitle;
+
+  /// No description provided for @tpmSshImportFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)'**
+  String get tpmSshImportFormat;
+
+  /// No description provided for @tpmSshPinPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM PIN for {label}'**
+  String tpmSshPinPrompt(String label);
+
+  /// No description provided for @tpmSshPinIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN incorrect.'**
+  String get tpmSshPinIncorrect;
+
+  /// No description provided for @tpmSshPinLockedCooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM is in lockout cooldown. Wait {duration} and retry.'**
+  String tpmSshPinLockedCooldown(String duration);
+
+  /// No description provided for @tpmSshGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating key in TPM...'**
+  String get tpmSshGenerating;
+
+  /// No description provided for @tpmSshSigning.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing with TPM...'**
+  String get tpmSshSigning;
+
+  /// No description provided for @tpmSshUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM detected on this device.'**
+  String get tpmSshUnavailable;
+
+  /// No description provided for @tpmSshUnavailableFwDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM is disabled in firmware.'**
+  String get tpmSshUnavailableFwDisabled;
+
+  /// No description provided for @tpmSshUnavailableNoPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'App cannot access the TPM. Add user to the `tss` group.'**
+  String get tpmSshUnavailableNoPermission;
+
+  /// No description provided for @tpmSshHandleInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Persistent slot {handle} is already in use.'**
+  String tpmSshHandleInUse(String handle);
+
+  /// No description provided for @tpmSshBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM 2.0'**
+  String get tpmSshBadge;
+
+  /// No description provided for @tpmSshSilentWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you\'re logged in can use it.'**
+  String get tpmSshSilentWarning;
+
+  /// No description provided for @keystoreWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Android Hardware Key'**
+  String get keystoreWizardTitle;
+
+  /// No description provided for @keystoreBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Android Keystore'**
+  String get keystoreBadge;
+
+  /// No description provided for @keystoreKeyAndroidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Android Keystore (hardware-bound)'**
+  String get keystoreKeyAndroidLabel;
+
+  /// No description provided for @keystoreKeyStrongBoxLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'StrongBox HSM'**
+  String get keystoreKeyStrongBoxLabel;
+
+  /// No description provided for @keystoreKeyTeeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TEE (hardware-backed)'**
+  String get keystoreKeyTeeLabel;
+
+  /// No description provided for @keystoreKeyGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating hardware-bound key...'**
+  String get keystoreKeyGenerating;
+
+  /// No description provided for @keystoreKeyAuthPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to use SSH key'**
+  String get keystoreKeyAuthPrompt;
+
+  /// No description provided for @keystoreKeyInvalidatedByEnrollment.
+  ///
+  /// In en, this message translates to:
+  /// **'Key destroyed: a new biometric was enrolled. Re-register the public key on your servers.'**
+  String get keystoreKeyInvalidatedByEnrollment;
+
+  /// No description provided for @keystoreKeyStrongBoxUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'StrongBox HSM not available on this device'**
+  String get keystoreKeyStrongBoxUnavailable;
+
+  /// No description provided for @keystoreKeyUserAuthRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Require biometric / device unlock for every signature'**
+  String get keystoreKeyUserAuthRequired;
+
+  /// No description provided for @keystoreKeyExportDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound keys cannot be exported'**
+  String get keystoreKeyExportDisabled;
+
+  /// No description provided for @keystoreKeyDeleteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting this key removes it from the hardware store. Servers will reject this key until you register a fresh one.'**
+  String get keystoreKeyDeleteWarning;
+
+  /// No description provided for @keystoreKeyBiometricNotEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrol biometric or device PIN first'**
+  String get keystoreKeyBiometricNotEnrolled;
+
+  /// No description provided for @keystoreAlgEcdsaP256.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA P-256 (StrongBox-eligible)'**
+  String get keystoreAlgEcdsaP256;
+
+  /// No description provided for @keystoreAlgEd25519.
+  ///
+  /// In en, this message translates to:
+  /// **'Ed25519 (Android 13+, TEE only)'**
+  String get keystoreAlgEd25519;
+
+  /// No description provided for @keystoreAlgRsa2048.
+  ///
+  /// In en, this message translates to:
+  /// **'RSA-2048 (widest compatibility)'**
+  String get keystoreAlgRsa2048;
+
+  /// No description provided for @keystoreStrongBoxFallbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'StrongBox HSM unavailable'**
+  String get keystoreStrongBoxFallbackTitle;
+
+  /// No description provided for @keystoreStrongBoxFallbackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device doesn\'t expose the StrongBox HSM. Create a TEE-backed key instead? It\'s still hardware-backed, just without StrongBox isolation.'**
+  String get keystoreStrongBoxFallbackBody;
+
+  /// No description provided for @keystoreStrongBoxFallbackConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Use TEE'**
+  String get keystoreStrongBoxFallbackConfirm;
+
+  /// No description provided for @keystoreStrongBoxFallbackCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get keystoreStrongBoxFallbackCancel;
+
+  /// No description provided for @fido2BrokerSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware security keys'**
+  String get fido2BrokerSectionTitle;
+
+  /// No description provided for @fido2BrokerWindowsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Hello / security key'**
+  String get fido2BrokerWindowsLabel;
+
+  /// No description provided for @fido2BrokerMacosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System security key dialog'**
+  String get fido2BrokerMacosLabel;
+
+  /// No description provided for @fido2BrokerIosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System security key (USB / NFC)'**
+  String get fido2BrokerIosLabel;
+
+  /// No description provided for @fido2BrokerAndroidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System security key (USB / NFC / BLE)'**
+  String get fido2BrokerAndroidLabel;
+
+  /// No description provided for @fido2BrokerTransportDirectHid.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct USB HID (CTAP2)'**
+  String get fido2BrokerTransportDirectHid;
+
+  /// No description provided for @fido2BrokerTransportNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on this platform'**
+  String get fido2BrokerTransportNone;
+
+  /// No description provided for @fido2BrokerPreferDirectHidTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prefer direct USB HID over system dialog'**
+  String get fido2BrokerPreferDirectHidTitle;
+
+  /// No description provided for @fido2BrokerPreferDirectHidSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced: bypass the {brokerLabel} on platforms where both paths work. Direct HID supports more authenticator features but requires per-app permission grants.'**
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel);
+
+  /// Parent section title in Settings that groups the SSH-key plumbing toggles: the agent-endpoint switch (exposes our SSH keys to external SSH clients via $SSH_AUTH_SOCK / OpenSSH named pipe) and the FIDO2 transport preference (broker vs direct CTAP2 HID). Each subgroup retains its own subtitle (`agentEndpointSectionTitle` / `fido2BrokerSectionTitle`) as a sub-header inside this section's body.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH integration'**
+  String get sshIntegrationSection;
+
+  /// Subtitle under the disabled Hardware-security-keys preference toggle when neither the OS broker (Windows Hello / Apple AuthenticationServices / Android Credential Manager) nor the direct CTAP2 HID transport is available — pre-built Linux without HID permission, mobile builds before the broker hook landed. Replaces the broken `Only {transport} is available` template that interpolated the literal `Not available on this platform` into the `{transport}` slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-key support is not available on this device.'**
+  String get fido2BrokerNoTransportSubtitle;
+
+  /// No description provided for @fido2BrokerSinglePathSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {transport} is available on this device; the toggle is disabled.'**
+  String fido2BrokerSinglePathSubtitle(String transport);
+
+  /// Key Manager row badge for a device-bound key that was imported from another device's .lfs / WebDAV sync — only the public half landed. Sits next to the backend badge (Apple Secure Enclave / Windows Hello / TPM / Android Keystore).
+  ///
+  /// In en, this message translates to:
+  /// **'Imported stub'**
+  String get hardwareKeyStubBadge;
+
+  /// Secondary line under a stub-key row in the Key Manager. Explains the row cannot sign on this device until the user re-generates.
+  ///
+  /// In en, this message translates to:
+  /// **'Was on another device — re-generate here to use'**
+  String get hardwareKeyStubSubtitle;
+
+  /// Trailing-action label on a stub-key row. Opens the per-backend wizard pre-filled with the stub's label.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-generate here'**
+  String get hardwareKeyStubRegenerateAction;
+
+  /// Trailing-action label on a stub-key row. Drops the row from the key manager — useful when the user wants to clear stubs from a device they will never re-generate on.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove stub'**
+  String get hardwareKeyStubRemoveAction;
+
+  /// Tooltip on a disabled stub row inside the session-edit Key picker. Stubs cannot be selected because the private half lives on the original device.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-generate this key on this device before using'**
+  String get hardwareKeyStubPickerTooltip;
+
+  /// Title of the one-shot dialog the connect path opens on first use of an imported PKCS#11 row whose module path could not be re-discovered locally via the well-known-paths scan.
+  ///
+  /// In en, this message translates to:
+  /// **'Locate the PKCS#11 module for token \"{token}\"'**
+  String pkcs11ModuleResolveOnFirstUse(String token);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

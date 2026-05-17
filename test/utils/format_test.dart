@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show Locale;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart' show initializeDateFormatting;
 
-import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 import 'package:letsflutssh/core/import/import_service.dart';
 import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
@@ -13,7 +14,21 @@ import 'package:letsflutssh/l10n/app_localizations_en.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/utils/format.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // formatSize / formatTimestamp / formatDuration route through
+  // `lfs_core::format` — bootstrap FRB so the canonical Rust
+  // formatters are exercised by these tests.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await requireFrbLoaded();
+    // Locale-aware DateFormat needs the per-locale symbol tables;
+    // production bootstraps them once in main.dart, tests have to
+    // do the same before any locale-bearing format call fires.
+    await initializeDateFormatting();
+  });
+
   group('formatSize', () {
     test('bytes', () {
       expect(formatSize(0), '0 B');
@@ -36,6 +51,40 @@ void main() {
       expect(formatSize(1024 * 1024 * 1024), '1.00 GB');
       expect(formatSize(1024 * 1024 * 1024 * 3), '3.00 GB');
     });
+
+    test('locale-aware decimal separator: German uses comma not dot', () {
+      // 1.5 KB on the en/system path; 1,5 KB for de-DE.
+      expect(formatSize(1536, locale: const Locale('de')), '1,5 KB');
+      expect(formatSize(1536, locale: const Locale('en')), '1.5 KB');
+    });
+
+    test('locale-aware decimal separator: Russian uses comma not dot', () {
+      expect(
+        formatSize(1024 * 1024 + 524288, locale: const Locale('ru')),
+        '1,5 MB',
+      );
+    });
+
+    test('GB precision honours per-locale decimal separator', () {
+      expect(
+        formatSize(1024 * 1024 * 1024 * 3, locale: const Locale('fr')),
+        '3,00 GB',
+      );
+      expect(
+        formatSize(1024 * 1024 * 1024 * 3, locale: const Locale('en')),
+        '3.00 GB',
+      );
+    });
+
+    test('bytes branch is unit-suffix only — no locale-aware separator '
+        'because a value below 1024 fits in a single integer', () {
+      // The "bare bytes" branch never crosses a thousand separator
+      // boundary so there's no locale shape to honour. Pin the
+      // contract so a future refactor doesn't accidentally route
+      // bytes through the NumberFormat path.
+      expect(formatSize(512, locale: const Locale('de')), '512 B');
+      expect(formatSize(999, locale: const Locale('ru')), '999 B');
+    });
   });
 
   group('formatTimestamp', () {
@@ -47,6 +96,30 @@ void main() {
     test('pads single digits', () {
       final dt = DateTime(2025, 1, 2, 3, 4);
       expect(formatTimestamp(dt), '2025-01-02 03:04');
+    });
+
+    test('locale-aware date format: German DMY uses dot separator', () {
+      final dt = DateTime(2025, 3, 15, 9, 5);
+      expect(
+        formatTimestamp(dt, locale: const Locale('de')),
+        '15.3.2025 09:05',
+      );
+    });
+
+    test('locale-aware date format: French DMY uses slash separator', () {
+      final dt = DateTime(2025, 3, 15, 9, 5);
+      expect(
+        formatTimestamp(dt, locale: const Locale('fr')),
+        '15/03/2025 09:05',
+      );
+    });
+
+    test('locale-aware date format: US English MDY', () {
+      final dt = DateTime(2025, 3, 15, 9, 5);
+      expect(
+        formatTimestamp(dt, locale: const Locale('en')),
+        '3/15/2025 09:05',
+      );
     });
   });
 
@@ -492,10 +565,10 @@ void main() {
         expect(result, isNotEmpty);
       });
 
-      test('localizes SFTPError with SftpStatusCode.noSuchFile', () {
-        final error = SFTPError(
+      test('localizes SFTPError when cause mentions "no such file"', () {
+        const error = SFTPError(
           'File not found',
-          cause: SftpStatusError(SftpStatusCode.noSuchFile, 'No such file'),
+          cause: 'SftpError: no such file',
           path: '/remote/file.txt',
         );
         final result = localizeError(l10n, error);
@@ -503,23 +576,17 @@ void main() {
         expect(result, contains('/remote/file.txt'));
       });
 
-      test('localizes SFTPError with SftpStatusCode.permissionDenied', () {
-        final error = SFTPError(
+      test('localizes SFTPError when cause mentions "permission denied"', () {
+        const error = SFTPError(
           'Permission denied',
-          cause: SftpStatusError(
-            SftpStatusCode.permissionDenied,
-            'Access denied',
-          ),
+          cause: 'SftpError: permission denied',
         );
         final result = localizeError(l10n, error);
         expect(result, isNotEmpty);
       });
 
-      test('localizes SFTPError with unknown status code', () {
-        final error = SFTPError(
-          'SFTP failure',
-          cause: SftpStatusError(SftpStatusCode.failure, 'Generic failure'),
-        );
+      test('localizes SFTPError with unrecognised cause string', () {
+        const error = SFTPError('SFTP failure', cause: 'Generic failure');
         final result = localizeError(l10n, error);
         expect(result, contains('SFTP failure'));
       });

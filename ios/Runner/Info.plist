@@ -93,8 +93,12 @@
 			</array>
 		</dict>
 	</array>
-	<key>FlutterDeepLinkingEnabled</key>
-	<true/>
+	<!-- FlutterDeepLinkingEnabled retired — `app_links` package
+	     handles the inbound URL stream and routes through the
+	     `DeeplinkDispatcher` Rust singleton. Leaving the flag on
+	     would intercept the launch URL through Flutter's own
+	     handler before app_links sees it, and the deep link
+	     would land twice in the dispatch queue. -->
 
 	<!-- Privacy descriptions -->
 	<key>NSLocalNetworkUsageDescription</key>
@@ -118,5 +122,20 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- iOS doesn't allow indefinite background TCP — Apple's
+	     suspended-app contract closes every socket the moment the
+	     app loses foreground. The chosen design is a graceful
+	     "session resumed → reconnect last connection" path on
+	     foreground-return rather than chasing a background mode
+	     the platform won't honour. The lifecycle observer in
+	     `lib/main_app.dart` tracks `AppLifecycleState.resumed`; the
+	     reconnect surfaces in the connection bar as a "Reconnect?"
+	     prompt the user can dismiss or accept.
+	     If a future iOS release adds a long-running networking
+	     mode that fits SSH (no Apple precedent today), declare it
+	     here as `UIBackgroundModes` and pair with a foreground-task
+	     plugin shape; until then this comment is the project-wide
+	     "we considered it" record. -->
 </dict>
 </plist>

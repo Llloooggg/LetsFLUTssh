@@ -21,7 +21,10 @@
   "select": "選択",
   "copyModeTapToStart": "タップして選択開始位置を指定",
   "copyModeExtending": "ドラッグで選択範囲を拡大",
+  "copyModeSetAnchor": "アンカーを設定",
+  "copyModeCopySelection": "選択をコピー",
   "required": "必須",
+  "errFillRequiredFields": "* の付いた必須項目を入力してください",
   "settings": "設定",
   "appSettings": "アプリ設定",
   "includePasswords": "セッションパスワード",
@@ -104,6 +107,13 @@
   "deleteSessionConfirm": "「{name}」を削除しますか？",
   "connection": "接続",
   "auth": "認証",
+  "sectionAuthentication": "認証",
+  "sectionAdvanced": "詳細",
+  "forwardRulesSummary": "{count, plural, =0{ポート転送ルールなし} other{ポート転送ルール {count} 件}}",
+  "manageRules": "管理…",
+  "authMethodAgent": "システムの ssh-agent を使う",
+  "authMethodAgentSubtitle": "$SSH_AUTH_SOCK (Linux/macOS) または OpenSSH named pipe (Windows) 経由で認証します。gpg-agent、Pageant、システムの ssh-agent に key を置いている場合に便利です。",
+  "authMethodAgentMobileUnsupported": "モバイルでは利用できません — システム ssh-agent の endpoint はデスクトップ専用です。",
   "options": "オプション",
   "sessionName": "セッション名",
   "hintMyServer": "マイサーバー",
@@ -117,6 +127,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "鍵のパスフレーズ",
   "hintOptional": "任意",
+  "savedTypeToChange": "保存済み — 変更するには入力",
   "hidePemText": "PEMテキストを隠す",
   "pastePemKeyText": "PEM鍵テキストを貼り付け",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +163,6 @@
   "confirmPassword": "パスワード確認",
   "importModeMergeDescription": "新しいセッションを追加し、既存のものを保持",
   "importModeReplaceDescription": "すべてのセッションをインポートしたもので置換",
-  "errorPrefix": "エラー: {error}",
   "folderName": "フォルダー名",
   "newName": "新しい名前",
   "deleteItems": "{names} を削除しますか？",
@@ -274,7 +284,6 @@
   "urlCopied": "URLをクリップボードにコピーしました",
   "aboutSubtitle": "v{version} — SSH/SFTPクライアント",
   "sourceCode": "ソースコード",
-  "enableLogging": "ログを有効にする",
   "logIsEmpty": "ログは空です",
   "logExportedTo": "ログのエクスポート先: {path}",
   "logExportFailed": "ログのエクスポートに失敗しました: {error}",
@@ -307,20 +316,56 @@
   "completed": "完了",
   "connected": "接続済み",
   "disconnected": "切断済み",
+  "a11yConnectingTo": "{host} に接続中",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "{host} に接続しました",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "{host} から切断しました",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "{host} への接続に失敗しました",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "終了",
   "exitConfirmation": "アクティブなセッションが切断されます。終了しますか？",
   "hintFolderExample": "例: Production",
   "credentialsNotSet": "認証情報が未設定です",
   "exportSessionsViaQr": "QRでセッションをエクスポート",
-  "qrNoCredentialsWarning": "パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。",
   "qrTooManyForSingleCode": "1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。",
   "qrTooLarge": "データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。",
-  "exportAll": "すべてエクスポート",
   "showQr": "QRを表示",
   "sort": "並べ替え",
   "resizePanelDivider": "パネル分割線のサイズ変更",
   "youreRunningLatest": "最新バージョンを使用中です",
   "liveLog": "ライブログ",
+  "archivedLog": "アーカイブログ",
+  "loggingLevel": "ログレベル",
+  "loggingLevelSubtitleInfo": "通常エントリ + 警告 + エラー",
+  "loggingLevelSubtitleWarn": "降格パスとエラーのみ",
+  "loggingLevelSubtitleError": "エラーのみ",
+  "loggingLevelSubtitleOff": "通常ログは書き込まれません",
   "time": "時間",
   "failed": "失敗",
   "transferNItems": "{count} 項目を転送",
@@ -401,14 +446,6 @@
   "errLfsUnsupportedVersion": "アーカイブはスキーマ v{found} を使用していますが、このビルドは v{supported} までしか対応していません。インポートするにはアプリを更新してください。",
   "progressReadingArchive": "アーカイブを読み込み中…",
   "progressDecrypting": "復号中…",
-  "progressParsingArchive": "アーカイブを解析中…",
-  "progressImportingSessions": "セッションをインポート中",
-  "progressImportingFolders": "フォルダをインポート中",
-  "progressImportingManagerKeys": "SSH キーをインポート中",
-  "progressImportingTags": "タグをインポート中",
-  "progressImportingSnippets": "スニペットをインポート中",
-  "progressApplyingConfig": "設定を適用中…",
-  "progressImportingKnownHosts": "known_hosts をインポート中…",
   "progressCollectingData": "データを収集中…",
   "progressEncrypting": "暗号化中…",
   "progressWritingArchive": "アーカイブを書き込み中…",
@@ -447,11 +484,6 @@
   "transferTooltipEnded": "終了：{time}",
   "transferTooltipDuration": "所要時間：{duration}",
   "transferStatusQueued": "待機中",
-  "transferStartingUpload": "アップロード開始...",
-  "transferStartingDownload": "ダウンロード開始...",
-  "transferCopying": "コピー中...",
-  "transferDone": "完了",
-  "transferFilesProgress": "{done}/{total} ファイル",
   "fileConflictTitle": "ファイルは既に存在します",
   "fileConflictMessage": "「{fileName}」は {targetDir} に既に存在します。どうしますか？",
   "fileConflictSkip": "スキップ",
@@ -502,20 +534,36 @@
   "keyDeleted": "キーを削除しました：{label}",
   "publicKey": "公開鍵",
   "publicKeyCopied": "公開鍵をクリップボードにコピーしました",
+  "sshCertificate": "証明書",
+  "certImport": "証明書をインポート",
+  "certImportPickerTitle": "OpenSSH 証明書ファイルを選択",
+  "certValidFrom": "有効開始",
+  "certValidTo": "有効期限",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "この証明書は間もなく期限切れになります。",
+  "certExpired": "期限切れ",
+  "certRemove": "証明書を削除",
+  "certRemoveConfirmTitle": "証明書を削除しますか？",
+  "certRemoveConfirmBody": "削除すると、次回接続時は通常の公開鍵認証にフォールバックします。",
+  "errCertParse": "証明書をパースできませんでした：{detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "この証明書は選択中の鍵とペアになっていません。",
   "pastePrivateKey": "秘密鍵を貼り付け (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "無効な PEM キーデータ",
   "selectFromKeyStore": "キーストアから選択",
   "keyCount": "{count, plural, =0{キーなし} other{キー {count} 個}}",
   "generated": "生成済み",
-  "passphraseRequired": "パスフレーズが必要です",
-  "passphrasePrompt": "{host} の SSH キーは暗号化されています。パスフレーズを入力してください。",
-  "passphraseWrong": "パスフレーズが正しくありません。もう一度お試しください。",
   "passphrase": "パスフレーズ",
-  "rememberPassphrase": "このセッションで記憶",
   "enterMasterPassword": "保存された認証情報にアクセスするにはマスターパスワードを入力してください。",
   "wrongMasterPassword": "パスワードが正しくありません。もう一度お試しください。",
-  "newPassword": "新しいパスワード",
   "currentPassword": "現在のパスワード",
   "forgotPassword": "パスワードを忘れましたか？",
   "credentialsReset": "保存された認証情報がすべて削除されました",
@@ -556,7 +604,6 @@
   "maxHistorySubtitle": "履歴に保存される最大コマンド数",
   "calculateFolderSizesSubtitle": "サイドバーのフォルダー横に合計サイズを表示",
   "checkForUpdatesOnStartupSubtitle": "アプリ起動時に GitHub で新バージョンを確認",
-  "enableLoggingSubtitle": "アプリのイベントをローテーションログファイルに記録",
   "snippets": "スニペット",
   "snippetsSubtitle": "再利用可能なコマンドスニペットを管理",
   "noSnippets": "スニペットはまだありません",
@@ -582,7 +629,6 @@
   "snippetCustomTokensHint": "二重波括弧のその他の項目は、実行時に値を尋ねます。",
   "snippetFillTitle": "スニペットのパラメーターを入力",
   "snippetFillSubmit": "実行",
-  "snippetPreview": "プレビュー",
   "broadcastSetDriver": "このペインから配信",
   "broadcastClearDriver": "このペインからの配信を停止",
   "broadcastAddReceiver": "ここで受信",
@@ -590,7 +636,16 @@
   "broadcastClearAll": "すべての配信を停止",
   "broadcastPasteTitle": "貼り付けをすべてのペインに送信?",
   "broadcastPasteBody": "{chars} 文字を他の {count} ペインに送信します。",
-  "@broadcastPasteBody": {"placeholders": {"chars": {"type": "int"}, "count": {"type": "int"}}},
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "broadcastPasteSend": "送信",
   "portForwarding": "転送",
   "portForwardingEmpty": "ルールはまだありません",
@@ -608,26 +663,22 @@
   "forwardDescription": "説明（任意）",
   "forwardEnabled": "有効",
   "forwardBindWildcardWarning": "0.0.0.0 にバインドすると全インターフェースに公開されます — 通常は 127.0.0.1 を使用してください。",
-  "forwardOnlyLocalSupported": "ローカル (-L)、リモート (-R)、動的 SOCKS5 (-D) 転送すべて動作します。",
   "forwardKindLocalHelp": "ローカル: このデバイスでポートを開き、SSH サーバーから到達可能なターゲットへトンネルします。リモート DB や管理 UI に localhost:bindPort 経由でアクセスするのに便利。",
   "forwardKindRemoteHelp": "リモート: SSH サーバーにポートを開いてもらい、このデバイスから到達可能なターゲットへ戻すトンネルです。ローカル開発サーバーをリモートホストと共有するのに便利 (サーバーは非ループバックバインドに GatewayPorts yes が必要な場合あり)。",
   "forwardKindDynamicHelp": "動的: このデバイス上の SOCKS5 プロキシで、すべての接続を SSH サーバー経由でルーティングします。ブラウザや curl を localhost:bindPort に向けると、すべてのトラフィックが SSH 経由で送信されます。",
-  "forwardExample": "例",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → localhost:8080 経由でリモート DB にアクセス",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → 開発サーバーをサーバーのポート 9000 で公開",
-  "forwardDynamicExample": "ssh -D 1080 → ブラウザの SOCKS5 を localhost:1080 に設定",
   "proxyJump": "経由先",
   "proxyJumpNone": "直接接続",
   "proxyJumpSavedSession": "保存済みセッション",
   "proxyJumpCustom": "カスタム",
   "proxyJumpCustomNote": "カスタム経由はこのセッションの認証情報を使用します。別の踏み台認証が必要な場合は、踏み台を独立したセッションとして保存してください。",
-  "errProxyJumpCycle": "プロキシチェーンがループしています。",
-  "errProxyJumpDepth": "プロキシチェーンが深すぎます (最大 {max} ホップ)。",
-  "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
-  "errProxyJumpBastionFailed": "踏み台 {label} に接続できませんでした。",
-  "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
   "viaSessionLabel": "{label} 経由",
-  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "セッションを記録",
   "recordSessionHelp": "このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキー有効時は保存時に暗号化されます。",
   "recordingsBrowserTitle": "録画",
@@ -638,6 +689,18 @@
   "recordingPlaybackTitle": "録画を再生",
   "recordingSpeed": "速度",
   "recordingSpeedInstant": "即時",
+  "recordingScrubTooltipUnavailable": "スクラブバーには sidecar index が必要です。このビルド以前の録画にはありません。新しい録画はシークできます。",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "タグ",
   "tagsSubtitle": "セッションとフォルダをカラータグで整理",
   "noTags": "タグはまだありません",
@@ -659,9 +722,6 @@
   "invalidImportLink": "リンクに有効な LetsFLUTssh ペイロードが含まれていません",
   "importAction": "インポート",
   "emptyFolder": "空のフォルダ",
-  "exportWithoutPassword": "パスワードなしでエクスポートしますか？",
-  "exportWithoutPasswordWarning": "アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。",
-  "continueWithoutPassword": "パスワードなしで続行",
   "tierHardwareUnavailable": "このインストールではハードウェアボールトを利用できません。",
   "pinLabel": "パスワード",
   "l2UnlockTitle": "パスワードが必要です",
@@ -687,8 +747,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "このデバイスではハードウェア保護ストレージを利用できません。",
   "firstLaunchSecurityOpenSettings": "設定を開く",
   "wizardReducedBanner": "このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。",
-  "tierBlockProtectsEmpty": "この階層では何も保護しません。",
-  "tierBlockDoesNotProtectEmpty": "未カバーの脅威はありません。",
   "tierBadgeCurrent": "現在",
   "securitySetupEnable": "有効化",
   "securitySetupApply": "適用",
@@ -752,7 +810,6 @@
   "colT1": "T1 キーチェーン",
   "colT1Password": "T1 + パスワード",
   "colT1PasswordBiometric": "T1 + パスワード + 生体認証",
-  "colT2": "T2 ハードウェア",
   "colT2Password": "T2 + パスワード",
   "colT2PasswordBiometric": "T2 + パスワード + 生体認証",
   "colParanoid": "パラノイド",
@@ -763,9 +820,40 @@
   "resetAllDataConfirmTitle": "すべてのデータをリセットしますか？",
   "resetAllDataConfirmBody": "すべてのセッション、SSH 鍵、known hosts、スニペット、タグ、設定、およびすべてのセキュリティアーティファクト（キーチェーンエントリ、ハードウェアボールトのデータ、生体認証オーバーレイ）が完全に削除されます。この操作は取り消せません。",
   "resetAllDataConfirmAction": "すべてリセット",
+  "resetAllDataConfirmTypePrompt": "確認のため、下に {phrase} と入力してください:",
   "resetAllDataInProgress": "リセット中…",
   "resetAllDataDone": "すべてのデータをリセットしました",
   "resetAllDataFailed": "リセットに失敗しました",
+  "recordingsTitle": "録画",
+  "recordingsStorageUsedLabel": "使用中",
+  "recordingsCapLabel": "上限",
+  "recordingsCapHint": "recordings/ フォルダのハードリミット。超過時は最も古い録画から削除されます。録画中のファイルは削除されません。",
+  "recordingsClearAllAction": "すべての録画を削除",
+  "recordingsClearAllConfirmTitle": "すべての録画を削除しますか？",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ 配下の録画セッションがすべて削除されます。録画中のファイル（ある場合）は残ります。この操作は取り消せません。",
+  "recordingsClearAllResult": "{count} 件の録画を削除しました",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "上限を更新しました。{bytes} を解放しました。",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "上限を更新しました。削除対象はありません。",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "現在",
   "paranoidAlternativeHeader": "代替",
   "modifierPasswordLabel": "パスワード",
@@ -777,7 +865,24 @@
   "autoLockRequiresActiveTier": "自動ロックを設定するには、先にこの階層を選択してください",
   "biometricForbiddenParanoid": "Paranoid は設計上、生体認証を許可しません。",
   "fprintdNotAvailable": "fprintd がインストールされていないか、指紋が登録されていません。",
-  "linuxTpmWithoutPasswordNote": "パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを復号できます。",
+  "modifierPasswordRequired": "必須 — Hardware ティアは常にパスワード保護されます。",
+  "t2RequiresPasswordTitle": "Hardware ティアにマスターパスワードを設定",
+  "t2RequiresPasswordBody": "Hardware ティアは modifier としてパスワードが必要です。バイオメトリクスはその上のオプショナル shortcut です。",
+  "t2MigrationPromptTitle": "Hardware ティアにパスワードが必要",
+  "t2MigrationPromptBody": "既存のパスワードなし Hardware インストールは続行のため今すぐ設定する必要があります。",
+  "t2MigrationContinue": "続行",
+  "t2MigrationSetPasswordTitle": "Hardware ティアを維持するためパスワードを設定",
+  "t2MigrationSetPasswordBody": "新しいマスターパスワードを入力してください。hardware モジュール内で既に sealed された DB key はこのパスワードで re-seal されます — セッションと key はそのまま残ります。",
+  "t2MigrationWipeAndRestart": "Wipe してやり直す",
+  "t2MigrationResealFailed": "Hardware ティアの re-seal が失敗 — 別のパスワードを選ぶか wipe してください。",
+  "biometricOverlayEnable": "Hardware ティアでバイオメトリクス shortcut を有効化",
+  "biometricOverlayEnableSubtitle": "バイオメトリクス保護された OS スロットからパスワードを解放します。",
+  "biometricOverlayUnavailable": "バイオメトリクス overlay はこのプラットフォームではまだ利用できません。",
+  "biometricOverlayRequiresPassword": "先に Hardware ティアのパスワードを設定してください。",
+  "t2UnlockTitle": "マスターパスワードでアンロック",
+  "t2UnlockSubtitle": "hardware-bound 鍵はパスワードで保護されています。",
+  "t2UnlockUseBiometricButton": "バイオメトリクスを使う",
+  "t2PasswordChanged": "Hardware ティアのパスワードを更新しました。",
   "paranoidMasterPasswordNote": "長いパスフレーズを強く推奨します — Argon2id は総当たり攻撃を遅らせるだけで、阻止はできません。",
   "plaintextWarningTitle": "平文：暗号化なし",
   "plaintextWarningBody": "セッション、鍵、known hosts は暗号化されずに保存されます。このコンピュータのファイルシステムにアクセスできる人なら誰でも読み取れます。",
@@ -787,7 +892,454 @@
   "masterPasswordLabel": "マスターパスワード",
   "autoLockRequiresPassword": "自動ロックにはアクティブな階層にパスワードが必要です。",
   "recommendedBadge": "推奨",
-  "tierHardwareSubtitleHonest": "上級: ハードウェアに紐づく鍵。このデバイスのチップが失われたり交換されたりすると、データは復元できません。",
+  "tierHardwareSubtitleHonest": "上級: ハードウェアに紐づく鍵、常にパスワード保護されます。このデバイスのチップが失われたり交換されたりすると、データは復元できません。",
   "tierParanoidSubtitleHonest": "代替: マスターパスワードを使用し、OS を信頼しません。OS の侵害から保護しますが、T1/T2 と比べてランタイム保護は向上しません。",
-  "mitigationsNoteRuntimeThreats": "runtime の脅威（同一ユーザーの malware、稼働中プロセスのメモリダンプ）は、すべての階層で ✗ と表示されます。これらは階層選択に関係なく適用される別途の緩和機能によって対処されます。"
+  "mitigationsNoteRuntimeThreats": "runtime の脅威（同一ユーザーの malware、稼働中プロセスのメモリダンプ）は、すべての階層で ✗ と表示されます。これらは階層選択に関係なく適用される別途の緩和機能によって対処されます。",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH 接続中",
+  "foregroundServiceConnections": "{count, plural, =1{接続 1 件} other{接続 {count} 件}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "セッション種別",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "ユーザー名",
+  "webDavAuthMethod": "Auth 方式",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer トークン",
+  "webDavSelfSignedFingerprint": "Self-signed 証明書の Fingerprint(任意)",
+  "webDavSelfSignedFingerprintHint": "SHA-256、空ならシステム trust を使用",
+  "webDavCopyUrl": "WebDAV URL をコピー",
+  "webDavOpenInBrowser": "ブラウザで開く",
+  "errWebDavAuthFailed": "WebDAV 認証に失敗",
+  "errWebDavNotFound": "パスが見つかりません",
+  "errWebDavConflict": "現在の状態と競合しています",
+  "errWebDavGeneric": "WebDAV サーバーがリクエストを拒否しました: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV の Base URL が必要です",
+  "errWebDavBaseUrlInvalid": "Base URL は http:// または https:// で始める必要があります",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS は空のまま、MinIO / R2 / Spaces は endpoint を指定",
+  "s3PathStyle": "Path-style アドレッシング",
+  "s3PathStyleHint": "MinIO では必須、AWS では off",
+  "s3DefaultBucket": "デフォルト bucket",
+  "s3DefaultPrefix": "デフォルト prefix",
+  "s3GeneratePresignedUrl": "Presigned URL を生成",
+  "s3PresignedUrlExpiry": "有効期限",
+  "s3CopyUri": "s3://bucket/key URI をコピー",
+  "s3PresignedUrlExpiry15min": "15 分",
+  "s3PresignedUrlExpiry1hour": "1 時間",
+  "s3PresignedUrlExpiry4hour": "4 時間",
+  "s3PresignedUrlExpiry24hour": "24 時間",
+  "s3PresignedUrlExpiry7day": "7 日",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret を確認)",
+  "errS3NoSuchBucket": "Bucket が存在しないかアクセスできません",
+  "errS3RegionMismatch": "Bucket が設定とは別の region にあります",
+  "errS3Generic": "S3 サーバーがリクエストを拒否しました: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync を有効化",
+  "syncPassphrase": "Sync パスフレーズ",
+  "syncPassphraseHint": "Sync アーカイブを暗号化します。マスターパスワードと異なる必要があります。",
+  "syncPassphraseSameAsMasterError": "Sync パスフレーズはマスターパスワードと同じにできません。",
+  "syncRemotePath": "Remote パス",
+  "syncRemotePathHint": "WebDAV Base URL 配下のパス — 既定は letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "前回の push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "前回の pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "未実行",
+  "syncUpToDate": "Sync は最新です",
+  "syncPushedBytes": "{bytes} を push しました",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote から {count} 件の変更を適用",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync は無効です",
+  "errSyncEtagMismatch": "Remote が変わりました — まず pull、それから push",
+  "errSyncUnauthorized": "WebDAV 認証に失敗しました",
+  "errSyncNetwork": "ネットワークエラー: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote の sync アーカイブには新しいビルドが必要です",
+  "hardwareKey": "ハードウェアキー",
+  "hardwareKeyTapPrompt": "ハードウェアキーをタップ",
+  "hardwareKeyPin": "ハードウェアキーの PIN",
+  "hardwareKeyTimeout": "ハードウェアキーが応答しませんでした",
+  "hardwareKeyNotFound": "ハードウェアキーが見つかりません",
+  "hardwareKeyUnsupported": "このプラットフォームでは直接のハードウェアキーアクセスは利用できません",
+  "hardwareKeyAppleEntitlementRequired": "Apple Developer Program entitlement が必要です。macOS では ssh-agent を使用してください",
+  "skKeyRequiresDevice": "この SSH キーはハードウェアキーが必要です — タップして認証してください",
+  "errSkWrongPin": "PIN が違います",
+  "hardwareKeyImport": "ハードウェアキーをインポート (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "ハードウェアキーのプロンプトをキャンセルしました",
+  "agentEndpointSectionTitle": "外部 SSH クライアント連携",
+  "agentEndpointToggleTitle": "ハードウェアキーを SSH クライアントに公開する",
+  "agentEndpointToggleSubtitle": "この端末の git・ssh・IDE プラグインから FIDO2 / smart-card / TPM キーを利用できるようにします。",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "export コマンドをコピー",
+  "agentEndpointCopyPipeName": "pipe 名をコピー",
+  "agentEndpointSignatureRequestTitle": "署名リクエスト",
+  "agentEndpointSignatureRequestBody": "{requester} が {keyLabel} で署名しようとしています",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "外部 SSH クライアント",
+  "agentEndpointAuthorizeOnce": "今回だけ許可",
+  "agentEndpointAuthorizeAlways": "許可して記憶する",
+  "agentEndpointDeny": "拒否",
+  "agentEndpointStatusRunning": "実行中",
+  "agentEndpointStatusStopped": "停止",
+  "agentEndpointStatusUnsupported": "このプラットフォームでは利用できません",
+  "agentEndpointRefusedAddIdentity": "拒否: 外部クライアントから key を追加することはできません。",
+  "agentEndpointStartFailed": "ssh-agent エンドポイントを開始できません: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "スマートカード / トークン キーを追加",
+  "pkcs11ModuleLabel": "PKCS#11 モジュール",
+  "pkcs11ModuleAutoDetected": "自動検出",
+  "pkcs11ModuleCustom": "カスタムモジュール...",
+  "pkcs11ModulePickerTitle": "PKCS#11 ライブラリを選択",
+  "pkcs11NoModuleFound": "PKCS#11 モジュールが見つかりません。OpenSC をインストールするか、ベンダーライブラリを選択してください。",
+  "pkcs11InitializeFailed": "PKCS#11 モジュールを初期化できませんでした。",
+  "pkcs11NoTokenPresent": "リーダーにトークンがありません。",
+  "pkcs11TokenLabel": "トークン: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "シリアル: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "トークンへのログインが必要です。",
+  "pkcs11PinPrompt": "{token} の PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "トークンの PIN パッドで確認してください。",
+  "pkcs11PinIncorrect": "PIN が違います。残り {remaining} 回。",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "トークンの PIN がロックされています。PUK で解除してください。",
+  "pkcs11NoSignableKeys": "SSH で使えるキー (RSA、ECDSA、Ed25519) がトークンにありません。",
+  "pkcs11GostUnsupported": "GOST キーは SSH では使えません。",
+  "pkcs11TokenUnplugged": "トークン \"{label}\" が挿入されていません。",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "保存されたトークンが見つかりません。再接続してください。",
+  "pkcs11SignFailed": "署名に失敗しました: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "このプラットフォームではスマートカード / PKCS#11 トークンは利用できません。",
+  "pkcs11Badge": "スマートカード / トークン",
+  "pkcs11InfoModulePath": "モジュール: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "トークンのシリアル: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "オブジェクト: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "PKCS#11 モジュールを選択",
+  "pkcs11WizardStepToken": "トークンを選択",
+  "pkcs11WizardStepKey": "鍵を選択",
+  "pkcs11WizardStepPin": "PIN を入力",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "鍵をインポート",
+  "pkcs11SaveInProgress": "トークンから公開鍵を読み込み中...",
+  "pkcs11SaveSuccess": "スマートカードの鍵を追加しました。",
+  "pkcs11ScanInProgress": "PKCS#11 モジュールをスキャン中...",
+  "pkcs11LoadingTokens": "トークンを読み込み中...",
+  "pkcs11LoadingKeys": "鍵を読み込み中...",
+  "pkcs11ModuleStatusReady": "モジュール読み込み完了。",
+  "pkcs11ModuleStatusNoToken": "トークンが見つかりません。",
+  "pkcs11ModuleStatusFailed": "モジュールの読み込みに失敗しました。",
+  "pkcs11PinPadHint": "(デバイスの PIN パッド)",
+  "pkcs11WizardBack": "戻る",
+  "pkcs11WizardNext": "次へ",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "ハードウェアキーを追加",
+  "sshKeyHardwareBoundExplainer": "プライベートキーはデバイスのセキュアハードウェアにあり、エクスポートできません。",
+  "sshKeyEnclaveDeviceBound": "このキーはこの Mac でのみ使用できます。",
+  "sshKeyEnclaveDeviceBoundIos": "このキーはこの iPhone でのみ使用できます。",
+  "sshKeyHelloDeviceBound": "このキーはこの PC でのみ使用できます。",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID を要求",
+  "sshKeyEnclavePasscodeFallback": "デバイスパスコードを fallback として許可",
+  "sshKeyHelloPinRequired": "Windows Hello を要求 (PIN、指紋、または顔)",
+  "sshKeyHardwareUnavailableTitle": "ハードウェアキーが利用できません",
+  "sshKeyHardwareUnavailableSe": "Secure Enclave を使うにはアプリが code-signed である必要があります。",
+  "sshKeyHardwareUnavailableHello": "この PC では Windows Hello が設定されていません。",
+  "sshKeyHardwareUnavailableTpm": "TPM が検出されません — software-backed のみ。",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "生成",
+  "sshKeyGenerateInProgress": "セキュアハードウェアでキーを生成中...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing が必要 — USER_GUIDE.md → Hardware-bound keys を参照。",
+  "sshKeySignInProgress": "セキュアハードウェアで署名中...",
+  "sshKeyPublicCopy": "パブリックキーをコピー",
+  "sshKeyAuthorizedKeysHint": "この行をサーバーの ~/.ssh/authorized_keys に追加してください。",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH キー",
+  "sshKeyEnclaveWizardLabelHint": "キー名",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH キー",
+  "helloWizardLabelHint": "キーのラベル",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello で認証",
+  "helloPromptDescription": "PIN・指紋・顔のいずれかで Windows Hello が SSH チャレンジに署名します。",
+  "helloSoftwareGatedWarning": "この端末には TPM がありません。鍵はユーザー領域に置かれますが、署名のたびに Windows Hello を通します。",
+  "helloP384NotSupported": "TPM ファームウェアが P-384 をサポートしていません。P-256 か RSA-2048 を選択してください。",
+  "helloConfigureFirst": "まず 設定 -> サインイン オプション で Windows Hello を有効化してください。",
+  "tpmSshTitle": "TPM-backed SSH キーを生成",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (推奨)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "この TPM ファームウェアではサポートされていない算法。",
+  "tpmSshPinProtect": "PIN で保護する",
+  "tpmSshPinLockoutWarning": "PIN を何度も間違えると TPM がキーをロックします。",
+  "tpmSshPinMismatch": "PIN が一致しません。",
+  "tpmSshStorageBlob": "ラップしたキーをアプリデータに保存",
+  "tpmSshStorageHandle": "TPM メモリスロットに保持",
+  "tpmSshStorageHandleHelp": "署名が速くなります。TPM の永続スロットを 1 つ消費します。",
+  "tpmSshLabel": "キーラベル",
+  "tpmSshImportTitle": "TPM 保護の SSH キーをインポート",
+  "tpmSshImportFormat": "TPM 2.0 キーファイル (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} の TPM PIN",
+  "tpmSshPinIncorrect": "PIN が違います。",
+  "tpmSshPinLockedCooldown": "TPM はロックアウトのクールダウン中です。{duration} 待ってから再試行してください。",
+  "tpmSshGenerating": "TPM でキーを生成中...",
+  "tpmSshSigning": "TPM で署名中...",
+  "tpmSshUnavailable": "このデバイスで TPM が検出されません。",
+  "tpmSshUnavailableFwDisabled": "TPM はファームウェアで無効化されています。",
+  "tpmSshUnavailableNoPermission": "アプリが TPM にアクセスできません。ユーザーを `tss` グループに追加してください。",
+  "tpmSshHandleInUse": "永続スロット {handle} はすでに使用中です。",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "このキーは Hello / PIN プロンプトなしで署名します — ログイン中にデスクトップへアクセスできる人なら誰でも使えてしまいます。",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (ハードウェアバインド)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (ハードウェアバックド)",
+  "keystoreKeyGenerating": "ハードウェアバインドキーを生成中...",
+  "keystoreKeyAuthPrompt": "SSH キーを使うため認証してください",
+  "keystoreKeyInvalidatedByEnrollment": "キーが破棄されました: 新しい生体情報が登録されました。サーバーで公開鍵を再登録してください。",
+  "keystoreKeyStrongBoxUnavailable": "このデバイスでは StrongBox HSM を利用できません",
+  "keystoreKeyUserAuthRequired": "署名ごとに生体認証 / デバイスロック解除を要求",
+  "keystoreKeyExportDisabled": "ハードウェアバインドキーはエクスポートできません",
+  "keystoreKeyDeleteWarning": "このキーを削除するとハードウェアストアから消えます。新しく登録するまでサーバーは拒否します。",
+  "keystoreKeyBiometricNotEnrolled": "先に生体認証またはデバイス PIN を登録してください",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox 対応)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE のみ)",
+  "keystoreAlgRsa2048": "RSA-2048 (最大互換)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM が利用不可",
+  "keystoreStrongBoxFallbackBody": "このデバイスは StrongBox HSM を公開していません。代わりに TEE 裏付けのキーを作成しますか？ハードウェア裏付けは維持されますが、StrongBox の分離はありません。",
+  "keystoreStrongBoxFallbackConfirm": "TEE を使う",
+  "keystoreStrongBoxFallbackCancel": "キャンセル",
+  "fido2BrokerSectionTitle": "ハードウェアセキュリティキー",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "システムの security key ダイアログ",
+  "fido2BrokerIosLabel": "システム security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "システム security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "直接 USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "このプラットフォームでは利用不可",
+  "fido2BrokerPreferDirectHidTitle": "システムダイアログより直接 USB HID を優先",
+  "fido2BrokerPreferDirectHidSubtitle": "上級者向け：両方のパスが動作するプラットフォームで {brokerLabel} を回避します。直接 HID は authenticator の機能をより多く扱えますが、アプリごとの権限付与が必要です。",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "SSH 連携",
+  "fido2BrokerNoTransportSubtitle": "このデバイスではハードウェアキーのサポートを利用できません。",
+  "fido2BrokerSinglePathSubtitle": "このデバイスでは {transport} のみ利用可能です。トグルは無効化されています。",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "インポート済みスタブ",
+  "hardwareKeyStubSubtitle": "別のデバイスにあったため、ここで再生成して使用してください",
+  "hardwareKeyStubRegenerateAction": "ここで再生成",
+  "hardwareKeyStubRemoveAction": "スタブを削除",
+  "hardwareKeyStubPickerTooltip": "使用前にこのデバイスでこのキーを再生成してください",
+  "pkcs11ModuleResolveOnFirstUse": "トークン \"{token}\" の PKCS#11 モジュールを指定してください",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  }
 }

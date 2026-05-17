@@ -1,82 +1,32 @@
-import 'dart:async';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_panel.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 
+import '../../helpers/fake_transfers_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
+
 Widget _buildTestWidget({
-  required TransferManager manager,
+  FakeTransfersNotifier? manager,
   List<HistoryEntry> history = const [],
+  List<ActiveEntry> active = const [],
   ActiveTransferState status = const ActiveTransferState(),
 }) {
+  // When the caller seeds history / active / status, build a fresh
+  // notifier with them. When the caller passes their own (e.g. the
+  // clearHistory test that needs to assert on `clearHistoryCalls`),
+  // honour that exact instance — they're in control.
+  final hasSeed = history.isNotEmpty || active.isNotEmpty || status.hasActive;
+  final notifier = hasSeed || manager == null
+      ? FakeTransfersNotifier(history: history, active: active, status: status)
+      : manager;
   return ProviderScope(
-    overrides: [
-      transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith((ref) => Stream.value(history)),
-      transferStatusProvider.overrideWith((ref) => Stream.value(status)),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: S.localizationsDelegates,
-      supportedLocales: S.supportedLocales,
-      theme: AppTheme.dark(),
-      home: const Scaffold(
-        body: Column(
-          children: [
-            Expanded(child: SizedBox()),
-            TransferPanel(),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-Widget _buildTestWidgetWithHistoryError({
-  required TransferManager manager,
-  ActiveTransferState status = const ActiveTransferState(),
-}) {
-  return ProviderScope(
-    overrides: [
-      transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith(
-        (ref) => Stream<List<HistoryEntry>>.error(Exception('load failed')),
-      ),
-      transferStatusProvider.overrideWith((ref) => Stream.value(status)),
-    ],
-    child: MaterialApp(
-      localizationsDelegates: S.localizationsDelegates,
-      supportedLocales: S.supportedLocales,
-      theme: AppTheme.dark(),
-      home: const Scaffold(
-        body: Column(
-          children: [
-            Expanded(child: SizedBox()),
-            TransferPanel(),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-Widget _buildTestWidgetWithHistoryLoading({
-  required TransferManager manager,
-  ActiveTransferState status = const ActiveTransferState(),
-}) {
-  return ProviderScope(
-    overrides: [
-      transferManagerProvider.overrideWithValue(manager),
-      transferHistoryProvider.overrideWith(
-        (ref) => StreamController<List<HistoryEntry>>().stream,
-      ),
-      transferStatusProvider.overrideWith((ref) => Stream.value(status)),
-    ],
+    overrides: [transfersProvider.overrideWith(() => notifier)],
     child: MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
@@ -94,14 +44,16 @@ Widget _buildTestWidgetWithHistoryLoading({
 }
 
 void main() {
-  late TransferManager manager;
+  // TransferPanel renders byte sizes / durations via Rust
+  // `lfs_core::format` — bootstrap FRB so the widget can build
+  // without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
+  late FakeTransfersNotifier manager;
 
   setUp(() {
-    manager = TransferManager();
-  });
-
-  tearDown(() {
-    manager.dispose();
+    manager = FakeTransfersNotifier();
   });
 
   group('TransferPanel', () {
@@ -438,10 +390,9 @@ void main() {
           createdAt: DateTime.now(),
         ),
       ];
+      final mgr = FakeTransfersNotifier(history: history);
 
-      await tester.pumpWidget(
-        _buildTestWidget(manager: manager, history: history),
-      );
+      await tester.pumpWidget(_buildTestWidget(manager: mgr));
       await tester.pumpAndSettle();
 
       // Expand panel
@@ -453,7 +404,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.delete_outline));
       await tester.pumpAndSettle();
 
-      expect(manager.history, isEmpty);
+      expect(mgr.clearHistoryCalls, 1);
+      expect(mgr.history, isEmpty);
     });
 
     testWidgets('auto-expands when active transfers start', (tester) async {
@@ -708,48 +660,6 @@ void main() {
       expect(find.byIcon(Icons.delete_outline), findsNothing);
     });
 
-    testWidgets('shows error text when history stream errors (expanded)', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestWidgetWithHistoryError(manager: manager),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Transfers:'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Error:'), findsOneWidget);
-    });
-
-    testWidgets('shows SizedBox.shrink in header when history stream errors', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestWidgetWithHistoryError(manager: manager),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('in history'), findsNothing);
-    });
-
-    testWidgets(
-      'shows loading spinner when history stream is pending (expanded)',
-      (tester) async {
-        await tester.pumpWidget(
-          _buildTestWidgetWithHistoryLoading(manager: manager),
-        );
-        await tester.pump();
-        await tester.pump();
-
-        await tester.tap(find.text('Transfers:'));
-        await tester.pump();
-        await tester.pump();
-
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      },
-    );
-
     testWidgets('shows active transfer status in header', (tester) async {
       const status = ActiveTransferState(
         running: 2,
@@ -779,16 +689,15 @@ void main() {
   });
 
   group('TransferPanel mobile', () {
-    late TransferManager manager;
+    late FakeTransfersNotifier manager;
 
     setUp(() {
-      manager = TransferManager();
+      manager = FakeTransfersNotifier();
       plat.debugMobilePlatformOverride = true;
     });
 
     tearDown(() {
       plat.debugMobilePlatformOverride = null;
-      manager.dispose();
     });
 
     testWidgets('uses horizontal scroll for column headers on mobile', (
@@ -939,20 +848,6 @@ void main() {
       expect(find.text('Sort'), findsNothing);
     });
 
-    testWidgets('shows error state in scrollable body on mobile', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestWidgetWithHistoryError(manager: manager),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Transfers:'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Error:'), findsOneWidget);
-    });
-
     testWidgets('shows empty state in scrollable body on mobile', (
       tester,
     ) async {
@@ -968,30 +863,14 @@ void main() {
 
   group('TransferPanel — active rows (upload + download + queued)', () {
     Widget widgetWithActive({
-      required TransferManager manager,
+      required FakeTransfersNotifier manager,
       required List<ActiveEntry> active,
       ActiveTransferState status = const ActiveTransferState(running: 1),
     }) {
-      return ProviderScope(
-        overrides: [
-          transferManagerProvider.overrideWithValue(manager),
-          transferHistoryProvider.overrideWith((ref) => Stream.value(const [])),
-          transferStatusProvider.overrideWith((ref) => Stream.value(status)),
-          activeTransfersProvider.overrideWith((ref) => Stream.value(active)),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: const Scaffold(
-            body: Column(
-              children: [
-                Expanded(child: SizedBox()),
-                TransferPanel(),
-              ],
-            ),
-          ),
-        ),
+      return _buildTestWidget(
+        manager: FakeTransfersNotifier(active: active, status: status),
+        active: active,
+        status: status,
       );
     }
 

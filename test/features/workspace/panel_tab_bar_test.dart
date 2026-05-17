@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/panel_tab_bar.dart';
@@ -14,6 +15,7 @@ void main() {
     String label = 'Server',
     TabKind kind = TabKind.terminal,
     SSHConnectionState connState = SSHConnectionState.connected,
+    SessionKind sessionKind = SessionKind.ssh,
   }) {
     return TabEntry(
       id: id,
@@ -25,7 +27,7 @@ void main() {
           server: ServerAddress(host: '10.0.0.1', user: 'root'),
         ),
         state: connState,
-      ),
+      )..kind = sessionKind,
       kind: kind,
     );
   }
@@ -100,14 +102,60 @@ void main() {
       expect(find.byIcon(Icons.terminal), findsOneWidget);
     });
 
-    testWidgets('renders folder icon for sftp tab', (tester) async {
+    // SSH sessions show two co-existing panes (terminal + sftp)
+    // and the sidebar row uses `Icons.terminal` for both. The
+    // file-browser tab needs an outline-weight folder glyph so
+    // the user can tell the two open tabs apart at a glance.
+    // For WebDAV / S3 sessions there is no terminal pane to
+    // disambiguate against, so the sftp tab takes the session's
+    // protocol icon (cloud / bucket) and matches the sidebar row.
+    testWidgets('sftp tab on an SSH session shows the outlined folder glyph', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildBar(
-          tabs: [makeTab(id: 't1', kind: TabKind.sftp)],
+          tabs: [
+            makeTab(id: 'terminal-pane', kind: TabKind.terminal),
+            makeTab(id: 'sftp-pane', kind: TabKind.sftp),
+          ],
         ),
       );
 
-      expect(find.byIcon(Icons.folder), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsOneWidget);
+      expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.folder), findsNothing);
+    });
+
+    testWidgets('sftp tab on a WebDAV session shows the cloud glyph', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(
+              id: 't1',
+              kind: TabKind.sftp,
+              sessionKind: SessionKind.webdav,
+            ),
+          ],
+        ),
+      );
+
+      expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
+    });
+
+    testWidgets('sftp tab on an S3 session shows the bucket glyph', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildBar(
+          tabs: [
+            makeTab(id: 't1', kind: TabKind.sftp, sessionKind: SessionKind.s3),
+          ],
+        ),
+      );
+
+      expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
     });
 
     testWidgets('active tab has accent top border', (tester) async {
@@ -349,14 +397,25 @@ void main() {
     });
 
     testWidgets('active sftp tab icon is yellow', (tester) async {
+      // Tint test rides on the file-browser tab kind regardless of
+      // which glyph it picks — use a WebDAV session so the visible
+      // icon (`cloud_outlined`) is distinct from terminal-tab
+      // tests above. The active-pane file-tab tint stays
+      // [AppTheme.yellow] across protocols.
       await tester.pumpWidget(
         buildBar(
-          tabs: [makeTab(id: 't1', kind: TabKind.sftp)],
+          tabs: [
+            makeTab(
+              id: 't1',
+              kind: TabKind.sftp,
+              sessionKind: SessionKind.webdav,
+            ),
+          ],
           activeIndex: 0,
         ),
       );
 
-      final icon = tester.widget<Icon>(find.byIcon(Icons.folder));
+      final icon = tester.widget<Icon>(find.byIcon(Icons.cloud_outlined));
       expect(icon.color, AppTheme.yellow);
     });
 

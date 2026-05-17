@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/session/qr_codec.dart';
+import '../core/session/qr_decoded_source.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -12,22 +13,35 @@ typedef LinkImportPreviewResult = ({ImportMode mode, ExportOptions options});
 /// Preview dialog for `letsflutssh://import?...` deep links and scanned QR
 /// payloads.
 ///
-/// Thin wrapper around [ImportPreviewDialog]: renders a link-title header,
-/// maps [ExportPayloadData] to the shared count record, and passes the
-/// selection through unchanged (no extra result fields to carry).
+/// Thin wrapper around [ImportPreviewDialog]: renders a link-title header
+/// and reads counts off the [LfsPreview] shape built from the Rust-staged
+/// handle's preview.
 class LinkImportPreviewDialog extends StatelessWidget {
-  final ExportPayloadData payload;
+  final LfsPreview preview;
 
-  const LinkImportPreviewDialog({super.key, required this.payload});
+  const LinkImportPreviewDialog({super.key, required this.preview});
 
+  /// Show the dialog from a unified [QrDecodedSource]. Either source
+  /// projects into the same `LfsPreview` shape so one render path
+  /// handles both Rust and Dart decode outcomes.
   static Future<LinkImportPreviewResult?> show(
     BuildContext context, {
-    required ExportPayloadData payload,
+    required QrDecodedSource source,
+  }) async {
+    return showFromPreview(context, preview: source.preview);
+  }
+
+  /// Show the dialog from a pre-built [LfsPreview]. Used by tests
+  /// that construct a preview directly without going through the
+  /// QR decoder.
+  static Future<LinkImportPreviewResult?> showFromPreview(
+    BuildContext context, {
+    required LfsPreview preview,
   }) async {
     final selection = await ImportPreviewDialog.show(
       context,
       header: const _LinkHeader(),
-      counts: _countsOf(payload),
+      counts: _countsOf(preview),
     );
     if (selection == null) return null;
     return (mode: selection.mode, options: selection.options);
@@ -37,16 +51,16 @@ class LinkImportPreviewDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return ImportPreviewDialog(
       header: const _LinkHeader(),
-      counts: _countsOf(payload),
+      counts: _countsOf(preview),
     );
   }
 
-  static ImportPreviewCounts _countsOf(ExportPayloadData p) => (
-    sessions: p.sessions.length,
+  static ImportPreviewCounts _countsOf(LfsPreview p) => (
+    sessions: p.sessionCount,
     hasConfig: p.hasConfig,
-    managerKeys: p.managerKeys.length,
-    tags: p.tags.length,
-    snippets: p.snippets.length,
+    managerKeys: p.managerKeyCount,
+    tags: p.tagCount,
+    snippets: p.snippetCount,
     hasKnownHosts: p.hasKnownHosts,
   );
 }
@@ -59,7 +73,7 @@ class _LinkHeader extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.link, size: 16, color: AppTheme.fgDim),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             S.of(context).pasteImportLinkTitle,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show utf8;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
+import '../core/security/tier_unlock_attempt.dart';
 import '../core/security/wipe_all_service.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
@@ -15,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'typed_name_confirm_dialog.dart';
 import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
@@ -38,14 +41,16 @@ class UnlockDialog extends ConsumerStatefulWidget {
 
   const UnlockDialog({super.key, required this.manager});
 
-  /// Show the unlock dialog and return the derived key.
-  ///
-  /// Returns `null` if the user chose to reset (forgot password).
-  static Future<Uint8List?> show(
+  /// Show the unlock dialog. Returns `true` when the user submitted
+  /// the correct password (the Paranoid orchestrator staged the
+  /// derived key in the SecretStore + emitted the unlock cascade —
+  /// caller awaits the post-unlock listener), `null` on forgot-
+  /// password reset / dismiss.
+  static Future<bool?> show(
     BuildContext context, {
     required MasterPasswordManager manager,
   }) {
-    return showDialog<Uint8List>(
+    return showDialog<bool?>(
       context: context,
       barrierDismissible: false,
       animationStyle: AnimationStyle.noAnimation,
@@ -115,35 +120,41 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
       _wrongPassword = false;
     });
 
-    // Single Argon2id run: verify + derive in one isolate spawn so
-    // unlock latency is not doubled on mid-tier mobiles. `useRateLimit`
-    // is on because this is the user-typed unlock path — the
-    // in-memory limiter slows down anyone poking at the dialog by
-    // hand (real brake against offline brute is still Argon2id).
-    final key = await widget.manager.verifyAndDerive(
-      password,
-      useRateLimit: true,
+    // Single Argon2id run via the Paranoid orchestrator (`tier_
+    // unlock_paranoid`). Stages the derived key in the SecretStore
+    // + emits the cascade on success; the caller's `TierUnlockedListener`
+    // takes the bytes and runs the post-unlock injection. The
+    // in-memory rate limiter still gates UI re-attempts (real brake
+    // against offline brute remains Argon2id wall-clock).
+    final attempt = await widget.manager.unlockAttempt(
+      Uint8List.fromList(utf8.encode(password)),
     );
 
     if (!mounted) return;
 
-    if (key == null) {
-      final status = widget.manager.rateLimitStatus();
-      setState(() {
-        _busy = false;
-        _wrongPassword = true;
-        _cooldown = status;
-      });
-      if (status.isLocked) _startCooldownTicker();
-      _passwordCtrl.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _passwordCtrl.text.length,
-      );
-      _focusNode.requestFocus();
-      return;
+    switch (attempt) {
+      case TierUnlockAttempt.staged:
+        Navigator.of(context).pop(true);
+      case TierUnlockAttempt.wrongSecret:
+        final status = widget.manager.rateLimitStatus();
+        setState(() {
+          _busy = false;
+          _wrongPassword = true;
+          _cooldown = status;
+        });
+        if (status.isLocked) _startCooldownTicker();
+        _passwordCtrl.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _passwordCtrl.text.length,
+        );
+        _focusNode.requestFocus();
+      case TierUnlockAttempt.cancelled:
+      case TierUnlockAttempt.error:
+        // Corruption / KDF panic / inner cancel — close with
+        // failure signal so the caller routes through the
+        // forgot-password / corruption recovery branch.
+        Navigator.of(context).pop(null);
     }
-
-    Navigator.of(context).pop(key);
   }
 
   /// Forgot-password path routes through the same
@@ -214,30 +225,25 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     Navigator.of(context).pop(null);
   }
 
-  Future<bool?> _showResetConfirmation() {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = S.of(ctx);
-        return AppDialog(
-          title: l10n.resetAllDataConfirmTitle,
-          content: Text(
-            l10n.resetAllDataConfirmBody,
-            style: TextStyle(color: AppTheme.fg),
-          ),
-          actions: [
-            AppButton.secondary(
-              label: l10n.cancel,
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-            AppButton.destructive(
-              label: l10n.resetAllDataConfirmAction,
-              onTap: () => Navigator.pop(ctx, true),
-            ),
-          ],
-        );
-      },
+  Future<bool?> _showResetConfirmation() async {
+    final l10n = S.of(context);
+    // Same magic-phrase guard as the Settings → Data → Reset
+    // path. Forgot-password flow is the second entry point into
+    // the wipe; without the guard a panic-tap on the lock screen
+    // could trigger an irreversible wipe.
+    const magicPhrase = 'LetsFLUTssh';
+    final confirmed = await TypedNameConfirmDialog.show(
+      context,
+      title: l10n.resetAllDataConfirmTitle,
+      body: Text(
+        l10n.resetAllDataConfirmBody,
+        style: TextStyle(color: AppTheme.fg),
+      ),
+      magicPhrase: magicPhrase,
+      confirmLabel: l10n.resetAllDataConfirmAction,
+      typePromptHint: l10n.resetAllDataConfirmTypePrompt(magicPhrase),
     );
+    return confirmed;
   }
 
   @override
@@ -257,7 +263,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     l10n.masterPassword,
                     style: TextStyle(
@@ -265,7 +271,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     l10n.enterMasterPassword,
                     textAlign: TextAlign.center,
@@ -274,7 +280,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       color: AppTheme.fgDim,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   if (_wrongPassword) ...[
                     Text(
                       l10n.wrongMasterPassword,
@@ -283,7 +289,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                         fontSize: AppFonts.sm,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                   ],
                   if (_cooldown.isLocked) ...[
                     Text(
@@ -295,7 +301,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                         fontSize: AppFonts.sm,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                   ],
                   SecurePasswordField(
                     controller: _passwordCtrl,
@@ -315,14 +321,14 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   if (_busy) ...[
                     const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       l10n.derivingKey,
                       style: TextStyle(
@@ -336,7 +342,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       fullWidth: true,
                       onTap: _cooldown.isLocked ? null : _unlock,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     AppButton(
                       label: l10n.forgotPassword,
                       onTap: _forgotPassword,

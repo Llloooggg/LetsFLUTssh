@@ -30,21 +30,17 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
-import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
-import 'package:letsflutssh/providers/session_provider.dart';
-
 import 'fake_security.dart';
-import 'fake_session_store.dart';
+import 'fake_session_notifier.dart';
 
 /// Construct a [ProviderContainer] with the most common overrides
 /// already applied.
@@ -57,27 +53,27 @@ import 'fake_session_store.dart';
 /// Every named param accepts a preconfigured fake; omit to get the
 /// no-op default that does not touch disk or platform channels.
 ProviderContainer makeTestProviderContainer({
-  SessionStore? sessionStore,
+  FakeSessionNotifier? sessionNotifier,
   MasterPasswordManager? masterPassword,
   SecureKeyStorage? secureKeyStorage,
   HardwareTierVault? hardwareVault,
   KeychainPasswordGate? keychainGate,
   BiometricAuth? biometricAuth,
   BiometricKeyVault? biometricVault,
-  AutoLockStore? autoLockStore,
+  FakeAutoLockNotifier? autoLockNotifier,
   List<Override> extraOverrides = const [],
 }) {
   return ProviderContainer(
     overrides: [
       ...securityProviderOverrides(
-        sessionStore: sessionStore,
+        sessionNotifier: sessionNotifier,
         masterPassword: masterPassword,
         secureKeyStorage: secureKeyStorage,
         hardwareVault: hardwareVault,
         keychainGate: keychainGate,
         biometricAuth: biometricAuth,
         biometricVault: biometricVault,
-        autoLockStore: autoLockStore,
+        autoLockNotifier: autoLockNotifier,
       ),
       ...extraOverrides,
     ],
@@ -88,17 +84,17 @@ ProviderContainer makeTestProviderContainer({
 /// as a plain list so widget tests that mount a real `ProviderScope`
 /// can inject the baseline without building an out-of-tree container.
 List<Override> securityProviderOverrides({
-  SessionStore? sessionStore,
+  FakeSessionNotifier? sessionNotifier,
   MasterPasswordManager? masterPassword,
   SecureKeyStorage? secureKeyStorage,
   HardwareTierVault? hardwareVault,
   KeychainPasswordGate? keychainGate,
   BiometricAuth? biometricAuth,
   BiometricKeyVault? biometricVault,
-  AutoLockStore? autoLockStore,
+  FakeAutoLockNotifier? autoLockNotifier,
 }) {
   return [
-    sessionStoreProvider.overrideWithValue(sessionStore ?? FakeSessionStore()),
+    ...(sessionNotifier ?? FakeSessionNotifier()).overrides(),
     masterPasswordProvider.overrideWithValue(
       masterPassword ?? FakeMasterPasswordManager(),
     ),
@@ -117,8 +113,8 @@ List<Override> securityProviderOverrides({
     biometricKeyVaultProvider.overrideWithValue(
       biometricVault ?? FakeBiometricKeyVault(),
     ),
-    autoLockStoreProvider.overrideWithValue(
-      autoLockStore ?? FakeAutoLockStore(),
+    autoLockMinutesProvider.overrideWith(
+      () => autoLockNotifier ?? FakeAutoLockNotifier(),
     ),
   ];
 }

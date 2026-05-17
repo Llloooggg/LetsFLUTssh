@@ -12,6 +12,14 @@ enum ToastLevel { info, success, warning, error }
 class Toast {
   static final _entries = <_ToastOverlayEntry>[];
 
+  /// When true, [show] is a no-op. Set this in widget-test setup so
+  /// the auto-dismiss `Timer` the toast schedules never lands —
+  /// otherwise the framework's `!timersPending` invariant trips at
+  /// the end of every test that exercises a code path which fires a
+  /// toast. Production code never flips this flag.
+  @visibleForTesting
+  static bool disabledForTests = false;
+
   /// Clear all pending toast entries without animation. For testing only.
   @visibleForTesting
   static void clearAllForTest() {
@@ -34,6 +42,7 @@ class Toast {
     ToastLevel level = ToastLevel.info,
     Duration duration = const Duration(seconds: 3),
   }) {
+    if (disabledForTests) return;
     final overlay = Overlay.of(context);
     late final OverlayEntry entry;
 
@@ -173,7 +182,7 @@ class _ToastWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(icon, size: 18, color: color),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       // `SelectableText` so the user can copy the
                       // message — useful for error toasts carrying
@@ -186,7 +195,7 @@ class _ToastWidget extends StatelessWidget {
                         style: TextStyle(fontSize: AppFonts.lg),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     AppIconButton(
                       icon: Icons.close,
                       onTap: onDismiss,

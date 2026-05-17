@@ -18,7 +18,10 @@ void main() {
     testWidgets('shows heading and description', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('No active session'), findsOneWidget);
-      expect(find.text('Create a new connection or select one from the sidebar'), findsOneWidget);
+      expect(
+        find.text('Create a new connection or select one from the sidebar'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows terminal icon in container', (tester) async {

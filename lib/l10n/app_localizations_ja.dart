@@ -72,7 +72,16 @@ class SJa extends S {
   String get copyModeExtending => 'ドラッグで選択範囲を拡大';
 
   @override
+  String get copyModeSetAnchor => 'アンカーを設定';
+
+  @override
+  String get copyModeCopySelection => '選択をコピー';
+
+  @override
   String get required => '必須';
+
+  @override
+  String get errFillRequiredFields => '* の付いた必須項目を入力してください';
 
   @override
   String get settings => '設定';
@@ -375,6 +384,42 @@ class SJa extends S {
   String get auth => '認証';
 
   @override
+  String get sectionAuthentication => '認証';
+
+  @override
+  String get sectionAdvanced => '詳細';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ポート転送ルール $countString 件',
+      zero: 'ポート転送ルールなし',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => '管理…';
+
+  @override
+  String get authMethodAgent => 'システムの ssh-agent を使う';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      '\$SSH_AUTH_SOCK (Linux/macOS) または OpenSSH named pipe (Windows) 経由で認証します。gpg-agent、Pageant、システムの ssh-agent に key を置いている場合に便利です。';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'モバイルでは利用できません — システム ssh-agent の endpoint はデスクトップ専用です。';
+
+  @override
   String get options => 'オプション';
 
   @override
@@ -412,6 +457,9 @@ class SJa extends S {
 
   @override
   String get hintOptional => '任意';
+
+  @override
+  String get savedTypeToChange => '保存済み — 変更するには入力';
 
   @override
   String get hidePemText => 'PEMテキストを隠す';
@@ -523,11 +571,6 @@ class SJa extends S {
 
   @override
   String get importModeReplaceDescription => 'すべてのセッションをインポートしたもので置換';
-
-  @override
-  String errorPrefix(String error) {
-    return 'エラー: $error';
-  }
 
   @override
   String get folderName => 'フォルダー名';
@@ -859,9 +902,6 @@ class SJa extends S {
   String get sourceCode => 'ソースコード';
 
   @override
-  String get enableLogging => 'ログを有効にする';
-
-  @override
   String get logIsEmpty => 'ログは空です';
 
   @override
@@ -962,6 +1002,26 @@ class SJa extends S {
   String get disconnected => '切断済み';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host に接続中';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host に接続しました';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host から切断しました';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host への接続に失敗しました';
+  }
+
+  @override
   String get exit => '終了';
 
   @override
@@ -977,18 +1037,11 @@ class SJa extends S {
   String get exportSessionsViaQr => 'QRでセッションをエクスポート';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
-
-  @override
   String get qrTooManyForSingleCode =>
       '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
 
   @override
   String get qrTooLarge => 'データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。';
-
-  @override
-  String get exportAll => 'すべてエクスポート';
 
   @override
   String get showQr => 'QRを表示';
@@ -1004,6 +1057,24 @@ class SJa extends S {
 
   @override
   String get liveLog => 'ライブログ';
+
+  @override
+  String get archivedLog => 'アーカイブログ';
+
+  @override
+  String get loggingLevel => 'ログレベル';
+
+  @override
+  String get loggingLevelSubtitleInfo => '通常エントリ + 警告 + エラー';
+
+  @override
+  String get loggingLevelSubtitleWarn => '降格パスとエラーのみ';
+
+  @override
+  String get loggingLevelSubtitleError => 'エラーのみ';
+
+  @override
+  String get loggingLevelSubtitleOff => '通常ログは書き込まれません';
 
   @override
   String transferNItems(int count) {
@@ -1283,30 +1354,6 @@ class SJa extends S {
   String get progressDecrypting => '復号中…';
 
   @override
-  String get progressParsingArchive => 'アーカイブを解析中…';
-
-  @override
-  String get progressImportingSessions => 'セッションをインポート中';
-
-  @override
-  String get progressImportingFolders => 'フォルダをインポート中';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH キーをインポート中';
-
-  @override
-  String get progressImportingTags => 'タグをインポート中';
-
-  @override
-  String get progressImportingSnippets => 'スニペットをインポート中';
-
-  @override
-  String get progressApplyingConfig => '設定を適用中…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts をインポート中…';
-
-  @override
   String get progressCollectingData => 'データを収集中…';
 
   @override
@@ -1443,23 +1490,6 @@ class SJa extends S {
 
   @override
   String get transferStatusQueued => '待機中';
-
-  @override
-  String get transferStartingUpload => 'アップロード開始...';
-
-  @override
-  String get transferStartingDownload => 'ダウンロード開始...';
-
-  @override
-  String get transferCopying => 'コピー中...';
-
-  @override
-  String get transferDone => '完了';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total ファイル';
-  }
 
   @override
   String get fileConflictTitle => 'ファイルは既に存在します';
@@ -1648,6 +1678,50 @@ class SJa extends S {
   String get publicKeyCopied => '公開鍵をクリップボードにコピーしました';
 
   @override
+  String get sshCertificate => '証明書';
+
+  @override
+  String get certImport => '証明書をインポート';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH 証明書ファイルを選択';
+
+  @override
+  String get certValidFrom => '有効開始';
+
+  @override
+  String get certValidTo => '有効期限';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'この証明書は間もなく期限切れになります。';
+
+  @override
+  String get certExpired => '期限切れ';
+
+  @override
+  String get certRemove => '証明書を削除';
+
+  @override
+  String get certRemoveConfirmTitle => '証明書を削除しますか？';
+
+  @override
+  String get certRemoveConfirmBody => '削除すると、次回接続時は通常の公開鍵認証にフォールバックします。';
+
+  @override
+  String errCertParse(String detail) {
+    return '証明書をパースできませんでした：$detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch => 'この証明書は選択中の鍵とペアになっていません。';
+
+  @override
   String get pastePrivateKey => '秘密鍵を貼り付け (PEM)';
 
   @override
@@ -1674,30 +1748,13 @@ class SJa extends S {
   String get generated => '生成済み';
 
   @override
-  String get passphraseRequired => 'パスフレーズが必要です';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host の SSH キーは暗号化されています。パスフレーズを入力してください。';
-  }
-
-  @override
-  String get passphraseWrong => 'パスフレーズが正しくありません。もう一度お試しください。';
-
-  @override
   String get passphrase => 'パスフレーズ';
-
-  @override
-  String get rememberPassphrase => 'このセッションで記憶';
 
   @override
   String get enterMasterPassword => '保存された認証情報にアクセスするにはマスターパスワードを入力してください。';
 
   @override
   String get wrongMasterPassword => 'パスワードが正しくありません。もう一度お試しください。';
-
-  @override
-  String get newPassword => '新しいパスワード';
 
   @override
   String get currentPassword => '現在のパスワード';
@@ -1787,12 +1844,6 @@ class SJa extends S {
   @override
   String get wizardReducedBanner =>
       'このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。';
-
-  @override
-  String get tierBlockProtectsEmpty => 'この階層では何も保護しません。';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => '未カバーの脅威はありません。';
 
   @override
   String get tierBadgeCurrent => '現在';
@@ -2018,9 +2069,6 @@ class SJa extends S {
   String get snippetFillSubmit => '実行';
 
   @override
-  String get snippetPreview => 'プレビュー';
-
-  @override
   String get broadcastSetDriver => 'このペインから配信';
 
   @override
@@ -2062,13 +2110,13 @@ class SJa extends S {
   String get deleteForwardRule => 'ルールを削除';
 
   @override
-  String get localForward => 'ローカル (-L)';
+  String get localForward => 'ローカル';
 
   @override
-  String get remoteForward => 'リモート (-R)';
+  String get remoteForward => 'リモート';
 
   @override
-  String get dynamicForward => '動的 (-D)';
+  String get dynamicForward => '動的';
 
   @override
   String get forwardKind => '種類';
@@ -2096,10 +2144,6 @@ class SJa extends S {
       '0.0.0.0 にバインドすると全インターフェースに公開されます — 通常は 127.0.0.1 を使用してください。';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'ローカル (-L)、リモート (-R)、動的 SOCKS5 (-D) 転送すべて動作します。';
-
-  @override
   String get forwardKindLocalHelp =>
       'ローカル: このデバイスでポートを開き、SSH サーバーから到達可能なターゲットへトンネルします。リモート DB や管理 UI に localhost:bindPort 経由でアクセスするのに便利。';
 
@@ -2112,21 +2156,6 @@ class SJa extends S {
       '動的: このデバイス上の SOCKS5 プロキシで、すべての接続を SSH サーバー経由でルーティングします。ブラウザや curl を localhost:bindPort に向けると、すべてのトラフィックが SSH 経由で送信されます。';
 
   @override
-  String get forwardExample => '例';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → localhost:8080 経由でリモート DB にアクセス';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → 開発サーバーをサーバーのポート 9000 で公開';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → ブラウザの SOCKS5 を localhost:1080 に設定';
-
-  @override
   String get proxyJump => '経由先';
 
   @override
@@ -2136,24 +2165,11 @@ class SJa extends S {
   String get proxyJumpSavedSession => '保存済みセッション';
 
   @override
-  String get proxyJumpCustom => 'カスタム (user@host:port)';
+  String get proxyJumpCustom => 'カスタム';
 
   @override
   String get proxyJumpCustomNote =>
       'カスタム経由はこのセッションの認証情報を使用します。別の踏み台認証が必要な場合は、踏み台を独立したセッションとして保存してください。';
-
-  @override
-  String get errProxyJumpCycle => 'プロキシチェーンがループしています。';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'プロキシチェーンが深すぎます (最大 $max ホップ)。';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return '踏み台 $label に接続できませんでした。';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2190,6 +2206,15 @@ class SJa extends S {
 
   @override
   String get recordingSpeedInstant => '即時';
+
+  @override
+  String get recordingScrubTooltipUnavailable =>
+      'スクラブバーには sidecar index が必要です。このビルド以前の録画にはありません。新しい録画はシークできます。';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
 
   @override
   String get tags => 'タグ';
@@ -2309,19 +2334,6 @@ class SJa extends S {
   String get checkForUpdatesOnStartupSubtitle => 'アプリ起動時に GitHub で新バージョンを確認';
 
   @override
-  String get enableLoggingSubtitle => 'アプリのイベントをローテーションログファイルに記録';
-
-  @override
-  String get exportWithoutPassword => 'パスワードなしでエクスポートしますか？';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。';
-
-  @override
-  String get continueWithoutPassword => 'パスワードなしで続行';
-
-  @override
   String get threatColdDiskTheft => '電源オフ時のディスク窃取';
 
   @override
@@ -2385,9 +2397,6 @@ class SJa extends S {
   String get colT1PasswordBiometric => 'T1 + パスワード + 生体認証';
 
   @override
-  String get colT2 => 'T2 ハードウェア';
-
-  @override
   String get colT2Password => 'T2 + パスワード';
 
   @override
@@ -2420,6 +2429,11 @@ class SJa extends S {
   String get resetAllDataConfirmAction => 'すべてリセット';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return '確認のため、下に $phrase と入力してください:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'リセット中…';
 
   @override
@@ -2429,6 +2443,60 @@ class SJa extends S {
   String get resetAllDataFailed => 'リセットに失敗しました';
 
   @override
+  String get recordingsTitle => '録画';
+
+  @override
+  String get recordingsStorageUsedLabel => '使用中';
+
+  @override
+  String get recordingsCapLabel => '上限';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ フォルダのハードリミット。超過時は最も古い録画から削除されます。録画中のファイルは削除されません。';
+
+  @override
+  String get recordingsClearAllAction => 'すべての録画を削除';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'すべての録画を削除しますか？';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ 配下の録画セッションがすべて削除されます。録画中のファイル（ある場合）は残ります。この操作は取り消せません。';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count 件の録画を削除しました';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return '上限を更新しました。$bytes を解放しました。';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => '上限を更新しました。削除対象はありません。';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword => '自動ロックにはアクティブな階層にパスワードが必要です。';
 
   @override
@@ -2436,7 +2504,7 @@ class SJa extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      '上級: ハードウェアに紐づく鍵。このデバイスのチップが失われたり交換されたりすると、データは復元できません。';
+      '上級: ハードウェアに紐づく鍵、常にパスワード保護されます。このデバイスのチップが失われたり交換されたりすると、データは復元できません。';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2457,6 +2525,9 @@ class SJa extends S {
 
   @override
   String get modifierPasswordSubtitle => 'ボールトを復号する前に入力する秘密のゲート。';
+
+  @override
+  String get modifierPasswordRequired => '必須 — Hardware ティアは常にパスワード保護されます。';
 
   @override
   String get modifierBiometricLabel => '生体認証ショートカット';
@@ -2482,8 +2553,62 @@ class SJa extends S {
   String get fprintdNotAvailable => 'fprintd がインストールされていないか、指紋が登録されていません。';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを復号できます。';
+  String get t2RequiresPasswordTitle => 'Hardware ティアにマスターパスワードを設定';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware ティアは modifier としてパスワードが必要です。バイオメトリクスはその上のオプショナル shortcut です。';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware ティアにパスワードが必要';
+
+  @override
+  String get t2MigrationPromptBody =>
+      '既存のパスワードなし Hardware インストールは続行のため今すぐ設定する必要があります。';
+
+  @override
+  String get t2MigrationContinue => '続行';
+
+  @override
+  String get t2MigrationSetPasswordTitle => 'Hardware ティアを維持するためパスワードを設定';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      '新しいマスターパスワードを入力してください。hardware モジュール内で既に sealed された DB key はこのパスワードで re-seal されます — セッションと key はそのまま残ります。';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe してやり直す';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware ティアの re-seal が失敗 — 別のパスワードを選ぶか wipe してください。';
+
+  @override
+  String get biometricOverlayEnable => 'Hardware ティアでバイオメトリクス shortcut を有効化';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'バイオメトリクス保護された OS スロットからパスワードを解放します。';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'バイオメトリクス overlay はこのプラットフォームではまだ利用できません。';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      '先に Hardware ティアのパスワードを設定してください。';
+
+  @override
+  String get t2UnlockTitle => 'マスターパスワードでアンロック';
+
+  @override
+  String get t2UnlockSubtitle => 'hardware-bound 鍵はパスワードで保護されています。';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'バイオメトリクスを使う';
+
+  @override
+  String get t2PasswordChanged => 'Hardware ティアのパスワードを更新しました。';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2507,4 +2632,877 @@ class SJa extends S {
 
   @override
   String get masterPasswordLabel => 'マスターパスワード';
+
+  @override
+  String get globalErrorTitle => 'Unexpected Error';
+
+  @override
+  String get globalErrorBody =>
+      'An unexpected error occurred. The app will continue running.';
+
+  @override
+  String get globalErrorLogSavedNote =>
+      'Full details have been saved to the log file.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Enable logging in Settings to save error details.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Error: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Enable Logging';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Logging enabled — errors will be saved to log file';
+
+  @override
+  String get fatalErrorQuitButton => 'Quit';
+
+  @override
+  String get fatalErrorWipeButton => 'Wipe all data';
+
+  @override
+  String get fatalErrorWipingButton => 'Wiping…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
+
+  @override
+  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+
+  @override
+  String get recordingPlayLocked =>
+      'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH 接続中';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '接続 $count 件',
+      one: '接続 1 件',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'セッション種別';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'ユーザー名';
+
+  @override
+  String get webDavAuthMethod => 'Auth 方式';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer トークン';
+
+  @override
+  String get webDavSelfSignedFingerprint => 'Self-signed 証明書の Fingerprint(任意)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint => 'SHA-256、空ならシステム trust を使用';
+
+  @override
+  String get webDavCopyUrl => 'WebDAV URL をコピー';
+
+  @override
+  String get webDavOpenInBrowser => 'ブラウザで開く';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV 認証に失敗';
+
+  @override
+  String get errWebDavNotFound => 'パスが見つかりません';
+
+  @override
+  String get errWebDavConflict => '現在の状態と競合しています';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV サーバーがリクエストを拒否しました: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV の Base URL が必要です';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL は http:// または https:// で始める必要があります';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint => 'AWS は空のまま、MinIO / R2 / Spaces は endpoint を指定';
+
+  @override
+  String get s3PathStyle => 'Path-style アドレッシング';
+
+  @override
+  String get s3PathStyleHint => 'MinIO では必須、AWS では off';
+
+  @override
+  String get s3DefaultBucket => 'デフォルト bucket';
+
+  @override
+  String get s3DefaultPrefix => 'デフォルト prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL を生成';
+
+  @override
+  String get s3PresignedUrlExpiry => '有効期限';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI をコピー';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 分';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 時間';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 時間';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 時間';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 日';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret を確認)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket が存在しないかアクセスできません';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket が設定とは別の region にあります';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 サーバーがリクエストを拒否しました: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync を有効化';
+
+  @override
+  String get syncPassphrase => 'Sync パスフレーズ';
+
+  @override
+  String get syncPassphraseHint => 'Sync アーカイブを暗号化します。マスターパスワードと異なる必要があります。';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync パスフレーズはマスターパスワードと同じにできません。';
+
+  @override
+  String get syncRemotePath => 'Remote パス';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV Base URL 配下のパス — 既定は letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return '前回の push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return '前回の pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => '未実行';
+
+  @override
+  String get syncUpToDate => 'Sync は最新です';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes を push しました';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote から $count 件の変更を適用';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync は無効です';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote が変わりました — まず pull、それから push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV 認証に失敗しました';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'ネットワークエラー: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion => 'Remote の sync アーカイブには新しいビルドが必要です';
+
+  @override
+  String get hardwareKey => 'ハードウェアキー';
+
+  @override
+  String get hardwareKeyTapPrompt => 'ハードウェアキーをタップ';
+
+  @override
+  String get hardwareKeyPin => 'ハードウェアキーの PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'ハードウェアキーが応答しませんでした';
+
+  @override
+  String get hardwareKeyNotFound => 'ハードウェアキーが見つかりません';
+
+  @override
+  String get hardwareKeyUnsupported => 'このプラットフォームでは直接のハードウェアキーアクセスは利用できません';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement が必要です。macOS では ssh-agent を使用してください';
+
+  @override
+  String get skKeyRequiresDevice => 'この SSH キーはハードウェアキーが必要です — タップして認証してください';
+
+  @override
+  String get errSkWrongPin => 'PIN が違います';
+
+  @override
+  String get hardwareKeyImport => 'ハードウェアキーをインポート (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'ハードウェアキーのプロンプトをキャンセルしました';
+
+  @override
+  String get agentEndpointSectionTitle => '外部 SSH クライアント連携';
+
+  @override
+  String get agentEndpointToggleTitle => 'ハードウェアキーを SSH クライアントに公開する';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'この端末の git・ssh・IDE プラグインから FIDO2 / smart-card / TPM キーを利用できるようにします。';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export コマンドをコピー';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe 名をコピー';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => '署名リクエスト';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester が $keyLabel で署名しようとしています';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => '外部 SSH クライアント';
+
+  @override
+  String get agentEndpointAuthorizeOnce => '今回だけ許可';
+
+  @override
+  String get agentEndpointAuthorizeAlways => '許可して記憶する';
+
+  @override
+  String get agentEndpointDeny => '拒否';
+
+  @override
+  String get agentEndpointStatusRunning => '実行中';
+
+  @override
+  String get agentEndpointStatusStopped => '停止';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'このプラットフォームでは利用できません';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      '拒否: 外部クライアントから key を追加することはできません。';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent エンドポイントを開始できません: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'スマートカード / トークン キーを追加';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 モジュール';
+
+  @override
+  String get pkcs11ModuleAutoDetected => '自動検出';
+
+  @override
+  String get pkcs11ModuleCustom => 'カスタムモジュール...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 ライブラリを選択';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 モジュールが見つかりません。OpenSC をインストールするか、ベンダーライブラリを選択してください。';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 モジュールを初期化できませんでした。';
+
+  @override
+  String get pkcs11NoTokenPresent => 'リーダーにトークンがありません。';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'トークン: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'シリアル: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'トークンへのログインが必要です。';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token の PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => 'トークンの PIN パッドで確認してください。';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN が違います。残り $remaining 回。';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'トークンの PIN がロックされています。PUK で解除してください。';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'SSH で使えるキー (RSA、ECDSA、Ed25519) がトークンにありません。';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST キーは SSH では使えません。';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'トークン \"$label\" が挿入されていません。';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed => '保存されたトークンが見つかりません。再接続してください。';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return '署名に失敗しました: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'このプラットフォームではスマートカード / PKCS#11 トークンは利用できません。';
+
+  @override
+  String get pkcs11Badge => 'スマートカード / トークン';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'モジュール: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'トークンのシリアル: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'オブジェクト: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 モジュールを選択';
+
+  @override
+  String get pkcs11WizardStepToken => 'トークンを選択';
+
+  @override
+  String get pkcs11WizardStepKey => '鍵を選択';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN を入力';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => '鍵をインポート';
+
+  @override
+  String get pkcs11SaveInProgress => 'トークンから公開鍵を読み込み中...';
+
+  @override
+  String get pkcs11SaveSuccess => 'スマートカードの鍵を追加しました。';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 モジュールをスキャン中...';
+
+  @override
+  String get pkcs11LoadingTokens => 'トークンを読み込み中...';
+
+  @override
+  String get pkcs11LoadingKeys => '鍵を読み込み中...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'モジュール読み込み完了。';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'トークンが見つかりません。';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'モジュールの読み込みに失敗しました。';
+
+  @override
+  String get pkcs11PinPadHint => '(デバイスの PIN パッド)';
+
+  @override
+  String get pkcs11WizardBack => '戻る';
+
+  @override
+  String get pkcs11WizardNext => '次へ';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'ハードウェアキーを追加';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'プライベートキーはデバイスのセキュアハードウェアにあり、エクスポートできません。';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'このキーはこの Mac でのみ使用できます。';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos => 'このキーはこの iPhone でのみ使用できます。';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'このキーはこの PC でのみ使用できます。';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Touch ID / Face ID を要求';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback => 'デバイスパスコードを fallback として許可';
+
+  @override
+  String get sshKeyHelloPinRequired => 'Windows Hello を要求 (PIN、指紋、または顔)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'ハードウェアキーが利用できません';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Secure Enclave を使うにはアプリが code-signed である必要があります。';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'この PC では Windows Hello が設定されていません。';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM が検出されません — software-backed のみ。';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => '生成';
+
+  @override
+  String get sshKeyGenerateInProgress => 'セキュアハードウェアでキーを生成中...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing が必要 — USER_GUIDE.md → Hardware-bound keys を参照。';
+
+  @override
+  String get sshKeySignInProgress => 'セキュアハードウェアで署名中...';
+
+  @override
+  String get sshKeyPublicCopy => 'パブリックキーをコピー';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'この行をサーバーの ~/.ssh/authorized_keys に追加してください。';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH キー';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'キー名';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH キー';
+
+  @override
+  String get helloWizardLabelHint => 'キーのラベル';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello で認証';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN・指紋・顔のいずれかで Windows Hello が SSH チャレンジに署名します。';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'この端末には TPM がありません。鍵はユーザー領域に置かれますが、署名のたびに Windows Hello を通します。';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM ファームウェアが P-384 をサポートしていません。P-256 か RSA-2048 を選択してください。';
+
+  @override
+  String get helloConfigureFirst =>
+      'まず 設定 -> サインイン オプション で Windows Hello を有効化してください。';
+
+  @override
+  String get tpmSshTitle => 'TPM-backed SSH キーを生成';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (推奨)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => 'この TPM ファームウェアではサポートされていない算法。';
+
+  @override
+  String get tpmSshPinProtect => 'PIN で保護する';
+
+  @override
+  String get tpmSshPinLockoutWarning => 'PIN を何度も間違えると TPM がキーをロックします。';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN が一致しません。';
+
+  @override
+  String get tpmSshStorageBlob => 'ラップしたキーをアプリデータに保存';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM メモリスロットに保持';
+
+  @override
+  String get tpmSshStorageHandleHelp => '署名が速くなります。TPM の永続スロットを 1 つ消費します。';
+
+  @override
+  String get tpmSshLabel => 'キーラベル';
+
+  @override
+  String get tpmSshImportTitle => 'TPM 保護の SSH キーをインポート';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 キーファイル (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label の TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN が違います。';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM はロックアウトのクールダウン中です。$duration 待ってから再試行してください。';
+  }
+
+  @override
+  String get tpmSshGenerating => 'TPM でキーを生成中...';
+
+  @override
+  String get tpmSshSigning => 'TPM で署名中...';
+
+  @override
+  String get tpmSshUnavailable => 'このデバイスで TPM が検出されません。';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM はファームウェアで無効化されています。';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'アプリが TPM にアクセスできません。ユーザーを `tss` グループに追加してください。';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return '永続スロット $handle はすでに使用中です。';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'このキーは Hello / PIN プロンプトなしで署名します — ログイン中にデスクトップへアクセスできる人なら誰でも使えてしまいます。';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (ハードウェアバインド)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (ハードウェアバックド)';
+
+  @override
+  String get keystoreKeyGenerating => 'ハードウェアバインドキーを生成中...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'SSH キーを使うため認証してください';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'キーが破棄されました: 新しい生体情報が登録されました。サーバーで公開鍵を再登録してください。';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'このデバイスでは StrongBox HSM を利用できません';
+
+  @override
+  String get keystoreKeyUserAuthRequired => '署名ごとに生体認証 / デバイスロック解除を要求';
+
+  @override
+  String get keystoreKeyExportDisabled => 'ハードウェアバインドキーはエクスポートできません';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'このキーを削除するとハードウェアストアから消えます。新しく登録するまでサーバーは拒否します。';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled => '先に生体認証またはデバイス PIN を登録してください';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox 対応)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE のみ)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (最大互換)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM が利用不可';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'このデバイスは StrongBox HSM を公開していません。代わりに TEE 裏付けのキーを作成しますか？ハードウェア裏付けは維持されますが、StrongBox の分離はありません。';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE を使う';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'キャンセル';
+
+  @override
+  String get fido2BrokerSectionTitle => 'ハードウェアセキュリティキー';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'システムの security key ダイアログ';
+
+  @override
+  String get fido2BrokerIosLabel => 'システム security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'システム security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => '直接 USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'このプラットフォームでは利用不可';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle => 'システムダイアログより直接 USB HID を優先';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return '上級者向け：両方のパスが動作するプラットフォームで $brokerLabel を回避します。直接 HID は authenticator の機能をより多く扱えますが、アプリごとの権限付与が必要です。';
+  }
+
+  @override
+  String get sshIntegrationSection => 'SSH 連携';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle => 'このデバイスではハードウェアキーのサポートを利用できません。';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'このデバイスでは $transport のみ利用可能です。トグルは無効化されています。';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'インポート済みスタブ';
+
+  @override
+  String get hardwareKeyStubSubtitle => '別のデバイスにあったため、ここで再生成して使用してください';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'ここで再生成';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'スタブを削除';
+
+  @override
+  String get hardwareKeyStubPickerTooltip => '使用前にこのデバイスでこのキーを再生成してください';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'トークン \"$token\" の PKCS#11 モジュールを指定してください';
+  }
 }

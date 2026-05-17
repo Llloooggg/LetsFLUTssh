@@ -1,0 +1,30 @@
+# osv-scanner suppressions — one entry per upstream-unfixed advisory.
+# Each entry MUST carry a real rationale and a re-evaluation trigger
+# (date or "when upstream ships fix"). Empty `reason` is forbidden.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2023-0071"
+# Marvin timing attack against `rsa` (RustCrypto) — variable-time
+# decryption / signing leaks information that, after enough remote
+# timing samples, recovers the private key. No fixed `rsa` release
+# on crates.io as of 2026-05; the crate's `Cargo.toml` advisory
+# header tracks at https://github.com/RustCrypto/RSA/issues/19.
+#
+# Our exposure shape:
+#   - We're an SSH *client*. RSA private keys live on the user's
+#     device; the attacker would need to time many auth handshakes
+#     against the *server* to gather samples, but the timing variance
+#     leaks happen on the *signer's* side (us).
+#   - Default key algorithm in the wizard is Ed25519; RSA is only
+#     reached when the user explicitly imports / generates RSA.
+#   - The leak requires hundreds of thousands of signing operations
+#     against a known-plaintext oracle — not a shape an interactive
+#     SSH session presents.
+#   - russh itself runs RSA via `ring` (not the RustCrypto `rsa`
+#     crate) for the actual SSH key exchange + signatures.
+#     `rsa` is in the dep tree via russh's forked `ssh-key`, which
+#     uses it for OpenSSH-format RSA key parsing only — no online
+#     signing surface.
+#
+# Re-evaluate when `rsa` ships a constant-time release.
+reason = "Marvin timing attack in `rsa` crate — no upstream fix. Attack requires online signing oracle; this app is an SSH client whose RSA usage is offline key parsing only (russh + ring handle online crypto). Re-evaluate when RustCrypto/RSA ships a fix."

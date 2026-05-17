@@ -1,11 +1,10 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:letsflutssh/app/security_dialog_prompter.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
+import 'package:letsflutssh/widgets/hardware_password_setup_wizard.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
 import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
@@ -42,25 +41,26 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
   /// null-nav fallback).
   TierResetChoice tierResetChoice;
 
-  /// Response for [showMasterPasswordUnlock]. Null = user cancelled or
-  /// chose reset.
-  Uint8List? masterPasswordResult;
+  /// Response for [showMasterPasswordUnlock]. `true` = success
+  /// (controller awaits listener after dialog returns), `null` =
+  /// user cancelled or chose reset.
+  bool? masterPasswordResult;
 
   /// Simulated secret to pass through the real `verify` closure on a
-  /// successful unlock. Production code's `verify` callbacks
-  /// (L2 gate.verify + keyStorage.readKey, L3 vault.read) own the DB
-  /// inject side-effect — the fake calls verify with this value so
-  /// the inject actually runs. Null skips the verify call (simulating
-  /// the user hitting Cancel before typing).
+  /// successful unlock. Production code's `verify` callbacks own the
+  /// orchestrator dispatch + listener-cascade staging; the fake
+  /// calls verify with this value so the side-effect actually runs.
+  /// Null skips the verify call (simulating the user hitting Cancel
+  /// before typing).
   String? tierSecretSimulatedInput;
 
   /// Override for the tier-secret dialog result. When null, the fake
-  /// returns whatever the real `verify` closure produced for
-  /// [tierSecretSimulatedInput] — the most faithful simulation since
-  /// the verify closure carries the inject side effect. Set
-  /// explicitly for tests that want to bypass verify (e.g. to pin a
-  /// reset path without caring about the key).
-  List<int>? tierSecretResult;
+  /// derives the result from whatever the real `verify` closure
+  /// returned for [tierSecretSimulatedInput] — `staged` → `true`,
+  /// `error` → `false`, anything else → `null`. Set explicitly for
+  /// tests that want to bypass verify entirely (e.g. to pin a reset
+  /// path without caring about the orchestrator dispatch).
+  bool? tierSecretResult;
 
   /// When true, the fake invokes the `onReset` closure before
   /// returning null — so tests that drive the "user chose reset" path
@@ -73,11 +73,17 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
   /// behaviour when biometric hardware is available.
   bool fireBiometricUnlock = false;
 
+  /// Response for [showHardwarePasswordSetup]. Defaults to null so a
+  /// test that doesn't override sees the bootstrap orchestrator's
+  /// "wipe-and-restart" fallback fire.
+  HardwarePasswordWizardOutcome? hardwarePasswordSetupResult;
+
   int wizardCalls = 0;
   int corruptCalls = 0;
   int tierResetCalls = 0;
   int masterPasswordCalls = 0;
   int tierSecretCalls = 0;
+  int hardwarePasswordSetupCalls = 0;
 
   FakeSecurityDialogPrompter({
     this.wizardResult = const SecuritySetupResult(),
@@ -88,13 +94,11 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
     this.tierSecretSimulatedInput,
     this.fireOnReset = false,
     this.fireBiometricUnlock = false,
+    this.hardwarePasswordSetupResult,
   });
 
   @override
-  Future<SecuritySetupResult> showFirstLaunchWizard(
-    BuildContext ctx, {
-    required SecureKeyStorage keyStorage,
-  }) async {
+  Future<SecuritySetupResult> showFirstLaunchWizard(BuildContext ctx) async {
     wizardCalls++;
     return wizardResult;
   }
@@ -112,20 +116,18 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
   }
 
   @override
-  Future<Uint8List?> showMasterPasswordUnlock(
-    MasterPasswordManager manager,
-  ) async {
+  Future<bool?> showMasterPasswordUnlock(MasterPasswordManager manager) async {
     masterPasswordCalls++;
     return masterPasswordResult;
   }
 
   @override
-  Future<List<int>?> showTierSecretUnlock({
+  Future<bool?> showTierSecretUnlock({
     required BuildContext ctx,
     required TierSecretUnlockLabels labels,
-    required Future<List<int>?> Function(String) verify,
+    required Future<TierUnlockAttempt> Function(String) verify,
     PasswordRateLimiter? rateLimiter,
-    Future<List<int>?> Function()? biometricUnlock,
+    Future<bool> Function()? biometricUnlock,
     Future<void> Function()? onReset,
     bool autoTriggerBiometric = true,
   }) async {
@@ -134,7 +136,7 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
     // real dialog's first-frame behaviour.
     if (fireBiometricUnlock && biometricUnlock != null) {
       final bio = await biometricUnlock();
-      if (bio != null) return bio;
+      if (bio) return true;
     }
     // Explicit override wins.
     if (tierSecretResult != null) return tierSecretResult;
@@ -144,9 +146,26 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
       if (fireOnReset && onReset != null) await onReset();
       return null;
     }
-    // Run the real verify closure so its inject side effect fires.
-    final result = await verify(tierSecretSimulatedInput!);
-    if (result == null && fireOnReset && onReset != null) await onReset();
-    return result;
+    // Run the real verify closure so its orchestrator + listener-
+    // staging side-effects fire.
+    final attempt = await verify(tierSecretSimulatedInput!);
+    switch (attempt) {
+      case TierUnlockAttempt.staged:
+        return true;
+      case TierUnlockAttempt.error:
+        return false;
+      case TierUnlockAttempt.wrongSecret:
+      case TierUnlockAttempt.cancelled:
+        if (fireOnReset && onReset != null) await onReset();
+        return null;
+    }
+  }
+
+  @override
+  Future<HardwarePasswordWizardOutcome?> showHardwarePasswordSetup({
+    required String supportDir,
+  }) async {
+    hardwarePasswordSetupCalls++;
+    return hardwarePasswordSetupResult;
   }
 }

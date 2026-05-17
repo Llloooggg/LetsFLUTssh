@@ -2,35 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
-import 'package:letsflutssh/core/tags/tag_store.dart';
 import 'package:letsflutssh/features/tags/tag_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
-/// In-memory fake for [TagStore] — no database.
-class FakeTagStore extends TagStore {
+/// In-memory fake for [TagsNotifier] — no database. Owns the
+/// session→tag and folder→tag links so the family-provider overrides
+/// can resolve against the same state.
+class FakeTagsNotifier extends TagsNotifier {
+  FakeTagsNotifier([List<Tag>? initial])
+    : _tags = {for (final t in initial ?? <Tag>[]) t.id: t};
+
   final Map<String, Tag> _tags;
-
-  /// Session-id -> set of tag-ids.
   final Map<String, Set<String>> _sessionTags = {};
-
-  /// Folder-id -> set of tag-ids.
   final Map<String, Set<String>> _folderTags = {};
-
-  FakeTagStore([List<Tag>? initial])
-    : _tags = {for (final t in initial ?? []) t.id: t};
 
   /// Expose internal map for assertions.
   Map<String, Tag> get tags => Map.unmodifiable(_tags);
 
   @override
-  Future<List<Tag>> loadAll() async =>
-      _tags.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+  Future<List<Tag>> build() async => _sorted();
 
   @override
-  Future<void> add(Tag tag) async => _tags[tag.id] = tag;
+  Future<List<Tag>> loadAll() async => _sorted();
+
+  @override
+  Future<void> add(Tag tag) async {
+    _tags[tag.id] = tag;
+    ref.invalidateSelf();
+  }
 
   @override
   Future<void> delete(String id) async {
@@ -42,20 +44,7 @@ class FakeTagStore extends TagStore {
     for (final set in _folderTags.values) {
       set.remove(id);
     }
-  }
-
-  @override
-  Future<List<Tag>> getForSession(String sessionId) async {
-    final ids = _sessionTags[sessionId] ?? {};
-    return _tags.values.where((t) => ids.contains(t.id)).toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-  }
-
-  @override
-  Future<List<Tag>> getForFolder(String folderId) async {
-    final ids = _folderTags[folderId] ?? {};
-    return _tags.values.where((t) => ids.contains(t.id)).toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    ref.invalidateSelf();
   }
 
   @override
@@ -77,10 +66,27 @@ class FakeTagStore extends TagStore {
   Future<void> untagFolder(String folderId, String tagId) async {
     _folderTags[folderId]?.remove(tagId);
   }
+
+  /// Snapshot view consumed by test-side `sessionTagsProvider` /
+  /// `folderTagsProvider` overrides.
+  List<Tag> tagsForSession(String sessionId) {
+    final ids = _sessionTags[sessionId] ?? {};
+    return _tags.values.where((t) => ids.contains(t.id)).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  List<Tag> tagsForFolder(String folderId) {
+    final ids = _folderTags[folderId] ?? {};
+    return _tags.values.where((t) => ids.contains(t.id)).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  List<Tag> _sorted() =>
+      _tags.values.toList()..sort((a, b) => a.name.compareTo(b.name));
 }
 
 void main() {
-  late FakeTagStore fakeStore;
+  late FakeTagsNotifier fakeStore;
 
   final testTag = Tag(
     id: 't1',
@@ -98,7 +104,15 @@ void main() {
 
   Widget buildApp() {
     return ProviderScope(
-      overrides: [tagStoreProvider.overrideWithValue(fakeStore)],
+      overrides: [
+        tagsProvider.overrideWith(() => fakeStore),
+        sessionTagsProvider.overrideWith(
+          (ref, id) async => fakeStore.tagsForSession(id),
+        ),
+        folderTagsProvider.overrideWith(
+          (ref, id) async => fakeStore.tagsForFolder(id),
+        ),
+      ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
@@ -125,21 +139,21 @@ void main() {
 
   group('TagManagerDialog', () {
     testWidgets('shows empty state "No tags" when no tags', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       expect(find.text('No tags yet'), findsOneWidget);
     });
 
     testWidgets('shows dialog title "Tags"', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       expect(find.text('Tags'), findsOneWidget);
     });
 
     testWidgets('renders tag entries with name and color dot', (tester) async {
-      fakeStore = FakeTagStore([testTag, testTag2]);
+      fakeStore = FakeTagsNotifier([testTag, testTag2]);
       await openDialog(tester);
 
       expect(find.text('Production'), findsOneWidget);
@@ -151,7 +165,7 @@ void main() {
     });
 
     testWidgets('cancel button closes dialog', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       await tester.tap(find.text('Cancel'));
@@ -162,7 +176,7 @@ void main() {
     });
 
     testWidgets('delete button shows confirmation', (tester) async {
-      fakeStore = FakeTagStore([testTag]);
+      fakeStore = FakeTagsNotifier([testTag]);
       await openDialog(tester);
 
       await tester.tap(find.byIcon(Icons.delete_outline));
@@ -172,7 +186,7 @@ void main() {
     });
 
     testWidgets('delete confirmation removes tag', (tester) async {
-      fakeStore = FakeTagStore([testTag]);
+      fakeStore = FakeTagsNotifier([testTag]);
       await openDialog(tester);
 
       // Open delete confirmation.
@@ -195,7 +209,7 @@ void main() {
     testWidgets('add tag opens dialog with name field and color picker', (
       tester,
     ) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       await tester.tap(find.text('Add Tag'));
@@ -208,7 +222,7 @@ void main() {
     });
 
     testWidgets('add tag with name saves and shows in list', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       // Open add dialog.
@@ -235,7 +249,7 @@ void main() {
     });
 
     testWidgets('color picker shows 10 color dots', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       // Open add dialog to see color picker.

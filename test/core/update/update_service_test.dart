@@ -1,10 +1,12 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 import 'package:letsflutssh/core/update/update_service.dart';
+import 'package:letsflutssh/src/rust/api/installer.dart' as rust_installer;
+import 'package:letsflutssh/src/rust/api/update_http.dart' as rust_update_http;
+
+import '../../helpers/frb_bootstrap.dart';
 
 /// Minimal GitHub release JSON for testing.
 Map<String, dynamic> _releaseJson({
@@ -53,7 +55,41 @@ Map<String, dynamic> _releaseJson({
 String _releasesArray(List<Map<String, dynamic>> releases) =>
     jsonEncode(releases);
 
+/// Build a success-shaped [rust_update_http.DbDownloadResult] pointing
+/// at a freshly-written stub file. Tests that assert on the returned
+/// asset path can read [DbDownloadedAsset.assetPath] back; the
+/// manifest pair paths are filled with parallel `.sha256sums` /
+/// `.sha256sums.sig` neighbours to match what the Rust orchestrator
+/// hands back on the live path.
+rust_update_http.DbDownloadResult _downloadSuccess(String assetPath) =>
+    rust_update_http.DbDownloadResult(
+      asset: rust_update_http.DbDownloadedAsset(
+        assetPath: assetPath,
+        manifestPath: '$assetPath.sha256sums',
+        manifestSigPath: '$assetPath.sha256sums.sig',
+      ),
+    );
+
+/// Build a failure-shaped [rust_update_http.DbDownloadResult] for
+/// the requested [kind] + [detail] pair. The Dart-side mapping in
+/// `UpdateService.downloadAsset` reshapes each kind into the
+/// matching exception class.
+rust_update_http.DbDownloadResult _downloadFailure(
+  rust_update_http.DbDownloadErrorKind kind,
+  String detail,
+) => rust_update_http.DbDownloadResult(errorKind: kind, errorDetail: detail);
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // UpdateInfo.compareVersions routes through
+  // `lfs_core::update_metadata::compare_versions` — bootstrap FRB
+  // so the canonical Rust semver compare runs.
+  setUpAll(requireFrbLoaded);
+
+  // Clear the FRB-download seam between every test so a stray
+  // override from an earlier case cannot leak into the next.
+  tearDown(() => UpdateService.debugDownloadOverride = null);
+
   // ===========================================================================
   // UpdateInfo.compareVersions
   // ===========================================================================
@@ -218,196 +254,11 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.assetUrlForPlatform
-  // ===========================================================================
-  group('UpdateService.assetUrlForPlatform', () {
-    final assets = _releaseJson()['assets'] as List<dynamic>;
-
-    test('selects AppImage for linux', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'linux',
-      );
-      expect(url, contains('AppImage'));
-    });
-
-    test('selects setup.exe for windows', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'windows',
-      );
-      expect(url, contains('setup.exe'));
-    });
-
-    test('selects dmg for macos', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'macos',
-      );
-      expect(url, contains('.dmg'));
-    });
-
-    test('selects arm64 apk for android', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'android',
-      );
-      expect(url, contains('arm64.apk'));
-    });
-
-    test('returns null for unknown platform', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'unknown',
-      );
-      expect(url, isNull);
-    });
-
-    test('returns null for iOS (no self-update)', () {
-      final url = UpdateService.assetUrlForPlatform(
-        assets,
-        platformOverride: 'ios',
-      );
-      expect(url, isNull);
-    });
-
-    test('returns null when no matching asset', () {
-      final url = UpdateService.assetUrlForPlatform([
-        {
-          'name': 'some-other-file.zip',
-          'browser_download_url': 'https://example.com/file.zip',
-        },
-      ], platformOverride: 'linux');
-      expect(url, isNull);
-    });
-
-    test('returns null for empty assets list', () {
-      final url = UpdateService.assetUrlForPlatform(
-        [],
-        platformOverride: 'linux',
-      );
-      expect(url, isNull);
-    });
-
-    test('skips non-map entries in assets', () {
-      final url = UpdateService.assetUrlForPlatform([
-        'not a map',
-        42,
-        null,
-      ], platformOverride: 'linux');
-      expect(url, isNull);
-    });
-  });
-
-  // ===========================================================================
-  // UpdateService.digestForPlatform
-  // ===========================================================================
-  group('UpdateService.digestForPlatform', () {
-    final assets = _releaseJson()['assets'] as List<dynamic>;
-
-    test('extracts sha256 digest for linux', () {
-      final digest = UpdateService.digestForPlatform(
-        assets,
-        platformOverride: 'linux',
-      );
-      expect(digest, 'abcdef1234567890');
-    });
-
-    test('extracts sha256 digest for windows', () {
-      final digest = UpdateService.digestForPlatform(
-        assets,
-        platformOverride: 'windows',
-      );
-      expect(digest, '1234567890abcdef');
-    });
-
-    test('returns null when no digest field', () {
-      final digest = UpdateService.digestForPlatform([
-        {
-          'name': 'file-linux-x64.AppImage',
-          'browser_download_url': 'https://example.com/file',
-        },
-      ], platformOverride: 'linux');
-      expect(digest, isNull);
-    });
-
-    test('returns null for unknown platform', () {
-      final digest = UpdateService.digestForPlatform(
-        assets,
-        platformOverride: 'unknown',
-      );
-      expect(digest, isNull);
-    });
-
-    test('ignores non-sha256 digest prefix', () {
-      final digest = UpdateService.digestForPlatform([
-        {'name': 'file-linux-x64.AppImage', 'digest': 'md5:abc123'},
-      ], platformOverride: 'linux');
-      expect(digest, isNull);
-    });
-  });
-
-  // ===========================================================================
-  // UpdateService.buildCumulativeChangelog
-  // ===========================================================================
-  group('UpdateService.buildCumulativeChangelog', () {
-    test('includes all versions newer than current', () {
-      final releases = [
-        _releaseJson(tagName: 'v3.0.0', body: 'Three'),
-        _releaseJson(tagName: 'v2.0.0', body: 'Two'),
-        _releaseJson(tagName: 'v1.0.0', body: 'One'),
-      ];
-
-      final changelog = UpdateService.buildCumulativeChangelog(
-        releases,
-        '1.0.0',
-      );
-      expect(changelog, contains('## v3.0.0'));
-      expect(changelog, contains('Three'));
-      expect(changelog, contains('## v2.0.0'));
-      expect(changelog, contains('Two'));
-      expect(changelog, isNot(contains('## v1.0.0')));
-      expect(changelog, isNot(contains('One')));
-    });
-
-    test('returns null when no newer versions', () {
-      final releases = [_releaseJson(tagName: 'v1.0.0', body: 'One')];
-
-      final changelog = UpdateService.buildCumulativeChangelog(
-        releases,
-        '1.0.0',
-      );
-      expect(changelog, isNull);
-    });
-
-    test('skips releases with empty body', () {
-      final releases = [
-        _releaseJson(tagName: 'v2.0.0', body: ''),
-        _releaseJson(tagName: 'v1.5.0', body: 'Notes'),
-      ];
-
-      final changelog = UpdateService.buildCumulativeChangelog(
-        releases,
-        '1.0.0',
-      );
-      expect(changelog, isNot(contains('v2.0.0')));
-      expect(changelog, contains('v1.5.0'));
-      expect(changelog, contains('Notes'));
-    });
-
-    test('returns null for empty releases', () {
-      final changelog = UpdateService.buildCumulativeChangelog([], '1.0.0');
-      expect(changelog, isNull);
-    });
-  });
-
-  // ===========================================================================
   // UpdateService.checkForUpdate (with injected fetcher)
   // ===========================================================================
   group('UpdateService.checkForUpdate', () {
     test('returns UpdateInfo with hasUpdate true when newer version', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v2.0.0')]),
       );
 
@@ -421,7 +272,6 @@ void main() {
 
     test('returns hasUpdate false when same version', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v1.0.0')]),
       );
 
@@ -431,7 +281,6 @@ void main() {
 
     test('returns hasUpdate false when older remote version', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v0.9.0')]),
       );
 
@@ -441,7 +290,6 @@ void main() {
 
     test('handles single object (legacy /latest format)', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')),
       );
 
@@ -451,10 +299,7 @@ void main() {
     });
 
     test('handles empty releases array', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => '[]',
-      );
+      final service = UpdateService(fetch: (_) async => '[]');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -463,7 +308,6 @@ void main() {
 
     test('handles missing tag_name gracefully', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {'html_url': 'https://github.com/releases', 'assets': <dynamic>[]},
         ]),
@@ -476,7 +320,6 @@ void main() {
 
     test('handles missing html_url with fallback', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {'tag_name': 'v2.0.0', 'assets': <dynamic>[]},
         ]),
@@ -489,7 +332,6 @@ void main() {
 
     test('handles null changelog', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(body: null)]),
       );
 
@@ -499,7 +341,6 @@ void main() {
 
     test('extracts asset digest', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
@@ -511,7 +352,6 @@ void main() {
 
     test('builds cumulative changelog across multiple releases', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           _releaseJson(tagName: 'v3.0.0', body: 'Version three notes'),
           _releaseJson(tagName: 'v2.0.0', body: 'Version two notes'),
@@ -529,7 +369,6 @@ void main() {
 
     test('propagates fetch errors', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => throw const HttpException('Network error'),
       );
 
@@ -540,10 +379,7 @@ void main() {
     });
 
     test('propagates JSON parse errors', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => 'not json',
-      );
+      final service = UpdateService(fetch: (_) async => 'not json');
 
       expect(
         () => service.checkForUpdate('1.0.0'),
@@ -553,7 +389,6 @@ void main() {
 
     test('selects asset for current platform', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
@@ -612,239 +447,226 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.downloadAsset (with injected downloader)
+  // UpdateService.downloadAsset
+  //
+  // Production routes through `rust_update_http.updateDownloadWithVerification`
+  // — the entire stream-to-disk + SHA256 + manifest-signature pipeline
+  // lives Rust-side. Tests script the FRB return shape via
+  // `UpdateService.debugDownloadOverride` to exercise the Dart-side
+  // result→exception mapping. The Rust pipeline itself is covered by
+  // `lfs_core::update_http` unit tests and end-to-end integration tests.
   // ===========================================================================
   group('UpdateService.downloadAsset', () {
-    test('downloads file to target directory', () async {
+    test('returns the asset path on success', () async {
       final tempDir = await Directory.systemTemp.createTemp('update_test_');
       try {
-        final progressValues = <double>[];
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (uri, savePath, onProgress) async {
-            await File(savePath).writeAsString('fake binary');
-            onProgress?.call(50, 100);
-            onProgress?.call(100, 100);
-          },
-        );
+        final savedAt = '${tempDir.path}/letsflutssh-2.0.0-linux-x64.AppImage';
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async {
+              await File(savedAt).writeAsString('fake binary');
+              return _downloadSuccess(savedAt);
+            };
+        final service = UpdateService();
 
         final path = await service.downloadAsset(
           'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/letsflutssh-2.0.0-linux-x64.AppImage',
           tempDir.path,
-          onProgress: (received, total) {
-            progressValues.add(received / total);
-          },
         );
 
-        expect(path, contains('letsflutssh-2.0.0-linux-x64.AppImage'));
-        expect(await File(path).exists(), isTrue);
-        expect(progressValues, [0.5, 1.0]);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
-
-    test('verifies SHA256 digest on success', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        const content = 'test file content';
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (_, savePath, _) async {
-            await File(savePath).writeAsString(content);
-          },
-        );
-
-        // Compute expected hash
-        final expectedHash = await (() async {
-          final tmpFile = File(p.join(tempDir.path, 'tmp'));
-          await tmpFile.writeAsString(content);
-          return UpdateService.computeFileSha256(tmpFile.path);
-        })();
-
-        final path = await service.downloadAsset(
-          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          tempDir.path,
-          expectedDigest: expectedHash,
-        );
-
+        expect(path, savedAt);
         expect(await File(path).exists(), isTrue);
       } finally {
         await tempDir.delete(recursive: true);
       }
     });
 
-    test('throws and deletes file on SHA256 mismatch', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (_, savePath, _) async {
-            final f = File(savePath);
-            await f.parent.create(recursive: true);
-            await f.writeAsString('tampered content');
-          },
-        );
+    test('passes expectedDigest through to the FRB downloader', () async {
+      String? capturedDigest;
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async {
+            capturedDigest = expectedDigest;
+            return _downloadSuccess('/tmp/x');
+          };
+      final service = UpdateService();
 
-        await expectLater(
-          service.downloadAsset(
-            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-            tempDir.path,
-            expectedDigest: 'wrong_hash_value',
-          ),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('SHA256 mismatch'),
-            ),
-          ),
-        );
+      await service.downloadAsset(
+        'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+        '/tmp',
+        expectedDigest: 'deadbeef',
+      );
 
-        // File should be deleted after mismatch
-        expect(
-          await File(p.join(tempDir.path, 'file.AppImage')).exists(),
-          isFalse,
-        );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
+      expect(capturedDigest, 'deadbeef');
     });
 
-    test('skips verification when no digest provided', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (_, savePath, _) async {
-            await File(savePath).writeAsString('content');
-          },
-        );
+    test(
+      'empty-string digest forwarded when caller omits expectedDigest',
+      // Spec: the FRB surface takes a `String expectedDigest` (no
+      // null) and treats empty as "skip the per-asset SHA gate".
+      // The Dart wrapper normalises a null caller-side digest into
+      // `''` so the Rust side never has to inspect for null.
+      () async {
+        String? capturedDigest;
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async {
+              capturedDigest = expectedDigest;
+              return _downloadSuccess('/tmp/x');
+            };
+        final service = UpdateService();
 
-        final path = await service.downloadAsset(
+        await service.downloadAsset(
           'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          tempDir.path,
-          // no expectedDigest
+          '/tmp',
         );
 
-        expect(await File(path).exists(), isTrue);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
+        expect(capturedDigest, '');
+      },
+    );
 
-    test('propagates download errors', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        download: (_, _, _) async =>
-            throw const HttpException('Download failed'),
-      );
+    test('maps DbDownloadErrorKind.invalidSignature to '
+        'InvalidReleaseSignatureException', () async {
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async =>
+              _downloadFailure(
+                rust_update_http.DbDownloadErrorKind.invalidSignature,
+                'manifest signature did not verify',
+              );
+      final service = UpdateService();
 
-      expect(
-        () => service.downloadAsset(
+      await expectLater(
+        service.downloadAsset(
           'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          '/tmp/test',
-        ),
-        throwsA(isA<HttpException>()),
-      );
-    });
-
-    test('rejects untrusted download URL before downloader runs', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        download: (_, _, _) async {},
-      );
-      expect(
-        () => service.downloadAsset(
-          'https://evil.example/asset.AppImage',
           '/tmp',
         ),
         throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('Untrusted'),
+          isA<InvalidReleaseSignatureException>().having(
+            (e) => e.reason,
+            'reason',
+            contains('manifest signature'),
+          ),
+        ),
+      );
+    });
+
+    test('maps DbDownloadErrorKind.manifestUnavailable to '
+        'ReleaseManifestUnavailableException', () async {
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async =>
+              _downloadFailure(
+                rust_update_http.DbDownloadErrorKind.manifestUnavailable,
+                '404 on manifest',
+              );
+      final service = UpdateService();
+
+      await expectLater(
+        service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+        ),
+        throwsA(
+          isA<ReleaseManifestUnavailableException>().having(
+            (e) => e.reason,
+            'reason',
+            contains('404'),
           ),
         ),
       );
     });
 
     test(
-      'rejects + deletes binary when the injected verifier throws InvalidReleaseSignatureException',
+      'maps DbDownloadErrorKind.untrusted to StateError with Untrusted prefix',
       () async {
-        final tempDir = await Directory.systemTemp.createTemp('rel_sig_test_');
-        try {
-          final service = UpdateService(
-            download: (_, savePath, _) async {
-              await File(savePath).writeAsString('fake binary');
-            },
-            verifyArtifact:
-                ({
-                  required assetUri,
-                  required assetPath,
-                  required targetDir,
-                  required download,
-                }) async {
-                  throw const InvalidReleaseSignatureException(
-                    'forced for test',
-                  );
-                },
-          );
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadFailure(
+              rust_update_http.DbDownloadErrorKind.untrusted,
+              'redirect to evil.example',
+            );
+        final service = UpdateService();
 
-          await expectLater(
-            service.downloadAsset(
-              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-              tempDir.path,
+        await expectLater(
+          service.downloadAsset(
+            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+            '/tmp',
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Untrusted'),
             ),
-            throwsA(isA<InvalidReleaseSignatureException>()),
-          );
-          // Binary must be deleted on signature failure.
-          expect(
-            await File(p.join(tempDir.path, 'file.AppImage')).exists(),
-            isFalse,
-          );
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
+          ),
+        );
       },
     );
-  });
 
-  // ===========================================================================
-  // UpdateService.computeFileSha256
-  // ===========================================================================
-  group('UpdateService.computeFileSha256', () {
-    test('computes correct SHA256 for known content', () async {
-      final tempDir = await Directory.systemTemp.createTemp('sha256_test_');
-      try {
-        final file = File(p.join(tempDir.path, 'test.bin'));
-        await file.writeAsString('hello');
-        final hash = await UpdateService.computeFileSha256(file.path);
-        // SHA256 of "hello" = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
-        expect(
-          hash,
-          '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-        );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
+    test('maps DbDownloadErrorKind.network to generic StateError', () async {
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async =>
+              _downloadFailure(
+                rust_update_http.DbDownloadErrorKind.network,
+                'connection reset',
+              );
+      final service = UpdateService();
+
+      await expectLater(
+        service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Update download failed'),
+          ),
+        ),
+      );
     });
 
-    test('computes correct SHA256 for empty file', () async {
-      final tempDir = await Directory.systemTemp.createTemp('sha256_test_');
-      try {
-        final file = File(p.join(tempDir.path, 'empty.bin'));
-        await file.writeAsBytes([]);
-        final hash = await UpdateService.computeFileSha256(file.path);
-        // SHA256 of empty content = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-        expect(
-          hash,
-          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    test(
+      'rejects untrusted download URL before invoking the downloader',
+      () async {
+        // Spec: the trust check in [UpdateService.downloadAsset] runs
+        // synchronously at the top of the call and must reject before
+        // the FRB downloader is ever invoked. The wrapper repeats the
+        // gate the Rust side already enforces because a fail-fast on
+        // Dart side avoids spinning up the bus subscription + FRB
+        // round-trip for a URL we know is doomed.
+        var downloaderCalled = false;
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async {
+              downloaderCalled = true;
+              return _downloadSuccess('/tmp/x');
+            };
+        final service = UpdateService();
+        await expectLater(
+          service.downloadAsset('https://evil.example/asset.AppImage', '/tmp'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Untrusted'),
+            ),
+          ),
         );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
+        expect(downloaderCalled, isFalse);
+      },
+    );
   });
 
   // ===========================================================================
@@ -980,95 +802,11 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.digestForPlatform — additional edge cases
-  // ===========================================================================
-  group('UpdateService.digestForPlatform (edge cases)', () {
-    test('skips non-map entries in assets list', () {
-      final digest = UpdateService.digestForPlatform([
-        'not a map',
-        42,
-        null,
-      ], platformOverride: 'linux');
-      expect(digest, isNull);
-    });
-
-    test('returns null for asset with missing name field', () {
-      final digest = UpdateService.digestForPlatform([
-        <String, dynamic>{
-          'browser_download_url': 'https://example.com/f',
-          'digest': 'sha256:abc',
-        },
-      ], platformOverride: 'linux');
-      expect(digest, isNull);
-    });
-
-    test('extracts digest for macos platform', () {
-      final digest = UpdateService.digestForPlatform([
-        {'name': 'app-macos-universal.dmg', 'digest': 'sha256:macdigest123'},
-      ], platformOverride: 'macos');
-      expect(digest, 'macdigest123');
-    });
-
-    test('extracts digest for android platform', () {
-      final digest = UpdateService.digestForPlatform([
-        {'name': 'app-android-arm64.apk', 'digest': 'sha256:androiddigest'},
-      ], platformOverride: 'android');
-      expect(digest, 'androiddigest');
-    });
-
-    test('returns null when digest field is null', () {
-      final digest = UpdateService.digestForPlatform([
-        {'name': 'file-linux-x64.AppImage', 'digest': null},
-      ], platformOverride: 'linux');
-      expect(digest, isNull);
-    });
-  });
-
-  // ===========================================================================
-  // UpdateService.buildCumulativeChangelog — additional edge cases
-  // ===========================================================================
-  group('UpdateService.buildCumulativeChangelog (edge cases)', () {
-    test('skips non-map entries in releases list', () {
-      final changelog = UpdateService.buildCumulativeChangelog([
-        'not a map',
-        _releaseJson(tagName: 'v2.0.0', body: 'Good notes'),
-      ], '1.0.0');
-      expect(changelog, contains('Good notes'));
-    });
-
-    test('skips releases with null body', () {
-      final changelog = UpdateService.buildCumulativeChangelog([
-        _releaseJson(tagName: 'v2.0.0', body: null),
-      ], '1.0.0');
-      expect(changelog, isNull);
-    });
-
-    test('skips releases with whitespace-only body', () {
-      final changelog = UpdateService.buildCumulativeChangelog([
-        _releaseJson(tagName: 'v2.0.0', body: '   \n  '),
-      ], '1.0.0');
-      expect(changelog, isNull);
-    });
-
-    test('handles release with missing tag_name', () {
-      // Missing tag_name defaults to empty string which compares as 0.0.0
-      // so it would be <= currentVersion of 1.0.0, causing a break
-      final changelog = UpdateService.buildCumulativeChangelog([
-        <String, dynamic>{'body': 'Notes'},
-      ], '1.0.0');
-      expect(changelog, isNull);
-    });
-  });
-
-  // ===========================================================================
   // UpdateService.checkForUpdate — additional edge cases
   // ===========================================================================
   group('UpdateService.checkForUpdate (edge cases)', () {
     test('handles unexpected JSON type (number)', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => '42',
-      );
+      final service = UpdateService(fetch: (_) async => '42');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -1076,10 +814,7 @@ void main() {
     });
 
     test('handles unexpected JSON type (string)', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => '"hello"',
-      );
+      final service = UpdateService(fetch: (_) async => '"hello"');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -1088,7 +823,6 @@ void main() {
 
     test('handles release with null assets list', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {
             'tag_name': 'v2.0.0',
@@ -1105,7 +839,6 @@ void main() {
 
     test('handles tag_name without v prefix', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {
             'tag_name': '3.0.0',
@@ -1126,10 +859,7 @@ void main() {
   // ===========================================================================
   group('UpdateService.downloadAsset (edge cases)', () {
     test('rejects http (non-https) download URL', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        download: (_, _, _) async {},
-      );
+      final service = UpdateService();
       expect(
         () => service.downloadAsset(
           'http://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
@@ -1145,243 +875,184 @@ void main() {
       );
     });
 
-    test('handles download without progress callback', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (uri, savePath, onProgress) async {
-            await File(savePath).writeAsString('content');
-            // onProgress is null, should not be called
-          },
-        );
-
-        final path = await service.downloadAsset(
-          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          tempDir.path,
-        );
-
-        expect(await File(path).exists(), isTrue);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
-
     test(
-      'SHA256 mismatch still surfaces when cleanup delete also fails',
-      // Spec (update_service.downloadAsset L237-252): on digest mismatch we
-      // attempt to delete the downloaded file so a partial/tampered artifact
-      // cannot be mistaken for a good install. If delete itself fails (file
-      // already gone, read-only dir, etc.) we must still throw the SHA256
-      // mismatch StateError — cleanup is best-effort and must not mask the
-      // primary security failure. The delete failure is logged, not
-      // re-thrown.
+      'downloadAsset surfaces "without detail" when FRB result is null',
+      // Spec: a downloader implementation that returns a result with
+      // both `asset` and `errorKind` null is malformed. The wrapper
+      // must fail loudly rather than silently swallow — the
+      // `case null:` arm exists so a future Rust change that
+      // forgets to populate a new kind is caught immediately.
       () async {
-        // Trick to make File.delete throw: downloader writes the file, then
-        // strips write permission from the parent dir so the delete call
-        // raises EACCES. POSIX-only; Windows ACLs work differently, skip it
-        // there since this project's CI is Linux.
-        if (!Platform.isLinux && !Platform.isMacOS) {
-          markTestSkipped('requires POSIX chmod to block directory writes');
-          return;
-        }
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => const rust_update_http.DbDownloadResult();
+        final service = UpdateService();
 
-        final tempDir = await Directory.systemTemp.createTemp('update_test_');
-        try {
-          final service = UpdateService(
-            verifyArtifact: UpdateService.skipSignatureVerification,
-            download: (_, savePath, _) async {
-              await File(savePath).writeAsString('content');
-              await Process.run('chmod', ['a-w', tempDir.path]);
-            },
-          );
-
-          await expectLater(
-            service.downloadAsset(
-              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-              tempDir.path,
-              expectedDigest: 'unreachable_digest',
+        await expectLater(
+          service.downloadAsset(
+            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+            '/tmp',
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('without detail'),
             ),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                contains('SHA256 mismatch'),
-              ),
-            ),
-          );
-        } finally {
-          // Restore perms so the tempDir can be deleted on teardown.
-          await Process.run('chmod', ['u+w', tempDir.path]);
-          await tempDir.delete(recursive: true);
-        }
+          ),
+        );
       },
     );
   });
 
   // ===========================================================================
-  // UpdateService.assetUrlForPlatform — additional edge cases
-  // ===========================================================================
-  group('UpdateService.assetUrlForPlatform (edge cases)', () {
-    test('returns null when asset has no browser_download_url', () {
-      final url = UpdateService.assetUrlForPlatform([
-        {
-          'name': 'letsflutssh-2.0.0-linux-x64.AppImage',
-          // no browser_download_url key
-        },
-      ], platformOverride: 'linux');
-      expect(url, isNull);
-    });
-
-    test('matches first matching asset when multiple match', () {
-      final url = UpdateService.assetUrlForPlatform([
-        {
-          'name': 'a-linux-x64.AppImage',
-          'browser_download_url': 'https://github.com/first',
-        },
-        {
-          'name': 'b-linux-x64.AppImage',
-          'browser_download_url': 'https://github.com/second',
-        },
-      ], platformOverride: 'linux');
-      expect(url, 'https://github.com/first');
-    });
-
-    test('asset with empty name does not match', () {
-      final url = UpdateService.assetUrlForPlatform([
-        {'name': '', 'browser_download_url': 'https://github.com/empty'},
-      ], platformOverride: 'linux');
-      expect(url, isNull);
-    });
-  });
-
-  // ===========================================================================
-  // UpdateService.openFile (platform injected via constructor)
+  // UpdateService.openFile (platform + InstallerOpener injected via
+  // constructor)
   // ===========================================================================
   //
-  // Spec (derived from update_service.openFile source): pick a host-specific
-  // "open this file" command from the platform string, pass the path, and
-  // return whether the process exited cleanly. Windows additionally refuses
-  // paths carrying shell metacharacters because cmd /c start would interpret
-  // them. Unsupported platforms (e.g. 'android', 'unknown') must refuse
-  // without spawning a process.
+  // Spec (derived from update_service.openFile source): hand the path +
+  // platform string off to the installer-launch perimeter (which lives in
+  // `lfs_os_security::installer_launch` in production, swapped for a
+  // scripted [InstallerOpener] in tests) and translate the typed
+  // [rust_installer.InstallerLaunchOutcome] into the bool the UI expects —
+  // `true` only on [InstallerLaunchOutcome.launched]. Every other variant
+  // (`refusedUnsafePath`, `unsupportedPlatform`, `launchFailed`) surfaces as
+  // `false` and lets Settings fall back to opening the GitHub release page.
+  //
+  // Tests below never call `openFile` without injecting `openInstaller`: the
+  // default binding routes through the real FRB shim, which on Linux/WSL
+  // would spawn `xdg-open` and pop a Windows file-association dialog.
   group('UpdateService.openFile', () {
-    test('linux opens via xdg-open and returns true on exit 0', () async {
-      String? capturedExe;
-      List<String>? capturedArgs;
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        platform: 'linux',
-        runProcess: (exe, args) async {
-          capturedExe = exe;
-          capturedArgs = args;
-          return ProcessResult(0, 0, '', '');
-        },
-      );
-
-      final ok = await service.openFile('/tmp/test.AppImage');
-
-      expect(ok, isTrue);
-      expect(capturedExe, 'xdg-open');
-      expect(capturedArgs, ['/tmp/test.AppImage']);
-    });
-
-    test('macos opens via /usr/bin/open and returns true on exit 0', () async {
-      String? capturedExe;
-      List<String>? capturedArgs;
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        platform: 'macos',
-        runProcess: (exe, args) async {
-          capturedExe = exe;
-          capturedArgs = args;
-          return ProcessResult(0, 0, '', '');
-        },
-      );
-
-      final ok = await service.openFile('/Applications/App.dmg');
-
-      expect(ok, isTrue);
-      expect(capturedExe, 'open');
-      expect(capturedArgs, ['/Applications/App.dmg']);
-    });
-
-    test('windows opens via cmd /c start with empty title slot', () async {
-      // The empty string between `start` and `path` is the window title
-      // placeholder — mandatory when the path is quoted, and a common source
-      // of bugs when people omit it. Test asserts the exact arg vector.
-      String? capturedExe;
-      List<String>? capturedArgs;
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        platform: 'windows',
-        runProcess: (exe, args) async {
-          capturedExe = exe;
-          capturedArgs = args;
-          return ProcessResult(0, 0, '', '');
-        },
-      );
-
-      final ok = await service.openFile(r'C:\Users\me\setup.exe');
-
-      expect(ok, isTrue);
-      expect(capturedExe, 'cmd');
-      expect(capturedArgs, ['/c', 'start', '', r'C:\Users\me\setup.exe']);
-    });
-
-    test('non-zero exit propagates as false on each host platform', () async {
-      for (final platform in ['linux', 'macos', 'windows']) {
+    test(
+      'linux Launched outcome returns true and hits the perimeter',
+      () async {
+        String? capturedPath;
+        String? capturedPlatform;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          platform: platform,
-          runProcess: (_, _) async => ProcessResult(0, 1, '', 'err'),
+          platform: 'linux',
+          openInstaller: (path, platform) async {
+            capturedPath = path;
+            capturedPlatform = platform;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
         );
 
-        expect(
-          await service.openFile('/tmp/x.bin'),
-          isFalse,
-          reason: '$platform should surface non-zero exit as false',
-        );
-      }
-    });
+        final ok = await service.openFile('/tmp/test.AppImage');
+
+        expect(ok, isTrue);
+        expect(capturedPath, '/tmp/test.AppImage');
+        expect(capturedPlatform, 'linux');
+      },
+    );
 
     test(
-      'unsupported platform refuses without calling the process runner',
-      // Spec: on platforms we don't ship self-update for (iOS, fuchsia,
-      // anything not in _selfUpdatablePlatforms) openFile must short-circuit
-      // to false — spawning `xdg-open` on an iPhone would be pure crash bait.
+      'macos Launched outcome returns true and hits the perimeter',
       () async {
-        var processCalled = false;
+        String? capturedPath;
+        String? capturedPlatform;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
+          platform: 'macos',
+          openInstaller: (path, platform) async {
+            capturedPath = path;
+            capturedPlatform = platform;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile('/Applications/App.dmg');
+
+        expect(ok, isTrue);
+        expect(capturedPath, '/Applications/App.dmg');
+        expect(capturedPlatform, 'macos');
+      },
+    );
+
+    test(
+      'windows Launched outcome returns true and hits the perimeter',
+      () async {
+        String? capturedPath;
+        String? capturedPlatform;
+        final service = UpdateService(
+          platform: 'windows',
+          openInstaller: (path, platform) async {
+            capturedPath = path;
+            capturedPlatform = platform;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile(r'C:\Users\me\setup.exe');
+
+        expect(ok, isTrue);
+        expect(capturedPath, r'C:\Users\me\setup.exe');
+        expect(capturedPlatform, 'windows');
+      },
+    );
+
+    test(
+      'LaunchFailed outcome surfaces as false on every host platform',
+      // Spec: a non-zero exit (or a missing executable) from the perimeter
+      // surfaces as `InstallerLaunchOutcome.launchFailed`. `openFile` must
+      // return false on each supported platform so Settings can fall back to
+      // the browser-reveal path.
+      () async {
+        for (final platform in ['linux', 'macos', 'windows']) {
+          final service = UpdateService(
+            platform: platform,
+            openInstaller: (_, _) async =>
+                const rust_installer.InstallerLaunchOutcome.launchFailed(
+                  exitCode: 1,
+                  stderr: 'err',
+                ),
+          );
+
+          expect(
+            await service.openFile('/tmp/x.bin'),
+            isFalse,
+            reason: '$platform should surface LaunchFailed as false',
+          );
+        }
+      },
+    );
+
+    test(
+      'UnsupportedPlatform outcome refuses without retrying',
+      // Spec: the perimeter answers `UnsupportedPlatform` for any platform
+      // string outside linux/macos/windows. `openFile` must return false and
+      // must not call the opener twice (no fallback retry).
+      () async {
+        var calls = 0;
+        final service = UpdateService(
           platform: 'ios',
-          runProcess: (_, _) async {
-            processCalled = true;
-            return ProcessResult(0, 0, '', '');
+          openInstaller: (_, _) async {
+            calls++;
+            return const rust_installer.InstallerLaunchOutcome.unsupportedPlatform();
           },
         );
 
         final ok = await service.openFile('/tmp/anything');
 
         expect(ok, isFalse);
-        expect(processCalled, isFalse);
+        expect(calls, 1);
       },
     );
 
     test(
-      'windows refuses path with shell metacharacter before spawning cmd',
-      // Spec: `cmd /c start` parses `&`, `|`, `<`, `>`, `^`, `%` as shell
-      // metacharacters, so a path containing any of them would either fail
-      // loudly or — worse — execute something unintended. openFile must
-      // reject such paths up front and never spawn cmd.
+      'RefusedUnsafePath outcome surfaces as false without retry',
+      // Spec: when the perimeter's cmd.exe-metacharacter allowlist refuses
+      // the path, `openFile` must return false and must not retry with a
+      // sanitised path. Loops over the six core cmd metacharacters to pin
+      // every-character handling end-to-end.
       () async {
-        var processCalled = false;
+        var calls = 0;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'windows',
-          runProcess: (_, _) async {
-            processCalled = true;
-            return ProcessResult(0, 0, '', '');
+          openInstaller: (_, _) async {
+            calls++;
+            return const rust_installer.InstallerLaunchOutcome.refusedUnsafePath();
           },
         );
 
@@ -1390,26 +1061,26 @@ void main() {
           expect(
             ok,
             isFalse,
-            reason: 'path with "$ch" should be refused without spawning cmd',
+            reason: 'path with "$ch" should refuse without retry',
           );
         }
-        expect(processCalled, isFalse);
+        expect(calls, 6);
       },
     );
 
     test(
-      'windows with safe path still spawns cmd (regression guard)',
+      'safe windows path reaches the perimeter and Launched returns true',
+      // Paranoid regression guard: realistic Windows paths (spaces, hyphens,
+      // dots, underscores) MUST reach the perimeter and surface as Launched.
+      // If a future Dart-side pre-filter over-rejected safe paths, this
+      // test would catch it because the opener would never be invoked.
       () async {
-        // Paranoid check that the metacharacter filter isn't over-matching and
-        // blocking paths that contain hyphens, dots, underscores, or spaces —
-        // real Windows paths routinely carry these.
-        var processCalled = false;
+        var calls = 0;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'windows',
-          runProcess: (_, _) async {
-            processCalled = true;
-            return ProcessResult(0, 0, '', '');
+          openInstaller: (_, _) async {
+            calls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
           },
         );
 
@@ -1420,428 +1091,9 @@ void main() {
         ]) {
           expect(await service.openFile(path), isTrue);
         }
-        expect(processCalled, isTrue);
+        expect(calls, 3);
       },
     );
-  });
-
-  // ===========================================================================
-  // UpdateService.defaultFetch / UpdateService.defaultDownload — exercised
-  // with an HttpOverrides mock so the real HttpClient branch is covered.
-  // ===========================================================================
-  //
-  // Spec:
-  //   defaultFetch(url) -> body
-  //     - GETs the URL with Accept: application/vnd.github.v3+json and the
-  //       LetsFLUTssh user agent.
-  //     - 200 -> response body decoded as UTF-8 string.
-  //     - anything else -> HttpException with the status code in its message.
-  //
-  //   defaultDownload(url, savePath, onProgress?) -> writes response body
-  //     - Rejects an untrusted URL upfront with StateError, before opening
-  //       the client (so a bug in trust detection can't be masked by the
-  //       network layer).
-  //     - 2xx -> body streamed to savePath, onProgress invoked on each chunk.
-  //     - 3xx with Location -> follows redirect *only if the target is also
-  //       a trusted GitHub asset host*; rewrites requestUri, loops.
-  //     - >10 redirects -> StateError 'Too many redirects' (cycle guard).
-  //     - 3xx -> untrusted target -> StateError 'Untrusted … redirect'.
-  //     - Non-redirect non-200 -> HttpException with the status code.
-  group('UpdateService default HTTP implementations', () {
-    test(
-      'defaultFetch returns UTF-8 body on 200 with expected headers',
-      () async {
-        final recorded = <Uri>[];
-        final recordedHeaders = <String, String>{};
-        final overrides = _FakeHttpOverrides((uri) {
-          recorded.add(uri);
-          return _FakeResponse(200, body: utf8.encode('{"tag_name":"v2"}'));
-        }, onHeader: (name, value) => recordedHeaders[name] = value);
-
-        String body = '';
-        await HttpOverrides.runWithHttpOverrides(() async {
-          body = await UpdateService.defaultFetch(
-            Uri.parse('https://api.github.com/repos/x/releases'),
-          );
-        }, overrides);
-
-        expect(body, '{"tag_name":"v2"}');
-        expect(recorded.single.host, 'api.github.com');
-        expect(recordedHeaders['accept'], 'application/vnd.github.v3+json');
-        expect(recordedHeaders['user-agent'], contains('LetsFLUTssh'));
-      },
-    );
-
-    test('defaultFetch throws HttpException on non-200 status', () async {
-      final overrides = _FakeHttpOverrides(
-        (_) => _FakeResponse(503, body: utf8.encode('upstream down')),
-      );
-
-      await HttpOverrides.runWithHttpOverrides(() async {
-        await expectLater(
-          UpdateService.defaultFetch(
-            Uri.parse('https://api.github.com/repos/x/releases'),
-          ),
-          throwsA(
-            isA<HttpException>().having(
-              (e) => e.message,
-              'message',
-              contains('503'),
-            ),
-          ),
-        );
-      }, overrides);
-    });
-
-    test(
-      'defaultDownload refuses untrusted URL without opening the client',
-      // Spec: the trust check runs *before* HttpClient is instantiated, so
-      // this must never even attempt a request. Guards against ever shipping
-      // an update from a non-GitHub host.
-      () async {
-        var clientCreated = false;
-        final overrides = _FakeHttpOverrides(
-          (_) => _FakeResponse(200),
-          onClientCreated: () => clientCreated = true,
-        );
-
-        await HttpOverrides.runWithHttpOverrides(() async {
-          await expectLater(
-            UpdateService.defaultDownload(
-              Uri.parse('https://evil.example/asset.AppImage'),
-              '/tmp/nowhere',
-              null,
-            ),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                contains('Untrusted'),
-              ),
-            ),
-          );
-        }, overrides);
-
-        expect(clientCreated, isFalse);
-      },
-    );
-
-    test(
-      'defaultDownload writes body to savePath and fires onProgress per chunk',
-      () async {
-        final tempDir = await Directory.systemTemp.createTemp('dl_test_');
-        try {
-          final overrides = _FakeHttpOverrides(
-            (_) => _FakeResponse(
-              200,
-              chunks: [utf8.encode('hello '), utf8.encode('world')],
-              contentLength: 11,
-            ),
-          );
-
-          final progress = <(int, int)>[];
-          final savePath = p.join(tempDir.path, 'pkg.AppImage');
-          await HttpOverrides.runWithHttpOverrides(() async {
-            await UpdateService.defaultDownload(
-              Uri.parse(
-                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2/pkg.AppImage',
-              ),
-              savePath,
-              (received, total) => progress.add((received, total)),
-            );
-          }, overrides);
-
-          expect(await File(savePath).readAsString(), 'hello world');
-          expect(progress, [(6, 11), (11, 11)]);
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
-      },
-    );
-
-    test(
-      'defaultDownload follows a trusted redirect and writes the final body',
-      () async {
-        final tempDir = await Directory.systemTemp.createTemp('dl_test_');
-        try {
-          final responses = <_FakeResponse>[
-            _FakeResponse(
-              302,
-              headers: {
-                'location':
-                    'https://objects.githubusercontent.com/final/pkg.AppImage',
-              },
-            ),
-            _FakeResponse(200, body: utf8.encode('final body')),
-          ];
-          var i = 0;
-          final recorded = <Uri>[];
-          final overrides = _FakeHttpOverrides((uri) {
-            recorded.add(uri);
-            return responses[i++];
-          });
-
-          final savePath = p.join(tempDir.path, 'pkg.AppImage');
-          await HttpOverrides.runWithHttpOverrides(() async {
-            await UpdateService.defaultDownload(
-              Uri.parse(
-                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/pkg.AppImage',
-              ),
-              savePath,
-              null,
-            );
-          }, overrides);
-
-          expect(recorded.length, 2);
-          expect(recorded[0].host, 'github.com');
-          expect(recorded[1].host, 'objects.githubusercontent.com');
-          expect(await File(savePath).readAsString(), 'final body');
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
-      },
-    );
-
-    test(
-      'defaultDownload throws StateError when redirect target is untrusted',
-      // Spec: GitHub's download CDN sometimes 302s; if a bug or MITM ever
-      // redirects us off-platform, we must refuse rather than happily
-      // follow. Guards the integrity of the update pipeline.
-      () async {
-        final overrides = _FakeHttpOverrides(
-          (_) => _FakeResponse(
-            302,
-            headers: {'location': 'https://evil.example/bait.AppImage'},
-          ),
-        );
-
-        await HttpOverrides.runWithHttpOverrides(() async {
-          await expectLater(
-            UpdateService.defaultDownload(
-              Uri.parse(
-                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/pkg.AppImage',
-              ),
-              '/tmp/nowhere',
-              null,
-            ),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                contains('Untrusted update download redirect'),
-              ),
-            ),
-          );
-        }, overrides);
-      },
-    );
-
-    test('defaultDownload aborts after more than 10 redirects', () async {
-      // Spec: cycle guard. Hand out a trusted 302 that points back to itself
-      // 11 times; the 11th attempt must raise StateError 'Too many
-      // redirects' instead of looping forever.
-      var count = 0;
-      final overrides = _FakeHttpOverrides((_) {
-        count++;
-        return _FakeResponse(
-          302,
-          headers: {
-            'location':
-                'https://objects.githubusercontent.com/cycle/pkg.AppImage',
-          },
-        );
-      });
-
-      await HttpOverrides.runWithHttpOverrides(() async {
-        await expectLater(
-          UpdateService.defaultDownload(
-            Uri.parse(
-              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/pkg.AppImage',
-            ),
-            '/tmp/nowhere',
-            null,
-          ),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('Too many redirects'),
-            ),
-          ),
-        );
-      }, overrides);
-
-      expect(count, 11);
-    });
-
-    test(
-      'defaultDownload throws HttpException on non-200 non-redirect',
-      () async {
-        final overrides = _FakeHttpOverrides(
-          (_) => _FakeResponse(404, body: utf8.encode('not found')),
-        );
-
-        await HttpOverrides.runWithHttpOverrides(() async {
-          await expectLater(
-            UpdateService.defaultDownload(
-              Uri.parse(
-                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/pkg.AppImage',
-              ),
-              '/tmp/nowhere',
-              null,
-            ),
-            throwsA(
-              isA<HttpException>().having(
-                (e) => e.message,
-                'message',
-                contains('404'),
-              ),
-            ),
-          );
-        }, overrides);
-      },
-    );
-  });
-
-  // ===========================================================================
-  // Manifest-signature flow (the production [_defaultVerifyArtifact]
-  // decomposes into two pure pieces: version parsing + manifest parsing).
-  // We unit-test each directly; the full end-to-end path is exercised
-  // through the wider update flow in release_signing_test.dart and the
-  // public verifier contract.
-  // ===========================================================================
-  group('UpdateService.parseAssetVersion', () {
-    test('captures the semver from a canonical release asset filename', () {
-      expect(
-        UpdateService.parseAssetVersion('letsflutssh-5.9.0-linux-x64.tar.gz'),
-        '5.9.0',
-      );
-      expect(
-        UpdateService.parseAssetVersion(
-          'letsflutssh-10.12.3-windows-x64-setup.exe',
-        ),
-        '10.12.3',
-      );
-    });
-
-    test(
-      'returns null for names that do not start with the product prefix',
-      () {
-        // Spec: we only accept names produced by our own release workflow.
-        // An upstream-typoed `letsflutssh_5.9.0-*` (underscore), a bare
-        // version, or a different product name must not silently pass —
-        // the whole manifest flow keys off this capture.
-        expect(
-          UpdateService.parseAssetVersion('letsflutssh_5.9.0.tar.gz'),
-          isNull,
-        );
-        expect(
-          UpdateService.parseAssetVersion('5.9.0-linux-x64.tar.gz'),
-          isNull,
-        );
-        expect(
-          UpdateService.parseAssetVersion('other-5.9.0-linux.tar.gz'),
-          isNull,
-        );
-      },
-    );
-
-    test('returns null for a pre-release or non-dotted version string', () {
-      // Our bump script only produces three-part semver — any other
-      // shape is a sign something went wrong upstream, better to
-      // fail-closed than match a surprise.
-      expect(
-        UpdateService.parseAssetVersion('letsflutssh-5.9-linux-x64.tar.gz'),
-        isNull,
-      );
-      expect(
-        UpdateService.parseAssetVersion(
-          'letsflutssh-5.9.0-rc1-linux-x64.tar.gz',
-        ),
-        '5.9.0',
-        reason:
-            'the leading three-digit dotted version still captures — '
-            'anything after the third segment is part of the platform '
-            'suffix and not our concern here',
-      );
-    });
-  });
-
-  group('UpdateService.parseSha256Manifest', () {
-    test('parses the text-mode (double-space) sha256sum format', () {
-      // Spec: workflow pipes `sha256sum <file>` output into the
-      // manifest; GNU coreutils uses `<hash>  <name>` (two spaces)
-      // by default. Verify we accept exactly that.
-      const content =
-          'a3f5e8d2c91b1234567890abcdef1234567890abcdef1234567890abcdef1234  '
-          'letsflutssh-5.9.0-linux-x64.tar.gz\n'
-          'b7d1f2e9a45cabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd  '
-          'letsflutssh-5.9.0-linux-amd64.deb\n';
-      final m = UpdateService.parseSha256Manifest(content);
-      expect(m.length, 2);
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], startsWith('a3f5'));
-      expect(m['letsflutssh-5.9.0-linux-amd64.deb'], startsWith('b7d1'));
-    });
-
-    test('accepts binary-mode (asterisk-prefixed) filename field', () {
-      // `sha256sum -b` emits `<hash> *<name>`. Be lenient so a
-      // workflow tweak that switches modes doesn't silently break
-      // the verifier.
-      final hash = 'a' * 64;
-      final m = UpdateService.parseSha256Manifest(
-        '$hash *letsflutssh-5.9.0-linux-x64.tar.gz\n',
-      );
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hash);
-    });
-
-    test('ignores blank lines and comments', () {
-      // Spec: the manifest format stays forward-compatible with
-      // human-readable annotations — a future workflow tweak that
-      // adds a header comment should not break the parser.
-      final hash = 'b' * 64;
-      final m = UpdateService.parseSha256Manifest('''
-# Release manifest — letsflutssh 5.9.0
-
-$hash  letsflutssh-5.9.0-linux-x64.tar.gz
-
-''');
-      expect(m.length, 1);
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hash);
-    });
-
-    test(
-      'rejects malformed lines (short hash, missing whitespace, empty name)',
-      () {
-        // Silent skip over malformed lines — defensive parse so a
-        // single stray byte doesn't poison the whole manifest.
-        final m = UpdateService.parseSha256Manifest('''
-short-hash  letsflutssh-5.9.0-linux-x64.tar.gz
-${'c' * 64}
-${'d' * 64}  ''');
-        expect(
-          m,
-          isEmpty,
-          reason:
-              'no valid entry — short hash is length-checked out, two '
-              'malformed lines carry no whitespace-bound name',
-        );
-      },
-    );
-
-    test('later duplicate entry overrides earlier — last write wins', () {
-      // Spec: a duplicate in a signed manifest means the release
-      // manifest is malformed, but the verifier still has to pick
-      // one value. Last-write-wins matches how `sha256sum -c` walks
-      // the file top-to-bottom — whichever entry is checked last is
-      // the effective one.
-      final hashA = 'a' * 64;
-      final hashB = 'b' * 64;
-      final m = UpdateService.parseSha256Manifest(
-        '$hashA  letsflutssh-5.9.0-linux-x64.tar.gz\n'
-        '$hashB  letsflutssh-5.9.0-linux-x64.tar.gz\n',
-      );
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hashB);
-    });
   });
 
   group('InvalidReleaseSignatureException.toString', () {
@@ -1864,149 +1116,4 @@ ${'d' * 64}  ''');
       expect(ex.toString(), startsWith('InvalidReleaseSignatureException:'));
     });
   });
-}
-
-// ===========================================================================
-// HttpOverrides scaffolding — minimal mock HttpClient so tests can drive
-// defaultFetch / defaultDownload without touching a real network.
-// ===========================================================================
-
-typedef _Responder = _FakeResponse Function(Uri uri);
-
-class _FakeResponse {
-  final int statusCode;
-  final List<int> body;
-  final List<List<int>> chunks;
-  final Map<String, String> headers;
-  final int contentLength;
-
-  _FakeResponse(
-    this.statusCode, {
-    this.body = const [],
-    List<List<int>>? chunks,
-    this.headers = const {},
-    int? contentLength,
-  }) : chunks = chunks ?? (body.isEmpty ? const [] : [body]),
-       contentLength = contentLength ?? body.length;
-}
-
-class _FakeHttpOverrides extends HttpOverrides {
-  final _Responder responder;
-  final void Function(String name, String value)? onHeader;
-  final void Function()? onClientCreated;
-
-  _FakeHttpOverrides(this.responder, {this.onHeader, this.onClientCreated});
-
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    onClientCreated?.call();
-    return _FakeHttpClient(responder, onHeader);
-  }
-}
-
-class _FakeHttpClient implements HttpClient {
-  final _Responder responder;
-  final void Function(String name, String value)? onHeader;
-
-  _FakeHttpClient(this.responder, this.onHeader);
-
-  @override
-  Future<HttpClientRequest> getUrl(Uri url) async =>
-      _FakeHttpClientRequest(url, responder(url), onHeader);
-
-  @override
-  void close({bool force = false}) {}
-
-  // No-op for SPKI pinning hook — production wires this through
-  // CertPinning.enforce, but the fake never returns a real cert chain.
-  @override
-  set badCertificateCallback(
-    bool Function(X509Certificate cert, String host, int port)? callback,
-  ) {}
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeHttpClientRequest implements HttpClientRequest {
-  @override
-  final Uri uri;
-  final _FakeResponse _response;
-  final _FakeHeaders _headers;
-
-  _FakeHttpClientRequest(
-    this.uri,
-    this._response,
-    void Function(String name, String value)? onHeader,
-  ) : _headers = _FakeHeaders(onHeader);
-
-  @override
-  HttpHeaders get headers => _headers;
-
-  @override
-  Future<HttpClientResponse> close() async =>
-      _FakeHttpClientResponse(_response);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeHeaders implements HttpHeaders {
-  final void Function(String name, String value)? _onHeader;
-  _FakeHeaders(this._onHeader);
-
-  @override
-  void set(String name, Object value, {bool preserveHeaderCase = false}) {
-    _onHeader?.call(name.toLowerCase(), value.toString());
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeHttpClientResponse extends Stream<List<int>>
-    implements HttpClientResponse {
-  final _FakeResponse _response;
-  final _FakeResponseHeaders _headers;
-
-  _FakeHttpClientResponse(this._response)
-    : _headers = _FakeResponseHeaders(_response.headers);
-
-  @override
-  int get statusCode => _response.statusCode;
-
-  @override
-  int get contentLength => _response.contentLength;
-
-  @override
-  HttpHeaders get headers => _headers;
-
-  @override
-  StreamSubscription<List<int>> listen(
-    void Function(List<int> event)? onData, {
-    Function? onError,
-    void Function()? onDone,
-    bool? cancelOnError,
-  }) {
-    return Stream<List<int>>.fromIterable(_response.chunks).listen(
-      onData,
-      onError: onError,
-      onDone: onDone,
-      cancelOnError: cancelOnError,
-    );
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeResponseHeaders implements HttpHeaders {
-  final Map<String, String> _store;
-  _FakeResponseHeaders(this._store);
-
-  @override
-  String? value(String name) => _store[name.toLowerCase()];
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

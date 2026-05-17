@@ -21,7 +21,19 @@
   "select": "Select",
   "copyModeTapToStart": "Touch to mark selection start",
   "copyModeExtending": "Drag to extend selection",
+  "copyModeSetAnchor": "Set anchor",
+  "@copyModeSetAnchor": {
+    "description": "Screen-reader / semantic label for the crosshair-style button in the mobile terminal's copy-mode bar that commits the current cursor position as the selection's start cell (anchor)."
+  },
+  "copyModeCopySelection": "Copy selection",
+  "@copyModeCopySelection": {
+    "description": "Screen-reader / semantic label for the copy button shown in the mobile terminal's copy-mode bar once the anchor has been set; tapping it copies the selected text to the clipboard."
+  },
   "required": "Required",
+  "errFillRequiredFields": "Fill the required fields marked *",
+  "@errFillRequiredFields": {
+    "description": "Toast shown when the user presses Save on the session-edit dialog but one or more required fields are empty / invalid. The form already routes focus to the failing tab + renders inline error text; this toast is the global heads-up so the user notices the rejection even when their eye was off the field."
+  },
   "settings": "Settings",
   "appSettings": "App Settings",
   "yes": "Yes",
@@ -117,7 +129,7 @@
       }
     }
   },
-  "importedSessions": "Imported {count} session(s)",
+  "importedSessions": "{count, plural, =0{No sessions imported} =1{Imported 1 session} other{Imported {count} sessions}}",
   "@importedSessions": {
     "placeholders": {
       "count": {
@@ -189,7 +201,7 @@
       }
     }
   },
-  "nSessions": "{count} session(s)",
+  "nSessions": "{count, plural, =0{0 sessions} =1{1 session} other{{count} sessions}}",
   "@nSessions": {
     "placeholders": {
       "count": {
@@ -197,7 +209,7 @@
       }
     }
   },
-  "nFolders": "{count} folder(s)",
+  "nFolders": "{count, plural, =0{0 folders} =1{1 folder} other{{count} folders}}",
   "@nFolders": {
     "placeholders": {
       "count": {
@@ -213,7 +225,7 @@
       }
     }
   },
-  "willDeleteSessionsInside": "This will also delete {count} session(s) inside.",
+  "willDeleteSessionsInside": "{count, plural, =1{This will also delete 1 session inside.} other{This will also delete {count} sessions inside.}}",
   "@willDeleteSessionsInside": {
     "placeholders": {
       "count": {
@@ -231,6 +243,31 @@
   },
   "connection": "Connection",
   "auth": "Auth",
+  "sectionAuthentication": "Authentication",
+  "@sectionAuthentication": {
+    "description": "Section header for the credential block in the session edit dialog. The dialog uses a single-form layout (no tabs); the header sits above the per-protocol auth fields (ssh-agent toggle / password / key block for SSH; method chips + credential for WebDAV; secret access key for S3)."
+  },
+  "sectionAdvanced": "Advanced",
+  "@sectionAdvanced": {
+    "description": "Section header for the collapsible Advanced block in the session edit dialog. Holds tags (universal), port forwarding (SSH only), and the record-session toggle (SSH only). Collapsed by default so the default form stays compact."
+  },
+  "forwardRulesSummary": "{count, plural, =0{No port-forward rules} =1{1 port-forward rule} other{{count} port-forward rules}}",
+  "@forwardRulesSummary": {
+    "description": "Compact pluralised summary shown in the Advanced section of the session edit dialog (SSH only) next to the 'Manage…' button that opens the Forwarding rule editor sub-dialog. {count} is the current number of rules on the session.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+  "manageRules": "Manage…",
+  "@manageRules": {
+    "description": "Button label in the Advanced section of the session edit dialog (SSH only) that opens the Forwarding rule editor sub-dialog."
+  },
+  "authMethodAgent": "Use system ssh-agent",
+  "authMethodAgentSubtitle": "Authenticate via $SSH_AUTH_SOCK (Linux/macOS) or the OpenSSH named pipe (Windows). Useful if you keep your keys in gpg-agent, Pageant, or a system ssh-agent.",
+  "authMethodAgentMobileUnsupported": "Not available on mobile — the system ssh-agent endpoint is desktop-only.",
   "options": "Options",
   "sessionName": "Session Name",
   "hintMyServer": "My Server",
@@ -244,6 +281,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Key Passphrase",
   "hintOptional": "Optional",
+  "savedTypeToChange": "Saved — type to change",
   "hidePemText": "Hide PEM text",
   "pastePemKeyText": "Paste PEM key text",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -280,14 +318,6 @@
   "confirmPassword": "Confirm Password",
   "importModeMergeDescription": "Add new sessions, keep existing",
   "importModeReplaceDescription": "Replace all sessions with imported",
-  "errorPrefix": "Error: {error}",
-  "@errorPrefix": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "folderName": "Folder name",
   "newName": "New name",
   "deleteItems": "Delete {names}?",
@@ -391,7 +421,7 @@
   "maxHistory": "Max History",
   "calculateFolderSizes": "Calculate Folder Sizes",
   "exportData": "Export Data",
-  "sshConfigPreviewHostsFound": "{count} host(s) found",
+  "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts found} =1{1 host found} other{{count} hosts found}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
       "count": {
@@ -419,7 +449,7 @@
   "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
   "sshDirImportHostsSection": "Hosts from config",
   "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "importSshKeysFound": "{count} key(s) found — pick which to import",
+  "importSshKeysFound": "{count, plural, =1{1 key found — pick to import} other{{count} keys found — pick which to import}}",
   "@importSshKeysFound": {
     "placeholders": {
       "count": {
@@ -502,7 +532,6 @@
     }
   },
   "sourceCode": "Source Code",
-  "enableLogging": "Enable Logging",
   "logIsEmpty": "Log is empty",
   "logExportedTo": "Log exported to: {path}",
   "@logExportedTo": {
@@ -549,20 +578,74 @@
   "completed": "Completed",
   "connected": "Connected",
   "disconnected": "Disconnected",
+  "a11yConnectingTo": "Connecting to {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Connected to {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Disconnected from {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Connection to {host} failed",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Exit",
   "exitConfirmation": "Active sessions will be disconnected. Exit?",
   "hintFolderExample": "e.g. Production",
   "credentialsNotSet": "Credentials not set",
   "exportSessionsViaQr": "Export Sessions via QR",
-  "qrNoCredentialsWarning": "Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.",
   "qrTooManyForSingleCode": "Too many sessions for a single QR code. Deselect some or use .lfs export.",
   "qrTooLarge": "Too large — deselect some items or use .lfs file export.",
-  "exportAll": "Export All",
   "showQr": "Show QR",
   "sort": "Sort",
   "resizePanelDivider": "Resize panel divider",
   "youreRunningLatest": "You're running the latest version",
   "liveLog": "Live Log",
+  "archivedLog": "Archived log",
+  "@archivedLog": {
+    "description": "Title of the log viewer when logging has been turned off but the file still has entries from a previous session. Same surface as `liveLog` (the title flips when the level is set to Off)."
+  },
+  "loggingLevel": "Logging level",
+  "@loggingLevel": {
+    "description": "Settings → Logging row label for the level selector that drives `AppLogger.setThreshold`. Pairs with the per-level subtitle that describes what the level prints."
+  },
+  "loggingLevelSubtitleInfo": "Routine entries + warnings + errors",
+  "@loggingLevelSubtitleInfo": {
+    "description": "Subtitle below the logging-level selector when `Info` is selected. Describes that the noisiest level captures every routine entry plus the warn / error rungs."
+  },
+  "loggingLevelSubtitleWarn": "Degraded paths + errors only",
+  "@loggingLevelSubtitleWarn": {
+    "description": "Subtitle below the logging-level selector when `Warn` is selected. Routine entries are dropped; only degraded-but-recoverable code paths and outright errors get persisted."
+  },
+  "loggingLevelSubtitleError": "Failures only",
+  "@loggingLevelSubtitleError": {
+    "description": "Subtitle below the logging-level selector when `Error` is selected. Only unrecoverable / data-at-risk lines are persisted."
+  },
+  "loggingLevelSubtitleOff": "No routine logs written",
+  "@loggingLevelSubtitleOff": {
+    "description": "Subtitle below the logging-level selector when `Off` (null level) is selected. Routine logs do not get written; `logCritical` crash breadcrumbs still bypass the threshold."
+  },
   "transferNItems": "Transfer {count} items",
   "time": "Time",
   "failed": "Failed",
@@ -757,14 +840,6 @@
   },
   "progressReadingArchive": "Reading archive…",
   "progressDecrypting": "Decrypting…",
-  "progressParsingArchive": "Parsing archive…",
-  "progressImportingSessions": "Importing sessions",
-  "progressImportingFolders": "Importing folders",
-  "progressImportingManagerKeys": "Importing SSH keys",
-  "progressImportingTags": "Importing tags",
-  "progressImportingSnippets": "Importing snippets",
-  "progressApplyingConfig": "Applying configuration…",
-  "progressImportingKnownHosts": "Importing known_hosts…",
   "progressCollectingData": "Collecting data…",
   "progressEncrypting": "Encrypting…",
   "progressWritingArchive": "Writing archive…",
@@ -804,7 +879,7 @@
   "protocol": "Protocol",
   "typeLabel": "Type",
   "folder": "Folder",
-  "nSubitems": "{count} item(s)",
+  "nSubitems": "{count, plural, =0{0 items} =1{1 item} other{{count} items}}",
   "@nSubitems": {
     "placeholders": {
       "count": {
@@ -895,21 +970,6 @@
     }
   },
   "transferStatusQueued": "Queued",
-  "transferStartingUpload": "Starting upload...",
-  "transferStartingDownload": "Starting download...",
-  "transferCopying": "Copying...",
-  "transferDone": "Done",
-  "transferFilesProgress": "{done}/{total} files",
-  "@transferFilesProgress": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "fileConflictTitle": "File already exists",
   "fileConflictMessage": "\"{fileName}\" already exists in {targetDir}. What would you like to do?",
   "@fileConflictMessage": {
@@ -1070,6 +1130,27 @@
   },
   "publicKey": "Public Key",
   "publicKeyCopied": "Public key copied to clipboard",
+  "sshCertificate": "Certificate",
+  "certImport": "Import certificate",
+  "certImportPickerTitle": "Select OpenSSH certificate file",
+  "certValidFrom": "Valid from",
+  "certValidTo": "Valid until",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "This certificate expires soon.",
+  "certExpired": "Expired",
+  "certRemove": "Remove certificate",
+  "certRemoveConfirmTitle": "Remove certificate?",
+  "certRemoveConfirmBody": "The session will fall back to the plain public-key auth path if it tries to connect after the certificate is removed.",
+  "errCertParse": "Could not parse certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "This certificate is not paired to the selected key.",
   "pastePrivateKey": "Paste Private Key (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Invalid PEM key data",
@@ -1083,21 +1164,9 @@
     }
   },
   "generated": "Generated",
-  "passphraseRequired": "Passphrase Required",
-  "passphrasePrompt": "The SSH key for {host} is encrypted. Enter the passphrase to unlock it.",
-  "@passphrasePrompt": {
-    "placeholders": {
-      "host": {
-        "type": "String"
-      }
-    }
-  },
-  "passphraseWrong": "Wrong passphrase. Please try again.",
   "passphrase": "Passphrase",
-  "rememberPassphrase": "Remember for this session",
   "enterMasterPassword": "Enter master password to unlock your saved credentials.",
   "wrongMasterPassword": "Wrong password. Please try again.",
-  "newPassword": "New Password",
   "currentPassword": "Current Password",
   "forgotPassword": "Forgot Password?",
   "credentialsReset": "All saved credentials have been deleted",
@@ -1125,8 +1194,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Hardware-backed storage is unavailable on this device.",
   "firstLaunchSecurityOpenSettings": "Open Settings",
   "wizardReducedBanner": "OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.",
-  "tierBlockProtectsEmpty": "Nothing on this tier.",
-  "tierBlockDoesNotProtectEmpty": "Nothing left uncovered.",
   "tierBadgeCurrent": "Current",
   "securitySetupEnable": "Enable",
   "securitySetupApply": "Apply",
@@ -1211,7 +1278,6 @@
   "snippetCustomTokensHint": "Anything else with double braces prompts you for a value when the snippet runs.",
   "snippetFillTitle": "Fill in snippet parameters",
   "snippetFillSubmit": "Run",
-  "snippetPreview": "Preview",
   "broadcastSetDriver": "Broadcast from this pane",
   "broadcastClearDriver": "Stop broadcasting from this pane",
   "broadcastAddReceiver": "Receive broadcast here",
@@ -1246,29 +1312,14 @@
   "forwardDescription": "Description (optional)",
   "forwardEnabled": "Enabled",
   "forwardBindWildcardWarning": "Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.",
   "forwardKindLocalHelp": "Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.",
   "forwardKindRemoteHelp": "Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).",
   "forwardKindDynamicHelp": "Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.",
-  "forwardExample": "Example",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → expose your dev server at server's port 9000",
-  "forwardDynamicExample": "ssh -D 1080 → set browser SOCKS5 to localhost:1080",
   "proxyJump": "Connect via",
   "proxyJumpNone": "Direct connection",
   "proxyJumpSavedSession": "Saved session",
   "proxyJumpCustom": "Custom",
   "proxyJumpCustomNote": "Override hops use this session's credentials. For different bastion auth, save the bastion as its own session.",
-  "errProxyJumpCycle": "Proxy chain loops back on itself.",
-  "errProxyJumpDepth": "Proxy chain is too deep (max {max} hops).",
-  "@errProxyJumpDepth": {
-    "placeholders": {
-      "max": {
-        "type": "int"
-      }
-    }
-  },
-  "errProxyJumpBastionFailed": "Bastion {label} failed to connect.",
   "viaSessionLabel": "via {label}",
   "@viaSessionLabel": {
     "placeholders": {
@@ -1287,9 +1338,14 @@
   "recordingPlaybackTitle": "Replay recording",
   "recordingSpeed": "Speed",
   "recordingSpeedInstant": "Instant",
-  "@errProxyJumpBastionFailed": {
+  "recordingScrubTooltipUnavailable": "Scrub bar requires a sidecar index, which legacy recordings (made before this build) do not have. Future recordings will scrub.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
     "placeholders": {
-      "label": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
         "type": "String"
       }
     }
@@ -1350,10 +1406,6 @@
   "maxHistorySubtitle": "Maximum saved commands in history",
   "calculateFolderSizesSubtitle": "Show total size next to folders in the sidebar",
   "checkForUpdatesOnStartupSubtitle": "Query GitHub for a new release when the app launches",
-  "enableLoggingSubtitle": "Write app events to a rotating log file",
-  "exportWithoutPassword": "Export Without Password?",
-  "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
-  "continueWithoutPassword": "Continue Without Password",
   "threatColdDiskTheft": "Cold-disk theft",
   "threatColdDiskTheftDescription": "Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.",
   "threatKeyringFileTheft": "Keyring / keychain file exfiltration",
@@ -1373,7 +1425,6 @@
   "colT1": "T1 Keychain",
   "colT1Password": "T1 + password",
   "colT1PasswordBiometric": "T1 + password + biometric",
-  "colT2": "T2 Hardware",
   "colT2Password": "T2 + password",
   "colT2PasswordBiometric": "T2 + password + biometric",
   "colParanoid": "Paranoid",
@@ -1384,18 +1435,57 @@
   "resetAllDataConfirmTitle": "Reset all data?",
   "resetAllDataConfirmBody": "All sessions, SSH keys, known hosts, snippets, tags, preferences, and every security artefact (keychain entries, hardware-vault blobs, biometric overlay) will be permanently deleted. This cannot be undone.",
   "resetAllDataConfirmAction": "Reset everything",
+  "resetAllDataConfirmTypePrompt": "Type {phrase} below to confirm:",
+  "@resetAllDataConfirmTypePrompt": {
+    "placeholders": {
+      "phrase": {
+        "type": "String"
+      }
+    }
+  },
   "resetAllDataInProgress": "Resetting…",
   "resetAllDataDone": "All data reset",
   "resetAllDataFailed": "Reset failed",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Storage used",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "Hard cap on the recordings/ folder. Oldest recording deleted first when exceeded; the live recording is never touched.",
+  "recordingsClearAllAction": "Clear all recordings",
+  "recordingsClearAllConfirmTitle": "Clear all recordings?",
+  "recordingsClearAllConfirmBody": "Every recorded session under <app>/recordings/ will be deleted. The recording currently in progress (if any) stays. This action cannot be undone.",
+  "recordingsClearAllResult": "Removed {count} recordings",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap updated. Reclaimed {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap updated. Nothing to evict.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "autoLockRequiresPassword": "Auto-lock requires a password on the active tier.",
   "recommendedBadge": "RECOMMENDED",
-  "tierHardwareSubtitleHonest": "Advanced: hardware-bound key. Data is irrecoverable if this device's chip is lost or replaced.",
+  "tierHardwareSubtitleHonest": "Advanced: hardware-bound key, always password-gated. Data is irrecoverable if this device's chip is lost or replaced.",
   "tierParanoidSubtitleHonest": "Alternative: master password, no OS trust. Protects against OS compromise. Does not improve runtime protection over T1/T2.",
   "mitigationsNoteRuntimeThreats": "Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.",
   "currentTierBadge": "CURRENT",
   "paranoidAlternativeHeader": "ALTERNATIVE",
   "modifierPasswordLabel": "Password",
   "modifierPasswordSubtitle": "Typed secret gate before the vault unlocks.",
+  "modifierPasswordRequired": "Required — Hardware tier is always password-gated.",
   "modifierBiometricLabel": "Biometric shortcut",
   "modifierBiometricSubtitle": "Release the password from a biometric-gated OS slot instead of typing it.",
   "biometricRequiresPassword": "Enable a password first — biometric is a shortcut for entering it.",
@@ -1403,12 +1493,477 @@
   "autoLockRequiresActiveTier": "Select this tier first to configure auto-lock",
   "biometricForbiddenParanoid": "Paranoid does not allow biometric by design.",
   "fprintdNotAvailable": "fprintd not installed or no enrolled finger.",
-  "linuxTpmWithoutPasswordNote": "TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.",
+  "t2RequiresPasswordTitle": "Set a master password for Hardware tier",
+  "t2RequiresPasswordBody": "Hardware-bound tier needs a password as a modifier. Biometric is an optional shortcut on top.",
+  "t2MigrationPromptTitle": "Hardware tier needs a password",
+  "t2MigrationPromptBody": "Existing Hardware-tier installs without a password need one set now to continue.",
+  "t2MigrationContinue": "Continue",
+  "t2MigrationSetPasswordTitle": "Set a Hardware-tier password",
+  "t2MigrationSetPasswordBody": "Type a new master password. The DB key already sealed in the hardware module gets re-sealed under this password — your sessions and keys stay intact.",
+  "t2MigrationWipeAndRestart": "Wipe and start over",
+  "t2MigrationResealFailed": "Hardware-tier re-seal failed — pick a different password or wipe to start over.",
+  "biometricOverlayEnable": "Enable biometric shortcut on Hardware tier",
+  "biometricOverlayEnableSubtitle": "Releases your password from a biometric-gated OS slot.",
+  "biometricOverlayUnavailable": "Biometric overlay not available on this platform yet.",
+  "biometricOverlayRequiresPassword": "Set the Hardware-tier password first.",
+  "t2UnlockTitle": "Unlock with your master password",
+  "t2UnlockSubtitle": "Hardware-bound key is gated by your password.",
+  "t2UnlockUseBiometricButton": "Use biometric instead",
+  "t2PasswordChanged": "Hardware-tier password updated.",
   "paranoidMasterPasswordNote": "A long passphrase is strongly recommended — Argon2id only slows brute force, it does not block it.",
   "plaintextWarningTitle": "Plaintext: no encryption",
   "plaintextWarningBody": "Sessions, keys, and known hosts will be stored without encryption. Anyone with access to this computer's filesystem can read them.",
   "plaintextAcknowledge": "I understand my data will not be encrypted",
   "plaintextAcknowledgeRequired": "Confirm you understand before continuing.",
   "passwordLabel": "Password",
-  "masterPasswordLabel": "Master password"
+  "masterPasswordLabel": "Master password",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "@globalErrorTechnicalLine": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "@unencryptedArchiveWarning": {
+    "description": "Warning shown on the import dialog when the user picked a plain-ZIP .lfs archive (no password protection)."
+  },
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "@clipboardCopyFailed": {
+    "description": "Toast shown when SecureClipboard.setText refused the write (cloud-sync gate unavailable)."
+  },
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "@nonAsciiHostnameWarning": {
+    "description": "TOFU host-key dialog warning when the hostname contains non-ASCII codepoints (IDN homograph hint)."
+  },
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "@recordingPlayLocked": {
+    "description": "Tooltip / disabled-row hint when an encrypted recording cannot be played because the active DB key slot is empty (plaintext tier or auto-locked)."
+  },
+  "foregroundServiceTitle": "SSH active",
+  "foregroundServiceConnections": "{count, plural, =1{1 active connection} other{{count} active connections}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Session kind",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Auth method",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Self-signed cert fingerprint (optional)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, leave empty to use system trust",
+  "webDavCopyUrl": "Copy WebDAV URL",
+  "webDavOpenInBrowser": "Open in browser",
+  "errWebDavAuthFailed": "WebDAV authentication failed",
+  "errWebDavNotFound": "Path not found",
+  "errWebDavConflict": "Operation conflicts with current state",
+  "errWebDavGeneric": "WebDAV server rejected the request: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV base URL is required",
+  "errWebDavBaseUrlInvalid": "Base URL must be http:// or https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Leave empty for AWS, or set for MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "Required for MinIO; leave off for AWS",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Generate presigned URL",
+  "s3PresignedUrlExpiry": "Expires in",
+  "s3CopyUri": "Copy s3://bucket/key URI",
+  "s3PresignedUrlExpiry15min": "15 minutes",
+  "s3PresignedUrlExpiry1hour": "1 hour",
+  "s3PresignedUrlExpiry4hour": "4 hours",
+  "s3PresignedUrlExpiry24hour": "24 hours",
+  "s3PresignedUrlExpiry7day": "7 days",
+  "errS3AuthFailed": "S3 authentication failed (check access key + secret)",
+  "errS3NoSuchBucket": "Bucket does not exist or is not accessible",
+  "errS3RegionMismatch": "Bucket is in a different region than configured",
+  "errS3Generic": "S3 server rejected the request: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "Enable WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Encrypts the sync archive. Must differ from the master password.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase cannot match the master password.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "Path under the WebDAV base URL — default letsflutssh.lfs",
+  "syncPushNow": "Push now",
+  "syncPullNow": "Pull now",
+  "syncLastPushed": "Last push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Last pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Never",
+  "syncUpToDate": "Sync is up to date",
+  "syncPushedBytes": "Pushed {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Applied {count} updates from remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync is disabled",
+  "errSyncEtagMismatch": "Remote changed — pull first, then push",
+  "errSyncUnauthorized": "WebDAV authentication failed",
+  "errSyncNetwork": "Network error: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote sync archive needs a newer build to read",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Tap your hardware key",
+  "hardwareKeyPin": "Hardware key PIN",
+  "hardwareKeyTimeout": "Hardware key did not respond",
+  "hardwareKeyNotFound": "No hardware key found",
+  "hardwareKeyUnsupported": "Direct hardware key access is not available on this platform",
+  "hardwareKeyAppleEntitlementRequired": "Requires Apple Developer Program entitlement; use ssh-agent on macOS",
+  "skKeyRequiresDevice": "This SSH key requires a hardware key — tap it to authenticate",
+  "errSkWrongPin": "Incorrect PIN",
+  "hardwareKeyImport": "Import hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Hardware key prompt cancelled",
+  "agentEndpointSectionTitle": "External SSH client integration",
+  "agentEndpointToggleTitle": "Expose hardware-bound keys to system SSH clients",
+  "agentEndpointToggleSubtitle": "Allows git, ssh, IDE plugins on this device to use your FIDO2 / smart-card / TPM keys.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Copy export command",
+  "agentEndpointCopyPipeName": "Copy pipe name",
+  "agentEndpointSignatureRequestTitle": "Signature request",
+  "agentEndpointSignatureRequestBody": "{requester} wants to sign with {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {"type": "String"},
+      "keyLabel": {"type": "String"}
+    }
+  },
+  "agentEndpointRequesterUnknown": "An external SSH client",
+  "agentEndpointAuthorizeOnce": "Authorize once",
+  "agentEndpointAuthorizeAlways": "Authorize and remember",
+  "agentEndpointDeny": "Deny",
+  "agentEndpointStatusRunning": "Running",
+  "agentEndpointStatusStopped": "Stopped",
+  "agentEndpointStatusUnsupported": "Not supported on this platform",
+  "agentEndpointRefusedAddIdentity": "Refused: external clients cannot add keys.",
+  "agentEndpointStartFailed": "Could not start the SSH agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
+
+  "pkcs11AddTitle": "Add smart-card / token key",
+  "pkcs11ModuleLabel": "PKCS#11 module",
+  "pkcs11ModuleAutoDetected": "Auto-detected",
+  "pkcs11ModuleCustom": "Custom module...",
+  "pkcs11ModulePickerTitle": "Choose PKCS#11 library",
+  "pkcs11NoModuleFound": "No PKCS#11 module found. Install OpenSC or pick a vendor library.",
+  "pkcs11InitializeFailed": "PKCS#11 module did not initialise.",
+  "pkcs11NoTokenPresent": "No token present in any reader.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11LoginRequired": "Token requires login.",
+  "pkcs11PinPrompt": "PIN for {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {"type": "String"}
+    }
+  },
+  "pkcs11PinPad": "Confirm on the token's PIN pad.",
+  "pkcs11PinIncorrect": "PIN incorrect. {remaining} tries left.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {"type": "String"}
+    }
+  },
+  "pkcs11PinLocked": "Token PIN is locked. Unblock with the PUK.",
+  "pkcs11NoSignableKeys": "Token has no SSH-usable keys (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "GOST keys cannot be used with SSH.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" is not currently inserted.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11UriRebindFailed": "Saved token not found. Replug and retry.",
+  "pkcs11SignFailed": "Signing failed: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {"type": "String"}
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / PKCS#11 tokens are not available on this platform.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {"type": "String"}
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "pkcs11WizardStepModule": "Select PKCS#11 module",
+  "pkcs11WizardStepToken": "Select token",
+  "pkcs11WizardStepKey": "Select key",
+  "pkcs11WizardStepPin": "Enter PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {"type": "String"},
+      "detail": {"type": "String"}
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "Reading public key from token...",
+  "pkcs11SaveSuccess": "Smart-card key added.",
+  "pkcs11ScanInProgress": "Scanning for PKCS#11 modules...",
+  "pkcs11LoadingTokens": "Loading tokens...",
+  "pkcs11LoadingKeys": "Loading keys...",
+  "pkcs11ModuleStatusReady": "Module loaded.",
+  "pkcs11ModuleStatusNoToken": "No token present.",
+  "pkcs11ModuleStatusFailed": "Module load failed.",
+  "pkcs11PinPadHint": "(PIN pad on device)",
+  "pkcs11WizardBack": "Back",
+  "pkcs11WizardNext": "Next",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Add hardware-bound key",
+  "sshKeyHardwareBoundExplainer": "The private key lives in the device's secure hardware and cannot be exported.",
+  "sshKeyEnclaveDeviceBound": "This key works only on this Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "This key works only on this iPhone.",
+  "sshKeyHelloDeviceBound": "This key works only on this PC.",
+  "sshKeyEnclaveTouchIdRequired": "Require Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Allow device passcode as fallback",
+  "sshKeyHelloPinRequired": "Require Windows Hello (PIN, fingerprint, or face)",
+  "sshKeyHardwareUnavailableTitle": "Hardware-bound keys are not available",
+  "sshKeyHardwareUnavailableSe": "App must be code-signed to use the Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello is not configured on this PC.",
+  "sshKeyHardwareUnavailableTpm": "No TPM detected — software-backed only.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Generate",
+  "sshKeyGenerateInProgress": "Generating key in secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing required — see USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Signing with secure hardware...",
+  "sshKeyPublicCopy": "Copy public key",
+  "sshKeyAuthorizedKeysHint": "Add this line to ~/.ssh/authorized_keys on the server.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Key label",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH key",
+  "helloWizardLabelHint": "Key label",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Authenticate with Windows Hello",
+  "helloPromptDescription": "Use your PIN, fingerprint, or face to sign this SSH challenge.",
+  "helloSoftwareGatedWarning": "Your device has no TPM. The key lives in user-space storage; Windows Hello still gates every signature.",
+  "helloP384NotSupported": "TPM firmware does not support P-384. Choose P-256 or RSA-2048.",
+  "helloConfigureFirst": "Configure Windows Hello first in Settings -> Sign-in options.",
+  "tpmSshTitle": "Generate TPM-backed SSH key",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (recommended)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithm not supported by this TPM firmware.",
+  "tpmSshPinProtect": "Protect with PIN",
+  "tpmSshPinLockoutWarning": "TPM locks the key after repeated wrong PINs.",
+  "tpmSshPinMismatch": "PINs do not match.",
+  "tpmSshStorageBlob": "Store wrapped key in app data",
+  "tpmSshStorageHandle": "Persist in TPM memory slot",
+  "tpmSshStorageHandleHelp": "Faster signing. Consumes one of the TPM's persistent slots.",
+  "tpmSshLabel": "Key label",
+  "tpmSshImportTitle": "Import TPM-protected SSH key",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN for {label}",
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": { "type": "String" }
+    }
+  },
+  "tpmSshPinIncorrect": "PIN incorrect.",
+  "tpmSshPinLockedCooldown": "TPM is in lockout cooldown. Wait {duration} and retry.",
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "tpmSshGenerating": "Generating key in TPM...",
+  "tpmSshSigning": "Signing with TPM...",
+  "tpmSshUnavailable": "No TPM detected on this device.",
+  "tpmSshUnavailableFwDisabled": "TPM is disabled in firmware.",
+  "tpmSshUnavailableNoPermission": "App cannot access the TPM. Add user to the `tss` group.",
+  "tpmSshHandleInUse": "Persistent slot {handle} is already in use.",
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": { "type": "String" }
+    }
+  },
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "This key signs WITHOUT a Hello / PIN prompt - anyone with desktop access while you're logged in can use it.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Generating hardware-bound key...",
+  "keystoreKeyAuthPrompt": "Authenticate to use SSH key",
+  "keystoreKeyInvalidatedByEnrollment": "Key destroyed: a new biometric was enrolled. Re-register the public key on your servers.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM not available on this device",
+  "keystoreKeyUserAuthRequired": "Require biometric / device unlock for every signature",
+  "keystoreKeyExportDisabled": "Hardware-bound keys cannot be exported",
+  "keystoreKeyDeleteWarning": "Deleting this key removes it from the hardware store. Servers will reject this key until you register a fresh one.",
+  "keystoreKeyBiometricNotEnrolled": "Enrol biometric or device PIN first",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE only)",
+  "keystoreAlgRsa2048": "RSA-2048 (widest compatibility)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM unavailable",
+  "keystoreStrongBoxFallbackBody": "Your device doesn't expose the StrongBox HSM. Create a TEE-backed key instead? It's still hardware-backed, just without StrongBox isolation.",
+  "keystoreStrongBoxFallbackConfirm": "Use TEE",
+  "keystoreStrongBoxFallbackCancel": "Cancel",
+  "fido2BrokerSectionTitle": "Hardware security keys",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "System security key dialog",
+  "fido2BrokerIosLabel": "System security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "System security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "Direct USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "Not available on this platform",
+  "fido2BrokerPreferDirectHidTitle": "Prefer direct USB HID over system dialog",
+  "fido2BrokerPreferDirectHidSubtitle": "Advanced: bypass the {brokerLabel} on platforms where both paths work. Direct HID supports more authenticator features but requires per-app permission grants.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": { "type": "String" }
+    }
+  },
+  "sshIntegrationSection": "SSH integration",
+  "@sshIntegrationSection": {
+    "description": "Parent section title in Settings that groups the SSH-key plumbing toggles: the agent-endpoint switch (exposes our SSH keys to external SSH clients via $SSH_AUTH_SOCK / OpenSSH named pipe) and the FIDO2 transport preference (broker vs direct CTAP2 HID). Each subgroup retains its own subtitle (`agentEndpointSectionTitle` / `fido2BrokerSectionTitle`) as a sub-header inside this section's body."
+  },
+  "fido2BrokerNoTransportSubtitle": "Hardware-key support is not available on this device.",
+  "@fido2BrokerNoTransportSubtitle": {
+    "description": "Subtitle under the disabled Hardware-security-keys preference toggle when neither the OS broker (Windows Hello / Apple AuthenticationServices / Android Credential Manager) nor the direct CTAP2 HID transport is available — pre-built Linux without HID permission, mobile builds before the broker hook landed. Replaces the broken `Only {transport} is available` template that interpolated the literal `Not available on this platform` into the `{transport}` slot."
+  },
+  "fido2BrokerSinglePathSubtitle": "Only {transport} is available on this device; the toggle is disabled.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": { "type": "String" }
+    }
+  },
+  "hardwareKeyStubBadge": "Imported stub",
+  "@hardwareKeyStubBadge": {
+    "description": "Key Manager row badge for a device-bound key that was imported from another device's .lfs / WebDAV sync — only the public half landed. Sits next to the backend badge (Apple Secure Enclave / Windows Hello / TPM / Android Keystore)."
+  },
+  "hardwareKeyStubSubtitle": "Was on another device — re-generate here to use",
+  "@hardwareKeyStubSubtitle": {
+    "description": "Secondary line under a stub-key row in the Key Manager. Explains the row cannot sign on this device until the user re-generates."
+  },
+  "hardwareKeyStubRegenerateAction": "Re-generate here",
+  "@hardwareKeyStubRegenerateAction": {
+    "description": "Trailing-action label on a stub-key row. Opens the per-backend wizard pre-filled with the stub's label."
+  },
+  "hardwareKeyStubRemoveAction": "Remove stub",
+  "@hardwareKeyStubRemoveAction": {
+    "description": "Trailing-action label on a stub-key row. Drops the row from the key manager — useful when the user wants to clear stubs from a device they will never re-generate on."
+  },
+  "hardwareKeyStubPickerTooltip": "Re-generate this key on this device before using",
+  "@hardwareKeyStubPickerTooltip": {
+    "description": "Tooltip on a disabled stub row inside the session-edit Key picker. Stubs cannot be selected because the private half lives on the original device."
+  },
+  "pkcs11ModuleResolveOnFirstUse": "Locate the PKCS#11 module for token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "description": "Title of the one-shot dialog the connect path opens on first use of an imported PKCS#11 row whose module path could not be re-discovered locally via the well-known-paths scan.",
+    "placeholders": {
+      "token": { "type": "String" }
+    }
+  }
 }

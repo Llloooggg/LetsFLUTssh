@@ -1,55 +1,22 @@
 import 'package:flutter/material.dart';
 
-import '../core/config/app_config.dart';
-import '../core/security/key_store.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/session/session_tree.dart';
-import '../core/shortcut_registry.dart';
-import '../core/snippets/snippet.dart';
-import '../core/tags/tag.dart';
+import '../widgets/shortcut_registry.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
 import 'app_divider.dart';
 import 'data_checkboxes.dart';
 import 'hover_region.dart';
+import 'toast.dart';
 import 'unified_export_controller.dart';
+import 'unified_export_models.dart';
+export 'unified_export_models.dart'
+    show UnifiedExportDialogData, UnifiedExportResult;
 
 part 'unified_export_dialog_tree.dart';
-
-/// Bundle of data displayed by [UnifiedExportDialog]. Groups related
-/// optional parameters so the dialog's `show()` stays small.
-class UnifiedExportDialogData {
-  final List<Session> sessions;
-  final Set<String> emptyFolders;
-  final AppConfig? config;
-  final String? knownHostsContent;
-
-  /// Map of keyId -> keyData for keys stored in the manager.
-  /// Used for QR-mode manager key size estimation.
-  final Map<String, String> managerKeys;
-
-  /// Full SshKeyEntry map for .lfs archive size estimation.
-  final Map<String, SshKeyEntry> managerKeyEntries;
-
-  /// All tags for size calculation and export.
-  final List<Tag> tags;
-
-  /// All snippets for size calculation and export.
-  final List<Snippet> snippets;
-
-  const UnifiedExportDialogData({
-    required this.sessions,
-    required this.emptyFolders,
-    this.config,
-    this.knownHostsContent,
-    this.managerKeys = const {},
-    this.managerKeyEntries = const {},
-    this.tags = const [],
-    this.snippets = const [],
-  });
-}
 
 /// Unified export dialog for both QR code and .lfs archive export.
 class UnifiedExportDialog extends StatefulWidget {
@@ -114,11 +81,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   void _export() {
     if (!_ctrl.fitsInQr) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(S.of(context).qrTooManyForSingleCode),
-          duration: const Duration(seconds: 3),
-        ),
+      Toast.show(
+        context,
+        message: S.of(context).qrTooManyForSingleCode,
+        level: ToastLevel.warning,
       );
       return;
     }
@@ -161,7 +127,12 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     ),
                     Flexible(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          16,
+                          16,
+                          16,
+                          0,
+                        ),
                         child: SingleChildScrollView(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -171,7 +142,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                               _buildCheckboxesSection(),
                               if (widget.isQrMode) _buildQrSecurityWarning(),
                               const AppDivider(),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: AppSpacing.xs),
                               _buildSelectAll(),
                               const AppDivider(),
                               ListView(
@@ -189,7 +160,12 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     // above — content scrolls under it instead of
                     // pushing it out of view.
                     Container(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        16,
+                        12,
+                        16,
+                        12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.bg1,
                         border: Border(
@@ -247,7 +223,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
     );
   }
@@ -341,7 +317,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   Widget _buildQrSecurityWarning() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         color: AppTheme.orange.withValues(alpha: 0.1),
@@ -352,7 +328,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber, size: 20, color: AppTheme.orange),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               S.of(context).qrPasswordWarning,
@@ -415,16 +391,4 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
       ),
     );
   }
-}
-
-class UnifiedExportResult {
-  final ExportOptions options;
-  final List<Session> selectedSessions;
-  final Set<String> selectedEmptyFolders;
-
-  const UnifiedExportResult({
-    required this.options,
-    required this.selectedSessions,
-    required this.selectedEmptyFolders,
-  });
 }

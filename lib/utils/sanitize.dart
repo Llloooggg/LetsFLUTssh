@@ -1,142 +1,222 @@
 // Utilities for sanitizing sensitive data before logging or surfacing in
 // user-facing error toasts.
 //
-// Prevents accidental leakage of:
-// - SSH private keys in PEM format and long base64 key blobs
-// - IP addresses (IPv4)
-// - Usernames in SSH context (user@host)
-// - Port numbers in connection strings
-// - File paths containing usernames
+// Pure Dart on purpose: the cold-start path needs these helpers
+// callable BEFORE `RustLib.init` completes — the global
+// runZonedGuarded / FlutterError / PlatformDispatcher error handlers
+// fire whenever code anywhere in the app throws, including the brief
+// window between `WidgetsFlutterBinding.ensureInitialized` and the
+// post-frame `_initRustCoreOrFatal`. A FRB-bound sanitiser would
+// crash-loop the zone handler in that window (every error → log →
+// sanitize → "FRB not initialised" → caught by zone → log again).
 //
-// Sqlite/drift exceptions are the usual offender: their `toString()` embeds
-// the failing `INSERT` statement along with every bound parameter, which can
-// include a PEM-encoded private key pulled from a session row. Anything that
-// might put such a message in front of the user (toasts, error dialogs) must
-// run it through [redactSecrets] first.
+// dart:core RegExp covers every shape the Rust `lfs_core::log_sanitize`
+// implementation covers, byte-for-byte (both sides share the same
+// regex vocabulary). Match order mirrors the Rust pipeline:
+// IPv6 → IPv4 → user@host → as-user / user= / login= → host:port →
+// Windows path → Unix path. Each step rewrites the buffer the next
+// step scans, so e.g. host:port redaction operates after the IP
+// rewrites have already turned bare IPs into `<ip>`.
+
+// PEM-style block — private key, encrypted private key, OpenSSH
+// proprietary format. Type-name class is non-newline so multi-word
+// types ("ENCRYPTED PRIVATE KEY", "OPENSSH PRIVATE KEY") still match.
+// `dotAll: true` makes `.` cross newlines (Rust's `(?s)`).
+final RegExp _pemRe = RegExp(
+  r'-----BEGIN[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----.*?-----END[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----',
+  dotAll: true,
+);
+
+// 200+ char base64-alphabet runs catch the common rusqlite / sqlite
+// leak where a failed INSERT dumps its bound parameters (a base64
+// blob) into the exception message.
+final RegExp _longB64Re = RegExp(r'[A-Za-z0-9+/=]{200,}');
 
 /// Strip PEM private keys and long base64 blobs.
-///
-/// Called before any user-visible error surfaces (toasts, dialogs) and as
-/// the first step of [AppLogger.sanitize] for log files. Catches the common
-/// drift/sqlite leak where a failed `INSERT` dumps its bound parameters —
-/// including `-----BEGIN OPENSSH PRIVATE KEY-----...` — into the exception
-/// message.
 String redactSecrets(String input) {
-  // Match any PEM-style block (private key, encrypted private key, future
-  // proprietary formats with hyphens in the type name like "OPENSSH PRIVATE
-  // KEY"). The type-name class is restricted to non-newline characters
-  // rather than non-hyphen so types like "OPENSSH-PRIVATE-KEY" or
-  // "ENCRYPTED PRIVATE KEY" still match.
-  final pemPattern = RegExp(
-    r'-----BEGIN[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----'
-    r'[\s\S]*?'
-    r'-----END[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----',
-    multiLine: true,
-  );
-  var out = input.replaceAll(pemPattern, '[REDACTED PRIVATE KEY]');
-  out = out.replaceAll(RegExp(r'[A-Za-z0-9+/=]{200,}'), '[REDACTED BASE64]');
-  return out;
+  return input
+      .replaceAll(_pemRe, '[REDACTED PRIVATE KEY]')
+      .replaceAll(_longB64Re, '[REDACTED BASE64]');
 }
 
-/// Remove sensitive data from error messages before logging.
+/// Bidi / Trojan-Source control characters. Same set CVE-2021-42574
+/// flagged: hostile filename / hostname / log payload can embed
+/// these to flip rendered text visually relative to its underlying
+/// bytes — e.g. an embedded U+202E (RIGHT-TO-LEFT OVERRIDE) flips
+/// the suffix of a hostname so the rendered version no longer
+/// matches the underlying ASCII the connect resolver sees.
+/// `redactBidi` strips them from any string the UI renders verbatim
+/// (TOFU host display, file row, log viewer).
+const _bidiCodepoints = <int>[
+  0x200E, // LEFT-TO-RIGHT MARK
+  0x200F, // RIGHT-TO-LEFT MARK
+  0x202A, // LEFT-TO-RIGHT EMBEDDING
+  0x202B, // RIGHT-TO-LEFT EMBEDDING
+  0x202C, // POP DIRECTIONAL FORMATTING
+  0x202D, // LEFT-TO-RIGHT OVERRIDE
+  0x202E, // RIGHT-TO-LEFT OVERRIDE
+  0x2066, // LEFT-TO-RIGHT ISOLATE
+  0x2067, // RIGHT-TO-LEFT ISOLATE
+  0x2068, // FIRST STRONG ISOLATE
+  0x2069, // POP DIRECTIONAL ISOLATE
+];
+
+/// Drop bidi-override characters from [input]. Returns the input
+/// unchanged when no offending codepoint is present (fast path —
+/// most strings have none). When at least one is found, the
+/// codepoint is replaced with `\u{HHHH}` so the rendered hex still
+/// signals "this string contained an override" without flipping
+/// the visual order.
+String redactBidi(String input) {
+  if (input.isEmpty) return input;
+  // Fast-path scan over codepoints.
+  if (!input.runes.any(_bidiCodepoints.contains)) return input;
+  final out = StringBuffer();
+  for (final cp in input.runes) {
+    if (_bidiCodepoints.contains(cp)) {
+      out.write('\\u{${cp.toRadixString(16).padLeft(4, '0')}}');
+    } else {
+      out.writeCharCode(cp);
+    }
+  }
+  return out.toString();
+}
+
+/// True when [host] contains any codepoint outside ASCII. Hosts
+/// that fail this are IDN candidates: a TOFU prompt that displays
+/// the rendered Unicode form alone is vulnerable to a homograph
+/// attack (a Cyrillic 'а' rendering identical to Latin 'a' in the
+/// dialog while the connect resolver saw the IDN-encoded
+/// punycode). Caller layers a "non-ASCII hostname — verify by eye"
+/// hint on top of the trust prompt.
+bool hostnameHasNonAscii(String host) {
+  if (host.isEmpty) return false;
+  for (final cp in host.runes) {
+    if (cp > 0x7F) return true;
+  }
+  return false;
+}
+
+/// True when [text] looks like it carries secret material — a PEM
+/// private-key block or a long base64 run (≥ 200 chars). Used by
+/// the terminal clipboard auto-wipe + log redactor to agree on
+/// what counts as "do not let this leak". Fast path — single
+/// substring scan + one regex match per call.
+bool looksSensitive(String text) {
+  if (text.contains('-----BEGIN') && text.contains('PRIVATE KEY')) {
+    return true;
+  }
+  return _longB64Re.hasMatch(text);
+}
+
+// 2-pass sanitize shape: bare-IP pass first, then a combined
+// "everything else" pass. **Don't collapse to a single regex** —
+// Rust's `regex` (NFA, no backtracking) and Dart's `RegExp`
+// (PCRE-style backtracking) diverge on inputs like
+// `fe80::abcd:1234:5678` where the host:port branch wants a
+// shorter IPv6 prefix to leave `:5678` for the port slot. Dart
+// backtracks and finds it; Rust does not, falling through to the
+// bare-IP catch-all and consuming the full IPv6. **Don't fan out
+// to 8 sequential `replaceAll` passes** either — each scans the
+// full input, so ~4× the work for the same redactions. Two passes
+// preserve the per-pass identity between engines so the cross-
+// impl drift gate (`test/utils/sanitize_drift_test.dart`) stays
+// green.
+
+const String _ipv6Branch =
+    r'\[?(?:'
+    r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
+    r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
+    r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
+    r'|::'
+    r')\]?';
+
+const String _ipv4Branch = r'(?:\d{1,3}\.){3}\d{1,3}';
+
+/// Pass 1: bare IPv6 + IPv4 → `<ip>`.
+final RegExp _ipRe = RegExp(
+  '$_ipv6Branch'
+  r'|\b'
+  '$_ipv4Branch'
+  r'\b',
+);
+
+/// Pass 2: combined "everything else" — user@host, as_user, user=,
+/// host:port, Windows path, Unix path. Host slot after pass 1 is
+/// either a literal `<ip>` placeholder or a domain name.
+///
+/// `userhost` carries an optional `:port` suffix so the closure
+/// can render `<user>@host:<port>` in one shot — alternation can't
+/// compose user@host's match with a separate host:port match
+/// because each `replaceAllMapped` callback span is consumed and
+/// the engine continues from after the match.
+///
+/// Two guards keep a Dart stack-trace `file.dart:LINE:COL`
+/// fragment (`errors_patch.dart:1234:5`) from being mistaken for
+/// `host:port` and ending up as `<port>:5` in the viewer:
+///
+/// 1. The `hostport_host` slot of the bare host:port branch
+///    requires **at least one letter** — pure-digit "hosts" are
+///    line numbers from a `LINE:COL` chain, never network
+///    endpoints. Real hosts after pass 1 are either the `<ip>`
+///    placeholder or a domain name with at least one letter.
+/// 2. `(?!:\d)` after every port slot: a `:digit` immediately
+///    AFTER the would-be port disqualifies the match — the `:COL`
+///    tail of `:LINE:COL` lookahead-blocks the `:LINE` capture.
+///
+/// Rust's `regex` crate has no lookarounds; the mirror impl in
+/// `lfs_core::log_sanitize` checks `(?!:\d)` manually in the
+/// replace closure. Guard (1) is pure regex so both engines
+/// share it verbatim — keeps the cross-impl drift gate
+/// (`test/utils/sanitize_drift_test.dart`) green.
+final RegExp _restRe = RegExp(
+  r'(?<userhost>[a-zA-Z0-9_.\-]+@(?<userhost_host>[a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)(?::(?<userhost_port>\d{2,5})(?!:\d))?)'
+  r'|(?<asuser>\bas\s+[a-zA-Z0-9_.\-]+)'
+  r'|(?<usereq>\b(?<usereq_key>user|login)=[a-zA-Z0-9_.\-]+)'
+  r'|(?<hostport>(?<hostport_host><ip>|[a-zA-Z0-9_.\-]*[a-zA-Z][a-zA-Z0-9_.\-]*):(?:\d{2,5})(?!:\d))\b'
+  r'|(?<winpath>[A-Z]:\\Users\\[^\\\r\n]+)'
+  r'|(?<unixpath>/(?:Users|home)/[^/\s]+)',
+);
+
+/// Remove sensitive data from error messages before logging or
+/// surfacing in toasts. Two-pass shape — IPs first (turn into
+/// `<ip>` placeholder), then everything else in one combined
+/// regex that dispatches in the replace closure based on which
+/// named capture matched.
 String sanitizeErrorMessage(String message) {
-  // IPv6 literals FIRST — broader shape than IPv4 and would otherwise
-  // get partially chewed by later rules. Covers:
-  //   * full 8-group form `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
-  //   * compressed forms with `::` (leading, trailing, or middle)
-  //   * link-local `fe80::1`, loopback `::1`, unspecified `::`
-  //   * bracketed `[2001:db8::1]` shape used in URLs / SSH error
-  //     messages — optional `[` + `]` are eaten in the same match so
-  //     the follow-up `<ip>:<port>` rule below can redact the port
-  //     cleanly (bare `<ip>]` would not match that rule).
-  //
-  // Dart RegExp alternation picks the **first** matching branch, not
-  // the longest. Arrange branches by specificity — the most trailing
-  // hex groups first so `2001:db8::1` is consumed whole rather than
-  // stopping at `2001:db8::` and leaving `1` behind.
-  message = message.replaceAllMapped(
-    RegExp(
-      r'\[?(?:'
-      // Full 8-group (no compression): 1:2:3:4:5:6:7:8
-      r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
-      // 1 leading group, 1..6 trailing groups after ::
-      r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
-      // 1..2 leading, 5 trailing
-      r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
-      // 1..3 leading, 4 trailing
-      r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
-      // 1..4 leading, 3 trailing
-      r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
-      // 1..5 leading, 2 trailing
-      r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
-      // 1..6 leading, exactly 1 trailing — catches `2001:db8::1`
-      r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
-      // Pure leading-then-:: (no trailing groups) — `1::`, `1:2::`
-      r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
-      // Pure trailing-after-:: — `::8`, `::1:2`, plus bare `::`
-      r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
-      r'|::'
-      r')\]?',
-    ),
-    (_) => '<ip>',
-  );
-
-  // Redact IPv4 addresses (before user@host pattern matching)
-  message = message.replaceAllMapped(
-    RegExp(r'\b(\d{1,3}\.){3}\d{1,3}\b'),
-    (_) => '<ip>',
-  );
-
-  // Redact user@host patterns (e.g., "admin@example.com" → "<user>@example.com")
-  // Also handles "admin@<ip>" after IP redaction
-  message = message.replaceAllMapped(
-    RegExp(r'([a-zA-Z0-9_.-]+)@([a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)'),
-    (m) => '<user>@${m.group(2) ?? '<host>'}',
-  );
-
-  // Defence-in-depth: also catch "as <user>" / "user=<user>" shapes
-  // from SSH / dartssh2 error messages that name the authenticating
-  // principal without wrapping it in user@host form. Without this the
-  // username survives every other redaction, which is exactly the leak
-  // the review flagged in `Connecting to ... as burzuf`.
-  //
-  // The `as` arm requires at least one whitespace before the name —
-  // otherwise the regex eats word fragments that start with `as` (e.g.
-  // `dart:async/zone_root.dart` matched as `as` + `ync` and rewrote
-  // to `as <user>`). `user=` and `login=` keep the no-space form
-  // because they are literal key=value pairs.
-  message = message.replaceAllMapped(
-    RegExp(r'\bas\s+([a-zA-Z0-9_.-]+)'),
-    (m) => 'as <user>',
-  );
-  message = message.replaceAllMapped(
-    RegExp(r'\b(user|login)=([a-zA-Z0-9_.-]+)'),
-    (m) => '${m.group(1)}=<user>',
-  );
-
-  // Redact port numbers in host:port patterns
-  message = message.replaceAllMapped(
-    RegExp(r'(<ip>|[a-zA-Z0-9_.-]+):(\d{2,5})\b'),
-    (m) => '${m.group(1) ?? '<host>'}:<port>',
-  );
-
-  // Redact Windows file paths with usernames (C:\Users\Name or
-  // C:\Users\Name\rest). The username segment stops at the next backslash
-  // or newline, so trailing-slash-less paths (log lines ending at the
-  // home dir itself, e.g. "Initial dir: C:\Users\bob") are also caught.
-  message = message.replaceAllMapped(
-    RegExp(r'[A-Z]:\\Users\\[^\\\r\n]+'),
-    (_) => '<path>',
-  );
-
-  // Redact Unix/macOS file paths with usernames (/Users/Name,
-  // /home/name, and any extension path). Same rationale: match the
-  // username segment only, so a bare home-dir path at end-of-line is
-  // still redacted without needing a trailing slash.
-  message = message.replaceAllMapped(
-    RegExp(r'/(?:Users|home)/[^/\s]+'),
-    (_) => '/<user>',
-  );
-
-  return message;
+  final afterIp = message.replaceAll(_ipRe, '<ip>');
+  return afterIp.replaceAllMapped(_restRe, (rawMatch) {
+    final m = rawMatch as RegExpMatch;
+    if (m.namedGroup('userhost') != null) {
+      final host = m.namedGroup('userhost_host') ?? '<host>';
+      if (m.namedGroup('userhost_port') != null) {
+        return '<user>@$host:<port>';
+      }
+      return '<user>@$host';
+    }
+    if (m.namedGroup('asuser') != null) {
+      return 'as <user>';
+    }
+    if (m.namedGroup('usereq') != null) {
+      final key = m.namedGroup('usereq_key') ?? 'user';
+      return '$key=<user>';
+    }
+    if (m.namedGroup('hostport') != null) {
+      final host = m.namedGroup('hostport_host') ?? '<host>';
+      return '$host:<port>';
+    }
+    if (m.namedGroup('winpath') != null) {
+      return '<path>';
+    }
+    if (m.namedGroup('unixpath') != null) {
+      return '/<user>';
+    }
+    return m.group(0) ?? '';
+  });
 }

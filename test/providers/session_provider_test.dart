@@ -1,11 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
-import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/providers/session_provider.dart';
 
-import '../helpers/fake_session_store.dart';
+import '../helpers/fake_session_notifier.dart';
+
+/// Pumps the workspace stream so the derived `sessionProvider` sees
+/// the latest snapshot. Attaches a permanent listener so Riverpod
+/// retains the stream subscription for the rest of the test — the
+/// `.future` getter alone doesn't pin the subscription, which lets
+/// the tear-down see a stale "loading" state when the container
+/// disposes.
+void _attachStreamListener(ProviderContainer container) {
+  container.listen<AsyncValue<SessionWorkspaceSnapshot>>(
+    sessionsWorkspaceStreamProvider,
+    (_, _) {},
+    fireImmediately: true,
+  );
+}
+
+Future<void> _pumpStream(ProviderContainer container) async {
+  _attachStreamListener(container);
+  await container.read(sessionsWorkspaceStreamProvider.future);
+}
 
 void main() {
   Session makeSession({
@@ -23,196 +41,218 @@ void main() {
     );
   }
 
-  group('SessionNotifier', () {
-    late FakeSessionStore store;
+  group('SessionMutator (FakeSessionNotifier seam)', () {
     late ProviderContainer container;
-    late SessionNotifier notifier;
+    late FakeSessionNotifier fake;
 
     setUp(() {
-      store = FakeSessionStore();
-      container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      notifier = container.read(sessionProvider.notifier);
+      fake = FakeSessionNotifier();
+      container = ProviderContainer(overrides: fake.overrides());
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      await fake.dispose();
     });
 
-    test('initial state is empty list', () {
-      expect(notifier.state, isEmpty);
+    test('initial state is empty list', () async {
+      await _pumpStream(container);
+      expect(container.read(sessionProvider), isEmpty);
     });
 
-    test('load updates state', () async {
-      await notifier.load();
-      expect(notifier.state, isEmpty);
-    });
-
-    test('add inserts session', () async {
-      final session = makeSession();
-      await notifier.add(session);
-      expect(notifier.state.length, 1);
-      expect(notifier.state.first.id, 's1');
+    test('add inserts session and stream re-emits', () async {
+      await _pumpStream(container);
+      await container.read(sessionMutatorProvider).add(makeSession());
+      // Wait for the controller broadcast to arrive.
+      await Future<void>.delayed(Duration.zero);
+      final sessions = container.read(sessionProvider);
+      expect(sessions.length, 1);
+      expect(sessions.first.id, 's1');
     });
 
     test('update modifies session', () async {
-      await notifier.add(makeSession(id: 's1', label: 'Original'));
-      await notifier.update(makeSession(id: 's1', label: 'Updated'));
-      expect(notifier.state.first.label, 'Updated');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', label: 'Original'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.update(makeSession(id: 's1', label: 'Updated'));
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.label, 'Updated');
     });
 
     test('delete removes session', () async {
-      await notifier.add(makeSession(id: 's1'));
-      await notifier.add(makeSession(id: 's2', label: 'Other'));
-      await notifier.delete('s1');
-      expect(notifier.state.length, 1);
-      expect(notifier.state.first.id, 's2');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1'));
+      await mutator.add(makeSession(id: 's2', label: 'Other'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.delete('s1');
+      await Future<void>.delayed(Duration.zero);
+      final sessions = container.read(sessionProvider);
+      expect(sessions.length, 1);
+      expect(sessions.first.id, 's2');
     });
 
     test('duplicate creates copy', () async {
-      await notifier.add(makeSession(id: 's1', label: 'Original'));
-      final copy = await notifier.duplicate('s1');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', label: 'Original'));
+      await Future<void>.delayed(Duration.zero);
+      final copy = await mutator.duplicate('s1');
+      await Future<void>.delayed(Duration.zero);
       expect(copy.id, 's1-copy');
       expect(copy.label, 'Original (copy)');
-      expect(notifier.state.length, 2);
+      expect(container.read(sessionProvider).length, 2);
     });
 
     test('addEmptyFolder adds folder', () async {
-      await notifier.addEmptyFolder('Production/Web');
-      expect(store.emptyFolders, contains('Production/Web'));
+      await _pumpStream(container);
+      await container
+          .read(sessionMutatorProvider)
+          .addEmptyFolder('Production/Web');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(emptyFoldersProvider), contains('Production/Web'));
     });
 
     test('renameFolder renames sessions in folder', () async {
-      await notifier.add(makeSession(id: 's1', folder: 'Old'));
-      await notifier.renameFolder('Old', 'New');
-      expect(notifier.state.first.folder, 'New');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Old'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.renameFolder('Old', 'New');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.folder, 'New');
     });
 
     test('deleteFolder removes folder and sessions', () async {
-      await notifier.add(makeSession(id: 's1', folder: 'ToDelete'));
-      await notifier.add(makeSession(id: 's2', folder: 'Keep'));
-      await notifier.deleteFolder('ToDelete');
-      expect(notifier.state.length, 1);
-      expect(notifier.state.first.folder, 'Keep');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'ToDelete'));
+      await mutator.add(makeSession(id: 's2', folder: 'Keep'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.deleteFolder('ToDelete');
+      await Future<void>.delayed(Duration.zero);
+      final sessions = container.read(sessionProvider);
+      expect(sessions.length, 1);
+      expect(sessions.first.folder, 'Keep');
     });
 
     test('deleteAll clears everything', () async {
-      await notifier.add(makeSession(id: 's1'));
-      await notifier.add(makeSession(id: 's2'));
-      await notifier.addEmptyFolder('Group');
-      await notifier.deleteAll();
-      expect(notifier.state, isEmpty);
-      expect(store.emptyFolders, isEmpty);
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1'));
+      await mutator.add(makeSession(id: 's2'));
+      await mutator.addEmptyFolder('Group');
+      await Future<void>.delayed(Duration.zero);
+      await mutator.deleteAll();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider), isEmpty);
+      expect(container.read(emptyFoldersProvider), isEmpty);
     });
 
     test('moveSession changes folder', () async {
-      await notifier.add(makeSession(id: 's1', folder: 'Old'));
-      await notifier.moveSession('s1', 'New');
-      expect(notifier.state.first.folder, 'New');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Old'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.moveSession('s1', 'New');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.folder, 'New');
     });
 
     test('moveFolder changes folder path', () async {
-      await notifier.add(makeSession(id: 's1', folder: 'A'));
-      await notifier.moveFolder('A', 'Parent');
-      expect(notifier.state.first.folder, 'Parent/A');
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.moveFolder('A', 'Parent');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.folder, 'Parent/A');
     });
 
-    test('canUndo is false initially', () {
-      expect(notifier.canUndo, isFalse);
-    });
+    test(
+      'duplicateFolder deep-copies the entire source tree into the target',
+      () async {
+        await _pumpStream(container);
+        final mutator = container.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'A'));
+        await mutator.add(makeSession(id: 's2', folder: 'A/Sub'));
+        await mutator.add(makeSession(id: 's3', folder: 'B'));
+        await Future<void>.delayed(Duration.zero);
+        await mutator.duplicateFolder('A', 'B');
+        await Future<void>.delayed(Duration.zero);
+        final sessions = container.read(sessionProvider);
+        // 3 originals + 2 duplicates (A → B/A, A/Sub → B/A/Sub).
+        expect(sessions.length, 5);
+        expect(sessions.where((s) => s.folder == 'B/A').length, 1);
+        expect(sessions.where((s) => s.folder == 'B/A/Sub').length, 1);
+        // Originals untouched.
+        expect(sessions.any((s) => s.id == 's1' && s.folder == 'A'), isTrue);
+        expect(
+          sessions.any((s) => s.id == 's2' && s.folder == 'A/Sub'),
+          isTrue,
+        );
+      },
+    );
 
-    test('canRedo is false initially', () {
-      expect(notifier.canRedo, isFalse);
-    });
+    test(
+      'duplicateFolder refuses target inside source (cycle guard)',
+      () async {
+        await _pumpStream(container);
+        final mutator = container.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'A'));
+        await Future<void>.delayed(Duration.zero);
+        await mutator.duplicateFolder('A', 'A/Sub');
+        await Future<void>.delayed(Duration.zero);
+        final sessions = container.read(sessionProvider);
+        expect(sessions.length, 1);
+        expect(sessions.first.folder, 'A');
+      },
+    );
 
-    test('canUndo is true after delete', () async {
-      await notifier.add(makeSession(id: 's1'));
-      await notifier.delete('s1');
-      expect(notifier.canUndo, isTrue);
-    });
-
-    test('canRedo is true after undo', () async {
-      await notifier.add(makeSession(id: 's1'));
-      await notifier.delete('s1');
-      await notifier.undo();
-      expect(notifier.canRedo, isTrue);
-    });
-
-    test('undo restores deleted session', () async {
-      await notifier.add(makeSession(id: 's1', label: 'ToRestore'));
-      await notifier.delete('s1');
-      expect(notifier.state, isEmpty);
-      final result = await notifier.undo();
-      expect(result, isTrue);
-      expect(notifier.state.length, 1);
-      expect(notifier.state.first.id, 's1');
-    });
-
-    test('undo returns false when nothing to undo', () async {
-      final result = await notifier.undo();
-      expect(result, isFalse);
-    });
-
-    test('redo restores after undo', () async {
-      await notifier.add(makeSession(id: 's1'));
-      await notifier.delete('s1');
-      await notifier.undo();
-      expect(notifier.state.length, 1);
-      final result = await notifier.redo();
-      expect(result, isTrue);
-      expect(notifier.state, isEmpty);
-    });
-
-    test('redo returns false when nothing to redo', () async {
-      final result = await notifier.redo();
-      expect(result, isFalse);
+    test('duplicateFolder is a no-op for an empty source path', () async {
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.duplicateFolder('', 'B');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).length, 1);
     });
   });
 
-  group('SessionNotifier error paths', () {
-    late ThrowingSessionStore store;
+  group('SessionMutator error paths (ThrowingSessionNotifier)', () {
     late ProviderContainer container;
-    late SessionNotifier notifier;
+    late ThrowingSessionNotifier fake;
 
     setUp(() {
-      store = ThrowingSessionStore();
-      container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      notifier = container.read(sessionProvider.notifier);
+      fake = ThrowingSessionNotifier();
+      container = ProviderContainer(overrides: fake.overrides());
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
+      await fake.dispose();
     });
 
-    test('_run rethrows on operation failure', () async {
-      store.shouldThrowOnAdd = true;
+    test('add rethrows on failure', () async {
+      await _pumpStream(container);
+      fake.shouldThrowOnAdd = true;
+      // The fake's add is invoked directly through the mutator's
+      // override; the throw escapes the FRB pass-through path.
       expect(
-        () => notifier.add(makeSession(id: 's1')),
+        () => container.read(sessionMutatorProvider).add(makeSession(id: 's1')),
         throwsA(isA<Exception>()),
       );
-    });
-
-    test('load catches error and keeps state unchanged', () async {
-      store.shouldThrowOnLoad = true;
-      await notifier.load();
-      expect(notifier.state, isEmpty);
     });
   });
 
   group('session providers with ProviderContainer', () {
-    test('sessionStoreProvider returns SessionStore', () {
+    test('sessionProvider starts empty without overrides', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final store = container.read(sessionStoreProvider);
-      expect(store, isA<SessionStore>());
-    });
-
-    test('sessionProvider starts empty', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+      // The workspace stream's first emission hasn't landed yet —
+      // derived `sessionProvider` yields the empty snapshot.
       final sessions = container.read(sessionProvider);
       expect(sessions, isEmpty);
     });
@@ -224,29 +264,32 @@ void main() {
       expect(query, isEmpty);
     });
 
-    test('filteredSessionsProvider returns all when no search', () {
-      final store = FakeSessionStore();
-      final container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      addTearDown(container.dispose);
+    test('filteredSessionsProvider returns all when no search', () async {
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
       final filtered = container.read(filteredSessionsProvider);
       expect(filtered, isEmpty);
     });
 
     test('filteredSessionsProvider filters by label', () async {
-      final store = FakeSessionStore();
-      final container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      addTearDown(container.dispose);
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
 
-      // Add sessions via the notifier
-      final notifier = container.read(sessionProvider.notifier);
-      await notifier.add(makeSession(id: 's1', label: 'Production'));
-      await notifier.add(makeSession(id: 's2', label: 'Staging'));
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', label: 'Production'));
+      await mutator.add(makeSession(id: 's2', label: 'Staging'));
+      await Future<void>.delayed(Duration.zero);
 
-      // Set search query
       container.read(sessionSearchProvider.notifier).set('prod');
       final filtered = container.read(filteredSessionsProvider);
       expect(filtered.length, 1);
@@ -254,37 +297,27 @@ void main() {
     });
 
     test('filteredSessionsProvider filters by host', () async {
-      final store = FakeSessionStore();
-      final container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      addTearDown(container.dispose);
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
 
-      final notifier = container.read(sessionProvider.notifier);
-      await notifier.add(makeSession(id: 's1', host: '10.0.0.1'));
-      await notifier.add(makeSession(id: 's2', host: '192.168.1.1'));
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', host: '10.0.0.1'));
+      await mutator.add(makeSession(id: 's2', host: '192.168.1.1'));
+      await Future<void>.delayed(Duration.zero);
 
       container.read(sessionSearchProvider.notifier).set('192');
       final filtered = container.read(filteredSessionsProvider);
       expect(filtered.length, 1);
       expect(filtered.first.host, '192.168.1.1');
     });
-
-    test('sessionTreeProvider builds tree', () async {
-      final store = FakeSessionStore();
-      final container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(sessionProvider.notifier);
-      await notifier.add(makeSession(id: 's1', folder: 'Web'));
-      final tree = container.read(sessionTreeProvider);
-      expect(tree, isNotEmpty);
-    });
   });
 
-  group('SessionsLoadingNotifier', () {
+  group('sessionsLoadingProvider', () {
     test('defaults to loading=true so the cold-start first frame is blank', () {
       // The sidebar reads this flag to tell "still loading" apart from
       // "no sessions yet". Defaulting to `true` is what closes the
@@ -295,54 +328,16 @@ void main() {
       expect(container.read(sessionsLoadingProvider), isTrue);
     });
 
-    test('markIdle flips the flag to false', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      container.read(sessionsLoadingProvider.notifier).markIdle();
+    test('flips to false once the workspace stream emits', () async {
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      // First emit lands as soon as we drain the future.
+      await _pumpStream(container);
       expect(container.read(sessionsLoadingProvider), isFalse);
     });
-
-    test('markLoading restores the flag after idle', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      container.read(sessionsLoadingProvider.notifier).markIdle();
-      container.read(sessionsLoadingProvider.notifier).markLoading();
-      expect(container.read(sessionsLoadingProvider), isTrue);
-    });
-
-    test('SessionNotifier.load clears the loading flag on success', () async {
-      final store = FakeSessionStore();
-      final container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      addTearDown(container.dispose);
-      expect(container.read(sessionsLoadingProvider), isTrue);
-      await container.read(sessionProvider.notifier).load();
-      expect(container.read(sessionsLoadingProvider), isFalse);
-    });
-
-    test(
-      'SessionNotifier.load clears the loading flag even on DB failure',
-      () async {
-        // `load()` swallows + logs the error. The finally block must
-        // still flip the flag — otherwise the sidebar stays blank
-        // forever when the DB cannot be opened.
-        final container = ProviderContainer(
-          overrides: [
-            sessionStoreProvider.overrideWithValue(_ThrowingSessionStore()),
-          ],
-        );
-        addTearDown(container.dispose);
-        await container.read(sessionProvider.notifier).load();
-        expect(container.read(sessionsLoadingProvider), isFalse);
-      },
-    );
   });
-}
-
-class _ThrowingSessionStore extends FakeSessionStore {
-  @override
-  Future<List<Session>> load() async {
-    throw StateError('simulated DB open failure');
-  }
 }

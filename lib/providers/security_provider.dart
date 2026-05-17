@@ -1,46 +1,26 @@
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/security/active_dbkey.dart';
 import '../core/security/biometric_auth.dart';
 import '../core/security/biometric_key_vault.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
-import '../core/security/linux/tpm_client.dart';
-import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
+import '../src/rust/api/app.dart' as rust_secrets;
+import '../src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult, DbSecurityCapabilities;
+import '../src/rust/api/tpm.dart' as rust_tpm;
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
-import '../platform/macos/code_signing/resign_service.dart';
 import '../utils/logger.dart';
 import 'config_provider.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
   (_) => SecureKeyStorage(),
-);
-
-/// macOS self-sign orchestrator. Non-macOS hosts still receive a
-/// constructed instance — its methods throw / no-op at call time
-/// because the subprocess wrappers target `/usr/bin/openssl`,
-/// `/usr/bin/security`, and `/usr/bin/codesign` which only exist on
-/// macOS. UI code is responsible for gating the provider behind
-/// `plat.isMacosPlatform` before invoking [ResignService.ensureIdentity]
-/// / [ResignService.resignBundle]. Kept here rather than in a
-/// dedicated file so the wizard + settings surfaces that need the
-/// self-sign flow pick it up through the same `security_provider`
-/// module every other tier dependency comes from.
-///
-/// Consumers: first-launch pre-prompt in [_offerMacosSelfSign], the
-/// Settings → Security section Enable / Remove identity block, and
-/// the [MacosInstaller] update adapter (re-sign the freshly-copied
-/// bundle during a silent update). See
-/// [docs/ARCHITECTURE.md §3.6 macOS self-sign lifecycle] for the full
-/// flow.
-final resignServiceProvider = Provider<ResignService>(
-  (_) => const ResignService(),
 );
 
 /// Biometric authentication probe + prompt. Used by the optional
@@ -54,13 +34,13 @@ final biometricKeyVaultProvider = Provider<BiometricKeyVault>(
   (_) => BiometricKeyVault(),
 );
 
-/// L2 keychain-password gate. Split-storage salted HMAC; fronts the
+/// T1+pw keychain-password gate. Split-storage salted HMAC; fronts the
 /// keychain-stored DB key with a short-password check dialog.
 final keychainPasswordGateProvider = Provider<KeychainPasswordGate>(
   (_) => KeychainPasswordGate(),
 );
 
-/// L3 hardware-bound DB key vault (TPM2 on Linux, stubbed elsewhere
+/// T2 hardware-bound DB key vault (TPM2 on Linux, stubbed elsewhere
 /// until per-platform plugins land).
 final hardwareTierVaultProvider = Provider<HardwareTierVault>(
   (_) => HardwareTierVault(),
@@ -79,30 +59,28 @@ final hardwareTierVaultProvider = Provider<HardwareTierVault>(
 /// install (or never, if the user imports a per-host config that
 /// already carries a cache — which we strip on export to prevent
 /// exactly that stale-positive case).
-final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
+///
+/// The cache-miss write-back is Rust-side: `probeCapabilities()`
+/// routes into `capabilities_orchestrator::run` which calls
+/// `capabilities_cache::Cache::set`, which fires
+/// `Event::SecurityCapabilitiesChanged`. The
+/// `lfs_core::security::capabilities_persister` actor subscribes
+/// and mirrors the snapshot back into the
+/// `security_probe_cache` slot of `config.json`. Dart no longer
+/// holds the persistence side-effect.
+final securityCapabilitiesProvider = FutureProvider<DbSecurityCapabilities>((
   ref,
 ) async {
   final cached = ref.read(configProvider).securityProbeCache;
   if (cached != null) return cached;
-  final fresh = await probeCapabilities(
-    keyStorage: ref.read(secureKeyStorageProvider),
-    hardwareVault: ref.read(hardwareTierVaultProvider),
-  );
-  // Persist the snapshot so the next cold start returns from the
-  // `cached != null` branch above. `update` is awaited so the save
-  // is durable before the provider settles — a crash between probe
-  // and write would drop the cache for the next launch, which is the
-  // safe direction.
-  await ref
-      .read(configProvider.notifier)
-      .update((c) => c.copyWithSecurity(securityProbeCache: fresh));
-  return fresh;
+  return probeCapabilities();
 });
 
 /// Classified reason the hardware tier is unavailable on this host.
 ///
 /// Real probe (not a per-platform guess):
-/// - Linux: delegates to [TpmClient.probe] — distinguishes missing
+/// - Linux: routes through FRB into
+///   `lfs_core::platform::linux::tpm::probe` — distinguishes missing
 ///   `/dev/tpmrm0`, missing `tpm2` binary, and generic probe-failed.
 /// - Windows: asks `NCryptOpenStorageProvider` for the Platform Crypto
 ///   Provider (TPM 2.0) vs the software KSP.
@@ -225,25 +203,32 @@ final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
   // second deep probe. `securityCapabilitiesProvider` already ran
   // `hardwareVault.probeDetail` (Windows / macOS / iOS / Android) and
   // stashed the raw code string on `caps.hardwareProbeCode`; Linux
-  // drops through that path with `'unknown'` because the TPM probe
-  // lives in `TpmClient` at this layer. One deep probe per session
-  // instead of three (capabilities + hardware-detail + keyring-detail
-  // each used to trigger their own round-trip, and the Windows
-  // createprimary + macOS SE probe each take hundreds of ms — Settings
-  // visibly hung on open while they ran in series).
+  // re-probes here directly through FRB into
+  // `lfs_core::platform::linux::tpm::probe` (the cap snapshot's
+  // `'unknown'` fallback is the placeholder for that, since the
+  // capabilities orchestrator does not yet run the Linux TPM probe).
+  // One deep probe per session instead of three (capabilities +
+  // hardware-detail + keyring-detail each used to trigger their own
+  // round-trip, and the Windows createprimary + macOS SE probe each
+  // take hundreds of ms — Settings visibly hung on open while they
+  // ran in series).
   final caps = await ref.watch(securityCapabilitiesProvider.future);
   if (Platform.isLinux) {
-    final result = await TpmClient().probe();
+    // `tpmProbe` accepts `null` for binary / device / timeoutMs and
+    // applies the canonical lfs_core defaults itself; passing
+    // Dart-side literals would duplicate the platform defaults
+    // across the FRB boundary.
+    final result = await rust_tpm.tpmProbe();
     switch (result) {
-      case TpmProbeResult.available:
+      case rust_tpm.DbTpmProbeResult.available:
         return HardwareProbeDetail.available;
-      case TpmProbeResult.deviceNodeMissing:
+      case rust_tpm.DbTpmProbeResult.deviceNodeMissing:
         return HardwareProbeDetail.linuxDeviceMissing;
-      case TpmProbeResult.binaryMissing:
+      case rust_tpm.DbTpmProbeResult.binaryMissing:
         return HardwareProbeDetail.linuxBinaryMissing;
-      case TpmProbeResult.probeFailed:
+      case rust_tpm.DbTpmProbeResult.probeFailed:
         return HardwareProbeDetail.linuxProbeFailed;
-      case TpmProbeResult.wrongPlatform:
+      case rust_tpm.DbTpmProbeResult.notLinux:
         return HardwareProbeDetail.generic;
     }
   }
@@ -296,7 +281,7 @@ HardwareProbeDetail decodeHardwareProbeCode(String code) {
 /// Classified keyring (T1) probe outcome. Mirrors the enum on
 /// [SecureKeyStorage] so UI code can depend only on the provider
 /// layer — no need to import the storage class to render a hint.
-final keyringProbeDetailProvider = FutureProvider<KeyringProbeResult>((
+final keyringProbeDetailProvider = FutureProvider<DbKeyringProbeResult>((
   ref,
 ) async {
   // Same "derive from the capability snapshot" dance as
@@ -310,16 +295,16 @@ final keyringProbeDetailProvider = FutureProvider<KeyringProbeResult>((
   return caps.keychainProbe;
 });
 
-/// Resolve the localised user-facing copy for a [KeyringProbeResult].
+/// Resolve the localised user-facing copy for a [DbKeyringProbeResult].
 /// Shared between Settings and the first-launch wizard so the copy
 /// stays in lockstep.
-String keyringProbeDetailText(S l10n, KeyringProbeResult result) {
+String keyringProbeDetailText(S l10n, DbKeyringProbeResult result) {
   switch (result) {
-    case KeyringProbeResult.available:
+    case DbKeyringProbeResult.available:
       return '';
-    case KeyringProbeResult.linuxNoSecretService:
+    case DbKeyringProbeResult.linuxNoSecretService:
       return l10n.keyringProbeLinuxNoSecretService;
-    case KeyringProbeResult.probeFailed:
+    case DbKeyringProbeResult.probeFailed:
       return l10n.keyringProbeFailed;
   }
 }
@@ -381,79 +366,79 @@ final securityStateProvider =
       SecurityStateNotifier.new,
     );
 
-/// Immutable snapshot of security state: level + optional encryption key
-/// held in a page-locked native buffer.
-///
-/// [_buffer] owns a [SecretBuffer] with the 32-byte DB key; [encryptionKey]
-/// exposes it as a `Uint8List` alias for compatibility with the existing
-/// drift/SQLite3MC call sites. The alias stays valid as long as the buffer
-/// lives — i.e. until the next `set(...)`/`clearEncryption()` replaces the
-/// state, at which point the old buffer is disposed (zeroed + munlock +
-/// freed) by [SecurityStateNotifier].
+/// Immutable snapshot of security state: tier + a probe whether
+/// the running session has a DB key staged in
+/// `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`. The bytes live
+/// Rust-side only — every consumer that needs them goes through
+/// a SecretRef-aware FRB shim, so this class carries no key
+/// material.
 class SecurityState {
   final SecurityTier level;
-  final SecretBuffer? _buffer;
 
-  SecurityState({this.level = SecurityTier.plaintext, SecretBuffer? buffer})
-    : _buffer = buffer;
+  /// True when the running session has unlocked the encrypted DB —
+  /// i.e. `app.dbkey.active` SecretStore slot holds the master
+  /// key. UI layers gate "lock" / "unlock required" affordances
+  /// off this flag.
+  final bool hasActiveDbKey;
 
-  /// Live `Uint8List` view into the locked buffer, or null in plaintext mode.
-  Uint8List? get encryptionKey => _buffer?.bytes;
-
-  /// Internal handle — needed by [SecurityStateNotifier] to dispose on
-  /// transitions. Not part of the public surface.
-  SecretBuffer? get buffer => _buffer;
+  const SecurityState({
+    this.level = SecurityTier.plaintext,
+    this.hasActiveDbKey = false,
+  });
 
   /// Whether data stores should encrypt their contents.
   bool get isEncrypted => level != SecurityTier.plaintext;
 }
 
 /// Notifier for security state — set once at startup, updated on
-/// master password enable/disable/change. Owns the [SecretBuffer] lifecycle:
-/// any transition disposes the previous buffer so the plaintext key is
-/// zeroed + unlocked + freed before a new one takes its place.
+/// master password enable/disable/change. Carries no plaintext key
+/// material; the running DB key lives in
+/// `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`. Lock / unlock
+/// transitions both flip the [SecurityState.hasActiveDbKey] flag
+/// AND drop the SecretStore slot in the lock case so the bytes
+/// don't outlive the active session.
 class SecurityStateNotifier extends Notifier<SecurityState> {
-  SecretBuffer? _owned;
-
   @override
-  SecurityState build() {
-    // Dispose the currently-owned buffer when the provider itself is torn
-    // down. Reading `state` inside onDispose isn't allowed (Riverpod
-    // forbids ref access from lifecycle callbacks), so we keep a plain
-    // field that mirrors the buffer the state holds.
-    ref.onDispose(() {
-      _owned?.dispose();
-      _owned = null;
-    });
-    return SecurityState();
+  SecurityState build() => const SecurityState();
+
+  /// Mark the running session as on [level], with [hasKey] reflecting
+  /// whether `app.dbkey.active` holds a DB key. Caller is responsible
+  /// for staging the key Rust-side before this call (typically
+  /// through `dbInitFromSecret` which atomically promotes a
+  /// caller-minted secret into the active slot).
+  void setActive(SecurityTier level, {required bool hasKey}) {
+    state = SecurityState(level: level, hasActiveDbKey: hasKey);
+    _logTransition(level, hasKey: hasKey);
   }
 
-  /// Set the security level and encryption key. Copies [key] into a fresh
-  /// page-locked buffer and disposes the previous one. The caller is
-  /// responsible for zeroing its own `Uint8List` copy afterwards.
-  void set(SecurityTier level, [Uint8List? key]) {
-    final previous = _owned;
-    final buffer = key == null ? null : SecretBuffer.fromBytes(key);
-    _owned = buffer;
-    state = SecurityState(level: level, buffer: buffer);
-    previous?.dispose();
+  void _logTransition(SecurityTier level, {required bool hasKey}) {
     // Security level transitions are load-bearing for support traces
     // — a "why did my DB open in plaintext" ticket is answered by
-    // matching the tier on the last `set` call against the persisted
+    // matching the tier on the last transition against the persisted
     // config tier. No key bytes in the log, just the enum name.
     AppLogger.instance.log(
-      'SecurityState: tier=${level.name} hasKey=${key != null}',
+      'SecurityState: tier=${level.name} hasKey=$hasKey',
       name: 'SecurityState',
     );
   }
 
-  /// Clear encryption (revert to plaintext). Zeroes and releases the
-  /// in-memory key.
+  /// Clear encryption (revert to plaintext). Drops the active
+  /// SecretStore slot Rust-side so the running key bytes don't
+  /// outlive the auto-lock / wipe transition. The state flip runs
+  /// regardless of whether the FRB drop succeeded — flutter_test
+  /// contexts that haven't bootstrapped the native lib still get
+  /// the right Riverpod state, and the Rust side is a no-op on
+  /// missing-id anyway.
   void clearEncryption() {
-    final previous = _owned;
-    _owned = null;
-    state = SecurityState();
-    previous?.dispose();
+    try {
+      rust_secrets.secretsDrop(id: kActiveDbKeySecretId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'SecurityState.clearEncryption: secretsDrop swallowed: $e',
+        name: 'SecurityState',
+      );
+    }
+    state = const SecurityState();
     AppLogger.instance.log(
       'SecurityState: cleared encryption (plaintext)',
       name: 'SecurityState',

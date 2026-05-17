@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/security/secure_clipboard.dart';
 import '../../core/snippets/snippet.dart';
+import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_collection_toolbar.dart';
@@ -40,8 +40,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(snippetStoreProvider);
-    final snippets = await store.loadAll();
+    final snippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (mounted) {
       setState(() {
         _snippets = snippets;
@@ -50,15 +49,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     }
   }
 
-  List<Snippet> _filtered() {
-    if (_filter.isEmpty) return _snippets;
-    final needle = _filter.toLowerCase();
-    return _snippets.where((sn) {
-      return sn.title.toLowerCase().contains(needle) ||
-          sn.command.toLowerCase().contains(needle) ||
-          sn.description.toLowerCase().contains(needle);
-    }).toList();
-  }
+  List<Snippet> _filtered() => filterSnippets(_snippets, _filter);
 
   @override
   Widget build(BuildContext context) {
@@ -140,21 +131,36 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     );
   }
 
-  void _copyCommand(Snippet snippet) {
-    Clipboard.setData(ClipboardData(text: snippet.command));
+  Future<void> _copyCommand(Snippet snippet) async {
+    // Snippets can carry credentials; SecureClipboard pins the
+    // per-platform "no-cloud" flag so bytes don't reach Windows
+    // clipboard history, macOS Universal Clipboard, iOS Handoff
+    // or Android 13+ history. Refuse on Rust-side failure rather
+    // than fall back to Flutter's stock channel.
+    bool ok;
+    try {
+      ok = await SecureClipboard().setText(snippet.command);
+    } catch (_) {
+      // Native channel / FRB unreachable (flutter_test, missing
+      // plugin) — surface the same failure-toast path the
+      // refused-cloud-leak case uses so the user gets a clear
+      // signal rather than a silent no-op.
+      ok = false;
+    }
+    if (!mounted) return;
     Toast.show(
       context,
-      message: S.of(context).commandCopied,
-      level: ToastLevel.info,
+      message: ok
+          ? S.of(context).commandCopied
+          : S.of(context).clipboardCopyFailed,
+      level: ok ? ToastLevel.info : ToastLevel.error,
     );
   }
 
   Future<void> _addSnippet() async {
     final result = await _SnippetEditDialog.show(context);
     if (result == null || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.add(result);
-    ref.invalidate(snippetsProvider);
+    await ref.read(snippetsProvider.notifier).add(result);
     await _load();
     if (mounted) {
       Toast.show(
@@ -168,9 +174,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   Future<void> _editSnippet(Snippet snippet) async {
     final result = await _SnippetEditDialog.show(context, snippet: snippet);
     if (result == null || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.update(result);
-    ref.invalidate(snippetsProvider);
+    await ref.read(snippetsProvider.notifier).save(result);
     await _load();
     if (mounted) {
       Toast.show(
@@ -198,12 +202,10 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.delete(snippet.id);
-    ref.invalidate(snippetsProvider);
-    // SessionSnippets cascades on FK; reload so the in-memory session list
-    // doesn't hold stale snippet links in its derived UI state.
-    await ref.read(sessionProvider.notifier).load();
+    await ref.read(snippetsProvider.notifier).delete(snippet.id);
+    // SessionSnippets cascades on FK; `dbSnippetsDelete` Rust-side
+    // publishes `SessionsChanged` so the workspace stream re-fetches
+    // and the derived UI drops the dead snippet link.
     await _load();
     if (mounted) {
       Toast.show(context, message: s.snippetDeleted(snippet.title));
@@ -292,7 +294,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               hintText: s.snippetTitleHint,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _commandCtrl,
             maxLines: 3,
@@ -303,7 +305,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           // Inline hint listing the built-in placeholder tokens —
           // without it users have no way to discover that
           // {{host}} / {{user}} / {{port}} / {{label}} / {{now}}
@@ -311,7 +313,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
           // execution time. Tap a chip to insert the token at the
           // current caret position.
           _SnippetTokenHints(controller: _commandCtrl),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _descCtrl,
             decoration: InputDecoration(
@@ -394,10 +396,10 @@ class _SnippetTokenHints extends StatelessWidget {
           style: TextStyle(
             color: AppTheme.fgFaint,
             fontSize: AppFonts.xs,
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.interFamily,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -433,13 +435,13 @@ class _SnippetTokenHints extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           s.snippetCustomTokensHint,
           style: TextStyle(
             color: AppTheme.fgFaint,
             fontSize: AppFonts.xs,
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.interFamily,
           ),
         ),
       ],

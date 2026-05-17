@@ -1,890 +1,12 @@
-import 'package:uuid/uuid.dart';
-
-import '../../utils/logger.dart';
+import '../../src/rust/api/archive.dart' as rust_archive;
+import '../../src/rust/api/archive_stage.dart' as rust_stage;
+import '../../src/rust/api/config.dart' as rust_config;
 import '../config/app_config.dart';
-import '../progress/progress_reporter.dart';
-import '../security/key_store.dart';
+import '../security/ssh_key.dart';
 import '../snippets/snippet.dart';
 import '../tags/tag.dart';
 import '../../features/settings/export_import.dart';
-import '../../l10n/app_localizations.dart';
-import '../session/qr_codec.dart' show ExportLink, ExportFolderTagLink;
 import '../session/session.dart';
-
-/// Applies import results to session and config state.
-///
-/// Extracted from main.dart and settings_screen.dart to eliminate
-/// duplication and enable testing without Riverpod/UI context.
-class ImportService {
-  final Future<void> Function(Session session) addSession;
-  final Future<void> Function(String folderPath) addEmptyFolder;
-  final Future<void> Function(String id) deleteSession;
-  final List<Session> Function() getSessions;
-  final void Function(AppConfig config) applyConfig;
-
-  /// Save a manager key and return its new ID (may differ from the original).
-  final Future<String> Function(SshKeyEntry entry)? saveManagerKey;
-
-  /// Tag import callbacks.
-  final Future<String> Function(Tag tag)? saveTag;
-  final Future<void> Function(String sessionId, String tagId)? tagSession;
-  final Future<void> Function(String folderId, String tagId)? tagFolder;
-
-  /// Snippet import callbacks.
-  final Future<String> Function(Snippet snippet)? saveSnippet;
-  final Future<void> Function(String snippetId, String sessionId)?
-  linkSnippetToSession;
-
-  /// Optional callbacks for rollback support in replace mode.
-  /// When provided, a snapshot is taken before deleting existing sessions.
-  /// If import fails, the snapshot is restored.
-  final Set<String> Function()? getEmptyFolders;
-  final Future<void> Function(List<Session> sessions, Set<String> emptyFolders)?
-  restoreSnapshot;
-
-  /// Existing ids in target stores — used to remap id collisions on merge so
-  /// re-imported items land as `(copy)` alongside the existing ones instead
-  /// of being silently skipped.
-  final Future<Set<String>> Function()? existingTagIds;
-  final Future<Set<String>> Function()? existingSnippetIds;
-
-  /// Current config snapshot for rollback support in replace mode.
-  final AppConfig Function()? getCurrentConfig;
-
-  /// Replace-mode wipe + rollback hooks. When [ImportResult.includeTags] /
-  /// `includeSnippets` / `includeKnownHosts` is true in replace mode, the
-  /// corresponding local store is snapshotted and cleared before the import
-  /// writes new rows — otherwise duplicate IDs or unique-name conflicts
-  /// (e.g. `Tags.name` UNIQUE) would abort the import. If the import later
-  /// throws, the captured lists are replayed back in.
-  final Future<List<Tag>> Function()? loadAllTags;
-  final Future<void> Function()? deleteAllTags;
-  final Future<List<Snippet>> Function()? loadAllSnippets;
-  final Future<void> Function()? deleteAllSnippets;
-  final Future<String> Function()? exportKnownHosts;
-  final Future<void> Function()? clearKnownHosts;
-  final Future<void> Function(String content)? importKnownHosts;
-
-  /// Rollback hooks for manager keys. Unlike tags/snippets the key store is
-  /// never *cleared* on replace — incoming keys always merge-by-fingerprint
-  /// with the existing set. But if the import fails halfway through, we need
-  /// a way to undo any keys we appended. Snapshotting the pre-import id set
-  /// and deleting every id that appears post-import but wasn't in the
-  /// snapshot is the cheapest way to restore the store without touching keys
-  /// the user already had.
-  ///
-  /// In production these point at `KeyStore.loadAll()` and `KeyStore.delete`;
-  /// tests that don't wire a KeyStore leave them null and the snapshot step
-  /// is skipped.
-  final Future<Set<String>> Function()? existingManagerKeyIds;
-  final Future<void> Function(String id)? deleteManagerKey;
-
-  /// Wraps the entire import body in a single database transaction when
-  /// provided. Production wires this to `AppDatabase.transaction(...)` so
-  /// bulk imports (100s–1000s of rows) run as one atomic write — ~10×
-  /// faster than one INSERT per row and guarantees that a mid-import
-  /// failure leaves no half-written state. Tests leave it null to skip the
-  /// DB round-trip.
-  final Future<T> Function<T>(Future<T> Function() body)? runInTransaction;
-
-  ImportService({
-    required this.addSession,
-    required this.addEmptyFolder,
-    required this.deleteSession,
-    required this.getSessions,
-    required this.applyConfig,
-    this.saveManagerKey,
-    this.saveTag,
-    this.tagSession,
-    this.tagFolder,
-    this.saveSnippet,
-    this.linkSnippetToSession,
-    this.getEmptyFolders,
-    this.restoreSnapshot,
-    this.existingTagIds,
-    this.existingSnippetIds,
-    this.getCurrentConfig,
-    this.loadAllTags,
-    this.deleteAllTags,
-    this.loadAllSnippets,
-    this.deleteAllSnippets,
-    this.exportKnownHosts,
-    this.clearKnownHosts,
-    this.importKnownHosts,
-    this.existingManagerKeyIds,
-    this.deleteManagerKey,
-    this.runInTransaction,
-  });
-
-  /// Apply imported sessions and config. Returns a [ImportSummary] with
-  /// the number of rows actually persisted per data type — callers use it to
-  /// build an informative success toast instead of only the session count.
-  ///
-  /// In replace mode, takes a snapshot before deleting existing sessions.
-  /// If any import fails, the snapshot is restored to prevent data loss.
-  ///
-  /// In merge mode, id collisions with existing items (sessions/tags/snippets)
-  /// are resolved by minting a fresh UUID and suffixing the label/name with
-  /// `(copy)` — mirrors session duplication UX.
-  Future<ImportSummary> applyResult(
-    ImportResult result, {
-    ProgressReporter? progress,
-    S? l10n,
-  }) async {
-    AppLogger.instance.log(
-      'Applying import: mode=${result.mode.name}, '
-      'sessions=${result.sessions.length}, '
-      'managerKeys=${result.managerKeys.length}, '
-      'hasConfig=${result.config != null}',
-      name: 'Import',
-    );
-
-    // The snapshot + delete phase used to run OUTSIDE the transaction —
-    // a crash after the delete but before the apply committed left half
-    // the replace landed on disk, recoverable only by the manual
-    // `_tryRestore` pass. Now the capture, the clear, and the apply all
-    // run under the same `runInTransaction` so drift + SQLite auto-
-    // rollback any partial state on exception. The snapshot survives as
-    // the Dart-level belt for provider cache sync (sessionProvider,
-    // tagProvider, …) which watches callbacks, not the DB directly; the
-    // DB rollback alone would leave those caches stale until their next
-    // `load()`.
-    _Snapshot? snapshot;
-    Future<ImportSummary> body() async {
-      if (result.mode == ImportMode.replace) {
-        snapshot = await _snapshotAndDeleteExisting(result);
-      }
-      return _applyCore(result, snapshot, progress, l10n);
-    }
-
-    try {
-      if (runInTransaction != null) {
-        return await runInTransaction!<ImportSummary>(body);
-      }
-      return await body();
-    } catch (e) {
-      if (result.mode == ImportMode.replace) {
-        await _tryRestore(snapshot);
-        // Rewrap so the UI can show "data restored" instead of a bare
-        // "import failed" — the user otherwise can't tell whether the DB
-        // is in a half-imported state or back to the pre-import snapshot.
-        throw LfsImportRolledBackException(cause: e);
-      }
-      rethrow;
-    }
-  }
-
-  Future<ImportSummary> _applyCore(
-    ImportResult result,
-    _Snapshot? snapshot,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    final keys = await _phaseSessions(result, snapshot, progress, l10n);
-    final tags = await _phaseTagsAndLinks(
-      result,
-      keys.sessionIdMap,
-      progress,
-      l10n,
-    );
-    final snippets = await _phaseSnippetsAndLinks(
-      result,
-      keys.sessionIdMap,
-      progress,
-      l10n,
-    );
-    await _phaseConfigAndKnownHosts(result, progress, l10n);
-
-    AppLogger.instance.log(
-      'Import complete: ${keys.imported}/${result.sessions.length} sessions, '
-      '${keys.foldersImported}/${result.emptyFolders.length} folders, '
-      '${keys.managerKeyMap.length}/${result.managerKeys.length} keys, '
-      '${tags.tagIdMap.length}/${result.tags.length} tags, '
-      '${snippets.snippetIdMap.length}/${result.snippets.length} snippets imported',
-      name: 'Import',
-    );
-
-    return ImportSummary(
-      sessions: keys.imported,
-      folders: keys.foldersImported,
-      managerKeys: keys.managerKeyMap.length,
-      tags: tags.tagIdMap.length,
-      snippets: snippets.snippetIdMap.length,
-      configApplied: result.config != null,
-      knownHostsApplied:
-          result.knownHostsContent != null &&
-          result.knownHostsContent!.isNotEmpty,
-      skippedSessions: result.skippedSessions,
-      skippedLinks: tags.skippedLinks + snippets.skippedLinks,
-    );
-  }
-
-  /// Phase 1 — import manager keys, remap session keyIds, resolve session id
-  /// collisions, write sessions and empty folders. Returns the per-entity
-  /// counters and the id remap for downstream link-rewriting.
-  Future<_SessionsPhase> _phaseSessions(
-    ImportResult result,
-    _Snapshot? snapshot,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    // Manager keys first — saveManagerKey dedups by fingerprint, so the
-    // returned map resolves incoming keys to either a fresh or existing id.
-    final keyIdMap = await _importManagerKeys(
-      result.managerKeys,
-      progress,
-      l10n,
-    );
-    final rekeyedSessions = _remapSessionKeyIds(result.sessions, keyIdMap);
-
-    // Merge mode: remap colliding session ids to fresh UUIDs + "(copy)" label.
-    // Replace mode: existing was cleared, no collisions possible.
-    final (sessions, sessionIdMap) = result.mode == ImportMode.merge
-        ? _resolveSessionCollisions(rekeyedSessions)
-        : (rekeyedSessions, const <String, String>{});
-
-    final imported = await _importSessions(
-      ImportResult(
-        sessions: sessions,
-        emptyFolders: result.emptyFolders,
-        mode: result.mode,
-      ),
-      snapshot,
-      progress,
-      l10n,
-    );
-
-    final foldersImported = await _importEmptyFolders(
-      result.emptyFolders,
-      result.mode,
-      progress,
-      l10n,
-    );
-
-    return _SessionsPhase(
-      managerKeyMap: keyIdMap,
-      sessionIdMap: sessionIdMap,
-      imported: imported,
-      foldersImported: foldersImported,
-    );
-  }
-
-  /// Phase 2 — import tags + apply session/folder→tag links.
-  Future<_TagsPhase> _phaseTagsAndLinks(
-    ImportResult result,
-    Map<String, String> sessionIdMap,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    final tagIdMap = await _importTags(
-      result.tags,
-      result.mode,
-      progress,
-      l10n,
-    );
-    final skipped = await _importTagLinks(
-      result.sessionTags,
-      result.folderTags,
-      tagIdMap,
-      sessionIdMap,
-    );
-    return _TagsPhase(tagIdMap: tagIdMap, skippedLinks: skipped);
-  }
-
-  /// Phase 3 — import snippets + apply session→snippet links.
-  Future<_SnippetsPhase> _phaseSnippetsAndLinks(
-    ImportResult result,
-    Map<String, String> sessionIdMap,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    final snippetIdMap = await _importSnippets(
-      result.snippets,
-      result.mode,
-      progress,
-      l10n,
-    );
-    final skipped = await _importSnippetLinks(
-      result.sessionSnippets,
-      snippetIdMap,
-      sessionIdMap,
-    );
-    return _SnippetsPhase(snippetIdMap: snippetIdMap, skippedLinks: skipped);
-  }
-
-  /// Phase 4 — apply imported config and append known_hosts content.
-  Future<void> _phaseConfigAndKnownHosts(
-    ImportResult result,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    progress?.phase(l10n?.progressApplyingConfig ?? 'Applying configuration…');
-    _applyImportedConfig(result);
-    final hasKnownHosts =
-        result.knownHostsContent != null &&
-        result.knownHostsContent!.isNotEmpty;
-    if (hasKnownHosts) {
-      progress?.phase(
-        l10n?.progressImportingKnownHosts ?? 'Importing known_hosts…',
-      );
-    }
-    await _applyImportedKnownHosts(result);
-  }
-
-  /// Rewrite session `keyId` fields using the manager-key id map.
-  ///
-  /// Sessions referencing a keyId that is not in [keyIdMap] get their keyId
-  /// nulled out — the referenced key was not imported (either not included
-  /// in the archive or filtered out by the user), so keeping the id would
-  /// cause a `FOREIGN KEY constraint failed` on insert. The session is still
-  /// imported; the user can re-associate a key afterwards.
-  List<Session> _remapSessionKeyIds(
-    List<Session> sessions,
-    Map<String, String> keyIdMap,
-  ) {
-    return sessions.map((s) {
-      final oldKeyId = s.keyId;
-      if (oldKeyId.isEmpty) return s;
-      final newKeyId = keyIdMap[oldKeyId];
-      if (newKeyId == null) {
-        return s.copyWith(auth: s.auth.copyWith(keyId: ''));
-      }
-      return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
-    }).toList();
-  }
-
-  /// Resolve merge-mode session id collisions by minting a fresh UUID and
-  /// suffixing the label with `(copy)`. Returns the remapped list and an
-  /// oldId→newId map for downstream link rewriting.
-  (List<Session>, Map<String, String>) _resolveSessionCollisions(
-    List<Session> sessions,
-  ) {
-    final existing = getSessions().map((s) => s.id).toSet();
-    final idMap = <String, String>{};
-    final remapped = sessions.map((s) {
-      if (!existing.contains(s.id)) return s;
-      final newId = const Uuid().v4();
-      idMap[s.id] = newId;
-      return Session(
-        id: newId,
-        label: _withCopySuffix(s.label),
-        folder: s.folder,
-        server: s.server,
-        auth: s.auth,
-        createdAt: s.createdAt,
-      );
-    }).toList();
-    return (remapped, idMap);
-  }
-
-  /// Import the empty-folder set, counting successes. In replace mode a
-  /// single failure aborts the import so the outer catch can roll back;
-  /// merge mode logs and continues.
-  Future<int> _importEmptyFolders(
-    Set<String> folders,
-    ImportMode mode,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    final total = folders.length;
-    final label = l10n?.progressImportingFolders ?? 'Importing folders';
-    if (total > 0) progress?.step(label, 0, total);
-    var imported = 0;
-    var index = 0;
-    for (final folder in folders) {
-      try {
-        await addEmptyFolder(folder);
-        imported++;
-      } catch (e) {
-        if (mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
-      }
-      index++;
-      progress?.step(label, index, total);
-    }
-    return imported;
-  }
-
-  /// Apply the imported config. Merge mode logs and swallows failures (config
-  /// is independent of sessions); replace mode lets them propagate so the
-  /// outer catch in [applyResult] rolls back atomically.
-  void _applyImportedConfig(ImportResult result) {
-    final config = result.config;
-    if (config == null) return;
-    if (result.mode == ImportMode.replace) {
-      applyConfig(config);
-      return;
-    }
-    try {
-      applyConfig(config);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to apply config: $e',
-        name: 'Import',
-        error: e,
-      );
-    }
-  }
-
-  /// Append known_hosts content from the archive. In replace mode the store
-  /// was already cleared in the snapshot step; in merge mode new entries are
-  /// added and existing host:port rows are skipped by the importer.
-  Future<void> _applyImportedKnownHosts(ImportResult result) async {
-    final content = result.knownHostsContent;
-    if (content == null || content.isEmpty) return;
-    if (importKnownHosts == null) return;
-    try {
-      await importKnownHosts!(content);
-    } catch (e) {
-      if (result.mode == ImportMode.replace) rethrow;
-      AppLogger.instance.log(
-        'Failed to import known_hosts: $e',
-        name: 'Import',
-        error: e,
-      );
-    }
-  }
-
-  /// Import manager keys into KeyStore. Returns a map of oldId→newId
-  /// for remapping session keyIds.
-  Future<Map<String, String>> _importManagerKeys(
-    List<SshKeyEntry> keys,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    if (keys.isEmpty || saveManagerKey == null) return {};
-    final total = keys.length;
-    final label = l10n?.progressImportingManagerKeys ?? 'Importing SSH keys';
-    progress?.step(label, 0, total);
-    final idMap = <String, String>{};
-    for (var i = 0; i < keys.length; i++) {
-      final key = keys[i];
-      try {
-        final newId = await saveManagerKey!(key);
-        idMap[key.id] = newId;
-      } catch (e) {
-        AppLogger.instance.log('Skipped manager key: $e', name: 'Import');
-      }
-      progress?.step(label, i + 1, total);
-    }
-    AppLogger.instance.log(
-      'Imported ${idMap.length}/${keys.length} manager keys',
-      name: 'Import',
-    );
-    return idMap;
-  }
-
-  /// Import tags. Returns oldId→newId map. On merge mode, tags whose id
-  /// collides with an existing one are inserted with a fresh UUID and a
-  /// `(copy)` suffix on the name.
-  Future<Map<String, String>> _importTags(
-    List<Tag> tags,
-    ImportMode mode,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    if (tags.isEmpty || saveTag == null) return {};
-    final existing = mode == ImportMode.merge && existingTagIds != null
-        ? await existingTagIds!()
-        : const <String>{};
-    final total = tags.length;
-    final label = l10n?.progressImportingTags ?? 'Importing tags';
-    progress?.step(label, 0, total);
-    final idMap = <String, String>{};
-    for (var i = 0; i < tags.length; i++) {
-      final tag = tags[i];
-      try {
-        final Tag effective;
-        if (existing.contains(tag.id)) {
-          effective = Tag(
-            id: const Uuid().v4(),
-            name: _withCopySuffix(tag.name),
-            color: tag.color,
-            createdAt: tag.createdAt,
-          );
-        } else {
-          effective = tag;
-        }
-        final newId = await saveTag!(effective);
-        idMap[tag.id] = newId;
-      } catch (e) {
-        AppLogger.instance.log('Skipped tag: $e', name: 'Import');
-      }
-      progress?.step(label, i + 1, total);
-    }
-    return idMap;
-  }
-
-  /// Append `(copy)` to a non-empty label. Returns the input unchanged if
-  /// empty so we never produce a lone `(copy)` string.
-  static String _withCopySuffix(String label) =>
-      label.isEmpty ? label : '$label (copy)';
-
-  /// Apply session→tag and folder→tag links with remapped IDs. Returns the
-  /// total number of links that were dropped — either because the referenced
-  /// tag was not imported (would have failed an FK insert) or because the
-  /// underlying save callback threw. Surfaced in [ImportSummary.skippedLinks]
-  /// so the user can tell when partial-import metadata is missing.
-  Future<int> _importTagLinks(
-    List<ExportLink> sessionLinks,
-    List<ExportFolderTagLink> folderLinks,
-    Map<String, String> tagIdMap,
-    Map<String, String> sessionIdMap,
-  ) async {
-    final s = await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
-    final f = await _applyFolderTagLinks(folderLinks, tagIdMap);
-    return s + f;
-  }
-
-  Future<int> _applySessionTagLinks(
-    List<ExportLink> links,
-    Map<String, String> tagIdMap,
-    Map<String, String> sessionIdMap,
-  ) async {
-    if (tagSession == null) return 0;
-    var skipped = 0;
-    for (final link in links) {
-      final newTagId = tagIdMap[link.targetId];
-      if (newTagId == null) {
-        skipped++; // tag not imported — would FK-fail
-        continue;
-      }
-      final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
-      try {
-        await tagSession!(newSessionId, newTagId);
-      } catch (e) {
-        skipped++;
-        AppLogger.instance.log('Skipped session-tag link: $e', name: 'Import');
-      }
-    }
-    return skipped;
-  }
-
-  Future<int> _applyFolderTagLinks(
-    List<ExportFolderTagLink> links,
-    Map<String, String> tagIdMap,
-  ) async {
-    if (tagFolder == null) return 0;
-    var skipped = 0;
-    for (final link in links) {
-      final newTagId = tagIdMap[link.tagId];
-      if (newTagId == null) {
-        skipped++;
-        continue;
-      }
-      try {
-        await tagFolder!(link.folderPath, newTagId);
-      } catch (e) {
-        skipped++;
-        AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
-      }
-    }
-    return skipped;
-  }
-
-  /// Import snippets. Returns oldId→newId map. Same id-collision handling
-  /// as [_importTags].
-  Future<Map<String, String>> _importSnippets(
-    List<Snippet> snippets,
-    ImportMode mode,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    if (snippets.isEmpty || saveSnippet == null) return {};
-    final existing = mode == ImportMode.merge && existingSnippetIds != null
-        ? await existingSnippetIds!()
-        : const <String>{};
-    final total = snippets.length;
-    final label = l10n?.progressImportingSnippets ?? 'Importing snippets';
-    progress?.step(label, 0, total);
-    final idMap = <String, String>{};
-    for (var i = 0; i < snippets.length; i++) {
-      final snippet = snippets[i];
-      try {
-        final Snippet effective;
-        if (existing.contains(snippet.id)) {
-          effective = Snippet(
-            id: const Uuid().v4(),
-            title: _withCopySuffix(snippet.title),
-            command: snippet.command,
-            description: snippet.description,
-            createdAt: snippet.createdAt,
-            updatedAt: snippet.updatedAt,
-          );
-        } else {
-          effective = snippet;
-        }
-        final newId = await saveSnippet!(effective);
-        idMap[snippet.id] = newId;
-      } catch (e) {
-        AppLogger.instance.log('Skipped snippet: $e', name: 'Import');
-      }
-      progress?.step(label, i + 1, total);
-    }
-    return idMap;
-  }
-
-  /// Apply session→snippet links with remapped IDs. Returns the count of
-  /// links dropped (snippet missing from the import set or save callback
-  /// threw); aggregated into [ImportSummary.skippedLinks].
-  Future<int> _importSnippetLinks(
-    List<ExportLink> links,
-    Map<String, String> snippetIdMap,
-    Map<String, String> sessionIdMap,
-  ) async {
-    if (linkSnippetToSession == null) return 0;
-    var skipped = 0;
-    for (final link in links) {
-      final newSnippetId = snippetIdMap[link.targetId];
-      if (newSnippetId == null) {
-        skipped++; // snippet not imported — would FK-fail
-        continue;
-      }
-      final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
-      try {
-        await linkSnippetToSession!(newSnippetId, newSessionId);
-      } catch (e) {
-        skipped++;
-        AppLogger.instance.log(
-          'Skipped session-snippet link: $e',
-          name: 'Import',
-        );
-      }
-    }
-    return skipped;
-  }
-
-  /// Takes a snapshot of existing data and clears the stores that the user
-  /// asked to replace. Returns the snapshot for rollback.
-  ///
-  /// Sessions are always cleared in replace mode (that's the defining
-  /// behavior). Tags / snippets / known_hosts are only cleared when the
-  /// corresponding `includeX` flag on [result] is set — an unchecked type
-  /// stays untouched.
-  Future<_Snapshot?> _snapshotAndDeleteExisting(ImportResult result) async {
-    final snapshot = await _captureSnapshot(result);
-    await _clearExisting(result, snapshot);
-    return snapshot;
-  }
-
-  /// Capture the current state of every store the replace will touch, so a
-  /// later [_tryRestore] can rebuild it on failure.
-  Future<_Snapshot> _captureSnapshot(ImportResult result) async {
-    final existing = List<Session>.of(getSessions());
-    final folders = getEmptyFolders != null
-        ? Set.of(getEmptyFolders!())
-        : <String>{};
-    final config = getCurrentConfig?.call();
-    final tagsBackup = await _loadBackup(result.includeTags, loadAllTags);
-    final snippetsBackup = await _loadBackup(
-      result.includeSnippets,
-      loadAllSnippets,
-    );
-    final knownHostsBackup =
-        result.includeKnownHosts && exportKnownHosts != null
-        ? await exportKnownHosts!()
-        : null;
-    final keyIdsBackup = existingManagerKeyIds != null
-        ? await existingManagerKeyIds!()
-        : <String>{};
-
-    AppLogger.instance.log(
-      'Replace mode: clearing sessions=${existing.length}, '
-      'tags=${result.includeTags ? tagsBackup.length : "skip"}, '
-      'snippets=${result.includeSnippets ? snippetsBackup.length : "skip"}, '
-      'knownHosts=${result.includeKnownHosts ? "yes" : "skip"}, '
-      'preImportKeys=${keyIdsBackup.length}',
-      name: 'Import',
-    );
-
-    return _Snapshot(
-      sessions: existing,
-      folders: folders,
-      config: config,
-      tags: tagsBackup,
-      snippets: snippetsBackup,
-      knownHosts: knownHostsBackup,
-      preImportKeyIds: keyIdsBackup,
-    );
-  }
-
-  /// Delete rows from every store the replace is authoritative over. The
-  /// [snapshot] is the result of [_captureSnapshot] — we walk its sessions
-  /// list so external deletes done between snapshot and here don't matter.
-  Future<void> _clearExisting(ImportResult result, _Snapshot snapshot) async {
-    for (final s in snapshot.sessions) {
-      await deleteSession(s.id);
-    }
-    if (result.includeTags && deleteAllTags != null) {
-      await deleteAllTags!();
-    }
-    if (result.includeSnippets && deleteAllSnippets != null) {
-      await deleteAllSnippets!();
-    }
-    if (result.includeKnownHosts && clearKnownHosts != null) {
-      await clearKnownHosts!();
-    }
-  }
-
-  /// Await an async backup loader only when [enabled] is true and the loader
-  /// is wired up. Keeps `_captureSnapshot` free of nested ternaries.
-  Future<List<T>> _loadBackup<T>(
-    bool enabled,
-    Future<List<T>> Function()? loader,
-  ) async {
-    if (!enabled || loader == null) return const [];
-    return loader();
-  }
-
-  /// Imports sessions from the result. On failure in replace mode, rethrows
-  /// so the outer applyResult can roll back the full snapshot (sessions +
-  /// folders + config).
-  Future<int> _importSessions(
-    ImportResult result,
-    _Snapshot? snapshot,
-    ProgressReporter? progress,
-    S? l10n,
-  ) async {
-    final total = result.sessions.length;
-    final label = l10n?.progressImportingSessions ?? 'Importing sessions';
-    if (total > 0) progress?.step(label, 0, total);
-    var imported = 0;
-    for (var i = 0; i < result.sessions.length; i++) {
-      final s = result.sessions[i];
-      try {
-        await addSession(s);
-        imported++;
-      } catch (e) {
-        if (result.mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log('Skipped session: $e', name: 'Import');
-      }
-      progress?.step(label, i + 1, total);
-    }
-    return imported;
-  }
-
-  /// Attempt to restore a pre-import snapshot. Logs but does not throw
-  /// on failure — the original import error takes priority.
-  Future<void> _tryRestore(_Snapshot? snapshot) async {
-    if (snapshot == null) return;
-    if (restoreSnapshot != null) {
-      try {
-        await restoreSnapshot!(snapshot.sessions, snapshot.folders);
-      } catch (e) {
-        AppLogger.instance.log(
-          'Failed to restore sessions snapshot',
-          name: 'Import',
-          error: e,
-        );
-      }
-    }
-    if (snapshot.config != null) {
-      try {
-        applyConfig(snapshot.config!);
-      } catch (e) {
-        AppLogger.instance.log(
-          'Failed to restore config',
-          name: 'Import',
-          error: e,
-        );
-      }
-    }
-    await _restoreTags(snapshot.tags);
-    await _restoreSnippets(snapshot.snippets);
-    await _restoreKnownHosts(snapshot.knownHosts);
-    final deletedKeys = await _restoreManagerKeys(snapshot.preImportKeyIds);
-    AppLogger.instance.log(
-      'Restored ${snapshot.sessions.length} sessions, '
-      '${snapshot.tags.length} tags, ${snapshot.snippets.length} snippets, '
-      '$deletedKeys newly-added manager keys removed '
-      'after import failure',
-      name: 'Import',
-    );
-  }
-
-  /// Remove any manager-key rows that appeared *during* the failed import
-  /// but were not in the pre-import snapshot. Keys that predate the import
-  /// stay untouched — replace mode never wipes the key store, so there's
-  /// nothing to restore for those.
-  Future<int> _restoreManagerKeys(Set<String> preImportIds) async {
-    if (existingManagerKeyIds == null || deleteManagerKey == null) return 0;
-    try {
-      final nowIds = await existingManagerKeyIds!();
-      final toDelete = nowIds.difference(preImportIds);
-      for (final id in toDelete) {
-        try {
-          await deleteManagerKey!(id);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to delete key $id during rollback',
-            name: 'Import',
-            error: e,
-          );
-        }
-      }
-      return toDelete.length;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to enumerate manager keys for rollback',
-        name: 'Import',
-        error: e,
-      );
-      return 0;
-    }
-  }
-
-  Future<void> _restoreTags(List<Tag> tags) async {
-    if (tags.isEmpty || saveTag == null || deleteAllTags == null) return;
-    try {
-      await deleteAllTags!();
-      for (final t in tags) {
-        await saveTag!(t);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to restore tags snapshot',
-        name: 'Import',
-        error: e,
-      );
-    }
-  }
-
-  Future<void> _restoreSnippets(List<Snippet> snippets) async {
-    if (snippets.isEmpty || saveSnippet == null || deleteAllSnippets == null) {
-      return;
-    }
-    try {
-      await deleteAllSnippets!();
-      for (final s in snippets) {
-        await saveSnippet!(s);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to restore snippets snapshot',
-        name: 'Import',
-        error: e,
-      );
-    }
-  }
-
-  Future<void> _restoreKnownHosts(String? content) async {
-    if (content == null ||
-        importKnownHosts == null ||
-        clearKnownHosts == null) {
-      return;
-    }
-    try {
-      await clearKnownHosts!();
-      if (content.isNotEmpty) await importKnownHosts!(content);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to restore known_hosts snapshot',
-        name: 'Import',
-        error: e,
-      );
-    }
-  }
-}
 
 /// Per-type row counts from a completed import. Feeds the success toast so
 /// the user sees what was actually applied (sessions, tags, snippets, keys,
@@ -924,74 +46,300 @@ class ImportSummary {
   });
 }
 
-/// Thrown by [ImportService.applyResult] in replace mode when the import body
-/// fails and the pre-import snapshot has been replayed back into the stores.
-/// The UI surfaces this with a dedicated localized message ("Import failed —
-/// your data has been restored") so the user knows the database is back to
-/// the prior state, not in a half-imported limbo.
+/// Apply an [ImportResult] entirely through the Rust core
+/// (`lfs_core::archive::apply_pending_import`). Collisions, replace-mode
+/// snapshot/rollback, junction inserts, and folder hierarchy reconstruction
+/// all happen Rust-side under a sqlite transaction — on failure the whole
+/// apply rolls back atomically.
 ///
-/// [cause] is the original failure (FK-violation, callback exception, etc.).
+/// Used by callers that hold an in-memory [ImportResult] tree
+/// (QR import, paste-link import, OpenSSH config import). For
+/// `.lfs` archive imports the bytes are decoded Rust-side and the
+/// caller routes through [applyOpenedHandle] instead — no Dart-side
+/// staging round-trip.
+///
+/// The caller is expected to refresh any in-memory caches (Riverpod
+/// providers, store `_sessions` lists) after this call returns — the Rust
+/// path writes through the DB directly without going through the per-store
+/// add callbacks. `refreshAfterImport` runs once on success so the caller
+/// can wire it to `sessionStore.loadAll()` + provider invalidation.
+///
+/// In replace mode, any failure is wrapped in [LfsImportRolledBackException]
+/// so the UI surfaces the dedicated "data restored" message — the Rust
+/// transaction guarantees the DB is back to its pre-import state.
+Future<rust_archive.DbApplyResult> applyResultViaRust(
+  ImportResult result, {
+  Future<void> Function()? refreshAfterImport,
+}) async {
+  final staged = _stageFromResult(result);
+  final handleId = await rust_archive.dbImportStage(input: staged);
+  return _applyHandle(
+    handleId: handleId,
+    mode: result.mode,
+    applySessions: result.sessions.isNotEmpty || result.emptyFolders.isNotEmpty,
+    applyKeys: result.managerKeys.isNotEmpty,
+    applyTags: result.tags.isNotEmpty,
+    applySnippets: result.snippets.isNotEmpty,
+    applyKnownHosts:
+        result.knownHostsContent != null &&
+        result.knownHostsContent!.isNotEmpty,
+    refreshAfterImport: refreshAfterImport,
+  );
+}
+
+/// Apply an already-staged Rust-side import handle (from
+/// `dbImportOpen`). The Rust apply driver consumes the handle on
+/// success; failures wrap into [LfsImportRolledBackException] in
+/// replace mode same as [applyResultViaRust]. Caller passes the
+/// per-entity toggles from the preview dialog.
+Future<rust_archive.DbApplyResult> applyOpenedHandle({
+  required String handleId,
+  required ImportMode mode,
+  required bool applySessions,
+  required bool applyKeys,
+  required bool applyTags,
+  required bool applySnippets,
+  required bool applyKnownHosts,
+  Future<void> Function()? refreshAfterImport,
+}) {
+  return _applyHandle(
+    handleId: handleId,
+    mode: mode,
+    applySessions: applySessions,
+    applyKeys: applyKeys,
+    applyTags: applyTags,
+    applySnippets: applySnippets,
+    applyKnownHosts: applyKnownHosts,
+    refreshAfterImport: refreshAfterImport,
+  );
+}
+
+Future<rust_archive.DbApplyResult> _applyHandle({
+  required String handleId,
+  required ImportMode mode,
+  required bool applySessions,
+  required bool applyKeys,
+  required bool applyTags,
+  required bool applySnippets,
+  required bool applyKnownHosts,
+  Future<void> Function()? refreshAfterImport,
+}) async {
+  try {
+    final apply = await rust_archive.dbImportApply(
+      handleId: handleId,
+      options: rust_archive.DbApplyOptions(
+        mode: mode == ImportMode.replace
+            ? rust_archive.DbImportMode.replace
+            : rust_archive.DbImportMode.merge,
+        applySessions: applySessions,
+        applyKeys: applyKeys,
+        applyTags: applyTags,
+        applySnippets: applySnippets,
+        applyKnownHosts: applyKnownHosts,
+      ),
+      createdAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    if (refreshAfterImport != null) {
+      await refreshAfterImport();
+    }
+    return apply;
+  } catch (e) {
+    // Drop the staged handle on failure so the registry doesn't accumulate
+    // orphans. `dbImportApply` on a successful path already takes the handle
+    // out.
+    try {
+      await rust_archive.dbImportDrop(handleId: handleId);
+    } catch (_) {}
+    if (mode == ImportMode.replace) {
+      throw LfsImportRolledBackException(cause: e);
+    }
+    rethrow;
+  }
+}
+
+/// Decode an [AppConfig] from the JSON returned by [applyOpenedHandle]
+/// / [applyResultViaRust] in `DbApplyResult.configJson`. Returns null
+/// if the staged archive carried no config entry. Routes through the
+/// canonical Rust-side parser via [`config_app_config_from_json_typed`]
+/// so the JSON grammar (field defaults, schema-version stamping,
+/// sanitisation clamps) lives one place; a malformed blob collapses
+/// to `null` — the import driver treats that as "no config entry".
+AppConfig? decodeConfigFromApply(rust_archive.DbApplyResult apply) {
+  final raw = apply.configJson;
+  if (raw == null || raw.isEmpty) return null;
+  final typed = rust_config.configAppConfigFromJsonTyped(inputJson: raw);
+  if (typed == null) return null;
+  return AppConfig.fromTyped(typed);
+}
+
+/// Serialise an [ImportResult] into the JSON-string envelope the Rust
+/// apply driver consumes. Mirrors the field set
+/// `lfs_core::archive::export_archive` emits — the Rust apply reader is
+/// the same parser, so a round-trip
+/// (Dart-built `ImportResult` → staged JSON → Rust apply) holds without
+/// exporter / importer drift.
+///
+/// Sessions / keys / tags / snippets / link-tables / empty-folders
+/// all route through `lfs_core::archive_stage::stage_*_to_json` (FRB
+/// sync). The JSON-shape contract — field names, default-omission,
+/// ISO timestamp formatting, nested `via_override` object, the
+/// link-table column names — lives one place: the apply driver
+/// re-parses the same JSON the stagers emit, and a wire-format bump
+/// is a single Rust-side edit.
+rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
+  final sessionsJson = _stageSessionsJson(result.sessions);
+  final keysJson = _stageKeysJson(result.managerKeys);
+  final tagsJson = _stageTagsJson(result.tags);
+  // `ExportLink.sessionId` is the session's id; `targetId` is the
+  // tag/snippet on the other end (the field is reused for both M2M
+  // relations).
+  final sessionTagsJson = rust_stage.archiveStageSessionTagsToJson(
+    rows: [
+      for (final l in result.sessionTags)
+        rust_stage.DbStagedSessionTagLink(
+          sessionId: l.sessionId,
+          tagId: l.targetId,
+        ),
+    ],
+  );
+  // Folder→tag links carry the folder PATH; the Rust apply driver
+  // resolves it against the freshly-built `folder_path → folder_id`
+  // map populated by `apply_folder_tree` + `apply_empty_folders`.
+  final folderTagsJson = rust_stage.archiveStageFolderTagsToJson(
+    rows: [
+      for (final l in result.folderTags)
+        rust_stage.DbStagedFolderTagLink(
+          folderPath: l.folderPath,
+          tagId: l.tagId,
+        ),
+    ],
+  );
+  final snippetsJson = _stageSnippetsJson(result.snippets);
+  final sessionSnippetsJson = rust_stage.archiveStageSessionSnippetsToJson(
+    rows: [
+      for (final l in result.sessionSnippets)
+        rust_stage.DbStagedSessionSnippetLink(
+          sessionId: l.sessionId,
+          snippetId: l.targetId,
+        ),
+    ],
+  );
+  final emptyFoldersJson = rust_stage.archiveStageEmptyFoldersToJson(
+    paths: result.emptyFolders.toList(),
+  );
+  return rust_archive.DbStagedImport(
+    manifestJson: null,
+    sessionsJson: sessionsJson,
+    keysJson: keysJson,
+    tagsJson: tagsJson,
+    sessionTagsJson: sessionTagsJson,
+    folderTagsJson: folderTagsJson,
+    snippetsJson: snippetsJson,
+    sessionSnippetsJson: sessionSnippetsJson,
+    emptyFoldersJson: emptyFoldersJson,
+    configJson: null, // config restore stays Dart-side via applyConfig
+    knownHostsText: result.knownHostsContent,
+  );
+}
+
+/// Sessions / keys / tags / snippets all route through
+/// `lfs_core::archive_stage::stage_*_to_json` (FRB sync) — that's the
+/// only path. The Rust stagers are the canonical wire format; any
+/// caller needing to stage in flutter_test must bootstrap RustLib like
+/// the integration suite does.
+String? _stageSessionsJson(List<Session> sessions) {
+  if (sessions.isEmpty) return null;
+  return rust_stage.archiveStageSessionsToJson(
+    rows: [
+      for (final s in sessions)
+        rust_stage.DbStagedSessionImport(
+          id: s.id,
+          label: s.label,
+          folder: s.folder,
+          host: s.host,
+          port: s.port,
+          user: s.user,
+          authType: s.authType.name,
+          password: s.password,
+          keyPath: s.keyPath,
+          keyData: s.keyData,
+          passphrase: s.passphrase,
+          keyId: s.keyId.isEmpty ? null : s.keyId,
+          extrasJson: extrasMapToJson(s.extras),
+          viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
+              ? null
+              : s.viaSessionId,
+          viaOverrideHost: s.viaOverride?.host,
+          viaOverridePort: s.viaOverride?.port,
+          viaOverrideUser: s.viaOverride?.user,
+          createdAtMs: s.createdAt.millisecondsSinceEpoch,
+          updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
+}
+
+String? _stageKeysJson(List<SshKeyEntry> keys) {
+  if (keys.isEmpty) return null;
+  return rust_stage.archiveStageKeysToJson(
+    rows: [
+      for (final k in keys)
+        rust_stage.DbStagedKeyImport(
+          id: k.id,
+          label: k.label,
+          privateKey: k.privateKey,
+          publicKey: k.publicKey,
+          keyType: k.keyType,
+          isGenerated: k.isGenerated,
+          createdAtMs: k.createdAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
+}
+
+String? _stageTagsJson(List<Tag> tags) {
+  if (tags.isEmpty) return null;
+  return rust_stage.archiveStageTagsToJson(
+    rows: [
+      for (final t in tags)
+        rust_stage.DbStagedTagImport(
+          id: t.id,
+          name: t.name,
+          color: t.color,
+          createdAtMs: t.createdAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
+}
+
+String? _stageSnippetsJson(List<Snippet> snippets) {
+  if (snippets.isEmpty) return null;
+  return rust_stage.archiveStageSnippetsToJson(
+    rows: [
+      for (final s in snippets)
+        rust_stage.DbStagedSnippetImport(
+          id: s.id,
+          title: s.title,
+          command: s.command,
+          description: s.description,
+          createdAtMs: s.createdAt.millisecondsSinceEpoch,
+          updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
+}
+
+/// Thrown by [applyResultViaRust] in replace mode when the Rust apply
+/// fails and the surrounding sqlite transaction has rolled back the DB.
+/// The UI surfaces this with a dedicated localized message ("Import failed
+/// — your data has been restored") so the user knows the database is back
+/// to the prior state, not in a half-imported limbo.
+///
+/// [cause] is the original failure (FK-violation, decode exception, etc.).
 class LfsImportRolledBackException implements Exception {
   final Object cause;
   const LfsImportRolledBackException({required this.cause});
 
   @override
   String toString() => 'LfsImportRolledBackException: $cause';
-}
-
-/// Internal phase results — flat data carriers used to thread per-phase
-/// counters and id remaps through [ImportService._applyCore] without bloating
-/// its argument list.
-
-class _SessionsPhase {
-  final Map<String, String> managerKeyMap;
-  final Map<String, String> sessionIdMap;
-  final int imported;
-  final int foldersImported;
-  const _SessionsPhase({
-    required this.managerKeyMap,
-    required this.sessionIdMap,
-    required this.imported,
-    required this.foldersImported,
-  });
-}
-
-class _TagsPhase {
-  final Map<String, String> tagIdMap;
-  final int skippedLinks;
-  const _TagsPhase({required this.tagIdMap, required this.skippedLinks});
-}
-
-class _SnippetsPhase {
-  final Map<String, String> snippetIdMap;
-  final int skippedLinks;
-  const _SnippetsPhase({
-    required this.snippetIdMap,
-    required this.skippedLinks,
-  });
-}
-
-class _Snapshot {
-  final List<Session> sessions;
-  final Set<String> folders;
-  final AppConfig? config;
-  final List<Tag> tags;
-  final List<Snippet> snippets;
-  final String? knownHosts;
-
-  /// Ids of manager keys that existed before the import started. On
-  /// rollback we enumerate the current keys and drop any id that isn't in
-  /// this set — undoing the merge-appends without touching pre-existing
-  /// rows.
-  final Set<String> preImportKeyIds;
-
-  const _Snapshot({
-    required this.sessions,
-    required this.folders,
-    required this.config,
-    this.tags = const [],
-    this.snippets = const [],
-    this.knownHosts,
-    this.preImportKeyIds = const {},
-  });
 }

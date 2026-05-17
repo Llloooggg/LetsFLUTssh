@@ -1,7 +1,15 @@
 import 'package:letsflutssh/utils/sanitize.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // redactSecrets / sanitizeErrorMessage route through
+  // `lfs_core::log_sanitize` — bootstrap FRB so the canonical Rust
+  // PEM + base64 + IP/user@host/path scrubber is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('redactSecrets', () {
     test('strips OpenSSH PEM private key blocks', () {
       const input =
@@ -122,6 +130,34 @@ void main() {
     test('redacts port numbers', () {
       expect(sanitizeErrorMessage('192.168.1.100:22'), contains(':<port>'));
       expect(sanitizeErrorMessage('example.com:2222'), contains(':<port>'));
+    });
+
+    test('leaves Dart stack-trace file:line:col positions untouched '
+        '(line slot is not a port)', () {
+      // Regression: the `host:port` rule used to greedily eat the
+      // LINE slot of a `file.dart:LINE:COL` fragment in stack
+      // traces, leaving the user with `paragraph.dart:<port>:12`
+      // in the log viewer. The negative lookahead `(?!:\d)` on the
+      // port guards against this — a `:digit` immediately after
+      // the would-be port disqualifies the match.
+      final stackFrame = sanitizeErrorMessage(
+        'RenderParagraph.getBoxesForSelection '
+        '(package:flutter/src/rendering/paragraph.dart:1070:12)',
+      );
+      expect(
+        stackFrame,
+        isNot(contains('<port>')),
+        reason: 'line:col in stack frame should not be redacted as host:port',
+      );
+      expect(stackFrame, contains('paragraph.dart:1070:12'));
+
+      // `dart:core-patch/errors_patch.dart:NNNN:N` shape from the
+      // same crash report.
+      final coreFrame = sanitizeErrorMessage(
+        '_AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:5)',
+      );
+      expect(coreFrame, isNot(contains('<port>')));
+      expect(coreFrame, contains('errors_patch.dart:46:5'));
     });
 
     test('redacts user@<ip>:<port> pattern', () {

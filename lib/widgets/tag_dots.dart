@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/tags/tag.dart';
 import '../providers/tag_provider.dart';
 import '../theme/app_theme.dart';
+import 'tag_color.dart';
 
 /// Small colored dots representing tags on a session or folder.
 ///
@@ -55,13 +56,13 @@ class _TagDotRow extends StatelessWidget {
     if (tags.isEmpty) return const SizedBox.shrink();
     final visible = tags.take(maxDots);
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final tag in visible)
             Padding(
-              padding: const EdgeInsets.only(right: 3),
+              padding: const EdgeInsetsDirectional.only(end: 3),
               child: Container(
                 width: 6,
                 height: 6,

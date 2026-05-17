@@ -1,9 +1,8 @@
-import 'package:dartssh2/dartssh2.dart';
-
-/// Structured SFTP error types mirroring the SSH error hierarchy.
+/// Structured SFTP error types.
 ///
-/// Wraps raw dartssh2 [SftpError] / [SftpStatusError] with user-friendly
-/// messages and optional path context for UI display.
+/// Wraps raw russh-sftp errors (surfaced as strings through the FRB
+/// boundary) with user-friendly messages and optional path context
+/// for UI display.
 class SFTPError implements Exception {
   final String message;
   final Object? cause;
@@ -14,11 +13,10 @@ class SFTPError implements Exception {
   const SFTPError(this.message, {this.cause, this.path});
 
   /// SFTP status code from the server, or `null` if the error is not
-  /// a status response (e.g. local I/O failure, connection lost).
-  int? get statusCode {
-    final c = cause;
-    return c is SftpStatusError ? c.code : null;
-  }
+  /// a status response (e.g. local I/O failure, connection lost). The
+  /// Rust transport surfaces server status as a free-form string, so
+  /// this returns `null` until a structured StatusError type lands.
+  int? get statusCode => null;
 
   /// Human-readable error with root cause details.
   String get userMessage {

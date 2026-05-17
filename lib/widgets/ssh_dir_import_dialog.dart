@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/import/openssh_config_importer.dart';
 import '../core/import/ssh_dir_key_scanner.dart';
-import '../core/security/key_store.dart';
+import '../core/security/ssh_key.dart';
 import '../core/session/session.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
@@ -76,8 +76,8 @@ typedef PickKeysCallback = Future<List<ScannedKey>?> Function();
 /// scopes stay distinct even though they use the same row primitive.
 ///
 /// Returns a combined [ImportResult] on accept, or null on cancel. Sessions
-/// pointing to a deselected key get their keyId nulled by [ImportService]'s
-/// FK-safety pass.
+/// pointing to a deselected key get their keyId nulled by the Rust apply
+/// driver's FK-safety pass.
 class SshDirImportDialog extends StatefulWidget {
   final SshDirImportSource source;
   final PickConfigCallback? onPickConfigFile;
@@ -148,7 +148,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     _keyAlreadyInStore = _keys
         .map(
           (k) => widget.source.existingKeyFingerprints.contains(
-            KeyStore.privateKeyFingerprint(k.pem),
+            privateKeyFingerprint(k.pem),
           ),
         )
         .toList();
@@ -247,10 +247,10 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       if (picked == null || picked.isEmpty || !mounted) return;
       setState(() {
         final existingFps = _keys
-            .map((k) => KeyStore.privateKeyFingerprint(k.pem))
+            .map((k) => privateKeyFingerprint(k.pem))
             .toSet();
         for (final k in picked) {
-          final fp = KeyStore.privateKeyFingerprint(k.pem);
+          final fp = privateKeyFingerprint(k.pem);
           if (!existingFps.add(fp)) continue;
           _keys.add(k);
           final existsInStore = widget.source.existingKeyFingerprints.contains(
@@ -270,7 +270,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   bool get _hasAnySelection =>
       _selectedHostIds.isNotEmpty || _selectedKeys.any((v) => v);
 
-  ImportResult _buildResult(BuildContext context) {
+  Future<ImportResult> _buildResult(BuildContext context) async {
     final sessions = _hosts
         .where((s) => _selectedHostIds.contains(s.id))
         .toList();
@@ -279,7 +279,6 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     // importer (IdentityFile → SshKeyEntry) and raw keys picked up by the
     // scanner / file picker. We only keep keys the user opted into; dedup by
     // fingerprint so a key referenced by both paths doesn't import twice.
-    final keyStore = KeyStore();
     final date = DateTime.now().toIso8601String().split('T').first;
     final pickedEntries = <SshKeyEntry>[];
     final seenFingerprints = <String>{};
@@ -287,11 +286,11 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     for (var i = 0; i < _keys.length; i++) {
       if (!_selectedKeys[i]) continue;
       final scanned = _keys[i];
-      final fp = KeyStore.privateKeyFingerprint(scanned.pem);
+      final fp = privateKeyFingerprint(scanned.pem);
       if (!seenFingerprints.add(fp)) continue;
       try {
         pickedEntries.add(
-          keyStore.importKey(scanned.pem, '${scanned.suggestedLabel} $date'),
+          await importSshKey(scanned.pem, '${scanned.suggestedLabel} $date'),
         );
       } catch (_) {
         // Skip unparseable PEM — the handler above already warns about each
@@ -305,7 +304,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         .toSet();
     for (final entry in _hostManagerKeys) {
       if (!referencedKeyIds.contains(entry.id)) continue;
-      final fp = KeyStore.privateKeyFingerprint(entry.privateKey);
+      final fp = privateKeyFingerprint(entry.privateKey);
       if (!seenFingerprints.add(fp)) continue;
       pickedEntries.add(entry);
     }
@@ -335,9 +334,9 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
             source.folderLabel,
             style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildHostsSection(s),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildKeysSection(s),
         ],
       ),
@@ -346,7 +345,10 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         AppButton.primary(
           label: s.importData,
           enabled: _hasAnySelection,
-          onTap: () => Navigator.pop(context, _buildResult(context)),
+          onTap: () async {
+            final result = await _buildResult(context);
+            if (context.mounted) Navigator.pop(context, result);
+          },
         ),
       ],
     );
@@ -398,7 +400,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         // Indented list keeps the per-host rows visually distinct from the
         // section-wide "select all" row above.
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsetsDirectional.only(start: 16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 220),
             child: SingleChildScrollView(
@@ -432,7 +434,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   }
 
   Widget _emptyStatePlaceholder(String text) => Padding(
-    padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
+    padding: const EdgeInsetsDirectional.only(start: 28, top: 4, bottom: 4),
     child: Text(
       text,
       style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
@@ -490,7 +492,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         ),
         const AppDivider(),
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsetsDirectional.only(start: 16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 220),
             child: SingleChildScrollView(

@@ -9,6 +9,7 @@ import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
 import 'mode_button.dart';
 import 'secure_password_field.dart';
+import 'secure_screen_scope.dart';
 
 /// Result from the LFS import password dialog.
 typedef LfsImportDialogResult = ({String password, ImportMode mode});
@@ -18,7 +19,8 @@ typedef LfsImportDialogResult = ({String password, ImportMode mode});
 /// Returns [LfsImportDialogResult] on submit, null on cancel. When
 /// [isEncrypted] is false (unencrypted ZIP archive), the password field is
 /// hidden and the import button is always enabled; an empty password is
-/// passed to [ExportImport.import_] to signal the unencrypted path.
+/// passed to the Rust reader (`dbImportOpen`) to signal the unencrypted
+/// path.
 class LfsImportDialog extends StatefulWidget {
   final String filePath;
   final bool isEncrypted;
@@ -68,71 +70,73 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return AppDialog(
-      title: l10n.importData,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            File(widget.filePath).uri.pathSegments.last,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
-          ),
-          const SizedBox(height: 12),
-          if (widget.isEncrypted)
-            SecurePasswordField(
-              controller: _passwordCtrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: l10n.masterPassword,
-                filled: true,
-                fillColor: AppTheme.bg3,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: AppTheme.radiusSm,
-                  borderSide: BorderSide(color: AppTheme.borderLight),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: AppTheme.radiusSm,
-                  borderSide: BorderSide(color: AppTheme.borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: AppTheme.radiusSm,
-                  borderSide: BorderSide(color: AppTheme.accent),
-                ),
-              ),
-              onSubmitted: (v) {
-                if (v.isNotEmpty) {
-                  Navigator.pop(context, (password: v, mode: _mode));
-                }
-              },
-            )
-          else
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.exportWithoutPasswordWarning,
-                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
-              ),
+    return SecureScreenScope(
+      child: AppDialog(
+        title: l10n.importData,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              File(widget.filePath).uri.pathSegments.last,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
             ),
-          const SizedBox(height: 12),
-          _buildModeSelector(),
-          const SizedBox(height: 4),
-          Text(
-            _mode == ImportMode.merge
-                ? l10n.importModeMergeDescription
-                : l10n.importModeReplaceDescription,
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
+            const SizedBox(height: AppSpacing.md),
+            if (widget.isEncrypted)
+              SecurePasswordField(
+                controller: _passwordCtrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.masterPassword,
+                  filled: true,
+                  fillColor: AppTheme.bg3,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: AppTheme.radiusSm,
+                    borderSide: BorderSide(color: AppTheme.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: AppTheme.radiusSm,
+                    borderSide: BorderSide(color: AppTheme.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: AppTheme.radiusSm,
+                    borderSide: BorderSide(color: AppTheme.accent),
+                  ),
+                ),
+                onSubmitted: (v) {
+                  if (v.isNotEmpty) {
+                    Navigator.pop(context, (password: v, mode: _mode));
+                  }
+                },
+              )
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.unencryptedArchiveWarning,
+                  style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+                ),
+              ),
+            const SizedBox(height: AppSpacing.md),
+            _buildModeSelector(),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _mode == ImportMode.merge
+                  ? l10n.importModeMergeDescription
+                  : l10n.importModeReplaceDescription,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            ),
+          ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(label: l10n.import_, onTap: _submit),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(label: l10n.import_, onTap: _submit),
-      ],
     );
   }
 
@@ -145,7 +149,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           selected: _mode == ImportMode.merge,
           onTap: () => setState(() => _mode = ImportMode.merge),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         ModeButton(
           label: S.of(context).replace,
           icon: Icons.swap_horiz,

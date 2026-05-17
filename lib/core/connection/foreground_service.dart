@@ -1,13 +1,16 @@
 import 'dart:io';
+import 'dart:ui' show Locale;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
+import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
 
 /// Callback required by flutter_foreground_task — runs in isolate.
-/// We don't need periodic work (dartssh2 keepalive handles pings),
-/// so the handler is a no-op that just keeps the service alive.
+/// We don't need periodic work (russh handles SSH-level keep-alive
+/// pings), so the handler is a no-op that just keeps the service
+/// alive.
 @pragma('vm:entry-point')
 void _startCallback() {
   FlutterForegroundTask.setTaskHandler(_KeepAliveHandler());
@@ -27,8 +30,8 @@ class _KeepAliveHandler extends TaskHandler {
 /// Abstracts platform service calls so [ForegroundServiceManager] can be tested
 /// without a real Android foreground service.
 abstract class ForegroundServiceBinding {
-  Future<bool> startService(int count);
-  Future<void> updateNotification(int count);
+  Future<bool> startService(int count, S localizations);
+  Future<void> updateNotification(int count, S localizations);
   Future<void> stopService();
   void initService();
   bool get isSupported;
@@ -67,11 +70,11 @@ class _RealBinding implements ForegroundServiceBinding {
   }
 
   @override
-  Future<bool> startService(int count) async {
+  Future<bool> startService(int count, S localizations) async {
     final result = await FlutterForegroundTask.startService(
       serviceId: 100,
-      notificationTitle: 'SSH active',
-      notificationText: notificationText(count),
+      notificationTitle: localizations.foregroundServiceTitle,
+      notificationText: notificationText(localizations, count),
       serviceTypes: [ForegroundServiceTypes.dataSync],
       callback: _startCallback,
     );
@@ -79,10 +82,10 @@ class _RealBinding implements ForegroundServiceBinding {
   }
 
   @override
-  Future<void> updateNotification(int count) async {
+  Future<void> updateNotification(int count, S localizations) async {
     await FlutterForegroundTask.updateService(
-      notificationTitle: 'SSH active',
-      notificationText: notificationText(count),
+      notificationTitle: localizations.foregroundServiceTitle,
+      notificationText: notificationText(localizations, count),
     );
   }
 
@@ -92,9 +95,12 @@ class _RealBinding implements ForegroundServiceBinding {
   }
 }
 
-/// Notification text shared between binding and tests.
-String notificationText(int count) =>
-    '$count active connection${count == 1 ? '' : 's'}';
+/// Render the notification body. Routes through the ICU plural in
+/// `foregroundServiceConnections` so each locale renders its own
+/// native singular / plural form (was a hardcoded English ternary
+/// `${count == 1 ? '' : 's'}` before localisation).
+String notificationText(S localizations, int count) =>
+    localizations.foregroundServiceConnections(count);
 
 /// Manages Android foreground service lifecycle tied to active SSH connections.
 ///
@@ -104,10 +110,18 @@ String notificationText(int count) =>
 ///
 /// On non-Android platforms this class is a no-op (unless a test binding
 /// is injected).
+///
+/// Localisation: callers should push the active [S] in via
+/// [setLocalizations] whenever the chosen app locale changes. The
+/// manager defers the first update to the locale-listener provider; if
+/// no localisations are set when a notification fires we fall back to
+/// the English bundle so the service never crashes for a missing
+/// locale.
 class ForegroundServiceManager {
   final ForegroundServiceBinding _binding;
   bool _running = false;
   bool _initialized = false;
+  S? _localizations;
 
   bool get isRunning => _running;
 
@@ -127,6 +141,21 @@ class ForegroundServiceManager {
       'Foreground service initialized',
       name: 'ForegroundService',
     );
+  }
+
+  /// Cache the active [S] so the binding can localise the
+  /// notification on the next start / update. Pushed in by the
+  /// connection-provider locale listener; safe to call before
+  /// [init] (the cached value is read lazily on the first
+  /// notification fire).
+  void setLocalizations(S localizations) {
+    _localizations = localizations;
+  }
+
+  Future<S> _resolveLocalizations() async {
+    final cached = _localizations;
+    if (cached != null) return cached;
+    return await S.delegate.load(const Locale('en'));
   }
 
   /// Update notification and start/stop service based on active count.
@@ -151,11 +180,12 @@ class ForegroundServiceManager {
   }
 
   Future<void> _start(int count) async {
-    final ok = await _binding.startService(count);
+    final s = await _resolveLocalizations();
+    final ok = await _binding.startService(count, s);
     if (ok) {
       _running = true;
       AppLogger.instance.log(
-        'Foreground service started ($count connection(s))',
+        'Foreground service started ($count)',
         name: 'ForegroundService',
       );
     } else {
@@ -167,9 +197,10 @@ class ForegroundServiceManager {
   }
 
   Future<void> _updateNotification(int count) async {
-    await _binding.updateNotification(count);
+    final s = await _resolveLocalizations();
+    await _binding.updateNotification(count, s);
     AppLogger.instance.log(
-      'Notification updated: $count connection(s)',
+      'Notification updated: $count',
       name: 'ForegroundService',
     );
   }

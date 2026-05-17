@@ -21,7 +21,10 @@
   "select": "انتخاب",
   "copyModeTapToStart": "برای تعیین ابتدای انتخاب لمس کنید",
   "copyModeExtending": "برای گسترش انتخاب بکشید",
+  "copyModeSetAnchor": "تنظیم لنگر",
+  "copyModeCopySelection": "کپی انتخاب",
   "required": "الزامی",
+  "errFillRequiredFields": "فیلدهای الزامی نشان‌گذاری‌شده با * را پر کنید",
   "settings": "تنظیمات",
   "appSettings": "تنظیمات برنامه",
   "includePasswords": "رمزهای عبور نشست‌ها",
@@ -104,6 +107,13 @@
   "deleteSessionConfirm": "\"{name}\" حذف شود؟",
   "connection": "اتصال",
   "auth": "احراز هویت",
+  "sectionAuthentication": "احراز هویت",
+  "sectionAdvanced": "پیشرفته",
+  "forwardRulesSummary": "{count, plural, =0{بدون قاعده تغییر مسیر پورت} other{{count} قاعده تغییر مسیر پورت}}",
+  "manageRules": "مدیریت…",
+  "authMethodAgent": "استفاده از ssh-agent سیستم",
+  "authMethodAgentSubtitle": "احراز هویت از طریق $SSH_AUTH_SOCK (Linux/macOS) یا OpenSSH named pipe (Windows). مفید اگر کلیدهایت در gpg-agent، Pageant یا یک ssh-agent سیستمی هستند.",
+  "authMethodAgentMobileUnsupported": "در موبایل در دسترس نیست — endpoint مربوط به ssh-agent سیستم فقط روی دسکتاپ کار می‌کند.",
   "options": "گزینه‌ها",
   "sessionName": "نام جلسه",
   "hintMyServer": "سرور من",
@@ -117,6 +127,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "رمز عبور کلید",
   "hintOptional": "اختیاری",
+  "savedTypeToChange": "ذخیره شد — برای تغییر بنویسید",
   "hidePemText": "پنهان کردن متن PEM",
   "pastePemKeyText": "جای‌گذاری متن کلید PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +163,6 @@
   "confirmPassword": "تأیید رمز عبور",
   "importModeMergeDescription": "افزودن جلسات جدید، حفظ موجودها",
   "importModeReplaceDescription": "جایگزینی همه جلسات با موارد وارد شده",
-  "errorPrefix": "خطا: {error}",
   "folderName": "نام پوشه",
   "newName": "نام جدید",
   "deleteItems": "حذف {names}؟",
@@ -274,7 +284,6 @@
   "urlCopied": "آدرس در کلیپ‌بورد کپی شد",
   "aboutSubtitle": "v{version} — کلاینت SSH/SFTP",
   "sourceCode": "کد منبع",
-  "enableLogging": "فعال‌سازی ثبت رویداد",
   "logIsEmpty": "گزارش خالی است",
   "logExportedTo": "گزارش خروجی گرفته شد به: {path}",
   "logExportFailed": "خروجی گرفتن از گزارش ناموفق بود: {error}",
@@ -307,20 +316,56 @@
   "completed": "تکمیل شد",
   "connected": "متصل شد",
   "disconnected": "قطع شد",
+  "a11yConnectingTo": "در حال اتصال به {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "متصل به {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "اتصال به {host} قطع شد",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "اتصال به {host} ناموفق بود",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "خروج",
   "exitConfirmation": "جلسات فعال قطع خواهند شد. خروج؟",
   "hintFolderExample": "مثلاً Production",
   "credentialsNotSet": "اعتبارنامه تنظیم نشده",
   "exportSessionsViaQr": "خروجی جلسات از طریق QR",
-  "qrNoCredentialsWarning": "رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.",
   "qrTooManyForSingleCode": "تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.",
   "qrTooLarge": "حجم بیش از حد است — برخی موارد را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.",
-  "exportAll": "خروجی همه",
   "showQr": "نمایش QR",
   "sort": "مرتب‌سازی",
   "resizePanelDivider": "تغییر اندازه جداکننده پنل",
   "youreRunningLatest": "شما آخرین نسخه را اجرا می‌کنید",
   "liveLog": "گزارش زنده",
+  "archivedLog": "گزارش بایگانی‌شده",
+  "loggingLevel": "سطح گزارش",
+  "loggingLevelSubtitleInfo": "ورودی‌های معمول + هشدارها + خطاها",
+  "loggingLevelSubtitleWarn": "فقط مسیرهای تنزل‌یافته و خطاها",
+  "loggingLevelSubtitleError": "فقط خطاها",
+  "loggingLevelSubtitleOff": "گزارش‌های معمول نوشته نمی‌شوند",
   "transferNItems": "انتقال {count} مورد",
   "time": "زمان",
   "failed": "ناموفق",
@@ -401,14 +446,6 @@
   "errLfsUnsupportedVersion": "بایگانی از طرح v{found} استفاده می‌کند، اما این نسخه فقط تا v{supported} را پشتیبانی می‌کند. برای وارد کردن آن، برنامه را به‌روزرسانی کنید.",
   "progressReadingArchive": "خواندن بایگانی…",
   "progressDecrypting": "در حال رمزگشایی…",
-  "progressParsingArchive": "تحلیل بایگانی…",
-  "progressImportingSessions": "در حال وارد کردن نشست‌ها",
-  "progressImportingFolders": "در حال وارد کردن پوشه‌ها",
-  "progressImportingManagerKeys": "در حال وارد کردن کلیدهای SSH",
-  "progressImportingTags": "در حال وارد کردن برچسب‌ها",
-  "progressImportingSnippets": "در حال وارد کردن قطعه‌ها",
-  "progressApplyingConfig": "در حال اعمال پیکربندی…",
-  "progressImportingKnownHosts": "در حال وارد کردن known_hosts…",
   "progressCollectingData": "در حال جمع‌آوری داده‌ها…",
   "progressEncrypting": "در حال رمزگذاری…",
   "progressWritingArchive": "در حال نوشتن بایگانی…",
@@ -447,11 +484,6 @@
   "transferTooltipEnded": "پایان یافته: {time}",
   "transferTooltipDuration": "مدت: {duration}",
   "transferStatusQueued": "در صف انتظار",
-  "transferStartingUpload": "شروع آپلود...",
-  "transferStartingDownload": "شروع دانلود...",
-  "transferCopying": "در حال کپی...",
-  "transferDone": "انجام شد",
-  "transferFilesProgress": "{done}/{total} فایل",
   "fileConflictTitle": "فایل از قبل وجود دارد",
   "fileConflictMessage": "\"{fileName}\" از قبل در {targetDir} وجود دارد. چه کاری می‌خواهید انجام دهید؟",
   "fileConflictSkip": "رد کردن",
@@ -502,20 +534,36 @@
   "keyDeleted": "کلید حذف شد: {label}",
   "publicKey": "کلید عمومی",
   "publicKeyCopied": "کلید عمومی در کلیپ‌بورد کپی شد",
+  "sshCertificate": "Certificate",
+  "certImport": "ایمپورت certificate",
+  "certImportPickerTitle": "فایل certificate از نوع OpenSSH را انتخاب کن",
+  "certValidFrom": "معتبر از",
+  "certValidTo": "معتبر تا",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "این certificate به‌زودی منقضی می‌شود.",
+  "certExpired": "منقضی",
+  "certRemove": "حذف certificate",
+  "certRemoveConfirmTitle": "certificate حذف شود؟",
+  "certRemoveConfirmBody": "بعد از حذف، در اتصال بعدی به مسیر public key معمولی برمی‌گردد.",
+  "errCertParse": "Certificate پارس نشد: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "این certificate با کلید انتخاب‌شده جفت نیست.",
   "pastePrivateKey": "چسباندن کلید خصوصی (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "داده کلید PEM نامعتبر",
   "selectFromKeyStore": "انتخاب از مخزن کلید",
   "keyCount": "{count, plural, =0{بدون کلید} other{{count} کلید}}",
   "generated": "ساخته شده",
-  "passphraseRequired": "passphrase لازم است",
-  "passphrasePrompt": "کلید SSH برای {host} رمزنگاری شده است. عبارت عبور را برای باز کردن وارد کنید.",
-  "passphraseWrong": "عبارت عبور اشتباه است. دوباره تلاش کنید.",
   "passphrase": "عبارت عبور",
-  "rememberPassphrase": "در این جلسه به خاطر بسپار",
   "enterMasterPassword": "رمز عبور اصلی را برای دسترسی به اعتبارنامه‌های ذخیره شده وارد کنید.",
   "wrongMasterPassword": "رمز عبور اشتباه. دوباره تلاش کنید.",
-  "newPassword": "رمز عبور جدید",
   "currentPassword": "رمز عبور فعلی",
   "forgotPassword": "رمز عبور را فراموش کرده‌اید؟",
   "credentialsReset": "تمام اعتبارنامه‌های ذخیره شده حذف شدند",
@@ -552,11 +600,10 @@
   "keepAliveIntervalSubtitle": "ثانیه‌ها بین بسته‌های SSH keep-alive (۰ = خاموش)",
   "sshTimeoutSubtitle": "مهلت اتصال به ثانیه",
   "defaultPortSubtitle": "درگاه پیش‌فرض برای جلسات جدید",
-  "parallelWorkersSubtitle": "کارگران انتقال SFTP هم‌زمان",
+  "parallelWorkersSubtitle": "Workerهای انتقال SFTP هم‌زمان",
   "maxHistorySubtitle": "حداکثر فرمان‌های ذخیره‌شده در تاریخچه",
   "calculateFolderSizesSubtitle": "نمایش حجم کل در کنار پوشه‌ها در نوار کناری",
   "checkForUpdatesOnStartupSubtitle": "هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن",
-  "enableLoggingSubtitle": "ثبت رویدادهای برنامه در یک فایل گزارش چرخشی",
   "snippets": "اسنیپت‌ها",
   "snippetsSubtitle": "قطعه‌های دستوری قابل استفاده مجدد را مدیریت کنید",
   "noSnippets": "هنوز قطعه‌ای وجود ندارد",
@@ -582,7 +629,6 @@
   "snippetCustomTokensHint": "هر چیز دیگری با دو آکولاد هنگام اجرای قطعه از شما مقدار می‌خواهد.",
   "snippetFillTitle": "پارامترهای قطعه را پر کنید",
   "snippetFillSubmit": "اجرا",
-  "snippetPreview": "پیش‌نمایش",
   "broadcastSetDriver": "پخش از این پنل",
   "broadcastClearDriver": "توقف پخش از این پنل",
   "broadcastAddReceiver": "دریافت پخش در اینجا",
@@ -590,7 +636,16 @@
   "broadcastClearAll": "توقف تمام پخش‌ها",
   "broadcastPasteTitle": "ارسال چسباندن به همه پنل‌ها؟",
   "broadcastPasteBody": "{chars} نویسه به {count} پنل دیگر ارسال می‌شود.",
-  "@broadcastPasteBody": {"placeholders": {"chars": {"type": "int"}, "count": {"type": "int"}}},
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "broadcastPasteSend": "ارسال",
   "portForwarding": "فوروارد",
   "portForwardingEmpty": "هنوز قاعده‌ای نیست",
@@ -608,26 +663,22 @@
   "forwardDescription": "توضیح (اختیاری)",
   "forwardEnabled": "فعال",
   "forwardBindWildcardWarning": "باند به 0.0.0.0 فوروارد را روی همه واسط‌ها منتشر می‌کند — معمولاً 127.0.0.1 می‌خواهید.",
-  "forwardOnlyLocalSupported": "فوروارد محلی (-L)، راه دور (-R) و SOCKS5 پویا (-D) همگی فعال هستند.",
   "forwardKindLocalHelp": "محلی: یک پورت روی این دستگاه باز می‌کند که به هدف قابل دسترسی از سرور SSH تونل می‌زند. مفید برای دسترسی به پایگاه‌های داده دور یا UI ادمین در localhost:bindPort.",
   "forwardKindRemoteHelp": "راه دور: از سرور SSH می‌خواهد پورتی باز کند که به هدف قابل دسترسی از این دستگاه برمی‌گردد. مفید برای اشتراک سرور توسعه محلی با میزبان راه دور (ممکن است سرور به GatewayPorts yes برای bind غیر loopback نیاز داشته باشد).",
   "forwardKindDynamicHelp": "پویا: پروکسی SOCKS5 روی این دستگاه که هر اتصال را از طریق سرور SSH هدایت می‌کند. مرورگر یا curl را به localhost:bindPort اشاره دهید تا تمام ترافیک از طریق SSH ارسال شود.",
-  "forwardExample": "مثال",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → دسترسی به پایگاه داده راه دور از طریق localhost:8080",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → نمایش سرور توسعه در پورت 9000 سرور",
-  "forwardDynamicExample": "ssh -D 1080 → تنظیم SOCKS5 مرورگر روی localhost:1080",
   "proxyJump": "اتصال از طریق",
   "proxyJumpNone": "اتصال مستقیم",
   "proxyJumpSavedSession": "نشست ذخیره‌شده",
   "proxyJumpCustom": "سفارشی",
   "proxyJumpCustomNote": "پرش‌های سفارشی از اعتبارنامه‌های همین نشست استفاده می‌کنند. برای احراز هویت متفاوت بستیون، آن را به‌عنوان نشست جداگانه ذخیره کنید.",
-  "errProxyJumpCycle": "زنجیره پروکسی به خودش بازمی‌گردد.",
-  "errProxyJumpDepth": "زنجیره پروکسی بیش از حد عمیق است (حداکثر {max} پرش).",
-  "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
-  "errProxyJumpBastionFailed": "بستیون {label} نتوانست متصل شود.",
-  "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
   "viaSessionLabel": "از طریق {label}",
-  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "ضبط نشست",
   "recordSessionHelp": "ذخیره خروجی پایانه روی دیسک برای این نشست. هنگام فعال بودن گذرواژه اصلی یا کلید سخت‌افزاری رمزنگاری می‌شود.",
   "recordingsBrowserTitle": "ضبط‌ها",
@@ -638,6 +689,18 @@
   "recordingPlaybackTitle": "پخش مجدد ضبط",
   "recordingSpeed": "سرعت",
   "recordingSpeedInstant": "فوری",
+  "recordingScrubTooltipUnavailable": "Scrub bar به sidecar index نیاز دارد — ضبط‌های قدیمی (قبل از این build) آن را ندارند. ضبط‌های جدید قابل scrub خواهند بود.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "برچسب‌ها",
   "tagsSubtitle": "نشست‌ها و پوشه‌ها را با برچسب‌های رنگی سازماندهی کنید",
   "noTags": "هنوز برچسبی وجود ندارد",
@@ -659,9 +722,6 @@
   "invalidImportLink": "پیوند بار معتبر LetsFLUTssh را شامل نیست",
   "importAction": "وارد کردن",
   "emptyFolder": "پوشه خالی",
-  "exportWithoutPassword": "بدون رمز عبور خروجی گرفته شود؟",
-  "exportWithoutPasswordWarning": "آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.",
-  "continueWithoutPassword": "بدون رمز عبور ادامه بده",
   "tierHardwareUnavailable": "Vault سخت‌افزاری در این نصب در دسترس نیست.",
   "pinLabel": "رمز عبور",
   "l2UnlockTitle": "گذرواژه لازم است",
@@ -687,8 +747,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس نیست.",
   "firstLaunchSecurityOpenSettings": "باز کردن تنظیمات",
   "wizardReducedBanner": "Keychain سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا ارائه‌دهندهٔ libsecret دیگری را نصب کنید.",
-  "tierBlockProtectsEmpty": "در این سطح چیزی نیست.",
-  "tierBlockDoesNotProtectEmpty": "تهدید پوشش‌نیافته‌ای نیست.",
   "tierBadgeCurrent": "فعلی",
   "securitySetupEnable": "فعال‌سازی",
   "securitySetupApply": "اعمال",
@@ -752,7 +810,6 @@
   "colT1": "T1 Keychain",
   "colT1Password": "T1 + رمز",
   "colT1PasswordBiometric": "T1 + رمز + زیست‌سنجی",
-  "colT2": "T2 سخت‌افزار",
   "colT2Password": "T2 + رمز",
   "colT2PasswordBiometric": "T2 + رمز + زیست‌سنجی",
   "colParanoid": "Paranoid",
@@ -763,9 +820,40 @@
   "resetAllDataConfirmTitle": "همهٔ داده‌ها بازنشانی شود؟",
   "resetAllDataConfirmBody": "همهٔ نشست‌ها، کلیدهای SSH، فهرست known hosts، قطعه‌کدها، برچسب‌ها، تنظیمات و همهٔ مؤلفه‌های امنیتی (ورودی‌های کی‌چین، دادهٔ خزانهٔ سخت‌افزاری، لایهٔ زیست‌سنجی) برای همیشه حذف خواهند شد. این عمل قابل بازگشت نیست.",
   "resetAllDataConfirmAction": "بازنشانی همه",
+  "resetAllDataConfirmTypePrompt": "برای تأیید، {phrase} را در زیر تایپ کنید:",
   "resetAllDataInProgress": "در حال بازنشانی…",
   "resetAllDataDone": "همهٔ داده‌ها بازنشانی شدند",
   "resetAllDataFailed": "بازنشانی ناموفق بود",
+  "recordingsTitle": "ضبط‌ها",
+  "recordingsStorageUsedLabel": "استفاده‌شده",
+  "recordingsCapLabel": "سقف",
+  "recordingsCapHint": "سقف سخت برای پوشهٔ recordings/. هنگام عبور، قدیمی‌ترین ضبط ابتدا حذف می‌شود؛ ضبط جاری هرگز دست‌کاری نمی‌شود.",
+  "recordingsClearAllAction": "پاک کردن همهٔ ضبط‌ها",
+  "recordingsClearAllConfirmTitle": "همهٔ ضبط‌ها پاک شود؟",
+  "recordingsClearAllConfirmBody": "هر سشن ضبط‌شده در <app>/recordings/ حذف خواهد شد. ضبط در حال انجام (در صورت وجود) باقی می‌ماند. این عمل قابل بازگشت نیست.",
+  "recordingsClearAllResult": "{count} ضبط حذف شد",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "سقف به‌روزرسانی شد. {bytes} آزاد شد.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "سقف به‌روزرسانی شد. چیزی برای حذف نیست.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "فعلی",
   "paranoidAlternativeHeader": "جایگزین",
   "modifierPasswordLabel": "رمز عبور",
@@ -777,7 +865,24 @@
   "autoLockRequiresActiveTier": "برای پیکربندی قفل خودکار ابتدا این سطح را انتخاب کنید",
   "biometricForbiddenParanoid": "سطح Paranoid به‌طور طراحی‌شده اجازهٔ بیومتریک را نمی‌دهد.",
   "fprintdNotAvailable": "fprintd نصب نشده یا هیچ اثر انگشتی ثبت نشده است.",
-  "linuxTpmWithoutPasswordNote": "TPM بدون رمز عبور فقط جداسازی فراهم می‌کند، نه احراز هویت. هر کسی که بتواند این برنامه را اجرا کند می‌تواند داده‌ها را باز کند.",
+  "modifierPasswordRequired": "الزامی — لایه Hardware همیشه با رمز محافظت می‌شود.",
+  "t2RequiresPasswordTitle": "یک رمز master برای لایه Hardware تعیین کنید",
+  "t2RequiresPasswordBody": "لایه Hardware به یک رمز به عنوان modifier نیاز دارد. بیومتریک یک shortcut اختیاری روی آن است.",
+  "t2MigrationPromptTitle": "لایه Hardware به رمز نیاز دارد",
+  "t2MigrationPromptBody": "نصب‌های موجود Hardware بدون رمز باید اکنون یکی تعیین کنند تا ادامه دهند.",
+  "t2MigrationContinue": "ادامه",
+  "t2MigrationSetPasswordTitle": "برای حفظ لایه Hardware یک رمز تعیین کنید",
+  "t2MigrationSetPasswordBody": "یک passphrase اصلی جدید وارد کنید. کلید DB که قبلاً در ماژول hardware مهر شده، تحت این رمز re-seal می‌شود — sessionها و کلیدها دست‌نخورده می‌مانند.",
+  "t2MigrationWipeAndRestart": "پاک‌سازی و شروع دوباره",
+  "t2MigrationResealFailed": "re-seal لایه Hardware ناموفق بود — رمز دیگری انتخاب کنید یا پاک‌سازی کنید.",
+  "biometricOverlayEnable": "فعال‌سازی shortcut بیومتریک روی لایه Hardware",
+  "biometricOverlayEnableSubtitle": "رمز شما را از یک slot سیستم با گیت بیومتریک آزاد می‌کند.",
+  "biometricOverlayUnavailable": "overlay بیومتریک هنوز روی این پلتفرم در دسترس نیست.",
+  "biometricOverlayRequiresPassword": "ابتدا رمز لایه Hardware را تعیین کنید.",
+  "t2UnlockTitle": "با رمز master باز کنید",
+  "t2UnlockSubtitle": "کلید hardware-bound با رمز شما محافظت می‌شود.",
+  "t2UnlockUseBiometricButton": "از بیومتریک استفاده کنید",
+  "t2PasswordChanged": "رمز لایه Hardware به‌روز شد.",
   "paranoidMasterPasswordNote": "یک عبارت عبور طولانی به شدت توصیه می‌شود — Argon2id فقط حملهٔ جستجوی فراگیر را کند می‌کند، جلوی آن را نمی‌گیرد.",
   "plaintextWarningTitle": "متن ساده: بدون رمزگذاری",
   "plaintextWarningBody": "جلسه‌ها، کلیدها و known hosts بدون رمزگذاری ذخیره خواهند شد. هر کسی که به سیستم فایل این رایانه دسترسی داشته باشد می‌تواند آنها را بخواند.",
@@ -787,7 +892,454 @@
   "masterPasswordLabel": "رمز عبور اصلی",
   "autoLockRequiresPassword": "قفل خودکار نیازمند رمز عبور در سطح فعلی است.",
   "recommendedBadge": "توصیه‌شده",
-  "tierHardwareSubtitleHonest": "پیشرفته: کلید به سخت‌افزار گره خورده است. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.",
+  "tierHardwareSubtitleHonest": "پیشرفته: کلید به سخت‌افزار گره خورده، همیشه با رمز عبور محافظت می‌شود. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.",
   "tierParanoidSubtitleHonest": "جایگزین: رمز عبور اصلی، بدون اعتماد به سیستم‌عامل. در برابر نفوذ OS محافظت می‌کند. حفاظت زمان اجرا را نسبت به T1/T2 بهبود نمی‌دهد.",
-  "mitigationsNoteRuntimeThreats": "تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند."
+  "mitigationsNoteRuntimeThreats": "تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH فعال",
+  "foregroundServiceConnections": "{count, plural, =1{۱ اتصال فعال} other{{count} اتصال فعال}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "نوع session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "نام کاربری",
+  "webDavAuthMethod": "روش auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint گواهی self-signed (اختیاری)",
+  "webDavSelfSignedFingerprintHint": "SHA-256، خالی برای استفاده از trust سیستم",
+  "webDavCopyUrl": "کپی WebDAV URL",
+  "webDavOpenInBrowser": "باز کردن در مرورگر",
+  "errWebDavAuthFailed": "auth WebDAV ناموفق",
+  "errWebDavNotFound": "Path یافت نشد",
+  "errWebDavConflict": "عملیات با وضعیت فعلی در تعارض است",
+  "errWebDavGeneric": "سرور WebDAV درخواست را رد کرد: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "Base URL برای WebDAV لازم است",
+  "errWebDavBaseUrlInvalid": "Base URL باید با http:// یا https:// شروع شود",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "برای AWS خالی بگذار، یا برای MinIO / R2 / Spaces مقدار بده",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "برای MinIO لازم است؛ برای AWS off بگذار",
+  "s3DefaultBucket": "Bucket پیش‌فرض",
+  "s3DefaultPrefix": "Prefix پیش‌فرض",
+  "s3GeneratePresignedUrl": "ساختن presigned URL",
+  "s3PresignedUrlExpiry": "منقضی می‌شود در",
+  "s3CopyUri": "کپی URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "۱۵ دقیقه",
+  "s3PresignedUrlExpiry1hour": "۱ ساعت",
+  "s3PresignedUrlExpiry4hour": "۴ ساعت",
+  "s3PresignedUrlExpiry24hour": "۲۴ ساعت",
+  "s3PresignedUrlExpiry7day": "۷ روز",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret را بررسی کن)",
+  "errS3NoSuchBucket": "Bucket وجود ندارد یا قابل دسترسی نیست",
+  "errS3RegionMismatch": "Bucket در region متفاوتی است",
+  "errS3Generic": "سرور S3 درخواست را رد کرد: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "فعال‌سازی WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "بایگانی sync را رمزگذاری می‌کند. باید با master password متفاوت باشد.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase نباید با master password یکسان باشد.",
+  "syncRemotePath": "مسیر remote",
+  "syncRemotePathHint": "مسیر زیر WebDAV base URL — پیش‌فرض letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "آخرین push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "آخرین pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "هرگز",
+  "syncUpToDate": "Sync به‌روز است",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "اعمال {count} تغییر از remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync غیرفعال است",
+  "errSyncEtagMismatch": "Remote تغییر کرده — اول pull سپس push",
+  "errSyncUnauthorized": "احراز هویت WebDAV ناموفق بود",
+  "errSyncNetwork": "خطای شبکه: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "بایگانی sync از remote نیاز به build جدیدتر دارد",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "hardware key را لمس کن",
+  "hardwareKeyPin": "PIN ـ hardware key",
+  "hardwareKeyTimeout": "hardware key پاسخ نداد",
+  "hardwareKeyNotFound": "hardware key یافت نشد",
+  "hardwareKeyUnsupported": "دسترسی مستقیم به hardware key در این پلتفرم در دسترس نیست",
+  "hardwareKeyAppleEntitlementRequired": "نیاز به Apple Developer Program entitlement؛ روی macOS از ssh-agent استفاده کن",
+  "skKeyRequiresDevice": "این کلید SSH به hardware key نیاز دارد — برای auth لمس کن",
+  "errSkWrongPin": "PIN اشتباه است",
+  "hardwareKeyImport": "import کردن hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "درخواست hardware key لغو شد",
+  "agentEndpointSectionTitle": "ادغام با کلاینت‌های SSH خارجی",
+  "agentEndpointToggleTitle": "ارائه hardware-bound keys به کلاینت‌های SSH سیستم",
+  "agentEndpointToggleSubtitle": "به git و ssh و افزونه‌های IDE روی این دستگاه اجازه می‌دهد از key های FIDO2 / smart-card / TPM شما استفاده کنند.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "کپی دستور export",
+  "agentEndpointCopyPipeName": "کپی نام pipe",
+  "agentEndpointSignatureRequestTitle": "درخواست امضا",
+  "agentEndpointSignatureRequestBody": "{requester} می‌خواهد با {keyLabel} امضا کند",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "یک کلاینت SSH خارجی",
+  "agentEndpointAuthorizeOnce": "یک‌بار اجازه بده",
+  "agentEndpointAuthorizeAlways": "اجازه بده و به خاطر بسپار",
+  "agentEndpointDeny": "رد کن",
+  "agentEndpointStatusRunning": "در حال اجرا",
+  "agentEndpointStatusStopped": "متوقف",
+  "agentEndpointStatusUnsupported": "در این پلتفرم پشتیبانی نمی‌شود",
+  "agentEndpointRefusedAddIdentity": "رد شد: کلاینت‌های خارجی نمی‌توانند key اضافه کنند.",
+  "agentEndpointStartFailed": "راه‌اندازی ssh-agent endpoint ممکن نشد: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "افزودن کلید smart-card / token",
+  "pkcs11ModuleLabel": "ماژول PKCS#11",
+  "pkcs11ModuleAutoDetected": "به‌طور خودکار پیدا شد",
+  "pkcs11ModuleCustom": "ماژول دلخواه...",
+  "pkcs11ModulePickerTitle": "انتخاب کتابخانه PKCS#11",
+  "pkcs11NoModuleFound": "ماژول PKCS#11 پیدا نشد. OpenSC را نصب کنید یا کتابخانه vendor را انتخاب کنید.",
+  "pkcs11InitializeFailed": "ماژول PKCS#11 initialise نشد.",
+  "pkcs11NoTokenPresent": "هیچ token در reader وجود ندارد.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "Token نیاز به ورود دارد.",
+  "pkcs11PinPrompt": "PIN برای {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "روی PIN-pad token تأیید کنید.",
+  "pkcs11PinIncorrect": "PIN اشتباه. {remaining} تلاش باقی‌مانده.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "PIN قفل شده. با PUK باز کنید.",
+  "pkcs11NoSignableKeys": "Token کلید SSH-قابل‌استفاده ندارد (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "کلیدهای GOST با SSH کار نمی‌کنند.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" متصل نیست.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Token ذخیره‌شده پیدا نشد. دوباره وصل کنید.",
+  "pkcs11SignFailed": "Sign ناموفق: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 در این پلتفرم در دسترس نیست.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "Module PKCS#11 را انتخاب کنید",
+  "pkcs11WizardStepToken": "Token را انتخاب کنید",
+  "pkcs11WizardStepKey": "کلید را انتخاب کنید",
+  "pkcs11WizardStepPin": "PIN را وارد کنید",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "خواندن کلید عمومی از token...",
+  "pkcs11SaveSuccess": "کلید smart card اضافه شد.",
+  "pkcs11ScanInProgress": "جستجوی module های PKCS#11...",
+  "pkcs11LoadingTokens": "بارگذاری token ها...",
+  "pkcs11LoadingKeys": "بارگذاری کلیدها...",
+  "pkcs11ModuleStatusReady": "Module بارگذاری شد.",
+  "pkcs11ModuleStatusNoToken": "Token موجود نیست.",
+  "pkcs11ModuleStatusFailed": "بارگذاری module ناموفق بود.",
+  "pkcs11PinPadHint": "(PIN pad روی دستگاه)",
+  "pkcs11WizardBack": "بازگشت",
+  "pkcs11WizardNext": "بعدی",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "افزودن hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key داخل secure hardware دستگاه قرار دارد و export نمی‌شود.",
+  "sshKeyEnclaveDeviceBound": "این key فقط روی همین Mac کار می‌کند.",
+  "sshKeyEnclaveDeviceBoundIos": "این key فقط روی همین iPhone کار می‌کند.",
+  "sshKeyHelloDeviceBound": "این key فقط روی همین PC کار می‌کند.",
+  "sshKeyEnclaveTouchIdRequired": "الزام Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "اجازه استفاده از passcode دستگاه به‌عنوان fallback",
+  "sshKeyHelloPinRequired": "الزام Windows Hello (PIN، اثر انگشت یا چهره)",
+  "sshKeyHardwareUnavailableTitle": "Hardware keys در دسترس نیست",
+  "sshKeyHardwareUnavailableSe": "برای استفاده از Secure Enclave اپ باید code-signed باشد.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello روی این PC تنظیم نشده.",
+  "sshKeyHardwareUnavailableTpm": "TPM شناسایی نشد — فقط software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "ساختن",
+  "sshKeyGenerateInProgress": "در حال ساخت key در secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing لازم است — به USER_GUIDE.md → Hardware-bound keys مراجعه کنید.",
+  "sshKeySignInProgress": "امضا با secure hardware...",
+  "sshKeyPublicCopy": "کپی public key",
+  "sshKeyAuthorizedKeysHint": "این خط را به ~/.ssh/authorized_keys روی سرور اضافه کنید.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "نام key",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "کلید SSH از Windows Hello",
+  "helloWizardLabelHint": "برچسب کلید",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "احراز هویت با Windows Hello",
+  "helloPromptDescription": "PIN، اثر انگشت یا چهره — Windows Hello این چالش SSH را امضا می‌کند.",
+  "helloSoftwareGatedWarning": "این دستگاه TPM ندارد. کلید در فضای کاربر می‌ماند؛ هر امضا را همچنان Windows Hello کنترل می‌کند.",
+  "helloP384NotSupported": "فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کن.",
+  "helloConfigureFirst": "ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن.",
+  "tpmSshTitle": "ساخت کلید SSH متصل به TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (پیشنهادی)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "این الگوریتم در فریمور TPM پشتیبانی نمی‌شود.",
+  "tpmSshPinProtect": "محافظت با PIN",
+  "tpmSshPinLockoutWarning": "TPM پس از چند PIN اشتباه کلید را قفل می‌کند.",
+  "tpmSshPinMismatch": "PINها یکسان نیستند.",
+  "tpmSshStorageBlob": "ذخیره کلید بسته‌بندی‌شده در داده‌های برنامه",
+  "tpmSshStorageHandle": "نگهداری در اسلات حافظهٔ TPM",
+  "tpmSshStorageHandleHelp": "امضای سریع‌تر. یکی از اسلات‌های دائمی TPM را اشغال می‌کند.",
+  "tpmSshLabel": "برچسب کلید",
+  "tpmSshImportTitle": "وارد کردن کلید SSH محافظت‌شده با TPM",
+  "tpmSshImportFormat": "فایل TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "PIN مربوط به TPM برای {label}",
+  "tpmSshPinIncorrect": "PIN نادرست است.",
+  "tpmSshPinLockedCooldown": "TPM در دورهٔ خنک‌کاری قفل است. {duration} صبر کنید و دوباره امتحان کنید.",
+  "tpmSshGenerating": "در حال ساخت کلید در TPM...",
+  "tpmSshSigning": "در حال امضا با TPM...",
+  "tpmSshUnavailable": "TPM روی این دستگاه یافت نشد.",
+  "tpmSshUnavailableFwDisabled": "TPM در فریمور غیرفعال است.",
+  "tpmSshUnavailableNoPermission": "برنامه به TPM دسترسی ندارد. کاربر را به گروه `tss` اضافه کنید.",
+  "tpmSshHandleInUse": "اسلات دائمی {handle} قبلاً در حال استفاده است.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "این کلید بدون درخواست Hello / PIN امضا می‌کند — هر کسی که در زمان ورود شما به دسکتاپ دسترسی دارد می‌تواند از آن استفاده کند.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (سخت‌افزاری)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (پشتیبانی سخت‌افزاری)",
+  "keystoreKeyGenerating": "در حال ساخت کلید سخت‌افزاری...",
+  "keystoreKeyAuthPrompt": "برای استفاده از کلید SSH احراز هویت کنید",
+  "keystoreKeyInvalidatedByEnrollment": "کلید نابود شد: بیومتریک جدیدی ثبت شده است. کلید عمومی را روی سرورها دوباره ثبت کنید.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM روی این دستگاه در دسترس نیست",
+  "keystoreKeyUserAuthRequired": "برای هر امضا بیومتریک / باز کردن قفل دستگاه را الزامی کن",
+  "keystoreKeyExportDisabled": "کلیدهای سخت‌افزاری قابل خروجی گرفتن نیستند",
+  "keystoreKeyDeleteWarning": "حذف این کلید آن را از مخزن سخت‌افزاری پاک می‌کند. سرورها این کلید را رد می‌کنند تا یک کلید جدید ثبت کنید.",
+  "keystoreKeyBiometricNotEnrolled": "ابتدا بیومتریک یا PIN دستگاه را تنظیم کنید",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (سازگار با StrongBox)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+، فقط TEE)",
+  "keystoreAlgRsa2048": "RSA-2048 (بیشترین سازگاری)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM در دسترس نیست",
+  "keystoreStrongBoxFallbackBody": "دستگاه شما StrongBox HSM را در دسترس نمی‌گذارد. به‌جای آن یک کلید مبتنی بر TEE ساخته شود؟ همچنان hardware-backed است، فقط بدون ایزولاسیون StrongBox.",
+  "keystoreStrongBoxFallbackConfirm": "استفاده از TEE",
+  "keystoreStrongBoxFallbackCancel": "لغو",
+  "fido2BrokerSectionTitle": "کلیدهای امنیتی سخت‌افزاری",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "دیالوگ سیستمی security key",
+  "fido2BrokerIosLabel": "security key سیستم (USB / NFC)",
+  "fido2BrokerAndroidLabel": "security key سیستم (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID مستقیم (CTAP2)",
+  "fido2BrokerTransportNone": "در این پلتفرم در دسترس نیست",
+  "fido2BrokerPreferDirectHidTitle": "USB HID مستقیم به دیالوگ سیستم ترجیح داده شود",
+  "fido2BrokerPreferDirectHidSubtitle": "پیشرفته: عبور از {brokerLabel} روی پلتفرم‌هایی که هر دو مسیر کار می‌کنند. HID مستقیم ویژگی‌های بیشتری از authenticator را در دسترس می‌گذارد ولی برای هر اپ نیاز به مجوز دارد.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "ادغام SSH",
+  "fido2BrokerNoTransportSubtitle": "پشتیبانی از کلید سخت‌افزاری روی این دستگاه در دسترس نیست.",
+  "fido2BrokerSinglePathSubtitle": "فقط {transport} روی این دستگاه در دسترس است؛ کلید غیرفعال است.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "استاب وارد شده",
+  "hardwareKeyStubSubtitle": "روی دستگاه دیگری بود — اینجا مجدداً تولید کنید تا قابل استفاده شود",
+  "hardwareKeyStubRegenerateAction": "اینجا مجدداً تولید کن",
+  "hardwareKeyStubRemoveAction": "حذف استاب",
+  "hardwareKeyStubPickerTooltip": "این کلید را روی این دستگاه قبل از استفاده مجدداً تولید کنید",
+  "pkcs11ModuleResolveOnFirstUse": "ماژول PKCS#11 برای توکن «{token}» را پیدا کنید",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  }
 }

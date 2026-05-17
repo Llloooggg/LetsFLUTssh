@@ -21,7 +21,10 @@
   "select": "Chọn",
   "copyModeTapToStart": "Chạm để đánh dấu điểm bắt đầu",
   "copyModeExtending": "Kéo để mở rộng vùng chọn",
+  "copyModeSetAnchor": "Đặt mỏ neo",
+  "copyModeCopySelection": "Sao chép vùng chọn",
   "required": "Bắt buộc",
+  "errFillRequiredFields": "Điền các trường bắt buộc đánh dấu *",
   "settings": "Cài đặt",
   "appSettings": "Cài đặt ứng dụng",
   "includePasswords": "Mật khẩu phiên",
@@ -104,6 +107,13 @@
   "deleteSessionConfirm": "Xóa \"{name}\"?",
   "connection": "Kết nối",
   "auth": "Xác thực",
+  "sectionAuthentication": "Xác thực",
+  "sectionAdvanced": "Nâng cao",
+  "forwardRulesSummary": "{count, plural, =0{Không có quy tắc port forwarding} other{{count} quy tắc port forwarding}}",
+  "manageRules": "Quản lý…",
+  "authMethodAgent": "Dùng ssh-agent hệ thống",
+  "authMethodAgentSubtitle": "Xác thực qua $SSH_AUTH_SOCK (Linux/macOS) hoặc OpenSSH named pipe (Windows). Tiện nếu key của bạn nằm trong gpg-agent, Pageant hoặc ssh-agent hệ thống.",
+  "authMethodAgentMobileUnsupported": "Không khả dụng trên mobile — endpoint ssh-agent hệ thống chỉ chạy trên desktop.",
   "options": "Tùy chọn",
   "sessionName": "Tên phiên",
   "hintMyServer": "Máy chủ của tôi",
@@ -117,6 +127,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Key passphrase",
   "hintOptional": "Tùy chọn",
+  "savedTypeToChange": "Đã lưu — nhập để thay đổi",
   "hidePemText": "Ẩn văn bản PEM",
   "pastePemKeyText": "Dán văn bản khóa PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +163,6 @@
   "confirmPassword": "Xác nhận mật khẩu",
   "importModeMergeDescription": "Thêm phiên mới, giữ phiên hiện có",
   "importModeReplaceDescription": "Thay thế tất cả phiên bằng phiên nhập vào",
-  "errorPrefix": "Lỗi: {error}",
   "folderName": "Tên thư mục",
   "newName": "Tên mới",
   "deleteItems": "Xóa {names}?",
@@ -274,7 +284,6 @@
   "urlCopied": "Đã sao chép URL vào bộ nhớ tạm",
   "aboutSubtitle": "v{version} — Ứng dụng SSH/SFTP",
   "sourceCode": "Mã nguồn",
-  "enableLogging": "Bật log",
   "logIsEmpty": "Log trống",
   "logExportedTo": "Đã xuất nhật ký đến: {path}",
   "logExportFailed": "Xuất nhật ký thất bại: {error}",
@@ -307,20 +316,56 @@
   "completed": "Hoàn thành",
   "connected": "Đã kết nối",
   "disconnected": "Đã ngắt kết nối",
+  "a11yConnectingTo": "Đang kết nối đến {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Đã kết nối đến {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Đã ngắt kết nối khỏi {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Kết nối đến {host} thất bại",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Thoát",
   "exitConfirmation": "Các phiên đang hoạt động sẽ bị ngắt kết nối. Thoát?",
   "hintFolderExample": "ví dụ: Production",
   "credentialsNotSet": "Chưa có credential",
   "exportSessionsViaQr": "Xuất phiên qua QR",
-  "qrNoCredentialsWarning": "Mật khẩu và khóa SSH KHÔNG được bao gồm.\nCác phiên nhập vào sẽ cần điền thông tin xác thực.",
   "qrTooManyForSingleCode": "Quá nhiều phiên cho một mã QR. Bỏ chọn một số hoặc sử dụng xuất .lfs.",
   "qrTooLarge": "Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.",
-  "exportAll": "Xuất tất cả",
   "showQr": "Hiện QR",
   "sort": "Sắp xếp",
   "resizePanelDivider": "Thay đổi kích thước thanh phân chia",
   "youreRunningLatest": "Bạn đang sử dụng phiên bản mới nhất",
   "liveLog": "Live log",
+  "archivedLog": "Log lưu trữ",
+  "loggingLevel": "Mức log",
+  "loggingLevelSubtitleInfo": "Mục thường + cảnh báo + lỗi",
+  "loggingLevelSubtitleWarn": "Chỉ đường dẫn suy giảm và lỗi",
+  "loggingLevelSubtitleError": "Chỉ lỗi",
+  "loggingLevelSubtitleOff": "Không ghi log thường",
   "transferNItems": "Truyền {count} mục",
   "time": "Thời gian",
   "failed": "Thất bại",
@@ -401,14 +446,6 @@
   "errLfsUnsupportedVersion": "Tệp lưu trữ sử dụng lược đồ v{found}, nhưng bản dựng này chỉ hỗ trợ đến v{supported}. Hãy cập nhật ứng dụng để nhập nó.",
   "progressReadingArchive": "Đang đọc kho lưu trữ…",
   "progressDecrypting": "Đang giải mã…",
-  "progressParsingArchive": "Đang phân tích kho lưu trữ…",
-  "progressImportingSessions": "Đang nhập phiên",
-  "progressImportingFolders": "Đang nhập thư mục",
-  "progressImportingManagerKeys": "Đang nhập khóa SSH",
-  "progressImportingTags": "Đang nhập thẻ",
-  "progressImportingSnippets": "Đang nhập snippet",
-  "progressApplyingConfig": "Đang áp dụng cấu hình…",
-  "progressImportingKnownHosts": "Đang nhập known_hosts…",
   "progressCollectingData": "Đang thu thập dữ liệu…",
   "progressEncrypting": "Đang mã hóa…",
   "progressWritingArchive": "Đang ghi kho lưu trữ…",
@@ -447,11 +484,6 @@
   "transferTooltipEnded": "Kết thúc: {time}",
   "transferTooltipDuration": "Thời lượng: {duration}",
   "transferStatusQueued": "Đang chờ",
-  "transferStartingUpload": "Bắt đầu tải lên...",
-  "transferStartingDownload": "Bắt đầu tải xuống...",
-  "transferCopying": "Đang sao chép...",
-  "transferDone": "Hoàn tất",
-  "transferFilesProgress": "{done}/{total} tệp",
   "fileConflictTitle": "Tệp đã tồn tại",
   "fileConflictMessage": "\"{fileName}\" đã tồn tại trong {targetDir}. Bạn muốn làm gì?",
   "fileConflictSkip": "Bỏ qua",
@@ -502,20 +534,36 @@
   "keyDeleted": "Đã xóa khóa: {label}",
   "publicKey": "Khóa công khai",
   "publicKeyCopied": "Đã sao chép khóa công khai vào clipboard",
+  "sshCertificate": "Certificate",
+  "certImport": "Import certificate",
+  "certImportPickerTitle": "Chọn file certificate OpenSSH",
+  "certValidFrom": "Hiệu lực từ",
+  "certValidTo": "Hết hạn",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Certificate này sắp hết hạn.",
+  "certExpired": "Hết hạn",
+  "certRemove": "Xoá certificate",
+  "certRemoveConfirmTitle": "Xoá certificate?",
+  "certRemoveConfirmBody": "Sau khi xoá, lần connect tiếp theo sẽ fallback về public key thường.",
+  "errCertParse": "Không parse được certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Certificate này không được pair với key đang chọn.",
   "pastePrivateKey": "Dán khóa riêng tư (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Dữ liệu khóa PEM không hợp lệ",
   "selectFromKeyStore": "Chọn từ kho khóa",
   "keyCount": "{count, plural, =0{Không có khóa} other{{count} khóa}}",
   "generated": "Đã tạo",
-  "passphraseRequired": "Cần passphrase",
-  "passphrasePrompt": "SSH key cho {host} được mã hóa. Nhập passphrase để mở khóa.",
-  "passphraseWrong": "Passphrase sai. Thử lại.",
   "passphrase": "Passphrase",
-  "rememberPassphrase": "Nhớ passphrase cho phiên này",
   "enterMasterPassword": "Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.",
   "wrongMasterPassword": "Sai mật khẩu. Vui lòng thử lại.",
-  "newPassword": "Mật khẩu mới",
   "currentPassword": "Mật khẩu hiện tại",
   "forgotPassword": "Quên mật khẩu?",
   "credentialsReset": "Tất cả thông tin đăng nhập đã lưu đã bị xóa",
@@ -556,7 +604,6 @@
   "maxHistorySubtitle": "Số lệnh tối đa lưu trong lịch sử",
   "calculateFolderSizesSubtitle": "Hiển thị tổng dung lượng bên cạnh thư mục ở thanh bên",
   "checkForUpdatesOnStartupSubtitle": "Kiểm tra phiên bản mới trên GitHub khi khởi chạy ứng dụng",
-  "enableLoggingSubtitle": "Ghi sự kiện ứng dụng vào file log xoay vòng",
   "snippets": "Snippet",
   "snippetsSubtitle": "Quản lý các snippet lệnh có thể tái sử dụng",
   "noSnippets": "Chưa có snippet",
@@ -582,7 +629,6 @@
   "snippetCustomTokensHint": "Bất kỳ thứ gì khác với dấu ngoặc nhọn kép sẽ hỏi bạn giá trị khi chạy snippet.",
   "snippetFillTitle": "Điền tham số snippet",
   "snippetFillSubmit": "Chạy",
-  "snippetPreview": "Xem trước",
   "broadcastSetDriver": "Phát từ ngăn này",
   "broadcastClearDriver": "Dừng phát từ ngăn này",
   "broadcastAddReceiver": "Nhận phát ở đây",
@@ -590,7 +636,16 @@
   "broadcastClearAll": "Dừng tất cả phát",
   "broadcastPasteTitle": "Gửi dán đến tất cả các ngăn?",
   "broadcastPasteBody": "{chars} ký tự sẽ được gửi đến {count} ngăn khác.",
-  "@broadcastPasteBody": {"placeholders": {"chars": {"type": "int"}, "count": {"type": "int"}}},
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "broadcastPasteSend": "Gửi",
   "portForwarding": "Chuyển tiếp",
   "portForwardingEmpty": "Chưa có quy tắc nào",
@@ -608,26 +663,22 @@
   "forwardDescription": "Mô tả (tuỳ chọn)",
   "forwardEnabled": "Bật",
   "forwardBindWildcardWarning": "Bind tới 0.0.0.0 phát chuyển tiếp trên mọi giao diện — thường bạn muốn 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Chuyển tiếp cục bộ (-L), từ xa (-R) và SOCKS5 động (-D) đều đang hoạt động.",
   "forwardKindLocalHelp": "Cục bộ: mở một cổng trên thiết bị này, tạo đường hầm đến mục tiêu mà máy chủ SSH có thể tới. Hữu ích để truy cập cơ sở dữ liệu hoặc giao diện admin từ xa qua localhost:bindPort.",
   "forwardKindRemoteHelp": "Từ xa: yêu cầu máy chủ SSH mở một cổng, tạo đường hầm trở về mục tiêu mà thiết bị này có thể tới. Hữu ích để chia sẻ máy chủ dev cục bộ với host từ xa (máy chủ có thể cần GatewayPorts yes cho bind không phải loopback).",
   "forwardKindDynamicHelp": "Động: một proxy SOCKS5 trên thiết bị này định tuyến mọi kết nối qua máy chủ SSH. Trỏ trình duyệt hoặc curl đến localhost:bindPort để gửi mọi lưu lượng qua SSH.",
-  "forwardExample": "Ví dụ",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → truy cập DB từ xa qua localhost:8080",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → mở dev server ở cổng 9000 của máy chủ",
-  "forwardDynamicExample": "ssh -D 1080 → đặt SOCKS5 trình duyệt là localhost:1080",
   "proxyJump": "Kết nối qua",
   "proxyJumpNone": "Kết nối trực tiếp",
   "proxyJumpSavedSession": "Phiên đã lưu",
   "proxyJumpCustom": "Tuỳ chỉnh",
   "proxyJumpCustomNote": "Hop tuỳ chỉnh dùng thông tin xác thực của phiên này. Để xác thực bastion khác, hãy lưu bastion như một phiên riêng.",
-  "errProxyJumpCycle": "Chuỗi proxy lặp lại chính nó.",
-  "errProxyJumpDepth": "Chuỗi proxy quá sâu (tối đa {max} hop).",
-  "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
-  "errProxyJumpBastionFailed": "Bastion {label} kết nối thất bại.",
-  "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
   "viaSessionLabel": "qua {label}",
-  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "Ghi phiên",
   "recordSessionHelp": "Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ nếu bật master password hoặc khóa phần cứng.",
   "recordingsBrowserTitle": "Bản ghi",
@@ -638,6 +689,18 @@
   "recordingPlaybackTitle": "Phát lại bản ghi",
   "recordingSpeed": "Tốc độ",
   "recordingSpeedInstant": "Tức thì",
+  "recordingScrubTooltipUnavailable": "Scrub bar cần sidecar index — bản ghi cũ (trước build này) không có. Bản ghi mới sẽ scrub được.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Thẻ",
   "tagsSubtitle": "Tổ chức phiên và thư mục bằng thẻ màu",
   "noTags": "Chưa có thẻ",
@@ -659,9 +722,6 @@
   "invalidImportLink": "Liên kết không chứa payload LetsFLUTssh hợp lệ",
   "importAction": "Nhập",
   "emptyFolder": "Thư mục trống",
-  "exportWithoutPassword": "Xuất không có mật khẩu?",
-  "exportWithoutPasswordWarning": "Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.",
-  "continueWithoutPassword": "Tiếp tục không dùng mật khẩu",
   "tierHardwareUnavailable": "Hardware vault không khả dụng trên bản cài này.",
   "pinLabel": "Mật khẩu",
   "l2UnlockTitle": "Cần mật khẩu",
@@ -687,8 +747,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Lưu trữ phần cứng không khả dụng trên thiết bị này.",
   "firstLaunchSecurityOpenSettings": "Mở Cài đặt",
   "wizardReducedBanner": "Keychain hệ điều hành không thể truy cập trong bản cài đặt này. Hãy chọn giữa không mã hoá (T0) và mật khẩu chính (Paranoid). Cài đặt gnome-keyring, kwallet hoặc trình cung cấp libsecret khác để bật tầng Keychain.",
-  "tierBlockProtectsEmpty": "Không có gì ở cấp này.",
-  "tierBlockDoesNotProtectEmpty": "Không còn mối đe doạ nào chưa được phủ.",
   "tierBadgeCurrent": "Hiện tại",
   "securitySetupEnable": "Kích hoạt",
   "securitySetupApply": "Áp dụng",
@@ -752,7 +810,6 @@
   "colT1": "T1 Keychain",
   "colT1Password": "T1 + mật khẩu",
   "colT1PasswordBiometric": "T1 + mật khẩu + biometric",
-  "colT2": "T2 Phần cứng",
   "colT2Password": "T2 + mật khẩu",
   "colT2PasswordBiometric": "T2 + mật khẩu + biometric",
   "colParanoid": "Paranoid",
@@ -763,9 +820,40 @@
   "resetAllDataConfirmTitle": "Đặt lại toàn bộ dữ liệu?",
   "resetAllDataConfirmBody": "Tất cả phiên, khóa SSH, known hosts, đoạn mã, thẻ, tùy chọn và mọi tạo tác bảo mật (mục keychain, dữ liệu kho phần cứng, lớp phủ sinh trắc học) sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.",
   "resetAllDataConfirmAction": "Đặt lại tất cả",
+  "resetAllDataConfirmTypePrompt": "Nhập {phrase} bên dưới để xác nhận:",
   "resetAllDataInProgress": "Đang đặt lại…",
   "resetAllDataDone": "Đã đặt lại toàn bộ dữ liệu",
   "resetAllDataFailed": "Đặt lại thất bại",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Đã dùng",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "Hard cap cho thư mục recordings/. Khi vượt, recording cũ nhất bị xoá trước; recording đang chạy không bao giờ bị động đến.",
+  "recordingsClearAllAction": "Xoá toàn bộ recordings",
+  "recordingsClearAllConfirmTitle": "Xoá toàn bộ recordings?",
+  "recordingsClearAllConfirmBody": "Mọi session đã ghi dưới <app>/recordings/ sẽ bị xoá. Recording đang chạy (nếu có) vẫn còn. Hành động này không thể hoàn tác.",
+  "recordingsClearAllResult": "Đã xoá {count} recordings",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap đã cập nhật. Giải phóng {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap đã cập nhật. Không có gì để xoá.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "HIỆN TẠI",
   "paranoidAlternativeHeader": "THAY THẾ",
   "modifierPasswordLabel": "Mật khẩu",
@@ -777,7 +865,24 @@
   "autoLockRequiresActiveTier": "Chọn tầng này trước để cấu hình khóa tự động",
   "biometricForbiddenParanoid": "Mức Paranoid không cho phép sinh trắc theo thiết kế.",
   "fprintdNotAvailable": "fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.",
-  "linuxTpmWithoutPasswordNote": "TPM không có mật khẩu chỉ cung cấp sự cô lập, không phải xác thực. Bất kỳ ai có thể chạy ứng dụng này đều có thể mở khóa dữ liệu.",
+  "modifierPasswordRequired": "Bắt buộc — tier Hardware luôn được bảo vệ bằng password.",
+  "t2RequiresPasswordTitle": "Đặt master password cho tier Hardware",
+  "t2RequiresPasswordBody": "Tier Hardware cần password làm modifier. Biometric là shortcut tùy chọn ở trên.",
+  "t2MigrationPromptTitle": "Tier Hardware cần password",
+  "t2MigrationPromptBody": "Các install Hardware hiện có không có password phải đặt một cái ngay bây giờ để tiếp tục.",
+  "t2MigrationContinue": "Tiếp tục",
+  "t2MigrationSetPasswordTitle": "Đặt password để giữ tier Hardware",
+  "t2MigrationSetPasswordBody": "Nhập master password mới. DB key đã sealed trong hardware module sẽ được re-seal dưới password này — session và key của bạn vẫn còn nguyên.",
+  "t2MigrationWipeAndRestart": "Wipe và bắt đầu lại",
+  "t2MigrationResealFailed": "Re-seal tier Hardware thất bại — chọn password khác hoặc wipe để bắt đầu lại.",
+  "biometricOverlayEnable": "Kích hoạt shortcut biometric trên tier Hardware",
+  "biometricOverlayEnableSubtitle": "Giải phóng password của bạn từ một OS slot được bảo vệ bằng biometric.",
+  "biometricOverlayUnavailable": "Overlay biometric chưa khả dụng trên platform này.",
+  "biometricOverlayRequiresPassword": "Đặt password tier Hardware trước đã.",
+  "t2UnlockTitle": "Mở khóa bằng master password",
+  "t2UnlockSubtitle": "Khóa hardware-bound được bảo vệ bằng password của bạn.",
+  "t2UnlockUseBiometricButton": "Dùng biometric",
+  "t2PasswordChanged": "Password tier Hardware đã được cập nhật.",
   "paranoidMasterPasswordNote": "Rất khuyến nghị dùng cụm mật khẩu dài — Argon2id chỉ làm chậm tấn công vét cạn, không ngăn chặn được.",
   "plaintextWarningTitle": "Plaintext: không mã hóa",
   "plaintextWarningBody": "Phiên, key và known hosts sẽ được lưu không mã hóa. Bất kỳ ai truy cập được filesystem của máy này đều có thể đọc.",
@@ -787,7 +892,454 @@
   "masterPasswordLabel": "Mật khẩu chính",
   "autoLockRequiresPassword": "Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động.",
   "recommendedBadge": "KHUYẾN NGHỊ",
-  "tierHardwareSubtitleHonest": "Nâng cao: khóa gắn với phần cứng. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.",
+  "tierHardwareSubtitleHonest": "Nâng cao: khóa gắn với phần cứng, luôn được bảo vệ bằng password. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.",
   "tierParanoidSubtitleHonest": "Phương án thay thế: mật khẩu chính, không tin cậy OS. Bảo vệ khỏi việc OS bị xâm phạm. Không cải thiện bảo vệ lúc chạy so với T1/T2.",
-  "mitigationsNoteRuntimeThreats": "Các mối đe dọa runtime (malware từ cùng người dùng, dump bộ nhớ tiến trình đang chạy) được hiển thị là ✗ ở mọi cấp. Chúng được xử lý bằng các tính năng giảm thiểu riêng biệt, áp dụng bất kể cấp đã chọn."
+  "mitigationsNoteRuntimeThreats": "Các mối đe dọa runtime (malware từ cùng người dùng, dump bộ nhớ tiến trình đang chạy) được hiển thị là ✗ ở mọi cấp. Chúng được xử lý bằng các tính năng giảm thiểu riêng biệt, áp dụng bất kể cấp đã chọn.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH đang hoạt động",
+  "foregroundServiceConnections": "{count, plural, =1{1 kết nối đang hoạt động} other{{count} kết nối đang hoạt động}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Loại session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Phương thức auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint chứng chỉ self-signed (tuỳ chọn)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, để trống dùng trust hệ thống",
+  "webDavCopyUrl": "Sao chép WebDAV URL",
+  "webDavOpenInBrowser": "Mở trong trình duyệt",
+  "errWebDavAuthFailed": "Auth WebDAV thất bại",
+  "errWebDavNotFound": "Không tìm thấy path",
+  "errWebDavConflict": "Thao tác xung đột với state hiện tại",
+  "errWebDavGeneric": "Server WebDAV từ chối request: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "Cần base URL của WebDAV",
+  "errWebDavBaseUrlInvalid": "Base URL phải là http:// hoặc https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Bỏ trống cho AWS, hoặc đặt cho MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "Cần cho MinIO; tắt cho AWS",
+  "s3DefaultBucket": "Bucket mặc định",
+  "s3DefaultPrefix": "Prefix mặc định",
+  "s3GeneratePresignedUrl": "Tạo presigned URL",
+  "s3PresignedUrlExpiry": "Hết hạn sau",
+  "s3CopyUri": "Copy URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 phút",
+  "s3PresignedUrlExpiry1hour": "1 giờ",
+  "s3PresignedUrlExpiry4hour": "4 giờ",
+  "s3PresignedUrlExpiry24hour": "24 giờ",
+  "s3PresignedUrlExpiry7day": "7 ngày",
+  "errS3AuthFailed": "S3 authentication failed (kiểm tra access key + secret)",
+  "errS3NoSuchBucket": "Bucket không tồn tại hoặc không truy cập được",
+  "errS3RegionMismatch": "Bucket ở region khác với cấu hình",
+  "errS3Generic": "S3 server từ chối request: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "Bật WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Mã hóa archive sync. Phải khác master password.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase không được trùng master password.",
+  "syncRemotePath": "Đường dẫn remote",
+  "syncRemotePathHint": "Path dưới WebDAV base URL — mặc định letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Push gần nhất: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Pull gần nhất: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Chưa từng",
+  "syncUpToDate": "Sync đã cập nhật",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Áp dụng {count} thay đổi từ remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync đã tắt",
+  "errSyncEtagMismatch": "Remote đã đổi — pull trước rồi push",
+  "errSyncUnauthorized": "Xác thực WebDAV thất bại",
+  "errSyncNetwork": "Lỗi mạng: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Archive sync từ remote cần build mới hơn",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Chạm vào hardware key",
+  "hardwareKeyPin": "PIN của hardware key",
+  "hardwareKeyTimeout": "Hardware key không phản hồi",
+  "hardwareKeyNotFound": "Không tìm thấy hardware key",
+  "hardwareKeyUnsupported": "Truy cập trực tiếp hardware key không khả dụng trên platform này",
+  "hardwareKeyAppleEntitlementRequired": "Cần Apple Developer Program entitlement; dùng ssh-agent trên macOS",
+  "skKeyRequiresDevice": "SSH key này cần hardware key — chạm để auth",
+  "errSkWrongPin": "PIN không đúng",
+  "hardwareKeyImport": "Import hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Đã hủy prompt hardware key",
+  "agentEndpointSectionTitle": "Tích hợp với SSH client bên ngoài",
+  "agentEndpointToggleTitle": "Cho phép SSH client hệ thống dùng hardware-bound keys",
+  "agentEndpointToggleSubtitle": "Cho phép git, ssh và IDE plugin trên thiết bị này dùng key FIDO2 / smart-card / TPM của bạn.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Sao chép lệnh export",
+  "agentEndpointCopyPipeName": "Sao chép tên pipe",
+  "agentEndpointSignatureRequestTitle": "Yêu cầu ký",
+  "agentEndpointSignatureRequestBody": "{requester} muốn ký bằng {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "Một SSH client bên ngoài",
+  "agentEndpointAuthorizeOnce": "Cho phép một lần",
+  "agentEndpointAuthorizeAlways": "Cho phép và ghi nhớ",
+  "agentEndpointDeny": "Từ chối",
+  "agentEndpointStatusRunning": "Đang chạy",
+  "agentEndpointStatusStopped": "Đã dừng",
+  "agentEndpointStatusUnsupported": "Không hỗ trợ trên nền tảng này",
+  "agentEndpointRefusedAddIdentity": "Đã từ chối: client bên ngoài không thể thêm key.",
+  "agentEndpointStartFailed": "Không khởi động được ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "Thêm key smart-card / token",
+  "pkcs11ModuleLabel": "Module PKCS#11",
+  "pkcs11ModuleAutoDetected": "Tự động phát hiện",
+  "pkcs11ModuleCustom": "Module tuỳ chỉnh...",
+  "pkcs11ModulePickerTitle": "Chọn library PKCS#11",
+  "pkcs11NoModuleFound": "Không tìm thấy module PKCS#11. Cài OpenSC hoặc chọn library của vendor.",
+  "pkcs11InitializeFailed": "Module PKCS#11 không initialise được.",
+  "pkcs11NoTokenPresent": "Không có token nào trong reader.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "Token yêu cầu login.",
+  "pkcs11PinPrompt": "PIN cho {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "Xác nhận trên PIN-pad của token.",
+  "pkcs11PinIncorrect": "PIN sai. Còn {remaining} lần thử.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "PIN của token đã khoá. Mở khoá bằng PUK.",
+  "pkcs11NoSignableKeys": "Token không có key dùng được với SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Key GOST không dùng được với SSH.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" không được cắm.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Không tìm thấy token đã lưu. Cắm lại và thử lại.",
+  "pkcs11SignFailed": "Signing thất bại: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 không khả dụng trên nền tảng này.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "Chọn module PKCS#11",
+  "pkcs11WizardStepToken": "Chọn token",
+  "pkcs11WizardStepKey": "Chọn key",
+  "pkcs11WizardStepPin": "Nhập PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "Đang đọc public key từ token...",
+  "pkcs11SaveSuccess": "Đã thêm key smart card.",
+  "pkcs11ScanInProgress": "Đang quét module PKCS#11...",
+  "pkcs11LoadingTokens": "Đang tải token...",
+  "pkcs11LoadingKeys": "Đang tải key...",
+  "pkcs11ModuleStatusReady": "Module đã được tải.",
+  "pkcs11ModuleStatusNoToken": "Không có token.",
+  "pkcs11ModuleStatusFailed": "Không tải được module.",
+  "pkcs11PinPadHint": "(PIN pad trên thiết bị)",
+  "pkcs11WizardBack": "Quay lại",
+  "pkcs11WizardNext": "Tiếp",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Thêm hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key nằm trong secure hardware của thiết bị và không thể export.",
+  "sshKeyEnclaveDeviceBound": "Key này chỉ hoạt động trên Mac này.",
+  "sshKeyEnclaveDeviceBoundIos": "Key này chỉ hoạt động trên iPhone này.",
+  "sshKeyHelloDeviceBound": "Key này chỉ hoạt động trên PC này.",
+  "sshKeyEnclaveTouchIdRequired": "Yêu cầu Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Cho phép passcode thiết bị làm fallback",
+  "sshKeyHelloPinRequired": "Yêu cầu Windows Hello (PIN, vân tay hoặc khuôn mặt)",
+  "sshKeyHardwareUnavailableTitle": "Hardware key không khả dụng",
+  "sshKeyHardwareUnavailableSe": "App phải được code-signed mới dùng được Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello chưa được cấu hình trên PC này.",
+  "sshKeyHardwareUnavailableTpm": "Không phát hiện TPM — chỉ software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Tạo",
+  "sshKeyGenerateInProgress": "Đang tạo key trong secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Cần code-signing — xem USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Đang ký với secure hardware...",
+  "sshKeyPublicCopy": "Sao chép public key",
+  "sshKeyAuthorizedKeysHint": "Thêm dòng này vào ~/.ssh/authorized_keys trên server.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Tên key",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Khóa SSH Windows Hello",
+  "helloWizardLabelHint": "Nhãn khóa",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Xác thực bằng Windows Hello",
+  "helloPromptDescription": "PIN, vân tay hoặc khuôn mặt — Windows Hello ký challenge SSH này.",
+  "helloSoftwareGatedWarning": "Thiết bị này không có TPM. Khóa nằm trong user storage; Windows Hello vẫn gate mọi chữ ký.",
+  "helloP384NotSupported": "Firmware TPM không hỗ trợ P-384. Chọn P-256 hoặc RSA-2048.",
+  "helloConfigureFirst": "Cấu hình Windows Hello trước tại Settings -> Sign-in options.",
+  "tpmSshTitle": "Tạo SSH key gắn TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (khuyến nghị)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Firmware TPM không hỗ trợ algorithm này.",
+  "tpmSshPinProtect": "Bảo vệ bằng PIN",
+  "tpmSshPinLockoutWarning": "Nhiều lần nhập sai PIN sẽ khiến TPM khóa key.",
+  "tpmSshPinMismatch": "PIN không khớp.",
+  "tpmSshStorageBlob": "Lưu wrapped key trong app data",
+  "tpmSshStorageHandle": "Lưu trong slot memory TPM",
+  "tpmSshStorageHandleHelp": "Signing nhanh hơn. Dùng một trong các persistent slot của TPM.",
+  "tpmSshLabel": "Nhãn key",
+  "tpmSshImportTitle": "Nhập SSH key được bảo vệ TPM",
+  "tpmSshImportFormat": "File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN cho {label}",
+  "tpmSshPinIncorrect": "PIN không đúng.",
+  "tpmSshPinLockedCooldown": "TPM đang trong lockout cooldown. Chờ {duration} rồi thử lại.",
+  "tpmSshGenerating": "Đang tạo key trong TPM...",
+  "tpmSshSigning": "Signing bằng TPM...",
+  "tpmSshUnavailable": "Không phát hiện TPM trên thiết bị này.",
+  "tpmSshUnavailableFwDisabled": "TPM bị tắt trong firmware.",
+  "tpmSshUnavailableNoPermission": "App không thể truy cập TPM. Thêm user vào group `tss`.",
+  "tpmSshHandleInUse": "Persistent slot {handle} đã được dùng.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Key này sign mà KHÔNG có prompt Hello / PIN — bất kỳ ai có quyền truy cập desktop khi bạn logged in đều có thể dùng.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Đang generate hardware-bound key...",
+  "keystoreKeyAuthPrompt": "Authenticate để dùng SSH key",
+  "keystoreKeyInvalidatedByEnrollment": "Key đã bị huỷ: enroll biometric mới. Đăng ký lại public key trên server.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM không có trên device này",
+  "keystoreKeyUserAuthRequired": "Yêu cầu biometric / device unlock cho mọi signature",
+  "keystoreKeyExportDisabled": "Không export được hardware-bound keys",
+  "keystoreKeyDeleteWarning": "Xoá key này sẽ gỡ khỏi hardware store. Server sẽ reject key cho đến khi bạn register key mới.",
+  "keystoreKeyBiometricNotEnrolled": "Enroll biometric hoặc device PIN trước",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE only)",
+  "keystoreAlgRsa2048": "RSA-2048 (widest compatibility)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM không khả dụng",
+  "keystoreStrongBoxFallbackBody": "Device của bạn không expose StrongBox HSM. Tạo key TEE-backed thay thế? Vẫn là hardware-backed, chỉ không có isolation của StrongBox.",
+  "keystoreStrongBoxFallbackConfirm": "Dùng TEE",
+  "keystoreStrongBoxFallbackCancel": "Huỷ",
+  "fido2BrokerSectionTitle": "Hardware security key",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "Dialog security key của hệ thống",
+  "fido2BrokerIosLabel": "Security key hệ thống (USB / NFC)",
+  "fido2BrokerAndroidLabel": "Security key hệ thống (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID trực tiếp (CTAP2)",
+  "fido2BrokerTransportNone": "Không khả dụng trên platform này",
+  "fido2BrokerPreferDirectHidTitle": "Ưu tiên USB HID trực tiếp thay vì dialog hệ thống",
+  "fido2BrokerPreferDirectHidSubtitle": "Nâng cao: bỏ qua {brokerLabel} trên các platform mà cả hai đường đều chạy. HID trực tiếp hỗ trợ nhiều tính năng authenticator hơn nhưng cần permission grant theo từng app.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "Tích hợp SSH",
+  "fido2BrokerNoTransportSubtitle": "Hỗ trợ hardware key không khả dụng trên thiết bị này.",
+  "fido2BrokerSinglePathSubtitle": "Thiết bị này chỉ có {transport}; toggle bị vô hiệu.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "Stub đã nhập",
+  "hardwareKeyStubSubtitle": "Ở thiết bị khác — tạo lại tại đây để dùng",
+  "hardwareKeyStubRegenerateAction": "Tạo lại tại đây",
+  "hardwareKeyStubRemoveAction": "Xoá stub",
+  "hardwareKeyStubPickerTooltip": "Tạo lại key này trên thiết bị này trước khi dùng",
+  "pkcs11ModuleResolveOnFirstUse": "Chọn module PKCS#11 cho token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  }
 }

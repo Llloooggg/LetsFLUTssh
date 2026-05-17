@@ -1,0 +1,309 @@
+//! FRB adapter for `lfs_core::archive_stage`.
+//!
+//! Sync — each helper is a `serde_json` build over a small in-memory
+//! `Vec` (typical import has tens of sessions / a handful of keys),
+//! sub-millisecond per call. The Dart caller composes its
+//! `DbStagedImport` envelope from the returned JSON-strings then
+//! hands the envelope to `db_import_stage` for the actual sqlite-
+//! transactional apply.
+
+use lfs_core::archive_stage::{
+    self, StagedFolderTagLink, StagedKeyImport, StagedSessionImport, StagedSessionSnippetLink,
+    StagedSessionTagLink, StagedSnippetImport, StagedTagImport,
+};
+
+/// FRB mirror of `archive_stage::StagedSessionImport`.
+///
+/// Field names + ordering match the Rust side exactly so the
+/// FRB-generated Dart DTO drops straight into the
+/// `_stageFromResult` call site.
+#[derive(Debug, Clone)]
+pub struct DbStagedSessionImport {
+    pub id: String,
+    pub label: String,
+    pub folder: String,
+    pub host: String,
+    pub port: i64,
+    pub user: String,
+    pub auth_type: String,
+    pub password: String,
+    pub key_path: String,
+    pub key_data: String,
+    pub passphrase: String,
+    pub key_id: Option<String>,
+    pub extras_json: String,
+    pub via_session_id: Option<String>,
+    pub via_override_host: Option<String>,
+    pub via_override_port: Option<i64>,
+    pub via_override_user: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+impl From<DbStagedSessionImport> for StagedSessionImport {
+    fn from(d: DbStagedSessionImport) -> Self {
+        Self {
+            id: d.id,
+            label: d.label,
+            folder: d.folder,
+            host: d.host,
+            port: d.port,
+            user: d.user,
+            auth_type: d.auth_type,
+            password: d.password,
+            key_path: d.key_path,
+            key_data: d.key_data,
+            passphrase: d.passphrase,
+            key_id: d.key_id,
+            extras_json: d.extras_json,
+            via_session_id: d.via_session_id,
+            via_override_host: d.via_override_host,
+            via_override_port: d.via_override_port,
+            via_override_user: d.via_override_user,
+            created_at_ms: d.created_at_ms,
+            updated_at_ms: d.updated_at_ms,
+        }
+    }
+}
+
+/// FRB mirror of `archive_stage::StagedKeyImport`.
+#[derive(Debug, Clone)]
+pub struct DbStagedKeyImport {
+    pub id: String,
+    pub label: String,
+    pub private_key: String,
+    pub public_key: String,
+    pub key_type: String,
+    pub is_generated: bool,
+    pub created_at_ms: i64,
+}
+
+impl From<DbStagedKeyImport> for StagedKeyImport {
+    fn from(d: DbStagedKeyImport) -> Self {
+        Self {
+            id: d.id,
+            label: d.label,
+            private_key: d.private_key,
+            public_key: d.public_key,
+            key_type: d.key_type,
+            is_generated: d.is_generated,
+            created_at_ms: d.created_at_ms,
+        }
+    }
+}
+
+/// FRB mirror of `archive_stage::StagedTagImport`.
+#[derive(Debug, Clone)]
+pub struct DbStagedTagImport {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub created_at_ms: i64,
+}
+
+impl From<DbStagedTagImport> for StagedTagImport {
+    fn from(d: DbStagedTagImport) -> Self {
+        Self {
+            id: d.id,
+            name: d.name,
+            color: d.color,
+            created_at_ms: d.created_at_ms,
+        }
+    }
+}
+
+/// FRB mirror of `archive_stage::StagedSnippetImport`.
+#[derive(Debug, Clone)]
+pub struct DbStagedSnippetImport {
+    pub id: String,
+    pub title: String,
+    pub command: String,
+    pub description: String,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+impl From<DbStagedSnippetImport> for StagedSnippetImport {
+    fn from(d: DbStagedSnippetImport) -> Self {
+        Self {
+            id: d.id,
+            title: d.title,
+            command: d.command,
+            description: d.description,
+            created_at_ms: d.created_at_ms,
+            updated_at_ms: d.updated_at_ms,
+        }
+    }
+}
+
+/// Serialise a session list to the JSON-string envelope the apply
+/// driver consumes (`DbStagedImport.sessions_json`). Empty input
+/// returns `None` so the caller can pass it straight through.
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_sessions_to_json(rows: Vec<DbStagedSessionImport>) -> Option<String> {
+    let typed: Vec<StagedSessionImport> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_sessions_to_json(&typed)
+}
+
+/// Same shape for manager keys (`DbStagedImport.keys_json`).
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_keys_to_json(rows: Vec<DbStagedKeyImport>) -> Option<String> {
+    let typed: Vec<StagedKeyImport> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_keys_to_json(&typed)
+}
+
+/// Same shape for tags (`DbStagedImport.tags_json`).
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_tags_to_json(rows: Vec<DbStagedTagImport>) -> Option<String> {
+    let typed: Vec<StagedTagImport> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_tags_to_json(&typed)
+}
+
+/// Same shape for snippets (`DbStagedImport.snippets_json`).
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_snippets_to_json(rows: Vec<DbStagedSnippetImport>) -> Option<String> {
+    let typed: Vec<StagedSnippetImport> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_snippets_to_json(&typed)
+}
+
+/// FRB mirrors of the link-table envelope rows. Typed structs
+/// keep the wire format Rust-authoritative so the apply driver
+/// consumes the same JSON the stager emits.
+#[derive(Debug, Clone)]
+pub struct DbStagedSessionTagLink {
+    pub session_id: String,
+    pub tag_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DbStagedFolderTagLink {
+    pub folder_path: String,
+    pub tag_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DbStagedSessionSnippetLink {
+    pub session_id: String,
+    pub snippet_id: String,
+}
+
+impl From<DbStagedSessionTagLink> for StagedSessionTagLink {
+    fn from(d: DbStagedSessionTagLink) -> Self {
+        Self {
+            session_id: d.session_id,
+            tag_id: d.tag_id,
+        }
+    }
+}
+
+impl From<DbStagedFolderTagLink> for StagedFolderTagLink {
+    fn from(d: DbStagedFolderTagLink) -> Self {
+        Self {
+            folder_path: d.folder_path,
+            tag_id: d.tag_id,
+        }
+    }
+}
+
+impl From<DbStagedSessionSnippetLink> for StagedSessionSnippetLink {
+    fn from(d: DbStagedSessionSnippetLink) -> Self {
+        Self {
+            session_id: d.session_id,
+            snippet_id: d.snippet_id,
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_session_tags_to_json(rows: Vec<DbStagedSessionTagLink>) -> Option<String> {
+    let typed: Vec<StagedSessionTagLink> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_session_tags_to_json(&typed)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_folder_tags_to_json(rows: Vec<DbStagedFolderTagLink>) -> Option<String> {
+    let typed: Vec<StagedFolderTagLink> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_folder_tags_to_json(&typed)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_session_snippets_to_json(
+    rows: Vec<DbStagedSessionSnippetLink>,
+) -> Option<String> {
+    let typed: Vec<StagedSessionSnippetLink> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_session_snippets_to_json(&typed)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_empty_folders_to_json(paths: Vec<String>) -> Option<String> {
+    archive_stage::stage_empty_folders_to_json(&paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_input_collapses_to_none_for_every_helper() {
+        // The Dart caller relies on `None` for empty staging slices
+        // so the apply driver can short-circuit per slice without a
+        // separate "is this an empty array?" check.
+        assert!(archive_stage_sessions_to_json(Vec::new()).is_none());
+        assert!(archive_stage_keys_to_json(Vec::new()).is_none());
+        assert!(archive_stage_tags_to_json(Vec::new()).is_none());
+        assert!(archive_stage_snippets_to_json(Vec::new()).is_none());
+        assert!(archive_stage_session_tags_to_json(Vec::new()).is_none());
+        assert!(archive_stage_folder_tags_to_json(Vec::new()).is_none());
+        assert!(archive_stage_session_snippets_to_json(Vec::new()).is_none());
+        assert!(archive_stage_empty_folders_to_json(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn session_tag_link_emits_well_formed_json_array() {
+        let json = archive_stage_session_tags_to_json(vec![DbStagedSessionTagLink {
+            session_id: "sess-1".into(),
+            tag_id: "tag-prod".into(),
+        }])
+        .expect("non-empty input must yield Some");
+        // Wire format is a JSON array — apply-driver `serde_json`
+        // parser asserts the shape downstream.
+        assert!(json.starts_with('['));
+        assert!(json.ends_with(']'));
+        assert!(json.contains("sess-1"));
+        assert!(json.contains("tag-prod"));
+    }
+
+    #[test]
+    fn folder_tag_link_round_trips_through_serde_json() {
+        let json = archive_stage_folder_tags_to_json(vec![DbStagedFolderTagLink {
+            folder_path: "production/edge".into(),
+            tag_id: "tag-fast".into(),
+        }])
+        .expect("non-empty input must yield Some");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert!(parsed.is_array());
+        assert_eq!(parsed[0]["folder_path"], "production/edge");
+        assert_eq!(parsed[0]["tag_id"], "tag-fast");
+    }
+
+    #[test]
+    fn empty_folders_emit_array_of_strings() {
+        let json =
+            archive_stage_empty_folders_to_json(vec!["one".into(), "two".into()]).expect("Some");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert!(parsed.is_array());
+        assert_eq!(parsed[0], "one");
+        assert_eq!(parsed[1], "two");
+    }
+
+    #[test]
+    fn session_snippet_link_carries_both_ids_through() {
+        let json = archive_stage_session_snippets_to_json(vec![DbStagedSessionSnippetLink {
+            session_id: "sess-a".into(),
+            snippet_id: "snip-x".into(),
+        }])
+        .expect("Some");
+        assert!(json.contains("sess-a"));
+        assert!(json.contains("snip-x"));
+    }
+}

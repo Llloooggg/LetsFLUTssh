@@ -2,10 +2,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // FileEntry.modeString and sortFileEntries route through
+  // `lfs_core::sftp_models` — bootstrap FRB so the canonical Rust
+  // chmod-letter grammar and dirs-first sort are exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('FileEntry', () {
     test('modeString for zero mode', () {
-      final entry = FileEntry(name: 'test', path: '/test', size: 0, mode: 0, modTime: DateTime(2025), isDir: false);
+      final entry = FileEntry(
+        name: 'test',
+        path: '/test',
+        size: 0,
+        mode: 0,
+        modTime: DateTime(2025),
+        isDir: false,
+      );
       expect(entry.modeString, '---');
     });
 
@@ -38,17 +53,32 @@ void main() {
 
   group('TransferProgress', () {
     test('percent calculation', () {
-      const p = TransferProgress(fileName: 'test', totalBytes: 1000, doneBytes: 500, isUpload: true);
+      const p = TransferProgress(
+        fileName: 'test',
+        totalBytes: 1000,
+        doneBytes: 500,
+        isUpload: true,
+      );
       expect(p.percent, 50.0);
     });
 
     test('percent is 0 when totalBytes is 0', () {
-      const p = TransferProgress(fileName: 'test', totalBytes: 0, doneBytes: 0, isUpload: false);
+      const p = TransferProgress(
+        fileName: 'test',
+        totalBytes: 0,
+        doneBytes: 0,
+        isUpload: false,
+      );
       expect(p.percent, 0.0);
     });
 
     test('percent clamped to 100', () {
-      const p = TransferProgress(fileName: 'test', totalBytes: 100, doneBytes: 150, isUpload: true);
+      const p = TransferProgress(
+        fileName: 'test',
+        totalBytes: 100,
+        doneBytes: 150,
+        isUpload: true,
+      );
       expect(p.percent, 100.0);
     });
   });

@@ -11,7 +11,7 @@ import '../../widgets/toast.dart';
 /// Modal display of a QR code for scanning by another device.
 ///
 /// Shown via [AppDialog.show] so it matches the rest of the export flow
-/// (the preceding `QrExportDialog` is also a modal). The previous
+/// (the preceding `UnifiedExportDialog` is also a modal). The previous
 /// full-screen route was an outlier and introduced an unwanted slide
 /// transition — every other modal in the app uses the app's shared
 /// no-animation dialog style.
@@ -66,7 +66,7 @@ class QrDisplayScreen extends StatelessWidget {
         children: [
           // QR code with white background for reliable scanning
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: AppTheme.radiusLg,
@@ -97,7 +97,7 @@ class QrDisplayScreen extends StatelessWidget {
             S.of(context).nSessions(sessionCount),
             style: theme.textTheme.titleMedium,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             S.of(context).scanWithCameraApp,
             textAlign: TextAlign.center,
@@ -106,7 +106,7 @@ class QrDisplayScreen extends StatelessWidget {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildSecurityBadge(context, theme),
         ],
       ),
@@ -160,7 +160,7 @@ class QrDisplayScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.warning_amber, size: 14, color: AppTheme.orange),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xxs),
             Flexible(
               child: Text(
                 S.of(context).qrContainsCredentialsWarning,
@@ -183,7 +183,7 @@ class QrDisplayScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.info_outline, size: 14, color: theme.colorScheme.primary),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Flexible(
             child: Text(
               S.of(context).noPasswordsInQr,

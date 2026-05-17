@@ -45,11 +45,11 @@ Widget _passwordTextField(
 
 /// Password dialog for archive export.
 ///
-/// Allowing an empty password is intentional: the user sometimes wants a
-/// plain ZIP they can inspect or import without master password prompts.
-/// Submitting with both fields empty pops a confirmation first so the user
-/// acknowledges that the archive will ship unencrypted — anyone with the
-/// file gets every saved password and private key in plain text.
+/// A non-empty password is required: the plain-ZIP `.lfs` shape carries
+/// no integrity tag, so an unencrypted export cannot detect a tampered
+/// entry on import. The import side still reads plain ZIPs from older
+/// installs (backward-compatible read), but new exports only ship the
+/// encrypted shape.
 class _ExportPasswordDialog extends StatefulWidget {
   final TextEditingController passwordCtrl;
   final TextEditingController confirmCtrl;
@@ -91,13 +91,14 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
     final pw = widget.passwordCtrl.text;
     final confirm = widget.confirmCtrl.text;
 
-    // Empty + empty → offer an unencrypted export after confirmation.
-    if (pw.isEmpty && confirm.isEmpty) {
-      final proceed = await _confirmUnencrypted(context);
-      if (!mounted) return;
-      if (proceed) {
-        Navigator.pop(context, '');
-      }
+    // Empty password rejected on emit. The plain-ZIP `.lfs`
+    // shape carries no integrity tag, so shipping one to a user
+    // is functionally an unauthenticated export — readers cannot
+    // detect a tampered entry. The import path still accepts
+    // plain ZIPs from earlier installs (the wire shape stays
+    // backward-compatible); export is the only side now refused.
+    if (pw.isEmpty) {
+      setState(() => _mismatch = true);
       return;
     }
 
@@ -112,81 +113,56 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return AppDialog(
-      title: l10n.exportData,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.setMasterPasswordHint,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          ),
-          const SizedBox(height: 16),
-          _passwordTextField(
-            widget.passwordCtrl,
-            l10n.masterPassword,
-            error: _mismatch,
-            focusNode: _chain.nodeAt(0),
-            textInputAction: _chain.actionAt(0),
-            onSubmitted: _chain.handlerAt(0),
-          ),
-          const SizedBox(height: 8),
-          _passwordTextField(
-            widget.confirmCtrl,
-            l10n.confirmPassword,
-            error: _mismatch,
-            focusNode: _chain.nodeAt(1),
-            textInputAction: _chain.actionAt(1),
-            onSubmitted: _chain.handlerAt(1),
-          ),
-          if (_mismatch) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.passwordsDoNotMatch,
-                style: TextStyle(
-                  fontSize: AppFonts.sm,
-                  color: Theme.of(context).colorScheme.error,
+    return SecureScreenScope(
+      child: AppDialog(
+        title: l10n.exportData,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.setMasterPasswordHint,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _passwordTextField(
+              widget.passwordCtrl,
+              l10n.masterPassword,
+              error: _mismatch,
+              focusNode: _chain.nodeAt(0),
+              textInputAction: _chain.actionAt(0),
+              onSubmitted: _chain.handlerAt(0),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _passwordTextField(
+              widget.confirmCtrl,
+              l10n.confirmPassword,
+              error: _mismatch,
+              focusNode: _chain.nodeAt(1),
+              textInputAction: _chain.actionAt(1),
+              onSubmitted: _chain.handlerAt(1),
+            ),
+            if (_mismatch) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.passwordsDoNotMatch,
+                  style: TextStyle(
+                    fontSize: AppFonts.sm,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(label: l10n.export_, onTap: _submit),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(label: l10n.export_, onTap: _submit),
-      ],
     );
   }
-}
-
-/// Warn the user that the archive will be exported without encryption.
-/// Returns true if the user chose to proceed.
-Future<bool> _confirmUnencrypted(BuildContext context) async {
-  final l10n = S.of(context);
-  final confirmed = await AppDialog.show<bool>(
-    context,
-    builder: (ctx) => AppDialog(
-      title: l10n.exportWithoutPassword,
-      content: Text(
-        l10n.exportWithoutPasswordWarning,
-        style: TextStyle(
-          fontSize: AppFonts.md,
-          color: Theme.of(ctx).colorScheme.error,
-        ),
-      ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
-        AppButton.primary(
-          label: l10n.continueWithoutPassword,
-          onTap: () => Navigator.pop(ctx, true),
-        ),
-      ],
-    ),
-  );
-  return confirmed ?? false;
 }
 
 // ── Import password dialog ──
@@ -229,34 +205,36 @@ class _ImportPasswordDialogState extends State<_ImportPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AppDialog(
-      title: S.of(context).importData,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            S.of(context).enterMasterPasswordPrompt,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          ),
-          const SizedBox(height: 16),
-          _passwordTextField(
-            widget.passwordCtrl,
-            S.of(context).masterPassword,
-            autofocus: true,
-            focusNode: _chain.nodeAt(0),
-            textInputAction: _chain.actionAt(0),
-            onSubmitted: _chain.handlerAt(0),
+    return SecureScreenScope(
+      child: AppDialog(
+        title: S.of(context).importData,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              S.of(context).enterMasterPasswordPrompt,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _passwordTextField(
+              widget.passwordCtrl,
+              S.of(context).masterPassword,
+              autofocus: true,
+              focusNode: _chain.nodeAt(0),
+              textInputAction: _chain.actionAt(0),
+              onSubmitted: _chain.handlerAt(0),
+            ),
+          ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(
+            label: S.of(context).nextStep,
+            enabled: widget.passwordCtrl.text.isNotEmpty,
+            onTap: _submit,
           ),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(
-          label: S.of(context).nextStep,
-          enabled: widget.passwordCtrl.text.isNotEmpty,
-          onTap: _submit,
-        ),
-      ],
     );
   }
 }
@@ -287,30 +265,32 @@ class _EnableBiometricDialogState extends State<_EnableBiometricDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return AppDialog(
-      title: l10n.biometricUnlockTitle,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.biometricUnlockSubtitle,
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
-          const SizedBox(height: 12),
-          _passwordTextField(
-            widget.currentCtrl,
-            l10n.currentPassword,
-            autofocus: true,
-            focusNode: _chain.nodeAt(0),
-            textInputAction: _chain.actionAt(0),
-            onSubmitted: _chain.handlerAt(0),
-          ),
+    return SecureScreenScope(
+      child: AppDialog(
+        title: l10n.biometricUnlockTitle,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.biometricUnlockSubtitle,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _passwordTextField(
+              widget.currentCtrl,
+              l10n.currentPassword,
+              autofocus: true,
+              focusNode: _chain.nodeAt(0),
+              textInputAction: _chain.actionAt(0),
+              onSubmitted: _chain.handlerAt(0),
+            ),
+          ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(label: l10n.ok, onTap: _submit),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(label: l10n.ok, onTap: _submit),
-      ],
     );
   }
 }

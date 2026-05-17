@@ -6,19 +6,36 @@ import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // Dialog renders against `AppConfig.defaults.toJson()` which routes
+  // through the Rust canonical encoder. Bootstrap FRB so the
+  // serialise step survives in flutter_test.
+  setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
-  setUp(() {
+  // The size readout in the dialog calls `qrEstimateExportSize` /
+  // `dbLfsExportSize`, both of which read sessions / keys / tags /
+  // snippets straight from the open SQLCipher DB. Bring up an
+  // in-memory DB per test so the estimator has somewhere to land —
+  // these UI-flow tests don't populate rows because they only
+  // verify checkbox + chip wiring (selection state, not byte
+  // counts), so an empty DB returning baseline sizes is fine.
+  setUp(() async {
     tempDir = Directory.systemTemp.createTempSync('unified_export_test_');
+    await rust_app.dbInit(path: ':memory:', key: const []);
   });
 
-  tearDown(() {
+  tearDown(() async {
     tempDir.deleteSync(recursive: true);
+    await rust_app.dbClose();
   });
 
   Session makeSession(
@@ -42,7 +59,6 @@ void main() {
     AppConfig? config,
     String? knownHostsContent,
     bool isQrMode = false,
-    Map<String, String> managerKeys = const {},
   }) {
     return MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
@@ -56,7 +72,6 @@ void main() {
               emptyFolders: emptyFolders,
               config: config,
               knownHostsContent: knownHostsContent,
-              managerKeys: managerKeys,
             ),
             isQrMode: isQrMode,
           ),
@@ -534,7 +549,6 @@ void main() {
         required List<Session> sessions,
         AppConfig? config,
         String? knownHostsContent,
-        Map<String, String> managerKeys = const {},
         List<Tag> tags = const [],
         List<Snippet> snippets = const [],
         required ValueChanged<UnifiedExportResult?> onResult,
@@ -554,7 +568,6 @@ void main() {
                       emptyFolders: const {},
                       config: config,
                       knownHostsContent: knownHostsContent,
-                      managerKeys: managerKeys,
                       tags: tags,
                       snippets: snippets,
                     ),
@@ -734,7 +747,6 @@ void main() {
           await tester.pumpWidget(
             openerFor(
               sessions: [makeSession('1', 'A')],
-              managerKeys: {'k1': 'PRIVKEYPEM'},
               onResult: (r) => result = r,
             ),
           );
@@ -774,7 +786,6 @@ void main() {
           await tester.pumpWidget(
             openerFor(
               sessions: [makeSession('1', 'A')],
-              managerKeys: {'k1': 'PRIVKEYPEM'},
               onResult: (r) => result = r,
             ),
           );

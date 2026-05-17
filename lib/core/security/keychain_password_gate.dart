@@ -1,20 +1,16 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../utils/file_utils.dart';
+import '../../src/rust/api/keychain_password_gate_actor.dart' as rust_actor;
 import '../../utils/logger.dart';
 import 'password_rate_limiter.dart';
 
-/// UX-only password gate for L2 (keychain + password).
+/// UX-only password gate for T1+pw (keychain + password).
 ///
-/// Design: the DB key lives in the OS keychain exactly like L1.
+/// Design: the DB key lives in the OS keychain exactly like T1.
 /// A short user-typed password is held as a salted HMAC so the
 /// unlock dialog can reject the wrong value *before* touching the
 /// keychain. The hash is stored split across disk + keychain —
@@ -30,62 +26,36 @@ import 'password_rate_limiter.dart';
 /// guessing across process restarts without trying to protect
 /// against offline attack.
 ///
-/// Wiring into the wizard / unlock flow lands on top of this class.
+/// Wire format + HMAC composition + salt/pepper generation +
+/// disk I/O all live in
+/// `lfs_core::security::keychain_password_gate_actor`. This Dart
+/// class is a thin façade — the actor calls
+/// `lfs_os_security::secure_key_storage::*` directly for the
+/// keychain pepper round-trip, so no Dart-side bus listener is
+/// in the unlock path.
 class KeychainPasswordGate {
-  KeychainPasswordGate({
-    FlutterSecureStorage? keychain,
-    Future<File> Function()? hashFileFactory,
-    Random? random,
-  }) : _keychain = keychain ?? const FlutterSecureStorage(),
-       _hashFile = hashFileFactory ?? _defaultHashFile,
-       _random = random ?? Random.secure();
+  KeychainPasswordGate({Future<File> Function()? hashFileFactory})
+    : _hashFile = hashFileFactory ?? _defaultHashFile;
 
-  static const _pepperKey = 'letsflutssh_l2_pepper';
   static const _hashFileName = 'security_pass_hash.bin';
-  static const _saltLength = 32;
-  static const _pepperLength = 32;
 
-  final FlutterSecureStorage _keychain;
   final Future<File> Function() _hashFile;
-  final Random _random;
 
   static Future<File> _defaultHashFile() async {
     final dir = await getApplicationSupportDirectory();
     return File(p.join(dir.path, _hashFileName));
   }
 
-  Uint8List _rand(int n) {
-    final out = Uint8List(n);
-    for (var i = 0; i < n; i++) {
-      out[i] = _random.nextInt(256);
-    }
-    return out;
-  }
-
-  /// Derive the comparison HMAC for [password] given [salt] and
-  /// [pepper]. Same function used for both set and verify — any
-  /// divergence between the two paths is a bug.
-  Uint8List _computeHmac(String password, Uint8List salt, Uint8List pepper) {
-    final mac = Hmac(sha256, pepper);
-    final sb = BytesBuilder()
-      ..add(salt)
-      ..add(utf8.encode(password));
-    return Uint8List.fromList(mac.convert(sb.toBytes()).bytes);
-  }
-
-  /// True when a gate is configured on this install.
+  /// True when a gate is configured on this install via
+  /// `lfs_core::security::keychain_password_gate_actor::is_configured`
+  /// (FRB async) — disk presence check + the keychain
+  /// `lfs_os_security::secure_key_storage::contains` probe live in
+  /// Rust.
   Future<bool> isConfigured() async {
-    try {
-      final file = await _hashFile();
-      if (!await file.exists()) return false;
-      return await _keychain.containsKey(key: _pepperKey);
-    } catch (e) {
-      AppLogger.instance.log(
-        'KeychainPasswordGate.isConfigured failed: $e',
-        name: 'KeychainPasswordGate',
-      );
-      return false;
-    }
+    final file = await _hashFile();
+    return rust_actor.keychainPasswordGateIsConfigured(
+      supportDir: file.parent.path,
+    );
   }
 
   /// Configure the gate with [password]. Generates a fresh salt on
@@ -100,106 +70,29 @@ class KeychainPasswordGate {
   /// tamper branch and throw the user into the worst-case 60-second
   /// cooldown on first launch. Wiping the state here aligns the
   /// counter with the new password.
-  Future<void> setPassword(String password) async {
-    final salt = _rand(_saltLength);
-    final pepper = _rand(_pepperLength);
-    final hmac = _computeHmac(password, salt, pepper);
-
+  Future<void> setPassword(Uint8List password) async {
     final file = await _hashFile();
     await file.parent.create(recursive: true);
-    final blob = jsonEncode({
-      'salt': base64.encode(salt),
-      'hmac': base64.encode(hmac),
-    });
-    // Two invariants, both load-bearing for L2:
-    //
-    //   (1) Atomic write of the disk hash. A `File.writeAsBytes` crash
-    //       mid-flush yields torn JSON; next launch `verify()` throws
-    //       on decode and falls back to plaintext-tier unlock — the
-    //       user thought L2 protected them, wakes up on L0.
-    //   (2) Disk before keychain. Old order (keychain-first) could
-    //       crash between steps and leave keychain holding the NEW
-    //       pepper while disk holds the OLD salt+HMAC; on next launch
-    //       the correct password fails to verify (HMAC mismatch),
-    //       forcing "forgot password" wipe. Disk-first means a crash
-    //       between steps leaves the OLD state fully verifiable under
-    //       the OLD pepper still in the keychain.
-    await writeBytesAtomic(file.path, utf8.encode(blob));
-    try {
-      await _keychain.write(key: _pepperKey, value: base64.encode(pepper));
-    } catch (e) {
-      // Keychain write failed after the disk hash landed. The gate is
-      // now half-configured — pepper missing, disk hash present but
-      // unverifiable. Delete the disk hash so `isConfigured()` returns
-      // false and the next open routes through the wizard instead of
-      // perma-rejecting the correct password.
-      try {
-        await file.delete();
-      } catch (rollbackErr) {
-        // Disk rollback itself failed — the next launch will see a
-        // half-configured gate. Log both errors so a support trace
-        // captures why `isConfigured()` will report true but
-        // `verify()` can never succeed.
-        AppLogger.instance.log(
-          'KeychainPasswordGate: rollback delete failed after keychain '
-          'write failed: $rollbackErr (original error: $e)',
-          name: 'KeychainPasswordGate',
-        );
-      }
-      rethrow;
-    }
-
-    await _clearRateLimitState();
-  }
-
-  /// Delete the persisted rate-limit state file so the next
-  /// [rateLimiter] starts with a zero failure counter. Best-effort —
-  /// a log + swallow is preferable to blocking the password write
-  /// on a filesystem hiccup.
-  Future<void> _clearRateLimitState() async {
-    try {
-      final hashFile = await _hashFile();
-      final stateFile = File(
-        p.join(hashFile.parent.path, 'rate_limit_state.bin'),
-      );
-      if (await stateFile.exists()) await stateFile.delete();
-    } catch (e) {
-      AppLogger.instance.log(
-        'KeychainPasswordGate: failed to clear rate-limit state: $e',
-        name: 'KeychainPasswordGate',
-      );
-    }
+    await rust_actor.keychainPasswordGateSetPassword(
+      supportDir: file.parent.path,
+      password: password,
+    );
   }
 
   /// True when [password] matches the stored hash. False on any
   /// failure (missing state, tampered blob, keychain unreadable).
   /// Never throws — callers treat false as "wrong password" and
   /// route through the rate limiter.
-  Future<bool> verify(String password) async {
-    try {
-      final file = await _hashFile();
-      if (!await file.exists()) return false;
-      final raw = await file.readAsBytes();
-      final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-      final saltB64 = decoded['salt'];
-      final hmacB64 = decoded['hmac'];
-      if (saltB64 is! String || hmacB64 is! String) return false;
-      final salt = base64.decode(saltB64);
-      final storedHmac = base64.decode(hmacB64);
-
-      final pepperB64 = await _keychain.read(key: _pepperKey);
-      if (pepperB64 == null) return false;
-      final pepper = base64.decode(pepperB64);
-
-      final computed = _computeHmac(password, salt, pepper);
-      return _constantTimeEqual(computed, storedHmac);
-    } catch (e) {
-      AppLogger.instance.log(
-        'KeychainPasswordGate.verify failed: $e',
-        name: 'KeychainPasswordGate',
-      );
-      return false;
-    }
+  ///
+  /// Routes through `lfs_core::security::keychain_password_gate_actor::
+  /// verify_password` (FRB async) — the disk-blob read +
+  /// Decision-1 prompt round-trip + HMAC compare live in Rust.
+  Future<bool> verify(Uint8List password) async {
+    final file = await _hashFile();
+    return rust_actor.keychainPasswordGateVerify(
+      supportDir: file.parent.path,
+      password: password,
+    );
   }
 
   /// Build a [PersistedRateLimiter] bound to the current stored HMAC.
@@ -207,19 +100,24 @@ class KeychainPasswordGate {
   /// rate-limit state file would need to also have both disk-hash +
   /// keychain-pepper, i.e. already enough to decrypt the DB.
   ///
+  /// Routes through `lfs_core::security::keychain_password_gate_actor::
+  /// build_persisted_rate_limiter` (FRB async): the read + actor
+  /// registration happen inside the same Rust process, so the HMAC
+  /// bytes never cross the FRB boundary. Dart receives only the
+  /// opaque limiter id which threads through the existing
+  /// `persisted_rate_limit_actor_*` ops.
+  ///
   /// Returns null when the gate has never been configured — caller
   /// should fall through to "wrong password" without rate-limiting
   /// (there is nothing to guard).
   Future<PasswordRateLimiter?> rateLimiter() async {
     try {
       final file = await _hashFile();
-      if (!await file.exists()) return null;
-      final raw = await file.readAsBytes();
-      final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-      final hmacB64 = decoded['hmac'];
-      if (hmacB64 is! String) return null;
-      final storedHmac = base64.decode(hmacB64);
-      return PersistedRateLimiter(hmacKey: Uint8List.fromList(storedHmac));
+      final id = await rust_actor.keychainPasswordGateBuildPersistedRateLimiter(
+        supportDir: file.parent.path,
+      );
+      if (id == null) return null;
+      return PersistedRateLimiter.fromPrebuiltId(id);
     } catch (e) {
       AppLogger.instance.log(
         'KeychainPasswordGate.rateLimiter failed: $e',
@@ -229,34 +127,14 @@ class KeychainPasswordGate {
     }
   }
 
-  /// Drop every artifact the gate writes. Called on tier switch
-  /// away from L2 and on breaking-change reset.
+  /// Drop every artifact the gate writes via
+  /// `lfs_core::security::keychain_password_gate_actor::clear` —
+  /// the disk delete + the keychain
+  /// `lfs_os_security::secure_key_storage::delete` round-trip live in
+  /// Rust. Called on tier switch away from T1+pw and on
+  /// breaking-change reset.
   Future<void> clear() async {
-    try {
-      final file = await _hashFile();
-      if (await file.exists()) await file.delete();
-    } catch (e) {
-      AppLogger.instance.log(
-        'KeychainPasswordGate.clear hash file failed: $e',
-        name: 'KeychainPasswordGate',
-      );
-    }
-    try {
-      await _keychain.delete(key: _pepperKey);
-    } catch (e) {
-      AppLogger.instance.log(
-        'KeychainPasswordGate.clear pepper failed: $e',
-        name: 'KeychainPasswordGate',
-      );
-    }
-  }
-
-  static bool _constantTimeEqual(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var diff = 0;
-    for (var i = 0; i < a.length; i++) {
-      diff |= a[i] ^ b[i];
-    }
-    return diff == 0;
+    final file = await _hashFile();
+    await rust_actor.keychainPasswordGateClear(supportDir: file.parent.path);
   }
 }

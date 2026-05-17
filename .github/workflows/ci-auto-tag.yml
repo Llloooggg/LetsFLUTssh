@@ -1,9 +1,17 @@
 name: CI / Auto-Tag
 
+# Cancel superseded runs of the same workflow on the same ref. The
+# default GitHub behaviour stacks queued runs, which on a busy push
+# day for solo-maint repos burns runner minutes verifying SHAs that
+# the next push already obsoleted.
+concurrency:
+  group: ci-auto-tag-${{ github.ref }}
+  cancel-in-progress: true
+
 # Triggers after CI completes on main. Reads the version from
 # pubspec.yaml and creates an annotated tag if it doesn't exist yet.
 #
-# Version bumps happen on dev before the PR (scripts/bump-version.sh).
+# Version bumps happen on dev before the PR (dev/scripts/bump-version.sh).
 # This workflow only creates tags — it never modifies code.
 
 on:

@@ -1,10 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
-import 'package:letsflutssh/core/session/qr_codec.dart';
-import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
+import 'package:letsflutssh/src/rust/api/deeplink.dart' as rust_deeplink;
+
+import '../../helpers/frb_bootstrap.dart';
 
 void main() {
+  // parseConnectUri routes through `lfs_core::deeplink::
+  // parse_connect_uri` — bootstrap FRB so the canonical Rust grammar
+  // is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('DeepLinkHandler.parseConnectUri', () {
     test('extracts host and user', () {
       final config = DeepLinkHandler.parseConnectUri(
@@ -27,7 +36,7 @@ void main() {
       expect(config!.host, 'myserver.com');
       expect(config.port, 2222);
       expect(config.user, 'admin');
-      // Credentials are never extracted from deep links for security
+      // Credentials are never extracted from deep links for security.
       expect(config.password, '');
       expect(config.keyPath, '');
     });
@@ -46,12 +55,15 @@ void main() {
       expect(config, isNull);
     });
 
-    test('defaults port to 22 for invalid value', () {
+    test('rejects invalid port value', () {
+      // Rust's `parse_connect_uri` treats a non-numeric `port=` as
+      // a hard parse failure (returns None) rather than silently
+      // defaulting to 22 — a malformed URI should not silently
+      // connect to the default port the user did not type.
       final config = DeepLinkHandler.parseConnectUri(
         Uri.parse('letsflutssh://connect?host=h&user=u&port=abc'),
       );
-      expect(config, isNotNull);
-      expect(config!.port, 22);
+      expect(config, isNull);
     });
 
     test('returns null for empty host', () {
@@ -123,22 +135,22 @@ void main() {
 
     test('returns null for host with slash', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h/evil&user=u'),
+        Uri.parse('letsflutssh://connect?host=a/b&user=u'),
       );
       expect(config, isNull);
     });
 
     test('returns null for host with backslash', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h%5Cevil&user=u'),
+        Uri.parse(r'letsflutssh://connect?host=h&user=a\b'),
       );
       expect(config, isNull);
     });
 
     test('returns null for excessively long host', () {
-      final longHost = 'a' * 300;
+      final host = 'h' * 254;
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=$longHost&user=u'),
+        Uri.parse('letsflutssh://connect?host=$host&user=u'),
       );
       expect(config, isNull);
     });
@@ -152,60 +164,59 @@ void main() {
 
     test('returns null for host with control character (CR/LF)', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h%0Anew&user=u'),
+        Uri.parse('letsflutssh://connect?host=h%0Ax&user=u'),
       );
       expect(config, isNull);
     });
 
     test('returns null for user with null byte', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u%00x'),
+        Uri.parse('letsflutssh://connect?host=h&user=a%00b'),
       );
       expect(config, isNull);
     });
 
     test('returns null for user with newline (config-injection guard)', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u%0AHost+evil'),
+        Uri.parse('letsflutssh://connect?host=h&user=a%0Ab'),
       );
       expect(config, isNull);
     });
 
     test('returns null for user with path separator', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=a%2Fb'),
+        Uri.parse('letsflutssh://connect?host=h&user=a/b'),
       );
       expect(config, isNull);
     });
 
     test('returns null for excessively long user', () {
-      final longUser = 'u' * 300;
+      final user = 'u' * 257;
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=$longUser'),
+        Uri.parse('letsflutssh://connect?host=h&user=$user'),
       );
       expect(config, isNull);
     });
 
     test('accepts user with @ for domain-style accounts', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=alice%40example.com'),
+        Uri.parse('letsflutssh://connect?host=h&user=alice%40corp'),
       );
       expect(config, isNotNull);
-      expect(config!.user, 'alice@example.com');
+      expect(config!.user, 'alice@corp');
     });
 
     test('ignores key path parameter — credentials not in deep links', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u&key=../../etc/passwd'),
+        Uri.parse('letsflutssh://connect?host=h&user=u&key=/etc/secret'),
       );
-      // Key path is ignored, not rejected — only host/port/user matter
       expect(config, isNotNull);
       expect(config!.keyPath, '');
     });
 
     test('ignores valid key path — credentials not in deep links', () {
       final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=u&key=keys%2Fid_rsa'),
+        Uri.parse('letsflutssh://connect?host=h&user=u&key=mykey.pem'),
       );
       expect(config, isNotNull);
       expect(config!.keyPath, '');
@@ -221,363 +232,14 @@ void main() {
     });
   });
 
-  group('DeepLinkHandler.handleUri routing', () {
-    late DeepLinkHandler handler;
-
-    setUp(() {
-      handler = DeepLinkHandler();
-    });
-
-    tearDown(() {
-      handler.dispose();
-    });
-
-    test('routes letsflutssh scheme to handleCustomScheme → onConnect', () {
-      SSHConfig? received;
-      handler.onConnect = (c) => received = c;
-
-      handler.handleUri(Uri.parse('letsflutssh://connect?host=h&user=u'));
-      expect(received, isNotNull);
-      expect(received!.host, 'h');
-    });
-
-    test('routes file scheme .lfs to onLfsFileOpened', () {
-      String? received;
-      handler.onLfsFileOpened = (p) => received = p;
-
-      handler.handleUri(Uri.parse('file:///tmp/archive.lfs'));
-      expect(received, isNotNull);
-      expect(received, contains('archive.lfs'));
-    });
-
-    test('routes file scheme .pem to onKeyFileOpened', () {
-      String? received;
-      handler.onKeyFileOpened = (p) => received = p;
-
-      handler.handleUri(Uri.parse('file:///tmp/id.pem'));
-      expect(received, isNotNull);
-      expect(received, contains('id.pem'));
-    });
-
-    test('routes file scheme .key to onKeyFileOpened', () {
-      String? received;
-      handler.onKeyFileOpened = (p) => received = p;
-
-      handler.handleUri(Uri.parse('file:///tmp/id.key'));
-      expect(received, isNotNull);
-    });
-
-    test('routes file scheme .pub to onKeyFileOpened', () {
-      String? received;
-      handler.onKeyFileOpened = (p) => received = p;
-
-      handler.handleUri(Uri.parse('file:///tmp/id.pub'));
-      expect(received, isNotNull);
-    });
-
-    test('routes content scheme to handleFileUri', () {
-      // content:// URIs go through handleFileUri path
-      // but toFilePath() only works with file:// scheme,
-      // so we test the routing reaches handleFileUri via file://
-      String? received;
-      handler.onLfsFileOpened = (p) => received = p;
-
-      handler.handleUri(Uri.parse('file:///provider/archive.lfs'));
-      expect(received, isNotNull);
-    });
-
-    test('ignores unknown scheme without crash', () {
-      handler.handleUri(Uri.parse('https://example.com'));
-      // Should not throw, just log
-    });
-
-    test('ignores unsupported file type', () {
-      String? key;
-      String? lfs;
-      handler.onKeyFileOpened = (p) => key = p;
-      handler.onLfsFileOpened = (p) => lfs = p;
-
-      handler.handleUri(Uri.parse('file:///tmp/readme.txt'));
-      expect(key, isNull);
-      expect(lfs, isNull);
-    });
-  });
-
-  group('DeepLinkHandler.handleCustomScheme', () {
-    late DeepLinkHandler handler;
-
-    setUp(() {
-      handler = DeepLinkHandler();
-    });
-
-    tearDown(() {
-      handler.dispose();
-    });
-
-    test('connect action calls onConnect with valid params', () {
-      SSHConfig? received;
-      handler.onConnect = (c) => received = c;
-
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
-      expect(received, isNotNull);
-    });
-
-    test('connect action with invalid params does not call onConnect', () {
-      SSHConfig? received;
-      handler.onConnect = (c) => received = c;
-
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=&user='),
-      );
-      expect(received, isNull);
-    });
-
-    test('unknown action does not call onConnect', () {
-      SSHConfig? received;
-      handler.onConnect = (c) => received = c;
-
-      handler.handleCustomScheme(Uri.parse('letsflutssh://settings'));
-      expect(received, isNull);
-    });
-
-    test('onConnect null does not crash', () {
-      handler.onConnect = null;
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
-      );
-      // Should not throw
-    });
-
-    test('import action calls onQrImport with valid data', () {
-      ExportPayloadData? received;
-      handler.onQrImport = (d) => received = d;
-
-      final payload = encodeExportPayload([
-        Session(
-          label: 'test',
-          server: const ServerAddress(host: 'h', user: 'u'),
-        ),
-      ]);
-      final url = wrapInDeepLink(payload);
-      handler.handleCustomScheme(Uri.parse(url));
-
-      expect(received, isNotNull);
-      expect(received!.sessions.length, 1);
-      expect(received!.sessions[0].label, 'test');
-    });
-
-    test('import action with invalid data does not call onQrImport', () {
-      ExportPayloadData? received;
-      handler.onQrImport = (d) => received = d;
-
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://import?d=invalidbase64'),
-      );
-      expect(received, isNull);
-    });
-
-    test('import action with missing d param does not call onQrImport', () {
-      ExportPayloadData? received;
-      handler.onQrImport = (d) => received = d;
-
-      handler.handleCustomScheme(Uri.parse('letsflutssh://import'));
-      expect(received, isNull);
-    });
-
-    test('onQrImport null does not crash', () {
-      handler.onQrImport = null;
-      final payload = encodeExportPayload([
-        Session(
-          label: 'x',
-          server: const ServerAddress(host: 'h', user: 'u'),
-        ),
-      ]);
-      handler.handleCustomScheme(Uri.parse(wrapInDeepLink(payload)));
-    });
-
-    test('handleUri routes import deep link to onQrImport', () {
-      ExportPayloadData? received;
-      handler.onQrImport = (d) => received = d;
-
-      final payload = encodeExportPayload([
-        Session(
-          label: 'via-uri',
-          server: const ServerAddress(host: 'h', user: 'u'),
-        ),
-      ]);
-      handler.handleUri(Uri.parse(wrapInDeepLink(payload)));
-
-      expect(received, isNotNull);
-      expect(received!.sessions[0].label, 'via-uri');
-    });
-  });
-
-  group('DeepLinkHandler.handleFileUri', () {
-    late DeepLinkHandler handler;
-
-    setUp(() {
-      handler = DeepLinkHandler();
-    });
-
-    tearDown(() {
-      handler.dispose();
-    });
-
-    test('onLfsFileOpened null does not crash', () {
-      handler.onLfsFileOpened = null;
-      handler.handleFileUri(Uri.parse('file:///tmp/a.lfs'));
-    });
-
-    test('onKeyFileOpened null does not crash', () {
-      handler.onKeyFileOpened = null;
-      handler.handleFileUri(Uri.parse('file:///tmp/a.pem'));
-    });
-
-    test('case insensitive file extension matching', () {
-      String? received;
-      handler.onLfsFileOpened = (p) => received = p;
-
-      handler.handleFileUri(Uri.parse('file:///tmp/Archive.LFS'));
-      expect(received, isNotNull);
-    });
-  });
-
-  group('DeepLinkHandler callbacks', () {
-    late DeepLinkHandler handler;
-
-    setUp(() {
-      handler = DeepLinkHandler();
-    });
-
-    tearDown(() {
-      handler.dispose();
-    });
-
-    test('onConnect callback is initially null', () {
-      expect(handler.onConnect, isNull);
-    });
-
-    test('onKeyFileOpened callback is initially null', () {
-      expect(handler.onKeyFileOpened, isNull);
-    });
-
-    test('onLfsFileOpened callback is initially null', () {
-      expect(handler.onLfsFileOpened, isNull);
-    });
-
-    test('onConnect callback can be set', () {
-      handler.onConnect = (_) {};
-      expect(handler.onConnect, isNotNull);
-    });
-
-    test('onKeyFileOpened callback can be set', () {
-      handler.onKeyFileOpened = (_) {};
-      expect(handler.onKeyFileOpened, isNotNull);
-    });
-
-    test('onLfsFileOpened callback can be set', () {
-      handler.onLfsFileOpened = (_) {};
-      expect(handler.onLfsFileOpened, isNotNull);
-    });
-
-    test('dispose can be called without init', () {
-      // Should not throw
-      handler.dispose();
-    });
-
-    test('dispose can be called multiple times', () {
-      handler.dispose();
-      handler.dispose();
-    });
-  });
-
   // ---------------------------------------------------------------------------
-  // Extended URI handling and lifecycle
+  // Routing, scheme dispatch, file-extension classification, and dedup all
+  // live in `lfs_core::deeplink::DeeplinkDispatcher` now. The Rust unit
+  // tests in `lfs_core/src/deeplink.rs` (`route_connect_*`,
+  // `route_lfs_file*`, `route_pem_key_file`, `dispatcher_dedups_within_window`,
+  // …) cover the same matrix the deleted Dart `handleUri routing`,
+  // `handleCustomScheme`, `handleFileUri`, `dedup` groups used to.
   // ---------------------------------------------------------------------------
-  group('DeepLinkHandler — URI classification', () {
-    test('parseConnectUri returns null for empty user', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=myhost&user='),
-      );
-      expect(config, isNull);
-    });
-
-    test('parseConnectUri with no params returns null', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect'),
-      );
-      expect(config, isNull);
-    });
-
-    test('parseConnectUri preserves host/port/user, ignores credentials', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse(
-          'letsflutssh://connect?host=h&user=u&port=8022&password=pass&key=mykey',
-        ),
-      );
-      expect(config, isNotNull);
-      expect(config!.host, 'h');
-      expect(config.user, 'u');
-      expect(config.port, 8022);
-      // Credentials are never extracted from deep links
-      expect(config.password, '');
-      expect(config.keyPath, '');
-    });
-
-    test('parseConnectUri with whitespace-only host returns null', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=%20%20%20&user=u'),
-      );
-      expect(config, isNull);
-    });
-
-    test('parseConnectUri with whitespace-only user returns null', () {
-      final config = DeepLinkHandler.parseConnectUri(
-        Uri.parse('letsflutssh://connect?host=h&user=%20%20'),
-      );
-      expect(config, isNull);
-    });
-
-    test('file URI classification - .lfs', () {
-      final uri = Uri.parse('file:///path/to/archive.lfs');
-      expect(uri.path.toLowerCase().endsWith('.lfs'), isTrue);
-    });
-
-    test('file URI classification - .pem', () {
-      final uri = Uri.parse('file:///path/to/key.pem');
-      expect(uri.path.toLowerCase().endsWith('.pem'), isTrue);
-    });
-
-    test('file URI classification - .key', () {
-      final uri = Uri.parse('file:///path/to/id.key');
-      expect(uri.path.toLowerCase().endsWith('.key'), isTrue);
-    });
-
-    test('file URI classification - .pub', () {
-      final uri = Uri.parse('file:///path/to/id.pub');
-      expect(uri.path.toLowerCase().endsWith('.pub'), isTrue);
-    });
-
-    test('content URI scheme recognized', () {
-      final uri = Uri.parse(
-        'content://com.android.providers/document/file.lfs',
-      );
-      expect(uri.scheme, 'content');
-    });
-
-    test('custom scheme connect host recognized', () {
-      final uri = Uri.parse('letsflutssh://connect?host=h&user=u');
-      expect(uri.scheme, 'letsflutssh');
-      expect(uri.host, 'connect');
-    });
-
-    test('custom scheme unknown action', () {
-      final uri = Uri.parse('letsflutssh://unknown');
-      expect(uri.host, 'unknown');
-    });
-  });
 
   group('DeepLinkHandler — lifecycle and callbacks', () {
     test('callbacks are initially null', () {
@@ -598,62 +260,69 @@ void main() {
       expect(h.onLfsFileOpened, isNotNull);
       h.dispose();
     });
+
+    test('dispose can be called without init', () {
+      final h = DeepLinkHandler();
+      h.dispose();
+    });
+
+    test('dispose can be called multiple times', () {
+      final h = DeepLinkHandler();
+      h.dispose();
+      h.dispose();
+    });
   });
 
-  group('DeepLinkHandler — handleFileUri and handleCustomScheme', () {
-    late DeepLinkHandler handler;
-
-    setUp(() {
-      handler = DeepLinkHandler();
+  group('sanitizeUriForLog', () {
+    test('returns the URI verbatim when no query parameters are present', () {
+      final uri = Uri.parse('letsflutssh://connect');
+      expect(DeepLinkHandler.sanitizeUriForLog(uri), uri.toString());
     });
 
-    tearDown(() {
-      handler.dispose();
+    test('non-sensitive query params pass through', () {
+      final uri = Uri.parse('letsflutssh://connect?host=example.org&port=22');
+      final out = DeepLinkHandler.sanitizeUriForLog(uri);
+      expect(out, contains('host=example.org'));
+      expect(out, contains('port=22'));
     });
 
-    test('handleFileUri .lfs invokes onLfsFileOpened', () {
-      String? received;
-      handler.onLfsFileOpened = (p) => received = p;
-      handler.handleFileUri(Uri.parse('file:///android/data/archive.lfs'));
-      expect(received, isNotNull);
-      expect(received, contains('archive.lfs'));
-    });
-
-    test('handleUri routes file .lfs to onLfsFileOpened', () {
-      bool handled = false;
-      handler.onLfsFileOpened = (p) => handled = true;
-      handler.handleUri(Uri.parse('file:///data/user/0/export.lfs'));
-      expect(handled, isTrue);
-    });
-
-    test('handleCustomScheme with null onConnect does not crash', () {
-      handler.onConnect = null;
-      handler.handleCustomScheme(
-        Uri.parse('letsflutssh://connect?host=h&user=u'),
+    test('redacts password / passphrase / key_data / key params', () {
+      // Even though deep links no longer carry credentials, the
+      // sanitiser still strips any unexpected sensitive-looking
+      // parameter — defense in depth, since plaintext discipline
+      // means these strings must never reach a log file.
+      final uri = Uri.parse(
+        'letsflutssh://connect?host=h&password=secret123'
+        '&passphrase=p2&key=raw&key_data=raw&port=22',
       );
-    });
-
-    test('handleFileUri .key with null callback does not crash', () {
-      handler.onKeyFileOpened = null;
-      handler.handleFileUri(Uri.parse('file:///tmp/id_rsa.key'));
-    });
-
-    test('handleFileUri .pub calls onKeyFileOpened', () {
-      String? received;
-      handler.onKeyFileOpened = (p) => received = p;
-      handler.handleFileUri(Uri.parse('file:///tmp/id_ed25519.pub'));
-      expect(received, isNotNull);
-      expect(received, contains('id_ed25519.pub'));
-    });
-
-    test('handleUri with empty URI does not crash', () {
-      handler.handleUri(Uri());
+      final out = DeepLinkHandler.sanitizeUriForLog(uri);
+      expect(out, contains('host=h'));
+      expect(out, contains('port=22'));
+      expect(out, isNot(contains('secret123')));
+      expect(out, isNot(contains('p2=')));
+      expect(out, isNot(contains('=raw')));
+      // `***` round-trips through `Uri.replace(queryParameters)` as
+      // `%2A%2A%2A`. Either form is fine for log purposes — the
+      // contract is "secret value is gone, marker is present".
+      expect(out, anyOf(contains('***'), contains('%2A%2A%2A')));
     });
   });
 
-  group('DeepLinkHandler — duplicate URI dedup', () {
-    late DeepLinkHandler handler;
+  group('routeOutcomeForTest', () {
+    rust_archive.DbImportPreview previewWith(int sessions) =>
+        rust_archive.DbImportPreview(
+          schemaVersion: 1,
+          sessionCount: sessions,
+          sessionLabels: List.generate(sessions, (i) => 'sess-$i'),
+          managerKeyCount: 0,
+          tagCount: 0,
+          snippetCount: 0,
+          emptyFolderCount: 0,
+          hasConfig: false,
+          hasKnownHosts: false,
+        );
 
+    late DeepLinkHandler handler;
     setUp(() {
       handler = DeepLinkHandler();
     });
@@ -662,50 +331,110 @@ void main() {
       handler.dispose();
     });
 
-    test('handleUri skips duplicate URI within dedup window', () {
-      int callCount = 0;
-      handler.onConnect = (_) => callCount++;
-
-      final uri = Uri.parse('letsflutssh://connect?host=h&user=u');
-      handler.handleUri(uri);
-      handler.handleUri(uri);
-
-      expect(callCount, 1);
+    test('Connect → onConnect fires with parsed SSHConfig', () {
+      SSHConfig? captured;
+      handler.onConnect = (cfg) => captured = cfg;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.connect(
+          host: 'example.org',
+          port: 2222,
+          user: 'alice',
+        ),
+      );
+      expect(captured, isNotNull);
+      expect(captured!.server.host, 'example.org');
+      expect(captured!.server.port, 2222);
+      expect(captured!.server.user, 'alice');
     });
 
-    test('handleUri processes different URIs separately', () {
-      int callCount = 0;
-      handler.onConnect = (_) => callCount++;
-
-      handler.handleUri(Uri.parse('letsflutssh://connect?host=h1&user=u'));
-      handler.handleUri(Uri.parse('letsflutssh://connect?host=h2&user=u'));
-
-      expect(callCount, 2);
+    test('QrImport → onQrImport fires with the staged handle + preview', () {
+      QrDecodedSource? captured;
+      handler.onQrImport = (s) => captured = s;
+      final preview = previewWith(3);
+      handler.routeOutcomeForTest(
+        rust_deeplink.DbDeeplinkOutcome.qrImport(
+          handleId: 'h-42',
+          preview: preview,
+        ),
+      );
+      expect(captured, isNotNull);
+      expect(captured!.rust.handleId, 'h-42');
+      expect(captured!.preview.sessionCount, 3);
     });
 
-    test('handleUri dedup works for file URIs too', () {
-      int callCount = 0;
-      handler.onLfsFileOpened = (_) => callCount++;
-
-      final uri = Uri.parse('file:///tmp/archive.lfs');
-      handler.handleUri(uri);
-      handler.handleUri(uri);
-
-      expect(callCount, 1);
+    test('QrImportRejected → onQrImportVersionTooNew fires with versions', () {
+      int? capturedFound;
+      int? capturedSupported;
+      handler.onQrImportVersionTooNew = (found, supported) {
+        capturedFound = found;
+        capturedSupported = supported;
+      };
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.qrImportRejected(
+          found: 99,
+          supported: 1,
+        ),
+      );
+      expect(capturedFound, 99);
+      expect(capturedSupported, 1);
     });
 
-    test('handleUri allows same URI after a different one in between', () {
-      int callCount = 0;
-      handler.onConnect = (_) => callCount++;
+    test('OpenLfs → onLfsFileOpened fires with the path', () {
+      String? captured;
+      handler.onLfsFileOpened = (p) => captured = p;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.openLfs(path: '/tmp/data.lfs'),
+      );
+      expect(captured, '/tmp/data.lfs');
+    });
 
-      final uri1 = Uri.parse('letsflutssh://connect?host=h1&user=u');
-      final uri2 = Uri.parse('letsflutssh://connect?host=h2&user=u');
+    test('OpenKeyFile → onKeyFileOpened fires with the path', () {
+      String? captured;
+      handler.onKeyFileOpened = (p) => captured = p;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.openKeyFile(path: '/tmp/id_rsa'),
+      );
+      expect(captured, '/tmp/id_rsa');
+    });
 
-      handler.handleUri(uri1);
-      handler.handleUri(uri2);
-      handler.handleUri(uri1); // different from _lastProcessedUri (uri2)
+    test('Unknown → no callback fires', () {
+      var fired = false;
+      handler.onConnect = (_) => fired = true;
+      handler.onQrImport = (_) => fired = true;
+      handler.onLfsFileOpened = (_) => fired = true;
+      handler.onKeyFileOpened = (_) => fired = true;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.unknown(),
+      );
+      expect(fired, isFalse);
+    });
 
-      expect(callCount, 3);
+    test('Duplicate → no callback fires', () {
+      var fired = false;
+      handler.onConnect = (_) => fired = true;
+      handler.onQrImport = (_) => fired = true;
+      handler.onLfsFileOpened = (_) => fired = true;
+      handler.onKeyFileOpened = (_) => fired = true;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.duplicate(),
+      );
+      expect(fired, isFalse);
+    });
+
+    test('outcomes with no listener registered are no-ops, not crashes', () {
+      // No callbacks wired → routeOutcomeForTest must not throw.
+      // Pin the contract so a future `?? throw` on the callback site
+      // surfaces here.
+      expect(
+        () => handler.routeOutcomeForTest(
+          const rust_deeplink.DbDeeplinkOutcome.connect(
+            host: 'h',
+            port: 22,
+            user: 'u',
+          ),
+        ),
+        returnsNormally,
+      );
     });
   });
 }

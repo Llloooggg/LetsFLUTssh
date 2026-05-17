@@ -1,0 +1,214 @@
+[package]
+name = "lfs_os_security"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+# Process-hardening + memory-lock helpers. Per-OS FFI lives here
+# (not in lfs_core) so the core stays `unsafe_code = "forbid"`. This
+# crate's surface is a small set of safe-to-call functions —
+# `apply_startup_hardening()`, `lock_memory(addr, len)`,
+# `unlock_memory(addr, len)`. The unsafe blocks are auditable
+# in one place.
+
+# Cross-target dependencies — present on every platform.
+# Tokio sits here (rather than in per-cfg blocks below) because
+# `session_lock_listener` imports `tokio::sync::broadcast`
+# unconditionally to fan-out lock events to FRB subscribers,
+# regardless of which OS-specific listener is wired underneath.
+# `sync` is needed by everyone for broadcast / oneshot.
+[dependencies]
+tokio = { workspace = true, features = ["sync", "io-util", "process", "fs"] }
+# `subtle::ConstantTimeEq` for the PIN-HMAC compare in
+# `hardware_tier_vault` (Android JNI path) and any future
+# constant-time equality call sites the OS-side adds.
+subtle = { workspace = true }
+# `rand::rng()` for the `linux::tpm::WorkDir` mkdtemp suffix.
+# Cross-target because cfg-gated imports compile on every host
+# even when their bodies never run.
+rand = { version = "0.10", default-features = false, features = ["std", "std_rng", "thread_rng"] }
+# `thiserror::Error` derive used by every OS-side error envelope
+# that surfaces typed variants — `apple_se_ssh::Error`,
+# `windows::ncrypt_ssh::Error`, and any future per-platform Error
+# enum. Workspace-pinned for one-source-of-truth versioning;
+# zero-cost at runtime so we ship it on every target rather than
+# gating per-cfg.
+thiserror = { workspace = true }
+# SHA-256 for the cross-platform `secure_clipboard::compare_and_clear`
+# digest gate. Pure-Rust, no system deps — the desktop-only pkcs11
+# module also pulls it through its cfg-gated block below, but the
+# clipboard wipe orchestrator fires on every target (Android +
+# iOS terminal copies arm the same gate), so the dep lives in
+# the cross-target list. Workspace pin keeps a single source of
+# truth for the version.
+sha2 = "0.10"
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+libc = { version = "0.2", default-features = false }
+
+# PKCS#11 (Cryptoki) wrapper — desktop-only smart-card / hardware-
+# token driver. parallaxsecond/Parsec's `cryptoki` crate is the
+# canonical Rust PKCS#11 binding (the companion `pkcs11-uri` is
+# unmaintained, so RFC 7512 parsing is vendored inline in
+# `pkcs11::uri`). The crate is synchronous; every entry point
+# gets wrapped in `tokio::task::spawn_blocking` at the call site
+# so the FRB worker pool doesn't stall behind a `C_Sign` round
+# trip. Cfg-gated to the three desktop targets where
+# dynamic-loading a vendor .so / .dylib / .dll is feasible —
+# mobile sandboxes (Android, iOS) forbid arbitrary `dlopen`, so
+# the module compiles to its no-op stub there.
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
+cryptoki = "0.12"
+# `zeroize::Zeroizing` for the per-call PIN buffer in
+# `pkcs11::session::Session`. The PIN crosses FRB as a transient
+# SecretStore entry on the Rust side; we re-wrap it in `Zeroizing`
+# around the cryptoki `AuthPin` boundary so the bytes drop on
+# every sign call.
+zeroize = { workspace = true }
+
+# Windows-only — WinRT bindings for Windows Hello biometric
+# auth (`Security_Credentials_UI` covers UserConsentVerifier,
+# the API the Hello prompt fires through) plus the Win32
+# surface needed by `session_lock_listener` to register an
+# `WTSRegisterSessionNotification` callback against a hidden
+# message-only window. `libloading` is the dynamic loader the
+# `winbio` module uses to resolve `WinBioEnumBiometricUnits`
+# at runtime (we avoid linking winbio.lib directly so the
+# build still succeeds on Windows hosts where the SDK lib is
+# absent — the unit count probe degrades to `0` instead of a
+# link error).
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Security_Credentials_UI",
+    "Foundation",
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_DataExchange",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_RemoteDesktop",
+    "Win32_Security_Credentials",
+    "Win32_Security_Cryptography",
+    "Win32_UI_WindowsAndMessaging",
+    # `WebAuthN*` symbols for the system FIDO2 broker
+    # (`fido2_broker::windows`). The OS dialog the broker fires
+    # covers USB + NFC + BLE + the platform Hello authenticator
+    # without admin permission. Windows 10 1903+ ships
+    # `webauthn.dll` in-box; older revisions are filtered out by
+    # the runtime `WebAuthNGetApiVersionNumber()` probe.
+    "Win32_Networking_WindowsWebServices",
+] }
+libloading = { workspace = true }
+# `IAsyncOperation` + `AsyncStatus` live in `windows-future` (a
+# sibling crate to `windows-core`); the `windows` umbrella crate
+# does not re-export them. Required by `biometric_auth`'s
+# UserConsentVerifier sync-block helper to poll completion of
+# the WinRT IAsyncOperation contract without dragging in a
+# heavyweight executor.
+windows-future = "0.3"
+
+# Android-only deps:
+#   - `jni` for direct calls into platform Java APIs
+#     (`java.security.KeyStore` provider `"AndroidKeyStore"`,
+#     `androidx.biometric.BiometricPrompt`, etc.) per the Tier 3
+#     Android JNI plan. No Kotlin shim — the JavaVM handle is
+#     captured once at process start via the `Java_…_register`
+#     extern function below + `MainActivity.onCreate` calls into
+#     it; thereafter every JNI call attaches the current thread
+#     to the captured VM.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", default-features = false }
+
+# Linux-only deps:
+#   - `arboard` for the desktop clipboard write (X11 + Wayland;
+#     no cloud-clipboard concern, per-platform sensitive flag is
+#     a no-op here).
+#   - `zbus` + `futures-util` + `tokio` for the logind session-
+#     lock subscription. zbus is the workspace-shared crate; the
+#     duplicate target table keeps the cfg gate explicit.
+#   - `secret-service` for the Linux libsecret backend powering
+#     `secure_key_storage` (Tier 3 — drops the
+#     flutter_secure_storage Linux dependency on libsecret-via-
+#     plugin in favour of native Rust D-Bus).
+[target.'cfg(target_os = "linux")'.dependencies]
+arboard = { version = "3", default-features = false }
+zbus = { workspace = true }
+futures-util = { workspace = true }
+secret-service = { version = "5", default-features = false, features = ["rt-tokio-crypto-rust"] }
+# Direct TSS2 ESAPI bindings — moved here from `lfs_core` so the
+# OS-FFI perimeter stays single-edge. Caret-major: the on-disk
+# envelope is TCG ASN.1 PEM per `draft-bottomley-tpm2-keys-asn1`
+# (`linux::tpm_tcg_pem`), decoupled from `tss-esapi`'s builder
+# defaults — a minor bump can no longer brick users by reshuffling
+# how `Tss2_MU_*` marshalls fields, because the marshalled bytes
+# only ride inside the DER `pubkey`/`privkey` OCTET STRINGs and the
+# chip itself produces them. The major version is the only API-churn
+# guard; a major bump still warrants a one-pass review for trait
+# / type renames (`Marshall`, `PublicBuffer`, builder field order).
+# Defence-in-depth: `tpm_native::tests::storage_primary_template_marshalls_to_fixture`
+# pins the storage-primary template bytes across upgrades so a
+# silent default flip in a minor bump surfaces at CI time.
+tss-esapi = "7"
+
+# Apple-only deps for `backup_exclusion` (NSURL.setResourceValues:
+# isExcludedFromBackup), `secure_clipboard` (NSPasteboard /
+# UIPasteboard) and `secure_key_storage` (Apple Keychain via
+# security-framework). Cfg-gated so Linux / Windows builds
+# skip the whole objc2 crate tree.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+objc2 = "0.6"
+# `thiserror::Error` derive used by `apple_se_ssh::Error` (and the
+# upcoming Apple-side broker error envelopes). Declared as workspace
+# `fido2_broker::platform_impl` on Apple dynamically loads the Swift
+# `ASAuthorizationController` glue via `dlopen` — same `libloading`
+# pattern the Windows path uses for `webauthn.dll`. We keep the
+# dlopen approach (rather than direct link) so self-signed dev builds
+# without the WebAuthn entitlement degrade to `AppleEntitlementMissing`
+# at runtime instead of failing to launch.
+libloading = { workspace = true }
+# `NSDistributedNotificationCenter` + `NSRunLoop` features added
+# for the macOS `session_lock_listener` path — the observer that
+# fires on `com.apple.screenIsLocked` lives in NSDistributedNotificationCenter
+# and the per-thread NSRunLoop pumps the callback. iOS does not
+# expose distributed notifications (sandboxed apps can't observe
+# system-wide events), so the listener is a no-op there — but the
+# compile gate is shared with macOS via this dep block, so the
+# features land regardless.
+objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSError", "NSValue", "NSNotification", "NSData", "NSArray", "NSDictionary", "NSDistributedNotificationCenter", "NSRunLoop", "NSDate", "NSObjCRuntime"] }
+security-framework = { version = "3", default-features = false }
+security-framework-sys = { version = "2", default-features = false }
+core-foundation = { version = "0.10", default-features = false }
+core-foundation-sys = { version = "0.8", default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }
+
+# Apple-only — LAContext for `biometric_auth`. block2 wraps the
+# reply block evaluatePolicy fires on completion; we bridge it
+# to a tokio oneshot channel so the Rust caller awaits a
+# Future. objc2-local-authentication provides typed bindings to
+# LAContext + LAPolicy.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.objc2-local-authentication]
+version = "0.3"
+features = ["LAContext", "LAError"]
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.block2]
+version = "0.6"
+
+[dev-dependencies]
+# Tempdir-based fs round-trips for the cross-platform helpers in
+# `hardware_tier_vault` (envelope header, atomic write, is_stored).
+tempfile = "3"
+
+# Lints — allow unsafe for the FFI shims, deny everything else.
+[lints.rust]
+unsafe_code = "allow"

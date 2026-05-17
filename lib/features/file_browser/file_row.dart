@@ -156,7 +156,7 @@ class FileRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(color: _rowColor(hovered)),
-          child: Row(children: _buildColumns(theme)),
+          child: Row(children: _buildColumns(theme, context)),
         ),
       ),
     );
@@ -168,14 +168,14 @@ class FileRow extends StatelessWidget {
     return null;
   }
 
-  List<Widget> _buildColumns(ThemeData theme) {
+  List<Widget> _buildColumns(ThemeData theme, BuildContext context) {
     final metaStyle = AppFonts.mono(
       fontSize: AppFonts.xs,
       color: AppTheme.fgFaint,
     );
     return [
       Icon(fileIcon(entry), size: 14, color: fileIconColor(entry)),
-      const SizedBox(width: 6),
+      const SizedBox(width: AppSpacing.xxs),
       Expanded(
         child: Tooltip(
           message: entry.name,
@@ -207,7 +207,10 @@ class FileRow extends StatelessWidget {
         SizedBox(
           width: modifiedWidth,
           child: Text(
-            formatTimestamp(entry.modTime),
+            formatTimestamp(
+              entry.modTime,
+              locale: Localizations.localeOf(context),
+            ),
             style: metaStyle,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -259,7 +262,7 @@ class MenuRow extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 18),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
       ],
     );

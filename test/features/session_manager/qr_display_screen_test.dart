@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/session/qr_codec.dart';
-import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/security/secure_clipboard.dart';
 import 'package:letsflutssh/features/session_manager/qr_display_screen.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
-  final testPayload = wrapInDeepLink(
-    encodeExportPayload([
-      Session(
-        label: 'test-server',
-        server: const ServerAddress(host: 'example.com', user: 'root'),
-      ),
-    ]),
-  );
+  // The display screen renders whatever string it is handed — the actual
+  // encoded payload bytes are irrelevant to the dialog under test, so we
+  // hand it a fixed deeplink-shaped string instead of round-tripping
+  // through the encoder. The encoder itself lives Rust-side now and is
+  // covered by `lfs_core::archive` unit tests.
+  const testPayload = 'letsflutssh://import?d=test-payload-stub';
 
   Widget buildApp({required String data, int sessionCount = 1}) {
     return MaterialApp(
@@ -30,7 +25,7 @@ void main() {
       await tester.pumpWidget(buildApp(data: testPayload, sessionCount: 3));
       await tester.pumpAndSettle();
 
-      expect(find.text('3 session(s)'), findsOneWidget);
+      expect(find.text('3 sessions'), findsOneWidget);
     });
 
     testWidgets('shows scan instructions', (tester) async {
@@ -55,7 +50,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           home: QrDisplayScreen(
@@ -114,7 +109,7 @@ void main() {
       await tester.tap(find.text('Show'));
       await tester.pumpAndSettle();
 
-      expect(find.text('5 session(s)'), findsOneWidget);
+      expect(find.text('5 sessions'), findsOneWidget);
       expect(find.text('Scan QR Code'), findsOneWidget);
     });
 
@@ -124,12 +119,12 @@ void main() {
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           theme: ThemeData.dark(),
-          home: QrDisplayScreen(data: testPayload, sessionCount: 1),
+          home: const QrDisplayScreen(data: testPayload, sessionCount: 1),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1 session(s)'), findsOneWidget);
+      expect(find.text('1 session'), findsOneWidget);
     });
 
     testWidgets('works with light theme', (tester) async {
@@ -138,12 +133,12 @@ void main() {
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           theme: ThemeData.light(),
-          home: QrDisplayScreen(data: testPayload, sessionCount: 1),
+          home: const QrDisplayScreen(data: testPayload, sessionCount: 1),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1 session(s)'), findsOneWidget);
+      expect(find.text('1 session'), findsOneWidget);
     });
 
     testWidgets('shows Copy Link button', (tester) async {
@@ -156,16 +151,17 @@ void main() {
     });
 
     testWidgets('Copy Link button copies data to clipboard', (tester) async {
+      // The Copy Link button routes through `SecureClipboard()` for a
+      // non-credentials payload (deep link) and through
+      // `ClipboardSecret()` for a credentials payload. The
+      // `debugRustWriterOverride` seam stands in for the FRB-backed
+      // writer; the test asserts that the resulting text matches the
+      // payload the screen was handed.
       String? clipboardContent;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            clipboardContent = (call.arguments as Map)['text'] as String;
-          }
-          return null;
-        },
-      );
+      SecureClipboard.debugRustWriterOverride = (text) {
+        clipboardContent = text;
+      };
+      addTearDown(SecureClipboard.debugResetRustWriter);
 
       await tester.pumpWidget(buildApp(data: testPayload));
       await tester.pumpAndSettle();

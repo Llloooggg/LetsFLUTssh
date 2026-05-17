@@ -2,7 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/transfer/unique_name.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // uniqueSiblingName routes its candidate generation through
+  // `lfs_core::path::sibling_candidate` — bootstrap FRB so the
+  // canonical Rust split/insert grammar is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('uniqueSiblingName — POSIX', () {
     test('appends (1) before the extension on first collision', () async {
       final existing = {'/dir/report.txt'};

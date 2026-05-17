@@ -4,8 +4,13 @@ import 'package:letsflutssh/core/security/secure_clipboard.dart';
 import 'package:letsflutssh/utils/terminal_clipboard.dart';
 import 'package:xterm/xterm.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // _looksSensitive routes through `lfs_core::log_sanitize` —
+  // bootstrap FRB so the canonical Rust heuristic is exercised.
+  setUpAll(requireFrbLoaded);
 
   late Terminal terminal;
   late TerminalController controller;
@@ -228,6 +233,74 @@ void main() {
       );
     });
 
+    group('copyText — pre-captured text (no controller dependency)', () {
+      tearDown(() {
+        clearClipboardMock();
+        TerminalClipboard.debugResetSecureClipboard();
+      });
+
+      test('empty text is a no-op (no clipboard writes)', () async {
+        final fakeSecure = _RecordingSecureClipboard();
+        TerminalClipboard.debugSetSecureClipboard(fakeSecure);
+
+        var stockWrites = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') stockWrites++;
+              return null;
+            });
+
+        TerminalClipboard.copyText('');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeSecure.writes, isEmpty);
+        expect(stockWrites, 0);
+      });
+
+      test('sensitive text routes through SecureClipboard', () async {
+        // Same routing invariant as `copy()` — the read-only progress
+        // view's right-click path must not leak a private-key paste
+        // into the OS clipboard-history ring just because it bypassed
+        // the controller-based code path.
+        final fakeSecure = _RecordingSecureClipboard();
+        TerminalClipboard.debugSetSecureClipboard(fakeSecure);
+
+        var stockWrites = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') stockWrites++;
+              return null;
+            });
+
+        final secret = 'A' * 250;
+        TerminalClipboard.copyText(secret);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeSecure.writes, [secret]);
+        expect(stockWrites, 0);
+      });
+
+      test('non-sensitive text takes the stock clipboard path', () async {
+        final fakeSecure = _RecordingSecureClipboard();
+        TerminalClipboard.debugSetSecureClipboard(fakeSecure);
+
+        String? lastWrite;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                lastWrite = (call.arguments as Map)['text'] as String?;
+              }
+              return null;
+            });
+
+        TerminalClipboard.copyText('hello world');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeSecure.writes, isEmpty);
+        expect(lastWrite, 'hello world');
+      });
+    });
+
     group('copy — with an active selection (non-sensitive)', () {
       tearDown(clearClipboardMock);
 
@@ -277,14 +350,15 @@ void main() {
 }
 
 /// Captures every `setText` call so the sensitivity-routing test can
-/// assert routing without needing the real `com.letsflutssh/clipboard_secure`
-/// method channel.
+/// assert routing without needing the real FRB-backed
+/// `lfs_os_security::secure_clipboard::set_secure_text` runtime.
 class _RecordingSecureClipboard implements SecureClipboard {
   final writes = <String>[];
 
   @override
-  Future<void> setText(String text) async {
+  Future<bool> setText(String text) async {
     writes.add(text);
+    return true;
   }
 
   @override

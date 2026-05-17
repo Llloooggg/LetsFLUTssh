@@ -44,7 +44,7 @@ class UpdateProgressIndicator extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(caption),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           ClipRRect(
             borderRadius: AppTheme.radiusSm,
             child: LinearProgressIndicator(value: value, minHeight: 6),

@@ -5,6 +5,8 @@ import 'package:letsflutssh/core/security/threat_vocabulary.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/security_threat_list.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 Widget _wrap(Widget child, {Locale locale = const Locale('en')}) {
   return MaterialApp(
     locale: locale,
@@ -20,6 +22,12 @@ Widget _wrap(Widget child, {Locale locale = const Locale('en')}) {
 }
 
 void main() {
+  // SecurityThreatList calls `evaluate()` per build, which routes
+  // through `lfs_core::threat_vocabulary` — bootstrap FRB so the
+  // widget can render without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SecurityThreatList smoke', () {
     for (final tier in ThreatTier.values) {
       testWidgets('renders every threat title for ${tier.name}', (

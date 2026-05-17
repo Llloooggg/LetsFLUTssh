@@ -1,8 +1,9 @@
-import 'dart:async' show Timer, unawaited;
+import 'dart:async' show StreamSubscription, Timer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/bus/app_bus.dart';
 import '../core/security/lock_state.dart';
 import '../core/security/security_tier.dart';
 import '../core/security/session_lock_listener.dart';
@@ -10,30 +11,34 @@ import '../core/security/terminal_scrubber.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
-import '../providers/session_provider.dart';
+import '../src/rust/api/app.dart' as rust_app;
+import '../src/rust/api/bus.dart' as rust_bus;
+import '../src/rust/api/tier_machine.dart' as rust_tier;
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
 /// minutes of user inactivity when a user-typed secret is configured.
 ///
 /// What "lock" means:
-///   * The global [lockStateProvider] flips to `true`; the root widget
-///     swaps the UI for a lock screen that blocks interaction until the
-///     user re-authenticates (master password or biometrics).
+///   * The detector dispatches `LockRequested` against Rust's
+///     `tier_machine` singleton; the resulting
+///     `BusEvent::TierStateChanged { wire: "locked" }` reaches
+///     [LockStateNotifier] and the root widget swaps the UI for a
+///     lock screen that blocks interaction until the user
+///     re-authenticates (master password or biometrics).
 ///   * The in-memory DB key is **always** zeroed via
 ///     `securityStateProvider.clearEncryption()` — regardless of whether
-///     active SSH sessions are present. Previously the wipe was gated
-///     on `activeSessions.isEmpty` to keep SFTP reachable, which meant
-///     RAM forensics of a locked app could still recover the DB key as
-///     long as one session was connected — flattening T1+password and
-///     T2+password in the threat matrix. The gate is removed; live
-///     session reconnect is satisfied instead by
-///     `SessionCredentialCache` (per-session page-locked auth envelope
-///     that survives the lock), so the encrypted store can close
-///     without losing the "reconnect after unlock" UX.
-///   * The drift / MC handle is closed so the C-layer page
-///     cipher cache is also zeroed. `main._injectDatabase` opens a
-///     fresh handle after unlock under the re-derived key.
+///     active SSH sessions are present. **Don't gate the wipe on
+///     `activeSessions.isEmpty`** — leaving the DB key warm whenever
+///     any session is connected lets RAM forensics of a locked app
+///     recover it, flattening T1+password and T2+password in the
+///     threat matrix. Live-session reconnect is satisfied by
+///     `SessionCredentialCache` (per-session page-locked auth
+///     envelope that survives the lock), so the encrypted store can
+///     close without losing the "reconnect after unlock" UX.
+///   * The rusqlite/SQLCipher handle is closed so the C-layer page
+///     cipher cache is also zeroed. `_injectDatabase` opens a fresh
+///     handle after unlock under the re-derived key.
 ///
 /// Triggers:
 ///   * Idle timer (user inactivity past the configured timeout).
@@ -53,6 +58,33 @@ class AutoLockDetector extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<AutoLockDetector> createState() => _AutoLockDetectorState();
+
+  /// FRB-ready gate. `replayPendingDispatches` flips this to true on
+  /// the bootstrap rail; subsequent dispatches forward straight to
+  /// the bus instead of queuing into [_pendingPreFrbDispatches].
+  static bool _frbReady = false;
+  static final List<rust_bus.BusCommand> _pendingPreFrbDispatches =
+      <rust_bus.BusCommand>[];
+
+  /// Drain pre-FRB lifecycle dispatches accumulated before
+  /// `_initRustCoreOrFatal` returned. Called from
+  /// `_LetsFLUTsshAppState._bootstrap` after the Rust core is up.
+  /// Idempotent — flips the gate so future dispatches forward
+  /// directly. Queue is class-static so a hot-reload that swaps the
+  /// detector instance still sees the captured events.
+  static Future<void> replayPendingDispatches() async {
+    _frbReady = true;
+    if (_pendingPreFrbDispatches.isEmpty) return;
+    final pending = List<rust_bus.BusCommand>.from(_pendingPreFrbDispatches);
+    _pendingPreFrbDispatches.clear();
+    for (final cmd in pending) {
+      try {
+        await AppBus.instance.dispatch(cmd);
+      } catch (_) {
+        // Best-effort replay — same shape as the live path.
+      }
+    }
+  }
 }
 
 class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
@@ -61,6 +93,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   Duration _timeout = Duration.zero;
   final SessionLockListener _sessionLockListener = SessionLockListener();
   VoidCallback? _sessionLockDispose;
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
 
   @override
   void initState() {
@@ -78,23 +111,50 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
         'OS session-lock signal received; firing auto-lock',
         name: 'AutoLock',
       );
+      _dispatchRust(const rust_bus.BusCommand.autoLockRequestLock());
       _triggerLock();
     });
+    // Mirror Rust-side `AutoLockLocked` events back into the Dart
+    // overlay. The Rust ticker fires the same lock policy (db_close
+    // + secrets.clear) inside the state machine; the Dart bridge
+    // only adds the Dart-side overlay + scrub. Locking is idempotent
+    // through `lockStateProvider`, so a parallel Dart-side fire +
+    // Rust-side fire collapses into a single overlay.
+    try {
+      _busSub = AppBus.instance
+          .subscribe(rust_bus.BusTopic.autoLock)
+          .listen(_onBusEvent);
+    } catch (e) {
+      // Subscription failed — typically "no native lib in unit
+      // tests", but log at warn so a production-side failure (FRB
+      // shim renamed, bus topic enum mismatch) doesn't disappear
+      // silently and leave auto-lock unwired without any trace.
+      AppLogger.instance.log(
+        'AutoLockDetector bus subscription failed: $e',
+        name: 'AutoLockDetector',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isBackground =
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden;
+    // Mirror lifecycle into the Rust state machine regardless of
+    // tier — the machine ignores transitions when the timeout is 0.
+    _dispatchRust(
+      rust_bus.BusCommand.autoLockOnLifecycleChange(background: isBackground),
+    );
     // Lock on backgrounding (paused / inactive / hidden) only when the
     // user has opted in to auto-lock at all — i.e. the timer is not
     // "Off". Locking unconditionally on every window focus change was
     // the #1 user complaint: "блокировка срабатывает, если свернуть
     // приложение" even with the timer off. The session-count gate
     // inside [_triggerLock] still protects active SSH/SFTP sessions.
-    if (state != AppLifecycleState.paused &&
-        state != AppLifecycleState.inactive &&
-        state != AppLifecycleState.hidden) {
-      return;
-    }
+    if (!isBackground) return;
     if (!_hasTypedSecret()) return;
     final minutes = ref.read(autoLockMinutesProvider);
     if (minutes <= 0) return;
@@ -108,7 +168,10 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   bool _hasTypedSecret() {
     final level = ref.read(securityStateProvider).level;
     if (level == SecurityTier.paranoid) return true;
-    if (level == SecurityTier.keychainWithPassword) return true;
+    // Bank-style v3: T1+password is `keychain` + the password
+    // modifier; pre-v3 the keychainWithPassword tier value carried
+    // the same signal. The modifier check below covers both the
+    // collapsed T1+password case and the hardware+password case.
     final modifiers =
         ref.read(configProvider).security?.modifiers ??
         SecurityTierModifiers.defaults;
@@ -149,9 +212,53 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   @override
   void dispose() {
     _sessionLockDispose?.call();
+    _busSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  void _onBusEvent(rust_bus.BusEvent event) {
+    if (!mounted) return;
+    if (event is rust_bus.BusEvent_AutoLockLocked) {
+      if (ref.read(lockStateProvider)) return;
+      AppLogger.instance.log(
+        'AutoLockLocked received from Rust; mirroring overlay',
+        name: 'AutoLock',
+      );
+      _triggerLock();
+    }
+  }
+
+  /// Best-effort dispatch into the Rust auto-lock state machine.
+  /// Production cold-start runs `_initRustCoreOrFatal` before
+  /// `runApp`, so `AutoLockDetector._frbReady` is already true by
+  /// the time the detector mounts and dispatches forward straight
+  /// to the bus. Lifecycle events that arrive while
+  /// `AutoLockDetector._frbReady` is still false — widget tests
+  /// that skip `_mainBody`, a hot-reload that re-mounts the
+  /// detector before `_bootstrap` re-runs the replay, a future
+  /// ordering change — **queue** into
+  /// [AutoLockDetector._pendingPreFrbDispatches] instead of
+  /// disappearing into a silent catch.
+  /// [AutoLockDetector.replayPendingDispatches] — invoked from
+  /// `_LetsFLUTsshAppState._bootstrap` — drains the queue so the
+  /// state machine sees lifecycle transitions in order.
+  ///
+  /// Widget tests without the native lib loaded still work: every
+  /// queued dispatch is wrapped in try/catch on replay too, so a
+  /// genuinely-unreachable FRB silently degrades (matching the
+  /// unit-test no-native-lib path).
+  void _dispatchRust(rust_bus.BusCommand cmd) {
+    if (!AutoLockDetector._frbReady) {
+      AutoLockDetector._pendingPreFrbDispatches.add(cmd);
+      return;
+    }
+    try {
+      AppBus.instance.dispatch(cmd);
+    } catch (_) {
+      // No native lib in unit tests — silently skip.
+    }
   }
 
   void _rearm() {
@@ -162,6 +269,12 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
 
   void _syncTimer(int minutes, SecurityTier level) {
     final enabled = minutes > 0 && _hasTypedSecret();
+    // Keep the Rust state machine in lockstep with the Dart timer.
+    // `0` disables the Rust ticker; otherwise the Rust side runs
+    // its own idle countdown alongside our Timer as a watchdog.
+    _dispatchRust(
+      rust_bus.BusCommand.autoLockSetTimeout(minutes: enabled ? minutes : 0),
+    );
     if (!enabled) {
       _timer?.cancel();
       _timer = null;
@@ -178,6 +291,20 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     if (_timeout == Duration.zero) return;
     _timer?.cancel();
     _timer = Timer(_timeout, _triggerLock);
+    _pingRustActivity();
+  }
+
+  /// Throttle activity pings into the Rust state machine. Pointer
+  /// hover events fire at display refresh rate; one FRB call per
+  /// pointer move would saturate the bus. 1 ping/s is more than
+  /// enough — the Rust ticker reads the last-activity timestamp
+  /// only on its idle-check tick.
+  DateTime _lastPing = DateTime.fromMillisecondsSinceEpoch(0);
+  void _pingRustActivity() {
+    final now = DateTime.now();
+    if (now.difference(_lastPing).inMilliseconds < 1000) return;
+    _lastPing = now;
+    _dispatchRust(const rust_bus.BusCommand.autoLockOnPointerActivity());
   }
 
   void _triggerLock() {
@@ -188,8 +315,24 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
       'keyWiped=true, dbClosed=true)',
       name: 'AutoLock',
     );
-    // Always overlay the lock screen — that's the user-visible "locked" state.
-    ref.read(lockStateProvider.notifier).lock();
+    // Dispatch `LockRequested` against the singleton tier machine —
+    // the Rust side runs the transition table check and publishes
+    // `TierStateChanged { wire: "locked" }` when the machine was in
+    // `Unlocked` / `Unlocking`. `LockStateNotifier` subscribes to
+    // that event and flips the overlay; no Dart-side bool poking is
+    // needed. Swallow `StateError` for flutter_test contexts without
+    // the native lib loaded — the widget tests stage the overlay
+    // through `debugForceLocked` instead.
+    try {
+      rust_tier.tierMachineDispatch(
+        event: const rust_tier.DbTierEvent.lockRequested(),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Auto-lock tierMachineDispatch swallowed: $e',
+        name: 'AutoLock',
+      );
+    }
     // Scrub terminal scrollbacks BEFORE the user sees the lock
     // overlay. A password the user pasted into a terminal, or a
     // secret the remote shell echoed back, sits in xterm's
@@ -198,15 +341,26 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     // read it. Clearing the scrollback is cheap even when no
     // terminals are registered (empty-set iteration).
     TerminalScrubber.instance.scrubAll();
-    // Unconditionally zero the in-memory DB key and close the
-    // drift / MC handle. Live SSH sessions stay reconnectable
-    // because `SessionCredentialCache` (populated on connect, kept
-    // alive across the lock) holds each session's auth envelope in
-    // page-locked memory outside the DB. The next idle tick / unlock
-    // re-opens the DB via `main._injectDatabase` under the freshly
-    // re-derived key.
+    // Unconditionally zero the in-memory DB key and drop the
+    // rusqlite handle in lfs_core (which also wipes SQLCipher's
+    // C-layer page-cipher state). Live SSH sessions stay
+    // reconnectable because `SessionCredentialCache` (populated on
+    // connect, kept alive across the lock) holds each session's
+    // auth envelope in page-locked memory outside the DB. The next
+    // idle tick / unlock re-opens the DB via `_injectDatabase`
+    // under the freshly re-derived key.
     ref.read(securityStateProvider.notifier).clearEncryption();
-    // Fire-and-forget — UI must not block on a close.
-    unawaited(ref.read(sessionStoreProvider).closeDatabase());
+    // db_close is sync on the Rust side. Swallow the
+    // RustLib-not-initialised throw the unit-test runner raises
+    // (no native lib in flutter_test) so widget tests can still
+    // exercise the rest of the lock policy.
+    try {
+      rust_app.dbClose();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Auto-lock dbClose failed (no native lib in unit tests?): $e',
+        name: 'AutoLockDetector',
+      );
+    }
   }
 }

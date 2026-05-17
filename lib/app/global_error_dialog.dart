@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
+import '../utils/sanitize.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/toast.dart';
 
@@ -17,8 +21,9 @@ import '../widgets/toast.dart';
 /// on a null / unmounted context — the outer callback already checked
 /// before calling in.
 void showGlobalErrorDialog(BuildContext context, Object error) {
-  final errorType = error.runtimeType.toString();
+  final errorDetail = redactSecrets(error.toString());
   final loggingEnabled = AppLogger.instance.enabled;
+  final l10n = S.of(context);
 
   try {
     showDialog<void>(
@@ -27,32 +32,32 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
       barrierDismissible: false,
       builder: (ctx) {
         return AppDialog(
-          title: 'Unexpected Error',
+          title: l10n.globalErrorTitle,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'An unexpected error occurred. The app will continue running.',
+                l10n.globalErrorBody,
                 style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 loggingEnabled
-                    ? 'Full details have been saved to the log file.'
-                    : 'Enable logging in Settings to save error details.',
+                    ? l10n.globalErrorLogSavedNote
+                    : l10n.globalErrorLogDisabledNote,
                 style: TextStyle(
                   fontSize: AppFonts.xs,
                   color: AppTheme.fgFaint,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
-                'Error: $errorType',
+                l10n.globalErrorTechnicalLine(errorDetail),
                 style: TextStyle(
                   fontSize: AppFonts.xxs,
                   color: AppTheme.fgFaint,
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: AppFonts.monoFamily,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -62,28 +67,26 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
           actions: [
             if (!loggingEnabled)
               AppButton.secondary(
-                label: 'Enable Logging',
+                label: l10n.globalErrorEnableLoggingButton,
                 onTap: () {
                   // "Enable Logging" defaults to info — the most
                   // verbose level we have, which writes every routine
                   // entry + warnings + errors.
-                  // ignore: unawaited_futures
-                  AppLogger.instance.setThreshold(LogLevel.info);
+                  unawaited(AppLogger.instance.setThreshold(LogLevel.info));
                   AppLogger.instance.log(
-                    'Logging enabled after error: $errorType',
+                    'Logging enabled after error',
                     name: 'ErrorBoundary',
                   );
                   Navigator.of(ctx).pop();
                   Toast.show(
                     ctx,
-                    message:
-                        'Logging enabled — errors will be saved to log file',
+                    message: l10n.globalErrorLoggingEnabledToast,
                     level: ToastLevel.success,
                   );
                 },
               ),
             AppButton.primary(
-              label: 'OK',
+              label: l10n.ok,
               onTap: () => Navigator.of(ctx).pop(),
             ),
           ],

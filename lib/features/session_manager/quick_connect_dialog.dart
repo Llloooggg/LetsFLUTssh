@@ -12,6 +12,7 @@ import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
+import 'session_port_validator.dart';
 
 /// Quick Connect — shown as a bottom sheet.
 class QuickConnectDialog extends StatefulWidget {
@@ -95,7 +96,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     if (!mounted) return;
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
-    final pemContent = KeyFileHelper.tryReadPemKey(path);
+    final pemContent = await KeyFileHelper.tryReadPemKey(path);
     if (pemContent != null) {
       setState(() {
         _keyDataCtrl.text = pemContent;
@@ -145,7 +146,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               // Fields
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -163,7 +164,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                             fixedHeight: true,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppSpacing.md),
                         SizedBox(
                           width: 80,
                           child: StyledFormField(
@@ -172,18 +173,14 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                             hint: S.of(context).hintPort,
                             keyboardType: TextInputType.number,
                             fixedHeight: true,
-                            validator: (v) {
-                              final port = int.tryParse(v ?? '');
-                              if (port == null || port < 1 || port > 65535) {
-                                return S.of(context).portRange;
-                              }
-                              return null;
-                            },
+                            validator: (v) => isValidConnectionPort(v)
+                                ? null
+                                : S.of(context).portRange,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     StyledFormField(
                       label: S.of(context).usernameRequired,
                       controller: _userCtrl,
@@ -191,7 +188,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                       validator: _requiredValidator,
                       fixedHeight: true,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     StyledFormField(
                       label: S.of(context).password,
                       controller: _passwordCtrl,
@@ -211,9 +208,9 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     _buildKeyFileButton(),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     _buildPemToggle(),
                     if (_showKeyText) ...[
                       TextFormField(
@@ -242,7 +239,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           fontSize: AppFonts.sm,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                     ],
                     StyledFormField(
                       label: S.of(context).keyPassphrase,
@@ -266,10 +263,10 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               // Buttons
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -290,7 +287,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: GestureDetector(
                         onTap: _submit,

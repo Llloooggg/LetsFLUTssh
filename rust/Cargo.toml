@@ -1,0 +1,302 @@
+[workspace]
+members = ["crates/lfs_core", "crates/lfs_frb", "crates/lfs_os_security", "fuzz"]
+default-members = [
+    "crates/lfs_core",
+    "crates/lfs_frb",
+    "crates/lfs_os_security",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/Llloooggg/LetsFLUTssh"
+rust-version = "1.85"
+
+# Workspace-wide lint floor. Each crate inherits via
+# `[lints] workspace = true` so a clippy / rustc severity bump
+# lands in one place rather than three. CI's `cargo clippy
+# --workspace -- -D warnings` keeps the per-PR gate; this table
+# keeps the same severity inside `cargo check` / IDE LSP.
+[workspace.lints.rust]
+# Default — `-D warnings` rolls every other rustc warning
+# straight into errors via the CLI flag. `unsafe_code` overrides
+# stay per-crate (lfs_core forbids; lfs_os_security allows the
+# audited FFI blocks).
+
+[workspace.lints.clippy]
+# Match the `-D warnings` clippy gate CI runs. Per-crate
+# `[lints]` blocks can still relax specific lints if needed.
+
+# Shared versions for cross-crate dep pinning. Adapter crates inherit
+# these via `{ workspace = true }` so a bump only happens in one place.
+[workspace.dependencies]
+anyhow = "1"
+flutter_rust_bridge = "=2.12.0"
+# russh defaults to `aws-lc-rs` for crypto, which transitively
+# pulls `aws-lc-sys` — a vendored AWS-LC C codebase. Two problems
+# with the default for our matrix:
+#   1. Windows ARM64 (windows-11-arm runner) trips on
+#      `stdalign_check.c` during the aws-lc-sys C compile because
+#      MSVC on ARM64 treats some warnings the AWS-LC config sets
+#      as errors.
+#   2. `aws-lc-sys` compiles 200k+ LOC of C from source on every
+#      run, dominating Android + Windows build wall-clock (8 → 22
+#      minutes regression observed against pre-rust v7.3.2).
+# `ring` is the alternative pure-Rust + minimal-C backend russh
+# supports out of the box. It builds cleanly on every target our
+# matrix covers, has prebuilt assembly for ARM/ARM64, and produces
+# functionally equivalent ssh crypto. We keep the rest of the
+# russh defaults (`flate2`, `rsa`) untouched.
+#
+# 0.60.x closes GHSA-f5v4-2wr6-hqmg (pre-auth DoS via unbounded
+# allocation in the keyboard-interactive auth handler).
+russh = { version = "0.60", default-features = false, features = ["flate2", "ring", "rsa"] }
+# russh's forked ssh-key crate. russh pulls it transitively (the
+# `internal-russh-forked-` prefix is the upstream's choice — pin
+# matches the exact version russh 0.60 resolves to). We re-declare
+# it as a direct dep only to flip on the `ppk` feature, which
+# russh itself does not re-export. Same crate, same version —
+# Cargo unions the feature set, no duplicate compile.
+internal-russh-forked-ssh-key = { version = "=0.6.18", features = [
+    "ppk",
+    "ed25519",
+    "rsa",
+    "alloc",
+] }
+# SFTP client over a russh shell channel. Speaks SSH SFTP v3
+# (OpenSSH-server default). Backs `lfs_core::sftp` — list / read /
+# write / stat / rename / mkdir / remove. Caret-pinned; major bumps
+# need manual review for protocol surface changes.
+russh-sftp = "2.1"
+# Typed error enum derive — used in lfs_core's `Error` to keep the
+# error-path well-shaped without manual `Display`/`From` boilerplate.
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util", "net", "time", "process"] }
+# Best-effort scrub of secret buffers (passwords, key material) on
+# drop. Cannot reach copies russh / tokio hold internally — clears
+# only what we own. Dropping is best-effort, not a guarantee on every
+# allocator, but free to add and worth it for any shred we control.
+zeroize = { version = "1", features = ["zeroize_derive"] }
+# Constant-time comparisons for crypto material — always use
+# `subtle::ConstantTimeEq` for MAC/hash equality, never `==`.
+subtle = "2"
+# RustCrypto building blocks for `lfs_core::crypto`. `hkdf` + `sha2`
+# cover HKDF-SHA-256 (recorder envelope key derivation), `ed25519-dalek`
+# does pure verify on the update-feed signature path. Pinned to the
+# series russh 0.59 already pulls so the resolver doesn't double-stack
+# major versions.
+hkdf = "0.12"
+# HMAC-SHA-256 — needed for the per-tier secret-gating MACs
+# (master-password persisted-rate-limit signature, L2 keychain
+# password gate, L3 hardware-vault PIN auth value). Same version
+# series the `hkdf` crate consumes internally so the resolver
+# doesn't double-stack.
+hmac = "0.12"
+sha2 = "0.10"
+ed25519-dalek = { version = "2", default-features = false }
+# AES-256-GCM for Phase 2.1 envelopes (master-password verifier,
+# .lfs export, recorder per-frame). RustCrypto's `aes-gcm = "0.10"`
+# pairs with `aes` 0.8 already in the russh dep tree — single
+# version, no resolver split.
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+# Argon2id KDF for Phase 2.4 — master-password unlock and .lfs
+# password-encrypted archives. RustCrypto's `argon2 = "0.5"` is
+# constant-time and parameterised the same way as pointycastle's
+# Argon2BytesGenerator (memory KiB / iterations / parallelism /
+# 32-byte output) so existing on-disk salts round-trip without any
+# schema migration.
+argon2 = "0.5"
+# SQLite + SQLCipher for Phase 4.2 — drift replacement.
+# `bundled-sqlcipher-vendored-openssl` statically links both SQLCipher
+# 4.x AND the OpenSSL it depends on (via `openssl-src`), so cross-
+# compile targets that lack a system OpenSSL (Android NDK, MSVC
+# Windows, iOS device + sim, ARM64 Linux runners) link cleanly without
+# per-platform openssl provisioning. The plain `bundled-sqlcipher`
+# variant only bundles SQLCipher and expects `-lcrypto` to be findable
+# on the linker path — fine for the Linux x64 + macOS runners that
+# ship OpenSSL out of the box, broken everywhere else. Same PRAGMA key
+# wire format on both variants; flipping the feature is transparent
+# to the encrypted-DB on disk.
+rusqlite = { version = "0.31", default-features = false, features = [
+    "bundled-sqlcipher-vendored-openssl",
+] }
+# No async wrapper — DB calls run on `tokio::task::spawn_blocking`
+# inside FRB adapter functions, which keeps the FRB tokio worker
+# free without an extra crate that would re-pull libsqlite3-sys at a
+# different version and trip the `links = "sqlite3"` resolver guard.
+
+# JSON serialization for the .lfs archive orchestrator. The Rust
+# side composes manifest.json / sessions.json / keys.json / etc.
+# directly from DB rows so plaintext credentials never round-trip
+# through the Dart heap during export.
+serde_json = "1"
+# ZIP composition for the .lfs archive orchestrator. `default-features
+# = false` drops `flate2`/`bzip2` etc. — we only ever write Stored
+# (uncompressed) entries; AES-GCM after the ZIP makes deflate redundant
+# and pulling flate2 would balloon binary size for no win.
+zip = { version = "2", default-features = false }
+# Deflate compression for the QR export payload. The Dart side
+# wraps the UTF-8 JSON in `Deflate(...).getBytes()` then base64url-
+# encodes it. The Rust QR orchestrator mirrors that exactly so the
+# payload is wire-compatible. `rust_backend` keeps the dep pure-Rust
+# (no zlib system link).
+flate2 = { version = "1", default-features = false, features = [
+    "rust_backend",
+] }
+# base64url encoding for the QR payload tail. RFC 4648 §5 — `-_`
+# alphabet, no padding, matches Dart's `base64Url.encode`.
+base64 = "0.22"
+# Regex engine for `lfs_core::log_sanitize`. Pure-Rust (no PCRE),
+# deterministic linear-time matching — the sanitiser is a hot path
+# (every log line + every user-visible error toast) so the
+# regex-engine guarantees matter. Same crate the standard library's
+# fancy-format helpers reach for.
+regex = "1"
+# Pure-Rust D-Bus client. Only pulled on Linux targets via the
+# per-target dep table in `lfs_core/Cargo.toml`; consumed by the
+# fprintd shim under `platform::linux`. `tokio` feature wires zbus
+# onto the same async runtime the rest of lfs_core uses; default
+# features are off so we don't drag the `async-io` (smol-based)
+# alternative in alongside.
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+# UUID generation for the Rust-side import orchestrators that
+# mint Session / SshKeyEntry ids. v4 is the only feature we use.
+uuid = { version = "1", default-features = false, features = ["v4"] }
+# `StreamExt` on the zbus signal stream + serde derive paths the
+# fprintd shim's verify cycle uses. The `alloc` feature unlocks
+# `BoxStream` / `LocalBoxStream`, which the `storage::Provider` trait
+# returns from its streaming GET / PUT methods so the dispatcher can
+# hold `Arc<dyn Provider>` without naming each backend's concrete
+# stream type.
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+serde = { version = "1", default-features = false }
+# Zero-copy byte buffer used by the `storage::Provider` streaming
+# methods. Already in the dep tree via hyper / h2 / reqwest — we
+# re-declare so `lfs_core` can name `bytes::Bytes` directly without
+# depending on a transitive crate's resolution.
+bytes = "1"
+# Cross-platform dynamic library loader. Used by
+# `lfs_os_security::winbio` (Windows-only) to dynamic-load
+# `winbio.dll` so the crate still builds on Windows hosts
+# where `winbio.lib` is absent — the unit count probe degrades
+# to `0` rather than producing a link error.
+libloading = "0.8"
+# Unix syscall constants (`O_NOFOLLOW`, `O_EXCL`) used by the
+# secret-bearing read/write helpers in `lfs_core::path` to defend
+# against symlink-attack vectors at the persisted-format paths.
+# Pulled cfg-gated to Unix targets in each crate that needs the
+# constants.
+libc = { version = "0.2", default-features = false }
+# HTTP client for the auto-update fetch path
+# (`lfs_core::update_http`). `rustls-tls` keeps the dep tree
+# pure-Rust (no openssl system link) — same TLS stack russh
+# uses internally so no second crypto provider gets pulled in.
+# `stream` exposes byte-stream responses so the `Read` adapter
+# can drive a SHA-256 hasher + progress callback without
+# materialising the full body in memory. `default-features = false`
+# strips the default `native-tls` + cookies + gzip auto-decode
+# we do not need.
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+    "stream",
+    "http2",
+    "charset",
+] }
+# Multi-consumer, multi-producer async channel. Used by
+# `lfs_core::transfer::driver::WorkerPool` so every worker `recv`s
+# directly from the same channel without holding a `Mutex`-guarded
+# `tokio::mpsc::Receiver` across the await — the `Mutex<Receiver>`
+# pattern serialises workers regardless of `worker_count`. tokio's
+# own mpsc is single-consumer by design and there is no broadcast-
+# style fit (every worker would see every message, not one).
+async-channel = "2"
+# WHATWG URL parser. The WebDAV transport (`lfs_core::webdav`)
+# uses it to join a relative resource path onto the configured
+# base URL with correct percent-encoding of path segments —
+# server paths can contain spaces, Unicode, and reserved
+# characters that string concatenation would corrupt. Pure-Rust,
+# no system deps. Already pulled transitively by reqwest; the
+# re-declaration lets `lfs_core` name `url::Url` directly
+# instead of relying on resolution through a re-export.
+url = "2"
+# Pull-based XML reader used by the WebDAV PROPFIND multistatus
+# parser (`lfs_core::webdav::parser`). Streaming reader so the
+# 16 MiB body cap can short-circuit oversized responses without
+# materialising a DOM. Namespace-aware via the explicit
+# `read_event_into` loop — WebDAV servers vary on which
+# prefix they bind `DAV:` under (`<D:multistatus>`,
+# `<d:multistatus>`, default-namespaced `<multistatus>`).
+quick-xml = "0.36"
+# MD5 hashing for HTTP Digest authentication (RFC 7616). Only
+# consumer is `lfs_core::webdav::auth::digest` — MD5 is
+# cryptographically broken but Digest auth requires it. Never
+# used outside that one helper; all real crypto goes through
+# the SHA-2 / AES-GCM / Argon2 stack.
+md-5 = "0.10"
+# RFC 1123 date parser. WebDAV PROPFIND surfaces
+# `<getlastmodified>` in HTTP-date format ("Sun, 06 Nov 1994
+# 08:49:37 GMT"); `httpdate::parse_http_date` is the smallest
+# pure-Rust parser for it. Tiny crate (~200 LOC, zero deps),
+# preferred over pulling all of `chrono` for one date format.
+httpdate = "1"
+# Direct CTAP2 over USB HID for hardware-bound SSH keys (sk-ed25519,
+# sk-ecdsa-sha2-nistp256). Pure-Rust HID transport via `hidapi-rs`
+# (transitive); covers the verbs the `lfs_core::fido2` wrapper
+# uses — enumerate devices, request an assertion with PIN auth.
+# Gated behind the `fido2` Cargo feature on `lfs_core` so non-
+# desktop builds (iOS / Android pre-Phase-2) skip the dep entirely.
+ctap-hid-fido2 = { version = "3", default-features = false, features = ["ring"] }
+# Pure-Rust SSH agent protocol stack. Backs `lfs_core::ssh_agent` —
+# the in-process endpoint that exposes our hardware-bound keys to
+# external SSH-protocol-speaking clients (`git`, `ssh`, IDE plugins)
+# on the same host. We implement `ssh_agent_lib::agent::Session` and
+# hand it to `ssh_agent_lib::agent::listen` over a `UnixListener`
+# (Linux/macOS) or `NamedPipeListener` (Windows). cfg-gated to
+# desktop targets — mobile builds (Android/iOS) skip the dep
+# entirely because no SSH client on those platforms expects to
+# discover a host-local agent socket. Default feature set already
+# pulls the `agent` umbrella (futures + log + tokio + async-trait +
+# codec + service-binding) which is what the listener needs.
+ssh-agent-lib = "0.5.2"
+# `ssh-key` 0.6 (RustCrypto crate, not the russh fork). ssh-agent-lib
+# uses `KeyData` / `Signature` from this crate; we re-parse the
+# OpenSSH public-key bytes stored in `ssh_keys.public_key` through
+# `ssh_key::PublicKey::from_openssh` so the agent can publish the
+# `Identity { pubkey, comment }` shape the protocol wire-codes.
+# The russh fork (`internal-russh-forked-ssh-key`) is a separate
+# crate identity — Cargo resolves both side by side. cfg-gated to
+# desktop targets alongside `ssh-agent-lib`.
+ssh-key = { version = "0.6", default-features = false, features = ["alloc", "ecdsa", "ed25519", "rsa", "rand_core"] }
+# async-trait — ssh-agent-lib re-exports this and our `impl Session`
+# block needs the proc-macro attribute. Pinning at the workspace
+# level keeps it pinned to the same major ssh-agent-lib resolves.
+async-trait = "0.1"
+
+[profile.release]
+# Bundle-size-tightened profile. Flags:
+#   - codegen-units = 1   : whole-crate optimisation, smaller code.
+#   - lto = "fat"         : cross-crate inlining + dead-code elim.
+#   - opt-level = 3       : full optimisation.
+# Added:
+#   - strip = "symbols"   : drop debug + symbol tables; the
+#     stack traces FRB surfaces still carry our message strings,
+#     so log lines stay greppable. Symbols are gone from the .so
+#     so external profilers see only addresses; the dev workflow
+#     uses the `dev` profile for that anyway.
+#   - panic = "abort"     : drop the unwinding tables and the
+#     landing-pad code each `?` / panic site carries. Trade-off:
+#     a panic anywhere in our Rust code or a transitive dep
+#     (zbus / russh / etc.) ends the process instead of unwinding
+#     into Dart's catch handlers. We treat that as acceptable —
+#     all our `Result<_, Error>` boundaries are explicit, panics
+#     in our code only fire on programming errors (poisoned
+#     mutex, integer overflow in debug — won't fire in release),
+#     and the user's "what changed" between graceful failure and
+#     hard abort is the same thing they'd see if the OOM killer
+#     fired. Net: ~3-5 MiB shaved from liblfs_frb on release.
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = "symbols"
+panic = "abort"

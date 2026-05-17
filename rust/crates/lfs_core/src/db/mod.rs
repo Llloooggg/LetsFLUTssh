@@ -1,0 +1,2727 @@
+//! SQLite + SQLCipher database handle.
+//!
+//! Opens an encrypted sqlite file under `bundled-sqlcipher`
+//! (SQLCipher 4.x, AES-256-CBC + HMAC-SHA512). The page-cipher key
+//! the caller hands in is the 32-byte master DB key produced by
+//! Argon2id (Paranoid) / pulled out of the OS keychain (T1) /
+//! unsealed from the hardware vault (T2); SQLCipher itself does
+//! not see Argon2id, only the final 32 bytes.
+//!
+//! **PBKDF2 is skipped on the page-key derivation** because we
+//! pass the key through `PRAGMA key = "x'<64 hex chars>'"` — the
+//! raw-key literal shape SQLCipher recognises. The 256 000 default
+//! `cipher_kdf_iter` only applies to passphrase-format keys; with
+//! a raw 32-byte key the page key is used verbatim and the open
+//! cost collapses to single-digit milliseconds. HMAC-key derivation
+//! still runs `cipher_hmac_kdf_iter` (default 2 iterations) which
+//! is microseconds. If a future caller switches to a passphrase
+//! shape — DON'T — re-document this block.
+//!
+//! **Schema versioning.** [`bootstrap_schema`] writes
+//! `PRAGMA user_version = SCHEMA_VERSION` on every fresh open,
+//! and the next schema bump bumps that constant + adds a
+//! `match user_version { ... }` arm with the migration step. The
+//! v1 floor is the drift-bootstrapped baseline, recorded so a
+//! future `ALTER TABLE` migration has a real anchor to read off.
+//!
+//! Threading: every DB call hops to `tokio::task::spawn_blocking`
+//! inside the FRB adapter. This struct is Send + Sync (the inner
+//! Mutex serialises the rusqlite Connection).
+//!
+//! Initialisation: `Db::open(path, key)` — typical usage from the
+//! adapter is `app::instance().db().init(path, key)` once on
+//! startup. Repeat calls are no-ops.
+
+use std::path::Path;
+use std::sync::Mutex;
+
+use zeroize::Zeroizing;
+
+use crate::error::Error;
+
+/// Newtype wrap around `rusqlite::Connection` so the rusqlite ABI
+/// stays an implementation detail of the `lfs_core::db` module
+/// and never crosses the crate boundary. `lfs_frb`'s `run_db_*`
+/// helpers thread `&Connection` through their `FnOnce` bounds
+/// without seeing rusqlite types — a future swap of the storage
+/// backend (rusqlite-2, libsql, sqlx) needs to change only the
+/// inner field type and the DAO call sites inside `lfs_core::db`,
+/// not every consumer signature in `lfs_frb`.
+///
+/// DAO modules under `lfs_core::db::*` reach the underlying
+/// handle through [`Connection::inner`] / [`Connection::inner_mut`].
+/// Those accessors are `pub(crate)` — reachable from sibling DAO
+/// files but not from `lfs_frb` — so the only path that sees
+/// rusqlite directly is the layer that's tightly coupled to it
+/// by intent.
+pub struct Connection {
+    inner: rusqlite::Connection,
+}
+
+impl Connection {
+    /// Open a fresh handle to `path`. Internal — `Db::open` is the
+    /// production entry point + handles the SQLCipher PRAGMAs.
+    ///
+    /// Creates the parent directory if missing. `rusqlite::Connection::open`
+    /// surfaces a parent-missing failure as a generic `unable to open
+    /// database file` error; the mkdir step keeps the contract single-call
+    /// for every caller (production `db_init` / `db_init_from_secret` and
+    /// test fixtures alike).
+    pub(crate) fn open(path: &Path) -> Result<Self, rusqlite::Error> {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    rusqlite::Error::InvalidPath(parent.join(format!("create_dir_all: {e}")))
+                })?;
+            }
+        }
+        Ok(Self {
+            inner: rusqlite::Connection::open(path)?,
+        })
+    }
+
+    /// In-memory handle. Used by `Db::from_raw_for_tests` and a
+    /// handful of unit-test fixtures that need a throw-away
+    /// connection without touching disk or SQLCipher.
+    #[cfg(test)]
+    pub fn open_in_memory() -> Result<Self, rusqlite::Error> {
+        Ok(Self {
+            inner: rusqlite::Connection::open_in_memory()?,
+        })
+    }
+
+    /// In-crate accessor for DAO modules. Returns the underlying
+    /// rusqlite handle so DAOs can call `prepare` / `execute` /
+    /// `query_row` / etc. directly — the methods we'd otherwise
+    /// have to forward one-by-one. Visibility is `pub(crate)` so
+    /// the rusqlite surface stays inside `lfs_core::db`.
+    pub(crate) fn inner(&self) -> &rusqlite::Connection {
+        &self.inner
+    }
+
+    /// Mutable variant of [`inner`] — needed by DAOs that scope a
+    /// `transaction()` (rusqlite returns a `Transaction` that
+    /// borrows the connection mutably).
+    pub(crate) fn inner_mut(&mut self) -> &mut rusqlite::Connection {
+        &mut self.inner
+    }
+
+    /// Inherent alias for [`DbAccess::raw`]. In-crate test fixtures
+    /// hold a concrete `&Connection` and call `conn.raw()` without
+    /// importing the trait; the inherent method shadows the trait
+    /// (Rust prefers inherent over trait) and resolves the same
+    /// way. DAO bodies that take `&impl DbAccess` keep going
+    /// through the trait method — this is a duplication for
+    /// ergonomic reasons, not a behaviour difference.
+    #[cfg(test)]
+    pub(crate) fn raw(&self) -> &rusqlite::Connection {
+        &self.inner
+    }
+}
+
+/// Sealed trait abstracting "anything DAO can run a query against"
+/// — production code passes a `&Connection` (newtype) from
+/// [`Db::with_conn`]; internal in-crate code that scopes a
+/// `rusqlite::Transaction` passes the transaction directly. Both
+/// surface a `&rusqlite::Connection` the DAO can call methods on
+/// through the `pub(crate)` `raw()` accessor.
+///
+/// The trait is `pub` so DAO function signatures can name it
+/// (`fn list_all(c: &impl DbAccess)`); the `raw()` accessor is
+/// `pub(crate)` so the rusqlite type stays inside `lfs_core`.
+/// Downstream crates (`lfs_frb`) consume the trait by name only —
+/// they never call `raw()` themselves.
+pub trait DbAccess {
+    /// In-crate accessor to the underlying rusqlite handle.
+    /// `pub(crate)`-gated so the rusqlite ABI stays inside
+    /// `lfs_core::db`; FRB callers reach DAOs through `with_conn`
+    /// closures and never name this method.
+    #[doc(hidden)]
+    fn raw(&self) -> &rusqlite::Connection;
+}
+
+impl DbAccess for Connection {
+    fn raw(&self) -> &rusqlite::Connection {
+        &self.inner
+    }
+}
+
+impl<'conn> DbAccess for rusqlite::Transaction<'conn> {
+    fn raw(&self) -> &rusqlite::Connection {
+        // `Transaction` derefs to `&Connection`; the explicit
+        // deref pin keeps the resolution unambiguous if the trait
+        // gains another method that shadows a Transaction inherent.
+        std::ops::Deref::deref(self)
+    }
+}
+
+pub mod app_configs;
+pub mod folders;
+pub mod known_hosts;
+pub mod port_forwards;
+pub mod s3_sessions;
+pub mod sessions;
+pub mod sftp_bookmarks;
+pub mod snippets;
+pub mod ssh_key_certificates;
+pub mod ssh_keys;
+pub mod tags;
+pub mod webdav_sessions;
+
+/// Owned handle to the app sqlite database. Wraps a single
+/// rusqlite Connection inside a Mutex so concurrent callers
+/// serialise; sqlite itself is single-writer at the file level
+/// regardless.
+pub struct Db {
+    conn: Mutex<Connection>,
+}
+
+#[cfg(test)]
+impl Db {
+    /// Test-only constructor — wrap an existing rusqlite
+    /// connection (typically `Connection::open_in_memory`) so
+    /// downstream module tests (`sessions::Registry`, the future
+    /// import / export drivers) can drive the DAOs against an
+    /// ephemeral database without going through SQLCipher.
+    pub fn from_raw_for_tests(conn: Connection) -> Self {
+        Self {
+            conn: Mutex::new(conn),
+        }
+    }
+}
+
+impl Db {
+    /// Open `path` with the given 32-byte SQLCipher master key.
+    ///
+    /// Sets `PRAGMA key = "x'<hex>'"` to match the literal shape
+    /// `database_opener.dart::encryptionKeyToSqlLiteral` produces.
+    /// `PRAGMA cipher_compatibility = 4` selects SQLCipher 4.x
+    /// defaults (AES-256-CBC). After PRAGMAs we run
+    /// `SELECT count(*) FROM sqlite_master` as a smoke test — that
+    /// fails immediately on a wrong key (unreadable header) instead
+    /// of letting the first real query throw a confusing
+    /// "malformed database schema" later. **Note:** an existing
+    /// drift-MC ChaCha20 file at this path will NOT open with this
+    /// PRAGMA — see the module docstring for the migration plan.
+    pub fn open(path: &Path, key: &[u8]) -> Result<Self, Error> {
+        // Per-step timing — the Dart-side `RustDbInit` Stopwatch
+        // logs the whole `dbInit` FRB hop but cannot split SQLCipher
+        // PRAGMA / smoke probe / schema bootstrap. These spans
+        // surface the actual culprit when a slow open shows up in
+        // a support trace.
+        let t0 = std::time::Instant::now();
+        let conn = Connection::open(path).map_err(|e| Error::Db(format!("db open: {e}")))?;
+        crate::app_log_info!(
+            "DbOpen",
+            "db open phase=connection elapsed={}ms",
+            t0.elapsed().as_millis()
+        );
+        if !key.is_empty() {
+            // Hex-encode for the PRAGMA key literal. Match the Dart
+            // `encryptionKeyToSqlLiteral` exactly: lowercase hex, no
+            // separators, wrapped in `x'...'`.
+            let hex_key: Zeroizing<String> = Zeroizing::new(key.iter().fold(
+                String::with_capacity(key.len() * 2),
+                |mut acc, b| {
+                    use std::fmt::Write as _;
+                    let _ = write!(acc, "{b:02x}");
+                    acc
+                },
+            ));
+            let pragma = format!("PRAGMA key = \"x'{}'\"", &*hex_key);
+            conn.inner()
+                .execute_batch(&pragma)
+                .map_err(|e| Error::Db(format!("PRAGMA key: {e}")))?;
+            conn.inner()
+                .execute_batch("PRAGMA cipher_compatibility = 4")
+                .map_err(|e| Error::Db(format!("PRAGMA cipher_compatibility: {e}")))?;
+            crate::app_log_info!(
+                "DbOpen",
+                "db open phase=pragma_key elapsed={}ms",
+                t0.elapsed().as_millis()
+            );
+        }
+        // Smoke test the key by touching the schema table.
+        conn.inner()
+            .query_row("SELECT count(*) FROM sqlite_master", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(|e| Error::Db(format!("schema probe: {e}")))?;
+        crate::app_log_info!(
+            "DbOpen",
+            "db open phase=schema_probe elapsed={}ms",
+            t0.elapsed().as_millis()
+        );
+        // Enable foreign-key enforcement (drift sets this too) so
+        // ON DELETE CASCADE / SET NULL behave consistently across
+        // both engines while the migration is mid-flight.
+        conn.inner()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .map_err(|e| Error::Db(format!("PRAGMA foreign_keys: {e}")))?;
+        // WAL journal — concurrent readers don't block the writer,
+        // crash recovery is faster, and the wipe registry already
+        // lists `letsflutssh.db-wal` / `-shm` so the cleanup contract
+        // exists for it. NORMAL fsync is the WAL-paired default
+        // (DELETE-mode FULL is the historic default, the standard
+        // SQLite recommendation pairs WAL with NORMAL).
+        conn.inner()
+            .execute_batch("PRAGMA journal_mode = WAL")
+            .map_err(|e| Error::Db(format!("PRAGMA journal_mode = WAL: {e}")))?;
+        conn.inner()
+            .execute_batch("PRAGMA synchronous = NORMAL")
+            .map_err(|e| Error::Db(format!("PRAGMA synchronous = NORMAL: {e}")))?;
+        // WAL emit creates `-wal` + `-shm` sidecars; harden each to
+        // 0600 so a sidecar doesn't drift to inherited 0644 just
+        // because SQLite's first write happened under whichever
+        // umask the process inherited. Best-effort — sidecars may
+        // not exist yet at this point (created lazily on first
+        // write); the harden call swallows ENOENT.
+        Self::harden_db_files_best_effort(path);
+        bootstrap_schema(&conn)?;
+        crate::app_log_info!(
+            "DbOpen",
+            "db open phase=schema_bootstrap elapsed={}ms",
+            t0.elapsed().as_millis()
+        );
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
+    }
+
+    /// Harden the SQLCipher DB file + WAL / SHM sidecars to
+    /// owner-only on Unix (0600). Mirrors the perm contract every
+    /// other secret-bearing artefact under app-support enforces.
+    /// Sidecars may not exist at the time this runs (SQLite
+    /// creates them lazily on first write); the harden call
+    /// silently no-ops on the missing files.
+    fn harden_db_files_best_effort(db_path: &Path) {
+        let _ = crate::path::harden_file_perms(db_path);
+        for suffix in ["-wal", "-shm", "-journal"] {
+            if let Some(parent) = db_path.parent() {
+                if let Some(name) = db_path.file_name() {
+                    let mut sidecar = parent.to_path_buf();
+                    let mut sidecar_name = name.to_os_string();
+                    sidecar_name.push(suffix);
+                    sidecar.push(sidecar_name);
+                    if sidecar.exists() {
+                        let _ = crate::path::harden_file_perms(&sidecar);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Smoke-test query the FRB adapter calls during init to verify
+    /// the connection is alive. Returns the count of rows in
+    /// `sqlite_master` (i.e. table count + index count).
+    pub fn schema_object_count(&self) -> Result<i64, Error> {
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        g.inner()
+            .query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
+            .map_err(|e| Error::Db(format!("schema count: {e}")))
+    }
+
+    /// Re-encrypt every page under `new_key`. Mirrors drift-side
+    /// `rekeyDatabase` so the security-tier switcher can rekey
+    /// drift's `letsflutssh.db` and lfs_core's `letsflutssh.db` in
+    /// lock-step. Empty `new_key` is rejected — converting back to
+    /// plaintext is not a valid lfs_core flow (the schema docstring
+    /// describes a key-required handle; a plaintext degrade would
+    /// silently disable encryption next boot).
+    ///
+    /// On any underlying failure the SQL fragment is stripped from
+    /// the error message so the hex-encoded key cannot leak into
+    /// logs / crash reporters via the rusqlite default formatter.
+    pub fn rekey(&self, new_key: &[u8]) -> Result<(), Error> {
+        if new_key.is_empty() {
+            return Err(Error::Io("db rekey: empty key rejected".into()));
+        }
+        let hex_key: Zeroizing<String> = Zeroizing::new(new_key.iter().fold(
+            String::with_capacity(new_key.len() * 2),
+            |mut acc, b| {
+                use std::fmt::Write as _;
+                let _ = write!(acc, "{b:02x}");
+                acc
+            },
+        ));
+        let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        g.inner()
+            .execute_batch(&pragma)
+            .map_err(|_| Error::Io("db rekey: PRAGMA rekey failed".into()))?;
+        Ok(())
+    }
+
+    /// Lock the inner connection for a closure. Used by DAO
+    /// modules (`db::sessions`, `db::ssh_keys`, ...). The closure
+    /// runs on the caller's thread — adapters wrap this whole
+    /// function in `spawn_blocking` so the FRB tokio worker isn't
+    /// stuck behind disk I/O.
+    pub fn with_conn<R>(
+        &self,
+        f: impl FnOnce(&Connection) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        f(&g)
+    }
+
+    /// Same as [`with_conn`] but hands the closure a `&mut
+    /// Connection` so callers that need a `transaction()` (the
+    /// import apply driver in particular) can scope rollback /
+    /// commit cleanly. The connection still lives behind the
+    /// crate-level mutex; only one caller holds the mut ref at
+    /// a time.
+    pub fn with_conn_mut<R>(
+        &self,
+        f: impl FnOnce(&mut Connection) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let mut g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        f(&mut g)
+    }
+}
+
+/// Current on-disk schema revision. Stamped into the DB via
+/// `PRAGMA user_version` on bootstrap so a future schema bump can
+/// branch on the read-back value to decide whether to run a
+/// migration step. Bump this constant + extend
+/// [`bootstrap_schema`] with a `match` arm whenever the schema
+/// changes. v1 is "what drift used to ship before the rusqlite
+/// port", recorded explicitly so a future ALTER TABLE has a
+/// real anchor. v2 adds the `ssh_key_certificates` join table.
+/// v3 adds the `deleted_at` tombstone column + matching index to
+/// the five user-data tables (`sessions`, `ssh_keys`, `tags`,
+/// `snippets`, `sftp_bookmarks`) — see
+/// [`bootstrap_schema`] for the per-table ALTER step, and
+/// `ARCHITECTURE.md §11` for the soft-delete contract. v4 drops
+/// the inline `UNIQUE(name)` on `tags` and replaces it with a
+/// partial-unique index gated on `deleted_at IS NULL`. v5 adds
+/// the `kind` column on `sessions` plus the `webdav_session_details`
+/// join table so WebDAV sessions can sit alongside SSH ones with
+/// per-kind configuration owned by a side table. v6 adds the
+/// `s3_session_details` join table so S3-compatible sessions
+/// (AWS, MinIO, Wasabi, R2, Spaces, B2-S3, Scaleway) sit
+/// alongside SSH + WebDAV with per-kind configuration owned by
+/// the same side-table pattern. v7 adds the FIDO2 hardware-key
+/// columns on `ssh_keys` — `credential_id` (opaque CTAP2 blob),
+/// `application_string` (the SSH `application` field, typically
+/// `ssh:`), and `has_user_verification` (PIN-required flag captured
+/// at import) — so `sk-ssh-ed25519@openssh.com` and
+/// `sk-ecdsa-sha2-nistp256@openssh.com` keys persist alongside
+/// the plain-text PEM rows without needing a separate side table.
+/// v8 adds `agent_policy` on `ssh_keys` (TEXT, one of `'always'` /
+/// `'ask'` / `'deny'`, default `'ask'`) — the per-key dispatch
+/// policy the in-process ssh-agent endpoint (`lfs_core::ssh_agent`)
+/// consults before signing a request from an external SSH client.
+/// Default `'ask'` keeps the security-first posture: every
+/// SIGN_REQUEST routes through a confirmation dialog until the
+/// user explicitly promotes the row to `'always'` or `'deny'`.
+/// v9 introduces the explicit `backend` discriminator on `ssh_keys`
+/// alongside the PKCS#11 column block (`pkcs11_uri`,
+/// `pkcs11_module_path`, `pkcs11_token_serial`, `pkcs11_object_id`,
+/// `pkcs11_object_label`) so smart-card / hardware-token keys
+/// (JaCarta / Рутокен / eToken / YubiKey PIV / Estonian-Finnish-German
+/// eID / Thales Luna / AWS CloudHSM) persist alongside software +
+/// FIDO2 rows. The migration arm UPDATEs every pre-existing
+/// `credential_id IS NOT NULL` row to `backend = 'fido2'` so the
+/// dispatcher's discriminator switch never falls through to a
+/// software-row arm for a hardware-bound key. v10 adds
+/// `enclave_tag` (BLOB NULL) on `ssh_keys` for Apple Secure Enclave
+/// rows — carries the `kSecAttrApplicationTag` bytes the
+/// `SecItemCopyMatching` lookup needs to resolve the on-chip
+/// private key at sign time. Only populated for `backend = 'enclave'`
+/// rows; the column stays NULL for every other backend.
+/// v11 adds `hello_credential_name` (TEXT NULL) on `ssh_keys` for
+/// Windows Hello (NCrypt / Microsoft Platform Crypto Provider) rows —
+/// carries the CNG persistent-key name the `NCryptOpenKey` lookup
+/// needs to re-bind the on-TPM private key at sign time. Only
+/// populated for `backend = 'hello'` rows; NULL for every other
+/// backend.
+/// v12 adds the TPM 2.0 SSH column block on `ssh_keys`:
+/// `tpm_blob` (BLOB NULL — TSS2 PRIVATE KEY ASN.1 bytes per the
+/// TCG draft `draft-bottomley-tpm2-keys-asn1`; stored for the Linux
+/// on-disk-wrapped-blob storage mode and left NULL when the user
+/// opts into a persistent NV handle), `tpm_handle` (INTEGER NULL —
+/// persistent NV handle in the `0x81010001..0x8101FFFF` range when
+/// the key was loaded into TPM RAM, NULL when the key is blob-only),
+/// `tpm_provider` (TEXT NULL — `'tss-esapi'` for the Linux ESAPI
+/// driver / `'cng-pcp'` for the Windows PCP silent variant; lets
+/// the connect path route to the matching backend without re-probing
+/// the host), `tpm_pin_required` (INTEGER NOT NULL DEFAULT 0 —
+/// `1` when the key was minted with a `TPM2B_AUTH` value and the
+/// user types per sign), `cng_key_name` (TEXT NULL — CNG
+/// persistent-key name for the Windows silent TPM variant; the
+/// name is distinct from the Hello-gated `hello_credential_name`
+/// path's `letsflutssh-ssh-…` prefix and uses the `letsflutssh-tpm-…`
+/// prefix instead so `NCryptEnumKeys` can route by prefix). Every
+/// new column is NULL/0 on existing rows and populated only when
+/// `backend = 'tpm'`.
+/// v13 adds the Android Hardware Keystore / StrongBox column block
+/// on `ssh_keys`: `keystore_alias` (TEXT NULL — AndroidKeyStore
+/// alias the `KeyStore.getEntry(alias, null)` lookup re-binds to on
+/// every sign; minted under the `lfs-keystore-` prefix to stay
+/// separate from the wrapping-key namespace the secure-storage
+/// path already owns), `keystore_strongbox` (INTEGER NOT NULL
+/// DEFAULT 0 — `1` when `setIsStrongBoxBacked(true)` was accepted
+/// by the device, `0` for TEE-only rows), `keystore_user_auth_required`
+/// (INTEGER NOT NULL DEFAULT 0 — `1` when the row was minted with
+/// `setUserAuthenticationRequired(true)` so every sign must hop
+/// through `BiometricPrompt.CryptoObject`; `0` reserved for a
+/// future no-auth variant), `keystore_platform` (TEXT NULL —
+/// capture-time `Build.MODEL` + Android version string, surfaced
+/// read-only in the badge popover). Every new column is NULL/0 on
+/// existing rows and populated only when `backend = 'keystore'`.
+/// v15 lands tombstones on the three v5/v6/v7-era child tables that
+/// missed them at introduction: `port_forward_rules`,
+/// `webdav_session_details`, `s3_session_details`. Each gets a
+/// nullable `deleted_at INTEGER` column matching the existing
+/// `TOMBSTONE_TABLES` shape, plus a `updated_at INTEGER NOT NULL
+/// DEFAULT 0` column so the sync layer's LWW gate has a strictly-
+/// newer stamp to compare against. Existing rows backfill to
+/// `updated_at = created_at` for `port_forward_rules` (which already
+/// carries `created_at`) and `updated_at = 0` for the detail tables
+/// (which did not). The composer / apply paths emit tombstones in
+/// `ApplyMode::Sync` only; archive imports filter them upstream.
+pub const SCHEMA_VERSION: i32 = 17;
+
+/// On-disk file name of the encrypted sqlite database under the
+/// app support directory. Single source of truth — every Rust-side
+/// caller (orchestrator cascade, wipe path, recovery sweep) derives
+/// the full path from `app::support_dir().join(DB_FILE_NAME)`.
+/// Mirrors the Dart `_rustDbFileName` constant.
+pub const DB_FILE_NAME: &str = "letsflutssh.db";
+
+/// Tables that gained the `deleted_at INTEGER NULL` tombstone column
+/// on the v2 → v3 hop. Iterated by [`bootstrap_schema`] under the
+/// `(1..3).contains(&current)` gate so v1 / v2 databases pick up the
+/// column without a fresh-install side effect.
+const V3_TOMBSTONE_TABLES: &[&str] =
+    &["sessions", "ssh_keys", "tags", "snippets", "sftp_bookmarks"];
+
+/// Tables that gained the `deleted_at` + `updated_at` columns on the
+/// v14 → v15 hop. The three v5/v6/v7-era child tables
+/// (`port_forward_rules`, `webdav_session_details`,
+/// `s3_session_details`) missed the tombstone column at introduction
+/// because the schema author treated them as per-device config. Cross-
+/// device sync replay needs the same soft-delete contract the v3
+/// tables already carry; v15 backfills it. The production migration
+/// arm (`add_v15_tombstone_columns`) names each table inline so this
+/// list is test-only — it pins the set the rewind fixture must
+/// reset to reproduce a v14 install.
+#[cfg(test)]
+const V15_TOMBSTONE_TABLES: &[&str] = &[
+    "port_forward_rules",
+    "webdav_session_details",
+    "s3_session_details",
+];
+
+/// Every table that carries a `deleted_at INTEGER NULL` tombstone
+/// column once the schema is at HEAD. The per-DAO tombstone-filter
+/// contract — every SELECT filters `WHERE deleted_at IS NULL`,
+/// every `delete*` flips the column to a unix-millis stamp instead
+/// of issuing a `DELETE FROM` — applies to every entry. `known_hosts`
+/// is **not** in this list: TOFU state is per-device and the sync
+/// layer (WebDAV) must not leak host trust across devices — physical
+/// removal stays the model there.
+const TOMBSTONE_TABLES: &[&str] = &[
+    "sessions",
+    "ssh_keys",
+    "tags",
+    "snippets",
+    "sftp_bookmarks",
+    "port_forward_rules",
+    "webdav_session_details",
+    "s3_session_details",
+];
+
+/// Create every table the DAOs expect, idempotently, and stamp
+/// `PRAGMA user_version = SCHEMA_VERSION` when the on-disk value
+/// is strictly below the current version. The `<` test prevents
+/// the audit-flagged downgrade case: a user opening a v3 DB with a
+/// v2 build leaves `user_version` at 3 and the future v3 build
+/// finds it unchanged.
+///
+/// Forward-stamping is safe for additive shapes (`CREATE TABLE IF
+/// NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`); the v1/v2 → v3 step
+/// also issues `ALTER TABLE ... ADD COLUMN deleted_at` against the
+/// five [`TOMBSTONE_TABLES`]. SQLite errors with "duplicate column
+/// name" when the column already exists, so the ALTER block is
+/// gated by `(1..3).contains(&current)` — fires only when the DB
+/// was bootstrapped under v1/v2 (`current >= 1`) but predates the
+/// column (`current < 3`). A fresh install (`current == 0`) takes
+/// the column via the `CREATE TABLE IF NOT EXISTS` block above and
+/// skips the ALTER. The tombstone indexes are created
+/// unconditionally after the upgrade arm — see
+/// [`create_tombstone_indexes`].
+pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(SCHEMA_SQL)
+        .map_err(|e| Error::Db(format!("bootstrap schema: {e}")))?;
+    let mut current: i32 = 0;
+    conn.inner()
+        .pragma_query(None, "user_version", |row| {
+            current = row.get::<_, i32>(0)?;
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("bootstrap schema: read user_version: {e}")))?;
+    if current < SCHEMA_VERSION {
+        // v1/v2 → v3: backfill the `deleted_at` column on every
+        // pre-existing tombstoned table. A `current >= 1` floor
+        // confirms the database was already bootstrapped under
+        // an earlier schema (the tables exist but lack the
+        // column); `current == 0` means the SCHEMA_SQL block
+        // above just minted a fresh database where every CREATE
+        // TABLE already carries `deleted_at`, so the ALTER would
+        // surface SQLite's "duplicate column name" error.
+        if (1..3).contains(&current) {
+            for table in V3_TOMBSTONE_TABLES {
+                add_deleted_at_column(conn, table)?;
+            }
+        }
+        // v1/v2/v3 → v4: rebuild `tags` to drop the inline
+        // `UNIQUE` on `name`. A tombstoned tag holds the name
+        // until purge, which blocked recreating a same-named tag
+        // and would have broken the sync-merge replay path.
+        // SQLite cannot DROP a column-level UNIQUE without a
+        // table rebuild. Fresh installs (`current == 0`) get the
+        // new shape from `SCHEMA_SQL` directly and skip this arm.
+        if (1..4).contains(&current) {
+            rebuild_tags_without_inline_unique(conn)?;
+        }
+        // v1..v4 → v5: stamp `kind` on every existing session row.
+        // `ALTER TABLE` is additive — column lands with the
+        // schema default `'ssh'` for every backfilled row, which
+        // matches the wire value for the only kind that existed
+        // before this hop. `webdav_session_details` lands via
+        // `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL` and needs
+        // no per-step ALTER. Fresh installs (`current == 0`) get
+        // the column directly from `SCHEMA_SQL` and skip this arm.
+        if (1..5).contains(&current) {
+            add_sessions_kind_column(conn)?;
+        }
+        // v1..v6 → v7: stamp the FIDO2 hardware-key columns on
+        // `ssh_keys`. `ALTER TABLE … ADD COLUMN` lands the column
+        // with its schema-declared default; existing software-key
+        // rows backfill to NULL / NULL / 0, matching the wire
+        // contract a fresh install gets from `SCHEMA_SQL`.
+        if (1..7).contains(&current) {
+            add_ssh_keys_fido2_columns(conn)?;
+        }
+        // v1..v7 → v8: stamp the `agent_policy` column on `ssh_keys`.
+        // Existing rows backfill to `'ask'` so the ssh-agent endpoint
+        // surfaces a confirmation dialog on every sign request until
+        // the operator explicitly promotes a key to `'always'` /
+        // `'deny'`. Fresh installs (`current == 0`) take the column
+        // from `SCHEMA_SQL` and skip this arm.
+        if (1..8).contains(&current) {
+            add_ssh_keys_agent_policy_column(conn)?;
+        }
+        // v1..v8 -> v9: stamp the backend discriminator + the PKCS#11
+        // column block on `ssh_keys`. Existing software keys backfill
+        // to `backend = 'software'` via the schema default; the post-
+        // ALTER UPDATE flips every pre-existing FIDO2 row (one with
+        // a non-NULL `credential_id`) to `backend = 'fido2'` so the
+        // agent / connect dispatcher's typed discriminator switch
+        // never falls through to a software-row arm. Fresh installs
+        // (`current == 0`) get the columns directly from `SCHEMA_SQL`
+        // and skip this arm.
+        if (1..9).contains(&current) {
+            add_ssh_keys_pkcs11_columns(conn)?;
+        }
+        // v1..v9 -> v10: stamp the Apple Secure Enclave application-tag
+        // column on `ssh_keys`. Existing rows backfill to NULL —
+        // the column carries the opaque bytes the
+        // `kSecAttrApplicationTag` lookup matches on, and only
+        // `backend = 'enclave'` rows ever set it. Fresh installs
+        // (`current == 0`) get the column from `SCHEMA_SQL` and
+        // skip this arm.
+        if (1..10).contains(&current) {
+            add_ssh_keys_enclave_tag_column(conn)?;
+        }
+        // v1..v10 -> v11: stamp the Windows Hello (NCrypt) CNG
+        // persistent-key-name column on `ssh_keys`. Existing rows
+        // backfill to NULL — the column carries the UTF-8 key name
+        // the `NCryptOpenKey` lookup re-binds to on every sign, and
+        // only `backend = 'hello'` rows ever set it. Fresh installs
+        // (`current == 0`) get the column from `SCHEMA_SQL` and skip
+        // this arm.
+        if (1..11).contains(&current) {
+            add_ssh_keys_hello_credential_name_column(conn)?;
+        }
+        // v1..v11 -> v12: stamp the TPM 2.0 SSH column block on
+        // `ssh_keys`. Existing rows backfill to NULL / NULL / NULL /
+        // 0 / NULL — only `backend = 'tpm'` rows ever set them.
+        // Fresh installs (`current == 0`) get the columns from
+        // `SCHEMA_SQL` and skip this arm.
+        if (1..12).contains(&current) {
+            add_ssh_keys_tpm_columns(conn)?;
+        }
+        // v1..v12 -> v13: stamp the Android Hardware Keystore /
+        // StrongBox column block on `ssh_keys`. Existing rows
+        // backfill to NULL / 0 / 0 / NULL — only
+        // `backend = 'keystore'` rows ever set them. Fresh installs
+        // (`current == 0`) get the columns from `SCHEMA_SQL` and
+        // skip this arm.
+        if (1..13).contains(&current) {
+            add_ssh_keys_keystore_columns(conn)?;
+        }
+        // v13 -> v14: stamp `imported_as_stub` on `ssh_keys`. Existing
+        // rows backfill to `0` (default); the import-apply driver flips
+        // the column to `1` for device-bound backends (`enclave` /
+        // `hello` / `tpm` / `keystore`) that travel through `.lfs`
+        // archives or WebDAV sync as public-half-only rows. The key
+        // manager renders such rows desaturated with a "Re-generate"
+        // action; the first regenerate or remove clears the column.
+        if (1..14).contains(&current) {
+            add_ssh_keys_imported_as_stub_column(conn)?;
+        }
+        // v14 -> v15: stamp `deleted_at` + `updated_at` on the three
+        // v5/v6/v7-era child tables that missed tombstones at
+        // introduction. Cross-device sync replay (peer ships a row
+        // the source device deleted) needs the soft-delete contract
+        // the older tables already carry. `port_forward_rules`
+        // already had `created_at`, so its `updated_at` backfills to
+        // the same stamp; the two detail tables carried no
+        // timestamps at all, so both columns land fresh and backfill
+        // to `0`. Fresh installs (`current == 0`) get the columns
+        // from `SCHEMA_SQL` and skip this arm.
+        if (1..15).contains(&current) {
+            add_v15_tombstone_columns(conn)?;
+        }
+        // v15 -> v16: split SSH-specific columns out of `sessions`
+        // into the new `ssh_session_details` join table. The
+        // legacy table carries `host` / `port` / `user` /
+        // `auth_type` / `password` / `key_path` / `key_data` /
+        // `key_id` / `passphrase` / `via_*` columns that only
+        // ever applied to SSH; WebDAV / S3 rows wrote empty
+        // strings into them. Backfill the join row from the
+        // legacy columns for every SSH session, then rebuild
+        // `sessions` in the slim shape that `SCHEMA_SQL` now
+        // declares for fresh installs. Fresh installs
+        // (`current == 0`) get the slim shape directly from
+        // `SCHEMA_SQL` and skip this arm.
+        if (1..16).contains(&current) {
+            split_ssh_session_details(conn)?;
+        }
+        // v16 -> v17: stamp `password` on `webdav_session_details`
+        // and `secret_access_key` on `s3_session_details` so the
+        // non-SSH credentials persist across process restart. See
+        // [`add_v17_non_ssh_secret_columns`] for the full rationale.
+        // Fresh installs (`current == 0`) get the columns directly
+        // from `SCHEMA_SQL` and skip this arm.
+        if (1..17).contains(&current) {
+            add_v17_non_ssh_secret_columns(conn)?;
+        }
+        conn.inner()
+            .pragma_update(None, "user_version", SCHEMA_VERSION)
+            .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
+    }
+    // Tombstone indexes — issued after the column is guaranteed
+    // to exist (either via `CREATE TABLE IF NOT EXISTS` on a
+    // fresh install or the ALTER block above on an upgrade hop).
+    // `CREATE INDEX IF NOT EXISTS` is idempotent so a re-bootstrap
+    // is a no-op. Placement after the upgrade arm keeps the
+    // schema/index ordering invariant straightforward: column
+    // always lands first.
+    create_tombstone_indexes(conn)?;
+    // Partial unique on `tags(name) WHERE deleted_at IS NULL` so
+    // a tombstoned tag does not block a same-named recreate. Also
+    // idempotent; runs unconditionally on every bootstrap so a
+    // fresh install picks it up alongside the rebuilt-on-upgrade
+    // case.
+    create_partial_unique_indexes(conn)?;
+    Ok(())
+}
+
+/// Rebuild the `tags` table to drop the inline `UNIQUE(name)`
+/// constraint. The CREATE TABLE statement at module scope already
+/// emits the new shape; this helper applies the same change to
+/// an existing v1/v2/v3 database. Follows the SQLite-documented
+/// "12-step table-rebuild" recipe: disable foreign keys, BEGIN,
+/// CREATE new, copy, DROP old, RENAME, foreign-key check, COMMIT,
+/// re-enable foreign keys. Run inside `bootstrap_schema` under
+/// the version gate, so this is a one-time hop per install.
+fn rebuild_tags_without_inline_unique(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            r#"
+            PRAGMA foreign_keys = OFF;
+            BEGIN TRANSACTION;
+            CREATE TABLE tags_new (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                color TEXT,
+                created_at INTEGER NOT NULL,
+                deleted_at INTEGER NULL
+            );
+            INSERT INTO tags_new (id, name, color, created_at, deleted_at)
+                SELECT id, name, color, created_at, deleted_at FROM tags;
+            DROP TABLE tags;
+            ALTER TABLE tags_new RENAME TO tags;
+            COMMIT;
+            PRAGMA foreign_keys = ON;
+            "#,
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: rebuild tags: {e}")))?;
+    Ok(())
+}
+
+/// Partial-unique indexes that need to land after `bootstrap_schema`
+/// stabilises the column shape. Currently one entry: `tags.name`
+/// constrained to live (non-tombstoned) rows so deleting and
+/// recreating a same-named tag works without touching the purge
+/// queue.
+fn create_partial_unique_indexes(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_live \
+             ON tags(name) WHERE deleted_at IS NULL",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: index tags.name (live): {e}")))?;
+    Ok(())
+}
+
+/// Create the partial-style `deleted_at` index on each
+/// soft-deletable table. Idempotent — runs on every bootstrap.
+fn create_tombstone_indexes(conn: &Connection) -> Result<(), Error> {
+    for table in TOMBSTONE_TABLES {
+        let sql =
+            format!("CREATE INDEX IF NOT EXISTS idx_{table}_deleted_at ON {table}(deleted_at)");
+        conn.inner()
+            .execute_batch(&sql)
+            .map_err(|e| Error::Db(format!("bootstrap schema: index {table}.deleted_at: {e}")))?;
+    }
+    Ok(())
+}
+
+/// Issue `ALTER TABLE <table> ADD COLUMN deleted_at INTEGER NULL`.
+/// Called only on the v1/v2 → v3 upgrade hop (`bootstrap_schema`
+/// gates it behind `(1..3).contains(&current)`); SQLite errors on
+/// duplicate column names, so the structural shape — gate plus
+/// one-shot — is the contract that keeps this safe to call without
+/// a pre-existence probe.
+fn add_deleted_at_column(conn: &Connection, table: &str) -> Result<(), Error> {
+    let sql = format!("ALTER TABLE {table} ADD COLUMN deleted_at INTEGER NULL");
+    conn.inner()
+        .execute_batch(&sql)
+        .map_err(|e| Error::Db(format!("bootstrap schema: add {table}.deleted_at: {e}")))
+}
+
+/// Issue `ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'ssh'`.
+/// Called only on the v1..v4 → v5 upgrade hop. Same shape contract
+/// as [`add_deleted_at_column`] — duplicate column is an error in
+/// SQLite, so the gate plus one-shot keeps the bootstrap idempotent
+/// across re-runs.
+fn add_sessions_kind_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'ssh'")
+        .map_err(|e| Error::Db(format!("bootstrap schema: add sessions.kind: {e}")))
+}
+
+/// Issue the three `ALTER TABLE ssh_keys ADD COLUMN ...` statements
+/// the v6 → v7 hop needs for FIDO2 hardware-bound SSH keys.
+/// Same shape contract as [`add_deleted_at_column`] — duplicate-column
+/// errors are guarded by the version gate in `bootstrap_schema`,
+/// re-running the bootstrap is a no-op after the stamp lands at v7.
+fn add_ssh_keys_fido2_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN credential_id BLOB NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN application_string TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN has_user_verification INTEGER NOT NULL DEFAULT 0;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys fido2 cols: {e}")))
+}
+
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN agent_policy TEXT NOT
+/// NULL DEFAULT 'ask'` on the v1..v7 -> v8 hop. Same shape contract
+/// as the older ALTER helpers above: a one-shot batch gated by
+/// the version range inside `bootstrap_schema`, with SQLite's
+/// duplicate-column-name error reserved for the re-run case which
+/// the gate prevents. Fresh installs (`current == 0`) get the
+/// column directly from `SCHEMA_SQL`.
+fn add_ssh_keys_agent_policy_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE ssh_keys ADD COLUMN agent_policy TEXT NOT NULL DEFAULT 'ask'")
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys.agent_policy: {e}")))
+}
+
+/// Issue the v8 -> v9 column block: the `backend` discriminator
+/// (TEXT NOT NULL DEFAULT 'software'; one of `'software'`, `'fido2'`,
+/// `'pkcs11'`, `'tpm'`, `'enclave'`, `'hello'`, `'keystore'`) plus
+/// the PKCS#11 ingredient columns (`pkcs11_uri`, `pkcs11_module_path`,
+/// `pkcs11_token_serial`, `pkcs11_object_id`, `pkcs11_object_label`).
+/// Backfills every pre-existing FIDO2 row (one with
+/// `credential_id IS NOT NULL`) to `backend = 'fido2'` so the
+/// agent dispatcher's match is exhaustive without falling through
+/// to a software-row arm for a hardware-bound key.
+fn add_ssh_keys_pkcs11_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN backend TEXT NOT NULL DEFAULT 'software'; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_uri TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_module_path TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_token_serial TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_object_id BLOB NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN pkcs11_object_label TEXT NULL; \
+             UPDATE ssh_keys SET backend = 'fido2' WHERE credential_id IS NOT NULL;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys pkcs11 cols: {e}")))
+}
+
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL` on
+/// the v9 -> v10 hop. Same shape contract as the older ALTER helpers:
+/// a one-shot batch gated by the version range inside
+/// `bootstrap_schema`, with SQLite's duplicate-column-name error
+/// reserved for the re-run case which the gate prevents. Fresh
+/// installs (`current == 0`) get the column from `SCHEMA_SQL`.
+///
+/// `enclave_tag` is the opaque `kSecAttrApplicationTag` bytes the
+/// `SecItemCopyMatching` lookup matches on; only populated for
+/// `backend = 'enclave'` rows. Stored as BLOB rather than TEXT
+/// because the tag is an arbitrary byte string by Apple's API
+/// contract (we generate it as a UUID-suffixed UTF-8 prefix today,
+/// but the column shape stays permissive).
+fn add_ssh_keys_enclave_tag_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL")
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys.enclave_tag: {e}")))
+}
+
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN hello_credential_name TEXT
+/// NULL` on the v10 -> v11 hop. Same shape contract as the older
+/// ALTER helpers: a one-shot batch gated by the version range inside
+/// `bootstrap_schema`, with SQLite's duplicate-column-name error
+/// reserved for the re-run case which the gate prevents. Fresh
+/// installs (`current == 0`) get the column from `SCHEMA_SQL`.
+///
+/// `hello_credential_name` is the CNG persistent-key name the
+/// `NCryptOpenKey(provider, &hKey, name, …)` lookup re-binds to on
+/// every Hello-gated sign. Stored as TEXT because the name is the
+/// UTF-8 string we mint at create time (`letsflutssh-ssh-<userhash>-<uuid>`);
+/// the column stays NULL for every non-`hello` backend.
+fn add_ssh_keys_hello_credential_name_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE ssh_keys ADD COLUMN hello_credential_name TEXT NULL")
+        .map_err(|e| {
+            Error::Db(format!(
+                "bootstrap schema: add ssh_keys.hello_credential_name: {e}"
+            ))
+        })
+}
+
+/// Issue the v11 -> v12 column block: the five TPM 2.0 SSH ingredient
+/// columns on `ssh_keys`. Same shape contract as the older ALTER
+/// helpers: a one-shot batch gated by the version range inside
+/// `bootstrap_schema`, with SQLite's duplicate-column-name error
+/// reserved for the re-run case which the gate prevents. Fresh
+/// installs (`current == 0`) get the columns from `SCHEMA_SQL`.
+///
+/// `tpm_blob` carries the TSS2 PRIVATE KEY ASN.1 bytes (TCG draft
+/// `draft-bottomley-tpm2-keys-asn1`) for the Linux blob-storage
+/// path; `tpm_handle` carries the persistent NV handle when the
+/// user opts into the TPM-memory-slot storage policy; `tpm_provider`
+/// is one of `'tss-esapi'` / `'cng-pcp'` so the connect dispatcher
+/// can pick the right backend without re-probing; `tpm_pin_required`
+/// gates the per-sign PIN prompt; `cng_key_name` is the Windows
+/// PCP-silent variant's CNG name (separate from the Hello-gated
+/// `hello_credential_name` column because the two surfaces use
+/// different prefixes and the discriminator must be unambiguous
+/// when `NCryptEnumKeys` walks the provider).
+fn add_ssh_keys_tpm_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN tpm_blob BLOB NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN tpm_handle INTEGER NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN tpm_provider TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN tpm_pin_required INTEGER NOT NULL DEFAULT 0; \
+             ALTER TABLE ssh_keys ADD COLUMN cng_key_name TEXT NULL;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys tpm cols: {e}")))
+}
+
+/// Issue the v12 -> v13 column block: the four Android Hardware
+/// Keystore / StrongBox ingredient columns on `ssh_keys`. Same shape
+/// contract as the older ALTER helpers: a one-shot batch gated by
+/// the version range inside `bootstrap_schema`, with SQLite's
+/// duplicate-column-name error reserved for the re-run case which
+/// the gate prevents. Fresh installs (`current == 0`) get the
+/// columns from `SCHEMA_SQL`.
+///
+/// `keystore_alias` carries the AndroidKeyStore alias the
+/// `KeyStore.getEntry(alias, null)` lookup re-binds to on every
+/// sign; `keystore_strongbox` flips to `1` when the row landed in
+/// StrongBox (so the badge can render "StrongBox HSM" vs "TEE");
+/// `keystore_user_auth_required` flips to `1` for keys minted with
+/// `setUserAuthenticationRequired(true)` (every Keystore row today);
+/// `keystore_platform` captures `Build.MODEL` + Android version so
+/// the badge popover can identify the source device.
+fn add_ssh_keys_keystore_columns(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN keystore_alias TEXT NULL; \
+             ALTER TABLE ssh_keys ADD COLUMN keystore_strongbox INTEGER NOT NULL DEFAULT 0; \
+             ALTER TABLE ssh_keys ADD COLUMN keystore_user_auth_required INTEGER NOT NULL DEFAULT 0; \
+             ALTER TABLE ssh_keys ADD COLUMN keystore_platform TEXT NULL;",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: add ssh_keys keystore cols: {e}")))
+}
+
+/// Issue `ALTER TABLE ssh_keys ADD COLUMN imported_as_stub INTEGER
+/// NOT NULL DEFAULT 0` on the v13 -> v14 hop. Same shape contract as
+/// the older ALTER helpers: a one-shot batch gated by the version
+/// range inside `bootstrap_schema`. Existing rows backfill to `0`
+/// from the column default; the import-apply driver sets the column
+/// to `1` when a device-bound backend (`enclave` / `hello` / `tpm` /
+/// `keystore`) lands as a public-half-only stub row from a `.lfs`
+/// archive or a WebDAV sync pull. The first local re-generate or
+/// remove against such a row clears the column.
+fn add_ssh_keys_imported_as_stub_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "ALTER TABLE ssh_keys ADD COLUMN imported_as_stub INTEGER NOT NULL DEFAULT 0",
+        )
+        .map_err(|e| {
+            Error::Db(format!(
+                "bootstrap schema: add ssh_keys.imported_as_stub: {e}"
+            ))
+        })
+}
+
+/// Issue the v14 -> v15 column adds for the three child tables that
+/// missed tombstones at introduction. Each table picks up the
+/// `deleted_at INTEGER NULL` column shared with the v3 tombstone
+/// shape plus an `updated_at INTEGER NOT NULL DEFAULT 0` column for
+/// the sync LWW gate. `port_forward_rules` backfills its
+/// `updated_at` from `created_at` so live rows land with a coherent
+/// stamp; the two detail tables had no timestamp columns at all so
+/// existing rows accept the `0` default.
+///
+/// Each ADD COLUMN is gated by a `pragma_table_info` probe: the
+/// `(1..15).contains(&current)` arm fires the function regardless of
+/// whether `SCHEMA_SQL`'s `CREATE TABLE IF NOT EXISTS` already
+/// minted the column (which happens when the table was created on
+/// the same bootstrap pass — every v15-era child table belongs to
+/// `SCHEMA_SQL`, so the path is exercised on both real v14 -> v15
+/// hops and freshly-bootstrapped test fixtures rewound to an older
+/// `user_version`).
+fn add_v15_tombstone_columns(conn: &Connection) -> Result<(), Error> {
+    // `port_forward_rules` already has `created_at`. Add the matching
+    // `updated_at` first when missing, backfill from `created_at`,
+    // then add the tombstone column when missing.
+    if !column_exists(conn, "port_forward_rules", "updated_at")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE port_forward_rules \
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0; \
+                 UPDATE port_forward_rules SET updated_at = created_at \
+                    WHERE updated_at = 0;",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add port_forward_rules.updated_at: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "port_forward_rules", "deleted_at")? {
+        conn.inner()
+            .execute_batch("ALTER TABLE port_forward_rules ADD COLUMN deleted_at INTEGER NULL;")
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add port_forward_rules.deleted_at: {e}"
+                ))
+            })?;
+    }
+    // `webdav_session_details` carries no timestamps today. Both
+    // columns land fresh; existing rows backfill from defaults.
+    if !column_exists(conn, "webdav_session_details", "updated_at")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE webdav_session_details \
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add webdav_session_details.updated_at: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "webdav_session_details", "deleted_at")? {
+        conn.inner()
+            .execute_batch("ALTER TABLE webdav_session_details ADD COLUMN deleted_at INTEGER NULL;")
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add webdav_session_details.deleted_at: {e}"
+                ))
+            })?;
+    }
+    // `s3_session_details` same shape as the WebDAV detail table.
+    if !column_exists(conn, "s3_session_details", "updated_at")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE s3_session_details \
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add s3_session_details.updated_at: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "s3_session_details", "deleted_at")? {
+        conn.inner()
+            .execute_batch("ALTER TABLE s3_session_details ADD COLUMN deleted_at INTEGER NULL;")
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add s3_session_details.deleted_at: {e}"
+                ))
+            })?;
+    }
+    Ok(())
+}
+
+/// v16 -> v17: stamp persistent secret columns on the non-SSH
+/// detail tables. The WebDAV / S3 save paths used to stage the
+/// password / secret-access-key into the in-memory `SecretStore`
+/// on save and read it from there on connect. Process restart
+/// wiped the store, so the user had to re-type the credential
+/// every launch even though every other field on the row had
+/// survived. The fix is to mirror the SSH shape: a plaintext
+/// column on the join table (encrypted at rest by SQLCipher), with
+/// a `set_*` setter for the save path and a
+/// `stage_secret_into_store` reader the connect path calls before
+/// touching SecretStore. Backfill is empty-string — pre-existing
+/// rows have no stored secret and will prompt for one on the first
+/// reconnect. Fresh installs (`current == 0`) get the columns from
+/// `SCHEMA_SQL` and skip this arm.
+fn add_v17_non_ssh_secret_columns(conn: &Connection) -> Result<(), Error> {
+    if !column_exists(conn, "webdav_session_details", "password")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE webdav_session_details \
+                    ADD COLUMN password TEXT NOT NULL DEFAULT '';",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add webdav_session_details.password: {e}"
+                ))
+            })?;
+    }
+    if !column_exists(conn, "s3_session_details", "secret_access_key")? {
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE s3_session_details \
+                    ADD COLUMN secret_access_key TEXT NOT NULL DEFAULT '';",
+            )
+            .map_err(|e| {
+                Error::Db(format!(
+                    "bootstrap schema: add s3_session_details.secret_access_key: {e}"
+                ))
+            })?;
+    }
+    Ok(())
+}
+
+/// v15 → v16 migration: move SSH-specific columns out of
+/// `sessions` into the new `ssh_session_details` join table.
+///
+/// **Backfill step.** Each pre-existing SSH session
+/// (`kind = 'ssh'`) gets a row in `ssh_session_details` whose
+/// columns are copied from the legacy columns on `sessions`.
+/// `INSERT OR IGNORE` keeps the step idempotent against a
+/// half-failed prior bootstrap; existing rows take priority.
+///
+/// **Recreate step.** `sessions` is rebuilt in the slim
+/// shape declared by `SCHEMA_SQL` for fresh installs:
+/// `CREATE sessions_new (slim) → INSERT SELECT common columns →
+/// DROP sessions → RENAME sessions_new`. Inbound FKs from
+/// `webdav_session_details.session_id`, `s3_session_details.session_id`,
+/// `tags_sessions.session_id`, `mru_paths.session_id`, etc. survive
+/// the swap because SQLite resolves FK targets by table name —
+/// the rename re-binds every reference to the new slim shape.
+/// `foreign_keys = OFF` for the duration of the rebuild matches the
+/// official SQLite 12-step procedure; the closing `PRAGMA
+/// foreign_key_check` asserts no row dangles before the txn commits.
+///
+/// Idempotency: re-running this on a v16 DB sees `kind` already
+/// absent from the legacy column list (recreate already ran) and
+/// the `column_exists` probe short-circuits. Fresh installs
+/// (`current == 0`) skip this arm entirely — `bootstrap_schema`
+/// gates it behind `(1..16).contains(&current)`.
+fn split_ssh_session_details(conn: &Connection) -> Result<(), Error> {
+    if !column_exists(conn, "sessions", "auth_type")? {
+        return Ok(());
+    }
+    conn.inner()
+        .execute_batch(
+            r#"
+            BEGIN TRANSACTION;
+            INSERT OR IGNORE INTO ssh_session_details
+                (session_id, host, port, user, auth_type,
+                 password, key_path, key_data, key_id, passphrase,
+                 via_session_id, via_host, via_port, via_user,
+                 updated_at, deleted_at)
+            SELECT id, host, port, user, auth_type,
+                   password, key_path, key_data, key_id, passphrase,
+                   via_session_id, via_host, via_port, via_user,
+                   updated_at, deleted_at
+              FROM sessions
+              WHERE kind = 'ssh';
+            COMMIT;
+            "#,
+        )
+        .map_err(|e| {
+            Error::Db(format!(
+                "bootstrap schema: backfill ssh_session_details: {e}"
+            ))
+        })?;
+
+    conn.inner()
+        .execute_batch(
+            r#"
+            PRAGMA foreign_keys = OFF;
+            BEGIN TRANSACTION;
+            CREATE TABLE sessions_new (
+                id TEXT PRIMARY KEY,
+                label TEXT NOT NULL DEFAULT '',
+                folder_id TEXT,
+                kind TEXT NOT NULL DEFAULT 'ssh',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                notes TEXT NOT NULL DEFAULT '',
+                last_connected_at INTEGER,
+                extras TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                deleted_at INTEGER NULL,
+                FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+            );
+            INSERT INTO sessions_new
+                (id, label, folder_id, kind, sort_order, notes,
+                 last_connected_at, extras, created_at, updated_at, deleted_at)
+            SELECT id, label, folder_id, kind, sort_order, notes,
+                   last_connected_at, extras, created_at, updated_at, deleted_at
+              FROM sessions;
+            DROP TABLE sessions;
+            ALTER TABLE sessions_new RENAME TO sessions;
+            COMMIT;
+            PRAGMA foreign_keys = ON;
+            "#,
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: recreate sessions slim: {e}")))?;
+
+    // SQLite-recommended post-recreate assertion: every FK in the
+    // database is satisfied. A single dangling reference (e.g.,
+    // `mru_paths.session_id` pointing at a row that didn't survive
+    // the INSERT SELECT) would surface here rather than as a
+    // mystery ON DELETE cascade weeks later.
+    let mut bad = false;
+    conn.inner()
+        .pragma_query(None, "foreign_key_check", |_row| {
+            bad = true;
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("bootstrap schema: foreign_key_check: {e}")))?;
+    if bad {
+        return Err(Error::Db(
+            "bootstrap schema: foreign_key_check reported dangling rows after sessions recreate"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+/// `pragma_table_info`-backed column-existence probe. Used by the
+/// v14 -> v15 migration arm so the ADD COLUMN step stays a no-op
+/// when `SCHEMA_SQL` already minted the column on the same bootstrap
+/// pass (the v15-era child tables belong to `SCHEMA_SQL`, so the
+/// fresh-install path lays down the columns before the arm runs).
+fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, Error> {
+    let mut found = false;
+    conn.inner()
+        .pragma(None, "table_info", table, |row| {
+            let name: String = row.get("name")?;
+            if name == column {
+                found = true;
+            }
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("bootstrap schema: probe {table}.{column}: {e}")))?;
+    Ok(found)
+}
+
+/// Read the on-disk schema revision. Returns `0` for a freshly
+/// initialised DB that hasn't been bootstrapped yet (SQLite
+/// default for `user_version`); after [`bootstrap_schema`] it
+/// returns [`SCHEMA_VERSION`]. Currently used only by the
+/// bootstrap idempotency test; production runs no longer branch
+/// on `user_version` because the v1 floor is universal — the
+/// next schema bump will surface the first real consumer.
+#[cfg(test)]
+fn read_schema_version(conn: &Connection) -> Result<i32, Error> {
+    let mut value: i32 = 0;
+    conn.inner()
+        .pragma_query(None, "user_version", |row| {
+            value = row.get::<_, i32>(0)?;
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("read user_version: {e}")))?;
+    Ok(value)
+}
+
+const SCHEMA_SQL: &str = r#"
+CREATE TABLE IF NOT EXISTS folders (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_id TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    collapsed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS ssh_keys (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    private_key TEXT NOT NULL,
+    public_key TEXT NOT NULL,
+    key_type TEXT NOT NULL,
+    is_generated INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL,
+    -- FIDO2 hardware-key columns. NULL for software keys (the
+    -- common case); populated for `sk-ssh-ed25519@openssh.com` /
+    -- `sk-ecdsa-sha2-nistp256@openssh.com` rows captured at import.
+    -- `credential_id` is the opaque CTAP2 blob the device matches
+    -- against on every assertion. `application_string` is the SSH
+    -- `application` field (typically `ssh:`). `has_user_verification`
+    -- gates the PIN prompt on connect.
+    credential_id BLOB NULL,
+    application_string TEXT NULL,
+    has_user_verification INTEGER NOT NULL DEFAULT 0,
+    agent_policy TEXT NOT NULL DEFAULT 'ask',
+    backend TEXT NOT NULL DEFAULT 'software',
+    pkcs11_uri TEXT NULL,
+    pkcs11_module_path TEXT NULL,
+    pkcs11_token_serial TEXT NULL,
+    pkcs11_object_id BLOB NULL,
+    pkcs11_object_label TEXT NULL,
+    -- Apple Secure Enclave application-tag (v10). Opaque bytes the
+    -- `kSecAttrApplicationTag` lookup matches on. NULL for every
+    -- non-enclave row; populated only when `backend = 'enclave'`.
+    enclave_tag BLOB NULL,
+    -- Windows Hello / NCrypt persistent-key name (v11). UTF-8 string
+    -- the `NCryptOpenKey(provider, &hKey, name, …)` lookup re-binds
+    -- to on every sign. NULL for every non-`hello` row; populated
+    -- only when `backend = 'hello'`.
+    hello_credential_name TEXT NULL,
+    -- TPM 2.0 SSH ingredient columns (v12). Populated only when
+    -- `backend = 'tpm'`. `tpm_blob` carries the TSS2 PRIVATE KEY
+    -- ASN.1 bytes per TCG draft `draft-bottomley-tpm2-keys-asn1`
+    -- (Linux blob-storage mode); `tpm_handle` is the persistent NV
+    -- handle in `0x81010001..0x8101FFFF` when the key was loaded
+    -- into TPM RAM; `tpm_provider` is one of `'tss-esapi'`
+    -- (Linux ESAPI) / `'cng-pcp'` (Windows PCP silent variant);
+    -- `tpm_pin_required` flips the per-sign PIN prompt on;
+    -- `cng_key_name` is the Windows PCP-silent variant's CNG
+    -- persistent-key name (uses the `letsflutssh-tpm-` prefix to
+    -- distinguish from Hello-gated `letsflutssh-ssh-` keys when
+    -- `NCryptEnumKeys` walks the provider).
+    tpm_blob BLOB NULL,
+    tpm_handle INTEGER NULL,
+    tpm_provider TEXT NULL,
+    tpm_pin_required INTEGER NOT NULL DEFAULT 0,
+    cng_key_name TEXT NULL,
+    keystore_alias TEXT NULL,
+    keystore_strongbox INTEGER NOT NULL DEFAULT 0,
+    keystore_user_auth_required INTEGER NOT NULL DEFAULT 0,
+    keystore_platform TEXT NULL,
+    -- Stub flag (v14). `1` when the row landed as a public-half-only
+    -- import (`.lfs` archive or WebDAV sync pull) for a device-bound
+    -- backend (`enclave` / `hello` / `tpm` / `keystore`). The key
+    -- manager renders such rows desaturated with a "Re-generate
+    -- here" / "Remove" action; the session-edit "Key from manager"
+    -- picker disables them with a tooltip. The first local
+    -- regenerate or remove clears the column. Stays `0` for every
+    -- software / FIDO2 / PKCS#11 row (those carry their portable
+    -- subset across the wire).
+    imported_as_stub INTEGER NOT NULL DEFAULT 0
+);
+-- Android Hardware Keystore / StrongBox ingredients (v13).
+-- Populated only when `backend = 'keystore'`. `keystore_alias` is
+-- the AndroidKeyStore alias the `KeyStore.getEntry(alias, null)`
+-- lookup re-binds to on every sign (`lfs-keystore-` prefix to stay
+-- separate from `FlutterSecureStorageKeyAlias_`).
+-- `keystore_strongbox` flips to 1 when `setIsStrongBoxBacked(true)`
+-- was accepted; 0 for TEE-only rows so the badge label split
+-- (StrongBox HSM vs TEE) is honest. `keystore_user_auth_required`
+-- is 1 for every Keystore row today (the wizard always sets
+-- `setUserAuthenticationRequired(true)`); reserved as a column so
+-- a future no-auth variant lands without a schema bump.
+-- `keystore_platform` carries Build.MODEL + Android version,
+-- surfaced read-only in the badge popover.
+-- backend: software | fido2 | pkcs11 | tpm | enclave | hello | keystore
+-- pkcs11 columns populated for backend = pkcs11 rows only.
+-- enclave_tag populated for backend = enclave rows only.
+-- hello_credential_name populated for backend = hello rows only.
+-- tpm_* / cng_key_name populated for backend = tpm rows only.
+-- keystore_* populated for backend = keystore rows only.
+-- See ARCHITECTURE.md schema docs for full notes.
+
+-- One certificate per stored SSH key. `key_id` is a TEXT foreign
+-- key (ssh_keys.id is TEXT, not INTEGER) and doubles as the PK so
+-- the upsert can be a plain INSERT OR REPLACE. Validity windows
+-- are unix-seconds (matching OpenSSH's wire format); principals
+-- and critical_options are stored as serialized JSON so the BTree
+-- preserves order and the DAO does not need a junction table for
+-- what's a tiny opaque list / map per row.
+CREATE TABLE IF NOT EXISTS ssh_key_certificates (
+    key_id           TEXT    PRIMARY KEY,
+    certificate      BLOB    NOT NULL,
+    valid_after      INTEGER NOT NULL,
+    valid_before     INTEGER NOT NULL,
+    principals       TEXT    NOT NULL DEFAULT '[]',
+    critical_options TEXT    NOT NULL DEFAULT '{}',
+    fingerprint      TEXT    NOT NULL DEFAULT '',
+    FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE CASCADE
+);
+
+-- Common session row — protocol-neutral. SSH-specific config
+-- (host / port / user / auth_type / password / key_path /
+-- key_data / key_id / passphrase / via_*) lives in
+-- `ssh_session_details`, WebDAV-specific in `webdav_session_details`,
+-- S3-specific in `s3_session_details`. Pre-v16 databases land here
+-- with extra SSH-shaped columns; the v15 → v16 migration arm
+-- recreates the table in this slim shape after backfilling the
+-- join row from the legacy columns.
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL DEFAULT '',
+    folder_id TEXT,
+    kind TEXT NOT NULL DEFAULT 'ssh',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    last_connected_at INTEGER,
+    extras TEXT NOT NULL DEFAULT '{}',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL,
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+);
+
+-- SSH-specific session configuration. Keyed by session id with
+-- `ON DELETE CASCADE` so removing a session physically purges its
+-- SSH row. The credential columns (`password` / `key_data` /
+-- `passphrase`) are persisted on the column for archive / wire
+-- continuity; the runtime `stage_secrets` path migrates the
+-- plaintext into the SecretStore on session open so the in-memory
+-- session row never carries the secret material. `via_session_id`
+-- references the bastion session (saved-session ProxyJump); the
+-- `via_host` / `via_port` / `via_user` columns carry a one-off
+-- override when no saved session is referenced.
+CREATE TABLE IF NOT EXISTS ssh_session_details (
+    session_id     TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    host           TEXT NOT NULL DEFAULT '',
+    port           INTEGER NOT NULL DEFAULT 22,
+    user           TEXT NOT NULL DEFAULT '',
+    auth_type      TEXT NOT NULL DEFAULT 'password',
+    password       TEXT NOT NULL DEFAULT '',
+    key_path       TEXT NOT NULL DEFAULT '',
+    key_data       TEXT NOT NULL DEFAULT '',
+    key_id         TEXT,
+    passphrase     TEXT NOT NULL DEFAULT '',
+    via_session_id TEXT,
+    via_host       TEXT,
+    via_port       INTEGER,
+    via_user       TEXT,
+    updated_at     INTEGER NOT NULL DEFAULT 0,
+    deleted_at     INTEGER NULL,
+    FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL,
+    FOREIGN KEY (via_session_id) REFERENCES sessions(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ssh_session_details_session_id
+    ON ssh_session_details(session_id);
+
+-- WebDAV-specific configuration. Keyed by session id with ON DELETE
+-- CASCADE so removing a session physically purges its WebDAV row;
+-- soft-deletes on `sessions` leave this row in place until the
+-- sync-merge purge removes the parent. The password / bearer token
+-- lives on the `password` column (encrypted at rest by SQLCipher,
+-- same posture as `ssh_session_details.password`); the connect path
+-- stages it into the in-memory `SecretStore` via
+-- [`webdav_sessions::stage_secret_into_store`] just before calling
+-- `webdav_connect`. The plaintext never crosses the FRB boundary
+-- back to Dart — the edit dialog reads only the `has_password` bool.
+CREATE TABLE IF NOT EXISTS webdav_session_details (
+    session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    base_url TEXT NOT NULL,
+    username TEXT NOT NULL DEFAULT '',
+    auth_method TEXT NOT NULL,
+    self_signed_fingerprint TEXT NULL,
+    password TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webdav_session_details_session_id
+    ON webdav_session_details(session_id);
+
+-- S3-compatible session configuration. Same join-table shape as
+-- `webdav_session_details`: keyed by session id, ON DELETE CASCADE
+-- so the row physically drops when the parent session is purged.
+-- The secret access key lives on the `secret_access_key` column
+-- (encrypted at rest by SQLCipher); the connect path stages it
+-- into the in-memory `SecretStore` via
+-- [`s3_sessions::stage_secret_into_store`] just before calling
+-- `s3_connect`. The plaintext never crosses the FRB boundary back
+-- to Dart — the edit dialog reads only the `has_secret` bool.
+-- `path_style` is an INTEGER boolean (0 = virtual-host, 1 = path
+-- addressing) so the column stays compatible with SQLite's type
+-- system.
+CREATE TABLE IF NOT EXISTS s3_session_details (
+    session_id        TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    access_key_id     TEXT NOT NULL DEFAULT '',
+    region            TEXT NOT NULL DEFAULT '',
+    endpoint          TEXT NOT NULL DEFAULT '',
+    path_style        INTEGER NOT NULL DEFAULT 0,
+    default_bucket    TEXT NOT NULL DEFAULT '',
+    default_prefix    TEXT NOT NULL DEFAULT '',
+    secret_access_key TEXT NOT NULL DEFAULT '',
+    updated_at        INTEGER NOT NULL DEFAULT 0,
+    deleted_at        INTEGER NULL
+);
+CREATE INDEX IF NOT EXISTS idx_s3_session_details_session_id
+    ON s3_session_details(session_id);
+
+CREATE TABLE IF NOT EXISTS known_hosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    host TEXT NOT NULL,
+    port INTEGER NOT NULL DEFAULT 22,
+    key_type TEXT NOT NULL,
+    key_base64 TEXT NOT NULL,
+    added_at INTEGER NOT NULL,
+    UNIQUE(host, port)
+);
+
+CREATE TABLE IF NOT EXISTS app_configs (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    auto_lock_minutes INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    color TEXT,
+    created_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL
+);
+
+CREATE TABLE IF NOT EXISTS session_tags (
+    session_id TEXT NOT NULL,
+    tag_id TEXT NOT NULL,
+    PRIMARY KEY (session_id, tag_id),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS folder_tags (
+    folder_id TEXT NOT NULL,
+    tag_id TEXT NOT NULL,
+    PRIMARY KEY (folder_id, tag_id),
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS snippets (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    command TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL
+);
+
+CREATE TABLE IF NOT EXISTS session_snippets (
+    session_id TEXT NOT NULL,
+    snippet_id TEXT NOT NULL,
+    PRIMARY KEY (session_id, snippet_id),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (snippet_id) REFERENCES snippets(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS port_forward_rules (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'local',
+    bind_host TEXT NOT NULL DEFAULT '127.0.0.1',
+    bind_port INTEGER NOT NULL,
+    remote_host TEXT NOT NULL DEFAULT '',
+    remote_port INTEGER NOT NULL DEFAULT 0,
+    description TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS sftp_bookmarks (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    remote_path TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+-- Reverse-edge indexes. Every foreign-key column queried as a
+-- "join from the *child* side" (rows in this table referencing
+-- the parent) needs an explicit index. SQLite indexes the
+-- declared PRIMARY KEY automatically but does NOT index foreign-
+-- key columns by default; without these every reverse lookup
+-- (`SELECT * FROM sessions WHERE folder_id = ?`,
+-- `DELETE FROM sftp_bookmarks WHERE session_id = ?`, etc.) was a
+-- full table scan. Added at the end of the schema block so an
+-- existing database picks them up on the next open without a
+-- migration bump (`IF NOT EXISTS` is idempotent).
+CREATE INDEX IF NOT EXISTS idx_sessions_folder_id
+    ON sessions(folder_id);
+-- `via_session_id` and `key_id` moved to `ssh_session_details` on
+-- the v15 → v16 schema split. The indexes follow the columns so
+-- the ProxyJump bastion lookup and the saved-key lookup keep their
+-- O(log n) shape under the new layout.
+CREATE INDEX IF NOT EXISTS idx_ssh_session_details_via_session_id
+    ON ssh_session_details(via_session_id);
+CREATE INDEX IF NOT EXISTS idx_ssh_session_details_key_id
+    ON ssh_session_details(key_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent_id
+    ON folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_port_forward_rules_session_id
+    ON port_forward_rules(session_id);
+CREATE INDEX IF NOT EXISTS idx_sftp_bookmarks_session_id
+    ON sftp_bookmarks(session_id);
+-- Composite-PK tables: the leading column is covered by the PK,
+-- but the trailing column needs its own index for the reverse
+-- join (`tag → sessions`, `tag → folders`, `snippet → sessions`).
+CREATE INDEX IF NOT EXISTS idx_session_tags_tag_id
+    ON session_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_folder_tags_tag_id
+    ON folder_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_session_snippets_snippet_id
+    ON session_snippets(snippet_id);
+"#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// In-memory database doesn't need a key; verifies the open
+    /// path + smoke probe with a no-encryption shortcut.
+    #[test]
+    fn open_in_memory_with_no_key() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch("CREATE TABLE t (x INT)")
+            .unwrap();
+        let db = Db {
+            conn: Mutex::new(conn),
+        };
+        let n = db.schema_object_count().unwrap();
+        assert!(n >= 1, "schema_object_count was {n}");
+    }
+
+    /// `Db::open` against a freshly-created empty file with a
+    /// SQLCipher key must succeed — that's the path
+    /// `ensureRustDbOpen` hits on first launch (Dart pre-creates a
+    /// 0-byte file via `File.create()` before handing the path to
+    /// the FRB call). Without this test the schema-probe vs
+    /// bootstrap ordering is silently regression-prone: a probe
+    /// that runs before the first DDL trips on the empty file
+    /// because SQLCipher has no encrypted header to verify yet.
+    #[test]
+    fn open_creates_fresh_encrypted_db_when_file_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fresh.db");
+        // Mirror Dart's `File(path).create()` — empty file on disk.
+        std::fs::File::create(&path).unwrap();
+        let key = [0x42u8; 32];
+        let db = Db::open(&path, &key).expect("open empty file with key must succeed");
+        let count = db
+            .schema_object_count()
+            .expect("schema count after fresh open");
+        assert!(count > 0, "bootstrap_schema should have created tables");
+    }
+
+    /// Bootstrap stamps `user_version = SCHEMA_VERSION` on a fresh
+    /// DB and is idempotent on re-bootstrap.
+    #[test]
+    fn bootstrap_stamps_user_version() {
+        let conn = Connection::open_in_memory().unwrap();
+        assert_eq!(
+            read_schema_version(&conn).unwrap(),
+            0,
+            "fresh DB starts at user_version 0",
+        );
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+        // Re-running bootstrap leaves the stamp at the same value.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v2 → v3 upgrade hop. A database stamped at v2 with the
+    /// pre-v3 SCHEMA_SQL shape (no `deleted_at` column anywhere)
+    /// must pick up the tombstone column on every soft-deletable
+    /// table when `bootstrap_schema` runs. The fresh-install path
+    /// already carries the column via `CREATE TABLE IF NOT
+    /// EXISTS`, so the ALTER arm runs only when `current` lands
+    /// in `[1, 3)` — verified here by simulating a v2 install
+    /// (run the bootstrap on a fresh DB → rewind `user_version`
+    /// to 2 → drop the `deleted_at` column from every tombstoned
+    /// table) and re-running the bootstrap. Re-running is
+    /// idempotent because the gate re-evaluates to false once
+    /// the stamp lands at v3.
+    #[test]
+    fn bootstrap_v2_to_v3_adds_deleted_at_to_each_tombstone_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Stand up the v3 schema, then strip the new column to
+        // mimic a v2 install. `ALTER TABLE … DROP COLUMN` is
+        // available on the SQLCipher 4.x build the repo ships
+        // (sqlite3 >= 3.35.0). The rewind stamp drops the
+        // version back to v2 so the upgrade arm runs again.
+        bootstrap_schema(&conn).unwrap();
+        // The partial-unique index on `tags(name)` references
+        // `deleted_at`; SQLite refuses the column drop while the
+        // index references it. Drop it first; the post-bootstrap
+        // run recreates it via `create_partial_unique_indexes`.
+        conn.inner()
+            .execute_batch("DROP INDEX IF EXISTS idx_tags_name_live")
+            .unwrap();
+        for table in TOMBSTONE_TABLES {
+            conn.inner()
+                .execute_batch(&format!("DROP INDEX IF EXISTS idx_{table}_deleted_at"))
+                .unwrap();
+            conn.inner()
+                .execute_batch(&format!("ALTER TABLE {table} DROP COLUMN deleted_at"))
+                .unwrap();
+        }
+        // v15 also added an `updated_at` column on the three child
+        // tables (`port_forward_rules`, `webdav_session_details`,
+        // `s3_session_details`). The replayed v14 -> v15 arm probes
+        // for the column via `pragma_table_info` before ALTERing, so
+        // stripping it here is not load-bearing for the rerun — but
+        // we drop anyway so the post-rerun state matches what a real
+        // v2 -> HEAD walk would observe.
+        for table in V15_TOMBSTONE_TABLES {
+            conn.inner()
+                .execute_batch(&format!("ALTER TABLE {table} DROP COLUMN updated_at"))
+                .unwrap();
+        }
+        // Drop the v5 `sessions.kind` column too — the rewind below
+        // stamps user_version=2 and re-bootstrap will replay both
+        // the v3 (deleted_at) and v5 (kind) ALTER arms; without
+        // dropping `kind` here the v5 ALTER hits a duplicate-column
+        // error.
+        conn.inner()
+            .execute_batch("ALTER TABLE sessions DROP COLUMN kind")
+            .unwrap();
+        // Same reason for the v7 FIDO2 columns + the v8 `agent_policy`
+        // column on `ssh_keys` — the v1..v6 -> v7 and v1..v7 -> v8
+        // arms replay on rewind. Drop here so the ALTERs do not trip
+        // on duplicate columns.
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
+                 ",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 2).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        // Every table now carries the column. The column probe
+        // goes through `pragma_table_info` so a missing column
+        // shows up as "column did not appear in pragma output".
+        for table in TOMBSTONE_TABLES {
+            let mut has_col = false;
+            conn.inner()
+                .pragma(None, "table_info", table, |row| {
+                    let name: String = row.get("name")?;
+                    if name == "deleted_at" {
+                        has_col = true;
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            assert!(
+                has_col,
+                "{table} must carry deleted_at after v2 → v3 upgrade"
+            );
+        }
+
+        // Re-running bootstrap is a no-op — the duplicate-column
+        // failure would surface as `Error::Db("... duplicate
+        // column name ...")` from the second ALTER hop. The
+        // `current < SCHEMA_VERSION` gate is what keeps this
+        // safe, and the test pins that contract.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v5 → v6 upgrade hop. A database stamped at v5 without the
+    /// `s3_session_details` table must pick it up on bootstrap.
+    /// The table lands via `CREATE TABLE IF NOT EXISTS` in
+    /// `SCHEMA_SQL`, so no per-step ALTER is required — the test
+    /// just confirms the table exists after a rewind+rerun.
+    #[test]
+    fn bootstrap_v5_to_v6_creates_s3_session_details_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Drop the s3 table + index to mimic a v5 install, then
+        // rewind user_version. The `CREATE TABLE IF NOT EXISTS`
+        // block in SCHEMA_SQL recreates it on re-bootstrap. Also
+        // drop the v7 FIDO2 columns from `ssh_keys` so the
+        // subsequent v6 → v7 ALTER arm doesn't double-add them.
+        conn.inner()
+            .execute_batch(
+                "DROP INDEX IF EXISTS idx_s3_session_details_session_id; \
+                 DROP TABLE IF EXISTS s3_session_details; \
+                 ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
+                 ",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 5).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let count: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT count(*) FROM sqlite_master \
+                 WHERE type = 'table' AND name = 's3_session_details'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1, "s3_session_details must exist after v5 → v6");
+
+        // Re-running bootstrap is a no-op — the `IF NOT EXISTS`
+        // shape keeps the second pass safe.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v6 → v7 upgrade hop. A database stamped at v6 with the
+    /// pre-v7 ssh_keys shape (no FIDO2 columns) must pick up
+    /// `credential_id`, `application_string`, and
+    /// `has_user_verification` on bootstrap. Mirrors the
+    /// v4 → v5 test — strip the columns to simulate a v6 install,
+    /// rewind user_version, re-bootstrap, confirm the columns
+    /// land, then re-run for idempotency.
+    #[test]
+    fn bootstrap_v6_to_v7_adds_fido2_columns_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
+                 ",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 6).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "credential_id",
+            "application_string",
+            "has_user_verification",
+        ] {
+            assert!(
+                seen.contains(col),
+                "ssh_keys.{col} missing after v6 → v7 upgrade"
+            );
+        }
+
+        // Re-running is a no-op because the version stamp now sits
+        // at v7; the gate `(1..7).contains(&current)` keeps the ALTER
+        // from re-firing.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v7 -> v8 upgrade hop. A database stamped at v7 with the
+    /// pre-v8 `ssh_keys` shape (no `agent_policy` column) must pick
+    /// it up on bootstrap. Strip the column, rewind `user_version`,
+    /// re-bootstrap, confirm the column lands with the `'ask'`
+    /// default backfilled on every existing row, then re-run for
+    /// idempotency.
+    #[test]
+    fn bootstrap_v7_to_v8_adds_agent_policy_column_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Seed one row before the strip so the backfill is observable
+        // on a pre-existing record, not only on a row inserted after
+        // the migration.
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at) \
+                 VALUES ('pre-v8', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
+                 ",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 7).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_col = false;
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                if name == "agent_policy" {
+                    has_col = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(has_col, "ssh_keys.agent_policy missing after v7 -> v8");
+
+        // Backfill confirmed: the pre-existing row picks up the
+        // schema default `'ask'` on the additive ALTER.
+        let policy: String = conn
+            .inner()
+            .query_row(
+                "SELECT agent_policy FROM ssh_keys WHERE id = 'pre-v8'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(policy, "ask");
+
+        // Re-running bootstrap is a no-op once the stamp lands at v8.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v8 -> v9 upgrade hop. A database with the v8 schema shape
+    /// (no `backend` discriminator, no `pkcs11_*` block) must pick
+    /// up every column on bootstrap. The migration arm also UPDATEs
+    /// every pre-existing `credential_id IS NOT NULL` row to
+    /// `backend = 'fido2'`; we build the v8 shape via raw CREATE
+    /// TABLE (rather than bootstrap-then-strip, because SQLite's
+    /// ALTER TABLE DROP COLUMN re-parses the on-disk CREATE-TABLE
+    /// text and trips on the multi-line column-comments the v9
+    /// shape carries — purely a test-fixture limitation, not a
+    /// production concern).
+    #[test]
+    fn bootstrap_v8_to_v9_adds_pkcs11_columns_and_backfills_fido2_backend() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch(
+                "CREATE TABLE ssh_keys ( \
+                    id TEXT PRIMARY KEY, \
+                    label TEXT NOT NULL, \
+                    private_key TEXT NOT NULL, \
+                    public_key TEXT NOT NULL, \
+                    key_type TEXT NOT NULL, \
+                    is_generated INTEGER NOT NULL DEFAULT 1, \
+                    created_at INTEGER NOT NULL, \
+                    deleted_at INTEGER NULL, \
+                    credential_id BLOB NULL, \
+                    application_string TEXT NULL, \
+                    has_user_verification INTEGER NOT NULL DEFAULT 0, \
+                    agent_policy TEXT NOT NULL DEFAULT 'ask' \
+                 );",
+            )
+            .unwrap();
+        // Seed two rows under the v8 shape — one software, one FIDO2.
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, credential_id, \
+                                       application_string, has_user_verification, agent_policy) \
+                 VALUES ('sw', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, NULL, NULL, 0, 'ask')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, credential_id, \
+                                       application_string, has_user_verification, agent_policy) \
+                 VALUES ('fido', 'lab', '', 'PUB', 'sk-ssh-ed25519@openssh.com', 0, 0, \
+                         X'01020304', 'ssh:', 1, 'ask')",
+                [],
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 8).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        // Every expected column landed.
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "backend",
+            "pkcs11_uri",
+            "pkcs11_module_path",
+            "pkcs11_token_serial",
+            "pkcs11_object_id",
+            "pkcs11_object_label",
+        ] {
+            assert!(seen.contains(col), "ssh_keys.{col} missing after v8 -> v9");
+        }
+
+        // Software row backfilled to 'software'; FIDO2 row backfilled
+        // to 'fido2' so the agent dispatcher's typed switch routes
+        // correctly without falling through to a software arm for a
+        // hardware-bound key.
+        let sw_backend: String = conn
+            .inner()
+            .query_row("SELECT backend FROM ssh_keys WHERE id = 'sw'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(sw_backend, "software");
+        let fido_backend: String = conn
+            .inner()
+            .query_row(
+                "SELECT backend FROM ssh_keys WHERE id = 'fido'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(fido_backend, "fido2");
+
+        // Re-running bootstrap is a no-op once the stamp lands at v9.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v10 -> v11 upgrade hop. A database stamped at v10 with the
+    /// pre-v11 `ssh_keys` shape (no `hello_credential_name` column)
+    /// must pick it up on bootstrap. We build the v10 shape via a
+    /// raw `CREATE TABLE` instead of bootstrap-then-strip — `ALTER
+    /// TABLE DROP COLUMN` re-parses the on-disk CREATE-TABLE text
+    /// and the v11 column-block ends with a multi-line comment that
+    /// the SQLite parser trips on when the trailing column is
+    /// dropped. The v8 -> v9 test uses the same approach for the
+    /// same reason.
+    #[test]
+    fn bootstrap_v10_to_v11_adds_hello_credential_name_column_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch(
+                "CREATE TABLE ssh_keys ( \
+                    id TEXT PRIMARY KEY, \
+                    label TEXT NOT NULL, \
+                    private_key TEXT NOT NULL, \
+                    public_key TEXT NOT NULL, \
+                    key_type TEXT NOT NULL, \
+                    is_generated INTEGER NOT NULL DEFAULT 1, \
+                    created_at INTEGER NOT NULL, \
+                    deleted_at INTEGER NULL, \
+                    credential_id BLOB NULL, \
+                    application_string TEXT NULL, \
+                    has_user_verification INTEGER NOT NULL DEFAULT 0, \
+                    agent_policy TEXT NOT NULL DEFAULT 'ask', \
+                    backend TEXT NOT NULL DEFAULT 'software', \
+                    pkcs11_uri TEXT NULL, \
+                    pkcs11_module_path TEXT NULL, \
+                    pkcs11_token_serial TEXT NULL, \
+                    pkcs11_object_id BLOB NULL, \
+                    pkcs11_object_label TEXT NULL, \
+                    enclave_tag BLOB NULL \
+                 );",
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v11', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 10)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_col = false;
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                if name == "hello_credential_name" {
+                    has_col = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            has_col,
+            "ssh_keys.hello_credential_name missing after v10 -> v11"
+        );
+
+        let pre: Option<String> = conn
+            .inner()
+            .query_row(
+                "SELECT hello_credential_name FROM ssh_keys WHERE id = 'pre-v11'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(pre.is_none(), "non-hello row must keep NULL after v11 hop");
+
+        // Idempotent re-run.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v11 -> v12 upgrade hop. A database stamped at v11 with the
+    /// pre-v12 `ssh_keys` shape (no TPM columns) must pick up
+    /// `tpm_blob`, `tpm_handle`, `tpm_provider`, `tpm_pin_required`,
+    /// and `cng_key_name` on bootstrap. Same shape as the v10 -> v11
+    /// hop above: explicit pre-v12 CREATE TABLE, stamp v11, re-bootstrap,
+    /// verify columns land + a seeded non-TPM row keeps NULL / 0
+    /// defaults, idempotent re-run.
+    #[test]
+    fn bootstrap_v11_to_v12_adds_tpm_columns_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch(
+                "CREATE TABLE ssh_keys ( \
+                    id TEXT PRIMARY KEY, \
+                    label TEXT NOT NULL, \
+                    private_key TEXT NOT NULL, \
+                    public_key TEXT NOT NULL, \
+                    key_type TEXT NOT NULL, \
+                    is_generated INTEGER NOT NULL DEFAULT 1, \
+                    created_at INTEGER NOT NULL, \
+                    deleted_at INTEGER NULL, \
+                    credential_id BLOB NULL, \
+                    application_string TEXT NULL, \
+                    has_user_verification INTEGER NOT NULL DEFAULT 0, \
+                    agent_policy TEXT NOT NULL DEFAULT 'ask', \
+                    backend TEXT NOT NULL DEFAULT 'software', \
+                    pkcs11_uri TEXT NULL, \
+                    pkcs11_module_path TEXT NULL, \
+                    pkcs11_token_serial TEXT NULL, \
+                    pkcs11_object_id BLOB NULL, \
+                    pkcs11_object_label TEXT NULL, \
+                    enclave_tag BLOB NULL, \
+                    hello_credential_name TEXT NULL \
+                 );",
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v12', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 11)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "tpm_blob",
+            "tpm_handle",
+            "tpm_provider",
+            "tpm_pin_required",
+            "cng_key_name",
+        ] {
+            assert!(
+                seen.contains(col),
+                "ssh_keys.{col} missing after v11 -> v12 upgrade"
+            );
+        }
+
+        // Pre-existing software row keeps the schema defaults — NULL
+        // for the four nullable columns and 0 for `tpm_pin_required`.
+        let pin_required: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT tpm_pin_required FROM ssh_keys WHERE id = 'pre-v12'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pin_required, 0, "non-tpm row must keep 0 default");
+
+        // Idempotent re-run.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v12 → v13 upgrade hop. A database stamped at v12 with the
+    /// pre-v13 ssh_keys shape (no `keystore_*` columns) must pick
+    /// the four columns up on bootstrap. Idempotent re-run is the
+    /// load-bearing invariant — the helper is gated behind a
+    /// `(1..13).contains(&current)` arm so the second bootstrap is
+    /// a no-op.
+    #[test]
+    fn bootstrap_v12_to_v13_adds_keystore_columns_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Strip the v13 columns to mimic a v12 install. DROP COLUMN
+        // is available on the SQLCipher 4.x build (sqlite3 >= 3.35.0).
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_alias;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN keystore_platform;")
+            .unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN imported_as_stub;")
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v13', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 12)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut seen = std::collections::HashSet::new();
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                seen.insert(name);
+                Ok(())
+            })
+            .unwrap();
+        for col in [
+            "keystore_alias",
+            "keystore_strongbox",
+            "keystore_user_auth_required",
+            "keystore_platform",
+        ] {
+            assert!(
+                seen.contains(col),
+                "ssh_keys.{col} missing after v12 -> v13 upgrade"
+            );
+        }
+
+        // Pre-existing non-keystore row keeps the schema defaults —
+        // NULL for the two string columns and 0 for the two boolean
+        // columns.
+        let strongbox: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT keystore_strongbox FROM ssh_keys WHERE id = 'pre-v13'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(strongbox, 0, "non-keystore row must keep 0 default");
+
+        // Idempotent re-run — second bootstrap is a no-op.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v13 -> v14 upgrade hop. A database stamped at v13 with the
+    /// pre-v14 ssh_keys shape (no `imported_as_stub` column) must
+    /// pick the column up on bootstrap. The helper is gated behind
+    /// the `(1..14).contains(&current)` arm so the second bootstrap
+    /// is a no-op.
+    #[test]
+    fn bootstrap_v13_to_v14_adds_imported_as_stub_column_to_ssh_keys() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        conn.inner()
+            .execute_batch("ALTER TABLE ssh_keys DROP COLUMN imported_as_stub;")
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, \
+                                       is_generated, created_at, agent_policy, backend) \
+                 VALUES ('pre-v14', 'lab', 'PRIV', 'PUB', 'ed25519', 0, 0, 'ask', 'software')",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 13)
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_col = false;
+        conn.inner()
+            .pragma(None, "table_info", "ssh_keys", |row| {
+                let name: String = row.get("name")?;
+                if name == "imported_as_stub" {
+                    has_col = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            has_col,
+            "ssh_keys.imported_as_stub missing after v13 -> v14"
+        );
+
+        // Backfill: the pre-existing row keeps the schema default `0`.
+        let stub: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT imported_as_stub FROM ssh_keys WHERE id = 'pre-v14'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            stub, 0,
+            "pre-existing row must backfill imported_as_stub to 0"
+        );
+
+        // Idempotent re-run — second bootstrap is a no-op.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v4 → v5 upgrade hop. A database stamped at v4 with the
+    /// pre-v5 sessions shape (no `kind` column) must pick up the
+    /// column on bootstrap. Webdav_session_details lands via
+    /// `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL` and needs no
+    /// per-step ALTER, so the test only inspects `sessions.kind`.
+    #[test]
+    fn bootstrap_v4_to_v5_adds_kind_column_to_sessions() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Strip the kind column to mimic a v4 install. `ALTER TABLE …
+        // DROP COLUMN` is available on the SQLCipher 4.x build
+        // (sqlite3 >= 3.35.0). Rewind user_version to v4 so the
+        // upgrade arm re-runs.
+        // Also drop the v7 FIDO2 columns from `ssh_keys` and the
+        // v6 `s3_session_details` table so the subsequent ALTER
+        // arms don't surface duplicate-column / table-exists errors.
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE sessions DROP COLUMN kind; \
+                 DROP INDEX IF EXISTS idx_s3_session_details_session_id; \
+                 DROP TABLE IF EXISTS s3_session_details; \
+                 ALTER TABLE ssh_keys DROP COLUMN credential_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN application_string; \
+                 ALTER TABLE ssh_keys DROP COLUMN has_user_verification; \
+                 ALTER TABLE ssh_keys DROP COLUMN agent_policy; \
+                 ALTER TABLE ssh_keys DROP COLUMN backend; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_uri; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_module_path; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_token_serial; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_id; \
+                 ALTER TABLE ssh_keys DROP COLUMN pkcs11_object_label; \
+                 ALTER TABLE ssh_keys DROP COLUMN enclave_tag; \
+                 ALTER TABLE ssh_keys DROP COLUMN hello_credential_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_blob; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_handle; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_provider; \
+                 ALTER TABLE ssh_keys DROP COLUMN tpm_pin_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN cng_key_name; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_alias; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_strongbox; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_user_auth_required; \
+                 ALTER TABLE ssh_keys DROP COLUMN keystore_platform; \
+                 ALTER TABLE ssh_keys DROP COLUMN imported_as_stub; \
+                 ",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 4).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_kind = false;
+        conn.inner()
+            .pragma(None, "table_info", "sessions", |row| {
+                let name: String = row.get("name")?;
+                if name == "kind" {
+                    has_kind = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(has_kind, "sessions must carry kind after v4 → v5 upgrade");
+
+        // Re-running bootstrap is a no-op — the duplicate-column
+        // failure would surface as `Error::Db("... duplicate column
+        // name ...")` from the second ALTER hop. The
+        // `current < SCHEMA_VERSION` gate is what keeps this safe.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// Bootstrap schema + ssh_keys round-trip on an in-memory DB.
+    /// Confirms the SQL strings parse and the column shapes match.
+    #[test]
+    fn ssh_keys_round_trip_in_memory() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        let row = ssh_keys::SshKeyRow {
+            id: "k1".into(),
+            label: "lap".into(),
+            private_key: "PRIVATE".into(),
+            public_key: "ssh-ed25519 AAAA".into(),
+            key_type: "ssh-ed25519".into(),
+            is_generated: true,
+            created_at_ms: 1700000000000,
+            credential_id: None,
+            application_string: None,
+            has_user_verification: false,
+            agent_policy: ssh_keys::AgentPolicy::Ask,
+            backend: ssh_keys::KeyBackend::Software,
+            pkcs11_uri: None,
+            pkcs11_module_path: None,
+            pkcs11_token_serial: None,
+            pkcs11_object_id: None,
+            pkcs11_object_label: None,
+            enclave_tag: None,
+            hello_credential_name: None,
+            tpm_blob: None,
+            tpm_handle: None,
+            tpm_provider: None,
+            tpm_pin_required: false,
+            cng_key_name: None,
+            keystore_alias: None,
+            keystore_strongbox: false,
+            keystore_user_auth_required: false,
+            keystore_platform: None,
+            imported_as_stub: false,
+        };
+        ssh_keys::upsert(&conn, &row).unwrap();
+        let got = ssh_keys::get(&conn, "k1").unwrap().unwrap();
+        assert_eq!(got.label, "lap");
+        assert!(got.is_generated);
+        let all = ssh_keys::list_all(&conn).unwrap();
+        assert_eq!(all.len(), 1);
+        let n = ssh_keys::delete(&conn, "k1").unwrap();
+        assert_eq!(n, 1);
+        assert!(ssh_keys::get(&conn, "k1").unwrap().is_none());
+    }
+
+    /// Sessions ↔ folders FK behaves: deleting a folder NULLs the
+    /// folder_id on referencing sessions (ON DELETE SET NULL).
+    #[test]
+    fn sessions_folder_fk_set_null_on_delete() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.inner()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        folders::upsert(
+            &conn,
+            &folders::FolderRow {
+                id: "f1".into(),
+                name: "Production".into(),
+                parent_id: None,
+                sort_order: 0,
+                collapsed: false,
+                created_at_ms: 1700000000000,
+            },
+        )
+        .unwrap();
+        sessions::upsert(
+            &conn,
+            &sessions::SessionRow {
+                id: "s1".into(),
+                label: "edge".into(),
+                folder_id: Some("f1".into()),
+                kind: sessions::SESSION_KIND_SSH.into(),
+                host: "edge.example".into(),
+                port: 22,
+                user: "deploy".into(),
+                auth_type: "password".into(),
+                password: "".into(),
+                key_path: "".into(),
+                key_data: "".into(),
+                key_id: None,
+                passphrase: "".into(),
+                sort_order: 0,
+                notes: "".into(),
+                last_connected_at_ms: None,
+                extras: "{}".into(),
+                via_session_id: None,
+                via_host: None,
+                via_port: None,
+                via_user: None,
+                created_at_ms: 1700000000000,
+                updated_at_ms: 1700000000000,
+            },
+        )
+        .unwrap();
+        folders::delete(&conn, "f1").unwrap();
+        let s = sessions::get(&conn, "s1").unwrap().unwrap();
+        assert_eq!(s.folder_id, None);
+    }
+
+    /// v16 → v17 upgrade hop. A database stamped at v16 with the
+    /// pre-v17 join-table shape (no `password` on
+    /// `webdav_session_details` and no `secret_access_key` on
+    /// `s3_session_details`) must pick up the new columns on
+    /// bootstrap. The fresh-install path already carries them via
+    /// `CREATE TABLE IF NOT EXISTS` so the ALTER arm only runs in
+    /// `[1, 17)`. Pre-existing rows backfill to empty string —
+    /// the user re-enters the credential on the first reconnect.
+    ///
+    /// This test pins the regression that shipped on the first cut:
+    /// `SCHEMA_VERSION` stayed at 16 and the password ALTER was
+    /// folded into `add_v15_tombstone_columns` (gated on
+    /// `(1..15).contains(&current)`), so a real user DB at v16
+    /// skipped the migration entirely and hit
+    /// `no such column: password` on the first save.
+    #[test]
+    fn bootstrap_v16_to_v17_adds_password_column_to_webdav_and_secret_access_key_to_s3() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Strip the new columns to mimic a v16 install. `ALTER
+        // TABLE … DROP COLUMN` is available on the SQLCipher 4.x
+        // build (sqlite3 >= 3.35.0). Rewind user_version to v16 so
+        // the upgrade arm re-runs.
+        conn.inner()
+            .execute_batch(
+                "ALTER TABLE webdav_session_details DROP COLUMN password; \
+                 ALTER TABLE s3_session_details DROP COLUMN secret_access_key;",
+            )
+            .unwrap();
+        conn.inner()
+            .pragma_update(None, "user_version", 16)
+            .unwrap();
+        // Seed one row per detail table — exercises that the
+        // backfill default lands cleanly on pre-existing rows.
+        conn.inner()
+            .execute(
+                "INSERT INTO sessions (id, label, kind, sort_order, notes, extras, \
+                                       created_at, updated_at) \
+                 VALUES ('s-webdav', 'old-dav', 'webdav', 0, '', '{}', 0, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO webdav_session_details \
+                    (session_id, base_url, username, auth_method, \
+                     self_signed_fingerprint, updated_at) \
+                 VALUES ('s-webdav', 'https://example.com/dav/', 'alice', \
+                         'basic', NULL, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO sessions (id, label, kind, sort_order, notes, extras, \
+                                       created_at, updated_at) \
+                 VALUES ('s-s3', 'old-s3', 's3', 0, '', '{}', 0, 0)",
+                [],
+            )
+            .unwrap();
+        conn.inner()
+            .execute(
+                "INSERT INTO s3_session_details \
+                    (session_id, access_key_id, region, endpoint, path_style, \
+                     default_bucket, default_prefix, updated_at) \
+                 VALUES ('s-s3', 'AKIA', 'us-east-1', '', 0, 'b', '', 0)",
+                [],
+            )
+            .unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        // Both new columns must exist after the upgrade hop.
+        let mut webdav_has_password = false;
+        conn.inner()
+            .pragma(None, "table_info", "webdav_session_details", |row| {
+                let name: String = row.get("name")?;
+                if name == "password" {
+                    webdav_has_password = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            webdav_has_password,
+            "webdav_session_details.password missing after v16 → v17"
+        );
+        let mut s3_has_secret = false;
+        conn.inner()
+            .pragma(None, "table_info", "s3_session_details", |row| {
+                let name: String = row.get("name")?;
+                if name == "secret_access_key" {
+                    s3_has_secret = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            s3_has_secret,
+            "s3_session_details.secret_access_key missing after v16 → v17"
+        );
+
+        // Backfill: pre-existing rows take the empty-string schema
+        // default — they have no stored secret yet.
+        let p: String = conn
+            .inner()
+            .query_row(
+                "SELECT password FROM webdav_session_details WHERE session_id = 's-webdav'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(p, "");
+        let k: String = conn
+            .inner()
+            .query_row(
+                "SELECT secret_access_key FROM s3_session_details WHERE session_id = 's-s3'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(k, "");
+
+        // Idempotent re-run — second bootstrap is a no-op.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+}

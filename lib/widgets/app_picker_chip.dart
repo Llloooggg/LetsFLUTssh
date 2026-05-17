@@ -73,7 +73,7 @@ class AppPickerChip extends StatelessWidget {
                   size: 12,
                   color: active ? AppTheme.fg : AppTheme.fgFaint,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xxs),
               ],
               Flexible(
                 child: Text(
@@ -82,7 +82,7 @@ class AppPickerChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: active ? AppTheme.fg : AppTheme.fgFaint,
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.interFamily,
                     fontSize: AppFonts.xs,
                     fontWeight: FontWeight.w500,
                   ),

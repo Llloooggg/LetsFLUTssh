@@ -4,10 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 // Test the sorting logic used by LocalFS without needing real file I/O for sort.
 // Also test LocalFS operations using temp directories.
 
 void main() {
+  // sortFileEntries routes through `lfs_core::sftp_models` —
+  // bootstrap FRB so the canonical Rust dirs-first sort is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('LocalFS sort logic', () {
     // Re-implement the sort from LocalFS._sort() to test in isolation
     void sortEntries(List<FileEntry> entries) {

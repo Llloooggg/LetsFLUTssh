@@ -1,0 +1,72 @@
+[package]
+name = "lfs_fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "GPL-3.0-only"
+
+# Coverage-guided libFuzzer harnesses for the four untrusted-bytes
+# parsers that moved to lfs_core in the port: deeplink URI,
+# known_hosts entries, QR codec payload, and the OpenSSH config
+# grammar. Each
+# target is a thin `fuzz_target!` shim that drives bytes from the
+# fuzzer at the parser's pure-fn entrypoint and asserts no panic
+# / no UB / fail-closed on malformed input.
+#
+# Run with `cargo +nightly fuzz run <target>` from this directory
+# (cargo-fuzz needs nightly for the `-Z` flags it threads through
+# rustc). Not part of the default workspace build — the
+# `[workspace]` block here re-roots so `cargo build` from the
+# repo root never picks these targets up.
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+lfs_core = { path = "../crates/lfs_core" }
+# RFC 7512 `pkcs11:` URI parser lives under `lfs_os_security::pkcs11::uri`
+# — vendored to dodge the unmaintained `pkcs11-uri` crate. The fuzz
+# target drives raw bytes into `Pkcs11Uri::parse` + round-trips the
+# emit through `parse` again.
+lfs_os_security = { path = "../crates/lfs_os_security" }
+
+[[bin]]
+name = "deeplink"
+path = "fuzz_targets/deeplink.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pkcs11_uri"
+path = "fuzz_targets/pkcs11_uri.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "known_hosts"
+path = "fuzz_targets/known_hosts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "qr_codec"
+path = "fuzz_targets/qr_codec.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "openssh_config"
+path = "fuzz_targets/openssh_config.rs"
+test = false
+doc = false
+bench = false
+
+# Member of the parent rust/ workspace (declared in
+# rust/Cargo.toml `members`). Exclusion from `default-members`
+# keeps `cargo build --workspace` from the parent fast — the
+# fuzz binaries are nightly-only and not part of the host build.

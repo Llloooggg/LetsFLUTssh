@@ -2,8 +2,9 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
@@ -12,14 +13,43 @@ import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/dropdown_select_button.dart';
+import 'package:letsflutssh/widgets/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // `_buildSession` performs tilde expansion via `homeDirectory`,
+  // which now routes through `lfs_core::host_info` (FRB sync).
+  // Bootstrap once for the whole file.
+  setUpAll(requireFrbLoaded);
+
+  // The Save-fail path fires `Toast.show` which schedules a 3-second
+  // auto-dismiss `Timer`. The framework's `!timersPending` invariant
+  // runs before `tearDown`, so clearing the entry afterwards is too
+  // late. `disabledForTests` short-circuits `Toast.show` so the
+  // notification never schedules a Timer in this file's tests; the
+  // form-level validation contract (inline errors, tab routing) is
+  // still fully exercised because Toast is purely additive UX.
+  setUpAll(() => Toast.disabledForTests = true);
+  tearDownAll(() => Toast.disabledForTests = false);
+
   SessionDialogResult? dialogResult;
 
   Widget buildApp({Session? session, String? defaultFolder}) {
     dialogResult = null;
     return ProviderScope(
+      overrides: [
+        // The dialog watches `sessionTagsProvider` (per-session
+        // family) and `sshKeysProvider` for chips/dropdowns. With
+        // FRB bootstrapped and no `lfs_core.db` in the test
+        // process, the live providers spin a
+        // CircularProgressIndicator forever — `pumpAndSettle`
+        // never settles. Stub them to immediate empty values.
+        sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
+        ..._stubKeysOverrides(_StubKeysMutator(const [])),
+      ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
@@ -50,18 +80,35 @@ void main() {
     String user = 'testuser',
     String password = 'pass',
   }) async {
+    // Single-form layout — every field is on the same scrollable
+    // page, no tab switch needed between host and password.
     await tester.enterText(fieldByHint('192.168.1.1'), host);
     await tester.enterText(fieldByHint('root'), user);
-    // Fill password on Auth tab
-    await tester.tap(find.text('Auth'));
-    await tester.pumpAndSettle();
     await tester.enterText(fieldByHint('••••••••'), password);
-    await tester.tap(find.text('Connection'));
     await tester.pumpAndSettle();
   }
 
+  /// Single-form layout — there is no Auth tab to switch to; the
+  /// helper is kept as a name-stable no-op so the existing test
+  /// scenarios that called `switchToAuth(tester)` between filling
+  /// a host and entering a password still read linearly without
+  /// touching every call site.
   Future<void> switchToAuth(WidgetTester tester) async {
-    await tester.tap(find.text('Auth'));
+    await tester.pumpAndSettle();
+  }
+
+  /// Single-form layout — Tags + Forwarding + Record-session
+  /// toggle live inside the collapsible Advanced section. Tests
+  /// that exercise those rows call this helper to expand it first.
+  /// The section header sits at the bottom of the scrollable body,
+  /// so the helper scrolls it into view before tapping otherwise
+  /// the tap can miss when the dialog is taller than the test
+  /// viewport.
+  Future<void> expandAdvanced(WidgetTester tester) async {
+    final header = find.text('ADVANCED');
+    await tester.ensureVisible(header);
+    await tester.pumpAndSettle();
+    await tester.tap(header, warnIfMissed: false);
     await tester.pumpAndSettle();
   }
 
@@ -92,7 +139,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to Auth tab
-      await tester.tap(find.text('Auth'));
+      // Single-form: Auth fields are visible on the same scrollable
+      // page as Connection fields — no tab switch needed.
       await tester.pumpAndSettle();
 
       // Password field label
@@ -104,17 +152,18 @@ void main() {
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('dialog has Save, Save & Connect and Cancel buttons', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'New Connection dialog has Save, Save & Connect and Cancel buttons',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Save & Connect'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
+        expect(find.text('Save'), findsOneWidget);
+        expect(find.text('Save & Connect'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      },
+    );
 
     testWidgets('validates required fields on submit', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -159,25 +208,26 @@ void main() {
   });
 
   group('SessionEditDialog — submit actions', () {
-    testWidgets('Save & Connect returns SaveResult with connect=true', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Save & Connect on new session returns SaveResult with connect=true',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      await fillRequiredFields(tester);
+        await fillRequiredFields(tester);
 
-      await tester.tap(find.text('Save & Connect'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.host, 'example.com');
-      expect(result.session.user, 'testuser');
-      expect(result.session.port, 22);
-      expect(result.connect, isTrue);
-    });
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.host, 'example.com');
+        expect(result.session.user, 'testuser');
+        expect(result.session.port, 22);
+        expect(result.connect, isTrue);
+      },
+    );
 
     testWidgets('Save & Connect with label filled', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -271,27 +321,31 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets('Save & Connect returns SaveResult with connect=true', (
-      tester,
-    ) async {
-      final session = Session(
-        label: 'test-server',
-        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
-      );
-      await tester.pumpWidget(buildApp(session: session));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Save & Connect on existing session returns SaveResult with connect=true',
+      (tester) async {
+        final session = Session(
+          label: 'test-server',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+          auth: const SessionAuth(
+            authType: AuthType.password,
+            password: 'pass',
+          ),
+        );
+        await tester.pumpWidget(buildApp(session: session));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.host, '10.0.0.1');
-      expect(result.session.user, 'root');
-      expect(result.connect, isTrue);
-    });
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.host, '10.0.0.1');
+        expect(result.session.user, 'root');
+        expect(result.connect, isTrue);
+      },
+    );
 
     testWidgets('Save preserves edited fields', (tester) async {
       final session = Session(
@@ -507,11 +561,17 @@ void main() {
 
       await switchToAuth(tester);
 
-      // Both password and passphrase have visibility icons — find first one (password).
+      // Both password and passphrase have visibility icons — find
+      // first one (password). Single-form lays out both fields on
+      // the same scrollable page; ensureVisible drags the password
+      // toggle into the viewport before the tap so the gesture
+      // doesn't miss when the dialog is taller than the test viewport.
       final visibilityIcons = find.byIcon(Icons.visibility);
       expect(visibilityIcons, findsNWidgets(2));
+      await tester.ensureVisible(visibilityIcons.first);
+      await tester.pumpAndSettle();
 
-      await tester.tap(visibilityIcons.first);
+      await tester.tap(visibilityIcons.first, warnIfMissed: false);
       await tester.pumpAndSettle();
 
       // Password toggled off, passphrase still on → one visibility + one visibility_off.
@@ -757,29 +817,36 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets('dialog has Save, Save & Connect and Cancel buttons', (
-      tester,
-    ) async {
-      final session = Session(
-        label: 'edit-me',
-        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-        auth: const SessionAuth(authType: AuthType.password),
-      );
-      await tester.pumpWidget(buildApp(session: session));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Edit Connection dialog has Save, Save & Connect and Cancel buttons',
+      (tester) async {
+        final session = Session(
+          label: 'edit-me',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+          auth: const SessionAuth(authType: AuthType.password),
+        );
+        await tester.pumpWidget(buildApp(session: session));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Edit Connection'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Save & Connect'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
+        expect(find.text('Edit Connection'), findsOneWidget);
+        expect(find.text('Save'), findsOneWidget);
+        expect(find.text('Save & Connect'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      },
+    );
   });
 
   group('SessionEditDialog — edit key session preserves all key fields', () {
-    testWidgets('editing key session and saving preserves key data', (
+    testWidgets('editing label leaves the key fields untouched (not dirty)', (
       tester,
     ) async {
+      // The dialog no longer pre-fills credential controllers; the
+      // store-side partial-update path skips secret columns whose
+      // dirty bit is false. Editing the label therefore returns a
+      // SaveResult whose `keyDataDirty` / `passphraseDirty` flags
+      // are clear — the caller writes only the metadata, leaving
+      // the DB columns intact.
       final session = Session(
         id: 'key-edit-1',
         label: 'key-srv',
@@ -787,9 +854,8 @@ void main() {
         auth: const SessionAuth(
           authType: AuthType.key,
           keyPath: '/path/to/key',
-          keyData:
-              '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
-          passphrase: 'phrase123',
+          hasStoredKeyData: true,
+          hasStoredPassphrase: true,
         ),
       );
       await tester.pumpWidget(buildApp(session: session));
@@ -807,8 +873,9 @@ void main() {
       expect(result.session.label, 'key-srv-updated');
       expect(result.session.authType, AuthType.key);
       expect(result.session.keyPath, '/path/to/key');
-      expect(result.session.keyData, contains('PRIVATE KEY'));
-      expect(result.session.passphrase, 'phrase123');
+      expect(result.passwordDirty, isFalse);
+      expect(result.keyDataDirty, isFalse);
+      expect(result.passphraseDirty, isFalse);
     });
   });
 
@@ -1591,60 +1658,59 @@ void main() {
         },
       );
 
-      testWidgets('toggling PEM off then on preserves keyData content', (
-        tester,
-      ) async {
-        final session = Session(
-          label: 'key-srv',
-          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-          auth: const SessionAuth(
-            authType: AuthType.key,
-            keyData:
-                '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
-          ),
-        );
-        await tester.pumpWidget(buildApp(session: session));
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+      testWidgets(
+        'toggling PEM off then on does not flip the keyData dirty bit',
+        (tester) async {
+          // The dialog no longer pre-fills the PEM controller, so a
+          // visibility toggle that the user does not type into must
+          // not flip `keyDataDirty`. The save path therefore leaves
+          // the database column intact.
+          final session = Session(
+            label: 'key-srv',
+            server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+            auth: const SessionAuth(
+              authType: AuthType.key,
+              hasStoredKeyData: true,
+            ),
+          );
+          await tester.pumpWidget(buildApp(session: session));
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
 
-        await switchToAuth(tester);
+          await switchToAuth(tester);
 
-        final scrollable = find.byType(Scrollable).last;
+          final scrollable = find.byType(Scrollable).last;
 
-        // Hide PEM text
-        await tester.scrollUntilVisible(
-          find.text('Hide PEM text'),
-          100,
-          scrollable: scrollable,
-        );
-        await tester.tap(find.text('Hide PEM text'));
-        await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(
+            find.text('Hide PEM text'),
+            100,
+            scrollable: scrollable,
+          );
+          await tester.tap(find.text('Hide PEM text'));
+          await tester.pumpAndSettle();
+          expect(find.text('Paste PEM key text'), findsOneWidget);
 
-        expect(find.text('Paste PEM key text'), findsOneWidget);
-        expect(find.text('-----BEGIN OPENSSH PRIVATE KEY-----'), findsNothing);
+          await tester.scrollUntilVisible(
+            find.text('Paste PEM key text'),
+            100,
+            scrollable: scrollable,
+          );
+          await tester.tap(find.text('Paste PEM key text'));
+          await tester.pumpAndSettle();
 
-        // Show PEM text again
-        await tester.scrollUntilVisible(
-          find.text('Paste PEM key text'),
-          100,
-          scrollable: scrollable,
-        );
-        await tester.tap(find.text('Paste PEM key text'));
-        await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(
+            find.text('Save'),
+            -100,
+            scrollable: scrollable,
+          );
+          await tester.tap(find.text('Save'));
+          await tester.pumpAndSettle();
 
-        // Save and verify keyData is preserved
-        await tester.scrollUntilVisible(
-          find.text('Save'),
-          -100,
-          scrollable: scrollable,
-        );
-        await tester.tap(find.text('Save'));
-        await tester.pumpAndSettle();
-
-        expect(dialogResult, isA<SaveResult>());
-        final result = dialogResult as SaveResult;
-        expect(result.session.keyData, contains('PRIVATE KEY'));
-      });
+          expect(dialogResult, isA<SaveResult>());
+          final result = dialogResult as SaveResult;
+          expect(result.keyDataDirty, isFalse);
+        },
+      );
     },
   );
 
@@ -1870,8 +1936,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Options'));
-      await tester.pumpAndSettle();
+      await expandAdvanced(tester);
 
       expect(
         find.text('Save the session first to assign tags'),
@@ -1918,8 +1983,7 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Options'));
-      await tester.pumpAndSettle();
+      await expandAdvanced(tester);
       // Extra microtask-flush frames: sessionTagsProvider returns a Future
       // that resolves after pumpAndSettle's initial frame.
       await tester.pump();
@@ -1978,14 +2042,12 @@ void main() {
     Widget buildWithKeys(
       List<SshKeyEntry> keys, {
       Session? session,
-      KeyStore? keyStore,
+      _StubKeysMutator? notifier,
     }) {
+      final keysList = List<SshKeyEntry>.unmodifiable(keys);
       return ProviderScope(
         overrides: [
-          sshKeysProvider.overrideWith(
-            (_) async => List<SshKeyEntry>.unmodifiable(keys),
-          ),
-          if (keyStore != null) keyStoreProvider.overrideWithValue(keyStore),
+          ..._stubKeysOverrides(notifier ?? _StubKeysMutator(keysList)),
           if (session != null)
             sessionTagsProvider(
               session.id,
@@ -2032,7 +2094,15 @@ void main() {
         await tester.pumpAndSettle();
         await switchToAuth(tester);
 
-        await tester.tap(find.text('Select from Key Store'));
+        // Single-form lays the key-store button below the password
+        // field on the same scrollable page; ensure it is visible
+        // before tapping so the gesture lands.
+        await tester.ensureVisible(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text('Select from Key Store'),
+          warnIfMissed: false,
+        );
         await tester.pumpAndSettle();
 
         // Both labels appear in the picker dialog.
@@ -2051,7 +2121,15 @@ void main() {
         await tester.pumpAndSettle();
         await switchToAuth(tester);
 
-        await tester.tap(find.text('Select from Key Store'));
+        // Single-form lays the key-store button below the password
+        // field on the same scrollable page; ensure it is visible
+        // before tapping so the gesture lands.
+        await tester.ensureVisible(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text('Select from Key Store'),
+          warnIfMissed: false,
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(SimpleDialogOption, 'Prod key'));
         await tester.pumpAndSettle();
@@ -2080,7 +2158,15 @@ void main() {
         await tester.pumpAndSettle();
         await switchToAuth(tester);
 
-        await tester.tap(find.text('Select from Key Store'));
+        // Single-form lays the key-store button below the password
+        // field on the same scrollable page; ensure it is visible
+        // before tapping so the gesture lands.
+        await tester.ensureVisible(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text('Select from Key Store'),
+          warnIfMissed: false,
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(SimpleDialogOption, 'Prod key'));
         await tester.pumpAndSettle();
@@ -2106,7 +2192,10 @@ void main() {
         // render the resolved label on the chip. The session itself never
         // stores the label — the key store is the source of truth.
         final storedKey = makeKey('k-abc', 'Saved laptop key');
-        final fakeStore = _StubKeyStore({'k-abc': storedKey});
+        final fakeStore = _StubKeysMutator(
+          [storedKey],
+          lookup: {'k-abc': storedKey},
+        );
         final existing = Session(
           id: 's1',
           label: 'Existing',
@@ -2115,41 +2204,816 @@ void main() {
         );
 
         await tester.pumpWidget(
-          buildWithKeys([storedKey], session: existing, keyStore: fakeStore),
+          buildWithKeys([storedKey], session: existing, notifier: fakeStore),
         );
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         await switchToAuth(tester);
-        // Extra pumps: _resolveKeyLabel is an async chain (keyStoreProvider →
-        // KeyStore.get → setState), so the label lands a microtask or two
-        // after the initial widget tree settles.
+        // Extra pumps: _resolveKeyLabel is an async chain
+        // (keyStoreProvider → loadAllMetadata → setState), so the label
+        // lands a microtask or two after the initial widget tree
+        // settles.
         await tester.pump();
         await tester.pump();
 
         expect(find.text('Saved laptop key'), findsOneWidget);
-        expect(fakeStore.getIds, ['k-abc']);
+        // Resolve must go through the metadata path (no PEM bytes
+        // pulled into the Dart heap for a label-only render).
+        expect(fakeStore.metadataLookups, 1);
       },
     );
   });
+
+  group('SessionEditDialog — key picker hardware badge', () {
+    SshKeyEntry makeKey(String id, String label) => SshKeyEntry(
+      id: id,
+      label: label,
+      privateKey: '',
+      publicKey: '',
+      keyType: 'ed25519',
+      createdAt: DateTime(2025, 1, 1),
+    );
+
+    Widget buildWithKeys(
+      List<SshKeyEntry> keys, {
+      Map<String, String> backends = const {},
+    }) {
+      final keysList = List<SshKeyEntry>.unmodifiable(keys);
+      return ProviderScope(
+        overrides: [
+          ..._stubKeysOverrides(_StubKeysMutator(keysList, backends: backends)),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => SessionEditDialog.show(context),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets(
+      'FIDO2 row in the picker dropdown carries the HardwareKeyBadge',
+      // Spec: the standalone key manager already renders the
+      // HardwareKeyBadge next to FIDO2 sk-* rows. The session-edit
+      // "Select from key store" picker is a second listing surface
+      // for the same rows and must mirror the badge — corp users
+      // with mixed software / hardware key stores need to tell at
+      // a glance which row is which inside the picker too.
+      (tester) async {
+        await tester.pumpWidget(
+          buildWithKeys(
+            [makeKey('k1', 'YubiKey 5'), makeKey('k2', 'Laptop key')],
+            backends: {'k1': 'fido2'},
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Single-form: Auth fields are visible on the same scrollable
+        // page as Connection fields — no tab switch needed.
+        await tester.pumpAndSettle();
+        // Single-form lays the key-store button below the password
+        // field on the same scrollable page; ensure it is visible
+        // before tapping so the gesture lands.
+        await tester.ensureVisible(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text('Select from Key Store'),
+          warnIfMissed: false,
+        );
+        await tester.pumpAndSettle();
+
+        // The FIDO2 row carries the hardware badge — same widget
+        // class the key manager uses, so a visual regression on one
+        // surface lands on the other.
+        expect(find.byType(HardwareKeyBadge), findsOneWidget);
+      },
+    );
+
+    testWidgets('software rows render no badge', (tester) async {
+      await tester.pumpWidget(buildWithKeys([makeKey('k1', 'Laptop key')]));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      // Single-form: Auth fields are visible on the same scrollable
+      // page as Connection fields — no tab switch needed.
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select from Key Store'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HardwareKeyBadge), findsNothing);
+    });
+  });
+
+  group('SessionEditDialog — system ssh-agent option', () {
+    Widget buildAgentApp({Session? session}) {
+      return ProviderScope(
+        overrides: [
+          ..._stubKeysOverrides(_StubKeysMutator(const [])),
+          if (session != null)
+            sessionTagsProvider(
+              session.id,
+            ).overrideWith((_) async => const <Tag>[]),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () =>
+                    SessionEditDialog.show(context, session: session),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    group('desktop', () {
+      setUp(() {
+        debugDesktopPlatformOverride = true;
+        debugMobilePlatformOverride = false;
+      });
+
+      tearDown(() {
+        debugDesktopPlatformOverride = null;
+        debugMobilePlatformOverride = null;
+      });
+
+      testWidgets('option renders enabled on the Auth tab', (tester) async {
+        await tester.pumpWidget(buildAgentApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Single-form: Auth fields are visible on the same scrollable
+        // page as Connection fields — no tab switch needed.
+        await tester.pumpAndSettle();
+
+        expect(find.text('Use system ssh-agent'), findsOneWidget);
+        // Password / key sections still render — the toggle is off
+        // by default for fresh sessions.
+        expect(find.text('PASSWORD'), findsOneWidget);
+      });
+
+      testWidgets(
+        'selecting the agent option collapses the password + key sections',
+        (tester) async {
+          await tester.pumpWidget(buildAgentApp());
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Single-form: the agent toggle sits at the top of the
+          // Authentication section, which lives below Connection
+          // on the same scrollable page. Scroll it into view before
+          // tapping so the gesture lands on the HoverRegion that
+          // owns the flag flip.
+          await tester.ensureVisible(find.text('Use system ssh-agent'));
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.text('Use system ssh-agent'),
+            warnIfMissed: false,
+          );
+          await tester.pumpAndSettle();
+
+          // No password field, no OR divider, no key passphrase —
+          // the agent owns every credential.
+          expect(find.text('PASSWORD'), findsNothing);
+          expect(find.text('OR'), findsNothing);
+          expect(find.text('KEY PASSPHRASE'), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'Save & Connect with agent selected returns SaveResult with AuthType.agent',
+        // Spec: the bus mapper already routes AuthType.agent (set
+        // by toSSHConfig.useAgent) into BusConnectAuthRef.agent.
+        // The dialog must therefore stamp the session's authType
+        // to AuthType.agent when the toggle is on so the connect
+        // arm picks the SshAuthAgent ref instead of the composer.
+        (tester) async {
+          SessionDialogResult? result;
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [..._stubKeysOverrides(_StubKeysMutator(const []))],
+              child: MaterialApp(
+                localizationsDelegates: S.localizationsDelegates,
+                supportedLocales: S.supportedLocales,
+                home: Scaffold(
+                  body: Builder(
+                    builder: (context) => ElevatedButton(
+                      onPressed: () async {
+                        result = await SessionEditDialog.show(context);
+                      },
+                      child: const Text('Open'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+
+          // Connection tab — fill host / user so the form validates.
+          await tester.enterText(
+            find.widgetWithText(TextFormField, '192.168.1.1'),
+            'example.com',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextFormField, 'root'),
+            'testuser',
+          );
+          // Single-form: the agent toggle sits inside the same
+          // scrollable page. Scroll it into view before tapping so
+          // the gesture lands on the HoverRegion.
+          await tester.ensureVisible(find.text('Use system ssh-agent'));
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.text('Use system ssh-agent'),
+            warnIfMissed: false,
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Save & Connect'));
+          await tester.pumpAndSettle();
+
+          expect(result, isA<SaveResult>());
+          final save = result! as SaveResult;
+          expect(save.session.authType, AuthType.agent);
+          // No password / key / passphrase leaked through.
+          expect(save.session.password, isEmpty);
+          expect(save.session.keyData, isEmpty);
+          expect(save.session.keyId, isEmpty);
+        },
+      );
+
+      testWidgets(
+        'toSSHConfig propagates useAgent when authType is agent',
+        // Spec: the connect path reads SshAuth.useAgent inside
+        // ConnectionsNotifier._authFromConfig. toSSHConfig must
+        // set the flag from authType so a saved AuthType.agent
+        // row routes to SshAuthAgent on every dial.
+        (tester) async {
+          // No widget pump here — pure projection check.
+          final session = Session(
+            id: 's',
+            label: 'agent',
+            server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+            auth: const SessionAuth(authType: AuthType.agent),
+          );
+          expect(session.toSSHConfig().auth.useAgent, isTrue);
+
+          final passwordSession = session.copyWith(
+            auth: session.auth.copyWith(authType: AuthType.password),
+          );
+          expect(passwordSession.toSSHConfig().auth.useAgent, isFalse);
+        },
+      );
+
+      testWidgets(
+        'editing an existing AuthType.agent session opens with toggle on',
+        (tester) async {
+          final existing = Session(
+            id: 's1',
+            label: 'agent session',
+            server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+            auth: const SessionAuth(authType: AuthType.agent),
+          );
+          await tester.pumpWidget(buildAgentApp(session: existing));
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Single-form: Auth fields are visible on the same scrollable
+          // page as Connection fields — no tab switch needed.
+          await tester.pumpAndSettle();
+
+          // Password / key sections collapsed because the saved
+          // session is agent-mode.
+          expect(find.text('PASSWORD'), findsNothing);
+          expect(find.text('Use system ssh-agent'), findsOneWidget);
+        },
+      );
+    });
+
+    group('mobile', () {
+      setUp(() {
+        debugDesktopPlatformOverride = false;
+        debugMobilePlatformOverride = true;
+      });
+
+      tearDown(() {
+        debugDesktopPlatformOverride = null;
+        debugMobilePlatformOverride = null;
+      });
+
+      testWidgets(
+        'option is disabled with tooltip — agent endpoint is desktop-only',
+        // Spec: the system ssh-agent endpoint is desktop-only —
+        // Android / iOS have no analogue. The UI keeps the option
+        // visible so the session configuration surface looks the
+        // same on every platform, but the row is disabled and
+        // surfaces the reason in a tooltip so the user does not
+        // have to guess.
+        (tester) async {
+          await tester.pumpWidget(buildAgentApp());
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Single-form: Auth fields are visible on the same scrollable
+          // page as Connection fields — no tab switch needed.
+          await tester.pumpAndSettle();
+
+          // Tooltip is rendered.
+          expect(
+            find.byTooltip(
+              'Not available on mobile — the system ssh-agent endpoint is desktop-only.',
+            ),
+            findsOneWidget,
+          );
+
+          // Tap-through is suppressed — the password field stays
+          // visible (toggle should not flip). Scroll the disabled
+          // toggle into view first so the gesture actually lands on
+          // it; otherwise the tap target falls outside the dialog
+          // body and the modal barrier dismisses the form.
+          await tester.ensureVisible(find.text('Use system ssh-agent'));
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.text('Use system ssh-agent'),
+            warnIfMissed: false,
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('PASSWORD'), findsOneWidget);
+        },
+      );
+    });
+  });
+
+  group('SessionEditDialog — protocol-branched Auth tab', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'SSH kind shows ssh-agent + password + key fields on Auth tab',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+
+        // SSH is the default — agent toggle + password divider + key
+        // passphrase all present.
+        expect(find.text('Use system ssh-agent'), findsOneWidget);
+        expect(find.text('PASSWORD'), findsOneWidget);
+        expect(find.text('KEY PASSPHRASE'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WebDAV kind hides SSH key fields and shows auth-method chips + fingerprint on Auth tab',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+        await switchToAuth(tester);
+
+        // Auth-method picker + bearer chip belong on Auth now.
+        expect(find.text('Basic'), findsOneWidget);
+        expect(find.text('Digest'), findsOneWidget);
+        expect(find.text('Bearer token'), findsOneWidget);
+        // Self-signed fingerprint pin lives next to the credential.
+        expect(
+          find.text('SELF-SIGNED CERT FINGERPRINT (OPTIONAL)'),
+          findsOneWidget,
+        );
+
+        // SSH controls must NOT render for WebDAV.
+        expect(find.text('Use system ssh-agent'), findsNothing);
+        expect(find.text('KEY PASSPHRASE'), findsNothing);
+        expect(find.text('Select Key File'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WebDAV credential field label flips when bearer chip selected',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+        await switchToAuth(tester);
+
+        // Basic is the default — credential field label = "PASSWORD *"
+        // (the WebDAV credential is always required, so the dialog
+        // appends the star to the uppercased FieldLabel text).
+        expect(find.text('PASSWORD *'), findsOneWidget);
+
+        // Tap the bearer chip — the field above becomes the token.
+        // Scroll the chip into view first so the gesture lands.
+        final bearerChip = find.text('Bearer token').first;
+        await tester.ensureVisible(bearerChip);
+        await tester.pumpAndSettle();
+        await tester.tap(bearerChip, warnIfMissed: false);
+        await tester.pumpAndSettle();
+        // Chip text stays mixed-case ("Bearer token"); the field
+        // label routes through `FieldLabel` which uppercases and
+        // appends the required marker ("BEARER TOKEN *"). The
+        // password label disappears for the bearer method.
+        expect(find.text('Bearer token'), findsOneWidget);
+        expect(find.text('BEARER TOKEN *'), findsOneWidget);
+        expect(find.text('PASSWORD *'), findsNothing);
+      },
+    );
+
+    testWidgets('S3 kind shows only the secret access key field on Auth tab', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await selectKind(tester, 'S3');
+      await switchToAuth(tester);
+
+      expect(find.text('SECRET ACCESS KEY *'), findsOneWidget);
+
+      // No SSH controls, no WebDAV chips.
+      expect(find.text('Use system ssh-agent'), findsNothing);
+      expect(find.text('KEY PASSPHRASE'), findsNothing);
+      expect(find.text('Basic'), findsNothing);
+      expect(find.text('Bearer token'), findsNothing);
+      expect(
+        find.text('SELF-SIGNED CERT FINGERPRINT (OPTIONAL)'),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'WebDAV form renders the full set of fields on the single-form page',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+
+        // Single-form layout — every field for the WebDAV transport
+        // sits on the same scrollable page. Connection-side fields
+        // (base URL + username) carry the `*` required marker;
+        // Authentication-side fields (method chips + credential +
+        // self-signed-cert fingerprint pin) sit below them.
+        expect(find.text('BASE URL *'), findsOneWidget);
+        expect(find.text('USERNAME *'), findsOneWidget);
+        expect(find.text('Basic'), findsOneWidget);
+        expect(find.text('Digest'), findsOneWidget);
+        expect(find.text('Bearer token'), findsOneWidget);
+        expect(
+          find.text('SELF-SIGNED CERT FINGERPRINT (OPTIONAL)'),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+
+  group(
+    'SessionEditDialog — Forwarding lives inside Advanced for SSH only',
+    () {
+      Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+        await tester.tap(find.text(chipLabel));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets(
+        'SSH Advanced section exposes a port-forward summary + Manage button',
+        (tester) async {
+          await tester.pumpWidget(buildApp());
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          await expandAdvanced(tester);
+          // New sessions start with zero rules — the pluralised summary
+          // (`forwardRulesSummary`) routes through the `=0` branch.
+          expect(find.text('No port-forward rules'), findsOneWidget);
+          expect(find.text('Manage…'), findsOneWidget);
+        },
+      );
+
+      testWidgets('WebDAV hides the Forwarding row from Advanced', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await selectKind(tester, 'WebDAV');
+        await expandAdvanced(tester);
+        expect(find.text('Manage…'), findsNothing);
+        expect(find.text('No port-forward rules'), findsNothing);
+      });
+
+      testWidgets('S3 hides the Forwarding row from Advanced', (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await selectKind(tester, 'S3');
+        await expandAdvanced(tester);
+        expect(find.text('Manage…'), findsNothing);
+      });
+    },
+  );
+
+  group('SessionEditDialog — section headers reflect the form layout', () {
+    testWidgets(
+      'Connection + Authentication + Advanced section headers render',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // `_SectionHeader.toUpperCase()` produces these from
+        // `connection` / `sectionAuthentication` / `sectionAdvanced`
+        // ARB keys.
+        expect(find.text('CONNECTION'), findsOneWidget);
+        expect(find.text('AUTHENTICATION'), findsOneWidget);
+        expect(find.text('ADVANCED'), findsOneWidget);
+      },
+    );
+  });
+
+  group('SessionEditDialog — Advanced collapsible state', () {
+    testWidgets(
+      'Advanced section is collapsed by default — tags row is not rendered',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Body of Advanced is hidden until the user expands. The
+        // `_buildTagsSection` row that surfaces "Save the session
+        // first to assign tags" therefore is not in the tree yet.
+        expect(
+          find.text('Save the session first to assign tags'),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets('Tapping Advanced reveals the Tags / Record-session block', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await expandAdvanced(tester);
+      // For a fresh session, tags chips render the "save first"
+      // hint. The record toggle is also visible for SSH.
+      expect(
+        find.text('Save the session first to assign tags'),
+        findsOneWidget,
+      );
+      expect(find.text('Record session'), findsOneWidget);
+    });
+
+    testWidgets('Record-session toggle is hidden for non-SSH kinds (WebDAV)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('WebDAV'));
+      await tester.pumpAndSettle();
+      await expandAdvanced(tester);
+      expect(find.text('Record session'), findsNothing);
+    });
+
+    testWidgets('Record-session toggle is hidden for non-SSH kinds (S3)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('S3'));
+      await tester.pumpAndSettle();
+      await expandAdvanced(tester);
+      expect(find.text('Record session'), findsNothing);
+    });
+  });
+
+  group('SessionEditDialog — required-marker stars across kinds', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('SSH required fields carry the * marker on Connection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      // ARB strings: hostRequired = "Host *", usernameRequired =
+      // "Username *". Uppercased by FieldLabel.
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
+      // Auth password is on the same scrollable form.
+      expect(find.text('PASSWORD'), findsOneWidget);
+    });
+
+    testWidgets('WebDAV required fields carry the * marker', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'WebDAV');
+      // Single-form: Connection block on top, Auth block below —
+      // all required fields visible on the same scrollable page.
+      expect(find.text('BASE URL *'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
+      expect(find.text('PASSWORD *'), findsOneWidget);
+    });
+
+    testWidgets('S3 required fields carry the * marker', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'S3');
+      expect(find.text('ACCESS KEY ID *'), findsOneWidget);
+      expect(find.text('SECRET ACCESS KEY *'), findsOneWidget);
+    });
+  });
+
+  group('SessionEditDialog — ProxyJump required-field validation', () {
+    testWidgets('ProxyJump custom mode blocks Save when host/user missing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Fill the main SSH connection so only the proxy fields are
+      // empty when Save fires.
+      await fillRequiredFields(tester);
+
+      // Flip the proxy mode to "Custom" — host / port / username
+      // fields render with `*Required` labels but used to lack any
+      // validator. Save must surface "Required" markers and refuse
+      // to close.
+      await tester.tap(find.text('Custom'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      // Dialog still open — proxy fields blocked the save.
+      expect(find.text('New Connection'), findsOneWidget);
+      expect(find.text('Required'), findsWidgets);
+    });
+
+    testWidgets(
+      'ProxyJump custom mode allows Save once host / port / user filled',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await fillRequiredFields(tester);
+
+        await tester.tap(find.text('Custom'));
+        await tester.pumpAndSettle();
+
+        // Fill proxy host / port / user via the hint placeholders.
+        await tester.enterText(
+          fieldByHint('bastion.example.com'),
+          'bastion.example.com',
+        );
+        // The proxy port hint is '22'; two fields share that hint
+        // (main port + proxy port). Enter via the second occurrence.
+        final portFinder = fieldByHint('22');
+        await tester.enterText(portFinder.last, '2222');
+        // Reuse the username hint — two fields share it (main + proxy).
+        final userFinder = fieldByHint('root');
+        await tester.enterText(userFinder.last, 'ops');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
+
+        // Dialog closed with a SaveResult — proxy override flowed
+        // through.
+        expect(dialogResult, isA<SaveResult>());
+      },
+    );
+
+    testWidgets('ProxyJump saved mode blocks Save when no bastion selected', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await fillRequiredFields(tester);
+
+      // Switch to "Saved session". With no existing sessions to
+      // pick (test scope opens a fresh ProviderScope with no
+      // session list), the dropdown stays unselected — Save must
+      // refuse rather than collapsing silently to no-ProxyJump.
+      await tester.tap(find.text('Saved session'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Connection'), findsOneWidget);
+      expect(find.text('Required'), findsWidgets);
+    });
+
+    testWidgets('ProxyJump port range checked separately from main port', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await fillRequiredFields(tester);
+
+      await tester.tap(find.text('Custom'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        fieldByHint('bastion.example.com'),
+        'bastion.example.com',
+      );
+      // 99999 is out of the 1..65535 SSH port range.
+      await tester.enterText(fieldByHint('22').last, '99999');
+      await tester.enterText(fieldByHint('root').last, 'ops');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+
+      // Dialog stays open; the port-range error surfaces inline.
+      expect(find.text('New Connection'), findsOneWidget);
+    });
+  });
 }
 
-/// Minimal [KeyStore] test double.
+/// Minimal [SshKeysMutator] test double — returns the seeded
+/// metadata map on every `loadAllMetadata` and records the lookup
+/// count so tests can assert the dialog only pulls metadata and
+/// never PEM bytes.
 ///
-/// Overrides only [get] — the one method the key-picker flow relies on when
-/// resolving an already-stored `keyId` into a human label. Records the ids it
-/// is queried with so tests can assert the dialog only looks up what it needs.
-class _StubKeyStore implements KeyStore {
+/// `backends` lets a test set the `backend` discriminator on a row
+/// keyed by id so the key-picker surface (which routes the badge
+/// widget off this column) can be asserted against. Rows whose id
+/// is missing from the map default to `'software'` (no badge).
+class _StubKeysMutator extends SshKeysMutator {
+  _StubKeysMutator(
+    this._initial, {
+    Map<String, SshKeyEntry>? lookup,
+    Map<String, String>? backends,
+  }) : _entries = lookup ?? {for (final k in _initial) k.id: k},
+       _backends = backends ?? const {};
+
+  final List<SshKeyEntry> _initial;
   final Map<String, SshKeyEntry> _entries;
-  final List<String> getIds = [];
+  final Map<String, String> _backends;
 
-  _StubKeyStore(this._entries);
+  /// Number of `loadAllMetadata` invocations — `_resolveKeyLabel`
+  /// hits this once per key-picker open, never PEM-bearing `loadAll`.
+  int metadataLookups = 0;
+
+  /// Snapshot of the seeded entry list. Used by helpers that build
+  /// the matching `sshKeysStreamProvider` override so the picker
+  /// reads the same rows the metadata path returns.
+  List<SshKeyEntry> get initial => _initial;
 
   @override
-  Future<SshKeyEntry?> get(String id) async {
-    getIds.add(id);
-    return _entries[id];
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
+    metadataLookups += 1;
+    return {
+      for (final entry in _entries.values)
+        entry.id: SshKeyMetadata(
+          id: entry.id,
+          label: entry.label,
+          publicKey: entry.publicKey,
+          keyType: entry.keyType,
+          createdAt: entry.createdAt,
+          isGenerated: entry.isGenerated,
+          privateFingerprint: '',
+          publicFingerprint: '',
+          backend: _backends[entry.id] ?? 'software',
+        ),
+    };
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+/// Provider-override builder — wires the stream + mutator overrides
+/// off a single [_StubKeysMutator] so every test in this file picks
+/// up the same seed list on `sshKeysProvider` (sync derive) and the
+/// same metadata response on `sshKeysMutatorProvider.loadAllMetadata`.
+List<Override> _stubKeysOverrides(_StubKeysMutator mutator) => [
+  sshKeysStreamProvider.overrideWith((_) => Stream.value(mutator.initial)),
+  sshKeysMutatorProvider.overrideWithValue(mutator),
+];

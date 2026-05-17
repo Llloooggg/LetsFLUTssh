@@ -1,54 +1,63 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:convert' show utf8;
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:xterm/xterm.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../app/import_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
 import '../../core/progress/progress_reporter.dart';
 import '../../core/import/key_file_helper.dart';
 import '../../core/import/openssh_config_importer.dart';
 import '../../core/import/ssh_dir_key_scanner.dart';
-import '../../core/db/database_opener.dart';
 import 'security_tier_switcher.dart';
-import '../../core/shortcut_registry.dart';
-import '../../core/security/aes_gcm.dart';
+import '../../widgets/shortcut_registry.dart';
+import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/fido2.dart' as rust_fido2;
+import '../../src/rust/api/format.dart' as rust_format;
+import '../../src/rust/api/logger.dart' as rust_logger;
+import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
+import '../../src/rust/api/recorder.dart' as rust_recorder;
+import '../../src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
+import '../../src/rust/api/ssh_agent.dart' as rust_ssh_agent;
+import '../../src/rust/api/sync.dart' as rust_sync;
+import '../../core/security/active_dbkey.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../core/security/wipe_all_service.dart';
 import '../../core/session/qr_codec.dart';
-import '../../core/session/session.dart';
+import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../providers/auto_lock_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
-import '../../core/security/key_store.dart';
-import '../../core/security/secure_key_storage.dart';
-import '../../core/snippets/snippet.dart';
-import '../../core/snippets/snippet_store.dart';
-import '../../core/tags/tag.dart';
-import '../../core/tags/tag_store.dart';
 import '../../providers/key_provider.dart';
+import '../../core/logs/log_store.dart';
+import '../../providers/log_store_provider.dart';
 import '../../providers/master_password_provider.dart';
 import '../../core/security/security_bootstrap.dart';
-import '../../platform/macos/code_signing/resign_service.dart';
 import '../../providers/security_provider.dart';
 import '../../providers/security_reinit_provider.dart';
 import '../../providers/session_credential_cache_provider.dart';
 import '../../providers/snippet_provider.dart';
+import '../../providers/sync_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../core/update/update_service.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
-import '../../utils/android_storage_permission.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import 'qr_export_logic.dart';
+import 'security_section_logic.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
 import '../../utils/secret_controller.dart';
@@ -58,30 +67,40 @@ import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_popup_select.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_selection_area.dart';
+import '../../widgets/readonly_terminal_view.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
+import '../../widgets/typed_name_confirm_dialog.dart';
 import '../../widgets/form_submit_chain.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
+import '../../widgets/secure_screen_scope.dart';
+import '../../widgets/styled_form_field.dart';
 import '../../widgets/expandable_tier_card.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/update_progress_indicator.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
 import '../../widgets/link_import_preview_dialog.dart';
-import '../../widgets/local_directory_picker.dart';
 import '../../widgets/paste_import_link_dialog.dart';
 import '../../widgets/security_setup_dialog.dart';
 import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
+
 import 'export_import.dart';
-import 'settings_logging_parser.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
 part 'settings_sections_data.dart';
+part 'settings_sections_fido2_broker.dart';
+part 'settings_sections_data_export_import.dart';
 part 'settings_sections_preferences.dart';
 part 'settings_sections_security.dart';
+part 'settings_sections_security_apply.dart';
+part 'settings_sections_security_biometric.dart';
+part 'settings_sections_security_macos.dart';
+part 'settings_sections_ssh_agent.dart';
+part 'settings_sections_sync.dart';
 part 'settings_sections_updates.dart';
 part 'settings_widgets.dart';
 
@@ -115,7 +134,13 @@ class _Section {
   });
 }
 
-/// Ordered list of all settings sections (mobile — includes SSH Keys/tools).
+/// Single source of truth for the settings section list. The mobile
+/// collapsible-list and the desktop two-pane modal both read this —
+/// every section appears on every platform with one ordering, one
+/// icon set, one set of titles. SSH Keys / Snippets / Tags used to
+/// have separate desktop entries here but they live in the Tools
+/// dialog instead now (the historical "desktop excludes them" carve-
+/// out is gone — there is nothing for the carve-out to exclude).
 List<_Section> _buildSections(BuildContext context) => [
   _Section(
     title: S.of(context).appearance,
@@ -123,11 +148,6 @@ List<_Section> _buildSections(BuildContext context) => [
     builder: _AppearanceSection.new,
   ),
   _Section(
-    title: S.of(context).terminal,
-    icon: Icons.terminal,
-    builder: _TerminalSection.new,
-  ),
-  _Section(
     title: S.of(context).connectionSection,
     icon: Icons.lan,
     builder: _ConnectionSection.new,
@@ -142,59 +162,25 @@ List<_Section> _buildSections(BuildContext context) => [
     icon: Icons.security,
     builder: _SecuritySection.new,
   ),
+  // Combined parent for the SSH-key plumbing toggles. The
+  // agent-endpoint switch + the FIDO2 transport preference were two
+  // separate top-level sections with one control each; merged into
+  // a single section with sub-headers inside so the settings list
+  // does not surface a collapsible-card-per-toggle.
   _Section(
-    title: S.of(context).data,
-    icon: Icons.storage,
-    builder: _DataSection.new,
-  ),
-  _Section(
-    title: S.of(context).logging,
-    icon: Icons.description,
-    builder: _LoggingSection.new,
-  ),
-  _Section(
-    title: S.of(context).updates,
-    icon: Icons.system_update,
-    builder: _UpdateSection.new,
-  ),
-  _Section(
-    title: S.of(context).about,
-    icon: Icons.info_outline,
-    builder: _AboutSection.new,
-  ),
-];
-
-/// Desktop sections — excludes SSH Keys/Snippets/Tags (moved to Tools dialog).
-List<_Section> _buildDesktopSections(BuildContext context) => [
-  _Section(
-    title: S.of(context).appearance,
-    icon: Icons.palette,
-    builder: _AppearanceSection.new,
-  ),
-  _Section(
-    title: S.of(context).terminal,
-    icon: Icons.terminal,
-    builder: _TerminalSection.new,
-  ),
-  _Section(
-    title: S.of(context).connectionSection,
-    icon: Icons.lan,
-    builder: _ConnectionSection.new,
-  ),
-  _Section(
-    title: S.of(context).transfers,
-    icon: Icons.swap_horiz,
-    builder: _TransferSection.new,
-  ),
-  _Section(
-    title: S.of(context).security,
-    icon: Icons.security,
-    builder: _SecuritySection.new,
+    title: S.of(context).sshIntegrationSection,
+    icon: Icons.vpn_key_outlined,
+    builder: _SshIntegrationSection.new,
   ),
   _Section(
     title: S.of(context).data,
     icon: Icons.storage,
     builder: _DataSection.new,
+  ),
+  _Section(
+    title: S.of(context).syncSection,
+    icon: Icons.sync,
+    builder: _SyncSection.new,
   ),
   _Section(
     title: S.of(context).logging,
@@ -261,7 +247,10 @@ class _MobileSettingsScreen extends ConsumerWidget {
       // `SelectionArea` wraps the body because this route is pushed
       // on the root Navigator, above the MainScreen-level
       // `SelectionArea` — so without an inner one the body's Text
-      // widgets would lose drag-to-select.
+      // widgets would lose drag-to-select. The log viewer no longer
+      // nests its own `SelectionArea` (it renders to an xterm
+      // `Terminal` which has independent selection), so there is no
+      // `ContextMenuController` contention any more.
       body: AppSelectionArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -273,7 +262,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
                   icon: section.icon,
                   child: section.builder(),
                 ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Center(
                 child: AppButton.secondary(
                   label: S.of(context).resetToDefaults,
@@ -283,7 +272,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
                       .update((_) => AppConfig.defaults),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),
@@ -337,7 +326,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
         ),
         initiallyExpanded: _expanded,
         onExpansionChanged: (v) => setState(() => _expanded = v),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        childrenPadding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 12),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [widget.child],
       ),
@@ -369,7 +358,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final sections = _buildDesktopSections(context);
+    final sections = _buildSections(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -483,13 +472,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                               // Security grew taller. Eager-build keeps
                               // every row in the tree regardless of
                               // scroll position.
+                              //
+                              // No content-pane title — the nav rail on
+                              // the left already shows which section is
+                              // selected. Repeating the section name as
+                              // a `_SectionHeader` at the top of the
+                              // pane was visual duplication with no
+                              // information value.
                               cacheExtent: 10000,
-                              children: [
-                                _SectionHeader(
-                                  title: sections[_selectedIndex].title,
-                                ),
-                                sections[_selectedIndex].builder(),
-                              ],
+                              children: [sections[_selectedIndex].builder()],
                             ),
                           ),
                         ),
@@ -550,7 +541,7 @@ class _NavItemState extends State<_NavItem> {
                 size: 13,
                 color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: Text(
                   widget.label,
@@ -592,7 +583,7 @@ class _ResetButtonState extends State<_ResetButton> {
           child: Row(
             children: [
               Icon(Icons.restore, size: 12, color: AppTheme.red),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xxs),
               Flexible(
                 child: Text(
                   S.of(context).resetToDefaults,

@@ -1,26 +1,22 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:pointycastle/export.dart';
+import 'package:uuid/uuid.dart';
 
-import '../../utils/file_utils.dart';
+import '../../src/rust/api/app.dart' as rust_secrets;
+import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/format.dart' as rust_format;
+import '../../src/rust/api/recorder.dart' as rust_recorder;
+import '../security/active_dbkey.dart' as rust_secrets_consts;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 
 /// Direction marker on a recording event — matches asciinema v2's
-/// `"o"` / `"i"` codes so an exported plaintext stream can be played
-/// back in any asciinema-compatible viewer.
-enum RecordDirection {
-  output('o'),
-  input('i');
-
-  final String code;
-  const RecordDirection(this.code);
-}
+/// `"o"` / `"i"` codes. Mapped onto `lfs_core::recorder::RecordDirection`
+/// (FRB-mirrored as [rust_recorder.DbRecordDirection]) inside
+/// [_enqueueEvent].
+enum RecordDirection { output, input }
 
 /// Per-shell session recorder.
 ///
@@ -60,33 +56,38 @@ enum RecordDirection {
 /// a different surface for one feature would be misleading. The
 /// file extension differs (`.cast` vs `.lfsr`) so the loader can
 /// pick the right path without reading magic bytes first.
+///
+/// **Write ordering.** All header / event / rotate / close calls
+/// route through the per-id Rust write queue
+/// (`recorder_queue_enqueue_*`); the Rust worker drains in arrival
+/// order. Concurrent stdout chunks land on disk in the order they
+/// were emitted even when the FRB runtime fans them out across
+/// threads.
 class SessionRecorder {
-  /// Hard upper bound on file size before the recorder rolls to a
-  /// new file under the same session. 100 MB is large enough for a
-  /// multi-hour session of even a vim-heavy editing day; small
-  /// enough that the asciinema export of a single recording stays
-  /// trivially shareable.
-  static const int maxFileBytes = 100 * 1024 * 1024;
+  /// Has the underlying recording an encryption key set on the
+  /// Rust side. Drives the file-extension pick on rotation
+  /// (`.lfsr` vs `.cast`); the actual key bytes live Rust-side
+  /// for the recording's lifetime.
+  final bool _encrypted;
 
-  /// HKDF-derived 32-byte AES-256 key. Null in plaintext mode.
-  final Uint8List? _key;
-
-  /// Stable across the recorder's lifetime — used in asciinema
-  /// timestamp deltas. Captured at construction so the first event's
-  /// `t = 0` lines up with the real wall-clock of the session start.
-  final DateTime _start;
-
-  /// Open file handle. Re-opened when [_currentBytes] crosses
-  /// [maxFileBytes] and a new rotation file is created.
-  IOSink? _sink;
-  int _currentBytes = 0;
+  /// Active Rust-side recorder handle id. Re-used across
+  /// rotations — the Rust worker swaps the file handle in place
+  /// so subscribers tracking the recording don't have to re-bind.
+  final String _handleId;
   String? _currentPath;
 
-  /// Outbound writes are queued so events emitted during a flush
-  /// don't reorder — a strict serialised tail keeps timestamps
-  /// monotonic in the rare case a stdout chunk arrives mid-await.
-  final _writeQueue = StreamController<Uint8List>(sync: false);
-  StreamSubscription<Uint8List>? _writeSub;
+  /// Subscription to the per-id recorder bus topic — flips the
+  /// file path on rotate-requested and remembers the last
+  /// reported on-disk path so [close] returns the freshest value.
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
+
+  /// Resolved when the Rust worker emits `RecorderStopped` for our
+  /// id. [close] awaits it (with a timeout) so the on-disk file is
+  /// fully sealed before the caller proceeds. Trap: awaiting only
+  /// the enqueue-close future leaves trailing bytes in the worker
+  /// mailbox, producing a truncated recording on a fast disconnect.
+  /// ARCH §3.13 documents the contract.
+  final Completer<void> _stoppedCompleter = Completer<void>();
 
   /// Set by [close]; subsequent record calls become no-ops so the
   /// shell teardown's last bytes do not throw on a closed sink.
@@ -102,65 +103,80 @@ class SessionRecorder {
     required this.terminalShellLabel,
     required this.width,
     required this.height,
-    required Uint8List? key,
-    required IOSink sink,
+    required bool encrypted,
+    required String handleId,
     required String path,
-  }) : _key = key,
-       _sink = sink,
-       _currentPath = path,
-       _start = DateTime.now() {
-    _writeSub = _writeQueue.stream.listen(_drainOne);
+  }) : _encrypted = encrypted,
+       _handleId = handleId,
+       _currentPath = path {
+    _busSub = AppBus.instance.subscribeRecorder(_handleId).listen(_onBusEvent);
   }
 
   /// Open a recorder rooted at the platform's app-support directory.
   ///
-  /// [dbKey] is the running session's DB encryption key; when null
-  /// the recorder writes plaintext asciinema (`.cast`) instead of
-  /// encrypted (`.lfsr`). Returns null if the underlying directory
-  /// cannot be created — caller treats null as "recording disabled
-  /// silently for this session" rather than blocking the connect.
+  /// Encryption mode is decided Rust-side from the running session's
+  /// active DB key in `SecretStore` — when `app.dbkey.active` holds
+  /// bytes the recorder writes encrypted `.lfsr`, when the slot is
+  /// empty (plaintext tier) it writes raw asciinema `.cast`. The DB
+  /// key never crosses the FRB boundary on this path; HKDF-derive
+  /// to the recorder key happens entirely Rust-side via
+  /// `recorder_register_from_active`.
+  ///
+  /// Returns null if the underlying directory cannot be created —
+  /// caller treats null as "recording disabled silently for this
+  /// session" rather than blocking the connect.
   static Future<SessionRecorder?> open({
     required String sessionId,
     required String shellLabel,
     required int width,
     required int height,
-    required Uint8List? dbKey,
   }) async {
     try {
-      final dir = await _ensureDirectory(sessionId);
-      final encrypted = dbKey != null;
+      final dirPath = await _sessionDirPath(sessionId);
+      // Active-slot presence determines wire format. `secretsHas` is
+      // a sync FRB lookup — single hashmap probe Rust-side.
+      final encrypted = rust_secrets.secretsHas(
+        id: rust_secrets_consts.kActiveDbKeySecretId,
+      );
       final ext = encrypted ? 'lfsr' : 'cast';
-      final isoTs = DateTime.now()
-          .toUtc()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .split('.')
-          .first;
-      final path = p.join(dir.path, '$isoTs.$ext');
-      final file = File(path);
-      await file.create();
-      await hardenFilePerms(path);
-      final sink = file.openWrite(mode: FileMode.append);
-      // Magic header first so a stray file can be identified out of
-      // band. Plaintext mode skips the magic — its content is
-      // already directly playable as asciinema.
-      if (encrypted) {
-        sink.add(_lfrMagic);
-        sink.add([_lfrVersion]);
-      }
+      final isoTs = _isoTimestamp();
+      final path = p.join(dirPath, '$isoTs.$ext');
+      // `recorderRegisterFromActive` mkdir's the parent + opens the
+      // file at 0600 inside `lfs_core::recorder::register_with_io`,
+      // so no Dart-side `File.create` / `hardenFilePerms` is needed.
+      final handleId = const Uuid().v4();
+      // Rust pulls the DB key from `SecretStore.app.dbkey.active`,
+      // runs the `letsflutssh-recording-v1` HKDF-SHA256 derive
+      // in-process, and registers the recorder under the derived
+      // key. When the active slot is empty (plaintext tier) the
+      // recorder registers in plaintext-asciinema mode and the
+      // file stays a valid asciinema document.
+      await rust_recorder.recorderRegisterFromActive(
+        id: handleId,
+        sessionId: sessionId,
+        path: path,
+      );
+      // Spawn the per-id worker before any enqueue arrives. The
+      // worker owns the asciinema event ordering on disk.
+      await rust_recorder.recorderQueueSpawn(id: handleId);
       final recorder = SessionRecorder._(
         sessionId: sessionId,
         terminalShellLabel: shellLabel,
         width: width,
         height: height,
-        key: encrypted ? _deriveKey(dbKey) : null,
-        sink: sink,
+        encrypted: encrypted,
+        handleId: handleId,
         path: path,
       );
       // Emit asciinema v2 header line so any plaintext export — and
       // the encrypted file once decrypted — starts with a valid
       // asciinema document.
-      recorder._enqueueHeader();
+      await rust_recorder.recorderQueueEnqueueHeader(
+        id: handleId,
+        width: width,
+        height: height,
+        shellLabel: shellLabel,
+      );
       return recorder;
     } catch (e, st) {
       AppLogger.instance.log(
@@ -186,14 +202,54 @@ class SessionRecorder {
   /// Flush queued frames and close the file. Returns the path of the
   /// last written file so callers (UI delete actions, settings) can
   /// reference it.
+  ///
+  /// Waits for `BusEvent_RecorderStopped` before completing so the
+  /// on-disk file is fully sealed by the time the caller acts on
+  /// the returned path (delete / display / export). The previous
+  /// implementation only awaited the enqueue future, which let
+  /// every event still in the worker's mailbox race the file
+  /// close on a fast shell teardown — ARCH §3.13 documented the
+  /// flush guarantee but the code did not enforce it.
+  ///
+  /// A 2 s timeout protects callers from hanging if the Rust
+  /// worker has crashed; on timeout the path is returned but
+  /// trailing bytes may be missing.
   Future<String?> close() async {
     if (_closed) return _currentPath;
     _closed = true;
-    await _writeQueue.close();
-    await _writeSub?.cancel();
-    await _sink?.flush();
-    await _sink?.close();
-    _sink = null;
+    // Drain the serialised dispatch chain before sending the close
+    // marker. Without this, a back-to-back `recordOutput → close`
+    // race can schedule Close ahead of the unawaited event FRB
+    // calls — the Rust worker then processes Close before the
+    // trailing chunk lands and the user sees a truncated recording.
+    // `_dispatchEnqueue` swallows its own exception, so this
+    // barrier never throws.
+    await _dispatchTail;
+    // Rust-side `enqueue_blocking` drains any in-flight chunk
+    // buffer before the close marker, so the trailing bytes that
+    // arrived in the last 10 ms make it onto disk before the file
+    // is sealed. The worker drains the mailbox until it hits the
+    // close marker, then seals the file.
+    try {
+      await rust_recorder.recorderQueueEnqueueClose(id: _handleId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'recorderQueueEnqueueClose failed: $e',
+        name: 'Recorder',
+      );
+    }
+    try {
+      await _stoppedCompleter.future.timeout(const Duration(seconds: 2));
+    } on TimeoutException {
+      AppLogger.instance.log(
+        'SessionRecorder close: RecorderStopped did not arrive within 2s — '
+        'tail bytes may be missing on the final recording',
+        name: 'Recorder',
+        level: LogLevel.warn,
+      );
+    }
+    await _busSub?.cancel();
+    _busSub = null;
     return _currentPath;
   }
 
@@ -201,111 +257,132 @@ class SessionRecorder {
   // Implementation
   // -----------------------------------------------------------------
 
-  static const List<int> _lfrMagic = [0x4C, 0x46, 0x52, 0x31]; // "LFR1"
-  static const int _lfrVersion = 1;
-
-  static Future<Directory> _ensureDirectory(String sessionId) async {
+  /// Compose `<app_support>/recordings/<sessionId>/` as a path
+  /// string. No filesystem ops — the Rust recorder mkdir's the
+  /// directory chain inside `register_with_io` / `enqueue_rotate`
+  /// before opening the file.
+  static Future<String> _sessionDirPath(String sessionId) async {
     final base = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(base.path, 'recordings', sessionId));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
+    return p.join(base.path, 'recordings', sessionId);
   }
 
-  static Uint8List _deriveKey(Uint8List dbKey) {
-    final hkdf = HKDFKeyDerivator(SHA256Digest())
-      ..init(HkdfParameters(dbKey, 32, Uint8List(0), _hkdfInfo));
-    final out = Uint8List(32);
-    hkdf.deriveKey(null, 0, out, 0);
-    return out;
-  }
+  /// Tail of the serialised dispatch chain. Each `_enqueueEvent`
+  /// chains its FRB call off the previous tail so the bytes reach
+  /// the Rust-side per-id buffer in caller order. Two unawaited
+  /// `recorderQueueEnqueueEvent` calls would otherwise race on
+  /// `enqueue_event_chunk`'s buffer mutex inside the tokio runtime
+  /// — `recordOutput("one") + recordOutput("two")` could land as
+  /// `twoone` on disk. Chaining keeps each FRB call in flight one
+  /// at a time, so the Rust-side `extend_from_slice` runs in the
+  /// order the caller produced the chunks.
+  ///
+  /// `_dispatchEnqueue` swallows its own exceptions, so the chain
+  /// itself never enters an error state.
+  Future<void> _dispatchTail = Future<void>.value();
 
-  // Distinct from any other HKDF context the app uses so a key
-  // recovered from a recording cannot decrypt the DB and vice versa.
-  static final Uint8List _hkdfInfo = Uint8List.fromList(
-    'letsflutssh-recording-v1'.codeUnits,
-  );
-
-  void _enqueueHeader() {
-    final header = jsonEncode({
-      'version': 2,
-      'width': width,
-      'height': height,
-      'timestamp': _start.millisecondsSinceEpoch ~/ 1000,
-      'env': {'TERM': 'xterm-256color', 'SHELL': terminalShellLabel},
-    });
-    _enqueuePlaintext(Uint8List.fromList(utf8.encode('$header\n')));
-  }
-
+  /// Hand one PTY chunk to the Rust-side recorder queue. The Rust
+  /// `enqueue_event_chunk` accumulator coalesces 100/sec russh
+  /// `Data` packets into one mailbox entry per ~10 ms / 8 KiB so
+  /// the writer worker isn't woken on every chunk. Fire-and-forget
+  /// for the caller — the terminal pump never blocks on disk —
+  /// but the dispatches are serialised via [_dispatchTail] so the
+  /// per-id buffer extends in caller order, and [close] awaits the
+  /// tail before sending the close marker.
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;
-    final delta = DateTime.now().difference(_start).inMicroseconds / 1e6;
-    final str = utf8.decode(bytes, allowMalformed: true);
-    final line = jsonEncode([delta, dir.code, str]);
-    _enqueuePlaintext(Uint8List.fromList(utf8.encode('$line\n')));
+    final direction = switch (dir) {
+      RecordDirection.output => rust_recorder.DbRecordDirection.output,
+      RecordDirection.input => rust_recorder.DbRecordDirection.input,
+    };
+    _dispatchTail = _dispatchTail.then(
+      (_) => _dispatchEnqueue(bytes, direction),
+    );
   }
 
-  void _enqueuePlaintext(Uint8List plaintext) {
-    if (_closed) return;
-    final framed = _key != null ? _encryptFrame(plaintext) : plaintext;
-    _writeQueue.add(framed);
-  }
-
-  Uint8List _encryptFrame(Uint8List plaintext) {
-    final nonce = _randomBytes(12);
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(
-        true,
-        AEADParameters(KeyParameter(_key!), 128, nonce, Uint8List(0)),
+  Future<void> _dispatchEnqueue(
+    List<int> bytes,
+    rust_recorder.DbRecordDirection direction,
+  ) async {
+    try {
+      await rust_recorder.recorderQueueEnqueueEvent(
+        id: _handleId,
+        direction: direction,
+        bytes: bytes,
       );
-    final ct = cipher.process(plaintext);
-    // Frame: [len(4 LE)][nonce(12)][ciphertext+tag]
-    final frame = BytesBuilder(copy: false);
-    final len = ByteData(4)..setUint32(0, plaintext.length, Endian.little);
-    frame.add(len.buffer.asUint8List());
-    frame.add(nonce);
-    frame.add(ct);
-    return frame.toBytes();
-  }
-
-  Future<void> _drainOne(Uint8List frame) async {
-    if (_sink == null) return;
-    if (_currentBytes + frame.length > maxFileBytes) {
-      await _rotate();
+    } catch (e) {
+      AppLogger.instance.log(
+        'recorderQueueEnqueueEvent failed: $e',
+        name: 'Recorder',
+      );
     }
-    _sink!.add(frame);
-    _currentBytes += frame.length;
   }
 
+  /// Handler for the per-id recorder topic. Three events matter
+  /// here: `RecorderRotateRequested` triggers a fresh-file
+  /// rotation; `RecorderStarted` (re-emitted by `rotate_to`)
+  /// updates our cached `_currentPath`; `RecorderStopped` resolves
+  /// the close-flush guard so [close] returns only after the
+  /// worker has actually drained its mailbox and sealed the file.
+  void _onBusEvent(rust_bus.BusEvent event) {
+    switch (event) {
+      case rust_bus.BusEvent_RecorderRotateRequested():
+        unawaited(_rotate());
+      case rust_bus.BusEvent_RecorderStarted(:final path):
+        _currentPath = path;
+      case rust_bus.BusEvent_RecorderStopped():
+        if (!_stoppedCompleter.isCompleted) {
+          _stoppedCompleter.complete();
+        }
+      case _:
+        break;
+    }
+  }
+
+  /// Allocate a fresh file under the same session dir and ask the
+  /// Rust worker to roll over to it. The Rust side closes the old
+  /// file, opens the new one in append mode, writes the magic +
+  /// version when encrypted, resets the byte counter, then re-
+  /// emits the asciinema header — order matters so a decrypted
+  /// recording stays a valid asciinema document mid-rotation.
   Future<void> _rotate() async {
-    final old = _sink;
-    _sink = null;
-    await old?.flush();
-    await old?.close();
-    final dir = await _ensureDirectory(sessionId);
-    final isoTs = DateTime.now()
-        .toUtc()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .split('.')
-        .first;
-    final ext = _key != null ? 'lfsr' : 'cast';
-    final path = p.join(dir.path, '$isoTs.$ext');
-    final file = File(path);
-    await file.create();
-    await hardenFilePerms(path);
-    final sink = file.openWrite(mode: FileMode.append);
-    if (_key != null) {
-      sink.add(_lfrMagic);
-      sink.add([_lfrVersion]);
+    if (_closed) return;
+    try {
+      final dirPath = await _sessionDirPath(sessionId);
+      final ext = _encrypted ? 'lfsr' : 'cast';
+      final isoTs = _isoTimestamp();
+      final path = p.join(dirPath, '$isoTs.$ext');
+      // Same as the initial-register path: Rust-side rotate worker
+      // mkdir's the parent + opens 0600 inside the recorder actor.
+      await rust_recorder.recorderQueueEnqueueRotate(
+        id: _handleId,
+        newPath: path,
+      );
+      await rust_recorder.recorderQueueEnqueueHeader(
+        id: _handleId,
+        width: width,
+        height: height,
+        shellLabel: terminalShellLabel,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionRecorder rotate failed: $e',
+        name: 'Recorder',
+      );
     }
-    _sink = sink;
-    _currentPath = path;
-    _currentBytes = 0;
-    _enqueueHeader();
   }
 
-  static Uint8List _randomBytes(int n) {
-    final r = Random.secure();
-    return Uint8List.fromList(List.generate(n, (_) => r.nextInt(256)));
+  /// Routes through `lfs_core::format::format_filesafe_iso_timestamp`
+  /// so the colon-replacement + fractional-drop grammar lives one
+  /// place.
+  static String _isoTimestamp() {
+    final now = DateTime.now().toUtc();
+    return rust_format.formatFilesafeIsoTimestamp(
+      year: now.year,
+      month: now.month,
+      day: now.day,
+      hour: now.hour,
+      minute: now.minute,
+      second: now.second,
+    );
   }
 }

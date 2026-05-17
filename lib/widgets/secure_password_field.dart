@@ -15,16 +15,18 @@ import '../utils/secret_controller.dart';
 /// there is no hook in Flutter's stock `TextField` path to keep the
 /// typed characters out of a Dart-heap `String`. The IME delivers a
 /// full [TextEditingValue] each keystroke, the framework stores
-/// `.text` on the controller, and the engine renders it. We *can*
-/// immediately mirror each change into a page-locked `SecretBuffer`
-/// and wipe the controller on dispose (both done here), but the
-/// short-lived interim `String`s that the framework created still
-/// live on the Dart heap until the GC runs. Closing that window
-/// fully would require a native text widget owning a
+/// `.text` on the controller, and the engine renders it. We wipe
+/// the controller on dispose via [SecretController.wipeAndClear],
+/// but the short-lived interim `String`s that the framework
+/// created still live on the Dart heap until the GC runs. Closing
+/// that window fully would require a native text widget owning a
 /// native-memory-backed buffer end-to-end — a large change that
 /// trades the entire Flutter text-editing / accessibility / IME
 /// stack for marginal benefit against a privileged same-user
-/// attacker who already has process-memory access.
+/// attacker who already has process-memory access. Long-lived
+/// secret bytes (DB key, KEK) live Rust-side in
+/// `lfs_core::secrets::SecretStore`; this widget only handles
+/// the keystroke-to-controller window.
 ///
 /// What this widget does buy:
 ///

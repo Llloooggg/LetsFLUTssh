@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/sanitize.dart';
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
+import 'toast.dart';
 
 /// Dialog shown when connecting to an unknown SSH host (TOFU).
 /// Displays the host fingerprint and asks the user to accept or reject.
@@ -82,7 +84,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
         children: [
           if (isChanged) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppTheme.connecting.withValues(alpha: 0.1),
                 borderRadius: AppTheme.radiusLg,
@@ -97,7 +99,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
                     color: AppTheme.connecting,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       S.of(context).hostKeyChangedWarning,
@@ -110,17 +112,27 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
           ] else
             Text(
               S.of(context).unknownHostMessage,
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
-          const SizedBox(height: 12),
-          _InfoRow(label: S.of(context).host, value: '$host:$port'),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.md),
+          _InfoRow(
+            label: S.of(context).host,
+            value: '${redactBidi(host)}:$port',
+          ),
+          if (hostnameHasNonAscii(host)) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              S.of(context).nonAsciiHostnameWarning,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.xxs),
           _InfoRow(label: S.of(context).keyType, value: keyType),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -148,11 +160,11 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 icon: Icons.copy,
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: fingerprint));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(S.of(context).fingerprintCopied),
-                      duration: const Duration(seconds: 1),
-                    ),
+                  Toast.show(
+                    context,
+                    message: S.of(context).fingerprintCopied,
+                    level: ToastLevel.success,
+                    duration: const Duration(seconds: 1),
                   );
                 },
                 tooltip: S.of(context).copyFingerprint,

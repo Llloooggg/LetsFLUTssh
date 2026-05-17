@@ -1,106 +1,119 @@
-import 'dart:io';
-
 import '../../core/connection/connection.dart';
+import '../../core/s3/s3_fs.dart';
+import '../../core/session/session.dart';
 import '../../core/sftp/file_system.dart';
-import '../../core/sftp/sftp_client.dart';
-import '../../utils/android_storage_permission.dart';
+import '../../core/sftp/sftp_fs.dart';
+import '../../core/webdav/webdav_fs.dart';
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
-/// Result of SFTP initialization — controllers + service.
+/// Result of SFTP / WebDAV initialization — controllers + remote
+/// [`FileSystem`] handle. `filesystem` is the [`RemoteSftpFs`]
+/// when the connection is SSH-kind; null when the connection is
+/// WebDAV (the file browser routes through the pane controller's
+/// [`FileSystem`] surface, so the legacy SFTP handle has no
+/// matching slot to plug into).
 class SFTPInitResult {
   final FilePaneController localCtrl;
   final FilePaneController remoteCtrl;
-  final SFTPService sftpService;
-
-  /// True if Android storage permission was denied during init.
-  final bool storagePermissionDenied;
+  final RemoteSftpFs? filesystem;
 
   SFTPInitResult({
     required this.localCtrl,
     required this.remoteCtrl,
-    required this.sftpService,
-    this.storagePermissionDenied = false,
+    required this.filesystem,
   });
+
+  /// Compatibility shim — Android no longer routes through a
+  /// MANAGE_EXTERNAL_STORAGE permission gate; the file picker
+  /// uses SAF (`file_picker`) which is always available.
+  bool get storagePermissionDenied => false;
 
   void dispose() {
     localCtrl.dispose();
     remoteCtrl.dispose();
-    sftpService.close();
+    filesystem?.close();
   }
 }
 
-/// Shared SFTP initialization logic used by both desktop and mobile file browsers.
+/// Shared file-browser initialization used by both desktop and
+/// mobile shells. Dispatches by [`Connection.kind`]: SSH/SFTP
+/// sessions wrap a live [`RustSftpFs`], WebDAV sessions wrap a
+/// live [`WebDavFileSystem`] off the [`Connection.webdavConnection`]
+/// handle. The pane controller talks only to the high-level
+/// [`FileSystem`] interface so callers stay transport-agnostic.
 class SFTPInitializer {
   SFTPInitializer._();
 
-  /// Initialize SFTP service and file pane controllers from a [Connection].
+  /// Initialize the remote-pane file system and file-pane
+  /// controllers from a [Connection].
   ///
-  /// [sftpServiceFactory] can be provided for testing to avoid real SSH.
+  /// [filesystemFactory] can be provided for testing to avoid real SSH.
   /// [localFsFactory] can be provided for testing to avoid real filesystem.
   static Future<SFTPInitResult> init(
     Connection connection, {
-    Future<SFTPService> Function(Connection conn)? sftpServiceFactory,
+    Future<RemoteSftpFs> Function(Connection conn)? filesystemFactory,
     FileSystem Function()? localFsFactory,
   }) async {
-    SFTPService sftpService;
-    var permissionDenied = false;
-    if (sftpServiceFactory != null) {
-      sftpService = await sftpServiceFactory(connection);
-    } else {
-      final sshClient = connection.sshConnection?.client;
-      if (sshClient == null) {
-        throw StateError('SSH connection not available');
-      }
-
-      // On Android, request storage permission for local file browser
-      if (Platform.isAndroid) {
-        final granted = await requestAndroidStoragePermission();
-        permissionDenied = !granted;
-        AppLogger.instance.log(
-          'Android storage permission: ${granted ? 'granted' : 'denied'}',
-          name: 'SFTPInit',
-        );
-      }
-
-      sftpService = await SFTPService.fromSSHClient(sshClient);
-    }
-
     final localCtrl = FilePaneController(
       fs: localFsFactory?.call() ?? LocalFS(),
       label: 'Local',
     );
-    final remoteCtrl = FilePaneController(
-      fs: RemoteFS(sftpService),
-      label: 'Remote',
-    );
+
+    final FileSystem remoteFs;
+    RemoteSftpFs? sftp;
+
+    if (connection.kind == SessionKind.webdav) {
+      final webdav = connection.webdavConnection;
+      if (webdav == null) {
+        localCtrl.dispose();
+        throw StateError('WebDAV connection not available');
+      }
+      remoteFs = WebDavFileSystem(webdav, connection.webdavBaseUrl);
+    } else if (connection.kind == SessionKind.s3) {
+      final s3 = connection.s3Connection;
+      if (s3 == null) {
+        localCtrl.dispose();
+        throw StateError('S3 connection not available');
+      }
+      remoteFs = S3FileSystem(s3, connection.s3InitialDir);
+    } else if (filesystemFactory != null) {
+      sftp = await filesystemFactory(connection);
+      remoteFs = RemoteFS(sftp);
+    } else {
+      final transport = connection.transport;
+      if (transport == null) {
+        localCtrl.dispose();
+        throw StateError('SSH transport not available');
+      }
+      sftp = await RustSftpFs.create(transport);
+      remoteFs = RemoteFS(sftp);
+    }
+
+    final remoteCtrl = FilePaneController(fs: remoteFs, label: 'Remote');
 
     try {
       await Future.wait([localCtrl.init(), remoteCtrl.init()]);
     } catch (e) {
-      // Pane init threw after the SFTP handshake already succeeded —
-      // usually a permission denial on the remote initial dir, which
-      // makes "connection succeeded but file browser blank" a
-      // greppable event in support traces.
+      // Pane init threw after the remote handshake already
+      // succeeded — usually a permission denial on the remote
+      // initial dir, which makes "connection succeeded but file
+      // browser blank" a greppable event in support traces.
       AppLogger.instance.log(
-        'SFTP pane init failed (disposing controllers + rethrowing): $e',
+        'Remote pane init failed (disposing controllers + rethrowing): $e',
         name: 'SFTPInit',
         error: e,
       );
       localCtrl.dispose();
       remoteCtrl.dispose();
+      sftp?.close();
       rethrow;
     }
 
-    AppLogger.instance.log(
-      'SFTP panes initialized (android perm denied=$permissionDenied)',
-      name: 'SFTPInit',
-    );
     return SFTPInitResult(
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,
-      sftpService: sftpService,
-      storagePermissionDenied: permissionDenied,
+      filesystem: sftp,
     );
   }
 }

@@ -6,5 +6,47 @@
 	<false/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
+	<!--
+	  Required once a Developer ID + Hardened Runtime build replaces
+	  the current ad-hoc-signed shape: SSH local-port-forward (-L) +
+	  remote-listener (-R) call bind() / connect() under the
+	  Hardened Runtime sandbox, and missing entitlements turn into
+	  silent EPERM. Wired here now so enabling Hardened Runtime is a
+	  one-line build-config flip, not a "why does -L not work" debug
+	  loop after the fact.
+	-->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<!--
+	  System FIDO2 / passkey broker entitlement. Required by
+	  ASAuthorizationSecurityKeyPublicKeyCredentialProvider so the
+	  OS security-key dialog can fire for `sk-*` SSH userauth
+	  signatures (lfs_os_security::fido2_broker::apple). macOS 12+.
+	  Release builds signed outside the Apple Developer Program drop
+	  this entitlement on the floor and fall back to direct HID via
+	  the dispatcher in `lfs_core::fido2::brokers`.
+	-->
+	<key>com.apple.developer.web-browser.public-key-credential</key>
+	<true/>
+	<!--
+	  Apple Secure Enclave SSH keys (lfs_os_security::apple_se_ssh)
+	  bind their private half under a per-key kSecAttrApplicationTag
+	  in the user keychain. With `app-sandbox = false` above, no
+	  `keychain-access-groups` entitlement is needed — the unsandboxed
+	  process accesses the user-default keychain directly. When a
+	  future Developer ID + Hardened Runtime build flips sandbox on,
+	  add:
+	    <key>keychain-access-groups</key>
+	    <array>
+	      <string>$(TeamIdentifierPrefix)com.poddeo3.letsflutssh</string>
+	    </array>
+	  so the bound keys remain accessible across the team identity.
+	  ad-hoc-signed dev builds will surface
+	  `errSecMissingEntitlement (-34018)` on `SecKeyCreateRandomKey`;
+	  the wizard probe step routes the user at the documented
+	  `codesign -s -` remediation in USER_GUIDE.md.
+	-->
 </dict>
 </plist>

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/snippets/snippet.dart';
+import 'snippets_logic.dart';
 import '../../core/snippets/snippet_template.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/snippet_provider.dart';
@@ -63,12 +64,14 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(snippetStoreProvider);
-    final all = await store.loadAll();
+    final notifier = ref.read(snippetsProvider.notifier);
+    final all = await notifier.loadAll();
     List<Snippet> pinned = [];
     Set<String> pinnedIds = {};
     if (widget.sessionId != null) {
-      pinned = await store.loadForSession(widget.sessionId!);
+      pinned = await ref.read(
+        sessionSnippetsProvider(widget.sessionId!).future,
+      );
       pinnedIds = pinned.map((s) => s.id).toSet();
     }
     if (mounted) {
@@ -81,13 +84,8 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
     }
   }
 
-  bool _matches(Snippet snippet) {
-    if (_filter.isEmpty) return true;
-    final needle = _filter.toLowerCase();
-    return snippet.title.toLowerCase().contains(needle) ||
-        snippet.command.toLowerCase().contains(needle) ||
-        snippet.description.toLowerCase().contains(needle);
-  }
+  bool _matches(Snippet snippet) =>
+      filterSnippets([snippet], _filter).isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -151,11 +149,11 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
 
   Widget _sectionHeader(String label) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 4),
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: AppFonts.interFamily,
           fontSize: AppFonts.xs,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.0,
@@ -226,14 +224,13 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
   }
 
   Future<void> _togglePin(Snippet snippet, bool currentlyPinned) async {
-    final store = ref.read(snippetStoreProvider);
+    final notifier = ref.read(snippetsProvider.notifier);
     final sid = widget.sessionId!;
     if (currentlyPinned) {
-      await store.unlinkFromSession(snippet.id, sid);
+      await notifier.unlinkFromSession(snippet.id, sid);
     } else {
-      await store.linkToSession(snippet.id, sid);
+      await notifier.linkToSession(snippet.id, sid);
     }
-    ref.invalidate(sessionSnippetsProvider(sid));
     await _load();
   }
 }
@@ -284,13 +281,13 @@ class _SnippetFillDialogState extends State<_SnippetFillDialog> {
         children: [
           for (final token in widget.tokens) ...[
             FieldLabel('{{$token}}'),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             StyledInput(
               controller: _controllers[token]!,
               autofocus: token == widget.tokens.first,
               onSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
           ],
         ],
       ),

@@ -3,28 +3,29 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show VoidCallback;
 
-import 'package:dartssh2/dartssh2.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../utils/logger.dart';
 import '../connection/connection.dart';
 import '../session/session_recorder.dart';
+import 'transport/ssh_transport.dart';
 
 /// Result of opening an SSH shell on a terminal.
 class ShellConnection {
-  final SSHSession shell;
-  final StreamSubscription stdoutSub;
-  final StreamSubscription stderrSub;
+  final SshShellChannel transportShell;
+
+  final StreamSubscription? eventsSub;
   final Terminal _terminal;
   final SessionRecorder? recorder;
 
   ShellConnection({
-    required this.shell,
-    required this.stdoutSub,
-    required this.stderrSub,
+    required this.transportShell,
+    this.eventsSub,
     required Terminal terminal,
     this.recorder,
   }) : _terminal = terminal;
+
+  /// Send stdin bytes to the remote shell.
+  void write(Uint8List bytes) => transportShell.write(bytes);
 
   /// Cancel stream subscriptions, clear terminal callbacks, and close the shell.
   ///
@@ -32,11 +33,13 @@ class ShellConnection {
   /// (banner, "logout") still land in the recording before the
   /// file is sealed.
   void close() {
-    stdoutSub.cancel();
-    stderrSub.cancel();
+    eventsSub?.cancel();
     _terminal.onOutput = null;
     _terminal.onResize = null;
-    shell.close();
+    // Rust shell drops on the FRB side when the wrapper goes out
+    // of scope; explicit close is still useful to release the
+    // events subscription early.
+    unawaited(transportShell.close());
     final r = recorder;
     if (r != null) {
       // Best-effort — fire and forget so caller does not have to
@@ -52,13 +55,7 @@ class ShellConnection {
 class ShellHelper {
   ShellHelper._();
 
-  /// Base delay in milliseconds between shell open retry attempts.
-  static const _retryDelayMs = 500;
-
   /// Open an SSH shell and wire it to [terminal].
-  ///
-  /// Retries up to [maxAttempts] times with incremental delay (SSH servers
-  /// may reject rapid channel opens, e.g. during split).
   ///
   /// Returns a [ShellConnection] on success, or throws on final failure.
   /// [onDone] is called when the shell session closes.
@@ -70,81 +67,56 @@ class ShellHelper {
   static Future<ShellConnection> openShell({
     required Connection connection,
     required Terminal terminal,
-    int maxAttempts = 5,
     VoidCallback? onDone,
     SessionRecorder? recorder,
   }) async {
-    final sshConn = connection.sshConnection;
-    if (sshConn == null || !sshConn.isConnected) {
+    final transport = connection.transport;
+    if (transport == null || !transport.isConnected) {
       throw StateError('Not connected');
     }
 
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        if (attempt > 0) {
-          await Future.delayed(Duration(milliseconds: _retryDelayMs * attempt));
-        }
+    final shell = await transport.openShell(
+      cols: terminal.viewWidth,
+      rows: terminal.viewHeight,
+    );
 
-        final shell = await sshConn.openShell(
-          terminal.viewWidth,
-          terminal.viewHeight,
-        );
+    const decoder = Utf8Decoder(allowMalformed: true);
 
-        const decoder = Utf8Decoder(allowMalformed: true);
-
-        final stdoutSub = shell.stdout
-            .cast<List<int>>()
-            .transform(decoder)
-            .listen((data) {
-              terminal.write(data);
-              recorder?.recordOutput(utf8.encode(data));
-            });
-
-        final stderrSub = shell.stderr
-            .cast<List<int>>()
-            .transform(decoder)
-            .listen((data) {
-              terminal.write(data);
-              recorder?.recordOutput(utf8.encode(data));
-            });
-
-        try {
-          terminal.onOutput = (data) {
-            shell.write(Uint8List.fromList(utf8.encode(data)));
-            recorder?.recordInput(utf8.encode(data));
-          };
-
-          terminal.onResize = (width, height, pixelWidth, pixelHeight) {
-            shell.resizeTerminal(width, height);
-          };
-
-          if (onDone != null) {
-            shell.done.then((_) => onDone(), onError: (_) => onDone());
-          }
-        } catch (e) {
-          stdoutSub.cancel();
-          stderrSub.cancel();
-          shell.close();
-          rethrow;
-        }
-
-        return ShellConnection(
-          shell: shell,
-          stdoutSub: stdoutSub,
-          stderrSub: stderrSub,
-          terminal: terminal,
-          recorder: recorder,
-        );
-      } catch (e) {
-        if (attempt == maxAttempts - 1) rethrow;
-        AppLogger.instance.log(
-          'Open attempt ${attempt + 1}/$maxAttempts failed: $e',
-          name: 'Shell',
-        );
+    final eventsSub = shell.events.listen((event) {
+      switch (event) {
+        case SshShellOutput(:final bytes):
+          final decoded = decoder.convert(bytes);
+          terminal.write(decoded);
+          recorder?.recordOutput(bytes);
+        case SshShellExtendedOutput(:final bytes):
+          final decoded = decoder.convert(bytes);
+          terminal.write(decoded);
+          recorder?.recordOutput(bytes);
+        case SshShellEof():
+          if (onDone != null) onDone();
+        case SshShellExitStatus():
+        case SshShellExitSignal():
+          if (onDone != null) onDone();
       }
-    }
+    });
 
-    // Unreachable, but satisfies the type system
-    throw StateError('Failed to open shell');
+    terminal.onOutput = (data) {
+      // utf8.encode already returns Uint8List on dart:convert ≥
+      // 2.18; the prior Uint8List.fromList wrap doubled the
+      // keystroke buffer for nothing.
+      final bytes = utf8.encode(data);
+      shell.write(bytes);
+      recorder?.recordInput(bytes);
+    };
+    terminal.onResize = (cols, rows, _, _) {
+      shell.resize(cols: cols, rows: rows);
+    };
+
+    return ShellConnection(
+      transportShell: shell,
+      eventsSub: eventsSub,
+      terminal: terminal,
+      recorder: recorder,
+    );
   }
 }

@@ -1,0 +1,403 @@
+part of 'security_init_controller.dart';
+
+/// Per-tier unlock flows + the T1+pw / T2 dialog scaffolding. Lives as
+/// an extension on [SecurityInitController] so the methods reach the
+/// private `_dialogs` / `_credentialsWereReset` / `_injectDatabase`
+/// fields without exposing them publicly; `part of` joins the file
+/// into the same library so library-private names stay reachable.
+///
+/// Contract: every flow either resolves the unlock (Rust-side
+/// SecretStore stages the DB key, listener runs the post-unlock
+/// cascade) or routes through the plaintext fallback via
+/// [SecurityInitController._injectDatabase] so the app still launches
+/// when the configured tier's vault is unreachable.
+extension _UnlockFlows on SecurityInitController {
+  Future<void> _unlockParanoid(MasterPasswordManager manager) async {
+    if (!isMounted()) return;
+    // Multi-attempt dialog: every submit fires a paired
+    // `UnlockRequested` / `UnlockSucceeded`-or-`UnlockFailed`
+    // through the `tier_unlock_paranoid` orchestrator (driven from
+    // `manager.unlockAttempt`). Listener arms with `onlyUnlocked:
+    // true` so per-attempt `Locked` events from wrong-password
+    // retries don't resolve the wait; the dismiss-without-submit
+    // branch resolves it via `cancelPending`.
+    final listener = ref.read(tierUnlockedListenerProvider)..start();
+    final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
+    final dialogResult = await _dialogs.showMasterPasswordUnlock(manager);
+    if (dialogResult == true) {
+      final result = await unlockDone.timeout(
+        tierUnlockedListenerWaitTimeout,
+        onTimeout: () => TierUnlockOutcome.failed,
+      );
+      if (result == TierUnlockOutcome.unlocked) {
+        AppLogger.instance.log('Master password unlocked', name: 'App');
+        return;
+      }
+      AppLogger.instance.log(
+        'Paranoid dialog returned success but listener resolved $result',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+    } else {
+      listener.cancelPending();
+      try {
+        rust_orch.tierUnlockParanoidCancel();
+      } catch (e) {
+        AppLogger.instance.log(
+          'tier_unlock_paranoid_cancel FRB unreachable: $e',
+          name: 'TierMachine',
+          level: LogLevel.warn,
+        );
+      }
+    }
+    _credentialsWereReset = true;
+    await _injectDatabase();
+    AppLogger.instance.log(
+      'Master password reset — credentials cleared',
+      name: 'App',
+    );
+  }
+
+  Future<void> _unlockKeychain() async {
+    // Production routes through `tier_unlock_orchestrator::unlock_keychain`
+    // + `TierUnlockedListener`: orchestrator stages the keychain
+    // key under `tier.unlock.key`, listener takes it + runs the
+    // post-unlock cascade (caches, securityStateProvider, Rust DB,
+    // tier persist). Plaintext fallback covers both the orchestrator-
+    // returned PluginError (keychain entry missing) and the FRB-
+    // unreachable case (flutter_test).
+    try {
+      final listener = ref.read(tierUnlockedListenerProvider)..start();
+      final unlockDone = listener.awaitNextUnlock();
+      final outcome = await rust_orch.tierUnlockKeychain();
+      if (outcome is rust_orch.DbUnlockOutcome_Staged) {
+        final result = await unlockDone.timeout(
+          tierUnlockedListenerWaitTimeout,
+          onTimeout: () => TierUnlockOutcome.failed,
+        );
+        if (result == TierUnlockOutcome.unlocked) {
+          AppLogger.instance.log('Keychain key loaded (tier=T1)', name: 'App');
+          return;
+        }
+        AppLogger.instance.log(
+          'Keychain listener returned $result after Staged — '
+          'falling through to plaintext fallback',
+          name: 'App',
+          level: LogLevel.warn,
+        );
+      }
+      listener.cancelPending();
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_unlock_keychain FRB unreachable: $e',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+    }
+    // No silent plaintext downgrade — the configured tier carries
+    // an encrypted DB on disk. Falling through to `_injectDatabase`
+    // would let the corruption probe re-raise the same error one
+    // step later, but framed as a corrupt DB instead of a missing
+    // keychain entry. Surface the recovery dialog up front so the
+    // user can pick exit / retry / wipe knowing what actually
+    // happened.
+    await _handleVaultStateMissing('T1 keychain');
+  }
+
+  Future<void> _unlockKeychainWithPassword() async {
+    final gate = ref.read(keychainPasswordGateProvider);
+    if (!await gate.isConfigured()) {
+      await _handleVaultStateMissing('T1+pw keychain+password');
+      return;
+    }
+    // Multi-attempt dialog routes through the orchestrator + listener
+    // pair. Listener arms with `onlyUnlocked: true` so per-attempt
+    // `UnlockFailed` → `Locked` events from the wrong-password retry
+    // loop don't resolve the wait — the dialog handles the retry UI
+    // and the dismiss/reset path resolves explicitly via
+    // `cancelPending`.
+    final listener = ref.read(tierUnlockedListenerProvider)..start();
+    final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
+    var biometricAttempted = false;
+    final vault = ref.read(biometricKeyVaultProvider);
+    final bio = ref.read(biometricAuthProvider);
+    if (await vault.isStored() && await bio.isAvailable()) {
+      biometricAttempted = true;
+      final ok = await _tryBiometricCommit(SecurityTier.keychain);
+      if (ok) {
+        final result = await unlockDone.timeout(
+          tierUnlockedListenerWaitTimeout,
+          onTimeout: () => TierUnlockOutcome.failed,
+        );
+        if (result == TierUnlockOutcome.unlocked) {
+          AppLogger.instance.log(
+            'T1+pw keychain+password unlocked via biometrics',
+            name: 'App',
+          );
+          return;
+        }
+        AppLogger.instance.log(
+          'T1+pw biometric staged but listener returned $result — '
+          'falling through to dialog',
+          name: 'App',
+          level: LogLevel.warn,
+        );
+      }
+    }
+    final dialogResult = await _showL2UnlockDialog(
+      gate,
+      autoTriggerBiometric: !biometricAttempted,
+    );
+    if (dialogResult == true) {
+      final result = await unlockDone.timeout(
+        tierUnlockedListenerWaitTimeout,
+        onTimeout: () => TierUnlockOutcome.failed,
+      );
+      if (result == TierUnlockOutcome.unlocked) {
+        AppLogger.instance.log('T1+pw keychain+password unlocked', name: 'App');
+        return;
+      }
+      AppLogger.instance.log(
+        'T1+pw dialog returned success but listener resolved $result — '
+        'falling back to plaintext',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+    } else {
+      listener.cancelPending();
+      // Dialog dismissed / reset / unrecoverable error. Fire the
+      // cancel cascade so any half-state Unlocking transition
+      // unwinds; idempotent on an already-Locked machine.
+      try {
+        rust_orch.tierUnlockKeychainWithPasswordCancel();
+      } catch (e) {
+        AppLogger.instance.log(
+          'tier_unlock_keychain_with_password_cancel FRB unreachable: $e',
+          name: 'TierMachine',
+          level: LogLevel.warn,
+        );
+      }
+    }
+    await _injectDatabase();
+    AppLogger.instance.log(
+      'T1+pw reset — plaintext fallback',
+      name: 'App',
+      level: LogLevel.warn,
+    );
+  }
+
+  Future<bool?> _showL2UnlockDialog(
+    KeychainPasswordGate gate, {
+    bool autoTriggerBiometric = true,
+  }) async {
+    final limiter = await gate.rateLimiter();
+    if (!isMounted()) return null;
+    return _showL2DialogSync(
+      limiter,
+      autoTriggerBiometric: autoTriggerBiometric,
+    );
+  }
+
+  Future<bool?> _showL2DialogSync(
+    PasswordRateLimiter? limiter, {
+    bool autoTriggerBiometric = true,
+  }) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(null);
+    final l10n = S.of(ctx);
+    return _dialogs.showTierSecretUnlock(
+      ctx: ctx,
+      labels: TierSecretUnlockLabels(
+        title: l10n.l2UnlockTitle,
+        hint: l10n.l2UnlockHint,
+        inputLabel: l10n.password,
+        wrongSecretLabel: l10n.l2WrongPassword,
+      ),
+      rateLimiter: limiter,
+      verify: (password) async {
+        // Routes through the `tier_unlock_keychain_with_password`
+        // orchestrator: gate verify + keychain key read in one FRB
+        // hop, bytes staged in the SecretStore, cascade emitted.
+        // FRB-unreachable contexts (flutter_test) surface as
+        // `TierUnlockAttempt.error` so the dialog closes + the
+        // caller routes through the plaintext fallback in
+        // `_unlockKeychainWithPassword`.
+        try {
+          // Convert to UTF-8 bytes inside the verify closure so the
+          // password marshals as `Vec<u8>` over FRB; the Dart String
+          // is GC-eligible the moment the closure returns.
+          final passwordBytes = Uint8List.fromList(utf8.encode(password));
+          final outcome = await rust_orch.tierUnlockKeychainWithPassword(
+            password: passwordBytes,
+          );
+          return mapUnlockOutcome(outcome);
+        } catch (e) {
+          AppLogger.instance.log(
+            'tier_unlock_keychain_with_password FRB unreachable: $e',
+            name: 'App',
+            level: LogLevel.warn,
+          );
+          return TierUnlockAttempt.error;
+        }
+      },
+      biometricUnlock: () => _tryBiometricCommit(SecurityTier.keychain),
+      autoTriggerBiometric: autoTriggerBiometric,
+      onReset: () async {
+        await WipeAllService(
+          credentialCacheEvict: ref
+              .read(sessionCredentialCacheProvider)
+              .evictAll,
+        ).wipeAll();
+        _credentialsWereReset = true;
+        requestSecurityReinit(ref);
+      },
+    );
+  }
+
+  Future<void> _unlockHardware() async {
+    final vault = ref.read(hardwareTierVaultProvider);
+    if (!await vault.isStored()) {
+      await _handleVaultStateMissing('T2 hardware');
+      return;
+    }
+    final mods = ref.read(configProvider).security?.modifiers;
+    final listener = ref.read(tierUnlockedListenerProvider)..start();
+    final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
+    var biometricAttempted = false;
+    final vault2 = ref.read(biometricKeyVaultProvider);
+    final bio = ref.read(biometricAuthProvider);
+    if (await vault2.isStored() && await bio.isAvailable()) {
+      biometricAttempted = true;
+      final ok = await _tryBiometricCommit(SecurityTier.hardware);
+      if (ok) {
+        final result = await unlockDone.timeout(
+          tierUnlockedListenerWaitTimeout,
+          onTimeout: () => TierUnlockOutcome.failed,
+        );
+        if (result == TierUnlockOutcome.unlocked) {
+          AppLogger.instance.log(
+            'T2 hardware-vault unlocked via biometrics',
+            name: 'App',
+          );
+          return;
+        }
+        AppLogger.instance.log(
+          'T2 biometric staged but listener returned $result',
+          name: 'App',
+          level: LogLevel.warn,
+        );
+      }
+    }
+    final dialogResult = await _showL3UnlockDialog(
+      mods,
+      autoTriggerBiometric: !biometricAttempted,
+    );
+    if (dialogResult == true) {
+      final result = await unlockDone.timeout(
+        tierUnlockedListenerWaitTimeout,
+        onTimeout: () => TierUnlockOutcome.failed,
+      );
+      if (result == TierUnlockOutcome.unlocked) {
+        AppLogger.instance.log('T2 hardware-vault unlocked', name: 'App');
+        return;
+      }
+      AppLogger.instance.log(
+        'T2 dialog returned success but listener resolved $result',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+    } else {
+      listener.cancelPending();
+      // Dialog dismissed / reset / unrecoverable error. Fire the
+      // cancel cascade so any half-state Unlocking unwinds.
+      try {
+        rust_orch.tierUnlockHardwareCancel();
+      } catch (e) {
+        AppLogger.instance.log(
+          'tier_unlock_hardware_cancel FRB unreachable: $e',
+          name: 'TierMachine',
+          level: LogLevel.warn,
+        );
+      }
+    }
+    await _injectDatabase();
+    AppLogger.instance.log(
+      'T2 reset — plaintext fallback',
+      name: 'App',
+      level: LogLevel.warn,
+    );
+  }
+
+  Future<bool?> _showL3UnlockDialog(
+    SecurityTierModifiers? mods, {
+    bool autoTriggerBiometric = true,
+  }) async {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return false;
+    final l10n = S.of(ctx);
+    final limiter = HardwareRateLimiter();
+    try {
+      return await _showL3UnlockDialogInner(
+        limiter,
+        ctx,
+        l10n,
+        mods,
+        autoTriggerBiometric: autoTriggerBiometric,
+      );
+    } finally {
+      limiter.dispose();
+    }
+  }
+
+  Future<bool?> _showL3UnlockDialogInner(
+    HardwareRateLimiter limiter,
+    BuildContext ctx,
+    S l10n,
+    SecurityTierModifiers? mods, {
+    required bool autoTriggerBiometric,
+  }) async {
+    return _dialogs.showTierSecretUnlock(
+      ctx: ctx,
+      labels: TierSecretUnlockLabels(
+        title: l10n.l3UnlockTitle,
+        hint: l10n.l3UnlockHint,
+        inputLabel: l10n.pinLabel,
+        wrongSecretLabel: l10n.l3WrongPin,
+      ),
+      rateLimiter: limiter,
+      verify: (password) async {
+        // Routes through `tier_unlock_hardware(password)` which
+        // fans out to the platform vault via the prompt registry,
+        // stages bytes in the SecretStore, emits the cascade.
+        // FRB-unreachable contexts (flutter_test) surface as
+        // `TierUnlockAttempt.error` so the dialog closes + the
+        // caller routes through the plaintext fallback in
+        // `_unlockHardware`.
+        try {
+          final outcome = await rust_orch.tierUnlockHardware(
+            password: password,
+          );
+          return mapUnlockOutcome(outcome);
+        } catch (e) {
+          AppLogger.instance.log(
+            'tier_unlock_hardware FRB unreachable: $e',
+            name: 'App',
+            level: LogLevel.warn,
+          );
+          return TierUnlockAttempt.error;
+        }
+      },
+      biometricUnlock: () => _tryBiometricCommit(SecurityTier.hardware),
+      autoTriggerBiometric: autoTriggerBiometric,
+      onReset: () async {
+        await WipeAllService(
+          credentialCacheEvict: ref
+              .read(sessionCredentialCacheProvider)
+              .evictAll,
+        ).wipeAll();
+        _credentialsWereReset = true;
+        requestSecurityReinit(ref);
+      },
+    );
+  }
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 import 'hover_region.dart';
@@ -84,8 +85,39 @@ class AppIconButton extends StatelessWidget {
       },
     );
 
+    // Keyboard reachability: wrap the pointer-only HoverRegion in
+    // a Focus that maps Enter / Space to onTap so Tab traversal
+    // reaches every icon-button in the app — every callsite
+    // routes through this widget, so applying once here covers
+    // the whole surface.
+    if (onTap != null) {
+      button = Focus(
+        canRequestFocus: true,
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.enter ||
+              event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+              event.logicalKey == LogicalKeyboardKey.space) {
+            onTap!();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: button,
+      );
+    }
+
+    // Semantics: every clickable icon-button surfaces a label —
+    // either the explicit tooltip (rendered separately by
+    // `Tooltip`'s own semantic surface) or a fallback derived from
+    // the icon's MaterialIcons name. Without this a screen-reader
+    // user gets "button" with no label on every tooltip-less site.
+    final fallbackLabel =
+        tooltip ?? (icon.codePoint.toString() == '0xe5cd' ? 'close' : null);
     if (tooltip != null) {
       button = Tooltip(message: tooltip!, child: button);
+    } else if (fallbackLabel != null) {
+      button = Semantics(button: true, label: fallbackLabel, child: button);
     } else {
       button = Semantics(button: true, child: button);
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/progress/progress_reporter.dart';
-import '../core/shortcut_registry.dart';
+import '../widgets/shortcut_registry.dart';
 import '../theme/app_theme.dart';
 import '../utils/platform.dart';
 import 'app_button.dart';
@@ -44,7 +44,7 @@ class AppDialog extends StatelessWidget {
     this.maxWidth = 460,
     required this.content,
     this.actions = const [],
-    this.contentPadding = const EdgeInsets.all(16),
+    this.contentPadding = const EdgeInsets.all(AppSpacing.lg),
     this.scrollable = true,
     this.dismissible = true,
   });
@@ -103,6 +103,15 @@ class AppDialog extends StatelessWidget {
         }),
         child: Focus(autofocus: true, child: child),
       );
+    } else {
+      // Non-dismissible dialogs still need an autofocus anchor so
+      // the OS focus ring lands inside the dialog (instead of
+      // staying on whatever widget had focus before the dialog
+      // opened — which lets the user tab into background widgets
+      // they're meant to be modally blocked from). No
+      // CallbackShortcuts wrapper because Esc must NOT dismiss a
+      // non-dismissible dialog by design.
+      child = Focus(autofocus: true, child: child);
     }
 
     return Dialog(
@@ -186,12 +195,12 @@ class AppDialogFooter extends StatelessWidget {
     // `Wrap` instead of `Row` so long-locale button labels (Russian
     // "Сгенерировать ключ", German "Passwort generieren", etc.) fall
     // to a second line inside the modal instead of overflowing the
-    // right edge. `FittedBox(fit: BoxFit.scaleDown)` inside
-    // `AppButton.build` used to shrink the font to fit; on narrow
-    // modals that produced barely-readable 10-pt labels, and on very
-    // long translations the scaled result still clipped. Wrapping
-    // keeps the button text at its native size and lets the footer
-    // grow vertically instead. `alignment: end` preserves the desktop
+    // right edge. Trap: `FittedBox(fit: BoxFit.scaleDown)` inside
+    // `AppButton.build` would shrink the font to fit, producing
+    // barely-readable 10-pt labels on narrow modals (and the scaled
+    // result still clips on very long translations). Wrapping keeps
+    // button text at its native size and lets the footer grow
+    // vertically instead. `alignment: end` preserves the desktop
     // convention of primary CTA on the right.
     return Wrap(
       alignment: WrapAlignment.end,
@@ -206,7 +215,7 @@ class AppDialogFooter extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: _intersperse(
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         actions.reversed
             .map((a) => SizedBox(width: double.infinity, child: a))
             .toList(),
@@ -233,17 +242,36 @@ class AppDialogFooter extends StatelessWidget {
 /// operation is responsible for popping the dialog in a `finally`.
 class AppProgressBarDialog extends StatelessWidget {
   final ProgressReporter reporter;
-  const AppProgressBarDialog({super.key, required this.reporter});
+
+  /// Optional cancel callback. When non-null, the dialog renders a
+  /// "Cancel" action under the progress panel and routes the tap
+  /// to this callback. Caller is responsible for popping the
+  /// dialog (the cancel handler typically flips a cancellation
+  /// flag and lets the surrounding `finally` close the dialog
+  /// once the operation observes the flag and unwinds).
+  final VoidCallback? onCancel;
+
+  const AppProgressBarDialog({
+    super.key,
+    required this.reporter,
+    this.onCancel,
+  });
 
   /// Show a non-dismissible progress bar.  The caller must pop it after
   /// the operation completes (success or failure) — typically in a
-  /// `try/finally` pair with a `mounted` check.
-  static void show(BuildContext context, ProgressReporter reporter) {
+  /// `try/finally` pair with a `mounted` check. Pass `onCancel` to
+  /// surface a Cancel button.
+  static void show(
+    BuildContext context,
+    ProgressReporter reporter, {
+    VoidCallback? onCancel,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
       animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => AppProgressBarDialog(reporter: reporter),
+      builder: (_) =>
+          AppProgressBarDialog(reporter: reporter, onCancel: onCancel),
     );
   }
 
@@ -258,9 +286,21 @@ class AppProgressBarDialog extends StatelessWidget {
           borderRadius: AppTheme.radiusLg,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: ValueListenableBuilder<ProgressState>(
-              valueListenable: reporter.state,
-              builder: (_, s, _) => _ProgressPanel(state: s),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ValueListenableBuilder<ProgressState>(
+                  valueListenable: reporter.state,
+                  builder: (_, s, _) => _ProgressPanel(state: s),
+                ),
+                if (onCancel != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: AppButton.cancel(onTap: onCancel),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -290,7 +330,7 @@ class _ProgressPanel extends StatelessWidget {
             state.label,
             style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.md),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           ClipRRect(
             borderRadius: AppTheme.radiusSm,
             child: LinearProgressIndicator(
@@ -300,7 +340,7 @@ class _ProgressPanel extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

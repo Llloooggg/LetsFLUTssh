@@ -72,7 +72,16 @@ class SId extends S {
   String get copyModeExtending => 'Seret untuk memperluas pilihan';
 
   @override
+  String get copyModeSetAnchor => 'Tetapkan jangkar';
+
+  @override
+  String get copyModeCopySelection => 'Salin pilihan';
+
+  @override
   String get required => 'Wajib';
+
+  @override
+  String get errFillRequiredFields => 'Isi field wajib yang ditandai *';
 
   @override
   String get settings => 'Pengaturan';
@@ -378,6 +387,42 @@ class SId extends S {
   String get auth => 'Autentikasi';
 
   @override
+  String get sectionAuthentication => 'Autentikasi';
+
+  @override
+  String get sectionAdvanced => 'Lanjutan';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString aturan port forwarding',
+      zero: 'Tidak ada aturan port forwarding',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Kelola…';
+
+  @override
+  String get authMethodAgent => 'Pakai ssh-agent sistem';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Autentikasi via \$SSH_AUTH_SOCK (Linux/macOS) atau OpenSSH named pipe (Windows). Berguna kalau key kamu disimpan di gpg-agent, Pageant, atau ssh-agent sistem.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Tidak tersedia di mobile — endpoint ssh-agent sistem khusus desktop.';
+
+  @override
   String get options => 'Opsi';
 
   @override
@@ -415,6 +460,9 @@ class SId extends S {
 
   @override
   String get hintOptional => 'Opsional';
+
+  @override
+  String get savedTypeToChange => 'Tersimpan — ketik untuk mengubah';
 
   @override
   String get hidePemText => 'Sembunyikan teks PEM';
@@ -531,11 +579,6 @@ class SId extends S {
   @override
   String get importModeReplaceDescription =>
       'Ganti semua sesi dengan yang diimpor';
-
-  @override
-  String errorPrefix(String error) {
-    return 'Kesalahan: $error';
-  }
 
   @override
   String get folderName => 'Nama folder';
@@ -694,7 +737,7 @@ class SId extends S {
   String get defaultPort => 'Port Default';
 
   @override
-  String get parallelWorkers => 'Pekerja Paralel';
+  String get parallelWorkers => 'Worker Paralel';
 
   @override
   String get maxHistory => 'Riwayat Maksimal';
@@ -877,9 +920,6 @@ class SId extends S {
   String get sourceCode => 'Kode Sumber';
 
   @override
-  String get enableLogging => 'Aktifkan Log';
-
-  @override
   String get logIsEmpty => 'Log kosong';
 
   @override
@@ -981,6 +1021,26 @@ class SId extends S {
   String get disconnected => 'Terputus';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Menghubungkan ke $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Terhubung ke $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Terputus dari $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Gagal terhubung ke $host';
+  }
+
+  @override
   String get exit => 'Keluar';
 
   @override
@@ -996,19 +1056,12 @@ class SId extends S {
   String get exportSessionsViaQr => 'Ekspor Sesi via QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.';
 
   @override
   String get qrTooLarge =>
       'Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.';
-
-  @override
-  String get exportAll => 'Ekspor Semua';
 
   @override
   String get showQr => 'Tampilkan QR';
@@ -1024,6 +1077,24 @@ class SId extends S {
 
   @override
   String get liveLog => 'Log Langsung';
+
+  @override
+  String get archivedLog => 'Log terarsip';
+
+  @override
+  String get loggingLevel => 'Level log';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Entri rutin + warning + error';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Hanya path degraded dan error';
+
+  @override
+  String get loggingLevelSubtitleError => 'Hanya error';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Log rutin tidak ditulis';
 
   @override
   String transferNItems(int count) {
@@ -1312,30 +1383,6 @@ class SId extends S {
   String get progressDecrypting => 'Mendekripsi…';
 
   @override
-  String get progressParsingArchive => 'Mengurai arsip…';
-
-  @override
-  String get progressImportingSessions => 'Mengimpor sesi';
-
-  @override
-  String get progressImportingFolders => 'Mengimpor folder';
-
-  @override
-  String get progressImportingManagerKeys => 'Mengimpor kunci SSH';
-
-  @override
-  String get progressImportingTags => 'Mengimpor tag';
-
-  @override
-  String get progressImportingSnippets => 'Mengimpor snippet';
-
-  @override
-  String get progressApplyingConfig => 'Menerapkan konfigurasi…';
-
-  @override
-  String get progressImportingKnownHosts => 'Mengimpor known_hosts…';
-
-  @override
   String get progressCollectingData => 'Mengumpulkan data…';
 
   @override
@@ -1474,23 +1521,6 @@ class SId extends S {
 
   @override
   String get transferStatusQueued => 'Dalam antrean';
-
-  @override
-  String get transferStartingUpload => 'Memulai unggah...';
-
-  @override
-  String get transferStartingDownload => 'Memulai unduh...';
-
-  @override
-  String get transferCopying => 'Menyalin...';
-
-  @override
-  String get transferDone => 'Selesai';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total file';
-  }
 
   @override
   String get fileConflictTitle => 'File sudah ada';
@@ -1681,6 +1711,52 @@ class SId extends S {
   String get publicKeyCopied => 'Kunci publik disalin ke clipboard';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'Import certificate';
+
+  @override
+  String get certImportPickerTitle => 'Pilih file certificate OpenSSH';
+
+  @override
+  String get certValidFrom => 'Berlaku sejak';
+
+  @override
+  String get certValidTo => 'Berlaku sampai';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Certificate ini akan segera expired.';
+
+  @override
+  String get certExpired => 'Expired';
+
+  @override
+  String get certRemove => 'Hapus certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'Hapus certificate?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Setelah dihapus, sesi akan kembali memakai jalur public key biasa saat connect.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Tidak bisa parse certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Certificate ini tidak dipasangkan dengan key yang dipilih.';
+
+  @override
   String get pastePrivateKey => 'Tempel kunci privat (PEM)';
 
   @override
@@ -1707,21 +1783,7 @@ class SId extends S {
   String get generated => 'Dibuat';
 
   @override
-  String get passphraseRequired => 'Frasa sandi diperlukan';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'Kunci SSH untuk $host terenkripsi. Masukkan frasa sandi untuk membukanya.';
-  }
-
-  @override
-  String get passphraseWrong => 'Frasa sandi salah. Silakan coba lagi.';
-
-  @override
   String get passphrase => 'Frasa sandi';
-
-  @override
-  String get rememberPassphrase => 'Ingat untuk sesi ini';
 
   @override
   String get enterMasterPassword =>
@@ -1729,9 +1791,6 @@ class SId extends S {
 
   @override
   String get wrongMasterPassword => 'Kata sandi salah. Silakan coba lagi.';
-
-  @override
-  String get newPassword => 'Kata sandi baru';
 
   @override
   String get currentPassword => 'Kata sandi saat ini';
@@ -1823,13 +1882,6 @@ class SId extends S {
   @override
   String get wizardReducedBanner =>
       'Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Tidak ada pada tingkat ini.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty =>
-      'Tidak ada ancaman yang tidak tertutup.';
 
   @override
   String get tierBadgeCurrent => 'Saat ini';
@@ -2066,9 +2118,6 @@ class SId extends S {
   String get snippetFillSubmit => 'Jalankan';
 
   @override
-  String get snippetPreview => 'Pratinjau';
-
-  @override
   String get broadcastSetDriver => 'Siarkan dari panel ini';
 
   @override
@@ -2110,13 +2159,13 @@ class SId extends S {
   String get deleteForwardRule => 'Hapus aturan';
 
   @override
-  String get localForward => 'Lokal (-L)';
+  String get localForward => 'Lokal';
 
   @override
-  String get remoteForward => 'Jarak jauh (-R)';
+  String get remoteForward => 'Jarak jauh';
 
   @override
-  String get dynamicForward => 'Dinamis (-D)';
+  String get dynamicForward => 'Dinamis';
 
   @override
   String get forwardKind => 'Jenis';
@@ -2144,10 +2193,6 @@ class SId extends S {
       'Bind ke 0.0.0.0 mempublikasikan penerusan ke semua antarmuka — biasanya 127.0.0.1 yang Anda inginkan.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Penerusan lokal (-L), jarak jauh (-R), dan SOCKS5 dinamis (-D) semuanya aktif.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Lokal: membuka port di perangkat ini yang menerowong ke target yang dapat dijangkau dari server SSH. Berguna untuk mengakses database jarak jauh atau UI admin di localhost:bindPort.';
 
@@ -2160,21 +2205,6 @@ class SId extends S {
       'Dinamis: proxy SOCKS5 di perangkat ini yang merutekan setiap koneksi melalui server SSH. Arahkan browser atau curl ke localhost:bindPort untuk mengirim semua lalu lintas melalui SSH.';
 
   @override
-  String get forwardExample => 'Contoh';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → akses DB jarak jauh via localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → mengekspos dev server Anda di port 9000 server';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → atur SOCKS5 browser ke localhost:1080';
-
-  @override
   String get proxyJump => 'Hubungkan melalui';
 
   @override
@@ -2184,24 +2214,11 @@ class SId extends S {
   String get proxyJumpSavedSession => 'Sesi tersimpan';
 
   @override
-  String get proxyJumpCustom => 'Kustom (user@host:port)';
+  String get proxyJumpCustom => 'Kustom';
 
   @override
   String get proxyJumpCustomNote =>
       'Hop kustom memakai kredensial sesi ini. Untuk auth bastion berbeda, simpan bastion sebagai sesi tersendiri.';
-
-  @override
-  String get errProxyJumpCycle => 'Rantai proxy membentuk loop.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Rantai proxy terlalu dalam (maks $max hop).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label gagal terhubung.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2239,6 +2256,15 @@ class SId extends S {
 
   @override
   String get recordingSpeedInstant => 'Langsung';
+
+  @override
+  String get recordingScrubTooltipUnavailable =>
+      'Scrub bar butuh sidecar index — rekaman lama (sebelum build ini) tidak punya. Rekaman baru akan bisa di-scrub.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
 
   @override
   String get tags => 'Tag';
@@ -2348,7 +2374,7 @@ class SId extends S {
   String get defaultPortSubtitle => 'Port default untuk sesi baru';
 
   @override
-  String get parallelWorkersSubtitle => 'Pekerja transfer SFTP paralel';
+  String get parallelWorkersSubtitle => 'Worker transfer SFTP paralel';
 
   @override
   String get maxHistorySubtitle => 'Maksimum perintah tersimpan di riwayat';
@@ -2360,20 +2386,6 @@ class SId extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Cek rilis baru di GitHub saat aplikasi dijalankan';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Tulis peristiwa aplikasi ke berkas log berotasi';
-
-  @override
-  String get exportWithoutPassword => 'Ekspor tanpa kata sandi?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.';
-
-  @override
-  String get continueWithoutPassword => 'Lanjutkan tanpa kata sandi';
 
   @override
   String get threatColdDiskTheft => 'Pencurian disk saat mati';
@@ -2443,9 +2455,6 @@ class SId extends S {
   String get colT1PasswordBiometric => 'T1 + kata sandi + biometrik';
 
   @override
-  String get colT2 => 'T2 Perangkat keras';
-
-  @override
   String get colT2Password => 'T2 + kata sandi';
 
   @override
@@ -2478,6 +2487,11 @@ class SId extends S {
   String get resetAllDataConfirmAction => 'Reset semuanya';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Ketik $phrase di bawah untuk mengonfirmasi:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Mereset…';
 
   @override
@@ -2485,6 +2499,61 @@ class SId extends S {
 
   @override
   String get resetAllDataFailed => 'Reset gagal';
+
+  @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Terpakai';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'Hard cap untuk folder recordings/. Saat terlampaui, recording terlama dihapus dulu; recording yang sedang berjalan tidak pernah disentuh.';
+
+  @override
+  String get recordingsClearAllAction => 'Hapus semua recordings';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Hapus semua recordings?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Setiap session yang direkam di bawah <app>/recordings/ akan dihapus. Recording yang sedang berjalan (jika ada) tetap. Aksi ini tidak bisa dibatalkan.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count recordings dihapus';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap diperbarui. $bytes dibebaskan.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap diperbarui. Tidak ada yang dihapus.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2495,7 +2564,7 @@ class SId extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Lanjutan: kunci terikat pada perangkat keras. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.';
+      'Lanjutan: kunci terikat pada perangkat keras, selalu dilindungi password. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2517,6 +2586,10 @@ class SId extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Gerbang rahasia yang diketik sebelum brankas dibuka.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Wajib — tier Hardware selalu dilindungi password.';
 
   @override
   String get modifierBiometricLabel => 'Pintasan biometrik';
@@ -2546,8 +2619,66 @@ class SId extends S {
       'fprintd belum diinstal atau tidak ada sidik jari terdaftar.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM tanpa kata sandi menyediakan isolasi, bukan autentikasi. Siapa pun yang dapat menjalankan aplikasi ini dapat membuka data.';
+  String get t2RequiresPasswordTitle =>
+      'Atur master password untuk tier Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Tier Hardware butuh password sebagai modifier. Biometric adalah shortcut opsional di atasnya.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Tier Hardware butuh password';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Install Hardware yang sudah ada tanpa password harus menetapkan satu sekarang untuk melanjutkan.';
+
+  @override
+  String get t2MigrationContinue => 'Lanjutkan';
+
+  @override
+  String get t2MigrationSetPasswordTitle =>
+      'Set password untuk menyimpan tier Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Ketik master password baru. DB key yang sudah di-seal di hardware module akan di-re-seal di bawah password ini — session dan key kamu tetap utuh.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe dan mulai ulang';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal tier Hardware gagal — pilih password lain atau wipe untuk mulai dari nol.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Aktifkan shortcut biometric pada tier Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Membebaskan password kamu dari slot OS yang dilindungi biometric.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Overlay biometric belum tersedia di platform ini.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Atur password tier Hardware terlebih dahulu.';
+
+  @override
+  String get t2UnlockTitle => 'Buka dengan master password kamu';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Kunci hardware-bound dilindungi password kamu.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Gunakan biometric';
+
+  @override
+  String get t2PasswordChanged => 'Password tier Hardware diperbarui.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2573,4 +2704,899 @@ class SId extends S {
 
   @override
   String get masterPasswordLabel => 'Kata sandi utama';
+
+  @override
+  String get globalErrorTitle => 'Unexpected Error';
+
+  @override
+  String get globalErrorBody =>
+      'An unexpected error occurred. The app will continue running.';
+
+  @override
+  String get globalErrorLogSavedNote =>
+      'Full details have been saved to the log file.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Enable logging in Settings to save error details.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Error: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Enable Logging';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Logging enabled — errors will be saved to log file';
+
+  @override
+  String get fatalErrorQuitButton => 'Quit';
+
+  @override
+  String get fatalErrorWipeButton => 'Wipe all data';
+
+  @override
+  String get fatalErrorWipingButton => 'Wiping…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
+
+  @override
+  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+
+  @override
+  String get recordingPlayLocked =>
+      'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH aktif';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count koneksi aktif',
+      one: '1 koneksi aktif',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Tipe session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavAuthMethod => 'Metode auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint sertifikat self-signed (opsional)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, kosongkan untuk pakai trust sistem';
+
+  @override
+  String get webDavCopyUrl => 'Salin URL WebDAV';
+
+  @override
+  String get webDavOpenInBrowser => 'Buka di browser';
+
+  @override
+  String get errWebDavAuthFailed => 'Auth WebDAV gagal';
+
+  @override
+  String get errWebDavNotFound => 'Path tidak ditemukan';
+
+  @override
+  String get errWebDavConflict => 'Operasi bentrok dengan state saat ini';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'Server WebDAV menolak request: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL WebDAV diperlukan';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL harus http:// atau https://';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Kosongkan untuk AWS, atau isi untuk MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'Wajib untuk MinIO; off-kan untuk AWS';
+
+  @override
+  String get s3DefaultBucket => 'Default bucket';
+
+  @override
+  String get s3DefaultPrefix => 'Default prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Generate presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Kedaluwarsa dalam';
+
+  @override
+  String get s3CopyUri => 'Copy URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 menit';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 jam';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 jam';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 jam';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 hari';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (cek access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket tidak ada atau tidak dapat diakses';
+
+  @override
+  String get errS3RegionMismatch =>
+      'Bucket berada di region berbeda dari konfigurasi';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 server menolak request: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Aktifkan WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Mengenkripsi arsip sync. Harus berbeda dari master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase tidak boleh sama dengan master password.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'Path di bawah WebDAV base URL — default letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Push terakhir: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Pull terakhir: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Belum pernah';
+
+  @override
+  String get syncUpToDate => 'Sync up to date';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return '$count perubahan diterapkan dari remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync nonaktif';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote berubah — pull dulu, baru push';
+
+  @override
+  String get errSyncUnauthorized => 'Autentikasi WebDAV gagal';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Network error: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Arsip sync remote butuh build yang lebih baru';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Sentuh hardware key kamu';
+
+  @override
+  String get hardwareKeyPin => 'PIN hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key tidak merespons';
+
+  @override
+  String get hardwareKeyNotFound => 'Hardware key tidak ditemukan';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Akses langsung ke hardware key tidak tersedia di platform ini';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Butuh Apple Developer Program entitlement; pakai ssh-agent di macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'SSH key ini butuh hardware key — sentuh untuk auth';
+
+  @override
+  String get errSkWrongPin => 'PIN salah';
+
+  @override
+  String get hardwareKeyImport => 'Import hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Prompt hardware key dibatalkan';
+
+  @override
+  String get agentEndpointSectionTitle => 'Integrasi SSH client eksternal';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Expose hardware-bound keys ke SSH client sistem';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Mengizinkan git, ssh, dan IDE plugin di perangkat ini menggunakan FIDO2 / smart-card / TPM keys Anda.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Salin perintah export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Salin nama pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Permintaan tanda tangan';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester ingin menandatangani dengan $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'SSH client eksternal';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Izinkan sekali';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Izinkan dan ingat';
+
+  @override
+  String get agentEndpointDeny => 'Tolak';
+
+  @override
+  String get agentEndpointStatusRunning => 'Berjalan';
+
+  @override
+  String get agentEndpointStatusStopped => 'Berhenti';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Tidak didukung di platform ini';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Ditolak: client eksternal tidak boleh menambahkan keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Tidak dapat memulai ssh-agent endpoint: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'Tambah key smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'Modul PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Terdeteksi otomatis';
+
+  @override
+  String get pkcs11ModuleCustom => 'Modul kustom...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Pilih library PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Modul PKCS#11 tidak ditemukan. Install OpenSC atau pilih library vendor.';
+
+  @override
+  String get pkcs11InitializeFailed => 'Modul PKCS#11 gagal initialise.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Tidak ada token di reader manapun.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token butuh login.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN untuk $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Konfirmasi di PIN-pad token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN salah. Sisa $remaining percobaan.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN token terkunci. Unblock dengan PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token tidak punya key SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Key GOST tidak bisa dipakai dengan SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" tidak terpasang.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token tersimpan tidak ditemukan. Sambungkan ulang dan coba lagi.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing gagal: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / token PKCS#11 tidak tersedia di platform ini.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Pilih module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Pilih token';
+
+  @override
+  String get pkcs11WizardStepKey => 'Pilih key';
+
+  @override
+  String get pkcs11WizardStepPin => 'Masukkan PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'Membaca public key dari token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Key smart card ditambahkan.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Memindai module PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Memuat token...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Memuat key...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module dimuat.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token tidak ada.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Gagal memuat module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad di perangkat)';
+
+  @override
+  String get pkcs11WizardBack => 'Kembali';
+
+  @override
+  String get pkcs11WizardNext => 'Lanjut';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Tambah hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key tersimpan di secure hardware perangkat dan tidak bisa diexport.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'Key ini hanya berfungsi di Mac ini.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Key ini hanya berfungsi di iPhone ini.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'Key ini hanya berfungsi di PC ini.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Wajibkan Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Izinkan passcode perangkat sebagai fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Wajibkan Windows Hello (PIN, sidik jari, atau wajah)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key tidak tersedia';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Aplikasi harus code-signed untuk pakai Secure Enclave.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello belum disetup di PC ini.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM tidak terdeteksi — hanya software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Generate';
+
+  @override
+  String get sshKeyGenerateInProgress => 'Membuat key di secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing diperlukan — lihat USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Menandatangani via secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'Copy public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Tambahkan baris ini ke ~/.ssh/authorized_keys di server.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Nama key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Kunci SSH Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Label kunci';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Autentikasi via Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, sidik jari, atau wajah — Windows Hello menandatangani SSH challenge ini.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Device ini tidak punya TPM. Kunci masuk ke user storage; Windows Hello tetap gate setiap tanda tangan.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Firmware TPM tidak mendukung P-384. Pilih P-256 atau RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Setup Windows Hello dulu di Settings -> Sign-in options.';
+
+  @override
+  String get tpmSshTitle => 'Buat kunci SSH berbasis TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (direkomendasikan)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Algorithm tidak didukung firmware TPM ini.';
+
+  @override
+  String get tpmSshPinProtect => 'Lindungi dengan PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'TPM mengunci key setelah beberapa kali PIN salah.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN tidak cocok.';
+
+  @override
+  String get tpmSshStorageBlob => 'Simpan wrapped key di data aplikasi';
+
+  @override
+  String get tpmSshStorageHandle => 'Simpan di slot memori TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Signing lebih cepat. Memakai salah satu slot persistent TPM.';
+
+  @override
+  String get tpmSshLabel => 'Label key';
+
+  @override
+  String get tpmSshImportTitle => 'Import SSH key terlindung TPM';
+
+  @override
+  String get tpmSshImportFormat => 'File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN untuk $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN salah.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM dalam lockout cooldown. Tunggu $duration dan coba lagi.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Membuat key di TPM...';
+
+  @override
+  String get tpmSshSigning => 'Signing dengan TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'TPM tidak terdeteksi di perangkat ini.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM dinonaktifkan di firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'Aplikasi tidak bisa mengakses TPM. Tambahkan user ke grup `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Slot persistent $handle sudah dipakai.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Key ini sign TANPA prompt Hello / PIN — siapa saja yang mengakses desktop saat kamu logged in bisa memakainya.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Generating hardware-bound key...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'Authenticate untuk pakai SSH key';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key dihancurkan: biometric baru ter-enroll. Register ulang public key di server kamu.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM tidak tersedia di device ini';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Wajib biometric / device unlock setiap signature';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Hardware-bound keys tidak bisa di-export';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Menghapus key ini akan mengeluarkannya dari hardware store. Server akan menolak key ini sampai kamu register yang baru.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Enroll biometric atau device PIN dulu';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM tidak tersedia';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Device kamu tidak meng-expose StrongBox HSM. Buat key TEE-backed saja? Tetap hardware-backed, hanya tanpa isolation StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Pakai TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Batal';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Hardware security keys';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Dialog security key sistem';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key sistem (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'Security key sistem (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID langsung (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Tidak tersedia di platform ini';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Pilih USB HID langsung daripada dialog sistem';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Lanjutan: lewati $brokerLabel di platform yang mendukung kedua jalur. HID langsung mendukung lebih banyak fitur authenticator tapi butuh izin per-app.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'Integrasi SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Dukungan hardware key tidak tersedia di device ini.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Hanya $transport yang tersedia di device ini; toggle dinonaktifkan.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub impor';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Ada di perangkat lain — regenerasi di sini untuk dipakai';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Regenerasi di sini';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Hapus stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Regenerasi key ini di perangkat ini sebelum dipakai';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Temukan modul PKCS#11 untuk token \"$token\"';
+  }
 }

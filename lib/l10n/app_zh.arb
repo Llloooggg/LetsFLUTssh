@@ -21,7 +21,10 @@
   "select": "选择",
   "copyModeTapToStart": "轻触以标记选择起点",
   "copyModeExtending": "拖动以扩展选择",
+  "copyModeSetAnchor": "设置锚点",
+  "copyModeCopySelection": "复制选择",
   "required": "必填",
+  "errFillRequiredFields": "请填写带 * 的必填项",
   "settings": "设置",
   "appSettings": "应用设置",
   "includePasswords": "会话密码",
@@ -104,6 +107,13 @@
   "deleteSessionConfirm": "删除 \"{name}\"？",
   "connection": "连接",
   "auth": "认证",
+  "sectionAuthentication": "认证",
+  "sectionAdvanced": "高级",
+  "forwardRulesSummary": "{count, plural, =0{无端口转发规则} other{{count} 条端口转发规则}}",
+  "manageRules": "管理…",
+  "authMethodAgent": "使用系统 ssh-agent",
+  "authMethodAgentSubtitle": "通过 $SSH_AUTH_SOCK (Linux/macOS) 或 OpenSSH named pipe (Windows) 进行认证。如果你的 key 放在 gpg-agent、Pageant 或系统 ssh-agent 里，这个比较方便。",
+  "authMethodAgentMobileUnsupported": "移动端不可用 — 系统 ssh-agent endpoint 仅限桌面。",
   "options": "选项",
   "sessionName": "会话名称",
   "hintMyServer": "我的服务器",
@@ -117,6 +127,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "密钥密码",
   "hintOptional": "可选",
+  "savedTypeToChange": "已保存 — 输入以修改",
   "hidePemText": "隐藏 PEM 文本",
   "pastePemKeyText": "粘贴 PEM 密钥文本",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +163,6 @@
   "confirmPassword": "确认密码",
   "importModeMergeDescription": "添加新会话，保留已有会话",
   "importModeReplaceDescription": "用导入的会话替换所有会话",
-  "errorPrefix": "错误：{error}",
   "folderName": "文件夹名称",
   "newName": "新名称",
   "deleteItems": "删除 {names}？",
@@ -274,7 +284,6 @@
   "urlCopied": "URL 已复制到剪贴板",
   "aboutSubtitle": "v{version} — SSH/SFTP 客户端",
   "sourceCode": "源代码",
-  "enableLogging": "启用日志",
   "logIsEmpty": "日志为空",
   "logExportedTo": "日志已导出至：{path}",
   "logExportFailed": "日志导出失败：{error}",
@@ -307,20 +316,56 @@
   "completed": "已完成",
   "connected": "已连接",
   "disconnected": "已断开",
+  "a11yConnectingTo": "正在连接 {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "已连接到 {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "已从 {host} 断开",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "连接 {host} 失败",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "退出",
   "exitConfirmation": "活动会话将被断开。确定退出吗？",
   "hintFolderExample": "例如 Production",
   "credentialsNotSet": "凭据未设置",
   "exportSessionsViaQr": "通过 QR 导出会话",
-  "qrNoCredentialsWarning": "密码和 SSH 密钥不会包含在内。\n导入的会话需要重新填写凭据。",
   "qrTooManyForSingleCode": "会话过多，无法生成单个 QR 码。请取消部分选择或使用 .lfs 导出。",
   "qrTooLarge": "数据过大——请取消部分选择或使用 .lfs 文件导出。",
-  "exportAll": "全部导出",
   "showQr": "显示 QR",
   "sort": "排序",
   "resizePanelDivider": "调整面板分隔线",
   "youreRunningLatest": "您正在使用最新版本",
   "liveLog": "实时日志",
+  "archivedLog": "归档日志",
+  "loggingLevel": "日志级别",
+  "loggingLevelSubtitleInfo": "常规条目 + 警告 + 错误",
+  "loggingLevelSubtitleWarn": "仅降级路径和错误",
+  "loggingLevelSubtitleError": "仅错误",
+  "loggingLevelSubtitleOff": "不写入常规日志",
   "time": "时间",
   "failed": "失败",
   "transferNItems": "传输 {count} 个项目",
@@ -401,14 +446,6 @@
   "errLfsUnsupportedVersion": "归档使用架构 v{found}，但此版本仅支持到 v{supported}。请更新应用以导入它。",
   "progressReadingArchive": "正在读取归档…",
   "progressDecrypting": "正在解密…",
-  "progressParsingArchive": "正在解析归档…",
-  "progressImportingSessions": "正在导入会话",
-  "progressImportingFolders": "正在导入文件夹",
-  "progressImportingManagerKeys": "正在导入 SSH 密钥",
-  "progressImportingTags": "正在导入标签",
-  "progressImportingSnippets": "正在导入代码片段",
-  "progressApplyingConfig": "正在应用配置…",
-  "progressImportingKnownHosts": "正在导入 known_hosts…",
   "progressCollectingData": "正在收集数据…",
   "progressEncrypting": "正在加密…",
   "progressWritingArchive": "正在写入归档…",
@@ -447,11 +484,6 @@
   "transferTooltipEnded": "结束时间：{time}",
   "transferTooltipDuration": "持续时间：{duration}",
   "transferStatusQueued": "排队中",
-  "transferStartingUpload": "正在开始上传...",
-  "transferStartingDownload": "正在开始下载...",
-  "transferCopying": "正在复制...",
-  "transferDone": "完成",
-  "transferFilesProgress": "{done}/{total} 个文件",
   "fileConflictTitle": "文件已存在",
   "fileConflictMessage": "\"{fileName}\" 已存在于 {targetDir} 中。您想怎么做？",
   "fileConflictSkip": "跳过",
@@ -502,20 +534,36 @@
   "keyDeleted": "密钥已删除：{label}",
   "publicKey": "公钥",
   "publicKeyCopied": "公钥已复制到剪贴板",
+  "sshCertificate": "证书",
+  "certImport": "导入证书",
+  "certImportPickerTitle": "选择 OpenSSH 证书文件",
+  "certValidFrom": "生效时间",
+  "certValidTo": "过期时间",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "证书即将过期。",
+  "certExpired": "已过期",
+  "certRemove": "移除证书",
+  "certRemoveConfirmTitle": "移除证书？",
+  "certRemoveConfirmBody": "移除后，会话将回退到纯公钥认证。",
+  "errCertParse": "无法解析证书：{detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "此证书未与所选密钥配对。",
   "pastePrivateKey": "粘贴私钥 (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "无效的 PEM 密钥数据",
   "selectFromKeyStore": "从密钥库选择",
   "keyCount": "{count, plural, =0{没有密钥} other{{count} 个密钥}}",
   "generated": "已生成",
-  "passphraseRequired": "需要密码短语",
-  "passphrasePrompt": "{host} 的 SSH 密钥已加密。请输入密码短语以解锁。",
-  "passphraseWrong": "密码短语错误。请重试。",
   "passphrase": "密码短语",
-  "rememberPassphrase": "在此会话中记住",
   "enterMasterPassword": "输入主密码以访问已保存的凭据。",
   "wrongMasterPassword": "密码错误。请重试。",
-  "newPassword": "新密码",
   "currentPassword": "当前密码",
   "forgotPassword": "忘记密码？",
   "credentialsReset": "所有已保存的凭据已删除",
@@ -556,7 +604,6 @@
   "maxHistorySubtitle": "历史中保留的最大命令数",
   "calculateFolderSizesSubtitle": "在侧边栏文件夹旁显示总大小",
   "checkForUpdatesOnStartupSubtitle": "应用启动时从 GitHub 检查新版本",
-  "enableLoggingSubtitle": "将应用事件写入循环日志文件",
   "snippets": "代码片段",
   "snippetsSubtitle": "管理可重用的命令片段",
   "noSnippets": "暂无代码片段",
@@ -582,7 +629,6 @@
   "snippetCustomTokensHint": "其他双花括号项会在 snippet 执行时询问值。",
   "snippetFillTitle": "填写代码片段参数",
   "snippetFillSubmit": "运行",
-  "snippetPreview": "预览",
   "broadcastSetDriver": "从此窗格广播",
   "broadcastClearDriver": "停止从此窗格广播",
   "broadcastAddReceiver": "在此接收广播",
@@ -590,7 +636,16 @@
   "broadcastClearAll": "停止所有广播",
   "broadcastPasteTitle": "将粘贴发送到所有窗格?",
   "broadcastPasteBody": "将向其他 {count} 个窗格发送 {chars} 个字符。",
-  "@broadcastPasteBody": {"placeholders": {"chars": {"type": "int"}, "count": {"type": "int"}}},
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "broadcastPasteSend": "发送",
   "portForwarding": "转发",
   "portForwardingEmpty": "还没有规则",
@@ -608,26 +663,22 @@
   "forwardDescription": "描述（可选）",
   "forwardEnabled": "启用",
   "forwardBindWildcardWarning": "绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。",
-  "forwardOnlyLocalSupported": "本地 (-L)、远程 (-R) 和动态 SOCKS5 (-D) 转发均已启用。",
   "forwardKindLocalHelp": "本地：在此设备上打开一个端口，隧道到 SSH 服务器可访问的目标。便于通过 localhost:bindPort 访问远程数据库或管理界面。",
   "forwardKindRemoteHelp": "远程：请 SSH 服务器打开一个端口，隧道回此设备可访问的目标。便于将本地开发服务器分享给远程主机 (服务器可能需要 GatewayPorts yes 才能绑定非 loopback)。",
   "forwardKindDynamicHelp": "动态：此设备上的 SOCKS5 代理，将每个连接通过 SSH 服务器路由。把浏览器或 curl 指向 localhost:bindPort，所有流量经 SSH 发送。",
-  "forwardExample": "示例",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → 通过 localhost:8080 访问远程数据库",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → 在服务器 9000 端口暴露开发服务器",
-  "forwardDynamicExample": "ssh -D 1080 → 把浏览器 SOCKS5 设为 localhost:1080",
   "proxyJump": "通过连接",
   "proxyJumpNone": "直连",
   "proxyJumpSavedSession": "已保存会话",
   "proxyJumpCustom": "自定义",
   "proxyJumpCustomNote": "自定义跳转使用此会话的凭据。如需不同的堡垒机认证，请将堡垒机保存为独立会话。",
-  "errProxyJumpCycle": "代理链路自我闭合。",
-  "errProxyJumpDepth": "代理链太深（最多 {max} 跳）。",
-  "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
-  "errProxyJumpBastionFailed": "堡垒机 {label} 连接失败。",
-  "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
   "viaSessionLabel": "通过 {label}",
-  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "录制会话",
   "recordSessionHelp": "将此会话的终端输出保存到磁盘。启用主密码或硬件密钥时静态加密。",
   "recordingsBrowserTitle": "录制",
@@ -638,6 +689,18 @@
   "recordingPlaybackTitle": "回放录制",
   "recordingSpeed": "速度",
   "recordingSpeedInstant": "立即",
+  "recordingScrubTooltipUnavailable": "Scrub bar 需要 sidecar index——旧录制（此 build 之前的）没有。新录制可以拖动跳转。",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "标签",
   "tagsSubtitle": "使用彩色标签整理会话和文件夹",
   "noTags": "暂无标签",
@@ -659,9 +722,6 @@
   "invalidImportLink": "链接不包含有效的 LetsFLUTssh 数据",
   "importAction": "导入",
   "emptyFolder": "空文件夹",
-  "exportWithoutPassword": "不设密码导出？",
-  "exportWithoutPasswordWarning": "归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。",
-  "continueWithoutPassword": "不设密码继续",
   "tierHardwareUnavailable": "此安装不支持硬件保险库。",
   "pinLabel": "密码",
   "l2UnlockTitle": "需要密码",
@@ -687,8 +747,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "此设备不支持硬件存储。",
   "firstLaunchSecurityOpenSettings": "打开设置",
   "wizardReducedBanner": "本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。",
-  "tierBlockProtectsEmpty": "该等级无可抵御项。",
-  "tierBlockDoesNotProtectEmpty": "无未覆盖威胁。",
   "tierBadgeCurrent": "当前",
   "securitySetupEnable": "启用",
   "securitySetupApply": "应用",
@@ -752,7 +810,6 @@
   "colT1": "T1 钥匙串",
   "colT1Password": "T1 + 密码",
   "colT1PasswordBiometric": "T1 + 密码 + 生物识别",
-  "colT2": "T2 硬件",
   "colT2Password": "T2 + 密码",
   "colT2PasswordBiometric": "T2 + 密码 + 生物识别",
   "colParanoid": "偏执模式",
@@ -763,9 +820,40 @@
   "resetAllDataConfirmTitle": "重置所有数据？",
   "resetAllDataConfirmBody": "所有会话、SSH 密钥、known hosts、代码片段、标签、偏好设置以及所有安全构件（钥匙串条目、硬件保险库数据、生物识别覆盖层）都将被永久删除。此操作无法撤销。",
   "resetAllDataConfirmAction": "全部重置",
+  "resetAllDataConfirmTypePrompt": "请在下方输入 {phrase} 以确认:",
   "resetAllDataInProgress": "正在重置…",
   "resetAllDataDone": "所有数据已重置",
   "resetAllDataFailed": "重置失败",
+  "recordingsTitle": "录制",
+  "recordingsStorageUsedLabel": "已用",
+  "recordingsCapLabel": "上限",
+  "recordingsCapHint": "recordings/ 目录的硬上限。超出时优先删除最旧的录制；当前正在写入的录制不会被删除。",
+  "recordingsClearAllAction": "清除所有录制",
+  "recordingsClearAllConfirmTitle": "清除所有录制？",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ 下的每个录制会话都将被删除。当前正在录制（如果有）会保留。此操作无法撤销。",
+  "recordingsClearAllResult": "已删除 {count} 个录制",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "上限已更新。已释放 {bytes}。",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "上限已更新。无需清理。",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "当前",
   "paranoidAlternativeHeader": "备选",
   "modifierPasswordLabel": "密码",
@@ -777,7 +865,24 @@
   "autoLockRequiresActiveTier": "请先选择此等级以配置自动锁定",
   "biometricForbiddenParanoid": "Paranoid 级别按设计不允许使用生物识别。",
   "fprintdNotAvailable": "未安装 fprintd 或未登记指纹。",
-  "linuxTpmWithoutPasswordNote": "没有密码的 TPM 仅提供隔离，而非身份验证。任何能运行此应用的人都可以解锁数据。",
+  "modifierPasswordRequired": "必需 — Hardware 层级始终受密码保护。",
+  "t2RequiresPasswordTitle": "为 Hardware 层级设置主密码",
+  "t2RequiresPasswordBody": "Hardware 层级需要密码作为 modifier。生物识别是其上的可选 shortcut。",
+  "t2MigrationPromptTitle": "Hardware 层级需要密码",
+  "t2MigrationPromptBody": "现有无密码的 Hardware 安装必须立即设置一个才能继续。",
+  "t2MigrationContinue": "继续",
+  "t2MigrationSetPasswordTitle": "设置密码以保留 Hardware 层级",
+  "t2MigrationSetPasswordBody": "输入新的 master 密码。hardware 模块中已经 sealed 的 DB key 会在此密码下 re-seal — 会话和 key 保持不变。",
+  "t2MigrationWipeAndRestart": "Wipe 后重新开始",
+  "t2MigrationResealFailed": "Hardware 层级 re-seal 失败 — 换一个密码或 wipe 后重新开始。",
+  "biometricOverlayEnable": "在 Hardware 层级启用生物识别 shortcut",
+  "biometricOverlayEnableSubtitle": "从受生物识别保护的 OS 槽中释放你的密码。",
+  "biometricOverlayUnavailable": "生物识别 overlay 在此平台上暂不可用。",
+  "biometricOverlayRequiresPassword": "请先设置 Hardware 层级的密码。",
+  "t2UnlockTitle": "用主密码解锁",
+  "t2UnlockSubtitle": "hardware-bound 密钥由你的密码保护。",
+  "t2UnlockUseBiometricButton": "使用生物识别",
+  "t2PasswordChanged": "Hardware 层级密码已更新。",
   "paranoidMasterPasswordNote": "强烈建议使用较长的口令——Argon2id 只能减慢暴力破解，无法阻止它。",
   "plaintextWarningTitle": "明文：无加密",
   "plaintextWarningBody": "会话、密钥和 known hosts 将以未加密方式保存。任何能访问本机文件系统的人都可以读取它们。",
@@ -787,7 +892,454 @@
   "masterPasswordLabel": "主密码",
   "autoLockRequiresPassword": "自动锁定需要在当前等级上设置密码。",
   "recommendedBadge": "推荐",
-  "tierHardwareSubtitleHonest": "进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。",
+  "tierHardwareSubtitleHonest": "进阶：密钥与硬件绑定，始终需要密码保护。若此设备的芯片丢失或更换，数据将无法恢复。",
   "tierParanoidSubtitleHonest": "备选：使用主密码，不信任操作系统。可防御 OS 被攻破，但运行时防护不优于 T1/T2。",
-  "mitigationsNoteRuntimeThreats": "运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。"
+  "mitigationsNoteRuntimeThreats": "运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH 已连接",
+  "foregroundServiceConnections": "{count, plural, =1{1 个活动连接} other{{count} 个活动连接}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "会话类型",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "用户名",
+  "webDavAuthMethod": "Auth 方式",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Self-signed 证书 fingerprint(可选)",
+  "webDavSelfSignedFingerprintHint": "SHA-256,留空则使用系统 trust",
+  "webDavCopyUrl": "复制 WebDAV URL",
+  "webDavOpenInBrowser": "在浏览器中打开",
+  "errWebDavAuthFailed": "WebDAV 认证失败",
+  "errWebDavNotFound": "路径未找到",
+  "errWebDavConflict": "操作与当前状态冲突",
+  "errWebDavGeneric": "WebDAV 服务器拒绝请求:{detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "需要 WebDAV base URL",
+  "errWebDavBaseUrlInvalid": "Base URL 必须为 http:// 或 https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS 留空，MinIO / R2 / Spaces 请填写",
+  "s3PathStyle": "Path-style 寻址",
+  "s3PathStyleHint": "MinIO 需要；AWS 关闭",
+  "s3DefaultBucket": "默认 bucket",
+  "s3DefaultPrefix": "默认 prefix",
+  "s3GeneratePresignedUrl": "生成 presigned URL",
+  "s3PresignedUrlExpiry": "过期时间",
+  "s3CopyUri": "复制 s3://bucket/key URI",
+  "s3PresignedUrlExpiry15min": "15 分钟",
+  "s3PresignedUrlExpiry1hour": "1 小时",
+  "s3PresignedUrlExpiry4hour": "4 小时",
+  "s3PresignedUrlExpiry24hour": "24 小时",
+  "s3PresignedUrlExpiry7day": "7 天",
+  "errS3AuthFailed": "S3 authentication failed (检查 access key + secret)",
+  "errS3NoSuchBucket": "Bucket 不存在或无权访问",
+  "errS3RegionMismatch": "Bucket 在与配置不同的 region",
+  "errS3Generic": "S3 服务器拒绝了请求: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "启用 WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "加密 sync 归档。必须与主密码不同。",
+  "syncPassphraseSameAsMasterError": "Sync passphrase 不能与主密码相同。",
+  "syncRemotePath": "远程路径",
+  "syncRemotePathHint": "WebDAV base URL 下的路径 — 默认 letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "上次 push:{when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "上次 pull:{when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "从未",
+  "syncUpToDate": "Sync 已是最新",
+  "syncPushedBytes": "Push 完成 {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "从 remote 应用 {count} 项变更",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync 已关闭",
+  "errSyncEtagMismatch": "Remote 已变 — 请先 pull 再 push",
+  "errSyncUnauthorized": "WebDAV 认证失败",
+  "errSyncNetwork": "网络错误:{detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote 的 sync 归档需要更新版本",
+  "hardwareKey": "硬件密钥",
+  "hardwareKeyTapPrompt": "请触碰硬件密钥",
+  "hardwareKeyPin": "硬件密钥 PIN",
+  "hardwareKeyTimeout": "硬件密钥未响应",
+  "hardwareKeyNotFound": "未找到硬件密钥",
+  "hardwareKeyUnsupported": "此平台不支持直接访问硬件密钥",
+  "hardwareKeyAppleEntitlementRequired": "需要 Apple Developer Program entitlement;在 macOS 上请使用 ssh-agent",
+  "skKeyRequiresDevice": "此 SSH 密钥需要硬件密钥 — 触碰以认证",
+  "errSkWrongPin": "PIN 错误",
+  "hardwareKeyImport": "导入硬件密钥 (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "已取消硬件密钥提示",
+  "agentEndpointSectionTitle": "外部 SSH 客户端集成",
+  "agentEndpointToggleTitle": "向系统 SSH 客户端公开硬件绑定密钥",
+  "agentEndpointToggleSubtitle": "允许此设备上的 git、ssh、IDE 插件使用您的 FIDO2 / smart-card / TPM 密钥。",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "复制 export 命令",
+  "agentEndpointCopyPipeName": "复制 pipe 名称",
+  "agentEndpointSignatureRequestTitle": "签名请求",
+  "agentEndpointSignatureRequestBody": "{requester} 想要使用 {keyLabel} 签名",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "外部 SSH 客户端",
+  "agentEndpointAuthorizeOnce": "仅本次授权",
+  "agentEndpointAuthorizeAlways": "授权并记住",
+  "agentEndpointDeny": "拒绝",
+  "agentEndpointStatusRunning": "运行中",
+  "agentEndpointStatusStopped": "已停止",
+  "agentEndpointStatusUnsupported": "此平台不支持",
+  "agentEndpointRefusedAddIdentity": "拒绝：外部客户端不能添加 key。",
+  "agentEndpointStartFailed": "无法启动 ssh-agent endpoint：{detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "添加智能卡 / 令牌密钥",
+  "pkcs11ModuleLabel": "PKCS#11 模块",
+  "pkcs11ModuleAutoDetected": "自动检测",
+  "pkcs11ModuleCustom": "自定义模块...",
+  "pkcs11ModulePickerTitle": "选择 PKCS#11 库",
+  "pkcs11NoModuleFound": "未找到 PKCS#11 模块。请安装 OpenSC 或选择供应商库。",
+  "pkcs11InitializeFailed": "PKCS#11 模块初始化失败。",
+  "pkcs11NoTokenPresent": "读卡器中没有令牌。",
+  "pkcs11TokenLabel": "令牌: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "序列号: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "令牌需要登录。",
+  "pkcs11PinPrompt": "{token} 的 PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "在令牌的 PIN 板上确认。",
+  "pkcs11PinIncorrect": "PIN 错误。剩 {remaining} 次。",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "令牌 PIN 已锁定。使用 PUK 解锁。",
+  "pkcs11NoSignableKeys": "令牌上没有 SSH 可用的密钥 (RSA、ECDSA、Ed25519)。",
+  "pkcs11GostUnsupported": "GOST 密钥无法用于 SSH。",
+  "pkcs11TokenUnplugged": "令牌 \"{label}\" 未插入。",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "未找到已保存的令牌。请重新插入后重试。",
+  "pkcs11SignFailed": "签名失败: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "此平台不支持智能卡 / PKCS#11 令牌。",
+  "pkcs11Badge": "智能卡 / 令牌",
+  "pkcs11InfoModulePath": "模块：{path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "令牌序列号：{serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "对象：{label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "选择 PKCS#11 模块",
+  "pkcs11WizardStepToken": "选择令牌",
+  "pkcs11WizardStepKey": "选择密钥",
+  "pkcs11WizardStepPin": "输入 PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "导入密钥",
+  "pkcs11SaveInProgress": "正在从令牌读取公钥...",
+  "pkcs11SaveSuccess": "已添加智能卡密钥。",
+  "pkcs11ScanInProgress": "正在扫描 PKCS#11 模块...",
+  "pkcs11LoadingTokens": "正在加载令牌...",
+  "pkcs11LoadingKeys": "正在加载密钥...",
+  "pkcs11ModuleStatusReady": "模块已加载。",
+  "pkcs11ModuleStatusNoToken": "未插入令牌。",
+  "pkcs11ModuleStatusFailed": "模块加载失败。",
+  "pkcs11PinPadHint": "（设备 PIN pad）",
+  "pkcs11WizardBack": "上一步",
+  "pkcs11WizardNext": "下一步",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "添加 hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key 存储在设备的 secure hardware 中，无法导出。",
+  "sshKeyEnclaveDeviceBound": "此 key 只在这台 Mac 上有效。",
+  "sshKeyEnclaveDeviceBoundIos": "此 key 只在这台 iPhone 上有效。",
+  "sshKeyHelloDeviceBound": "此 key 只在这台 PC 上有效。",
+  "sshKeyEnclaveTouchIdRequired": "要求 Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "允许设备 passcode 作为 fallback",
+  "sshKeyHelloPinRequired": "要求 Windows Hello（PIN、指纹或人脸）",
+  "sshKeyHardwareUnavailableTitle": "Hardware key 不可用",
+  "sshKeyHardwareUnavailableSe": "应用必须 code-signed 才能使用 Secure Enclave。",
+  "sshKeyHardwareUnavailableHello": "此 PC 未配置 Windows Hello。",
+  "sshKeyHardwareUnavailableTpm": "未检测到 TPM — 仅 software-backed。",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "生成",
+  "sshKeyGenerateInProgress": "正在 secure hardware 中生成 key...",
+  "sshKeyGenerateMissingEntitlement": "需要 code-signing — 参见 USER_GUIDE.md → Hardware-bound keys。",
+  "sshKeySignInProgress": "正在使用 secure hardware 签名...",
+  "sshKeyPublicCopy": "复制 public key",
+  "sshKeyAuthorizedKeysHint": "将此行添加到服务器的 ~/.ssh/authorized_keys。",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Key 名称",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH 密钥",
+  "helloWizardLabelHint": "密钥标签",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "通过 Windows Hello 验证",
+  "helloPromptDescription": "PIN、指纹或人脸 — Windows Hello 会为此 SSH challenge 签名。",
+  "helloSoftwareGatedWarning": "此设备没有 TPM。密钥会落在用户存储中,但每次签名仍由 Windows Hello 守门。",
+  "helloP384NotSupported": "TPM 固件不支持 P-384。请选择 P-256 或 RSA-2048。",
+  "helloConfigureFirst": "请先在 设置 -> 登录选项 中配置 Windows Hello。",
+  "tpmSshTitle": "生成 TPM 绑定 SSH key",
+  "tpmSshAlgEcdsa": "ECDSA P-256（推荐）",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "本 TPM 固件不支持此算法。",
+  "tpmSshPinProtect": "使用 PIN 保护",
+  "tpmSshPinLockoutWarning": "PIN 多次错误后 TPM 会锁定此 key。",
+  "tpmSshPinMismatch": "PIN 不一致。",
+  "tpmSshStorageBlob": "在应用数据中保存 wrapped key",
+  "tpmSshStorageHandle": "保留在 TPM 内存槽中",
+  "tpmSshStorageHandleHelp": "签名更快。占用 TPM 的一个持久 slot。",
+  "tpmSshLabel": "Key 标签",
+  "tpmSshImportTitle": "导入 TPM 保护的 SSH key",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} 的 TPM PIN",
+  "tpmSshPinIncorrect": "PIN 错误。",
+  "tpmSshPinLockedCooldown": "TPM 处于 lockout 冷却。等 {duration} 后重试。",
+  "tpmSshGenerating": "正在 TPM 中生成 key...",
+  "tpmSshSigning": "正在用 TPM 签名...",
+  "tpmSshUnavailable": "本设备未检测到 TPM。",
+  "tpmSshUnavailableFwDisabled": "TPM 在固件中已禁用。",
+  "tpmSshUnavailableNoPermission": "应用无法访问 TPM。把用户加入 `tss` 组。",
+  "tpmSshHandleInUse": "持久 slot {handle} 已被占用。",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "此 key 签名时不会弹 Hello / PIN — 你登录时任何能访问桌面的人都能使用它。",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (硬件绑定)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (硬件支持)",
+  "keystoreKeyGenerating": "正在生成硬件绑定密钥...",
+  "keystoreKeyAuthPrompt": "验证身份以使用 SSH 密钥",
+  "keystoreKeyInvalidatedByEnrollment": "密钥已销毁：注册了新的生物识别。请在服务器上重新注册公钥。",
+  "keystoreKeyStrongBoxUnavailable": "此设备不支持 StrongBox HSM",
+  "keystoreKeyUserAuthRequired": "每次签名都要求生物识别 / 设备解锁",
+  "keystoreKeyExportDisabled": "硬件绑定密钥不能导出",
+  "keystoreKeyDeleteWarning": "删除此密钥会从硬件存储中移除。在你注册新密钥之前，服务器都会拒绝它。",
+  "keystoreKeyBiometricNotEnrolled": "请先注册生物识别或设备 PIN",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox 兼容)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, 仅 TEE)",
+  "keystoreAlgRsa2048": "RSA-2048 (最广兼容)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM 不可用",
+  "keystoreStrongBoxFallbackBody": "你的设备没有暴露 StrongBox HSM。改为创建一个 TEE 后端的密钥？仍然是 hardware-backed，只是没有 StrongBox 隔离。",
+  "keystoreStrongBoxFallbackConfirm": "使用 TEE",
+  "keystoreStrongBoxFallbackCancel": "取消",
+  "fido2BrokerSectionTitle": "硬件安全密钥",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "系统 security key 对话框",
+  "fido2BrokerIosLabel": "系统 security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "系统 security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "直接 USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "此平台不可用",
+  "fido2BrokerPreferDirectHidTitle": "优先使用直接 USB HID 而非系统对话框",
+  "fido2BrokerPreferDirectHidSubtitle": "高级：在两种路径都可用的平台上绕过 {brokerLabel}。直接 HID 支持更多 authenticator 特性，但需要按应用授予权限。",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "SSH 集成",
+  "fido2BrokerNoTransportSubtitle": "此设备不支持硬件密钥。",
+  "fido2BrokerSinglePathSubtitle": "此设备仅支持 {transport}；开关已禁用。",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "已导入存根",
+  "hardwareKeyStubSubtitle": "在另一台设备上 — 在此重新生成以便使用",
+  "hardwareKeyStubRegenerateAction": "在此重新生成",
+  "hardwareKeyStubRemoveAction": "移除存根",
+  "hardwareKeyStubPickerTooltip": "使用前请在此设备上重新生成此密钥",
+  "pkcs11ModuleResolveOnFirstUse": "为令牌 \"{token}\" 选择 PKCS#11 模块",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  }
 }

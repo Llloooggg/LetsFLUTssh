@@ -34,14 +34,14 @@ class FilePaneDialogs {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
                   color: AppTheme.fgFaint,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: nameCtrl,
                 autofocus: true,
@@ -198,7 +198,7 @@ class FilePaneDialogs {
           name: 'FilePane',
           error: e,
         );
-        errors.add(l10n.failedToDeleteItem(entry.name, e.toString()));
+        errors.add(l10n.failedToDeleteItem(entry.name, localizeError(l10n, e)));
       }
     }
     if (errors.isNotEmpty && context.mounted) {

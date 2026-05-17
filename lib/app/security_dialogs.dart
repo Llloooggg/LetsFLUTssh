@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 import '../core/security/master_password.dart';
@@ -44,7 +42,7 @@ Future<DbCorruptChoice> showDbCorruptDialog() {
 /// synchronously within this function, not across an async gap —
 /// otherwise `use_build_context_synchronously` would trip at every
 /// call site.
-Future<Uint8List?> showUnlockDialog(MasterPasswordManager manager) {
+Future<bool?> showUnlockDialog(MasterPasswordManager manager) {
   final ctx = navigatorKey.currentContext;
   if (ctx == null) return Future.value(null);
   return UnlockDialog.show(ctx, manager: manager);

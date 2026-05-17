@@ -1,13 +1,14 @@
+import 'dart:convert' show utf8;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/tier_unlocked_listener.dart';
 import '../core/security/lock_state.dart';
-import '../core/security/security_tier.dart';
+import '../core/security/tier_unlock_attempt.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/master_password_provider.dart';
-import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import 'app_button.dart';
@@ -17,13 +18,24 @@ import 'secure_screen_scope.dart';
 
 /// Full-screen lock overlay shown while [lockStateProvider] is true.
 ///
-/// Currently a Paranoid-only re-auth surface: `_releaseLock` pushes a
-/// master-password-derived key into [securityStateProvider] under
-/// `SecurityTier.paranoid`, and `_submitPassword` drives
-/// [MasterPasswordManager]. Biometric unlock is deliberately absent —
-/// Paranoid opts out of biometric by design (see ARCHITECTURE §3.6 →
-/// Biometric unlock for the rationale), so there is nothing to
-/// auto-trigger and no fingerprint affordance to render.
+/// Paranoid-only re-auth surface today. `_submitPassword` drives
+/// [MasterPasswordManager.unlockAttempt] which routes through the
+/// `tier_unlock_paranoid` orchestrator: stage key in SecretStore +
+/// emit unlock cascade. Rust's `run_post_unlock_cascade` opens the
+/// DB, publishes the store-changed events, and finally publishes
+/// `BusEvent::UnlockCascadeReady`; [LockStateNotifier] is subscribed
+/// to that terminal event and flips the overlay off on its own. The
+/// screen awaits `TierUnlockedListener.awaitNextUnlock` only to gate
+/// the busy spinner on the orchestrator round-trip, not the overlay
+/// flip.
+///
+/// The biometric overlay surfaces only on tiers that carry an
+/// OS-managed biometric slot for the typed password (T1+pw, T2);
+/// Paranoid forbids biometric by design (see ARCHITECTURE §3.6 →
+/// Biometric unlock for the rationale). The dispatcher that
+/// renders the lock screen on a non-Paranoid tier supplies a
+/// biometric retry button keyed off the live overlay state; this
+/// surface keeps the password-only entry for the Paranoid branch.
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
 
@@ -53,11 +65,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     super.dispose();
   }
 
-  void _releaseLock(Uint8List key) {
-    ref.read(securityStateProvider.notifier).set(SecurityTier.paranoid, key);
-    ref.read(lockStateProvider.notifier).unlock();
-  }
-
   Future<void> _submitPassword() async {
     if (_busy) return;
     final password = _pwCtrl.text;
@@ -67,30 +74,58 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       _wrong = false;
     });
     final manager = ref.read(masterPasswordProvider);
+    final listener = ref.read(tierUnlockedListenerProvider)..start();
+    final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
     try {
-      // Single Argon2id: verify + derive in one isolate spawn.
-      // `useRateLimit` on — mid-session lock screen is a user-typed
-      // path and should slow down a passerby the same way the
-      // first-launch UnlockDialog does.
-      final key = await manager.verifyAndDerive(password, useRateLimit: true);
+      // Routes through `tier_unlock_paranoid` — single Argon2id,
+      // stages the derived key in the SecretStore + dispatches
+      // Rust's `run_post_unlock_cascade` (DB open, tier persist,
+      // store-changed events, `UnlockCascadeReady`). The Dart
+      // Riverpod half (`securityStateProvider.setActive`, overlay
+      // flip) lives off the terminal bus event.
+      final attempt = await manager.unlockAttempt(
+        Uint8List.fromList(utf8.encode(password)),
+      );
       if (!mounted) return;
-      if (key == null) {
-        setState(() {
-          _busy = false;
-          _wrong = true;
-        });
-        // Zero the prior string instead of a bare `clear()` — the
-        // wrong-password buffer is a secret the user just typed and
-        // we have no reason to let the interim `String` on the Dart
-        // heap wait for GC any longer than the accepted-password
-        // path does.
-        _pwCtrl.wipeAndClear();
-        _focusNode.requestFocus();
-        return;
+      switch (attempt) {
+        case TierUnlockAttempt.staged:
+          // Wait for the Rust cascade to settle so the busy spinner
+          // stays up across the round-trip. The overlay flip itself
+          // is driven by `LockStateNotifier` subscribing to
+          // `BusEvent::UnlockCascadeReady` — by the time
+          // `awaitNextUnlock` resolves, the same event has already
+          // flipped `lockStateProvider` to `false` and the workspace
+          // re-mounts on the next frame.
+          await unlockDone.timeout(
+            tierUnlockedListenerWaitTimeout,
+            onTimeout: () => TierUnlockOutcome.failed,
+          );
+          if (!mounted) return;
+        case TierUnlockAttempt.wrongSecret:
+          listener.cancelPending();
+          setState(() {
+            _busy = false;
+            _wrong = true;
+          });
+          // Zero the prior string instead of a bare `clear()` — the
+          // wrong-password buffer is a secret the user just typed
+          // and we have no reason to let the interim `String` on
+          // the Dart heap wait for GC any longer than the
+          // accepted-password path does.
+          _pwCtrl.wipeAndClear();
+          _focusNode.requestFocus();
+        case TierUnlockAttempt.cancelled:
+        case TierUnlockAttempt.error:
+          listener.cancelPending();
+          setState(() {
+            _busy = false;
+            _wrong = true;
+          });
+          _pwCtrl.wipeAndClear();
+          _focusNode.requestFocus();
       }
-      if (!mounted) return;
-      _releaseLock(key);
     } catch (e) {
+      listener.cancelPending();
       AppLogger.instance.log('Unlock failed: $e', name: 'LockScreen', error: e);
       if (mounted) {
         setState(() {
@@ -119,7 +154,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Icon(Icons.lock_outline, size: 56, color: AppTheme.accent),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     Text(
                       l10n.lockScreenTitle,
                       textAlign: TextAlign.center,
@@ -129,7 +164,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       l10n.lockScreenSubtitle,
                       textAlign: TextAlign.center,
@@ -138,7 +173,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         fontSize: AppFonts.sm,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AppSpacing.xl),
                     SecurePasswordField(
                       controller: _pwCtrl,
                       focusNode: _focusNode,
@@ -149,25 +184,33 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       ),
                     ),
                     if (_wrong) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        l10n.wrongPassword,
-                        style: TextStyle(
-                          color: AppTheme.red,
-                          fontSize: AppFonts.xs,
+                      const SizedBox(height: AppSpacing.xxs),
+                      // `liveRegion: true` so screen readers (TalkBack /
+                      // VoiceOver / NVDA) re-announce the wrong-password
+                      // text on every retry. Without it the message
+                      // appears visually but stays silent for assistive
+                      // tech — the user submits, hears nothing, and
+                      // assumes the unlock spun without a reason.
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          l10n.wrongPassword,
+                          style: TextStyle(
+                            color: AppTheme.red,
+                            fontSize: AppFonts.xs,
+                          ),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
-                    // The button renders as a plain `Text('...')` under
-                    // the busy flag rather than `loading: _busy`. A
-                    // real `CircularProgressIndicator` here ticks
-                    // forever on test `pumpAndSettle` — the verify
-                    // call kicks the state machine through `_busy`
-                    // during the async gap the tests wait on, and a
-                    // spinning indicator prevents settle from ever
-                    // resolving. The string variant matches the
-                    // pre-migration behaviour exactly.
+                    const SizedBox(height: AppSpacing.lg),
+                    // The button renders a busy ellipsis label
+                    // instead of the standard `CircularProgressIndicator`
+                    // shape: the spinner animates indefinitely under
+                    // flutter_test's `pumpAndSettle`, which the lock
+                    // screen tests need to use to traverse the
+                    // verify -> unlock state transition. The
+                    // ellipsis is a discrete state that pumpAndSettle
+                    // can settle on.
                     AppButton.primary(
                       label: _busy ? '...' : l10n.unlock,
                       onTap: _busy ? null : _submitPassword,

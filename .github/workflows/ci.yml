@@ -23,7 +23,141 @@ concurrency:
 permissions: read-all
 
 jobs:
-  ci:
+  # Rust-side gates: format / lint / unused-deps / tests / (optional)
+  # coverage. Split out of the legacy single `ci` job so the Rust
+  # work (heavy compile + 1700+ unit tests) runs concurrently with
+  # the Dart side instead of serially blocking it. Cache is
+  # job-scoped via Swatinem/rust-cache (the action keys on
+  # `github.job` automatically), so the two jobs build independent
+  # cargo targets without overwriting each other's restore.
+  ci-rust:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        # `libsecret-1-dev` is linked by `secret-service` on Linux.
+        # `libtss2-dev` is required by `tss-esapi` for the native
+        # TPM2 backend (`lfs_core::platform::linux::tpm_native`).
+        # `libudev-dev` ships `libudev.pc` for pkg-config; `hidapi`
+        # (pulled by `cryptoki` / pkcs11 paths) needs it under
+        # `--all-features` (rust-coverage path).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev
+
+      - name: Activate Rust toolchain (rust-toolchain.toml)
+        # `cargo --version` inside `rust/` triggers rustup to read
+        # `rust-toolchain.toml` and install the pinned channel
+        # (1.95.0). The Swatinem cache below then keys against the
+        # active toolchain hash, not the runner's pre-existing
+        # stable, so a toolchain bump cleanly invalidates the
+        # cache.
+        working-directory: rust
+        run: |
+          cargo --version
+          rustc --version
+          rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        # Purpose-built Rust cache: stores `~/.cargo/registry`,
+        # `~/.cargo/git`, and `rust/target/` keyed on Cargo.lock +
+        # toolchain hash, AND restores mtimes so cargo's
+        # fingerprint check accepts the cached artefacts. Replaces
+        # the plain `actions/cache` step that the previous `ci` job
+        # used — actions/cache sets mtime to "now" on restore which
+        # cargo treats as "source is newer than artefact" and
+        # triggers full rebuild on every restore, defeating the
+        # cache.
+        #
+        # `add-rust-environment-hash-key: false` + an explicit
+        # `key:` based on `rust-toolchain.toml` keeps the cache key
+        # deterministic. The default behaviour hashes every
+        # installed toolchain (the runner ships preinstalled
+        # stable; toolchain.toml triggers a second install) which
+        # changes per-run and never matches a saved cache.
+        with:
+          workspaces: rust
+          save-if: 'true'
+          add-rust-environment-hash-key: 'false'
+          key: ${{ hashFiles('rust/rust-toolchain.toml') }}
+
+      - name: Install pinned cargo plugins (machete + llvm-cov)
+        # `cargo machete` (unused-dep gate inside `make check`) and
+        # `cargo llvm-cov` (the conditional `rust-coverage` step
+        # below). Both pinned by `setup-rust-tools`.
+        run: make setup-rust-tools
+
+      - name: Rust format check
+        run: make rust-format-check
+
+      - name: Rust clippy (host)
+        # Host clippy only. Cross-target clippy
+        # (`rust-lint-android`, `rust-lint-windows-gnu`, Apple) is
+        # covered by the separate `rust-cross-check` matrix below,
+        # which runs in parallel — `RUST_CROSS_LINT_TARGETS=` keeps
+        # `make rust-lint` from doing the same work serially.
+        env:
+          RUST_CROSS_LINT_TARGETS: ''
+        run: make rust-lint
+
+      - name: Rust unused-deps gate (cargo machete)
+        run: make rust-machete
+
+      - name: Rust tests
+        run: make rust-test
+
+      - name: Generate Rust coverage (lcov)
+        # Only on push to main: `cargo llvm-cov` rebuilds the entire
+        # workspace under `-C instrument-coverage`, can't share
+        # cache with the debug-profile artefacts the prior steps
+        # populated. ~10 min on cold cache, ~5 min warm. PR-time
+        # SonarCloud annotations focus on changed lines and survive
+        # without the lcov upload; the full-coverage report only
+        # matters for trunk's quality history.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: make rust-coverage
+
+      - name: Upload Rust coverage artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-coverage
+          path: rust-lcov.info
+          retention-days: 1
+
+      - name: Upload SonarCloud source artifact
+        # Sources only — the coverage uploads above are picked up by
+        # `ci-sonarcloud.yml` from the artefacts named here. PR runs
+        # still upload the source tree so SonarCloud can compute
+        # quality-gate changes, but the Rust lcov is trunk-only.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sonar-source
+          retention-days: 1
+          path: |
+            lib/**
+            test/**
+            rust/crates/**
+            rust/Cargo.toml
+            rust/Cargo.lock
+            pubspec.yaml
+            pubspec.lock
+            sonar-project.properties
+
+  # Dart-side gates: codegen, ARB / l10n parity, format / analyze,
+  # tests. Runs in parallel with `ci-rust`. Both jobs independently
+  # compile `liblfs_frb.so` (via `make rust-build` triggered by
+  # `make dart-test`) — Swatinem cache makes the compile cheap on a
+  # warm cache, and parallelism cuts wallclock from ~30 min
+  # (serial) to ~12-15 min (max of the two parallel jobs).
+  ci-dart:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,28 +173,41 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
+        # Same libsecret / libtss2 / libudev as `ci-rust` — the
+        # Rust release lib that `make dart-test` builds before the
+        # flutter_test runner loads it needs these to link.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev
+          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev
 
-      - name: Install dependencies
+      - name: Activate Rust toolchain (rust-toolchain.toml)
+        # Same activation as `ci-rust`. `make rust-build` (called
+        # transitively by `make dart-test`) runs in `rust/` and
+        # picks up the toolchain.toml-pinned channel.
+        working-directory: rust
+        run: |
+          cargo --version
+          rustc --version
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        # Job-scoped cache. Swatinem keys against `github.job` by
+        # default, so `ci-dart` doesn't collide with `ci-rust`'s
+        # cache slot. Same toolchain pin + Cargo.lock invalidation
+        # contract.
+        with:
+          workspaces: rust
+          save-if: 'true'
+          add-rust-environment-hash-key: 'false'
+          key: ${{ hashFiles('rust/rust-toolchain.toml') }}
+
+      - name: Install pub dependencies
         run: make deps
 
       - name: Generate code
         run: make gen
 
-      - name: Analyze
-        run: make analyze
-
-      - name: Lint workflows
-        # actionlint catches YAML / shell / GHA expression bugs that
-        # would otherwise only fail at workflow-dispatch time. The
-        # local `make lint-workflows` target uses the same pinned
-        # actionlint version + the same ignore config.
-        run: make lint-workflows
-
       - name: Verify ARB parity (every locale has the same keys as app_en.arb)
-        run: bash scripts/check-arb-parity.sh
+        run: bash dev/scripts/check-arb-parity.sh
 
       - name: Verify generated localisations are up to date
         # Re-run flutter gen-l10n in place and fail if it mutated any of
@@ -77,27 +224,29 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests with coverage
-        run: make test
+      - name: Dart format check
+        run: make dart-format-check
 
-      - name: Upload coverage artifact
+      - name: Dart analyzer (flutter analyze --fatal-infos)
+        run: make dart-lint
+
+      - name: Dart tests
+        # `make dart-test` runs `make rust-build` first so
+        # `liblfs_frb.so` is in place for the FRB-loading tests.
+        run: make dart-test
+
+      - name: Upload Dart coverage artifact
+        # Same trunk-only gate as the Rust coverage upload in
+        # `ci-rust`. `ci-sonarcloud.yml` only fires on push to
+        # main / dev (head_branch filter), so PR-time uploads
+        # don't get consumed anywhere — saves a few MB of artefact
+        # storage per PR run.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage
           path: coverage/lcov.info
           retention-days: 1
-
-      - name: Upload SonarCloud source artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sonar-source
-          retention-days: 1
-          path: |
-            lib/**
-            test/**
-            pubspec.yaml
-            pubspec.lock
-            sonar-project.properties
 
   commit-lint:
     if: github.event_name == 'pull_request'
@@ -116,7 +265,29 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9_+/-]+\))?!?: \S.+'
+          # Types accepted in commit subjects. The first block is
+          # canonical conventional-commits; the second block is
+          # project-specific extensions that the feat/rust-core
+          # long-running branch established in practice:
+          #   - `hardening`  — security tightening sweep (distinct
+          #     from `fix`: not a bug, a defence-in-depth raise).
+          #   - `diag`       — diagnostic / observability instrumentation
+          #     for a specific incident or boot-time bottleneck.
+          #   - `format`     — pure formatting / table-collapse passes.
+          #   - `recorder`,
+          #     `sftp`,
+          #     `ratelimit`,
+          #     `rust`       — area-specific shorthands kept after
+          #     historical use. New commits should prefer the
+          #     canonical form `feat(<area>):` / `refactor(<area>):`;
+          #     these stay accepted so `make pr` works on merges that
+          #     carry historical subjects.
+          TYPES='feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security|hardening|diag|format|recorder|sftp|ratelimit|rust'
+          # Scope chars accepted inside `(...)`. Comma + space are
+          # required to accept historical multi-area scopes such as
+          # `refactor(rust,db)` or `refactor(support-dir + prompt)`.
+          SCOPE='[a-z0-9_+/, -]+'
+          PATTERN="^($TYPES)(\\($SCOPE\\))?!?: \\S.+"
 
           # Read commit subjects straight from git so we get the full header —
           # `gh pr view --json commits.messageHeadline` truncates to ~72 chars
@@ -131,6 +302,15 @@ jobs:
           REVERTED=$(printf '%s\n' "$COMMITS" | \
             sed -nE 's/^(Revert |revert: )"([^"]+)".*/\2/p')
 
+          # Grandfathered historical subjects that don't match the
+          # convention (chained `+ type` header, etc.) but are
+          # accepted because feat/rust-core's long-running branch
+          # already merged them. Pin exact-match to avoid loosening
+          # the regex for future commits.
+          GRANDFATHERED=(
+            "docs(rules) + chore: strengthen Comments rule, scrub retrospective comments"
+          )
+
           while IFS= read -r MSG; do
             [ -z "$MSG" ] && continue
             # Skip merge commits (e.g. "Merge branch 'x' into y")
@@ -143,6 +323,12 @@ jobs:
             if [ -n "$REVERTED" ] && printf '%s\n' "$REVERTED" | grep -qxF "$MSG"; then
               continue
             fi
+            # Skip grandfathered exact-match subjects.
+            SKIP=0
+            for g in "${GRANDFATHERED[@]}"; do
+              [ "$MSG" = "$g" ] && SKIP=1 && break
+            done
+            [ "$SKIP" = 1 ] && continue
             if ! echo "$MSG" | grep -qE "$PATTERN"; then
               ERRORS="$ERRORS  ✗ $MSG\n"
             fi
@@ -151,8 +337,9 @@ jobs:
           if [ -n "$ERRORS" ]; then
             echo "::error::Some commit messages don't follow the required format."
             echo ""
-            echo "Expected format: type: short description"
-            echo "Valid types: feat, fix, refactor, perf, build, test, docs, chore, ci, i18n, l10n, style, revert, security"
+            echo "Expected format: type(scope)?: short description"
+            echo "Canonical types: feat, fix, refactor, perf, build, test, docs, chore, ci, i18n, l10n, style, revert, security"
+            echo "Extension types: hardening, diag, format, recorder, sftp, ratelimit, rust"
             echo ""
             echo "Invalid commits:"
             echo -e "$ERRORS"
@@ -171,3 +358,208 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
+
+  rust-cross-check:
+    # Cross-target compile + lint validation for cfg-gated Rust code
+    # paths the canonical `ci` job (ubuntu-latest, runs `make check`)
+    # never sees. Two steps per matrix entry:
+    #
+    #   1. `cargo check --workspace --all-targets --target <T>` —
+    #      type-checks every crate including dev-deps / test modules.
+    #      Catches FFI / cfg-gated symbol drift across the whole
+    #      workspace.
+    #   2. `cargo clippy -p lfs_os_security --target <T> -- -D
+    #      warnings` — lints the per-OS FFI surface (the only crate
+    #      whose lints actually diverge per target). Mirrors the
+    #      `make rust-lint-{android,ios,macos-arm}` Makefile targets
+    #      contributors can run locally.
+    #
+    # Clippy + test stay in `make check` for the workspace at large
+    # because they catch 95 % of bugs at lower latency on a single
+    # host. This job's job is to ensure that, e.g., a dependency
+    # bump that breaks
+    # `cfg(any(target_os = "macos", target_os = "ios"))` code in
+    # `lfs_os_security::hardware_tier_vault::apple` (~700 LOC of
+    # Apple-cfg Rust) surfaces on the PR check, not on the next
+    # release tag through `build-release.yml`.
+    #
+    # Targets covered:
+    #   - Apple desktop + iOS  (macos-latest)
+    #   - Windows MSVC         (windows-latest)
+    #   - Android NDK ABIs     (ubuntu-latest via cargo-ndk)
+    #
+    # Linux x86_64 host is already covered by the `ci` job above.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple desktop + iOS — Apple-cfg Rust (Secure Enclave,
+          # SecItemAdd, LAContext, NSPasteboard, etc.) only compiles
+          # under cfg(any(target_os = "macos", target_os = "ios")).
+          - { runner: macos-latest,   target: aarch64-apple-darwin,    label: macos-arm64 }
+          - { runner: macos-latest,   target: x86_64-apple-darwin,     label: macos-x64   }
+          - { runner: macos-latest,   target: aarch64-apple-ios,       label: ios-arm64   }
+          # Windows MSVC — Windows-cfg Rust (CredWriteW,
+          # UserConsentVerifier, hidden HWND for session-lock when
+          # NI-3 lands).
+          # `windows-2025-vs2026` (not `windows-latest`) — silences the
+          # GitHub redirect notice + locks the VS 2026 / MSVC toolchain.
+          - { runner: windows-2025-vs2026, target: x86_64-pc-windows-msvc, label: windows-x64 }
+          # Android NDK ABIs — gates the upcoming Tier 3 Android JNI
+          # work (java.security.KeyStore + BiometricPrompt direct
+          # calls). Cargokit already builds these targets at release
+          # time; this job catches breakage on every PR.
+          - { runner: ubuntu-latest,  target: aarch64-linux-android,   label: android-arm64, ndk: true }
+          - { runner: ubuntu-latest,  target: armv7-linux-androideabi, label: android-arm,   ndk: true }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain + target
+        working-directory: rust
+        shell: bash
+        # `cargo --version` inside `rust/` triggers rustup to install
+        # the channel pinned in `rust-toolchain.toml` (1.95.0) and
+        # mark it active — `rustup component add clippy` and
+        # `rustup target add` then attach to that channel. Installing
+        # the target into the runner's pre-existing `stable` would
+        # silently miss: `cargo check` later runs inside `rust/`
+        # again, activates 1.95.0, and errors with `E0463: can't
+        # find crate for 'core'` because the cross-target std lives
+        # on a different toolchain. Same activation pattern the
+        # composite `./.github/actions/setup-rust` action documents.
+        #
+        # `clippy` is required by the cross-target clippy step below
+        # — the per-target gate that catches regressions in
+        # cfg-gated `lfs_os_security` modules (`apple_se_ssh`,
+        # `fido2_broker`'s Apple branch, `winbio` on Windows,
+        # `android::*`) that the host-target `make rust-lint` never
+        # sees. Coupled to `cargo check` on the same matrix so both
+        # run on the native runner with the platform SDK in scope;
+        # running clippy on `ubuntu-latest` for Apple targets would
+        # fail at the `std` / `core` resolution step because rustup
+        # ships Apple targets without a Linux-hosted stdlib.
+        run: |
+          cargo --version
+          rustup component add clippy
+          rustup target add ${{ matrix.target }}
+          rustup show
+
+      - name: Install cargo-ndk (Android only)
+        # `cargo-ndk` knows where the NDK headers live and forwards
+        # the right sysroot / linker flags to cargo per ABI. Pinned
+        # alongside the version used in build-release.yml::build-android
+        # so PR-time check matches release-time build.
+        if: matrix.ndk == true
+        run: cargo install --locked --version 4.1.2 cargo-ndk
+
+      - name: Install Strawberry Perl with full CPAN core (Windows MSVC)
+        # The `windows-2025-vs2026` runner image puts Git-bundled
+        # MSYS2 perl (`C:\Program Files\Git\usr\bin\perl.exe`)
+        # first on PATH. That perl ships a stripped-down `@INC` (no
+        # `Locale::Maketext::Simple`, `Params::Check`, `IPC::Cmd`),
+        # and `openssl-sys`'s build script invokes `perl Configure`
+        # which `require`s those modules. Cargo's child resolves
+        # plain `perl` via PATH lookup, so the fix is to force
+        # Strawberry (`C:\Strawberry\perl\bin`) ahead of Git's perl.
+        #
+        # `choco install -y strawberryperl` ensures Strawberry is
+        # present with a full CPAN core. The bash `printf` writes
+        # plain ASCII to `$GITHUB_PATH` — a previous attempt used
+        # PowerShell's `Out-File -Encoding utf8` which silently
+        # emitted a BOM that the runner's GITHUB_PATH parser
+        # mis-handled (Strawberry never made it to PATH; cargo
+        # kept resolving to MSYS2 perl). Bash redirection writes
+        # one line per entry with a trailing `\n`, no encoding
+        # surprise.
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: bash
+        run: |
+          choco install -y strawberryperl --no-progress
+          printf '%s\n' 'C:\Strawberry\perl\bin' >> "$GITHUB_PATH"
+          printf '%s\n' 'C:\Strawberry\c\bin' >> "$GITHUB_PATH"
+          # Sanity probe + a diagnostic `where perl` so a future
+          # regression is visible from the workflow log without
+          # spelunking openssl-sys build script output.
+          /c/Strawberry/perl/bin/perl.exe -e 'use Locale::Maketext::Simple; use Params::Check; use IPC::Cmd; print "Strawberry Perl ready: ", $^V, "\n"'
+          echo "GITHUB_PATH after prepend (one entry per line):"
+          cat "$GITHUB_PATH"
+
+      - name: Cache cargo registry + workspace target
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust/target/
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-
+
+      - name: cargo check (${{ matrix.label }})
+        # `--all-targets` keeps test / example / bench code in scope
+        # so a cfg-gated test module that references a renamed FFI
+        # symbol still triggers the failure here. `--locked` so the
+        # check resolves against the committed Cargo.lock — the same
+        # lock parity the upcoming Wave 2 check enforces.
+        #
+        # Windows-MSVC: `shell: bash` invokes Git Bash, whose start-up
+        # forcibly prepends `/usr/bin` (Git's MSYS2 perl) to PATH and
+        # squashes the GITHUB_PATH-level prepend the Strawberry-Perl
+        # step did. `openssl-sys`'s build script then resolves bare
+        # `perl` to MSYS2 perl, which lacks the CPAN modules the
+        # vendored OpenSSL `Configure` needs (`Locale::Maketext::Simple`
+        # etc.). Re-export PATH inside this bash step so the cargo
+        # child inherits Strawberry-first PATH.
+        working-directory: rust
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            export PATH="/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+            echo "Using perl: $(which perl)"
+          fi
+          if [ "${{ matrix.ndk }}" = "true" ]; then
+            cargo ndk --target ${{ matrix.target }} -- check --workspace --all-targets --locked
+          else
+            cargo check --workspace --all-targets --target ${{ matrix.target }} --locked
+          fi
+
+      - name: cargo clippy (${{ matrix.label }}, lfs_os_security)
+        # Cross-target clippy gate — narrower than the `cargo check`
+        # above. Scoped to `lfs_os_security` because that crate is the
+        # single OS-FFI perimeter, and its cfg-gated modules
+        # (`apple_se_ssh`, `fido2_broker::platform_impl`,
+        # `winbio`, `android::*`, `macos::*`) are the only ones whose
+        # lints actually differ from the host-target run that
+        # `ci::make check` already does. Wider scope would
+        # double-lint the cross-platform crates without catching
+        # anything new.
+        #
+        # `make rust-lint-{android,ios,macos-arm}` targets exist for
+        # local invocation; this step runs the same flags so the
+        # PR-time gate and the local `make rust-lint-*` agree.
+        # Windows-target clippy reuses the same scoping convention via
+        # an inline `cargo clippy` invocation because `make` is not
+        # a first-class tool on the windows runner image.
+        #
+        # Windows-MSVC PATH override mirrors the `cargo check` step
+        # above — Git Bash startup squashes GITHUB_PATH and would
+        # otherwise re-elect MSYS2 perl when openssl-sys's build
+        # script runs alongside clippy's full dep compilation.
+        working-directory: rust
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            export PATH="/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+          fi
+          if [ "${{ matrix.ndk }}" = "true" ]; then
+            cargo ndk --target ${{ matrix.target }} -- clippy -p lfs_os_security --all-targets --locked -- -D warnings
+          else
+            cargo clippy -p lfs_os_security --target ${{ matrix.target }} --all-targets --locked -- -D warnings
+          fi

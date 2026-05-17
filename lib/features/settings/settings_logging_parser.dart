@@ -1,31 +1,5 @@
 import '../../utils/logger.dart';
 
-/// One rendered row in the log viewer — either a parsed
-/// `HH:MM:SS X [Tag] message` line with its continuation lines
-/// (error / stack trace body), or a header / raw line that did not
-/// match the format.
-///
-/// Continuations are folded into the parent entry so a multi-line
-/// error + stack trace renders under a single tinted row instead of
-/// each indented line fighting for its own left-border.
-class LogEntry {
-  final LogLevel? level;
-  final String? timestamp;
-  final String? tag;
-  final String message;
-  final List<String> continuations;
-  final bool isHeader;
-
-  const LogEntry({
-    this.level,
-    this.timestamp,
-    this.tag,
-    required this.message,
-    this.continuations = const [],
-    this.isHeader = false,
-  });
-}
-
 /// Regex for primary log lines. Captures (1) timestamp, (2) level
 /// char, (3) tag, (4) message. Tag uses `[^\]]+` so nested brackets
 /// elsewhere in the message are preserved verbatim.

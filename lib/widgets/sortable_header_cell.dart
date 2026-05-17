@@ -35,21 +35,41 @@ class SortableHeaderCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sortSuffix = _sortSuffix(isActive, sortAscending);
-    return HoverRegion(
-      cursor: SystemMouseCursors.click,
+    // Semantics layer: surface the header as a button + advertise
+    // the current sort state. Without `sortKey` / `enabled` /
+    // `onTap` the visual `↑` / `↓` glyphs were screen-reader
+    // invisible — TalkBack / NVDA users couldn't tell which column
+    // the rows were sorted on or that tapping the header would
+    // change the sort. `Semantics(button: true, ...)` makes the
+    // tap target announce as "<label>, sort button, sorted
+    // ascending/descending" instead of a bare text node.
+    final String sortHint;
+    if (!isActive) {
+      sortHint = 'not sorted';
+    } else {
+      sortHint = sortAscending ? 'sorted ascending' : 'sorted descending';
+    }
+    return Semantics(
+      button: true,
+      label: label,
+      hint: sortHint,
       onTap: onTap,
-      builder: (hovered) {
-        final color = _headerColor(isActive, hovered);
-        return SizedBox(
-          width: width,
-          child: Text(
-            '$label$sortSuffix',
-            style: color != null ? style.copyWith(color: color) : style,
-            overflow: TextOverflow.ellipsis,
-            textAlign: textAlign,
-          ),
-        );
-      },
+      child: HoverRegion(
+        cursor: SystemMouseCursors.click,
+        onTap: onTap,
+        builder: (hovered) {
+          final color = _headerColor(isActive, hovered);
+          return SizedBox(
+            width: width,
+            child: Text(
+              '$label$sortSuffix',
+              style: color != null ? style.copyWith(color: color) : style,
+              overflow: TextOverflow.ellipsis,
+              textAlign: textAlign,
+            ),
+          );
+        },
+      ),
     );
   }
 

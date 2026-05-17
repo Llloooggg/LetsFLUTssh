@@ -9,6 +9,7 @@ import '../../widgets/app_empty_state.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_picker_chip.dart';
 import '../../widgets/styled_form_field.dart';
+import 'session_forwards_logic.dart';
 
 /// Editor surface for the per-session port-forward rule list.
 ///
@@ -84,7 +85,7 @@ class SessionForwardsTab extends StatelessWidget {
               onToggle: () => _replace(rule.copyWith(enabled: !rule.enabled)),
               onDelete: () => _delete(rule),
             ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: AppButton.secondary(
@@ -92,6 +93,65 @@ class SessionForwardsTab extends StatelessWidget {
             icon: Icons.add,
             onTap: () => _showRuleEditor(context),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Modal sub-dialog that hosts [SessionForwardsTab] for editing the
+/// per-session port-forward rule list.
+///
+/// The parent session edit dialog (`session_edit_dialog.dart`) owns
+/// the rule list as in-memory state until the user saves. The
+/// Advanced section opens this dialog with the current list, lets
+/// the user add / edit / toggle / delete rules in-place, and
+/// returns the edited list back so the parent's `_forwards` field
+/// updates without writing to the persistence layer until the
+/// parent Save fires. Cancel returns `null` and the parent keeps
+/// the pre-edit list.
+class SessionForwardsDialog extends StatefulWidget {
+  final List<PortForwardRule> initial;
+
+  const SessionForwardsDialog({super.key, required this.initial});
+
+  static Future<List<PortForwardRule>?> show(
+    BuildContext context, {
+    required List<PortForwardRule> initial,
+  }) {
+    return AppDialog.show<List<PortForwardRule>>(
+      context,
+      builder: (_) => SessionForwardsDialog(initial: initial),
+    );
+  }
+
+  @override
+  State<SessionForwardsDialog> createState() => _SessionForwardsDialogState();
+}
+
+class _SessionForwardsDialogState extends State<SessionForwardsDialog> {
+  late List<PortForwardRule> _rules;
+
+  @override
+  void initState() {
+    super.initState();
+    _rules = List.of(widget.initial);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return AppDialog(
+      title: l10n.portForwarding,
+      content: SessionForwardsTab(
+        rules: _rules,
+        onChanged: (next) => setState(() => _rules = next),
+      ),
+      actions: [
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.primary(
+          label: l10n.save,
+          onTap: () => Navigator.of(context).pop(_rules),
         ),
       ],
     );
@@ -208,17 +268,9 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
     super.dispose();
   }
 
-  String? _portValidator(String? raw) {
-    final n = int.tryParse(raw?.trim() ?? '');
-    if (n == null || n < 1 || n > 65535) return '1–65535';
-    return null;
-  }
+  String? _portValidator(String? raw) => validatePortForwardPort(raw);
 
-  String? _hostValidator(String? raw) {
-    if (_kind == PortForwardKind.dynamic_) return null;
-    if (raw == null || raw.trim().isEmpty) return '—';
-    return null;
-  }
+  String? _hostValidator(String? raw) => validatePortForwardHost(raw, _kind);
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
@@ -266,17 +318,17 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
           mainAxisSize: MainAxisSize.min,
           children: [
             FieldLabel(l10n.forwardKind),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
                 _kindChip(PortForwardKind.local, l10n.localForward),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xxs),
                 _kindChip(PortForwardKind.remote, l10n.remoteForward),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xxs),
                 _kindChip(PortForwardKind.dynamic_, l10n.dynamicForward),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xxs),
             // Per-kind explanation: each forward semantics is distinct
             // enough that a one-liner under the chips beats a help
             // button hidden somewhere.
@@ -288,28 +340,28 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
               },
               style: TextStyle(
                 color: AppTheme.fgFaint,
-                fontFamily: 'Inter',
+                fontFamily: AppFonts.interFamily,
                 fontSize: AppFonts.xs,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             StyledFormField(
               label: l10n.bindAddress,
               controller: _bindHost,
               hint: '127.0.0.1',
             ),
             if (showWildcardWarning) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xxs),
               Text(
                 l10n.forwardBindWildcardWarning,
                 style: TextStyle(
                   color: AppTheme.yellow,
                   fontSize: AppFonts.xs,
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                 ),
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             StyledFormField(
               label: l10n.bindPort,
               controller: _bindPort,
@@ -318,14 +370,14 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
               validator: _portValidator,
             ),
             if (!isDynamic) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               StyledFormField(
                 label: l10n.targetHost,
                 controller: _remoteHost,
                 hint: 'svc.internal',
                 validator: _hostValidator,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               StyledFormField(
                 label: l10n.targetPort,
                 controller: _remotePort,
@@ -334,26 +386,26 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                 validator: _portValidator,
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             StyledFormField(
               label: l10n.forwardDescription,
               controller: _description,
               hint: '',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Switch(
                   value: _enabled,
                   onChanged: (v) => setState(() => _enabled = v),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   l10n.forwardEnabled,
                   style: TextStyle(
                     color: AppTheme.fg,
                     fontSize: AppFonts.sm,
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.interFamily,
                   ),
                 ),
               ],

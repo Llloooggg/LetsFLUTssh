@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_extension.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
@@ -33,7 +32,7 @@ void main() {
 
     test('defaults to disconnected state', () {
       expect(conn.state, SSHConnectionState.disconnected);
-      expect(conn.sshConnection, isNull);
+      expect(conn.transport, isNull);
     });
 
     test('isConnected returns true only when connected', () {
@@ -79,18 +78,6 @@ void main() {
       conn.sshConfig = newConfig;
       expect(conn.sshConfig.host, '192.168.1.1');
       expect(conn.sshConfig.user, 'admin');
-    });
-
-    test('clearCachedCredentials drops the cached passphrase reference', () {
-      conn.cachedPassphrase = 'do-not-retain-me';
-      expect(conn.cachedPassphrase, isNotNull);
-
-      conn.clearCachedCredentials();
-
-      // Dart String immutability means the original bytes may linger
-      // until GC, but every reference this Connection owned is gone —
-      // which is all the language allows.
-      expect(conn.cachedPassphrase, isNull);
     });
   });
 

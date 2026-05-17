@@ -21,7 +21,10 @@
   "select": "تحديد",
   "copyModeTapToStart": "المس لتحديد بداية التحديد",
   "copyModeExtending": "اسحب لتمديد التحديد",
+  "copyModeSetAnchor": "تعيين نقطة الإرساء",
+  "copyModeCopySelection": "نسخ التحديد",
   "required": "مطلوب",
+  "errFillRequiredFields": "املأ الحقول المطلوبة المعلَّمة بـ *",
   "settings": "الإعدادات",
   "appSettings": "إعدادات التطبيق",
   "includePasswords": "كلمات مرور الجلسات",
@@ -104,6 +107,13 @@
   "deleteSessionConfirm": "حذف \"{name}\"؟",
   "connection": "الاتصال",
   "auth": "المصادقة",
+  "sectionAuthentication": "المصادقة",
+  "sectionAdvanced": "متقدم",
+  "forwardRulesSummary": "{count, plural, =0{لا توجد قواعد توجيه منافذ} one{قاعدة توجيه منفذ واحدة} two{قاعدتا توجيه منفذ} few{{count} قواعد توجيه منافذ} many{{count} قاعدة توجيه منافذ} other{{count} قاعدة توجيه منافذ}}",
+  "manageRules": "إدارة…",
+  "authMethodAgent": "استخدم ssh-agent النظام",
+  "authMethodAgentSubtitle": "المصادقة عبر $SSH_AUTH_SOCK (Linux/macOS) أو OpenSSH named pipe (Windows). مفيد إذا كانت مفاتيحك في gpg-agent أو Pageant أو ssh-agent نظامي.",
+  "authMethodAgentMobileUnsupported": "غير متاح على الموبايل — endpoint الخاص بـ ssh-agent النظام للأجهزة المكتبية فقط.",
   "options": "الخيارات",
   "sessionName": "اسم الجلسة",
   "hintMyServer": "خادمي",
@@ -117,6 +127,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "عبارة مرور المفتاح",
   "hintOptional": "اختياري",
+  "savedTypeToChange": "محفوظ — اكتب للتغيير",
   "hidePemText": "إخفاء نص PEM",
   "pastePemKeyText": "لصق نص مفتاح PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +163,6 @@
   "confirmPassword": "تأكيد كلمة المرور",
   "importModeMergeDescription": "إضافة جلسات جديدة والاحتفاظ بالحالية",
   "importModeReplaceDescription": "استبدال جميع الجلسات بالمستوردة",
-  "errorPrefix": "خطأ: {error}",
   "folderName": "اسم المجلد",
   "newName": "الاسم الجديد",
   "deleteItems": "حذف {names}؟",
@@ -274,7 +284,6 @@
   "urlCopied": "تم نسخ الرابط إلى الحافظة",
   "aboutSubtitle": "v{version} — عميل SSH/SFTP",
   "sourceCode": "الشيفرة المصدرية",
-  "enableLogging": "تفعيل السجلات",
   "logIsEmpty": "السجل فارغ",
   "logExportedTo": "تم تصدير السجل إلى: {path}",
   "logExportFailed": "فشل تصدير السجل: {error}",
@@ -307,20 +316,56 @@
   "completed": "مكتمل",
   "connected": "متصل",
   "disconnected": "غير متصل",
+  "a11yConnectingTo": "جارٍ الاتصال بـ {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "تم الاتصال بـ {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "تم قطع الاتصال بـ {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "فشل الاتصال بـ {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "خروج",
   "exitConfirmation": "سيتم قطع الجلسات النشطة. هل تريد الخروج؟",
   "hintFolderExample": "مثال: Production",
   "credentialsNotSet": "لم يتم تعيين بيانات الاعتماد",
   "exportSessionsViaQr": "تصدير الجلسات عبر QR",
-  "qrNoCredentialsWarning": "كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.",
   "qrTooManyForSingleCode": "جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.",
   "qrTooLarge": "كبير جداً — ألغِ تحديد بعض العناصر أو استخدم تصدير ملف .lfs.",
-  "exportAll": "تصدير الكل",
   "showQr": "عرض QR",
   "sort": "ترتيب",
   "resizePanelDivider": "تغيير حجم فاصل اللوحات",
   "youreRunningLatest": "أنت تستخدم أحدث إصدار",
   "liveLog": "سجل مباشر",
+  "archivedLog": "سجل مؤرشف",
+  "loggingLevel": "مستوى السجل",
+  "loggingLevelSubtitleInfo": "إدخالات روتينية + تحذيرات + أخطاء",
+  "loggingLevelSubtitleWarn": "المسارات المتدهورة والأخطاء فقط",
+  "loggingLevelSubtitleError": "الأخطاء فقط",
+  "loggingLevelSubtitleOff": "لا تُكتب سجلات روتينية",
   "time": "الوقت",
   "failed": "فشل",
   "transferNItems": "نقل {count} عنصر",
@@ -401,14 +446,6 @@
   "errLfsUnsupportedVersion": "يستخدم الأرشيف المخطط v{found}، لكن هذا الإصدار يدعم فقط حتى v{supported}. قم بتحديث التطبيق لاستيراده.",
   "progressReadingArchive": "قراءة الأرشيف…",
   "progressDecrypting": "فك التشفير…",
-  "progressParsingArchive": "تحليل الأرشيف…",
-  "progressImportingSessions": "استيراد الجلسات",
-  "progressImportingFolders": "استيراد المجلدات",
-  "progressImportingManagerKeys": "استيراد مفاتيح SSH",
-  "progressImportingTags": "استيراد العلامات",
-  "progressImportingSnippets": "استيراد المقتطفات",
-  "progressApplyingConfig": "تطبيق الإعدادات…",
-  "progressImportingKnownHosts": "استيراد known_hosts…",
   "progressCollectingData": "جمع البيانات…",
   "progressEncrypting": "تشفير…",
   "progressWritingArchive": "كتابة الأرشيف…",
@@ -447,11 +484,6 @@
   "transferTooltipEnded": "انتهى: {time}",
   "transferTooltipDuration": "المدة: {duration}",
   "transferStatusQueued": "في الانتظار",
-  "transferStartingUpload": "بدء الرفع...",
-  "transferStartingDownload": "بدء التنزيل...",
-  "transferCopying": "جارٍ النسخ...",
-  "transferDone": "تم",
-  "transferFilesProgress": "{done}/{total} ملفات",
   "fileConflictTitle": "الملف موجود بالفعل",
   "fileConflictMessage": "\"{fileName}\" موجود بالفعل في {targetDir}. ماذا تريد أن تفعل؟",
   "fileConflictSkip": "تخطي",
@@ -502,20 +534,36 @@
   "keyDeleted": "تم حذف المفتاح: {label}",
   "publicKey": "المفتاح العام",
   "publicKeyCopied": "تم نسخ المفتاح العام إلى الحافظة",
+  "sshCertificate": "Certificate",
+  "certImport": "استيراد certificate",
+  "certImportPickerTitle": "اختر ملف certificate من نوع OpenSSH",
+  "certValidFrom": "ساري من",
+  "certValidTo": "ساري حتى",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "صلاحية هذا الـ certificate ستنتهي قريبًا.",
+  "certExpired": "منتهي الصلاحية",
+  "certRemove": "إزالة الـ certificate",
+  "certRemoveConfirmTitle": "إزالة الـ certificate؟",
+  "certRemoveConfirmBody": "بعد الإزالة ستعود الجلسة إلى مصادقة public key العادية عند الاتصال.",
+  "errCertParse": "تعذر تحليل الـ certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "هذا الـ certificate غير مرتبط بالمفتاح المختار.",
   "pastePrivateKey": "لصق المفتاح الخاص (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "بيانات مفتاح PEM غير صالحة",
   "selectFromKeyStore": "اختر من مخزن المفاتيح",
   "keyCount": "{count, plural, =0{لا توجد مفاتيح} =1{مفتاح واحد} other{{count} مفاتيح}}",
   "generated": "تم التوليد",
-  "passphraseRequired": "عبارة المرور مطلوبة",
-  "passphrasePrompt": "مفتاح SSH لـ {host} مشفر. أدخل عبارة المرور لفتحه.",
-  "passphraseWrong": "عبارة المرور غير صحيحة. حاول مرة أخرى.",
   "passphrase": "عبارة المرور",
-  "rememberPassphrase": "تذكر لهذه الجلسة",
   "enterMasterPassword": "أدخل كلمة المرور الرئيسية للوصول إلى بيانات الاعتماد المحفوظة.",
   "wrongMasterPassword": "كلمة مرور خاطئة. حاول مرة أخرى.",
-  "newPassword": "كلمة مرور جديدة",
   "currentPassword": "كلمة المرور الحالية",
   "forgotPassword": "نسيت كلمة المرور؟",
   "credentialsReset": "تم حذف جميع بيانات الاعتماد المحفوظة",
@@ -556,7 +604,6 @@
   "maxHistorySubtitle": "الحد الأقصى للأوامر المحفوظة في السجل",
   "calculateFolderSizesSubtitle": "إظهار الحجم الإجمالي بجانب المجلدات في الشريط الجانبي",
   "checkForUpdatesOnStartupSubtitle": "الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق",
-  "enableLoggingSubtitle": "كتابة أحداث التطبيق في ملف سجل دوّار",
   "snippets": "المقتطفات",
   "snippetsSubtitle": "إدارة مقتطفات أوامر قابلة لإعادة الاستخدام",
   "noSnippets": "لا توجد مقتطفات بعد",
@@ -582,7 +629,6 @@
   "snippetCustomTokensHint": "أي شيء آخر بأقواس مزدوجة يطلب منك قيمة عند تشغيل المقتطف.",
   "snippetFillTitle": "املأ معلمات المقتطف",
   "snippetFillSubmit": "تشغيل",
-  "snippetPreview": "معاينة",
   "broadcastSetDriver": "بث من هذا الجزء",
   "broadcastClearDriver": "إيقاف البث من هذا الجزء",
   "broadcastAddReceiver": "استقبال البث هنا",
@@ -590,7 +636,16 @@
   "broadcastClearAll": "إيقاف كل البث",
   "broadcastPasteTitle": "إرسال اللصق إلى كل الأجزاء؟",
   "broadcastPasteBody": "سيتم إرسال {chars} حرفًا إلى {count} أجزاء أخرى.",
-  "@broadcastPasteBody": {"placeholders": {"chars": {"type": "int"}, "count": {"type": "int"}}},
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "broadcastPasteSend": "إرسال",
   "portForwarding": "إعادة التوجيه",
   "portForwardingEmpty": "لا توجد قواعد بعد",
@@ -608,26 +663,22 @@
   "forwardDescription": "الوصف (اختياري)",
   "forwardEnabled": "مفعّل",
   "forwardBindWildcardWarning": "الربط بـ 0.0.0.0 ينشر التحويل على جميع الواجهات — غالبًا تريد 127.0.0.1.",
-  "forwardOnlyLocalSupported": "التوجيه المحلي (-L) والبعيد (-R) و SOCKS5 الديناميكي (-D) جميعها مفعّلة.",
   "forwardKindLocalHelp": "محلي: فتح منفذ على هذا الجهاز يمر عبر النفق إلى هدف يمكن الوصول إليه من خادم SSH. مفيد للوصول إلى قواعد بيانات بعيدة أو واجهات إدارة عبر localhost:bindPort.",
   "forwardKindRemoteHelp": "بعيد: اطلب من خادم SSH فتح منفذ يمر إلى هدف يمكن الوصول إليه من هذا الجهاز. مفيد لمشاركة خادم تطوير محلي مع مضيف بعيد (قد يحتاج الخادم إلى GatewayPorts yes لربط غير loopback).",
   "forwardKindDynamicHelp": "ديناميكي: وكيل SOCKS5 على هذا الجهاز يوجه كل اتصال عبر خادم SSH. وجّه المتصفح أو curl إلى localhost:bindPort لإرسال كل الحركة عبر SSH.",
-  "forwardExample": "مثال",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 ← الوصول إلى قاعدة بيانات بعيدة عبر localhost:8080",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 ← فضح خادم التطوير على منفذ الخادم 9000",
-  "forwardDynamicExample": "ssh -D 1080 ← اضبط SOCKS5 المتصفح على localhost:1080",
   "proxyJump": "الاتصال عبر",
   "proxyJumpNone": "اتصال مباشر",
   "proxyJumpSavedSession": "جلسة محفوظة",
   "proxyJumpCustom": "مخصص",
   "proxyJumpCustomNote": "القفزات المخصصة تستخدم بيانات اعتماد هذه الجلسة. لمصادقة بستيون مختلفة، احفظ البستيون كجلسة خاصة.",
-  "errProxyJumpCycle": "سلسلة البروكسي تشكّل دائرة مغلقة.",
-  "errProxyJumpDepth": "سلسلة البروكسي عميقة جدًا (الحد الأقصى {max} قفزات).",
-  "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
-  "errProxyJumpBastionFailed": "فشل اتصال البستيون {label}.",
-  "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
   "viaSessionLabel": "عبر {label}",
-  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "تسجيل الجلسة",
   "recordSessionHelp": "حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر عند توفر كلمة مرور رئيسية أو مفتاح أجهزة.",
   "recordingsBrowserTitle": "التسجيلات",
@@ -638,6 +689,18 @@
   "recordingPlaybackTitle": "إعادة تشغيل التسجيل",
   "recordingSpeed": "السرعة",
   "recordingSpeedInstant": "فوري",
+  "recordingScrubTooltipUnavailable": "Scrub bar يحتاج إلى sidecar index، والتسجيلات القديمة (قبل هذا الإصدار) لا تحتوي عليه. التسجيلات الجديدة ستدعم التمرير.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "العلامات",
   "tagsSubtitle": "نظّم الجلسات والمجلدات بعلامات ملوّنة",
   "noTags": "لا توجد علامات بعد",
@@ -659,9 +722,6 @@
   "invalidImportLink": "الرابط لا يحتوي على حمولة LetsFLUTssh صالحة",
   "importAction": "استيراد",
   "emptyFolder": "مجلد فارغ",
-  "exportWithoutPassword": "تصدير بدون كلمة مرور؟",
-  "exportWithoutPasswordWarning": "لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.",
-  "continueWithoutPassword": "المتابعة بدون كلمة مرور",
   "tierHardwareUnavailable": "خزينة الأجهزة غير متاحة في هذا التثبيت.",
   "pinLabel": "كلمة المرور",
   "l2UnlockTitle": "كلمة المرور مطلوبة",
@@ -687,8 +747,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "التخزين المدعوم بالعتاد غير متاح على هذا الجهاز.",
   "firstLaunchSecurityOpenSettings": "فتح الإعدادات",
   "wizardReducedBanner": "سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.",
-  "tierBlockProtectsEmpty": "لا شيء في هذا المستوى.",
-  "tierBlockDoesNotProtectEmpty": "لا توجد تهديدات غير مغطاة.",
   "tierBadgeCurrent": "الحالي",
   "securitySetupEnable": "تفعيل",
   "securitySetupApply": "تطبيق",
@@ -752,7 +810,6 @@
   "colT1": "T1 سلسلة المفاتيح",
   "colT1Password": "T1 + كلمة مرور",
   "colT1PasswordBiometric": "T1 + كلمة مرور + بصمة حيوية",
-  "colT2": "T2 عتاد",
   "colT2Password": "T2 + كلمة مرور",
   "colT2PasswordBiometric": "T2 + كلمة مرور + بصمة حيوية",
   "colParanoid": "Paranoid",
@@ -763,9 +820,40 @@
   "resetAllDataConfirmTitle": "إعادة تعيين جميع البيانات؟",
   "resetAllDataConfirmBody": "سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known_hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (مدخلات سلسلة المفاتيح، بيانات hardware vault، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
   "resetAllDataConfirmAction": "إعادة تعيين كل شيء",
+  "resetAllDataConfirmTypePrompt": "اكتب {phrase} أدناه للتأكيد:",
   "resetAllDataInProgress": "جارٍ إعادة التعيين…",
   "resetAllDataDone": "تمت إعادة تعيين جميع البيانات",
   "resetAllDataFailed": "فشلت إعادة التعيين",
+  "recordingsTitle": "التسجيلات",
+  "recordingsStorageUsedLabel": "المستخدم",
+  "recordingsCapLabel": "الحد الأقصى",
+  "recordingsCapHint": "حد صارم على مجلد recordings/. عند التجاوز يُحذف أقدم تسجيل أولاً؛ التسجيل الجاري لا يُمَس أبداً.",
+  "recordingsClearAllAction": "حذف كل التسجيلات",
+  "recordingsClearAllConfirmTitle": "حذف كل التسجيلات؟",
+  "recordingsClearAllConfirmBody": "سيتم حذف كل جلسة مسجلة تحت <app>/recordings/. التسجيل الجاري حالياً (إن وُجد) يبقى. لا يمكن التراجع عن هذا الإجراء.",
+  "recordingsClearAllResult": "تم حذف {count} تسجيلاً",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "تم تحديث الحد الأقصى. تم تحرير {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "تم تحديث الحد الأقصى. لا شيء لحذفه.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "الحالي",
   "paranoidAlternativeHeader": "بديل",
   "modifierPasswordLabel": "كلمة المرور",
@@ -777,7 +865,24 @@
   "autoLockRequiresActiveTier": "اختر هذا المستوى أولاً لتكوين القفل التلقائي",
   "biometricForbiddenParanoid": "مستوى Paranoid لا يسمح بالبصمة بحكم التصميم.",
   "fprintdNotAvailable": "لم يتم تثبيت fprintd أو لا توجد بصمة مسجلة.",
-  "linuxTpmWithoutPasswordNote": "يوفر TPM بدون كلمة مرور عزلًا وليس مصادقة. أي شخص يستطيع تشغيل هذا التطبيق يمكنه فتح البيانات.",
+  "modifierPasswordRequired": "مطلوبة — مستوى Hardware محمي دائماً بكلمة مرور.",
+  "t2RequiresPasswordTitle": "اضبط كلمة مرور رئيسية لمستوى Hardware",
+  "t2RequiresPasswordBody": "يحتاج مستوى Hardware إلى كلمة مرور كمعدّل. القياس الحيوي هو اختصار اختياري فوقها.",
+  "t2MigrationPromptTitle": "مستوى Hardware يحتاج كلمة مرور",
+  "t2MigrationPromptBody": "تثبيتات Hardware الحالية بدون كلمة مرور يجب تعيين واحدة الآن للمتابعة.",
+  "t2MigrationContinue": "متابعة",
+  "t2MigrationSetPasswordTitle": "عيّن كلمة مرور للحفاظ على مستوى Hardware",
+  "t2MigrationSetPasswordBody": "أدخل كلمة مرور رئيسية جديدة. يُعاد ختم مفتاح DB المختوم بالفعل داخل وحدة hardware تحت هذه الكلمة — جلساتك ومفاتيحك تبقى سليمة.",
+  "t2MigrationWipeAndRestart": "محو والبدء من جديد",
+  "t2MigrationResealFailed": "فشل إعادة ختم مستوى Hardware — اختر كلمة مرور أخرى أو امحُ للبدء من جديد.",
+  "biometricOverlayEnable": "تفعيل اختصار القياس الحيوي على مستوى Hardware",
+  "biometricOverlayEnableSubtitle": "يحرّر كلمة المرور من فتحة نظام محمية بالقياس الحيوي.",
+  "biometricOverlayUnavailable": "طبقة القياس الحيوي غير متاحة على هذا النظام بعد.",
+  "biometricOverlayRequiresPassword": "اضبط كلمة مرور مستوى Hardware أولاً.",
+  "t2UnlockTitle": "افتح بكلمة المرور الرئيسية",
+  "t2UnlockSubtitle": "المفتاح المرتبط بالعتاد محمي بكلمة المرور الخاصة بك.",
+  "t2UnlockUseBiometricButton": "استخدم القياس الحيوي",
+  "t2PasswordChanged": "تم تحديث كلمة مرور مستوى Hardware.",
   "paranoidMasterPasswordNote": "يُنصح بشدة بعبارة مرور طويلة — Argon2id يبطئ القوة الغاشمة فقط ولا يمنعها.",
   "plaintextWarningTitle": "نص صريح: بدون تشفير",
   "plaintextWarningBody": "ستُخزَّن الجلسات والمفاتيح و known hosts بدون تشفير. أي شخص لديه وصول إلى نظام ملفات هذا الحاسوب يمكنه قراءتها.",
@@ -787,7 +892,454 @@
   "masterPasswordLabel": "كلمة المرور الرئيسية",
   "autoLockRequiresPassword": "يتطلب القفل التلقائي كلمة مرور على المستوى الحالي.",
   "recommendedBadge": "موصى به",
-  "tierHardwareSubtitleHonest": "متقدم: مفتاح مرتبط بالعتاد. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.",
+  "tierHardwareSubtitleHonest": "متقدم: مفتاح مرتبط بالعتاد، محمي دائماً بكلمة مرور. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.",
   "tierParanoidSubtitleHonest": "بديل: كلمة مرور رئيسية، دون الوثوق بنظام التشغيل. يحمي من اختراق نظام التشغيل. لا يُحسّن الحماية أثناء التشغيل مقارنة بـ T1/T2.",
-  "mitigationsNoteRuntimeThreats": "تهديدات runtime (malware من المستخدم نفسه، تفريغ ذاكرة عملية نشطة) تظهر على شكل ✗ في جميع المستويات. تتم معالجتها عبر ميزات تخفيف منفصلة تُطبَّق بصرف النظر عن المستوى المختار."
+  "mitigationsNoteRuntimeThreats": "تهديدات runtime (malware من المستخدم نفسه، تفريغ ذاكرة عملية نشطة) تظهر على شكل ✗ في جميع المستويات. تتم معالجتها عبر ميزات تخفيف منفصلة تُطبَّق بصرف النظر عن المستوى المختار.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH نشط",
+  "foregroundServiceConnections": "{count, plural, =0{لا توجد اتصالات نشطة} =1{اتصال نشط واحد} other{{count} اتصالات نشطة}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "نوع الجلسة",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "اسم المستخدم",
+  "webDavAuthMethod": "طريقة Auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint لشهادة self-signed (اختياري)",
+  "webDavSelfSignedFingerprintHint": "SHA-256، اتركه فارغًا لاستخدام trust النظام",
+  "webDavCopyUrl": "نسخ WebDAV URL",
+  "webDavOpenInBrowser": "فتح في المتصفح",
+  "errWebDavAuthFailed": "فشل auth WebDAV",
+  "errWebDavNotFound": "Path غير موجود",
+  "errWebDavConflict": "العملية تتعارض مع الحالة الحالية",
+  "errWebDavGeneric": "خادم WebDAV رفض الطلب: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "Base URL لـ WebDAV مطلوب",
+  "errWebDavBaseUrlInvalid": "Base URL يجب أن يبدأ بـ http:// أو https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "اتركه فارغًا لـ AWS، أو ضع endpoint لـ MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "مطلوب لـ MinIO؛ اتركه off مع AWS",
+  "s3DefaultBucket": "Bucket الافتراضي",
+  "s3DefaultPrefix": "Prefix الافتراضي",
+  "s3GeneratePresignedUrl": "إنشاء presigned URL",
+  "s3PresignedUrlExpiry": "تنتهي خلال",
+  "s3CopyUri": "نسخ URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 دقيقة",
+  "s3PresignedUrlExpiry1hour": "ساعة",
+  "s3PresignedUrlExpiry4hour": "4 ساعات",
+  "s3PresignedUrlExpiry24hour": "24 ساعة",
+  "s3PresignedUrlExpiry7day": "7 أيام",
+  "errS3AuthFailed": "S3 authentication failed (تحقق من access key + secret)",
+  "errS3NoSuchBucket": "Bucket غير موجود أو غير قابل للوصول",
+  "errS3RegionMismatch": "Bucket في region مختلف عن المُعدّ",
+  "errS3Generic": "خادم S3 رفض الطلب: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "تفعيل WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "يشفّر أرشيف sync. يجب أن يختلف عن كلمة المرور الرئيسية.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase لا يمكن أن يطابق كلمة المرور الرئيسية.",
+  "syncRemotePath": "المسار البعيد",
+  "syncRemotePathHint": "المسار تحت WebDAV base URL — الافتراضي letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "آخر push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "آخر pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "لم يتم",
+  "syncUpToDate": "Sync محدّث",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "تم تطبيق {count} تغييرات من remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync معطّل",
+  "errSyncEtagMismatch": "تغيّر remote — pull أولاً، ثم push",
+  "errSyncUnauthorized": "فشل مصادقة WebDAV",
+  "errSyncNetwork": "خطأ شبكة: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "أرشيف sync البعيد يحتاج إصدارًا أحدث",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "المس hardware key",
+  "hardwareKeyPin": "PIN الـ hardware key",
+  "hardwareKeyTimeout": "Hardware key لم يستجب",
+  "hardwareKeyNotFound": "لم يتم العثور على hardware key",
+  "hardwareKeyUnsupported": "الوصول المباشر إلى hardware key غير متاح على هذه المنصة",
+  "hardwareKeyAppleEntitlementRequired": "يتطلب Apple Developer Program entitlement؛ استخدم ssh-agent على macOS",
+  "skKeyRequiresDevice": "هذا المفتاح SSH يحتاج hardware key — المسه للمصادقة",
+  "errSkWrongPin": "PIN غير صحيح",
+  "hardwareKeyImport": "استيراد hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "تم إلغاء طلب hardware key",
+  "agentEndpointSectionTitle": "تكامل مع عملاء SSH الخارجيين",
+  "agentEndpointToggleTitle": "كشف hardware-bound keys لعملاء SSH على النظام",
+  "agentEndpointToggleSubtitle": "يسمح لـ git و ssh وإضافات IDE على هذا الجهاز باستخدام مفاتيح FIDO2 / smart-card / TPM.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "نسخ أمر export",
+  "agentEndpointCopyPipeName": "نسخ اسم pipe",
+  "agentEndpointSignatureRequestTitle": "طلب توقيع",
+  "agentEndpointSignatureRequestBody": "{requester} يريد التوقيع باستخدام {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "عميل SSH خارجي",
+  "agentEndpointAuthorizeOnce": "اسمح مرة واحدة",
+  "agentEndpointAuthorizeAlways": "اسمح وتذكّر",
+  "agentEndpointDeny": "رفض",
+  "agentEndpointStatusRunning": "قيد التشغيل",
+  "agentEndpointStatusStopped": "متوقف",
+  "agentEndpointStatusUnsupported": "غير مدعوم على هذه المنصة",
+  "agentEndpointRefusedAddIdentity": "مرفوض: لا يمكن للعملاء الخارجيين إضافة keys.",
+  "agentEndpointStartFailed": "تعذّر تشغيل ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "إضافة مفتاح smart-card / token",
+  "pkcs11ModuleLabel": "وحدة PKCS#11",
+  "pkcs11ModuleAutoDetected": "تم اكتشافه تلقائيًا",
+  "pkcs11ModuleCustom": "وحدة مخصصة...",
+  "pkcs11ModulePickerTitle": "اختر مكتبة PKCS#11",
+  "pkcs11NoModuleFound": "لم يتم العثور على وحدة PKCS#11. ثبّت OpenSC أو اختر مكتبة المُورد.",
+  "pkcs11InitializeFailed": "فشل تهيئة وحدة PKCS#11.",
+  "pkcs11NoTokenPresent": "لا يوجد token في القارئ.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "الرقم التسلسلي: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "يتطلب الـ token تسجيل دخول.",
+  "pkcs11PinPrompt": "PIN لـ {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "أكّد على PIN-pad الـ token.",
+  "pkcs11PinIncorrect": "PIN خاطئ. {remaining} محاولات متبقية.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "PIN الـ token مقفل. افتحه باستخدام PUK.",
+  "pkcs11NoSignableKeys": "الـ token لا يحتوي على مفاتيح SSH (RSA، ECDSA، Ed25519).",
+  "pkcs11GostUnsupported": "مفاتيح GOST لا تعمل مع SSH.",
+  "pkcs11TokenUnplugged": "الـ token \"{label}\" غير موصول.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Token المحفوظ غير موجود. أعد التوصيل وحاول مجددًا.",
+  "pkcs11SignFailed": "فشل التوقيع: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-cards / tokens PKCS#11 غير متاحة على هذه المنصة.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "اختر module PKCS#11",
+  "pkcs11WizardStepToken": "اختر token",
+  "pkcs11WizardStepKey": "اختر مفتاحًا",
+  "pkcs11WizardStepPin": "أدخل PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "قراءة المفتاح العام من token...",
+  "pkcs11SaveSuccess": "تم إضافة مفتاح smart card.",
+  "pkcs11ScanInProgress": "البحث عن modules PKCS#11...",
+  "pkcs11LoadingTokens": "تحميل tokens...",
+  "pkcs11LoadingKeys": "تحميل المفاتيح...",
+  "pkcs11ModuleStatusReady": "تم تحميل module.",
+  "pkcs11ModuleStatusNoToken": "لا يوجد token.",
+  "pkcs11ModuleStatusFailed": "فشل تحميل module.",
+  "pkcs11PinPadHint": "(PIN pad على الجهاز)",
+  "pkcs11WizardBack": "رجوع",
+  "pkcs11WizardNext": "التالي",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "إضافة hardware key",
+  "sshKeyHardwareBoundExplainer": "الـ private key يعيش في الـ secure hardware للجهاز ولا يمكن تصديره.",
+  "sshKeyEnclaveDeviceBound": "هذا الـ key يعمل فقط على هذا الـ Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "هذا الـ key يعمل فقط على هذا الـ iPhone.",
+  "sshKeyHelloDeviceBound": "هذا الـ key يعمل فقط على هذا الـ PC.",
+  "sshKeyEnclaveTouchIdRequired": "اشترط Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "اسمح بـ passcode الجهاز كـ fallback",
+  "sshKeyHelloPinRequired": "اشترط Windows Hello (PIN، بصمة، أو وجه)",
+  "sshKeyHardwareUnavailableTitle": "الـ hardware keys غير متاحة",
+  "sshKeyHardwareUnavailableSe": "يجب أن يكون التطبيق code-signed لاستخدام Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello غير مُعدّ على هذا الـ PC.",
+  "sshKeyHardwareUnavailableTpm": "لم يتم اكتشاف TPM — software-backed فقط.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "إنشاء",
+  "sshKeyGenerateInProgress": "إنشاء key في الـ secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing مطلوب — راجع USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "توقيع عبر الـ secure hardware...",
+  "sshKeyPublicCopy": "نسخ الـ public key",
+  "sshKeyAuthorizedKeysHint": "أضف هذا السطر إلى ~/.ssh/authorized_keys على الخادم.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "اسم الـ key",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "مفتاح SSH عبر Windows Hello",
+  "helloWizardLabelHint": "تسمية المفتاح",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "المصادقة عبر Windows Hello",
+  "helloPromptDescription": "PIN أو بصمة أو وجه — يوقّع Windows Hello تحدّي SSH.",
+  "helloSoftwareGatedWarning": "لا يوجد TPM في هذا الجهاز. يبقى المفتاح في تخزين المستخدم؛ Windows Hello لا يزال يطالب بالتوقيع في كل مرة.",
+  "helloP384NotSupported": "برنامج TPM الثابت لا يدعم P-384. اختر P-256 أو RSA-2048.",
+  "helloConfigureFirst": "اضبط Windows Hello أولًا من الإعدادات -> خيارات تسجيل الدخول.",
+  "tpmSshTitle": "إنشاء مفتاح SSH عبر TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (موصى به)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "خوارزمية غير مدعومة من البرنامج الثابت لـ TPM.",
+  "tpmSshPinProtect": "حماية برمز PIN",
+  "tpmSshPinLockoutWarning": "يقفل TPM المفتاح بعد محاولات PIN خاطئة متكررة.",
+  "tpmSshPinMismatch": "رمزا PIN غير متطابقين.",
+  "tpmSshStorageBlob": "حفظ المفتاح المغلف في بيانات التطبيق",
+  "tpmSshStorageHandle": "حفظ في فتحة ذاكرة TPM",
+  "tpmSshStorageHandleHelp": "توقيع أسرع. يستهلك إحدى الفتحات الدائمة في TPM.",
+  "tpmSshLabel": "اسم المفتاح",
+  "tpmSshImportTitle": "استيراد مفتاح SSH محمي بـ TPM",
+  "tpmSshImportFormat": "ملف مفتاح TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "رمز TPM PIN لـ {label}",
+  "tpmSshPinIncorrect": "رمز PIN غير صحيح.",
+  "tpmSshPinLockedCooldown": "TPM في فترة انتظار القفل. انتظر {duration} وأعد المحاولة.",
+  "tpmSshGenerating": "جارٍ إنشاء المفتاح في TPM...",
+  "tpmSshSigning": "جارٍ التوقيع باستخدام TPM...",
+  "tpmSshUnavailable": "لم يتم اكتشاف TPM على هذا الجهاز.",
+  "tpmSshUnavailableFwDisabled": "TPM معطل في البرنامج الثابت.",
+  "tpmSshUnavailableNoPermission": "لا يمكن للتطبيق الوصول إلى TPM. أضف المستخدم إلى مجموعة `tss`.",
+  "tpmSshHandleInUse": "الفتحة الدائمة {handle} مستخدمة بالفعل.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "يوقع هذا المفتاح دون مطالبة Hello / PIN — أي شخص لديه وصول إلى سطح المكتب أثناء تسجيل دخولك يمكنه استخدامه.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (مرتبط بالعتاد)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (مدعوم بالعتاد)",
+  "keystoreKeyGenerating": "جاري إنشاء مفتاح مرتبط بالعتاد...",
+  "keystoreKeyAuthPrompt": "أكد هويتك لاستخدام مفتاح SSH",
+  "keystoreKeyInvalidatedByEnrollment": "تم إتلاف المفتاح: تم تسجيل قياس حيوي جديد. أعد تسجيل المفتاح العام على خوادمك.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM غير متاح على هذا الجهاز",
+  "keystoreKeyUserAuthRequired": "اطلب القياس الحيوي / فتح الجهاز لكل توقيع",
+  "keystoreKeyExportDisabled": "لا يمكن تصدير المفاتيح المرتبطة بالعتاد",
+  "keystoreKeyDeleteWarning": "حذف هذا المفتاح يزيله من مخزن العتاد. سترفض الخوادم هذا المفتاح حتى تسجل واحدا جديدا.",
+  "keystoreKeyBiometricNotEnrolled": "سجل القياس الحيوي أو PIN الجهاز أولا",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (مؤهل لـ StrongBox)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+، TEE فقط)",
+  "keystoreAlgRsa2048": "RSA-2048 (أوسع توافق)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM غير متاح",
+  "keystoreStrongBoxFallbackBody": "جهازك لا يعرض StrongBox HSM. هل تريد إنشاء مفتاح مدعوم بـ TEE بدلاً منه؟ سيظل مرتبطًا بالعتاد، فقط بدون عزل StrongBox.",
+  "keystoreStrongBoxFallbackConfirm": "استخدم TEE",
+  "keystoreStrongBoxFallbackCancel": "إلغاء",
+  "fido2BrokerSectionTitle": "مفاتيح الأمان العتادية",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "حوار النظام لـ security key",
+  "fido2BrokerIosLabel": "security key النظام (USB / NFC)",
+  "fido2BrokerAndroidLabel": "security key النظام (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID مباشر (CTAP2)",
+  "fido2BrokerTransportNone": "غير متاح على هذه المنصة",
+  "fido2BrokerPreferDirectHidTitle": "تفضيل USB HID المباشر على حوار النظام",
+  "fido2BrokerPreferDirectHidSubtitle": "متقدم: تجاوز {brokerLabel} على المنصات التي يعمل فيها المساران. الـ HID المباشر يدعم ميزات authenticator أكثر لكن يحتاج صلاحيات لكل تطبيق.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "تكامل SSH",
+  "fido2BrokerNoTransportSubtitle": "دعم مفاتيح الأجهزة غير متاح على هذا الجهاز.",
+  "fido2BrokerSinglePathSubtitle": "فقط {transport} متاح على هذا الجهاز؛ التبديل معطّل.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "بدل مستورد",
+  "hardwareKeyStubSubtitle": "كان على جهاز آخر — أعد التوليد هنا لاستخدامه",
+  "hardwareKeyStubRegenerateAction": "أعد التوليد هنا",
+  "hardwareKeyStubRemoveAction": "إزالة البدل",
+  "hardwareKeyStubPickerTooltip": "أعد توليد هذا المفتاح على هذا الجهاز قبل الاستخدام",
+  "pkcs11ModuleResolveOnFirstUse": "حدد مسار وحدة PKCS#11 للرمز \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  }
 }

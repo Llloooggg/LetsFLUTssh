@@ -82,7 +82,7 @@ class _LoggingSection extends ConsumerWidget {
 
       if (outputPath == null || !context.mounted) return;
 
-      await File(outputPath).writeAsString(content);
+      await rust_logger.loggerExportTo(targetPath: outputPath);
       if (context.mounted) {
         Toast.show(
           context,
@@ -119,13 +119,17 @@ class _LoggingSection extends ConsumerWidget {
   }
 }
 
-/// Wrapper that resolves whether there's anything worth showing: if logging
-/// is disabled and the log file is empty, render nothing so the settings
-/// screen stays compact; otherwise mount the live viewer.
+/// Wrapper that resolves whether the viewer has anything to show:
+///   * Logging ON → mount as Live Log.
+///   * Logging OFF + archive on disk → mount as Archived Log (read /
+///     export / clear stay reachable, no live writes happen because
+///     the sink is closed).
+///   * Logging OFF + archive empty → render nothing so the settings
+///     screen stays compact.
 ///
 /// Probe is a sync `File.lengthSync()` check on the log path. Async
-/// `readLog()` would deadlock against the inner viewer's 1s polling timer
-/// in widget tests that pump discrete frames.
+/// `readLog()` would deadlock against the inner viewer's listener
+/// pump in widget tests that pump discrete frames.
 class _LogViewerHost extends StatelessWidget {
   final bool enabled;
   final VoidCallback onExport;
@@ -138,14 +142,7 @@ class _LogViewerHost extends StatelessWidget {
   });
 
   bool _logFileHasContent() {
-    final path = AppLogger.instance.logPath;
-    if (path == null) return false;
-    try {
-      final file = File(path);
-      return file.existsSync() && file.lengthSync() > 0;
-    } catch (_) {
-      return false;
-    }
+    return rust_logger.loggerLogFileHasContent();
   }
 
   @override
@@ -162,22 +159,24 @@ class _LogViewerHost extends StatelessWidget {
   }
 }
 
-/// Inline live log viewer — polls the log file every second and displays the
-/// content in a dark terminal-style panel with Copy and Clear action buttons.
-///
-/// Polling is lifecycle-aware: the timer is paused when the app goes to the
-/// background (paused/inactive/hidden/detached) so it doesn't keep the CPU
-/// awake and drain battery when the user isn't looking. It resumes on
-/// AppLifecycleState.resumed.
-class _LiveLogViewer extends StatefulWidget {
+/// Inline live log viewer. Rendered as a `ListView.builder` of
+/// styled rows wrapped in a `SelectionArea` — drag-select crosses
+/// row boundaries natively, the right-click context menu is
+/// Flutter's adaptive Copy / Select All toolbar, and each row
+/// carries a level-tinted left border + tag chip without any ANSI
+/// hackery. Data flows through the app-level [LogStore] singleton
+/// which is seeded at boot and updated live by `AppLogger.liveEntries`,
+/// so opening the tab is instant.
+class _LiveLogViewer extends ConsumerStatefulWidget {
   final VoidCallback onExport;
   final VoidCallback onClear;
 
   /// Whether the user currently has a logging threshold set — drives
-  /// the viewer's toolbar label + indicator colour. When `false` the
-  /// viewer still renders (so archived entries stay reachable) but
-  /// reads as "Archived log" / dim dot rather than "Live Log" / green
-  /// dot, to avoid suggesting writes are still happening.
+  /// the toolbar label + indicator dot colour. When `false` the viewer
+  /// still renders (so archived entries from a previous session stay
+  /// reachable for read / export / clear) but reads as "Archived log"
+  /// / dim dot rather than "Live Log" / green dot, to avoid suggesting
+  /// writes are still happening.
   final bool active;
 
   const _LiveLogViewer({
@@ -187,15 +186,35 @@ class _LiveLogViewer extends StatefulWidget {
   });
 
   @override
-  State<_LiveLogViewer> createState() => _LiveLogViewerState();
+  ConsumerState<_LiveLogViewer> createState() => _LiveLogViewerState();
 }
 
-class _LiveLogViewerState extends State<_LiveLogViewer>
-    with WidgetsBindingObserver {
-  final _scrollController = ScrollController();
+class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   final _searchController = TextEditingController();
-  String _content = '';
-  Timer? _timer;
+  late final LogStore _store;
+
+  /// Backing xterm `Terminal`. Holds the ANSI-formatted stream that
+  /// renders into [ReadOnlyTerminalView]. Sized for the LogStore's
+  /// 50k entry cap × ~2 visual lines per entry (with continuations)
+  /// — well under xterm's per-line memory budget.
+  ///
+  /// Migrated from a `SelectionArea + ListView.builder + _LogRow`
+  /// shape because Flutter's `SelectableRegion` had compounding
+  /// right-click bugs in this configuration: nested regions fought
+  /// over the global `ContextMenuController`, the lazy `ListView`
+  /// triggered `RenderParagraph.getBoxesForSelection` assertion
+  /// floods when its children mounted mid-selection, and
+  /// inflating row selection rects to fix the "click-between-glyphs"
+  /// collapse only papered over symptoms. xterm owns selection and
+  /// the context menu internally (via `ReadOnlyTerminalView`'s
+  /// `Listener`-based secondary-tap handler), so the log viewer
+  /// no longer participates in Flutter's selection machinery at all.
+  late final Terminal _terminal;
+
+  /// Last batch of filteredEntries we wrote to [_terminal]. Used by
+  /// [_syncTerminal] to choose between appending a tail-only diff
+  /// vs. tearing down and re-streaming the whole filtered set.
+  List<LogEntry>? _lastWrittenSnapshot;
 
   /// Which severity levels render in the viewer. All three start on;
   /// users can hide info noise to focus on warnings + errors during a
@@ -203,287 +222,426 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   final Set<LogLevel> _visibleLevels = {...LogLevel.values};
 
   /// Case-insensitive substring filter on the message body. Applied
-  /// after the level filter (AND) so a `search: "keychain" + level: W`
-  /// shows only warn rows whose message mentions keychain.
+  /// after the level filter (AND).
   String _query = '';
-
-  /// First-frame visibility gate. The list mounts with `opacity: 0`
-  /// on frame 1 so we can call `jumpTo(maxScrollExtent)` in the
-  /// post-frame callback against a laid-out viewport; the viewer
-  /// flips to `opacity: 1` on frame 2 so the user only ever sees the
-  /// already-positioned-at-bottom state. A straight
-  /// `jumpTo` after first build caused the visible "list appears at
-  /// top, then rips to bottom" rip — post-frame callbacks fire after
-  /// paint, so the pre-jump frame was painted first.
-  bool _initiallyPositioned = false;
-
-  /// Within how many pixels of the bottom we consider the user "at
-  /// the tail" and keep following new entries. Above that band we
-  /// leave the scroll alone so they can read history without each
-  /// timer tick dragging them back down.
-  static const _stickyBottomEpsilon = 24.0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-    _startTimer();
+    _store = ref.read(logStoreProvider);
+    // No `onResize` wiring: rewriting the whole buffer to refresh
+    // wrap-points on every resize wipes the scrollback (`\x1B[3J`
+    // in `_syncTerminal`) and invalidates every active selection
+    // anchor — a single-pixel viewport-width change (e.g.
+    // scrollbar toggling on a scroll burst) drops the user's
+    // active selection mid-interaction. Old lines keep their
+    // write-time wrap; new lines use the current width. Modern
+    // terminal emulators behave similarly — they don't reflow on
+    // resize either, so this is the conventional trade-off.
+    _terminal = Terminal(maxLines: 100000);
+    _store.addListener(_syncTerminal);
+    _syncTerminal();
+    // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
+    // already kicked the seed at boot. This just reads the
+    // already-primed singleton; if the seed is still running the
+    // live stream will populate the store as entries arrive.
+    unawaited(_store.ensureSeeded());
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _stopTimer();
-    _scrollController.dispose();
+    _store.removeListener(_syncTerminal);
     _searchController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (_timer == null) {
-        _refresh();
-        _startTimer();
+  void _pushFilter() {
+    _store.applyFilter(visibleLevels: _visibleLevels, query: _query);
+  }
+
+  /// Reconcile [_terminal] with [`LogStore.filteredEntries`]. Two
+  /// shapes:
+  ///   * **Append**: the new list is a strict extension of the
+  ///     last snapshot (same references at every prior index, just
+  ///     more entries at the tail). Stream only the new tail
+  ///     through `terminal.write`; the cursor follows the writes so
+  ///     the viewer scrolls to the bottom automatically.
+  ///   * **Full rewrite**: filter changed, store was wiped, or the
+  ///     LogStore's `_maxEntries` cap trimmed older entries. Wipe
+  ///     the terminal and re-stream the entire filtered set.
+  ///
+  /// `identical` is the right comparison: [LogStore] hands out the
+  /// same `LogEntry` instance every time, only replacing the outer
+  /// `List` on change. The append-vs-rewrite check is therefore a
+  /// cheap reference walk, not a structural compare.
+  void _syncTerminal() {
+    final current = _store.filteredEntries;
+    final lastSnap = _lastWrittenSnapshot;
+    if (lastSnap == null ||
+        current.length < lastSnap.length ||
+        !_startsWith(current, lastSnap)) {
+      // CSI H = home cursor; CSI 2J = erase visible viewport;
+      // CSI 3J = erase scrollback. The 2J alone wipes only the
+      // visible area — xterm preserves scrollback above unless
+      // 3J asks otherwise. Without 3J the previously-written
+      // banner + entries linger above the freshly-rewritten ones
+      // (visible on scroll-up as a duplicate session) every time
+      // a resize or filter change forces a full rewrite.
+      _terminal.write('\x1B[H\x1B[2J\x1B[3J');
+      for (final entry in current) {
+        _terminal.write(_formatEntry(entry));
       }
-    } else {
-      _stopTimer();
+    } else if (current.length > lastSnap.length) {
+      for (var i = lastSnap.length; i < current.length; i++) {
+        _terminal.write(_formatEntry(current[i]));
+      }
     }
+    _lastWrittenSnapshot = current;
   }
 
-  void _startTimer() {
-    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  bool _startsWith(List<LogEntry> longer, List<LogEntry> shorter) {
+    if (longer.length < shorter.length) return false;
+    for (var i = 0; i < shorter.length; i++) {
+      if (!identical(longer[i], shorter[i])) return false;
+    }
+    return true;
   }
 
-  void _stopTimer() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  Future<void> _refresh() async {
-    final text = await AppLogger.instance.readLog();
-    if (!mounted) return;
-    if (text == _content && _initiallyPositioned) return;
-
-    // "Was the user parked at the tail before this rebuild?" —
-    // sampled against the *current* layout. If they were, we follow
-    // the new tail; if they scrolled up we leave their pixel offset
-    // alone so a support-session history read is not dragged back
-    // down every second. The first load hits the `!hasClients`
-    // branch → wasAtBottom = true → initial jump happens under the
-    // opacity-0 gate below.
-    final wasAtBottom = _isAtBottom();
-    setState(() => _content = text);
-
-    if (!wasAtBottom) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      // Once the list is pinned to the bottom on its first pass,
-      // reveal it (frame 2). Subsequent ticks stay at opacity 1
-      // because the flag is latched true.
-      if (!_initiallyPositioned) {
-        setState(() => _initiallyPositioned = true);
+  /// ANSI-format a single [LogEntry] for the terminal stream.
+  ///
+  /// Routine entries: `▎ HH:MM:SS [TAG] message` where:
+  ///   * `▎` (U+258E LEFT ONE QUARTER BLOCK) is a per-level
+  ///     vertical stripe (info/warn/error → blue / yellow / red),
+  ///     the xterm equivalent of the 2 px `Border(left: ...)` the
+  ///     pre-migration `_LogRow` rendered. xterm has no cell-
+  ///     border concept; a coloured glyph in column 0 is the
+  ///     closest visual analog.
+  ///   * The tag is bold-tinted in the level colour. No padding —
+  ///     padding to a fixed column read as a "weird gap" after
+  ///     `]` since short tags left big trailing whitespace.
+  ///   * Long lines are **manually wrapped** to the terminal's
+  ///     current `viewWidth`, with the stripe re-emitted on every
+  ///     visual row so the level marker stays continuous on
+  ///     wraps. xterm's built-in wrap drops to column 0 on each
+  ///     wrap → stripe disappears from the tail of a wrapped
+  ///     entry. The cached `_lastWrittenSnapshot` is invalidated
+  ///     on terminal resize (see [_onTerminalResize]) so wrap
+  ///     points stay in sync with the column count.
+  ///   * Continuation lines repeat the stripe (and the message-
+  ///     start indent) so the row remains visually contiguous,
+  ///     and dim the body.
+  ///
+  /// Session-banner headers (`--- Log started ...`) get a hairline
+  /// divider above (`────────` across the viewport) so multi-
+  /// session logs stay scannable at a glance. The `--- ` / ` ---`
+  /// framing the parser emits is stripped from the visible text —
+  /// the divider already signals "new session" loudly enough.
+  /// Other headers (`Platform: ...`, `Dart: ...`) just render as
+  /// dim text with no decoration.
+  ///
+  /// `\r\n` line breaks throughout so xterm's terminal state
+  /// machine treats each line as its own row — a bare `\n` would
+  /// scroll without carriage return and the next entry would
+  /// start at the previous column.
+  String _formatEntry(LogEntry entry) {
+    if (entry.isHeader) {
+      if (entry.message.startsWith('--- ')) {
+        final dividerWidth = _terminal.viewWidth.clamp(20, 200);
+        final divider = '\x1B[2m${'─' * dividerWidth}\x1B[0m';
+        final cleaned = entry.message.replaceAll(
+          RegExp(r'^---\s+|\s+---$'),
+          '',
+        );
+        return '$divider\r\n\x1B[2m  $cleaned\x1B[0m\r\n';
       }
-    });
+      return '\x1B[2m  ${entry.message}\x1B[0m\r\n';
+    }
+    final code = _levelAnsiCode(entry.level);
+    final stripeAnsi = '\x1B[${code}m▎\x1B[0m ';
+    const stripeColumns = 2; // `▎` + space
+    final tsRaw = entry.timestamp != null ? '${entry.timestamp} ' : '';
+    final tagRaw = '[${entry.tag ?? 'App'}] ';
+    final headerColumns = tsRaw.length + tagRaw.length;
+    final tsAnsi = entry.timestamp != null
+        ? '\x1B[2m${entry.timestamp}\x1B[0m '
+        : '';
+    final tagAnsi = '\x1B[1;${code}m${tagRaw.trimRight()}\x1B[0m ';
+
+    final viewWidth = _terminal.viewWidth;
+    final availRest = (viewWidth - stripeColumns).clamp(8, viewWidth);
+    final availFirst = (availRest - headerColumns).clamp(8, availRest);
+
+    final buf = StringBuffer();
+
+    // First visual row: stripe + timestamp + tag + first chunk of
+    // message. Subsequent wrap rows: stripe + chunk only.
+    final wrapped = _wrapText(entry.message, availFirst, availRest);
+    buf.write('$stripeAnsi$tsAnsi$tagAnsi${wrapped.first}\r\n');
+    for (var i = 1; i < wrapped.length; i++) {
+      buf.write('$stripeAnsi${wrapped[i]}\r\n');
+    }
+
+    for (final cont in entry.continuations) {
+      // Continuations carry no header — wrap against the same
+      // available-rest width on all visual rows.
+      final contWrapped = _wrapText(cont, availRest, availRest);
+      for (final line in contWrapped) {
+        buf.write('$stripeAnsi\x1B[2m$line\x1B[0m\r\n');
+      }
+    }
+
+    return buf.toString();
   }
 
-  /// `true` on first mount (no clients yet → pretend user is at
-  /// tail so the initial jump fires) and any time the user's scroll
-  /// offset is within [_stickyBottomEpsilon] pixels of the bottom.
-  bool _isAtBottom() {
-    if (!_scrollController.hasClients) return true;
-    final pos = _scrollController.position;
-    return pos.pixels >= pos.maxScrollExtent - _stickyBottomEpsilon;
+  /// Word-wrap [text] so the FIRST visual chunk fits in [firstWidth]
+  /// columns and SUBSEQUENT chunks fit in [restWidth]. Splits at the
+  /// last whitespace within the width budget where possible; falls
+  /// back to a hard split mid-word when no space fits. Returns the
+  /// original string in a single-element list when it already fits
+  /// in [firstWidth].
+  ///
+  /// Width inputs MUST exclude any ANSI escape sequences — the
+  /// caller applies ANSI to each chunk after wrapping.
+  List<String> _wrapText(String text, int firstWidth, int restWidth) {
+    if (text.length <= firstWidth) return [text];
+    final chunks = <String>[];
+    var remaining = text;
+    var budget = firstWidth;
+    while (remaining.length > budget) {
+      var splitAt = remaining.lastIndexOf(' ', budget);
+      if (splitAt <= 0) splitAt = budget; // hard split — no whitespace fits
+      chunks.add(remaining.substring(0, splitAt).trimRight());
+      remaining = remaining.substring(splitAt).trimLeft();
+      budget = restWidth;
+    }
+    if (remaining.isNotEmpty) chunks.add(remaining);
+    return chunks;
   }
+
+  /// ANSI SGR colour parameter for a level's tint. Matches the
+  /// per-row tint the previous `_LogRow` renderer used (info →
+  /// `AppTheme.blue`, warn → `AppTheme.yellow`, error → `AppTheme.red`).
+  /// Headers fall through to `0` (default fg, dimmed by the caller).
+  String _levelAnsiCode(LogLevel? level) => switch (level) {
+    LogLevel.info => '34',
+    LogLevel.warn => '33',
+    LogLevel.error => '31',
+    _ => '0',
+  };
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = AppTheme.bg0;
-    final fg = AppTheme.green;
-    // Mirror the session-panel header: on mobile we give each AppIconButton
-    // a filled background + rounded corners so the three log actions read
-    // as buttons (they were 16 px transparent icons before — too small for
-    // a thumb and easy to miss).
     final mobile = plat.isMobilePlatform;
     final buttonBg = mobile ? AppTheme.bg3 : null;
-
-    // Toolbar title + status dot reflect whether writes are currently
-    // happening. When the user set logging level to Off we still show
-    // the viewer (archived entries stay reachable), but the "Live"
-    // wording + green dot would misrepresent state — swap in a dim
-    // "Archived log" + grey dot.
-    final indicatorColor = widget.active
-        ? fg
-        : theme.colorScheme.onSurface.withValues(alpha: 0.35);
-    final titleText = widget.active ? S.of(context).liveLog : 'Archived log';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Toolbar
-        Row(
-          children: [
-            Icon(Icons.circle, size: 8, color: indicatorColor),
-            const SizedBox(width: 6),
-            Text(
-              titleText,
-              style: TextStyle(
-                fontSize: AppFonts.md,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-            const Spacer(),
-            AppIconButton(
-              icon: Icons.copy,
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: _content));
-                Toast.show(
-                  context,
-                  message: _content.isEmpty
-                      ? S.of(context).logIsEmpty
-                      : S.of(context).copiedToClipboard,
-                  level: ToastLevel.info,
-                );
-              },
-              tooltip: S.of(context).copyLog,
-              backgroundColor: buttonBg,
-              borderRadius: AppTheme.radiusSm,
-            ),
-            if (mobile) const SizedBox(width: 8),
-            AppIconButton(
-              icon: Icons.save_alt,
-              onTap: widget.onExport,
-              tooltip: S.of(context).exportLog,
-              backgroundColor: buttonBg,
-              borderRadius: AppTheme.radiusSm,
-            ),
-            if (mobile) const SizedBox(width: 8),
-            AppIconButton(
-              icon: Icons.delete_outline,
-              onTap: () async {
-                widget.onClear();
-                await Future<void>.delayed(const Duration(milliseconds: 100));
-                await _refresh();
-              },
-              tooltip: S.of(context).clearLogs,
-              backgroundColor: buttonBg,
-              borderRadius: AppTheme.radiusSm,
-            ),
-          ],
-        ),
-        // Log content — grow into the rest of the viewport. Previously
-        // the box was capped at 360 px, leaving a large blank gap under
-        // it on tall windows / phones in portrait. Subtracting a
-        // generous chrome budget (~280 px for dialog header, section
-        // header, toolbar, dialog inset on desktop; for mobile the
-        // AppBar + ExpansionTile ancestor is similar) lets the viewer
-        // reach the bottom of the viewport without pushing its own
-        // toolbar off-screen on small devices. Floor stays at 200 px
-        // so a very short window still shows a usable strip.
+        _buildToolbar(context, mobile, buttonBg),
+        const SizedBox(height: AppSpacing.xxs),
+        // Box height = viewport - 280 px chrome budget, floored at 200,
+        // so the viewer fills the dialog on tall windows but still
+        // leaves a usable strip on short ones.
         LayoutBuilder(
-          builder: (context, constraints) {
+          builder: (context, _) {
             final viewportHeight = MediaQuery.of(context).size.height;
             final maxHeight = (viewportHeight - 280).clamp(
               200.0,
               double.infinity,
             );
-            return Container(
-              width: double.infinity,
-              height: maxHeight,
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: AppTheme.radiusLg,
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _LogFilterBar(
-                    visibleLevels: _visibleLevels,
-                    query: _query,
-                    searchController: _searchController,
-                    onLevelToggle: (level) => setState(() {
-                      if (_visibleLevels.contains(level)) {
-                        _visibleLevels.remove(level);
-                      } else {
-                        _visibleLevels.add(level);
-                      }
-                    }),
-                    onQueryChanged: (q) => setState(() => _query = q),
-                  ),
-                  const SizedBox(height: 4),
-                  Expanded(
-                    child: _content.isEmpty
-                        ? Center(
-                            child: Text(
-                              '(no log entries yet)',
-                              style: TextStyle(
-                                fontSize: AppFonts.sm,
-                                fontFamily: 'monospace',
-                                color: fg.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          )
-                        : Opacity(
-                            // Hide the first frame of the list while
-                            // `_refresh` schedules its post-frame
-                            // jumpTo(maxScrollExtent). Flipping to 1
-                            // happens in the same post-frame callback
-                            // after the jump, so the user only ever
-                            // sees the already-positioned-at-bottom
-                            // state — no "appears at top, then rips
-                            // down" jank on first open.
-                            opacity: _initiallyPositioned ? 1 : 0,
-                            child: _LogList(
-                              entries: _filterEntries(
-                                parseLogEntries(_content),
-                              ),
-                              controller: _scrollController,
-                              defaultFg: fg,
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            );
+            return _buildLogBox(maxHeight);
           },
         ),
       ],
     );
   }
 
-  /// Apply the level + search filters to a parsed entry list. Headers
-  /// always render so the session banner stays visible even when
-  /// every level filter is off. Search matches against the message,
-  /// tag, or any continuation line so a query like "keychain" hits
-  /// the stack-trace body too.
-  List<LogEntry> _filterEntries(List<LogEntry> raw) {
-    final lower = _query.toLowerCase();
-    return raw.where((e) => _shouldShow(e, lower)).toList(growable: false);
+  Widget _buildToolbar(BuildContext context, bool mobile, Color? buttonBg) {
+    final theme = Theme.of(context);
+    final indicatorColor = widget.active
+        ? AppTheme.green
+        : theme.colorScheme.onSurface.withValues(alpha: 0.35);
+    final titleText = widget.active
+        ? S.of(context).liveLog
+        : S.of(context).archivedLog;
+    // Title sits in `Expanded` (tight flex) so it takes all remaining
+    // width between the indicator dot and the buttons, ellipsising
+    // when too narrow. Without `Expanded` the buttons are visually
+    // pulled left of the right edge — `Flexible(loose) + Spacer(tight)`
+    // splits the remaining space 50/50 and parks the unused half of
+    // the title slot between title content and the buttons.
+    return Row(
+      children: [
+        Icon(Icons.circle, size: 8, color: indicatorColor),
+        const SizedBox(width: AppSpacing.xxs),
+        Expanded(
+          child: Text(
+            titleText,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+        AppIconButton(
+          icon: Icons.copy,
+          onTap: () => _copyLogToClipboard(context),
+          tooltip: S.of(context).copyLog,
+          backgroundColor: buttonBg,
+          borderRadius: AppTheme.radiusSm,
+        ),
+        if (mobile) const SizedBox(width: AppSpacing.sm),
+        AppIconButton(
+          icon: Icons.save_alt,
+          onTap: widget.onExport,
+          tooltip: S.of(context).exportLog,
+          backgroundColor: buttonBg,
+          borderRadius: AppTheme.radiusSm,
+        ),
+        if (mobile) const SizedBox(width: AppSpacing.sm),
+        AppIconButton(
+          icon: Icons.delete_outline,
+          onTap: _clearAndRefresh,
+          tooltip: S.of(context).clearLogs,
+          backgroundColor: buttonBg,
+          borderRadius: AppTheme.radiusSm,
+        ),
+      ],
+    );
   }
 
-  bool _shouldShow(LogEntry e, String lower) {
-    if (e.isHeader) return true;
-    if (e.level != null && !_visibleLevels.contains(e.level)) return false;
-    if (lower.isEmpty) return true;
-    return _matchesQuery(e, lower);
+  /// Copy semantics: serialise every entry currently in the store's
+  /// `allEntries` list (filter-independent — a "Copy log" button means
+  /// "everything captured", not "what is shown after my level filter").
+  /// Falls back to a "log is empty" toast when nothing has been
+  /// logged yet. The right-click context menu inside the viewer
+  /// handles selection-aware copy via `SelectionArea`.
+  void _copyLogToClipboard(BuildContext context) {
+    final entries = _store.allEntries;
+    final buf = StringBuffer();
+    for (final e in entries) {
+      if (e.isHeader) {
+        buf.writeln(e.message);
+        continue;
+      }
+      buf.writeln(
+        '${e.timestamp ?? ''} ${e.level == null ? '' : _levelMarker(e.level!)} '
+        '[${e.tag ?? 'App'}] ${e.message}',
+      );
+      for (final c in e.continuations) {
+        buf.writeln(c);
+      }
+    }
+    final text = buf.toString();
+    Clipboard.setData(ClipboardData(text: text));
+    Toast.show(
+      context,
+      message: text.isEmpty
+          ? S.of(context).logIsEmpty
+          : S.of(context).copiedToClipboard,
+      level: ToastLevel.info,
+    );
   }
 
-  bool _matchesQuery(LogEntry e, String lower) {
-    if (e.message.toLowerCase().contains(lower)) return true;
-    if (e.tag != null && e.tag!.toLowerCase().contains(lower)) return true;
-    return e.continuations.any((c) => c.toLowerCase().contains(lower));
+  static String _levelMarker(LogLevel l) => switch (l) {
+    LogLevel.info => 'I',
+    LogLevel.warn => 'W',
+    LogLevel.error => 'E',
+  };
+
+  Future<void> _clearAndRefresh() async {
+    widget.onClear();
+    // The on-disk wipe is async (file delete); the in-memory store
+    // is wiped synchronously here so the viewer empties even if the
+    // file delete is still pending.
+    _store.clearAll();
+  }
+
+  Widget _buildLogBox(double maxHeight) {
+    return Container(
+      width: double.infinity,
+      height: maxHeight,
+      decoration: BoxDecoration(
+        color: AppTheme.bg0,
+        border: Border.all(color: AppTheme.borderLight, width: 1),
+        borderRadius: AppTheme.radiusSm,
+      ),
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _LogFilterBar(
+            visibleLevels: _visibleLevels,
+            query: _query,
+            searchController: _searchController,
+            onLevelToggle: _toggleLevel,
+            onQueryChanged: (q) {
+              setState(() => _query = q);
+              _pushFilter();
+            },
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Expanded(child: _buildLogBody()),
+        ],
+      ),
+    );
+  }
+
+  void _toggleLevel(LogLevel level) {
+    setState(() {
+      if (_visibleLevels.contains(level)) {
+        _visibleLevels.remove(level);
+      } else {
+        _visibleLevels.add(level);
+      }
+    });
+    _pushFilter();
+  }
+
+  Widget _buildLogBody() {
+    // The log viewer renders to an xterm `Terminal` through
+    // [ReadOnlyTerminalView]. The terminal owns scrollback,
+    // selection, right-click context menu, and Ctrl+C copy — none
+    // of which go through Flutter's `SelectableRegion` machinery.
+    // The "is the buffer empty?" overlay still rebuilds when the
+    // store notifies (via `ListenableBuilder`), so the
+    // localized empty-state stays in sync with `_store.allEntries`.
+    return ListenableBuilder(
+      listenable: _store,
+      builder: (context, _) {
+        if (_store.allEntries.isEmpty) {
+          return Center(
+            child: Text(
+              S.of(context).logIsEmpty,
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgDim,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          );
+        }
+        // `ClipRect` so xterm's last partial row (when the
+        // container's pixel height isn't an integer multiple of
+        // the row height) is clipped at the bottom border instead
+        // of bleeding past it.
+        return ClipRect(
+          child: ReadOnlyTerminalView(
+            terminal: _terminal,
+            fontSize: AppFonts.sm,
+          ),
+        );
+      },
+    );
   }
 }
 
 /// Filter toolbar mounted above the log list.
 ///
-/// Four severity toggle chips + a monospace search input. All chips
-/// default to on except `D`, which users opt into explicitly when
-/// chasing a trace.
+/// Three severity toggle chips + a monospace search input. Toggling a
+/// chip / typing in the box pushes the new filter into the [LogStore]
+/// which recomputes the filtered subset and notifies the [ListView].
 class _LogFilterBar extends StatelessWidget {
   final Set<LogLevel> visibleLevels;
   final String query;
@@ -510,7 +668,7 @@ class _LogFilterBar extends StatelessWidget {
           active: visibleLevels.contains(LogLevel.info),
           onTap: () => onLevelToggle(LogLevel.info),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         _LevelChip(
           level: LogLevel.warn,
           label: 'W',
@@ -518,7 +676,7 @@ class _LogFilterBar extends StatelessWidget {
           active: visibleLevels.contains(LogLevel.warn),
           onTap: () => onLevelToggle(LogLevel.warn),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         _LevelChip(
           level: LogLevel.error,
           label: 'E',
@@ -526,7 +684,7 @@ class _LogFilterBar extends StatelessWidget {
           active: visibleLevels.contains(LogLevel.error),
           onTap: () => onLevelToggle(LogLevel.error),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: SizedBox(
             height: 28,
@@ -535,12 +693,13 @@ class _LogFilterBar extends StatelessWidget {
               onChanged: onQueryChanged,
               style: TextStyle(
                 fontSize: AppFonts.sm,
-                fontFamily: 'monospace',
+                fontFamily: AppFonts.monoFamily,
+                fontFamilyFallback: AppFonts.monoFallback,
                 color: AppTheme.fg,
               ),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Filter…',
+                hintText: S.of(context).filter,
                 hintStyle: TextStyle(
                   fontSize: AppFonts.sm,
                   color: AppTheme.fg.withValues(alpha: 0.4),
@@ -559,19 +718,15 @@ class _LogFilterBar extends StatelessWidget {
                   vertical: 4,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: BorderSide(
-                    color: AppTheme.fg.withValues(alpha: 0.15),
-                  ),
+                  borderRadius: AppTheme.radiusSm,
+                  borderSide: BorderSide(color: AppTheme.borderLight),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: BorderSide(
-                    color: AppTheme.fg.withValues(alpha: 0.15),
-                  ),
+                  borderRadius: AppTheme.radiusSm,
+                  borderSide: BorderSide(color: AppTheme.borderLight),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.blue, width: 1.2),
                 ),
               ),
@@ -602,7 +757,7 @@ class _LevelChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: AppTheme.radiusSm,
       child: Container(
         width: 28,
         height: 28,
@@ -612,151 +767,21 @@ class _LevelChip extends StatelessWidget {
             color: active ? color : AppTheme.fg.withValues(alpha: 0.2),
             width: 1,
           ),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppTheme.radiusSm,
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
             fontSize: AppFonts.sm,
-            fontFamily: 'monospace',
+            fontFamily: AppFonts.monoFamily,
+            fontFamilyFallback: AppFonts.monoFallback,
             fontWeight: FontWeight.w700,
             color: active ? color : AppTheme.fg.withValues(alpha: 0.4),
             decoration: active ? null : TextDecoration.lineThrough,
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LogList extends StatelessWidget {
-  final List<LogEntry> entries;
-  final ScrollController controller;
-  final Color defaultFg;
-
-  const _LogList({
-    required this.entries,
-    required this.controller,
-    required this.defaultFg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // SelectionArea lets users drag-select across rows — individual
-    // Text widgets stay non-selectable on their own but the area
-    // wrapper stitches the selection together. Copy captures plain
-    // text, not TextSpan styles, so users pasting into a bug report
-    // get clean output.
-    //
-    // Forward (non-reverse) list: positional items, newest at the
-    // end. The parent state handles tail-follow + initial-mount
-    // positioning; this widget stays a plain projection of
-    // `entries` onto rows so tests can drive both without a mock
-    // scroll axis.
-    return SelectionArea(
-      child: ListView.builder(
-        controller: controller,
-        itemCount: entries.length,
-        itemBuilder: (ctx, i) =>
-            _LogRow(entry: entries[i], defaultFg: defaultFg),
-      ),
-    );
-  }
-}
-
-class _LogRow extends StatelessWidget {
-  final LogEntry entry;
-  final Color defaultFg;
-
-  const _LogRow({required this.entry, required this.defaultFg});
-
-  @override
-  Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: AppFonts.sm,
-      fontFamily: 'monospace',
-      height: 1.4,
-      color: defaultFg,
-    );
-    if (entry.isHeader) {
-      // A session banner — the "--- Log started ..." line + the
-      // following `Platform:` / `Dart:` lines — gets a top divider
-      // and extra vertical padding so it visually breaks the stream.
-      // Other unparseable lines fall back to a compact dim row. We
-      // deliberately do NOT italicise: italic monospace on Linux
-      // (DejaVu Sans Mono oblique) rendered faded + slanted in a way
-      // the user rejected. Bold + dim colour is enough separation.
-      final isSessionStart = entry.message.startsWith('--- Log started');
-      return Container(
-        margin: EdgeInsets.only(top: isSessionStart ? 12 : 0, bottom: 0),
-        padding: EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: isSessionStart ? 6 : 2,
-        ),
-        decoration: isSessionStart
-            ? BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: defaultFg.withValues(alpha: 0.35),
-                    width: 1,
-                  ),
-                ),
-              )
-            : null,
-        child: Text(
-          entry.message,
-          style: style.copyWith(
-            color: defaultFg.withValues(alpha: 0.75),
-            fontWeight: isSessionStart ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      );
-    }
-
-    final level = entry.level ?? LogLevel.info;
-    final levelColor = switch (level) {
-      LogLevel.error => AppTheme.red,
-      LogLevel.warn => AppTheme.yellow,
-      LogLevel.info => AppTheme.blue,
-    };
-    final hasTint = level == LogLevel.error || level == LogLevel.warn;
-    final tintBg = hasTint ? levelColor.withValues(alpha: 0.08) : null;
-
-    // Segmented TextSpans so the viewer can dim the timestamp + accent
-    // the tag without losing the monospace alignment. Continuations
-    // attach inline after the primary message with a newline so the
-    // error / stack trace sits under the tinted row.
-    // Continuations (stack frames, error lines) render at full default
-    // fg — the earlier 0.75 alpha read as "thin" next to the primary
-    // message, especially on stack-trace-heavy failures where half the
-    // row is follow-up frames.
-    final spans = <InlineSpan>[
-      TextSpan(
-        text: '${entry.timestamp} ',
-        style: style.copyWith(color: defaultFg.withValues(alpha: 0.7)),
-      ),
-      TextSpan(
-        text: '[${entry.tag}] ',
-        style: style.copyWith(color: levelColor, fontWeight: FontWeight.w600),
-      ),
-      TextSpan(text: entry.message, style: style),
-      for (final c in entry.continuations) TextSpan(text: '\n$c', style: style),
-    ];
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 1),
-      decoration: BoxDecoration(
-        color: tintBg,
-        border: Border(
-          left: BorderSide(
-            color: hasTint ? levelColor : Colors.transparent,
-            width: 3,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Text.rich(TextSpan(children: spans)),
     );
   }
 }
@@ -768,7 +793,7 @@ class _LogRow extends StatelessWidget {
 /// `config.behavior.logLevel`, which `ConfigNotifier` fans out to
 /// `AppLogger.setThreshold`. No intermediate bool flag.
 /// Options shown in the logging level picker. Ordered from noisiest
-/// (Debug) to silent (Off) so the menu matches Logcat / IDE log
+/// (Info) to silent (Off) so the menu matches Logcat / IDE log
 /// viewers where verbose sits at the top.
 const _logLevelOptions = <AppPopupSelectOption<LogLevel?>>[
   AppPopupSelectOption(value: LogLevel.info, label: 'Info'),
@@ -785,9 +810,10 @@ class _LogLevelSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = S.of(context);
     return _SettingsRow(
-      label: 'Logging level',
-      subtitle: _subtitleFor(selected),
+      label: l10n.loggingLevel,
+      subtitle: _subtitleFor(l10n, selected),
       icon: Icons.article_outlined,
       child: AppPopupSelect<LogLevel?>(
         value: selected,
@@ -799,10 +825,16 @@ class _LogLevelSelector extends StatelessWidget {
     );
   }
 
-  String _subtitleFor(LogLevel? level) => switch (level) {
-    LogLevel.info => 'Routine entries + warnings + errors',
-    LogLevel.warn => 'Degraded paths + errors only',
-    LogLevel.error => 'Failures only',
-    null => 'No routine logs written',
+  // Log-level *labels* (Info / Warn / Error / Off) stay English by
+  // design — they are protocol-level terms every dev tool (Logcat,
+  // IDE consoles, Slack admin) ships untranslated. CLAUDE.md's
+  // `Watchlist` keeps log-related terms in their native IT form.
+  // The *subtitles* describing what each level prints ARE prose, so
+  // those route through ARB.
+  String _subtitleFor(S l10n, LogLevel? level) => switch (level) {
+    LogLevel.info => l10n.loggingLevelSubtitleInfo,
+    LogLevel.warn => l10n.loggingLevelSubtitleWarn,
+    LogLevel.error => l10n.loggingLevelSubtitleError,
+    null => l10n.loggingLevelSubtitleOff,
   };
 }

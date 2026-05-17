@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tags/tag.dart';
+import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_collection_toolbar.dart';
@@ -12,6 +12,7 @@ import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/tag_color.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable tag manager — toolbar + list with CRUD.
@@ -37,8 +38,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(tagStoreProvider);
-    final tags = await store.loadAll();
+    final tags = await ref.read(tagsProvider.notifier).loadAll();
     if (mounted) {
       setState(() {
         _tags = tags;
@@ -47,11 +47,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
     }
   }
 
-  List<Tag> _filtered() {
-    if (_filter.isEmpty) return _tags;
-    final needle = _filter.toLowerCase();
-    return _tags.where((t) => t.name.toLowerCase().contains(needle)).toList();
-  }
+  List<Tag> _filtered() => filterTagsByName(_tags, _filter);
 
   @override
   Widget build(BuildContext context) {
@@ -127,9 +123,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   Future<void> _addTag() async {
     final result = await _AddTagDialog.show(context);
     if (result == null || !mounted) return;
-    final store = ref.read(tagStoreProvider);
-    await store.add(result);
-    ref.invalidate(tagsProvider);
+    await ref.read(tagsProvider.notifier).add(result);
     await _load();
     if (mounted) {
       Toast.show(
@@ -157,13 +151,11 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final store = ref.read(tagStoreProvider);
-    await store.delete(tag.id);
-    ref.invalidate(tagsProvider);
-    // SessionTags cascades on FK, but any UI that derives per-session tag
-    // lists from the in-memory session state needs a reload to drop links
-    // to the now-deleted tag.
-    await ref.read(sessionProvider.notifier).load();
+    await ref.read(tagsProvider.notifier).delete(tag.id);
+    // SessionTags / FolderTags cascade on FK; `dbTagsDelete`
+    // Rust-side publishes `SessionsChanged` so the workspace
+    // stream re-fetches and any per-session-tag derived UI drops
+    // the dead link without a Dart-side reload.
     await _load();
     if (mounted) {
       Toast.show(context, message: s.tagDeleted(tag.name));
@@ -232,9 +224,9 @@ class _AddTagDialogState extends State<_AddTagDialog> {
               hintText: s.tagNameHint,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(s.tagColor, style: TextStyle(fontSize: AppFonts.sm)),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 8,
             runSpacing: 8,

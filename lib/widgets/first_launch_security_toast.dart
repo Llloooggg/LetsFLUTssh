@@ -112,16 +112,16 @@ class _ToastCard extends StatelessWidget {
         child: SizedBox(
           width: width,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 8, 12),
             decoration: BoxDecoration(
               color: AppTheme.bg2,
               borderRadius: AppTheme.radiusSm,
               border: Border.all(color: AppTheme.border),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
+                  color: AppTheme.overlayShadow,
                   blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
@@ -137,7 +137,7 @@ class _ToastCard extends StatelessWidget {
                       size: 18,
                       color: AppTheme.green,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         l10n.firstLaunchSecurityTitle,
@@ -150,9 +150,9 @@ class _ToastCard extends StatelessWidget {
                     ),
                     InkWell(
                       onTap: onDismiss,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: AppTheme.radiusXl,
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(AppSpacing.xs),
                         child: Icon(
                           Icons.close,
                           size: 14,
@@ -162,18 +162,21 @@ class _ToastCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpacing.xxs),
                 Padding(
-                  padding: const EdgeInsets.only(left: 26, right: 4),
+                  padding: const EdgeInsetsDirectional.only(start: 26, end: 4),
                   child: Text(
                     l10n.firstLaunchSecurityBody,
                     style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.xs),
                   ),
                 ),
                 if (upgradeLine != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Padding(
-                    padding: const EdgeInsets.only(left: 26, right: 4),
+                    padding: const EdgeInsetsDirectional.only(
+                      start: 26,
+                      end: 4,
+                    ),
                     child: Text(
                       upgradeLine,
                       style: TextStyle(
@@ -182,7 +185,7 @@ class _ToastCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Align(
                     alignment: Alignment.centerRight,
                     child: AppButton(

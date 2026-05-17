@@ -1,17 +1,19 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
-import '../core/security/hardware_tier_vault.dart';
-import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
+import '../src/rust/api/security_capabilities.dart' show DbSecurityCapabilities;
 import '../l10n/app_localizations.dart';
 import '../providers/security_provider.dart'
     show
         hardwareProbeDetailText,
         keyringProbeDetailText,
         decodeHardwareProbeCode;
+import '../src/rust/api/app.dart' as rust_app;
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_button.dart';
@@ -19,15 +21,27 @@ import 'password_strength_meter.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 import 'security_comparison_table.dart';
+import 'security_setup_dialog_logic.dart';
 import 'toast.dart';
+
+// Six private helper widgets (_TierRow / _ModifierToggle /
+// _SectionDivider / _ReducedWizardBanner / _PlaintextAckPanel /
+// _HonestyNote) live in a part-of sibling so the State + the
+// build chain stay focused. _HonestyNote is now used only by
+// the Paranoid master-password subtitle; same pattern as
+// expandable_tier_card_widgets.
+part 'security_setup_dialog_widgets.dart';
 
 /// Result of the first-launch security setup wizard.
 ///
-/// Carries both the legacy (tier + typed-secret-field) shape and the
-/// new bank-style (tier + modifiers) shape. Downstream call sites
-/// still read the legacy fields (`masterPassword`, `shortPassword`,
-/// `pin`); the `modifiers` field is populated for code paths that
-/// already consume the new shape (Phase F wiring).
+/// Carries the bank-style (tier + modifiers) shape alongside a
+/// compatibility surface for tier + typed-secret-field payloads.
+/// The typed secret bytes land in the Rust-side SecretStore under
+/// transient ids; only the ids cross `Navigator.pop`. Callers take (atomic read-and-remove)
+/// the bytes via [SecuritySetupResult.takeMasterPassword] etc.
+/// inside the same dispatch tick they use them, so the Dart-heap
+/// residency window is bounded to a single function call rather
+/// than the wizard's awaiter frame lifetime.
 class SecuritySetupResult {
   /// Tier picked by the user. `plaintext` is the fallback when the
   /// wizard never resolves (barrier-dismiss on desktop shutdown).
@@ -36,18 +50,21 @@ class SecuritySetupResult {
   /// Bank-style modifier flags — password + biometric.
   final SecurityTierModifiers modifiers;
 
-  /// Master password chosen for Paranoid.
-  final String? masterPassword;
+  /// SecretStore id of the master password chosen for Paranoid.
+  /// `null` when the chosen tier is not Paranoid.
+  final String? masterPasswordSecretId;
 
-  /// Bank-style password chosen for T1 + password.
-  final String? shortPassword;
+  /// SecretStore id of the bank-style password chosen for T1+password.
+  /// `null` when the chosen tier is not T1+pw.
+  final String? shortPasswordSecretId;
 
-  /// Secret routed into the hardware-tier PIN slot. When the user
-  /// picks T2 + password (bank-style shape), the typed password lands
-  /// here — `HardwareTierVault.store` treats it as arbitrary bytes
-  /// and HMAC-hashes it with the per-install salt, so a full password
-  /// works identically to a 4-6 digit PIN.
-  final String? pin;
+  /// SecretStore id of the secret routed into the hardware-tier PIN
+  /// slot when the user picks T2+password (bank-style). `null` for
+  /// the passwordless variant. `HardwareTierVault.store` treats the
+  /// bytes as arbitrary input and HMAC-hashes them with the per-
+  /// install salt, so a full password works identically to a 4-6
+  /// digit PIN.
+  final String? pinSecretId;
 
   /// Whether the OS keychain is available.
   final bool keychainAvailable;
@@ -55,11 +72,56 @@ class SecuritySetupResult {
   const SecuritySetupResult({
     this.tier = SecurityTier.plaintext,
     this.modifiers = SecurityTierModifiers.defaults,
-    this.masterPassword,
-    this.shortPassword,
-    this.pin,
+    this.masterPasswordSecretId,
+    this.shortPasswordSecretId,
+    this.pinSecretId,
     this.keychainAvailable = false,
   });
+
+  /// Stage `value` (UTF-8) under a fresh `wizard.<uuid>` SecretStore
+  /// id and return the id. Lets call sites that build a
+  /// [SecuritySetupResult] from already-typed plaintext (the inline
+  /// Settings → Apply path's `onSelectTier`) reuse the same
+  /// SecretStore-backed transit shape the wizard pop-result uses,
+  /// so `take*` accessors work uniformly across both.
+  ///
+  /// Returns `null` when the value is null / empty.
+  static String? stageSecret(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final id = 'wizard.${const Uuid().v4()}';
+    rust_app.secretsPut(id: id, bytes: utf8.encode(value));
+    return id;
+  }
+
+  /// Take (atomic read-and-remove) the staged master-password
+  /// bytes out of the SecretStore and return them as a UTF-8
+  /// String. Returns `null` when the wizard didn't capture a
+  /// master password (every tier other than Paranoid).
+  ///
+  /// Single-shot: a second call returns `null` because the
+  /// SecretStore entry is gone. Callers should consume the
+  /// returned String immediately and let it drop.
+  String? takeMasterPassword() => _takeBytesAsString(masterPasswordSecretId);
+
+  /// Same shape as [takeMasterPassword] but for the T1+pw + password
+  /// short-password slot.
+  String? takeShortPassword() => _takeBytesAsString(shortPasswordSecretId);
+
+  /// Same shape as [takeMasterPassword] but for the T2 + password
+  /// PIN slot.
+  String? takePin() => _takeBytesAsString(pinSecretId);
+
+  static String? _takeBytesAsString(String? id) {
+    if (id == null) return null;
+    final bytes = rust_app.secretsTake(id: id);
+    // `secretsTake` returns `null` for a missing slot; the previous
+    // `bytes.isEmpty` check collapsed missing-id and empty-bytes
+    // (a legitimate empty-password setup intent) into the same
+    // null. The wire shape is now `Option<Vec<u8>>` so the
+    // distinction round-trips intact.
+    if (bytes == null) return null;
+    return utf8.decode(bytes);
+  }
 }
 
 /// First-launch tier wizard.
@@ -71,16 +133,22 @@ class SecuritySetupResult {
 /// — the per-tier info popups from the v1 wizard are replaced by
 /// this single matrix so the user reads one source of truth.
 class SecuritySetupDialog extends StatefulWidget {
-  final SecureKeyStorage keyStorage;
-  final HardwareTierVault hardwareVault;
   final SecurityTier? currentTier;
+
+  /// Bank-style v3 modifiers for [currentTier]. Carried alongside
+  /// the tier so the wizard can pre-fill the password toggle when
+  /// the user re-opens it from Settings (T1+password is inferred
+  /// from `modifiers.password`, not from a dedicated tier value).
+  /// `null` matches `currentTier == null` — first-launch entry,
+  /// no existing config to honour.
+  final SecurityTierModifiers? currentModifiers;
 
   /// DI hook — when non-null the wizard skips the platform capability
   /// probe and renders against the injected caps. Production call
-  /// sites never set this; tests supply a fixed [SecurityCapabilities]
+  /// sites never set this; tests supply a fixed [DbSecurityCapabilities]
   /// so `pumpAndSettle` does not time out on real D-Bus / biometric
   /// probes that never return inside a unit-test harness.
-  final SecurityCapabilities? capabilitiesOverride;
+  final DbSecurityCapabilities? capabilitiesOverride;
 
   /// When true (the Settings "Change tier" entry point) the dialog
   /// honours Cancel / barrier-tap / Esc / back-gesture. When false
@@ -91,28 +159,25 @@ class SecuritySetupDialog extends StatefulWidget {
 
   const SecuritySetupDialog({
     super.key,
-    required this.keyStorage,
-    required this.hardwareVault,
     this.currentTier,
+    this.currentModifiers,
     this.capabilitiesOverride,
     this.dismissible = false,
   });
 
   static Future<SecuritySetupResult> show(
     BuildContext context, {
-    required SecureKeyStorage keyStorage,
-    HardwareTierVault? hardwareVault,
     SecurityTier? currentTier,
-    SecurityCapabilities? capabilitiesOverride,
+    SecurityTierModifiers? currentModifiers,
+    DbSecurityCapabilities? capabilitiesOverride,
     bool dismissible = false,
   }) async {
     final result = await showDialog<SecuritySetupResult>(
       context: context,
       barrierDismissible: dismissible,
       builder: (_) => SecuritySetupDialog(
-        keyStorage: keyStorage,
-        hardwareVault: hardwareVault ?? HardwareTierVault(),
         currentTier: currentTier,
+        currentModifiers: currentModifiers,
         capabilitiesOverride: capabilitiesOverride,
         dismissible: dismissible,
       ),
@@ -125,7 +190,7 @@ class SecuritySetupDialog extends StatefulWidget {
 }
 
 class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
-  SecurityCapabilities? _caps;
+  DbSecurityCapabilities? _caps;
   WizardTier _selected = WizardTier.keychain;
 
   // Modifier toggles. Password is implied-on for Paranoid, but the
@@ -157,12 +222,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   }
 
   Future<void> _probe() async {
-    final caps =
-        widget.capabilitiesOverride ??
-        await probeCapabilities(
-          keyStorage: widget.keyStorage,
-          hardwareVault: widget.hardwareVault,
-        );
+    final caps = widget.capabilitiesOverride ?? await probeCapabilities();
     if (!mounted) return;
     setState(() {
       _caps = caps;
@@ -177,19 +237,22 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   /// available (stronger off-device guarantees), else keychain, else
   /// plaintext. Paranoid is never auto-recommended — it is a
   /// conscious opt-in for users who distrust the OS.
-  WizardTier? _recommendedTier(SecurityCapabilities caps) {
+  WizardTier? _recommendedTier(DbSecurityCapabilities caps) {
     if (caps.hardwareVaultAvailable) return WizardTier.hardware;
     if (caps.keychainAvailable) return WizardTier.keychain;
     return WizardTier.plaintext;
   }
 
-  WizardTier _initialSelection(SecurityCapabilities caps) {
+  WizardTier _initialSelection(DbSecurityCapabilities caps) {
     switch (widget.currentTier) {
       case SecurityTier.plaintext:
         return WizardTier.plaintext;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
-        _password = widget.currentTier == SecurityTier.keychainWithPassword;
+        // Bank-style v3: T1+password is `keychain` + the password
+        // modifier; the wizard pre-fills the toggle from
+        // `currentModifiers.password` (modifier-driven, not a
+        // dedicated tier value).
+        _password = widget.currentModifiers?.password ?? false;
         return WizardTier.keychain;
       case SecurityTier.hardware:
         _password = true;
@@ -207,41 +270,17 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   bool get _biometricToggleEnabled {
     final caps = _caps;
     if (caps == null) return false;
-    if (!caps.canOfferBiometricModifier) return false;
-    // Invariant: biometric requires password.
-    if (!_password) return false;
-    // Paranoid forbids biometric by design.
-    if (_selected == WizardTier.paranoid) return false;
-    // Plaintext has nothing to gate.
-    if (_selected == WizardTier.plaintext) return false;
-    return true;
+    return wizardBiometricToggleEnabled(
+      selected: _selected,
+      password: _password,
+      canOfferBiometric: caps.canOfferBiometricModifier,
+    );
   }
 
-  bool get _passwordToggleEnabled {
-    // Paranoid has a mandatory password; the toggle is not interactive.
-    if (_selected == WizardTier.paranoid) return false;
-    // Plaintext has no secret to add.
-    if (_selected == WizardTier.plaintext) return false;
-    // T1 / T2 — both allow the password modifier to be on or off.
-    // Passwordless T2 seals the DB key under an empty auth value and
-    // relies on SE / TPM isolation alone; the unlock path in
-    // `_unlockHardware` reads the modifier back and skips the PIN
-    // pad when the user opted out. The earlier force-on for T2 is
-    // gone — the downstream code handles both branches now.
-    return true;
-  }
+  bool get _passwordToggleEnabled => wizardPasswordToggleEnabled(_selected);
 
-  bool _needsSecretInput() {
-    // Paranoid always asks for a master password.
-    if (_selected == WizardTier.paranoid) return true;
-    // T1/T2 + password asks for the bank-style secret.
-    if ((_selected == WizardTier.keychain ||
-            _selected == WizardTier.hardware) &&
-        _password) {
-      return true;
-    }
-    return false;
-  }
+  bool _needsSecretInput() =>
+      wizardNeedsSecretInput(selected: _selected, password: _password);
 
   /// Gate the Continue button up front so a disabled state is the
   /// visible cue instead of a toast on tap. Today the only hard-block
@@ -249,12 +288,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   /// password / passphrase fields rely on _submit's post-tap error
   /// paths because their validation depends on both controllers
   /// being in sync, which is fiddlier to wire to button state.
-  bool _canSubmit() {
-    if (_selected == WizardTier.plaintext && !_plaintextAcknowledged) {
-      return false;
-    }
-    return true;
-  }
+  bool _canSubmit() => wizardCanSubmit(
+    selected: _selected,
+    plaintextAcknowledged: _plaintextAcknowledged,
+  );
 
   void _submit() {
     final l10n = S.of(context);
@@ -274,7 +311,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     }
 
     // Enforce invariant before mapping.
-    if (_biometric && !_password) _biometric = false;
+    _biometric = resolveBiometricInvariant(
+      password: _password,
+      biometric: _biometric,
+    );
 
     final mapped = mapWizardChoice(
       chosen: _selected,
@@ -283,16 +323,25 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       typedSecret: _needsSecretInput() ? _secretCtrl.text : null,
     );
 
-    Navigator.of(context).pop(
-      SecuritySetupResult(
-        tier: mapped.tier,
-        modifiers: mapped.modifiers,
-        masterPassword: mapped.masterPassword,
-        shortPassword: mapped.shortPassword,
-        pin: mapped.pin,
-        keychainAvailable: _caps?.keychainAvailable ?? false,
+    // Stage every typed secret in the Rust-side SecretStore under a
+    // fresh transient id. Only the ids cross Navigator.pop; the
+    // plaintext String stays in the dialog's State which the
+    // dispose-time wipeAndClear has already drained. The awaiter
+    // takes (atomic read-and-remove) the bytes immediately before
+    // use so the Dart-heap residency window collapses to one call.
+    final result = SecuritySetupResult(
+      tier: mapped.tier,
+      modifiers: mapped.modifiers,
+      masterPasswordSecretId: SecuritySetupResult.stageSecret(
+        mapped.masterPassword,
       ),
+      shortPasswordSecretId: SecuritySetupResult.stageSecret(
+        mapped.shortPassword,
+      ),
+      pinSecretId: SecuritySetupResult.stageSecret(mapped.pin),
+      keychainAvailable: _caps?.keychainAvailable ?? false,
     );
+    Navigator.of(context).pop(result);
   }
 
   @override
@@ -319,9 +368,9 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       return const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(height: 16),
+          SizedBox(height: AppSpacing.lg),
           CircularProgressIndicator(),
-          SizedBox(height: 16),
+          SizedBox(height: AppSpacing.lg),
         ],
       );
     }
@@ -340,13 +389,13 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Icon(Icons.shield, size: 40, color: AppTheme.accent),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Text(
           l10n.securitySetupTitle,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: AppButton(
             label: l10n.compareAllTiers,
@@ -390,15 +439,15 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     onSelect: () => setState(() => _selected = WizardTier.plaintext),
   );
 
-  Widget _buildKeychainRow(S l10n, SecurityCapabilities caps) => _TierRow(
+  Widget _buildKeychainRow(S l10n, DbSecurityCapabilities caps) => _TierRow(
     badge: 'T1',
     label: l10n.tierKeychainLabel,
     subtitle: l10n.tierKeychainSubtitle(_keychainName),
     accent: AppTheme.accent,
     selected: _selected == WizardTier.keychain,
-    current:
-        widget.currentTier == SecurityTier.keychain ||
-        widget.currentTier == SecurityTier.keychainWithPassword,
+    // Bank-style v3: T1+password is `keychain` + modifier; the
+    // pre-v3 dedicated `keychainWithPassword` enum check went away.
+    current: widget.currentTier == SecurityTier.keychain,
     recommended: _recommendedTier(caps) == WizardTier.keychain,
     // Prefer the classified probe reason over the generic
     // "tierKeychainUnavailable" copy so the user sees WHY
@@ -415,7 +464,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         : null,
   );
 
-  Widget _buildHardwareRow(S l10n, SecurityCapabilities caps) => _TierRow(
+  Widget _buildHardwareRow(S l10n, DbSecurityCapabilities caps) => _TierRow(
     badge: 'T2',
     label: l10n.tierHardwareLabel,
     subtitle: l10n.tierHardwareSubtitleHonest,
@@ -435,7 +484,14 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ? null
         : _hardwareDisabledReason(l10n, caps),
     onSelect: caps.hardwareVaultAvailable
-        ? () => setState(() => _selected = WizardTier.hardware)
+        ? () => setState(() {
+            _selected = WizardTier.hardware;
+            // Hardware is always password-gated; biometric is the
+            // optional shortcut on top. Force the modifier on so
+            // the secret-input panel renders and the toggle row
+            // reads "Required" instead of "Optional".
+            _password = true;
+          })
         : null,
   );
 
@@ -453,12 +509,12 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     }),
   );
 
-  String _keychainDisabledReason(S l10n, SecurityCapabilities caps) {
+  String _keychainDisabledReason(S l10n, DbSecurityCapabilities caps) {
     final reason = keyringProbeDetailText(l10n, caps.keychainProbe);
     return reason.isEmpty ? l10n.tierKeychainUnavailable : reason;
   }
 
-  String _hardwareDisabledReason(S l10n, SecurityCapabilities caps) {
+  String _hardwareDisabledReason(S l10n, DbSecurityCapabilities caps) {
     final detail = decodeHardwareProbeCode(caps.hardwareProbeCode);
     final reason = hardwareProbeDetailText(l10n, detail);
     return reason.isEmpty ? l10n.tierHardwareUnavailable : reason;
@@ -501,7 +557,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     );
   }
 
-  Widget _buildModifierPanel(S l10n, SecurityCapabilities caps) {
+  Widget _buildModifierPanel(S l10n, DbSecurityCapabilities caps) {
     switch (_selected) {
       case WizardTier.plaintext:
         return _PlaintextAckPanel(
@@ -523,19 +579,23 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   }
 
   /// Modifier panel for the T1 / T2 branch (keychain + hardware) —
-  /// they share the password + biometric toggles and an optional
-  /// Linux-TPM honesty note. Extracted so [_buildModifierPanel]
-  /// stays under the S3776 threshold; the switch itself is simple
-  /// dispatch, each case's body belongs in its own method.
-  Widget _buildMidTierPanel(S l10n, SecurityCapabilities caps) {
-    final linuxNote =
-        caps.isLinuxHost && _selected == WizardTier.hardware && !_password;
+  /// they share the password + biometric toggles. The Hardware
+  /// password toggle is rendered as locked-on with a "Required"
+  /// subtitle so the user sees the contract instead of a togglable
+  /// affordance that the wizard would silently re-pin anyway.
+  /// Extracted so [_buildModifierPanel] stays under the S3776
+  /// threshold; the switch itself is simple dispatch, each case's
+  /// body belongs in its own method.
+  Widget _buildMidTierPanel(S l10n, DbSecurityCapabilities caps) {
+    final passwordRequired = _selected == WizardTier.hardware;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ModifierToggle(
           label: l10n.modifierPasswordLabel,
-          subtitle: l10n.modifierPasswordSubtitle,
+          subtitle: passwordRequired
+              ? l10n.modifierPasswordRequired
+              : l10n.modifierPasswordSubtitle,
           icon: Icons.password,
           value: _password,
           enabled: _passwordToggleEnabled,
@@ -552,10 +612,6 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
               : _biometricDisabledReason(l10n, caps),
           onChanged: (v) => setState(() => _biometric = v),
         ),
-        if (linuxNote) ...[
-          const SizedBox(height: 8),
-          _HonestyNote(text: l10n.linuxTpmWithoutPasswordNote),
-        ],
         if (_needsSecretInput()) _buildSecretForm(l10n),
       ],
     );
@@ -595,10 +651,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             ),
           ),
           if (strengthMeter) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xxs),
             PasswordStrengthMeter(controller: _secretCtrl),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           SecurePasswordField(
             controller: _confirmCtrl,
             onChanged: (_) => setState(() {}),
@@ -618,7 +674,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     );
   }
 
-  String? _biometricDisabledReason(S l10n, SecurityCapabilities caps) {
+  String? _biometricDisabledReason(S l10n, DbSecurityCapabilities caps) {
     if (!_password) return l10n.biometricRequiresPassword;
     if (_selected == WizardTier.paranoid) {
       return l10n.biometricForbiddenParanoid;
@@ -636,378 +692,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   String get _keychainName {
     if (Platform.isMacOS || Platform.isIOS) return 'Keychain';
     if (Platform.isWindows) return 'Credential Manager';
-    if (Platform.isAndroid) return 'EncryptedSharedPreferences';
+    if (Platform.isAndroid) return 'AndroidKeyStore';
     return 'libsecret';
-  }
-}
-
-class _TierRow extends StatelessWidget {
-  final String badge;
-  final String label;
-  final String subtitle;
-  final Color accent;
-  final bool selected;
-  final bool current;
-  final bool recommended;
-  final String? disabledReason;
-  final VoidCallback? onSelect;
-
-  const _TierRow({
-    required this.badge,
-    required this.label,
-    required this.subtitle,
-    required this.accent,
-    required this.selected,
-    required this.current,
-    required this.onSelect,
-    this.recommended = false,
-    this.disabledReason,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final disabled = onSelect == null;
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            selected
-                ? Icons.radio_button_checked
-                : Icons.radio_button_unchecked,
-            size: 18,
-            color: _radioIconColor(
-              disabled: disabled,
-              selected: selected,
-              accent: accent,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              badge,
-              style: TextStyle(
-                fontSize: AppFonts.xs,
-                fontWeight: FontWeight.w600,
-                color: accent,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: AppFonts.md,
-                        fontWeight: FontWeight.w600,
-                        color: disabled ? AppTheme.fgFaint : AppTheme.fg,
-                      ),
-                    ),
-                    if (current) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.fgDim.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          S.of(context).currentTierBadge,
-                          style: TextStyle(
-                            fontSize: AppFonts.xxs,
-                            color: AppTheme.fgDim,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (recommended && !current) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.green.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          S.of(context).recommendedBadge,
-                          style: TextStyle(
-                            fontSize: AppFonts.xxs,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.green,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                Text(
-                  disabledReason ?? subtitle,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: disabled ? AppTheme.fgFaint : AppTheme.fgDim,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return GestureDetector(
-      onTap: disabled ? null : onSelect,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: selected ? accent : AppTheme.borderLight,
-            width: selected ? 1.5 : 1,
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Opacity(opacity: disabled ? 0.55 : 1.0, child: content),
-      ),
-    );
-  }
-
-  static Color _radioIconColor({
-    required bool disabled,
-    required bool selected,
-    required Color accent,
-  }) {
-    if (disabled) return AppTheme.fgFaint;
-    return selected ? accent : AppTheme.fgDim;
-  }
-}
-
-class _ModifierToggle extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final bool value;
-  final bool enabled;
-  final String? disabledReason;
-  final ValueChanged<bool> onChanged;
-
-  const _ModifierToggle({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-    this.disabledReason,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppTheme.fgDim),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppFonts.sm,
-                    color: enabled ? AppTheme.fg : AppTheme.fgFaint,
-                  ),
-                ),
-                Text(
-                  disabledReason ?? subtitle,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: enabled ? AppTheme.fgDim : AppTheme.fgFaint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(value: value, onChanged: enabled ? onChanged : null),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Container(height: 1, color: AppTheme.borderLight)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            S.of(context).paranoidAlternativeHeader,
-            style: TextStyle(
-              fontSize: AppFonts.xs,
-              color: AppTheme.fgDim,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ),
-        Expanded(child: Container(height: 1, color: AppTheme.borderLight)),
-      ],
-    );
-  }
-}
-
-/// Warning banner shown at the top of the wizard when the capability
-/// probe came back with no T1 and no T2. Yellow — the user is about
-/// to pick between unencrypted storage and a master password with
-/// no middle ground, which is a diminished-state posture worth
-/// flagging.
-class _ReducedWizardBanner extends StatelessWidget {
-  const _ReducedWizardBanner({required this.reason});
-
-  final String reason;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.yellow.withValues(alpha: 0.12),
-        borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.yellow),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.warning_amber_outlined, size: 18, color: AppTheme.yellow),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              reason,
-              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlaintextAckPanel extends StatelessWidget {
-  final bool acknowledged;
-  final ValueChanged<bool> onChanged;
-
-  const _PlaintextAckPanel({
-    required this.acknowledged,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.red.withValues(alpha: 0.6)),
-        borderRadius: BorderRadius.circular(6),
-        color: AppTheme.red.withValues(alpha: 0.05),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.warning_amber, size: 18, color: AppTheme.red),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.plaintextWarningTitle,
-                  style: TextStyle(
-                    fontSize: AppFonts.sm,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.red,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            l10n.plaintextWarningBody,
-            style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Checkbox(
-                value: acknowledged,
-                onChanged: (v) => onChanged(v ?? false),
-              ),
-              Expanded(
-                child: Text(
-                  l10n.plaintextAcknowledge,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HonestyNote extends StatelessWidget {
-  final String text;
-
-  const _HonestyNote({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.yellow.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(6),
-        color: AppTheme.yellow.withValues(alpha: 0.05),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 16, color: AppTheme.yellow),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

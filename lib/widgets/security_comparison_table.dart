@@ -40,10 +40,10 @@ class SecurityComparisonTable extends StatelessWidget {
         biometric: true,
       ),
     ),
-    _Column(
-      id: 'T2',
-      model: ThreatModel(tier: ThreatTier.hardware),
-    ),
+    // T2 is always password-gated in the bank-style model (password
+    // modifier required). Biometric stays as an orthogonal column
+    // because the overlay is the optional shortcut layer on top of
+    // the typed password.
     _Column(
       id: 'T2+pw',
       model: ThreatModel(tier: ThreatTier.hardware, password: true),
@@ -184,12 +184,29 @@ class _StatusCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (status) {
-      case ThreatStatus.protects:
-        return Icon(Icons.check, size: 16, color: AppTheme.green);
-      case ThreatStatus.doesNotProtect:
-        return Icon(Icons.close, size: 16, color: AppTheme.red);
-    }
+    // Cells render as bare icons for sighted users — screen readers
+    // saw an unlabelled image and announced nothing meaningful when
+    // navigating the table. Wrap each cell in a Semantics node that
+    // declares the cell's truth value via the same legend strings
+    // the table footer uses, so a SR walk through the comparison
+    // grid hears "protects" / "does not protect" per cell.
+    final l10n = S.of(context);
+    final (icon, color, label) = switch (status) {
+      ThreatStatus.protects => (
+        Icons.check,
+        AppTheme.green,
+        l10n.legendProtects,
+      ),
+      ThreatStatus.doesNotProtect => (
+        Icons.close,
+        AppTheme.red,
+        l10n.legendDoesNotProtect,
+      ),
+    };
+    return Semantics(
+      label: label,
+      child: ExcludeSemantics(child: Icon(icon, size: 16, color: color)),
+    );
   }
 }
 
@@ -228,7 +245,7 @@ class _Legend extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: Text(
               text,
@@ -263,8 +280,6 @@ String _columnLabel(_Column col, S l10n) {
       return l10n.colT1Password;
     case 'T1+pw+bio':
       return l10n.colT1PasswordBiometric;
-    case 'T2':
-      return l10n.colT2;
     case 'T2+pw':
       return l10n.colT2Password;
     case 'T2+pw+bio':

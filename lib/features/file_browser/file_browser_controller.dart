@@ -73,6 +73,17 @@ class FilePaneController extends ChangeNotifier {
   final ValueNotifier<int> _folderSizeRevision = ValueNotifier<int>(0);
   ValueListenable<int> get folderSizeRevision => _folderSizeRevision;
 
+  /// Per-axis listenable for the selection set. Exposed so the
+  /// file-row selection chip + the toolbar's "N selected"
+  /// counter can subscribe via [ValueListenableBuilder] /
+  /// [AnimatedBuilder] instead of the main [ChangeNotifier].
+  /// Selection toggles used to fan out through every listener
+  /// — every row repainted on every checkbox tap; per-axis
+  /// listening trims that to the rows that actually rebind.
+  final ValueNotifier<Set<String>> _selectedListenable =
+      ValueNotifier<Set<String>>(const <String>{});
+  ValueListenable<Set<String>> get selectedListenable => _selectedListenable;
+
   // Navigation history
   final _backStack = <String>[];
   final _forwardStack = <String>[];
@@ -246,6 +257,14 @@ class FilePaneController extends ChangeNotifier {
     _cachedSelectedEntries = null;
   }
 
+  // Selection mutators bump [_selectedListenable] but DO NOT call
+  // `notifyListeners()`. Selection consumers (file_pane row badge,
+  // footer counter) subscribe to the listenable via
+  // `ValueListenableBuilder` so a per-row toggle redraws only the
+  // affected rows + the counter, not the whole 700+-line pane
+  // tree. The broad ChangeNotifier still fires for entries / path /
+  // loading / sort changes.
+
   /// Toggle selection of a file entry.
   void toggleSelect(String path) {
     final newSet = Set<String>.from(_selected);
@@ -256,28 +275,28 @@ class FilePaneController extends ChangeNotifier {
     }
     _selected = newSet;
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Select a single entry (clear others).
   void selectSingle(String path) {
     _selected = {path};
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Clear selection.
   void clearSelection() {
     _selected = {};
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Select all entries.
   void selectAll() {
     _selected = _entries.map((e) => e.path).toSet();
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Change sort column/direction.
@@ -315,11 +334,12 @@ class FilePaneController extends ChangeNotifier {
     });
   }
 
-  /// Set selection to a specific set of paths.
+  /// Set selection to a specific set of paths. See the selection-
+  /// mutator note above for why this skips `notifyListeners()`.
   void selectPaths(Set<String> paths) {
     _selected = paths;
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Total size of all non-directory entries (cached).
@@ -341,6 +361,7 @@ class FilePaneController extends ChangeNotifier {
     _backStack.clear();
     _forwardStack.clear();
     _folderSizeRevision.dispose();
+    _selectedListenable.dispose();
     super.dispose();
   }
 }

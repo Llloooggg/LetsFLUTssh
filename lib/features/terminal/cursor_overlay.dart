@@ -33,7 +33,7 @@ class CursorTextOverlay extends StatefulWidget {
     required this.fontSize,
     this.fontFamily = AppFonts.monoFamily,
     this.fontFamilyFallback = AppFonts.monoFallback,
-    this.padding = const EdgeInsets.all(4),
+    this.padding = const EdgeInsets.all(AppSpacing.xs),
   });
 
   final Terminal terminal;

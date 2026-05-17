@@ -8,9 +8,10 @@ import 'import_preview_dialog.dart';
 
 /// Result from the LFS import preview dialog.
 ///
-/// The master password is NOT part of this result — the caller must have
-/// already decrypted the archive to build the [LfsPreview], so it already
-/// has the password in hand.
+/// The master password is NOT part of this result — the caller has
+/// already opened the archive Rust-side via `dbImportOpen` to obtain
+/// the [LfsPreview], so the password (and the staged handle) are
+/// already its own concern.
 typedef LfsImportPreviewResult = ({
   String filePath,
   ImportMode mode,
@@ -22,7 +23,7 @@ typedef LfsImportPreviewResult = ({
 /// Thin wrapper around [ImportPreviewDialog]: renders the archive filename as
 /// the header, maps [LfsPreview] fields to the shared count record, and
 /// packages the shared selection into a result that also carries the
-/// [filePath] so the caller can hand it back to `ImportService` without
+/// [filePath] so the caller can hand it back to the apply driver without
 /// bookkeeping.
 class LfsImportPreviewDialog extends StatelessWidget {
   final String filePath;
@@ -44,7 +45,7 @@ class LfsImportPreviewDialog extends StatelessWidget {
       context,
       header: _ArchiveHeader(filePath: filePath),
       counts: (
-        sessions: preview.sessions.length,
+        sessions: preview.sessionCount,
         hasConfig: preview.hasConfig,
         managerKeys: preview.managerKeyCount,
         tags: preview.tagCount,
@@ -65,7 +66,7 @@ class LfsImportPreviewDialog extends StatelessWidget {
     return ImportPreviewDialog(
       header: _ArchiveHeader(filePath: filePath),
       counts: (
-        sessions: preview.sessions.length,
+        sessions: preview.sessionCount,
         hasConfig: preview.hasConfig,
         managerKeys: preview.managerKeyCount,
         tags: preview.tagCount,
@@ -86,7 +87,7 @@ class _ArchiveHeader extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.archive_outlined, size: 16, color: AppTheme.fgDim),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             p.basename(filePath),

@@ -4,27 +4,10 @@ enum TransferDirection { upload, download }
 /// Status of a transfer.
 enum TransferStatus { queued, running, completed, failed, cancelled }
 
-/// A single transfer task to be executed by the manager.
-class TransferTask {
-  final String name;
-  final TransferDirection direction;
-  final String sourcePath;
-  final String targetPath;
-  final int sizeBytes;
-  final Future<void> Function(
-    void Function(double percent, String message) update,
-  )
-  run;
-
-  const TransferTask({
-    required this.name,
-    required this.direction,
-    required this.sourcePath,
-    required this.targetPath,
-    this.sizeBytes = 0,
-    required this.run,
-  });
-}
+// HistoryEntry + ActiveEntry are the Dart-side read models the UI
+// renders from the Rust `TaskSnapshot` bus stream. The live task
+// object lives in `lfs_core::transfer::WorkerPool`; Dart never
+// owns the in-flight state directly.
 
 /// Completed/failed transfer history entry.
 class HistoryEntry {

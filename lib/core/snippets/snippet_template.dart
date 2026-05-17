@@ -1,3 +1,4 @@
+import '../../src/rust/api/snippet_template.dart' as rust_snip;
 import 'snippet.dart';
 
 /// Result of rendering a snippet command against a context map.
@@ -45,68 +46,25 @@ class SnippetRender {
 /// string. If the user wants quoting, that is their problem at the
 /// snippet authoring site — same as `~/.ssh/config`.
 SnippetRender renderSnippet(Snippet snippet, Map<String, String> context) {
-  final src = snippet.command;
-  final out = StringBuffer();
-  final unresolved = <String>[];
-  final seenUnresolved = <String>{};
-
-  var i = 0;
-  while (i < src.length) {
-    // Escape: `{{{{` → literal `{{` in output, no token scan.
-    if (i + 3 < src.length && src.substring(i, i + 4) == '{{{{') {
-      out.write('{{');
-      i += 4;
-      continue;
-    }
-    // Token start.
-    if (i + 1 < src.length && src[i] == '{' && src[i + 1] == '{') {
-      final close = src.indexOf('}}', i + 2);
-      if (close < 0) {
-        // Unterminated — copy the remaining tail verbatim.
-        out.write(src.substring(i));
-        break;
-      }
-      final name = src.substring(i + 2, close).trim();
-      if (name.isEmpty) {
-        // `{{}}` is a typo, not a token. Keep it literal so the
-        // user sees their own bad input instead of a silent drop.
-        out.write(src.substring(i, close + 2));
-        i = close + 2;
-        continue;
-      }
-      final value = context[name];
-      if (value != null) {
-        out.write(value);
-      } else {
-        // Leave the token text in the output so the prompt dialog
-        // can substitute it after the user fills the value.
-        out.write(src.substring(i, close + 2));
-        if (seenUnresolved.add(name)) unresolved.add(name);
-      }
-      i = close + 2;
-      continue;
-    }
-    out.write(src[i]);
-    i += 1;
-  }
-
-  return SnippetRender(rendered: out.toString(), unresolved: unresolved);
+  final r = rust_snip.snippetTemplateRender(
+    template: snippet.command,
+    context: context.entries.map((e) => (e.key, e.value)).toList(),
+  );
+  return SnippetRender(rendered: r.rendered, unresolved: r.unresolved);
 }
 
 /// Substitute the user-supplied [values] for `{{name}}` tokens left
 /// behind by [renderSnippet]. Used by the picker after the prompt
-/// dialog collects values for each unresolved token. Honours the same
-/// `{{{{` escape and "no recursion" rules as the first pass.
+/// dialog collects values for each unresolved token. Honours the
+/// same `{{{{` escape and "no recursion" rules as the first pass —
+/// Rust-side `snippetTemplateFillUnresolved` runs the same render
+/// machine against a partially-rendered string.
 String fillSnippetUnresolved(
   String partiallyRendered,
   Map<String, String> values,
 ) {
-  // Re-run the same machine; values for previously unresolved keys
-  // now resolve, anything still missing stays intact.
-  final fakeSnippet = Snippet(
-    id: 'fill',
-    title: '',
-    command: partiallyRendered,
+  return rust_snip.snippetTemplateFillUnresolved(
+    partiallyRendered: partiallyRendered,
+    values: values.entries.map((e) => (e.key, e.value)).toList(),
   );
-  return renderSnippet(fakeSnippet, values).rendered;
 }

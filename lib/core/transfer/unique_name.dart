@@ -1,4 +1,4 @@
-import 'package:path/path.dart' as p;
+import '../../src/rust/api/path.dart' as rust_path;
 
 /// Generates a destination path that does not collide with existing
 /// siblings, by appending " (N)" before the file extension.
@@ -18,20 +18,22 @@ import 'package:path/path.dart' as p;
 ///
 /// Increments the suffix until an unused name is found, giving up
 /// after [maxAttempts] to avoid an unbounded loop.
+///
+/// Candidate generation routes through
+/// `lfs_core::path::sibling_candidate` so the dirname/basename/ext
+/// split + the `(N)` insertion grammar lives one place.
 Future<String> uniqueSiblingName(
   String path,
   Future<bool> Function(String candidate) exists, {
   bool isPosix = false,
   int maxAttempts = 10000,
 }) async {
-  final ctx = isPosix ? p.posix : p.context;
-  final dir = ctx.dirname(path);
-  final base = ctx.basename(path);
-  final ext = ctx.extension(base);
-  final stem = ext.isEmpty ? base : base.substring(0, base.length - ext.length);
-
   for (var i = 1; i <= maxAttempts; i++) {
-    final candidate = ctx.join(dir, '$stem ($i)$ext');
+    final candidate = rust_path.pathSiblingCandidate(
+      path: path,
+      n: i,
+      posix: isPosix,
+    );
     if (!await exists(candidate)) return candidate;
   }
   throw StateError(

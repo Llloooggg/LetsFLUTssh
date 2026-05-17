@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
+// Imported for the `SessionKindCapabilities` extension on
+// `SessionKind` (companion-button gate consults `kind.hasTerminal`).
+import '../../core/session/session.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/clipped_row.dart';
@@ -15,6 +18,7 @@ import '../terminal/terminal_tab.dart';
 import 'drop_zone_overlay.dart';
 import 'panel_tab_bar.dart';
 import 'workspace_controller.dart';
+import 'workspace_drop_logic.dart';
 import 'workspace_node.dart';
 
 /// Recursively renders the [WorkspaceNode] tree as tiled panels,
@@ -51,15 +55,16 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   @override
   Widget build(BuildContext context) {
     final ws = ref.watch(workspaceProvider);
-    // Watch only connection id→state changes so status dots update.
-    // Using a derived string avoids full workspace rebuild on unrelated
-    // connection events (e.g. keep-alive pings, progress updates).
-    ref.watch(
-      connectionsProvider.select((asyncValue) {
-        final conns = asyncValue.value ?? [];
-        return conns.map((c) => '${c.id}:${c.state.index}').join(',');
-      }),
-    );
+    // Subscribe to the derived `connectionSummaryProvider` instead
+    // of recomputing a comma-joined `${c.id}:${c.state.index}` string
+    // off the full `connectionsProvider`. The summary's `==` is a
+    // four-field structural compare (connected/connecting set + the
+    // two totals) so unrelated `Connection` mutations (cached
+    // passphrase store, transport swap, progress steps appended,
+    // keep-alive ping) don't propagate. Status-dot transitions
+    // affect set membership in the summary, which is exactly what
+    // workspace_view needs to repaint on.
+    ref.watch(connectionSummaryProvider);
 
     // Clean up stale keys.
     final allTabIds = collectAllTabs(ws.root).map((t) => t.id).toSet();
@@ -285,47 +290,34 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   }
 
   void _handleDrop(TabDragData data, String targetPanelId, DropZone zone) {
-    if (zone == DropZone.center) return; // Inert — tab bar handles insertion.
     final notifier = ref.read(workspaceProvider.notifier);
-    final axis = zone == DropZone.left || zone == DropZone.right
-        ? Axis.horizontal
-        : Axis.vertical;
-    final insertBefore = zone == DropZone.left || zone == DropZone.top;
-    notifier.splitPanel(
-      targetPanelId,
-      axis,
-      data.tab,
-      insertBefore: insertBefore,
+    applyTabDrop(
+      splitPanel: notifier.splitPanel,
+      closeTab: notifier.closeTab,
+      data: data,
+      targetPanelId: targetPanelId,
+      zone: zone,
     );
-    if (data.sourcePanelId != targetPanelId) {
-      notifier.closeTab(data.sourcePanelId, data.tab.id);
-    }
   }
 
   /// Handles drops on the outermost workspace edges — splits the entire root.
   void _handleRootEdgeDrop(TabDragData data, DropZone zone) {
     final notifier = ref.read(workspaceProvider.notifier);
-    final rootId = ref.read(workspaceProvider).root.id;
-    final direction = zone == DropZone.left || zone == DropZone.right
-        ? Axis.horizontal
-        : Axis.vertical;
-    final insertBefore = zone == DropZone.left || zone == DropZone.top;
-
-    notifier.splitAroundNode(
-      rootId,
-      direction,
-      data.tab,
-      insertBefore: insertBefore,
+    applyTabRootEdgeDrop(
+      splitAroundNode: notifier.splitAroundNode,
+      closeTab: notifier.closeTab,
+      rootId: ref.read(workspaceProvider).root.id,
+      sourceStillContainsTab: () {
+        final sourcePanel = findPanel(
+          ref.read(workspaceProvider).root,
+          data.sourcePanelId,
+        );
+        return sourcePanel != null &&
+            sourcePanel.tabs.any((t) => t.id == data.tab.id);
+      },
+      data: data,
+      zone: zone,
     );
-    // Remove the tab from its source panel if still present.
-    final sourcePanel = findPanel(
-      ref.read(workspaceProvider).root,
-      data.sourcePanelId,
-    );
-    if (sourcePanel != null &&
-        sourcePanel.tabs.any((t) => t.id == data.tab.id)) {
-      notifier.closeTab(data.sourcePanelId, data.tab.id);
-    }
   }
 
   VoidCallback? _retryCallback(PanelLeaf panel) {
@@ -338,10 +330,10 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       // the first build frame.
       return () => _terminalKeys[tab.id]?.currentState?.reconnect();
     }
-    // SFTP tab — reconnect SSH via ConnectionManager, then close + re-open
+    // SFTP tab — reconnect SSH via ConnectionsNotifier, then close + re-open
     // the SFTP tab so FileBrowserTab re-runs _initSftp on the fresh connection.
     return () {
-      final manager = ref.read(connectionManagerProvider);
+      final manager = ref.read(connectionsProvider.notifier);
       manager.reconnect(tab.connection.id);
       final notifier = ref.read(workspaceProvider.notifier);
       notifier.closeTab(panel.id, tab.id);
@@ -445,7 +437,7 @@ class _PanelConnectionBar extends ConsumerWidget {
               color: conn.isConnected ? AppTheme.green : faintColor,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: Text.rich(
               TextSpan(
@@ -455,7 +447,7 @@ class _PanelConnectionBar extends ConsumerWidget {
                         ? S.of(context).connected
                         : S.of(context).disconnected,
                     style: TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.interFamily,
                       fontSize: AppFonts.xs,
                       color: dimColor,
                     ),
@@ -467,7 +459,7 @@ class _PanelConnectionBar extends ConsumerWidget {
                   TextSpan(
                     text: '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: AppFonts.monoFamily,
                       fontSize: AppFonts.xs,
                       color: dimColor,
                     ),
@@ -481,7 +473,7 @@ class _PanelConnectionBar extends ConsumerWidget {
               conn.connectionError != null &&
               onRetry != null) ...[
             _retryButton(context, scheme),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
           ],
           _companionButton(context, isTerminal, ref, scheme),
           _maximizeButton(context, ref, scheme),
@@ -508,7 +500,7 @@ class _PanelConnectionBar extends ConsumerWidget {
         ? AppTheme.accent
         : scheme.onSurface.withValues(alpha: 0.6);
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4),
       child: Tooltip(
         message: label,
         child: HoverRegion(
@@ -543,6 +535,15 @@ class _PanelConnectionBar extends ConsumerWidget {
     WidgetRef ref,
     ColorScheme scheme,
   ) {
+    // The companion toggle swaps between the terminal pane and the
+    // file browser. It only makes sense for kinds that own a PTY —
+    // for the others (WebDAV / S3 today) the "open terminal" half
+    // of the swap is meaningless, so hide the button entirely. The
+    // capability lives on `SessionKind` (extension in `session.dart`)
+    // so a future kind that gains a PTY needs no edit here.
+    if (!activeTab.connection.kind.hasTerminal) {
+      return const SizedBox.shrink();
+    }
     final s = S.of(context);
     final btnColor = isTerminal ? AppTheme.yellow : scheme.primary;
     final label = isTerminal ? s.files : s.terminal;
@@ -577,11 +578,11 @@ class _PanelConnectionBar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(icon, size: 11, color: btnColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w500,
                   color: btnColor,
@@ -620,11 +621,11 @@ class _PanelConnectionBar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.refresh, size: 11, color: btnColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 S.of(context).reconnect,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w500,
                   color: btnColor,
@@ -669,7 +670,7 @@ class _WorkspaceDividerLayoutState extends State<_WorkspaceDividerLayout> {
   final _stackKey = GlobalKey();
 
   static const _hitSize = 6.0;
-  static const _minPanelSize = 120.0;
+  static const _minPanelSize = AppTheme.workspacePanelMin;
 
   void _onPanUpdate(DragUpdateDetails details) {
     final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;

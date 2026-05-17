@@ -34,7 +34,7 @@ typedef ImportPreviewSelection = ({ImportMode mode, ExportOptions options});
 /// Every checkbox is always clickable regardless of [counts]. That matters in
 /// replace mode, where checking a type with zero entries in the payload is a
 /// deliberate "wipe it out" intent — the checkbox state carries through to
-/// `ImportResult.includeX` and `ImportService` honors it.
+/// `ImportResult.includeX` and the Rust apply driver honors it.
 class ImportPreviewDialog extends StatefulWidget {
   final Widget header;
   final ImportPreviewCounts counts;
@@ -116,13 +116,13 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           widget.header,
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           _buildPresets(),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildCheckboxesSection(),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           _buildModeSelector(),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             _mode == ImportMode.merge
                 ? S.of(context).importModeMergeDescription
@@ -274,7 +274,7 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
           selected: _mode == ImportMode.merge,
           onTap: () => setState(() => _mode = ImportMode.merge),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         ModeButton(
           label: S.of(context).replace,
           icon: Icons.swap_horiz,

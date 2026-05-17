@@ -1,20 +1,22 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../utils/logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
+import '../../src/rust/api/file_clipboard.dart' as rust_clip;
+import '../../src/rust/api/local_fs.dart' as rust_local_fs;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_models.dart';
-import '../../core/transfer/transfer_task.dart';
-import '../../providers/transfer_provider.dart';
+import '../../core/transfer/conflict_resolver.dart';
+import '../../core/transfer/unique_name.dart';
 import 'file_browser_controller.dart';
 import 'file_pane.dart';
 import 'sftp_browser_mixin.dart';
@@ -67,9 +69,16 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   final progressKey = GlobalKey<ConnectionProgressState>();
 
-  // SFTP clipboard for Ctrl+C / Ctrl+V across panes.
-  List<FileEntry>? _clipboardEntries;
-  String? _clipboardSourcePane;
+  // The file-browser clipboard for Ctrl+C / Ctrl+V across panes
+  // lives Rust-side on `lfs_core::clipboard::FileBrowserClipboard`
+  // (process-singleton). Routing through FRB lets the slot survive
+  // tab swaps + future cross-tab paste, and aligns with the
+  // CLAUDE.md "Rust owns data" rule for any user-data the app
+  // holds across UI surfaces — paths today, bytes when the
+  // file-viewer feature lands. The tab id below scopes paste
+  // matching so a cut-then-paste in a sibling tab doesn't drain
+  // this tab's clipboard.
+  late final String _clipboardTabId;
 
   @override
   Connection get sftpConnection => widget.connection;
@@ -82,6 +91,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   void initState() {
     super.initState();
+    // The connection id doubles as the per-tab clipboard scope —
+    // it's unique per file-browser tab instance (one Connection
+    // per tab) and stable for the tab's lifetime.
+    _clipboardTabId = widget.connection.id;
     initSftp();
     widget.sidebarActivated?.addListener(_onSidebarActivated);
   }
@@ -89,6 +102,15 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   @override
   void dispose() {
     widget.sidebarActivated?.removeListener(_onSidebarActivated);
+    // Drop the clipboard slot when this tab owns it — without
+    // this the next file-browser tab opens to a paste-enabled
+    // menu hinting at entries the user can no longer reach.
+    // `is_set` + source-tab probe stays sync (no FRB await on
+    // dispose).
+    if (rust_clip.fileClipboardSourceTabId() == _clipboardTabId) {
+      unawaited(rust_clip.fileClipboardClear());
+    }
+    disposeSftpBrowser();
     sftpResult?.dispose();
     super.dispose();
   }
@@ -244,10 +266,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
       showFolderSizes: showFolderSizes,
       onTransfer: (entry) => actions.transfer([entry]),
       onTransferMultiple: actions.transfer,
-      onCopy: () => setState(() {
-        _clipboardEntries = List.of(controller.selectedEntries);
-        _clipboardSourcePane = paneId;
-      }),
+      onCopy: () => _copyToClipboard(controller, paneId),
       onPaste: () =>
           _pasteFromClipboard(actions.oppositeSourcePane, actions.paste),
       onDropReceived: actions.drop,
@@ -256,44 +275,184 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
     );
   }
 
-  void _pasteFromClipboard(
+  /// Push the current pane's selection onto the Rust-side
+  /// clipboard slot, tagged with this tab's id + source pane. The
+  /// matching paste in the opposite pane consumes it via
+  /// [`_pasteFromClipboard`].
+  void _copyToClipboard(FilePaneController controller, String sourcePane) {
+    final selected = controller.selectedEntries;
+    if (selected.isEmpty) return;
+    final entries = selected
+        .map(
+          (e) => rust_clip.DbClipboardEntry(
+            name: e.name,
+            path: e.path,
+            size: BigInt.from(e.size),
+            isDir: e.isDir,
+          ),
+        )
+        .toList(growable: false);
+    unawaited(
+      rust_clip.fileClipboardPut(
+        tabId: _clipboardTabId,
+        sourcePane: sourcePane,
+        entries: entries,
+      ),
+    );
+  }
+
+  /// Take the clipboard slot when this tab owns it and the source
+  /// pane matches `expectedSource`. The Rust side drains the slot
+  /// on a matching take so the same entries can't paste twice
+  /// without a fresh copy.
+  Future<void> _pasteFromClipboard(
     String expectedSource,
     void Function(List<FileEntry>) action,
-  ) {
-    final entries = _clipboardEntries;
-    if (entries == null || entries.isEmpty) return;
-    if (_clipboardSourcePane != expectedSource) return;
+  ) async {
+    final taken = await rust_clip.fileClipboardTake(
+      expectedTabId: _clipboardTabId,
+      expectedSourcePane: expectedSource,
+    );
+    if (taken == null || taken.isEmpty) return;
+    final entries = taken
+        .map(
+          (e) => FileEntry(
+            name: e.name,
+            path: e.path,
+            size: e.size.toInt(),
+            modTime: DateTime.fromMillisecondsSinceEpoch(0),
+            isDir: e.isDir,
+          ),
+        )
+        .toList(growable: false);
     action(entries);
   }
 
   /// OS drop onto local pane — copy files into the current local directory.
+  ///
+  /// Local-to-local copies do not flow through the transfer queue
+  /// (which is owned Rust-side and SFTP-only); the file-system copy
+  /// runs inline on the UI isolate. Best-effort: a partial dir copy
+  /// surfaces as a logged warning, the user can re-drop to retry.
+  ///
+  /// Routes every file destination through [buildConflictResolver]
+  /// so a drop that overlaps an existing target prompts the same
+  /// `FileConflictDialog` the SFTP transfer paths use — without
+  /// this the OS drop silently overwrote the target with no UI.
+  /// Symlinks in the dropped tree are skipped so a malicious drop
+  /// can't follow a link out of the user's chosen destination.
   void _osDropToLocal(List<String> paths) {
+    if (_localCtrl == null) return;
+    if (paths.isEmpty) return;
+    final resolver = buildConflictResolver(showApplyToAll: paths.length > 1);
+    unawaited(_runLocalDropBatch(paths: paths, resolver: resolver));
+  }
+
+  Future<void> _runLocalDropBatch({
+    required List<String> paths,
+    required BatchConflictResolver resolver,
+  }) async {
     final local = _localCtrl;
     if (local == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final loc = S.of(context);
-    for (final srcPath in paths) {
-      final name = p.basename(srcPath);
-      final targetPath = p.join(local.currentPath, name);
-      final isDir = FileSystemEntity.isDirectorySync(srcPath);
+    try {
+      for (final srcPath in paths) {
+        if (resolver.isCancelled) break;
+        if (!mounted) return;
+        final name = p.basename(srcPath);
+        final srcStat = await rust_local_fs.localFsSymlinkStat(path: srcPath);
+        if (srcStat == null) continue;
+        if (srcStat.isSymlink) {
+          AppLogger.instance.log(
+            'Refusing OS drop of symlink source: <path>',
+            name: 'FileBrowser',
+            level: LogLevel.warn,
+          );
+          continue;
+        }
+        final isDir = srcStat.isDir;
+        final initialTarget = p.join(local.currentPath, name);
+        final resolvedTarget = await _resolveLocalDropConflict(
+          targetPath: initialTarget,
+          isDir: isDir,
+          resolver: resolver,
+        );
+        if (resolvedTarget == null) continue;
+        await _runLocalDrop(
+          srcPath: srcPath,
+          targetPath: resolvedTarget,
+          isDir: isDir,
+          name: name,
+        );
+      }
+    } finally {
+      resolver.dispose();
+    }
+  }
 
-      manager.enqueue(
-        TransferTask(
-          name: isDir ? '$name/' : name,
-          direction: TransferDirection.download,
-          sourcePath: srcPath,
-          targetPath: targetPath,
-          run: (update) async {
-            update(0, loc.transferCopying);
-            if (isDir) {
-              await _copyDirLocal(Directory(srcPath), Directory(targetPath));
-            } else {
-              await File(srcPath).copy(targetPath);
-            }
-            update(100, loc.transferDone);
-            _localCtrl?.refresh();
-          },
-        ),
+  /// Returns the local-FS path to copy into, or `null` when the user
+  /// chose to skip / cancel. A pre-existing symlink at the target is
+  /// hard-rejected (no overwrite-via-symlink) so the conflict dialog
+  /// does not become a vehicle for following an attacker-supplied
+  /// link out of the user's chosen directory.
+  Future<String?> _resolveLocalDropConflict({
+    required String targetPath,
+    required bool isDir,
+    required BatchConflictResolver resolver,
+  }) async {
+    final targetStat = await rust_local_fs.localFsSymlinkStat(path: targetPath);
+    if (targetStat == null) return targetPath;
+    if (targetStat.isSymlink) {
+      AppLogger.instance.log(
+        'Refusing local drop onto pre-existing symlink: <path>',
+        name: 'FileBrowser',
+        level: LogLevel.warn,
+      );
+      return null;
+    }
+    final action = await resolver.resolve(targetPath, isRemote: false);
+    switch (action) {
+      case ConflictAction.skip:
+      case ConflictAction.cancel:
+        return null;
+      case ConflictAction.keepBoth:
+        return uniqueSiblingName(
+          targetPath,
+          (path) async =>
+              (await rust_local_fs.localFsSymlinkStat(path: path)) != null,
+        );
+      case ConflictAction.replace:
+        return targetPath;
+    }
+  }
+
+  Future<void> _runLocalDrop({
+    required String srcPath,
+    required String targetPath,
+    required bool isDir,
+    required String name,
+  }) async {
+    try {
+      if (isDir) {
+        // Recursive copy lives in `lfs_core::fs::local`. A symlink
+        // at the root surfaces as `symlink_in_source` (the caller
+        // already filtered those above, so this branch is the
+        // defensive net); symlinks inside the tree are skipped
+        // there, so a hostile link to `/etc` cannot resolve into
+        // the recursion. Depth budget matches the SFTP upload
+        // walker's cycle defence.
+        await rust_local_fs.localFsCopyRecursiveNoSymlinks(
+          src: srcPath,
+          dst: targetPath,
+          maxDepth: 100,
+        );
+      } else {
+        await rust_local_fs.localFsCopyFile(src: srcPath, dst: targetPath);
+      }
+      _localCtrl?.refresh();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Local drop copy failed for $name: $e',
+        name: 'FileBrowser',
       );
     }
   }
@@ -302,43 +461,20 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   Future<void> _osDropToRemote(List<String> paths) async {
     final entries = <FileEntry>[];
     for (final srcPath in paths) {
-      final stat = FileStat.statSync(srcPath);
-      if (stat.type == FileSystemEntityType.notFound) continue;
+      final stat = await rust_local_fs.localFsStat(path: srcPath);
+      if (stat == null) continue;
       entries.add(
         FileEntry(
           name: p.basename(srcPath),
           path: srcPath,
-          size: stat.size,
-          modTime: stat.modified,
-          isDir: stat.type == FileSystemEntityType.directory,
+          size: stat.size.toInt(),
+          modTime: DateTime.fromMillisecondsSinceEpoch(
+            stat.modTimeUnixMs.toInt(),
+          ),
+          isDir: stat.isDir,
         ),
       );
     }
     await uploadMany(entries);
-  }
-
-  static const _maxCopyDepth = 100;
-
-  Future<void> _copyDirLocal(
-    Directory src,
-    Directory dst, [
-    int depth = 0,
-  ]) async {
-    if (depth >= _maxCopyDepth) {
-      throw StateError('Maximum recursion depth ($_maxCopyDepth) exceeded');
-    }
-    await dst.create(recursive: true);
-    await for (final entity in src.list()) {
-      final name = p.basename(entity.path);
-      if (entity is File) {
-        await entity.copy(p.join(dst.path, name));
-      } else if (entity is Directory) {
-        await _copyDirLocal(
-          entity,
-          Directory(p.join(dst.path, name)),
-          depth + 1,
-        );
-      }
-    }
   }
 }

@@ -1,18 +1,19 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../l10n/app_localizations.dart';
+import '../src/rust/api/local_fs.dart' as rust_local_fs;
 import '../theme/app_theme.dart';
+import '../utils/format.dart' show localizeError;
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
 
-/// In-app directory picker that walks the filesystem directly via
-/// `dart:io`, bypassing SAF. Used on Android when the app already holds
-/// `MANAGE_EXTERNAL_STORAGE` — SAF's `ACTION_OPEN_DOCUMENT_TREE` always
-/// prompts for a fresh per-folder consent dialog even when all-files
-/// access is granted, which is the bug users hit on the export flow.
+/// In-app directory picker that walks the filesystem through
+/// `lfs_core::fs::local::list_directories`, bypassing SAF. Used on
+/// Android when the app already holds `MANAGE_EXTERNAL_STORAGE` — SAF's
+/// `ACTION_OPEN_DOCUMENT_TREE` always prompts for a fresh per-folder
+/// consent dialog even when all-files access is granted, which is the
+/// bug users hit on the export flow.
 ///
 /// Returns the absolute directory path the user chose, or `null` on
 /// cancel. Does not create new files; the caller appends the filename.
@@ -44,7 +45,7 @@ class LocalDirectoryPicker extends StatefulWidget {
 
 class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
   late String _current;
-  List<Directory> _children = const [];
+  List<String> _children = const [];
   String? _error;
   bool _loading = true;
 
@@ -62,29 +63,12 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
       _error = null;
     });
     try {
-      final dir = Directory(path);
-      if (!await dir.exists()) {
-        if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _error = S.of(context).errNoSuchFileOrDirectory;
-          _children = const [];
-        });
-        return;
-      }
-      final entries = <Directory>[];
-      // list() can fail mid-stream on permission-denied subtrees; we
-      // collect what we can and surface the error only if the whole
-      // directory is unreadable (handled in the outer catch).
-      await for (final entity in dir.list(followLinks: false)) {
-        if (entity is Directory) entries.add(entity);
-      }
-      entries.sort(
-        (a, b) => p
-            .basename(a.path)
-            .toLowerCase()
-            .compareTo(p.basename(b.path).toLowerCase()),
-      );
+      // Rust-side: missing path returns `"no_such_file_or_directory"`,
+      // unreadable returns `"permission_denied"`; both keys route
+      // through `localizeError` to the same toast strings the rest of
+      // the local-fs surface uses. Sorted by lowercase basename in
+      // Rust so the UI does not need a second pass.
+      final entries = await rust_local_fs.localFsListDirectories(path: path);
       if (!mounted) return;
       setState(() {
         _children = entries;
@@ -95,7 +79,7 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
       setState(() {
         _children = const [];
         _loading = false;
-        _error = e.toString();
+        _error = localizeError(S.of(context), e);
       });
     }
   }
@@ -146,7 +130,7 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
             tooltip: S.of(context).back,
             size: 18,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               _current,
@@ -166,7 +150,7 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
     if (_error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Text(
             _error!,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
@@ -185,14 +169,14 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
     return ListView.builder(
       itemCount: _children.length,
       itemBuilder: (_, i) {
-        final dir = _children[i];
-        final name = p.basename(dir.path);
+        final child = _children[i];
+        final name = p.basename(child);
         if (name.startsWith('.')) return const SizedBox.shrink();
         return ListTile(
           dense: true,
           leading: Icon(Icons.folder, size: 18, color: AppTheme.yellow),
           title: Text(name, style: TextStyle(fontSize: AppFonts.sm)),
-          onTap: () => _load(dir.path),
+          onTap: () => _load(child),
         );
       },
     );

@@ -1,44 +1,46 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
+import '../../src/rust/api/archive.dart' as rust_archive;
+import '../../src/rust/api/deeplink.dart' as rust_deeplink;
 import '../../utils/logger.dart';
-import '../session/qr_codec.dart';
+import '../session/qr_decoded_source.dart';
 import '../ssh/ssh_config.dart';
 
 /// Handles deep links and file open intents:
 ///
-/// 1. `letsflutssh://connect?host=X&port=22&user=Y&password=Z` — SSH connect
-/// 2. `file://.../*.pem`, `content://.../*.key` — import SSH key
-/// 3. `file://.../*.lfs`, `content://.../*.lfs` — import data archive
+/// 1. `letsflutssh://connect?host=X&port=22&user=Y` — SSH connect
+/// 2. `letsflutssh://import?d=...` — import sessions / keys / config
+/// 3. `file://.../*.pem`, `content://.../*.key` — import SSH key
+/// 4. `file://.../*.lfs`, `content://.../*.lfs` — import data archive
+///
+/// Routing, dedup, and QR-payload staging all live Rust-side in
+/// `lfs_core::deeplink::DeeplinkDispatcher`. The Dart side is the
+/// thin URI pump: subscribe to `app_links` (a Flutter plugin —
+/// stays Dart), forward every URI through `deeplinkDispatch`, then
+/// switch on the typed [rust_deeplink.DbDeeplinkOutcome] to fire
+/// the matching UI callback.
 class DeepLinkHandler {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription? _sub;
 
-  /// Tracks the last processed URI and timestamp to prevent duplicate handling.
-  /// Cold start: getInitialLink + uriLinkStream can fire the same URI.
-  /// The dedup window is limited to [_deduplicationWindow] so that
-  /// re-scanning the same QR code or re-opening the same link after the
-  /// cold-start race window still works.
-  Uri? _lastProcessedUri;
-  DateTime? _lastProcessedTime;
-
-  /// Duration during which a duplicate URI is suppressed.
-  /// Only needs to cover the cold-start double-fire race (typically < 1 s).
-  static const _deduplicationWindow = Duration(seconds: 2);
-
   /// Callback invoked when a valid SSH connect link is received.
   void Function(SSHConfig config)? onConnect;
 
-  /// Callback invoked when a QR import link is received.
-  void Function(ExportPayloadData data)? onQrImport;
+  /// Callback invoked when a QR import link is received with a
+  /// payload this build can decode. The wrapped
+  /// [QrDecodedSource.rust] carries the Rust-staged handle id +
+  /// sanitised preview — bytes never crossed the FRB boundary.
+  void Function(QrDecodedSource source)? onQrImport;
 
-  /// Callback invoked when a QR import link carries a payload schema version
-  /// newer than this build understands. The UI should surface an "update
-  /// the app" prompt instead of silently dropping the import.
+  /// Callback invoked when a QR import link carries a payload schema
+  /// version newer than this build understands. The UI surfaces an
+  /// "update the app" prompt instead of silently dropping the import.
   void Function(int found, int supported)? onQrImportVersionTooNew;
 
-  /// Callback invoked when an SSH key file is opened (.pem, .key).
+  /// Callback invoked when an SSH key file is opened (.pem, .key, .pub).
   void Function(String filePath)? onKeyFileOpened;
 
   /// Callback invoked when a .lfs archive is opened.
@@ -46,19 +48,19 @@ class DeepLinkHandler {
 
   /// Start listening for incoming deep links.
   Future<void> init() async {
-    // Check if app was opened via deep link (cold start)
+    // Cold-start: app launched via deep link.
     try {
       final initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
-        handleUri(initialUri);
+        await handleUri(initialUri);
       }
     } catch (e) {
       AppLogger.instance.log('No initial link ($e)', name: 'DeepLink');
     }
 
-    // Listen for links while app is running (warm start)
+    // Warm-start: links arriving while the app is running.
     _sub = _appLinks.uriLinkStream.listen(
-      handleUri,
+      (uri) => unawaited(handleUri(uri)),
       onError: (e) =>
           AppLogger.instance.log('Stream error: $e', name: 'DeepLink'),
     );
@@ -66,6 +68,9 @@ class DeepLinkHandler {
 
   /// Sanitize URI for logging — deep links no longer carry credentials,
   /// but we still strip any unexpected sensitive-looking parameters.
+  @visibleForTesting
+  static String sanitizeUriForLog(Uri uri) => _sanitizeUri(uri);
+
   static String _sanitizeUri(Uri uri) {
     if (uri.queryParameters.isEmpty) return uri.toString();
     final safe = Map<String, String>.from(uri.queryParameters);
@@ -75,152 +80,100 @@ class DeepLinkHandler {
     return uri.replace(queryParameters: safe).toString();
   }
 
-  void handleUri(Uri uri) {
-    // Deduplicate: cold start can fire both getInitialLink and uriLinkStream.
-    // The window is time-limited so re-scanning the same QR after the
-    // cold-start race still works (e.g. app resumed from background).
-    final now = DateTime.now();
-    if (_lastProcessedUri == uri &&
-        _lastProcessedTime != null &&
-        now.difference(_lastProcessedTime!) < _deduplicationWindow) {
+  /// Pump one URI through the Rust dispatcher and route to the
+  /// matching callback. Public so tests can drive the handler
+  /// without going through `app_links`.
+  Future<void> handleUri(Uri uri) async {
+    AppLogger.instance.log('Received: ${_sanitizeUri(uri)}', name: 'DeepLink');
+    final rust_deeplink.DbDeeplinkOutcome outcome;
+    try {
+      outcome = await rust_deeplink.deeplinkDispatch(uri: uri.toString());
+    } catch (e) {
       AppLogger.instance.log(
-        'Skipping duplicate: ${_sanitizeUri(uri)}',
+        'deeplinkDispatch failed: $e',
         name: 'DeepLink',
         level: LogLevel.warn,
       );
       return;
     }
-    _lastProcessedUri = uri;
-    _lastProcessedTime = now;
-
-    AppLogger.instance.log('Received: ${_sanitizeUri(uri)}', name: 'DeepLink');
-
-    if (uri.scheme == 'letsflutssh') {
-      handleCustomScheme(uri);
-    } else if (uri.scheme == 'file' || uri.scheme == 'content') {
-      handleFileUri(uri);
-    } else {
-      AppLogger.instance.log(
-        'Unhandled scheme "${uri.scheme}"',
-        name: 'DeepLink',
-      );
-    }
+    _route(outcome);
   }
 
-  void handleCustomScheme(Uri uri) {
-    if (uri.host == 'connect') {
-      final config = parseConnectUri(uri);
-      if (config != null) {
-        onConnect?.call(config);
-      } else {
-        AppLogger.instance.log(
-          'Invalid connect params — host and user required',
-          name: 'DeepLink',
-        );
-      }
-    } else if (uri.host == 'import') {
-      try {
-        final data = decodeImportUri(uri);
-        if (data != null) {
-          AppLogger.instance.log(
-            'QR import: ${data.sessions.length} session(s)',
-            name: 'DeepLink',
-          );
-          onQrImport?.call(data);
-        } else {
-          AppLogger.instance.log('Invalid import data', name: 'DeepLink');
-        }
-      } on QrPayloadVersionTooNewException catch (e) {
-        AppLogger.instance.log(
-          'QR import rejected: payload v${e.found} > supported v${e.supported}',
-          name: 'DeepLink',
-        );
-        onQrImportVersionTooNew?.call(e.found, e.supported);
-      }
-    } else {
-      AppLogger.instance.log('Unknown action "${uri.host}"', name: 'DeepLink');
-    }
-  }
+  /// Dispatch a Rust-decoded outcome onto the registered callbacks.
+  /// `@visibleForTesting` — production callers go through
+  /// [handleUri] which wires the Rust dispatcher first.
+  @visibleForTesting
+  void routeOutcomeForTest(rust_deeplink.DbDeeplinkOutcome outcome) =>
+      _route(outcome);
 
-  void handleFileUri(Uri uri) {
-    final path = uri.path.toLowerCase();
-    if (path.endsWith('.lfs')) {
-      onLfsFileOpened?.call(uri.toFilePath());
-    } else if (path.endsWith('.pem') ||
-        path.endsWith('.key') ||
-        path.endsWith('.pub')) {
-      onKeyFileOpened?.call(uri.toFilePath());
-    } else {
-      AppLogger.instance.log('Unsupported file type "$path"', name: 'DeepLink');
+  void _route(rust_deeplink.DbDeeplinkOutcome outcome) {
+    switch (outcome) {
+      case rust_deeplink.DbDeeplinkOutcome_Connect(
+        :final host,
+        :final port,
+        :final user,
+      ):
+        onConnect?.call(
+          SSHConfig(
+            server: ServerAddress(host: host, port: port, user: user),
+          ),
+        );
+      case rust_deeplink.DbDeeplinkOutcome_QrImport(
+        :final handleId,
+        :final preview,
+      ):
+        AppLogger.instance.log(
+          'QR import (Rust): ${preview.sessionCount} session(s)',
+          name: 'DeepLink',
+        );
+        onQrImport?.call(
+          QrDecodedSource.rust(
+            rust_archive.DbImportOpenResult(
+              handleId: handleId,
+              preview: preview,
+            ),
+          ),
+        );
+      case rust_deeplink.DbDeeplinkOutcome_QrImportRejected(
+        :final found,
+        :final supported,
+      ):
+        AppLogger.instance.log(
+          'QR import rejected: payload v$found > supported v$supported',
+          name: 'DeepLink',
+        );
+        onQrImportVersionTooNew?.call(found, supported);
+      case rust_deeplink.DbDeeplinkOutcome_OpenLfs(:final path):
+        onLfsFileOpened?.call(path);
+      case rust_deeplink.DbDeeplinkOutcome_OpenKeyFile(:final path):
+        onKeyFileOpened?.call(path);
+      case rust_deeplink.DbDeeplinkOutcome_Unknown():
+        AppLogger.instance.log(
+          'No actionable mapping',
+          name: 'DeepLink',
+          level: LogLevel.warn,
+        );
+      case rust_deeplink.DbDeeplinkOutcome_Duplicate():
+        AppLogger.instance.log(
+          'Skipping duplicate (Rust dedup)',
+          name: 'DeepLink',
+        );
     }
   }
 
   /// Parse a `letsflutssh://connect?...` URI into an [SSHConfig].
-  /// Returns null if required params (host, user) are missing or invalid.
+  /// Returns null if required params (host, user) are missing or
+  /// invalid.
   ///
-  /// Inputs come from external deep links (OS-level URI handlers), so the
-  /// parser must never throw on garbage. Malformed percent-encoding in
-  /// the query string raises FormatException from dart:core's lazy
-  /// queryParameters decoder; treat that as "invalid URI, return null"
-  /// to keep the contract single-typed for callers.
+  /// Routes through `lfs_core::deeplink::parse_connect_uri` —
+  /// canonical validation rules (host length, control-char
+  /// rejection, port range, percent-decoding) live Rust-side.
   static SSHConfig? parseConnectUri(Uri uri) {
-    final Map<String, String> params;
-    try {
-      params = uri.queryParameters;
-    } on FormatException catch (e) {
-      AppLogger.instance.log('Malformed query string: $e', name: 'DeepLink');
-      return null;
-    }
-    final host = params['host']?.trim();
-    final user = params['user']?.trim();
-
-    if (host == null || host.isEmpty || user == null || user.isEmpty) {
-      return null;
-    }
-
-    // Validate host: no path separators, null bytes, reasonable length
-    if (host.length > 253 ||
-        host.contains('/') ||
-        host.contains('\\') ||
-        _containsControlChar(host)) {
-      AppLogger.instance.log('Invalid host', name: 'DeepLink');
-      return null;
-    }
-
-    // Validate user: bound the length, reject control chars / null bytes /
-    // path separators. POSIX `useradd` caps at 32 chars; allow more to cover
-    // domain-style accounts (`user@domain`) but stay well under DoS-able size.
-    if (user.length > 256 ||
-        user.contains('/') ||
-        user.contains('\\') ||
-        _containsControlChar(user)) {
-      AppLogger.instance.log('Invalid user', name: 'DeepLink');
-      return null;
-    }
-
-    // Validate port range
-    final port = int.tryParse(params['port'] ?? '') ?? 22;
-    if (port < 1 || port > 65535) {
-      AppLogger.instance.log('Invalid port $port', name: 'DeepLink');
-      return null;
-    }
-
-    // No credentials in deep links — passwords and keys are never transmitted
-    // via URL for security reasons (URLs can be logged by OS, clipboard, etc.)
-
+    final link = rust_deeplink.parseConnectUri(uri: uri.toString());
+    if (link == null) return null;
     return SSHConfig(
-      server: ServerAddress(host: host, port: port, user: user),
+      server: ServerAddress(host: link.host, port: link.port, user: link.user),
     );
-  }
-
-  /// True if [s] contains any C0/C1 control character (0x00–0x1F, 0x7F–0x9F).
-  /// Catches null bytes, CR/LF injection into ssh-config, BEL/escape chars
-  /// that could mangle terminal prompts.
-  static bool _containsControlChar(String s) {
-    for (final cu in s.codeUnits) {
-      if (cu < 0x20 || (cu >= 0x7F && cu <= 0x9F)) return true;
-    }
-    return false;
   }
 
   void dispose() {

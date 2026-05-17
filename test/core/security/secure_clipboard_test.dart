@@ -5,67 +5,13 @@ import 'package:letsflutssh/core/security/secure_clipboard.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channel = MethodChannel('com.letsflutssh/clipboard_secure');
-
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  test(
-    'routes through the native channel when the plugin is present',
-    () async {
-      MethodCall? seen;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-            seen = call;
-            return true;
-          });
-
-      await SecureClipboard(
-        channel: channel,
-        hasNativePlugin: true,
-      ).setText('hunter2');
-
-      expect(seen, isNotNull);
-      expect(seen!.method, 'setSecureText');
-      expect((seen!.arguments as Map)['text'], 'hunter2');
-    },
-  );
-
-  test(
-    'falls back to stock Clipboard.setData when the plugin is missing',
-    () async {
-      String? stockText;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-            throw MissingPluginException('no plugin');
-          });
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-            if (call.method == 'Clipboard.setData') {
-              stockText = (call.arguments as Map?)?['text'] as String?;
-            }
-            return null;
-          });
-
-      await SecureClipboard(
-        channel: channel,
-        hasNativePlugin: true,
-      ).setText('hunter2');
-
-      expect(stockText, 'hunter2');
-    },
-  );
-
-  test('falls back to stock clipboard on native error', () async {
+  test('successful Rust write returns true and never touches stock', () async {
     String? stockText;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          throw PlatformException(code: 'CLIPBOARD_FAILED');
-        });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
           if (call.method == 'Clipboard.setData') {
@@ -74,8 +20,57 @@ void main() {
           return null;
         });
 
-    await SecureClipboard(channel: channel).setText('hunter2');
+    String? written;
+    final clip = SecureClipboard(
+      rustWriter: (text) {
+        written = text;
+      },
+      platformOs: 'android',
+    );
 
-    expect(stockText, 'hunter2');
+    final landed = await clip.setText('hunter2');
+
+    expect(landed, isTrue);
+    expect(written, 'hunter2');
+    expect(stockText, isNull, reason: 'stock path must not run on success');
   });
+
+  for (final os in const ['linux', 'windows', 'macos', 'ios', 'android']) {
+    test(
+      '$os refuses the write on Rust failure (single audit perimeter)',
+      () async {
+        // Every platform routes through the Rust `set_secure_text`
+        // helper — the single audit perimeter for clipboard writes.
+        // A stock `Clipboard.setData` fallback would either deposit
+        // the secret on the cloud-syncing pasteboard (Win+V history,
+        // Universal Clipboard, Handoff, Android 13+ history preview)
+        // without the per-platform "do not sync, do not history"
+        // markers, or — on Linux — route around the Rust perimeter
+        // entirely. Refusing the copy and surfacing a "copy failed"
+        // toast is strictly safer than either.
+        String? stockText;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                stockText = (call.arguments as Map?)?['text'] as String?;
+              }
+              return null;
+            });
+
+        final clip = SecureClipboard(
+          rustWriter: (_) => throw StateError('Rust unavailable'),
+          platformOs: os,
+        );
+
+        final landed = await clip.setText('hunter2');
+
+        expect(landed, isFalse, reason: '$os must refuse on Rust failure');
+        expect(
+          stockText,
+          isNull,
+          reason: '$os must NOT touch the stock clipboard',
+        );
+      },
+    );
+  }
 }

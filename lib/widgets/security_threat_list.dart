@@ -67,7 +67,7 @@ class _ThreatRow extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: Icon(icon, size: 14, color: color),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               threatTitle(threat, l10n),

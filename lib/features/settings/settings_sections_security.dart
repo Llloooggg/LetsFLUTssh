@@ -52,7 +52,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     bool? hasIdentity;
     if (plat.isMacosPlatform) {
       try {
-        hasIdentity = await ref.read(resignServiceProvider).hasIdentity();
+        hasIdentity = await rust_macos_resign.macosResignHasIdentity();
       } catch (_) {
         hasIdentity = false;
       }
@@ -66,37 +66,16 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     });
   }
 
-  /// Translate a platform [BiometricUnavailableReason] into a
-  /// localised tooltip string, or null if the device is biometric-
-  /// capable. Extracted from [_biometricDisabledReason] so the
-  /// tier-card spec can check it as the highest-priority tooltip
-  /// without falling through the rest of the priority chain.
-  String? _biometricPlatformReason(S l10n) {
-    if (!_biometricProbed) return null;
-    switch (_biometricUnavailable) {
-      case BiometricUnavailableReason.platformUnsupported:
-      case BiometricUnavailableReason.noSensor:
-        return l10n.biometricSensorNotAvailable;
-      case BiometricUnavailableReason.notEnrolled:
-        return l10n.biometricNotEnrolled;
-      case BiometricUnavailableReason.systemServiceMissing:
-        return l10n.biometricSystemServiceMissing;
-      case null:
-        return null;
-    }
-  }
-
-  // _biometricDisabledReason + _biometricToggleEnabled used to
-  // render the biometric row inside `_activeTierExtras`. After the
-  // row moved into every T1 / T2 tier card's modifier section via
-  // `BiometricModifierSpec`, `_biometricSpecFor` owns the full
-  // priority ladder (platform unavailable → tier unavailable →
-  // tier not current → password missing) and the two helpers are
-  // no longer called from the widget tree. Kept here as dead-code
-  // placeholders would only confuse future readers, so removed.
-  //
-  // The platform-reason extraction lives on `_biometricPlatformReason`
-  // above; that is the only caller-facing helper left.
+  // _biometricDisabledReason + _biometricToggleEnabled + the per-state
+  // wrapper for `biometricPlatformReason` used to render the biometric
+  // row inside `_activeTierExtras`. After the row moved into every
+  // T1 / T2 tier card's modifier section via `BiometricModifierSpec`,
+  // the public helper `biometricSpecFor` owns the full priority
+  // ladder (platform unavailable → tier unavailable → tier not
+  // current → password missing) and the wrappers are dead. Removed —
+  // call `biometricPlatformReason(...)` from
+  // `security_section_logic.dart` directly when a future caller
+  // needs the platform-only branch in isolation.
   /// Localized explanation for why the biometric toggle is disabled —
   /// null means "either fully enabled, or still probing". Three layers
   /// after the bank-style modifier shape:
@@ -110,14 +89,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     S l10n,
     SecurityTier level,
     SecurityTierModifiers modifiers,
-  ) {
-    final hasPassword =
-        level == SecurityTier.paranoid ||
-        level == SecurityTier.keychainWithPassword ||
-        modifiers.password;
-    if (hasPassword) return null;
-    return l10n.autoLockRequiresPassword;
-  }
+  ) => autoLockDisabledReason(l10n: l10n, level: level, modifiers: modifiers);
 
   /// Build one tier card pre-wired to onSelectTier. Factored out so
   /// the four stacked cards in the ladder share the same callback +
@@ -131,10 +103,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required String? unavailableReason,
     required S l10n,
   }) {
-    final isCurrent =
-        tier == currentLevel ||
-        (tier == SecurityTier.keychain &&
-            currentLevel == SecurityTier.keychainWithPassword);
+    // Bank-style v3: T1+password is `keychain` + modifier;
+    // pre-v3 needed a dedicated keychainWithPassword check.
+    final isCurrent = tier == currentLevel;
     return ExpandableTierCard(
       tier: tier,
       currentTier: currentLevel,
@@ -186,10 +157,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required S l10n,
   }) {
     if (tier == SecurityTier.plaintext) return null;
-    final isCurrent =
-        tier == currentLevel ||
-        (tier == SecurityTier.keychain &&
-            currentLevel == SecurityTier.keychainWithPassword);
+    // Bank-style v3: T1+password is `keychain` + modifier;
+    // pre-v3 needed a dedicated keychainWithPassword check.
+    final isCurrent = tier == currentLevel;
     // Same priority order as the biometric row (see
     // `_biometricSpecFor`), minus the platform-unavailable layer —
     // auto-lock is a software-only feature, always supported by
@@ -230,86 +200,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required bool tierAvailable,
     required String? tierUnavailableReason,
     required S l10n,
-  }) {
-    if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
-      return null;
-    }
-    final isCurrent =
-        tier == currentLevel ||
-        (tier == SecurityTier.keychain &&
-            currentLevel == SecurityTier.keychainWithPassword);
-
-    // Priority 1: biometric platform unavailable. Never let a
-    // "select tier first" tooltip mask the fact that the device
-    // can't do biometric at all — a user configuring a tier +
-    // password only to find out biometric is unreachable at the
-    // last step is exactly the churn this priority ordering
-    // prevents.
-    final platformReason = _biometricPlatformReason(l10n);
-    if (platformReason != null) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: platformReason,
-      );
-    }
-
-    // Priority 2: tier available but not currently applied. Short
-    // "select this tier first" prompt — the tier's actual
-    // availability reason (when applicable) lives on the next
-    // priority step below so the user first sees the "how to
-    // unlock this" action hint before the "why the tier is out
-    // of reach" explanation.
-    if (tierAvailable && !isCurrent) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: l10n.biometricRequiresActiveTier,
-      );
-    }
-
-    // Priority 3: tier not available on this host. Re-use the
-    // tier's own reason string — same message as the yellow pill
-    // on the tier card keeps the UI coherent.
-    if (!tierAvailable) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: tierUnavailableReason,
-      );
-    }
-
-    // Priority 4: current tier but password modifier off.
-    final hasPassword =
-        currentLevel == SecurityTier.paranoid ||
-        currentLevel == SecurityTier.keychainWithPassword ||
-        currentModifiers.password;
-    if (!hasPassword) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: l10n.biometricRequiresPassword,
-      );
-    }
-
-    // All preconditions satisfied. The card owns the pending
-    // biometric state from here on — the toggle mutates local state
-    // only, and the real enable / disable work runs from
-    // `onSelectTier` after the user taps Apply (single batched
-    // password prompt + platform biometric prompt). The `onChanged`
-    // hook on the spec is intentionally a no-op; it's still required
-    // by the spec shape for potential future call sites.
-    return BiometricModifierSpec(
-      enabled: _biometricProbed,
-      value: _biometricEnabled == true,
-      onChanged: (_) {},
-      disabledReason: null,
-    );
-  }
+  }) => biometricSpecFor(
+    l10n: l10n,
+    tier: tier,
+    currentLevel: currentLevel,
+    currentModifiers: currentModifiers,
+    tierAvailable: tierAvailable,
+    tierUnavailableReason: tierUnavailableReason,
+    availability: _biometricUnavailable,
+    probed: _biometricProbed,
+    biometricEnabled: _biometricEnabled == true,
+  );
 
   // `_activeTierExtras` used to carry biometric + auto-lock rows
   // in the current tier's expandable. Both moved into the
@@ -328,7 +229,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required SecurityTier tier,
     required SecurityTierModifiers modifiers,
     String? shortPassword,
-    String? pin,
+    String? hardwarePassword,
     String? masterPassword,
     bool? pendingBiometric,
   }) async {
@@ -336,12 +237,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final keychainAvail = ref
         .read(securityCapabilitiesProvider)
         .maybeWhen(data: (c) => c.keychainAvailable, orElse: () => false);
+    // Card-level callers pass plaintext Strings — stage them in the
+    // SecretStore now so the rest of the apply pipeline reads them
+    // through the same `take*()` accessors the wizard pop-result
+    // does. The original Strings stay on the State frame's stack
+    // until the caller's setState rebuild drops them.
     final result = SecuritySetupResult(
       tier: tier,
       modifiers: modifiers,
-      shortPassword: shortPassword,
-      pin: pin,
-      masterPassword: masterPassword,
+      shortPasswordSecretId: SecuritySetupResult.stageSecret(shortPassword),
+      pinSecretId: SecuritySetupResult.stageSecret(hardwarePassword),
+      masterPasswordSecretId: SecuritySetupResult.stageSecret(masterPassword),
       keychainAvailable: keychainAvail,
     );
 
@@ -369,17 +275,30 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // biometric does neither — it only (re)populates the biometric-
     // gated keychain slot with the already-derived key, so rekeying
     // would throw off the user (re-prompt for the password for no
-    // cryptographic gain). This branch forwards the biometric flip
-    // alone.
-    final biometricOnlyChange =
-        tier == currentTier &&
-        modifiers.password == currentMods.password &&
-        pendingBiometric != null;
-    if (biometricOnlyChange) {
-      await _applyBiometricOnlyToggle(pendingBiometric, currentTier);
+    // cryptographic gain). The decision logic lives in
+    // `security_section_logic.classifyTierTransition` so the branch
+    // is unit-tested without a stateful pumpWidget.
+    final transition = classifyTierTransition(
+      currentLevel: currentTier,
+      currentModifiers: currentMods,
+      targetTier: tier,
+      targetModifiers: modifiers,
+      pendingBiometric: pendingBiometric,
+    );
+    if (transition == TierTransitionKind.biometricOnly) {
+      await _applyBiometricOnlyToggle(
+        pendingBiometric,
+        currentTier,
+        currentMods,
+      );
       return;
     }
-    if (!await _confirmCurrentPasswordIfDropping(currentTier, tier)) {
+    if (!await _confirmCurrentPasswordIfDropping(
+      currentTier,
+      currentMods,
+      tier,
+      modifiers,
+    )) {
       return;
     }
 
@@ -388,17 +307,22 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // the user types the password exactly once per Apply, even when
     // they combined a tier switch with a biometric toggle. Disable
     // is free — it just wipes the vault — but still routes through
-    // the post-Apply step below.
-    Uint8List? biometricKeyToStash;
+    // the post-Apply step below. The capture stages bytes Rust-side
+    // (SecretStore) so the DB key never crosses the FRB boundary.
+    var biometricCapture = _BiometricKeyCapture.cancelled;
     if (pendingBiometric == true) {
-      biometricKeyToStash = await _captureKeyForBiometricEnable(
+      biometricCapture = await _captureKeyForBiometricEnable(
         currentTier,
+        currentMods,
         tier,
+        modifiers,
         shortPassword: shortPassword,
-        pin: pin,
+        hardwarePassword: hardwarePassword,
         masterPassword: masterPassword,
       );
-      if (biometricKeyToStash == null) return; // user cancelled / wrong pw
+      if (biometricCapture.kind == _BiometricKeyCaptureKind.cancelled) {
+        return; // user cancelled / wrong password
+      }
     }
 
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
@@ -406,10 +330,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     AppProgressBarDialog.show(context, reporter);
     try {
       await _applyTierChange(result);
-      await _applyPendingBiometric(
-        pendingBiometric,
-        keyFromEnable: biometricKeyToStash,
-      );
+      await _applyPendingBiometric(pendingBiometric, capture: biometricCapture);
       if (!mounted) return;
       Navigator.of(context).pop();
       Toast.show(
@@ -439,52 +360,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   /// tier-switch rekey entirely and runs just the biometric enable /
   /// disable step with its own password prompt (enable) or straight
   /// vault clear (disable).
-  Future<void> _applyBiometricOnlyToggle(
-    bool? pendingBiometric,
-    SecurityTier currentTier,
-  ) async {
-    if (pendingBiometric == null) return;
-    final l10n = S.of(context);
-    Uint8List? keyToStash;
-    if (pendingBiometric) {
-      // Same password-prompt path as the post-tier-change biometric
-      // enable — asks for the current password, verifies it against
-      // the live gate, returns the derived DB key.
-      keyToStash = await _captureKeyForBiometricEnable(
-        currentTier,
-        currentTier,
-      );
-      if (keyToStash == null) return; // user cancelled / wrong password
-    }
-    if (!mounted) return;
-    final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
-    AppProgressBarDialog.show(context, reporter);
-    try {
-      await _applyPendingBiometric(pendingBiometric, keyFromEnable: keyToStash);
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Toast.show(
-        context,
-        message: l10n.changeSecurityTierDone,
-        level: ToastLevel.success,
-      );
-      _checkState();
-    } catch (e) {
-      AppLogger.instance.log(
-        'Biometric-only apply failed: $e',
-        name: 'Settings',
-        error: e,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      Toast.show(
-        context,
-        message: '${l10n.changeSecurityTierFailed}: $e',
-        level: ToastLevel.error,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
@@ -527,12 +402,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     );
     final kcDetail = ref.watch(keyringProbeDetailProvider);
     final keychainAvail = kcDetail.maybeWhen(
-      data: (d) => d == KeyringProbeResult.available,
+      data: (d) => d == DbKeyringProbeResult.available,
       orElse: () =>
           caps.maybeWhen(data: (c) => c.keychainAvailable, orElse: () => true),
     );
     final kcReason = kcDetail.maybeWhen(
-      data: (d) => d == KeyringProbeResult.available
+      data: (d) => d == DbKeyringProbeResult.available
           ? null
           : keyringProbeDetailText(l10n, d),
       orElse: () => keychainAvail ? null : l10n.tierKeychainUnavailable,
@@ -587,7 +462,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           unavailableReason: null,
           l10n: l10n,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         // Biometric + auto-lock rows live inside the current tier's
         // expandable (see _activeTierExtras) — they are orthogonal
         // "settings of the current tier" and only meaningful when a
@@ -632,54 +507,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       ],
     );
   }
-
-  Widget _buildMacosEnableBlock(S l10n) => Padding(
-    padding: const EdgeInsets.only(top: 8),
-    child: Column(
-      children: [
-        Text(
-          l10n.securityMacosEnableSecureTiersSubtitle,
-          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.securityMacosEnableSecureTiersPrompt,
-          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 6),
-        AppButton.primary(
-          label: l10n.securityMacosEnableSecureTiers,
-          icon: Icons.vpn_key,
-          loading: _enablingKeychain,
-          dense: true,
-          onTap: _enablingKeychain ? null : _enableMacosKeychain,
-        ),
-      ],
-    ),
-  );
-
-  Widget _buildMacosRemoveBlock(S l10n) => Padding(
-    padding: const EdgeInsets.only(top: 8),
-    child: Column(
-      children: [
-        Text(
-          l10n.securityMacosRemoveIdentitySubtitle,
-          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 6),
-        AppButton.destructive(
-          label: l10n.securityMacosRemoveIdentity,
-          icon: Icons.vpn_key_off,
-          loading: _removingKeychain,
-          dense: true,
-          onTap: _removingKeychain ? null : _removeMacosIdentity,
-        ),
-      ],
-    ),
-  );
 
   /// Invalidate the cached capability + probe snapshots and wait for
   /// the fresh values so the section rebuilds against ready data.
@@ -734,562 +561,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  /// Run the macOS self-sign pipeline against the live bundle:
-  /// [ResignService.ensureIdentity] creates (or reuses) the personal
-  /// cert and grants trust; [ResignService.resignBundle] re-signs the
-  /// running `.app` inside-out with `--options runtime` +
-  /// extracted entitlements so `keychain-access-groups` survives.
-  /// After success the capability + probe snapshots are invalidated
-  /// so the T1 tier card flips from disabled to available.
-  Future<void> _enableMacosKeychain() async {
-    setState(() => _enablingKeychain = true);
-    try {
-      final svc = ref.read(resignServiceProvider);
-      await svc.ensureIdentity();
-      final bundle = Directory(Platform.resolvedExecutable)
-          .parent // Contents/MacOS
-          .parent // Contents
-          .parent; // <bundle>.app
-      final outcome = await svc.resignBundle(appBundle: bundle);
-      if (!mounted) return;
-      final ok =
-          outcome == ResignOutcome.succeeded ||
-          outcome == ResignOutcome.reusedExisting;
-      if (!ok) {
-        Toast.show(
-          context,
-          message: S.of(context).securityMacosEnableSecureTiersFailed,
-          level: ToastLevel.error,
-        );
-        return;
-      }
-      // Drop the persisted capability cache + invalidate providers so
-      // the UI re-probes against the freshly re-signed bundle.
-      await ref
-          .read(configProvider.notifier)
-          .update((c) => c.copyWithSecurity(securityProbeCache: null));
-      ref.invalidate(securityCapabilitiesProvider);
-      ref.invalidate(hardwareProbeDetailProvider);
-      ref.invalidate(keyringProbeDetailProvider);
-      await ref.read(securityCapabilitiesProvider.future);
-      if (!mounted) return;
-      setState(() => _macosHasIdentity = true);
-      Toast.show(
-        context,
-        message: S.of(context).securityMacosEnableSecureTiersSuccess,
-        level: ToastLevel.success,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Toast.show(
-        context,
-        message: S.of(context).securityMacosEnableSecureTiersFailed,
-        level: ToastLevel.error,
-      );
-    } finally {
-      if (mounted) setState(() => _enablingKeychain = false);
-    }
-  }
-
-  /// Confirmation dialog + tier-switch wizard + cert uninstall. T1 /
-  /// T2 secrets are tied to the cert's designated requirement — the
-  /// user has to migrate to T0 or Paranoid *before* the cert is
-  /// removed, otherwise every stored secret would become unreadable
-  /// on the next keychain read. We show the wizard, apply the tier
-  /// switch through the existing `onSelectTier` path (which rekeys
-  /// the DB under a fresh key under the new tier), and only then
-  /// uninstall the signing identity.
-  Future<void> _removeMacosIdentity() async {
-    setState(() => _removingKeychain = true);
-    try {
-      final confirmed = await AppDialog.show<bool>(
-        context,
-        builder: (d) => AppDialog(
-          title: S.of(d).securityMacosRemoveIdentityConfirmTitle,
-          content: Text(
-            S.of(d).securityMacosRemoveIdentityConfirmBody,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          ),
-          actions: [
-            AppButton.cancel(onTap: () => Navigator.pop(d, false)),
-            AppButton.destructive(
-              label: S.of(d).securityMacosRemoveIdentity,
-              onTap: () => Navigator.pop(d, true),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !mounted) return;
-      // Show tier-switch wizard with keychain + hardware forced off
-      // so the user can only pick T0 / Paranoid. Same reduced shape
-      // as the first-launch decline path.
-      final keyStorage = ref.read(secureKeyStorageProvider);
-      final hw = ref.read(hardwareTierVaultProvider);
-      final baseCaps = await probeCapabilities(
-        keyStorage: keyStorage,
-        hardwareVault: hw,
-      );
-      if (!mounted) return;
-      final forcedCaps = baseCaps.copyWith(
-        keychainAvailable: false,
-        hardwareVaultAvailable: false,
-      );
-      final result = await SecuritySetupDialog.show(
-        context,
-        keyStorage: keyStorage,
-        hardwareVault: hw,
-        currentTier: ref.read(configProvider).security?.tier,
-        capabilitiesOverride: forcedCaps,
-        dismissible: true,
-      );
-      if (!mounted) return;
-      if (result.tier != SecurityTier.plaintext &&
-          result.tier != SecurityTier.paranoid) {
-        // User dismissed or wizard returned an unexpected tier —
-        // treat as cancel, leave cert in place.
-        return;
-      }
-      // Re-use `_applyTierChange` directly (not `onSelectTier`) so
-      // we stay inside the remove-identity progress flow without
-      // stacking another progress dialog / toast that `onSelectTier`
-      // installs for the "Change Security Tier" entry point.
-      await _applyTierChange(result);
-      if (!mounted) return;
-      // Tier switch succeeded → safe to drop the cert.
-      await ref.read(resignServiceProvider).uninstallIdentity();
-      await ref
-          .read(configProvider.notifier)
-          .update((c) => c.copyWithSecurity(securityProbeCache: null));
-      ref.invalidate(securityCapabilitiesProvider);
-      ref.invalidate(hardwareProbeDetailProvider);
-      ref.invalidate(keyringProbeDetailProvider);
-      if (!mounted) return;
-      setState(() => _macosHasIdentity = false);
-      Toast.show(
-        context,
-        message: S.of(context).securityMacosRemoveIdentitySuccess,
-        level: ToastLevel.success,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      Toast.show(
-        context,
-        message: S.of(context).securityMacosRemoveIdentityFailed,
-        level: ToastLevel.error,
-      );
-    } finally {
-      if (mounted) setState(() => _removingKeychain = false);
-    }
-  }
-
-  // `_toggleBiometricUnlock` / `_enableBiometricUnlock` /
-  // `_disableBiometricUnlock` used to be the direct-fire handlers on
-  // the biometric toggle — tapping the toggle ran the enable/disable
-  // flow right away, prompting for the password every time. The card
-  // now owns a pending-biometric flag batched into the Apply step
-  // (`_applyPendingBiometric`), which prompts for the password at
-  // most once per Apply regardless of how many times the toggle was
-  // flipped. The old handlers were removed along with the toggle
-  // invocation; `_confirmCurrentPasswordIfDropping` covers the
-  // password-drop symmetry.
-
-  /// Capture the DB key for a biometric enable. When the Apply
-  /// transition is between two different tiers, the NEW tier's
-  /// secret (typed in the card) is the one we can derive the key
-  /// from — after `_applyTierChange` runs, that's the key the
-  /// tier holds. Same-tier enable (user toggled biometric without
-  /// changing the tier) falls back to re-prompting the current
-  /// password via [_enableBiometricDialogPrompt].
-  ///
-  /// Returns null when the user cancels or types the wrong password;
-  /// the caller aborts the whole Apply on null.
-  Future<Uint8List?> _captureKeyForBiometricEnable(
-    SecurityTier current,
-    SecurityTier next, {
-    String? shortPassword,
-    String? pin,
-    String? masterPassword,
-  }) async {
-    // Case 1: tier changes → the post-apply state will hold a fresh
-    // DB key derived from the NEW password. Those provisioning paths
-    // are already password-verified by definition (the user typed
-    // the new password into the card), so no extra prompt is needed.
-    // We surface the key by reading it after `_applyTierChange`
-    // runs — returning a non-null sentinel here signals "wait for
-    // apply, then fetch". Sentinel is a zero-length buffer that
-    // [_applyPendingBiometric] replaces with the real key.
-    if (current != next) return Uint8List(0);
-    if (current == SecurityTier.keychainWithPassword) {
-      return _captureKeyFromKeychainPassword();
-    }
-    if (current == SecurityTier.paranoid) {
-      return _captureKeyFromMasterPassword();
-    }
-    // T1 / T2 without password, or plaintext: no key to cache. Return
-    // empty sentinel so the post-apply step skips the enable (nothing
-    // to protect anyway).
-    return Uint8List(0);
-  }
-
-  Future<Uint8List?> _captureKeyFromKeychainPassword() async {
-    final entered = await _enableBiometricDialogPrompt();
-    if (entered == null || !mounted) return null;
-    final gate = ref.read(keychainPasswordGateProvider);
-    if (!await gate.verify(entered)) {
-      if (mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).currentPasswordIncorrect,
-          level: ToastLevel.error,
-        );
-      }
-      return null;
-    }
-    return ref.read(secureKeyStorageProvider).readKey();
-  }
-
-  Future<Uint8List?> _captureKeyFromMasterPassword() async {
-    final entered = await _enableBiometricDialogPrompt();
-    if (entered == null || !mounted) return null;
-    return ref.read(masterPasswordProvider).verifyAndDerive(entered);
-  }
-
-  /// Show the reusable current-password prompt shared with the
-  /// "drop password" confirmation flow. Returns null when the user
-  /// cancels. The backing controller is wiped and disposed on every
-  /// exit path so the typed current-password does not linger on the
-  /// Dart heap — `_EnableBiometricDialog` is a view; the secret
-  /// belongs to this scope.
-  Future<String?> _enableBiometricDialogPrompt() async {
-    final ctrl = TextEditingController();
-    try {
-      return await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _EnableBiometricDialog(currentCtrl: ctrl),
-      );
-    } finally {
-      ctrl.wipeAndClear();
-      ctrl.dispose();
-    }
-  }
-
-  /// Apply the pending biometric toggle from the tier card. Called
-  /// inside `onSelectTier` right after `_applyTierChange`, so the
-  /// security state has already flipped to the target tier and the
-  /// fresh DB key is in `securityStateProvider` (for tier changes)
-  /// or readable via the matching gate (for same-tier toggles).
-  ///
-  /// [pending] is null for "no change", true for enable, false for
-  /// disable. [keyFromEnable] is the sentinel from
-  /// [_captureKeyForBiometricEnable]: a zero-length buffer means
-  /// "read the current DB key after apply"; non-empty means "use
-  /// this as the vault payload".
-  Future<void> _applyPendingBiometric(
-    bool? pending, {
-    required Uint8List? keyFromEnable,
-  }) async {
-    if (pending == null) return;
-    if (!pending) {
-      await ref.read(biometricKeyVaultProvider).clear();
-      if (!mounted) return;
-      setState(() => _biometricEnabled = false);
-      return;
-    }
-    // Enable path — we have a candidate key (zero-length means "pull
-    // from the freshly-applied tier").
-    Uint8List? key = keyFromEnable;
-    if (key != null && key.isEmpty) {
-      key = ref.read(securityStateProvider).encryptionKey;
-    }
-    if (key == null) return;
-    final bio = ref.read(biometricAuthProvider);
-    final l10n = S.of(context);
-    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
-      if (mounted) {
-        Toast.show(
-          context,
-          message: l10n.biometricUnlockCancelled,
-          level: ToastLevel.warning,
-        );
-      }
-      return;
-    }
-    final stored = await ref.read(biometricKeyVaultProvider).store(key);
-    if (!mounted) return;
-    if (!stored) {
-      Toast.show(
-        context,
-        message: l10n.biometricEnableFailed,
-        level: ToastLevel.error,
-      );
-      return;
-    }
-    setState(() => _biometricEnabled = true);
-  }
-
-  /// True when the transition from [current] → [next] drops a
-  /// user-typed password that the UI knows how to verify. The
-  /// gating applies to removals of the T1 gate password and the
-  /// master password; T2 is intentionally excluded (see
-  /// [onSelectTier] for the reasoning).
-  bool _isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) {
-    if (current == SecurityTier.keychainWithPassword &&
-        next != SecurityTier.keychainWithPassword) {
-      return true;
-    }
-    if (current == SecurityTier.paranoid && next != SecurityTier.paranoid) {
-      return true;
-    }
-    return false;
-  }
-
-  /// Prompt for the current password before a password-dropping
-  /// transition. Returns true to proceed, false to abort (user
-  /// cancelled or typed the wrong password).
-  Future<bool> _confirmCurrentPasswordIfDropping(
-    SecurityTier current,
-    SecurityTier next,
-  ) async {
-    if (!_isVerifiablePasswordDrop(current, next)) return true;
-    final currentCtrl = TextEditingController();
-    final String? entered;
-    try {
-      entered = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
-      );
-    } finally {
-      currentCtrl.wipeAndClear();
-      currentCtrl.dispose();
-    }
-    if (entered == null) return false;
-    if (!mounted) return false;
-    final ok = current == SecurityTier.paranoid
-        ? await ref.read(masterPasswordProvider).verify(entered)
-        : await ref.read(keychainPasswordGateProvider).verify(entered);
-    if (!ok) {
-      if (mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).currentPasswordIncorrect,
-          level: ToastLevel.error,
-        );
-      }
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> _applyTierChange(SecuritySetupResult result) async {
-    switch (result.tier) {
-      case SecurityTier.plaintext:
-        await _applyPlaintextTier(result);
-      case SecurityTier.keychain:
-        await _applyKeychainTier(result);
-      case SecurityTier.keychainWithPassword:
-        await _applyKeychainWithPasswordTier(result);
-      case SecurityTier.hardware:
-        await _applyHardwareTier(result);
-      case SecurityTier.paranoid:
-        await _applyParanoidTier(result);
-    }
-  }
-
-  Future<void> _applyPlaintextTier(SecuritySetupResult result) async {
-    await _applyAlwaysRekey(null, SecurityTier.plaintext, result.modifiers);
-    await _clearAllTierSecrets();
-  }
-
-  Future<void> _applyKeychainTier(SecuritySetupResult result) async {
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final key = AesGcm.generateKey();
-    final stored = await keyStorage.writeKey(key);
-    if (!stored) throw StateError('keychain write failed');
-    await _applyAlwaysRekey(key, SecurityTier.keychain, result.modifiers);
-    await _clearNonKeychainTierSecrets();
-  }
-
-  Future<void> _applyKeychainWithPasswordTier(
-    SecuritySetupResult result,
-  ) async {
-    final short = result.shortPassword;
-    if (short == null || short.isEmpty) {
-      throw StateError('short password missing');
-    }
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final gate = ref.read(keychainPasswordGateProvider);
-    await gate.setPassword(short);
-    final key = AesGcm.generateKey();
-    final stored = await keyStorage.writeKey(key);
-    if (!stored) {
-      await gate.clear();
-      throw StateError('keychain write failed');
-    }
-    await _applyAlwaysRekey(
-      key,
-      SecurityTier.keychainWithPassword,
-      result.modifiers,
-    );
-    await ref.read(hardwareTierVaultProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
-  }
-
-  Future<void> _applyHardwareTier(SecuritySetupResult result) async {
-    // Hardware tier now accepts a passwordless seal: when the
-    // wizard returns `pin == null` (user left the password
-    // modifier off for T2) the vault derives an empty auth value
-    // and seals under SE/TPM isolation alone. The modifiers
-    // snapshot `mods.password` stays the source of truth for
-    // later unlock flows, so persisting it alongside the tier
-    // keeps the read side in sync.
-    final hwVault = ref.read(hardwareTierVaultProvider);
-    final key = AesGcm.generateKey();
-    final sealed = await hwVault.store(dbKey: key, pin: result.pin);
-    if (!sealed) throw StateError('hardware seal failed');
-    await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);
-    await ref.read(secureKeyStorageProvider).deleteKey();
-    await ref.read(keychainPasswordGateProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
-  }
-
-  Future<void> _applyParanoidTier(SecuritySetupResult result) async {
-    final pw = result.masterPassword;
-    if (pw == null || pw.isEmpty) {
-      throw StateError('master password missing');
-    }
-    final manager = ref.read(masterPasswordProvider);
-    final key = await manager.enable(pw);
-    await _applyAlwaysRekey(key, SecurityTier.paranoid, result.modifiers);
-    await ref.read(secureKeyStorageProvider).deleteKey();
-    await ref.read(keychainPasswordGateProvider).clear();
-    await ref.read(hardwareTierVaultProvider).clear();
-    await ref.read(biometricKeyVaultProvider).clear();
-  }
-
-  /// Wipe every tier vault — used on T0 (plaintext) switch.
-  Future<void> _clearAllTierSecrets() async {
-    await ref.read(secureKeyStorageProvider).deleteKey();
-    await ref.read(keychainPasswordGateProvider).clear();
-    await ref.read(hardwareTierVaultProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
-  }
-
-  /// Wipe every tier vault *except* the keychain entry — used on T1
-  /// switch where [_applyKeychainTier] has just written a fresh DB
-  /// key into the keychain and must not immediately delete it.
-  Future<void> _clearNonKeychainTierSecrets() async {
-    await ref.read(keychainPasswordGateProvider).clear();
-    await ref.read(hardwareTierVaultProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
-  }
-
-  /// Rekey the live database under [key] (or convert to plaintext
-  /// when [key] is null) and flip `securityStateProvider` to the new
-  /// [level]. Single caller: `_applyTierChange`, which runs this
-  /// *after* it has already wrapped the new key into the target
-  /// tier's vault — so the on-disk wrapper and the DB cipher always
-  /// move together.
-  ///
-  /// Routes the rekey through `SecurityTierSwitcher` so a mid-switch
-  /// crash leaves the `.tier-transition-pending` marker on disk; the
-  /// next launch logs and clears it in `main._initSecurity` before
-  /// falling through to the standard unlock path.
-  Future<void> _applyAlwaysRekey(
-    Uint8List? key,
-    SecurityTier level, [
-    SecurityTierModifiers? modifiers,
-  ]) async {
-    final store = ref.read(sessionStoreProvider);
-    final db = store.database;
-    final resolvedMods = modifiers ?? SecurityTierModifiers.defaults;
-    // Marker payload carries tier + modifiers so a crash-recovery
-    // path can reconstruct the target config and drive the right
-    // unlock prompt (password? biometric? no gate?) instead of
-    // falling back to whatever the enum alone suggests.
-    final markerPayload = jsonEncode({
-      'tier': _tierName(level),
-      'mods': resolvedMods.toJson(),
-    });
-    // Bind the constructor-time callbacks to the current key /
-    // current-db pair. A fresh switcher instance per call is fine —
-    // the marker file is the authoritative state, not the instance.
-    final switcher = SecurityTierSwitcher(
-      keyFactory: () => key ?? Uint8List(0),
-      rekey: (d, _) async => rekeyDatabase(d, key),
-    );
-
-    if (db == null) {
-      // No live DB (plaintext first-launch path before the first
-      // open). Nothing to rekey; just flip the provider. The marker
-      // dance is still useful so a crash between state.set and the
-      // follow-on caller work is visible next launch, but the
-      // switcher wants a non-null DB, so we inline the minimal
-      // equivalent here.
-      try {
-        await switcher.clearMarker();
-        if (key != null) {
-          ref.read(securityStateProvider.notifier).set(level, key);
-        } else {
-          ref.read(securityStateProvider.notifier).clearEncryption();
-        }
-      } catch (_) {}
-      return;
-    }
-
-    await switcher.switchTier(
-      db: db,
-      targetMarkerPayload: markerPayload,
-      applyWrapper: (_) async {
-        if (key != null) {
-          ref.read(securityStateProvider.notifier).set(level, key);
-        } else {
-          ref.read(securityStateProvider.notifier).clearEncryption();
-        }
-      },
-      persistConfig: (_) async {
-        // Persist tier + modifiers atomically inside the switch so a
-        // crash after rekey but before config-write does not leave
-        // the DB on the new cipher with the old tier label in
-        // config.json (the legacy main.dart path only persisted on
-        // provider flip and dropped the modifier field).
-        final existing = ref.read(configProvider).security;
-        final next = SecurityConfig(tier: level, modifiers: resolvedMods);
-        if (existing == next) return;
-        await ref
-            .read(configProvider.notifier)
-            .update((cfg) => cfg.copyWithSecurity(security: next));
-      },
-      clearPrevious: () async {
-        // Previous-tier cleanup (biometric vault clear, keychain
-        // delete, credentials.kdf remove) is handled by the
-        // specific enable/disable/change/remove methods that call
-        // into `_applyAlwaysRekey`.
-      },
-    );
-  }
-
-  String _tierName(SecurityTier tier) {
-    switch (tier) {
-      case SecurityTier.plaintext:
-        return 'plaintext';
-      case SecurityTier.keychain:
-        return 'keychain';
-      case SecurityTier.keychainWithPassword:
-        return 'keychain_with_password';
-      case SecurityTier.hardware:
-        return 'hardware';
-      case SecurityTier.paranoid:
-        return 'paranoid';
-    }
-  }
+  /// Re-renders the section from a per-flow extension method.
+  /// `State.setState` is `@protected` so extensions on
+  /// `_SecuritySectionState` cannot call it directly; this wrapper
+  /// keeps the rebuild path inside the class while letting the macOS
+  /// keychain / biometric / tier-apply part files mutate the shared
+  /// fields.
+  void rebuild(VoidCallback fn) => setState(fn);
 }
 
 class _AutoLockTile extends ConsumerWidget {
@@ -1380,7 +658,7 @@ class _AutoLockTile extends ConsumerWidget {
             _label(l10n, current),
             style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
         ],
       ),

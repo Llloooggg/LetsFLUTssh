@@ -1,3 +1,5 @@
+import '../../src/rust/api/sftp_models.dart' as rust_sftp_models;
+
 /// Unified file entry model for local and remote file systems.
 class FileEntry {
   final String name;
@@ -18,17 +20,11 @@ class FileEntry {
     this.owner = '',
   });
 
-  String get modeString {
-    if (mode == 0) return '---';
-    final buf = StringBuffer();
-    buf.write(isDir ? 'd' : '-');
-    for (var i = 8; i >= 0; i--) {
-      final bit = (mode >> i) & 1;
-      final chars = ['x', 'w', 'r'];
-      buf.write(bit == 1 ? chars[i % 3] : '-');
-    }
-    return buf.toString();
-  }
+  /// Render Unix mode bits as `drwxr-xr-x` via
+  /// `lfs_core::sftp_models::mode_string` — the chmod-letter
+  /// grammar lives in Rust.
+  String get modeString =>
+      rust_sftp_models.sftpModeString(mode: mode, isDir: isDir);
 }
 
 /// Transfer progress callback data.
@@ -51,11 +47,21 @@ class TransferProgress {
       totalBytes > 0 ? (doneBytes / totalBytes * 100).clamp(0, 100) : 0;
 }
 
-/// Sort file entries: directories first, then alphabetical by name.
+/// Sort file entries: directories first, then alphabetical by name
+/// via `lfs_core::sftp_models::sort_file_entries` — the dirs-first
+/// + case-insensitive grammar lives in Rust.
 void sortFileEntries(List<FileEntry> entries) {
-  entries.sort((a, b) {
-    if (a.isDir && !b.isDir) return -1;
-    if (!a.isDir && b.isDir) return 1;
-    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-  });
+  final keys = entries
+      .map(
+        (e) => rust_sftp_models.DbFileSortKey(
+          isDir: e.isDir,
+          nameLower: e.name.toLowerCase(),
+        ),
+      )
+      .toList(growable: false);
+  final indices = rust_sftp_models.sftpSortFileEntries(keys: keys);
+  final sorted = [for (final i in indices) entries[i]];
+  entries
+    ..clear()
+    ..addAll(sorted);
 }

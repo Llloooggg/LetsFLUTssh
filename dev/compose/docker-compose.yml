@@ -1,0 +1,183 @@
+# Local-only dev stack for manual testing of LetsFLUTssh's S3 +
+# WebDAV + SSH client paths against real servers. Never ship — these
+# images run with hard-coded credentials and trust-anything settings.
+#
+# Bring up: `docker compose -f dev/compose/docker-compose.yml up -d`
+# Tear down: `docker compose -f dev/compose/docker-compose.yml down -v`
+#
+# All services share the same dev credentials:
+#   username: test
+#   password: test1234
+# 8 characters on the password are needed because MinIO refuses
+# anything shorter for `MINIO_ROOT_PASSWORD`. The other services
+# accept a 4-character password; using the same string everywhere
+# keeps the user-facing surface uniform.
+#
+# See dev/compose/README.md for endpoint URLs and how to point the
+# app at each service.
+
+name: letsflutssh-dev
+
+services:
+  # ─── S3: MinIO ─────────────────────────────────────────────────
+  # Path-style addressing, SigV4. App `S3Config`:
+  #   endpoint=http://localhost:9000, region=us-east-1, path_style=true
+  #   access_key=test, secret_key=test1234
+  minio:
+    image: minio/minio:latest
+    container_name: lfs-dev-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: test
+      MINIO_ROOT_PASSWORD: test1234
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot init: create a default bucket the app can target.
+  minio-init:
+    image: minio/mc:latest
+    container_name: lfs-dev-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 test test1234 &&
+        mc mb -p local/test-bucket || true &&
+        mc cp /etc/hostname local/test-bucket/hello.txt || true &&
+        echo 'minio-init: test-bucket ready'
+      "
+    restart: "no"
+
+  # ─── WebDAV: Apache mod_dav with Basic auth on :8080 ───────────
+  # App config: URL=http://localhost:8080/dav/, auth=Basic,
+  #             user=test, password=test1234
+  webdav-basic:
+    build:
+      context: ./webdav-basic
+    container_name: lfs-dev-webdav-basic
+    ports:
+      - "8080:80"
+    volumes:
+      - webdav-basic-data:/var/dav
+
+  # ─── WebDAV: Apache mod_dav with Digest auth on :8081 ──────────
+  # App config: URL=http://localhost:8081/dav/, auth=Digest,
+  #             user=test, password=test1234
+  webdav-digest:
+    build:
+      context: ./webdav-digest
+    container_name: lfs-dev-webdav-digest
+    ports:
+      - "8081:80"
+    volumes:
+      - webdav-digest-data:/var/dav
+
+  # ─── WebDAV: Nextcloud for Bearer-token testing on :8082 ───────
+  # Initial admin: test / test1234
+  # After first boot, log in to http://localhost:8082, then in
+  # Settings → Security → Devices & sessions, generate an
+  # "App password". Use that token in the app:
+  #   URL=http://localhost:8082/remote.php/dav/files/test/,
+  #   auth=Bearer, token=<app-password from UI>
+  # Nextcloud also accepts the same token as a Basic-auth password
+  # if you prefer to exercise that path.
+  nextcloud-db:
+    image: mariadb:11
+    container_name: lfs-dev-nextcloud-db
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "1"
+      MYSQL_PASSWORD: nextcloud
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+    volumes:
+      - nextcloud-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nextcloud:
+    image: nextcloud:stable
+    container_name: lfs-dev-nextcloud
+    ports:
+      - "8082:80"
+    environment:
+      MYSQL_HOST: nextcloud-db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: nextcloud
+      NEXTCLOUD_ADMIN_USER: test
+      NEXTCLOUD_ADMIN_PASSWORD: test1234
+      NEXTCLOUD_TRUSTED_DOMAINS: "localhost 127.0.0.1"
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+    volumes:
+      - nextcloud-data:/var/www/html
+
+  # ─── SSH/SFTP: linuxserver/openssh-server on :2222 ─────────────
+  # Both password + pubkey enabled. The init service generates an
+  # ed25519 keypair into ./ssh/keys/ on first run; the host file is
+  # gitignored. Extract with:
+  #   ls dev/compose/ssh/keys/
+  # App config (password):
+  #   host=localhost, port=2222, user=test, password=test1234
+  # App config (pubkey):
+  #   host=localhost, port=2222, user=test, key=dev/compose/ssh/keys/id_ed25519
+  ssh-keygen:
+    image: alpine:3.19
+    container_name: lfs-dev-ssh-keygen
+    volumes:
+      - ./ssh/keys:/keys
+    entrypoint: >
+      /bin/sh -c "
+        if [ ! -f /keys/id_ed25519 ]; then
+          apk add --no-cache openssh-keygen >/dev/null &&
+          ssh-keygen -t ed25519 -N '' -C lfs-dev-compose -f /keys/id_ed25519 &&
+          chmod 644 /keys/id_ed25519.pub /keys/id_ed25519
+          echo 'ssh-keygen: generated /keys/id_ed25519{,.pub}'
+        else
+          echo 'ssh-keygen: /keys/id_ed25519 already exists, skipping'
+        fi
+      "
+    restart: "no"
+
+  sshd:
+    image: lscr.io/linuxserver/openssh-server:latest
+    container_name: lfs-dev-sshd
+    depends_on:
+      ssh-keygen:
+        condition: service_completed_successfully
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: UTC
+      USER_NAME: test
+      USER_PASSWORD: test1234
+      PASSWORD_ACCESS: "true"
+      PUBLIC_KEY_FILE: /keys/id_ed25519.pub
+      SUDO_ACCESS: "false"
+    ports:
+      - "2222:2222"
+    volumes:
+      - ./ssh/keys:/keys:ro
+      - sshd-config:/config
+
+volumes:
+  minio-data:
+  webdav-basic-data:
+  webdav-digest-data:
+  nextcloud-db:
+  nextcloud-data:
+  sshd-config:

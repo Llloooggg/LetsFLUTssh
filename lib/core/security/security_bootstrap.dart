@@ -1,80 +1,47 @@
 import 'dart:io';
 
+import '../../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
+import '../../src/rust/api/security_capabilities.dart' as rust_caps;
+import '../../src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult, DbSecurityCapabilities;
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
+import '../../src/rust/api/wizard_setup.dart' as rust_wizard;
 import '../../utils/logger.dart';
-import 'biometric_auth.dart';
-import 'hardware_tier_vault.dart';
-import 'linux/fprintd_client.dart';
-import 'secure_key_storage.dart';
 import 'security_tier.dart';
 
-/// Snapshot of every OS / hardware capability the wizard needs to
-/// decide which tiers + modifier combinations to offer on this
-/// device. Probed once on wizard open and cached in the dialog
-/// state; the wizard renders against the snapshot without further
-/// async calls.
+/// Conveniences on top of the FRB-generated [DbSecurityCapabilities]
+/// snapshot so the wizard / Settings consumers can call into the
+/// same Rust-side rules ([canOfferBiometricModifier]) and JSON
+/// codec ([toJsonString] / [securityCapabilitiesFromJsonString])
+/// without repeating boilerplate at every call site.
 ///
-/// Pure data — no platform channels. Produced by [probeCapabilities];
-/// consumed by the setup dialog + tests.
-class SecurityCapabilities {
-  /// OS keychain is reachable (Keychain / Credential Manager /
-  /// libsecret / EncryptedSharedPreferences depending on platform).
-  final bool keychainAvailable;
+/// One struct, one wire format — the snapshot ships across the FRB
+/// boundary as the generated [DbSecurityCapabilities] and lives in
+/// `config.json`'s `security_probe_cache` slot under the canonical
+/// JSON shape `lfs_core::security::capabilities` emits.
+extension DbSecurityCapabilitiesExt on DbSecurityCapabilities {
+  /// True when the biometric modifier toggle should be offerable
+  /// on this host. Routes through
+  /// `lfs_core::security::capabilities::can_offer_biometric_modifier`
+  /// — the platform-disjunction rule (Linux requires fprintd-or-API,
+  /// every other platform takes the API flag verbatim) lives in
+  /// Rust.
+  bool get canOfferBiometricModifier =>
+      rust_caps.securityCapabilitiesCanOfferBiometricModifier(caps: this);
 
-  /// Hardware vault slot is reachable — Secure Enclave on iOS /
-  /// macOS with T2, StrongBox / TEE on Android, TPM 2.0 on Windows /
-  /// Linux. Governs whether T2 is offered.
-  final bool hardwareVaultAvailable;
-
-  /// Biometric API returns SUCCESS (sensor present + at least one
-  /// enrolment). Governs the biometric modifier toggle.
-  final bool biometricAvailable;
-
-  /// On Linux, `fprintd` is installed + has at least one enrolled
-  /// finger. The biometric modifier on Linux flows through
-  /// [FprintdClient] and fails silently when this is false.
-  final bool fprintdAvailable;
-
-  /// True on Linux only. Wizard uses this to surface the "Linux TPM
-  /// without password gives isolation, not authentication" honesty
-  /// note when the user picks T2 without the password modifier.
-  final bool isLinuxHost;
-
-  /// Classified outcome of [SecureKeyStorage.probe] — the enum the
-  /// Dart layer uses to map to localised "why the keyring is
-  /// unavailable" copy. `available` on healthy hosts. Populated
-  /// alongside [keychainAvailable] so the wizard can render a
-  /// specific reason instead of a generic "unavailable" string.
-  final KeyringProbeResult keychainProbe;
-
-  /// Raw platform-specific hardware-vault detail code (the string
-  /// returned by `HardwareTierVault.probeDetail()` on Android /
-  /// iOS / macOS / Windows, or the TPM-CLI outcome on Linux mapped
-  /// into the same shape). `available` on healthy hosts, `unknown`
-  /// when the native probe is unreachable. Wizard / Settings UI map
-  /// this to the `HardwareProbeDetail` enum + localised copy via
-  /// `hardwareProbeDetailText`.
-  final String hardwareProbeCode;
-
-  const SecurityCapabilities({
-    this.keychainAvailable = false,
-    this.hardwareVaultAvailable = false,
-    this.biometricAvailable = false,
-    this.fprintdAvailable = false,
-    this.isLinuxHost = false,
-    this.keychainProbe = KeyringProbeResult.probeFailed,
-    this.hardwareProbeCode = 'unknown',
-  });
-
-  SecurityCapabilities copyWith({
+  /// Pure-Dart field-by-field copy with optional overrides. No FRB
+  /// hop — the generated struct is immutable, so a single fresh
+  /// instance is the only way to "mutate" a field.
+  DbSecurityCapabilities copyWith({
     bool? keychainAvailable,
     bool? hardwareVaultAvailable,
     bool? biometricAvailable,
     bool? fprintdAvailable,
     bool? isLinuxHost,
-    KeyringProbeResult? keychainProbe,
+    DbKeyringProbeResult? keychainProbe,
     String? hardwareProbeCode,
   }) {
-    return SecurityCapabilities(
+    return DbSecurityCapabilities(
       keychainAvailable: keychainAvailable ?? this.keychainAvailable,
       hardwareVaultAvailable:
           hardwareVaultAvailable ?? this.hardwareVaultAvailable,
@@ -86,171 +53,54 @@ class SecurityCapabilities {
     );
   }
 
-  /// JSON shape matches the hand-rolled flat layout the rest of
-  /// `app_config.dart` uses — one scalar per key, enums as their
-  /// stable Dart `name`. Used by the `security_probe_cache` block in
-  /// `config.json` so a fresh app start can serve the Settings cards
-  /// straight from the snapshot instead of paying the real probe
-  /// cost on every launch. The Recheck button + destructive security
-  /// paths clear this cache so the next read reprobes.
-  Map<String, dynamic> toJson() => {
-    'keychain_available': keychainAvailable,
-    'hardware_vault_available': hardwareVaultAvailable,
-    'biometric_available': biometricAvailable,
-    'fprintd_available': fprintdAvailable,
-    'is_linux_host': isLinuxHost,
-    'keychain_probe': keychainProbe.name,
-    'hardware_probe_code': hardwareProbeCode,
-  };
+  /// Render to the canonical JSON wire shape `config.json`'s
+  /// `security_probe_cache` block expects. The wire-format owner is
+  /// `lfs_core::security::capabilities`; this getter is a direct
+  /// pass-through to the Rust-side encoder so the Dart consumer
+  /// never builds the map shape itself.
+  String get toJsonString => rust_caps.securityCapabilitiesToJson(caps: this);
+}
 
-  static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
-    if (json == null) return null;
-    // Every field is guarded with a type check because the file is
-    // user-writable and may carry a partial / corrupted snapshot from
-    // a previous build. A malformed cache is treated as "no cache" so
-    // the next call reprobes fresh — we never parse past a bad type
-    // into a default.
-    final probeName = json['keychain_probe'];
-    if (probeName is! String) return null;
-    final probe = KeyringProbeResult.values
-        .where((v) => v.name == probeName)
-        .firstOrNull;
-    if (probe == null) return null;
-    final hardwareCode = json['hardware_probe_code'];
-    if (hardwareCode is! String) return null;
-    return SecurityCapabilities(
-      keychainAvailable: json['keychain_available'] == true,
-      hardwareVaultAvailable: json['hardware_vault_available'] == true,
-      biometricAvailable: json['biometric_available'] == true,
-      fprintdAvailable: json['fprintd_available'] == true,
-      isLinuxHost: json['is_linux_host'] == true,
-      keychainProbe: probe,
-      hardwareProbeCode: hardwareCode,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SecurityCapabilities &&
-          keychainAvailable == other.keychainAvailable &&
-          hardwareVaultAvailable == other.hardwareVaultAvailable &&
-          biometricAvailable == other.biometricAvailable &&
-          fprintdAvailable == other.fprintdAvailable &&
-          isLinuxHost == other.isLinuxHost &&
-          keychainProbe == other.keychainProbe &&
-          hardwareProbeCode == other.hardwareProbeCode;
-
-  @override
-  int get hashCode => Object.hash(
-    keychainAvailable,
-    hardwareVaultAvailable,
-    biometricAvailable,
-    fprintdAvailable,
-    isLinuxHost,
-    keychainProbe,
-    hardwareProbeCode,
-  );
-
-  /// True when biometric modifier is at all offerable on this host —
-  /// on Linux this also requires fprintd+enrolment, on every other
-  /// platform the platform biometric API suffices. Password-dependency
-  /// ("biometric requires password") is enforced separately by the
-  /// wizard UI because it is a UX rule, not a capability fact.
-  bool get canOfferBiometricModifier => isLinuxHost
-      ? (biometricAvailable || fprintdAvailable)
-      : biometricAvailable;
+/// Parse a `security_probe_cache` JSON snapshot. Returns `null`
+/// for malformed input (non-object root, unknown enum case,
+/// missing required strings) so the Dart caller falls through to
+/// "no cache" and reprobes.
+///
+/// Pass-through to `rust_caps.securityCapabilitiesFromJson` — the
+/// wire-format-owning crate's canonical decoder. No Dart-side
+/// `jsonEncode` / `jsonDecode` sandwich lives on this path.
+DbSecurityCapabilities? securityCapabilitiesFromJsonString(String? json) {
+  if (json == null || json.isEmpty) return null;
+  return rust_caps.securityCapabilitiesFromJson(json: json);
 }
 
 /// Asynchronously probe every OS / hardware capability the wizard
-/// needs. Returns a [SecurityCapabilities] with sensible defaults on
-/// any probe failure so a stuck D-Bus call (common on Linux test
-/// boxes) never leaves the user staring at a spinner.
-Future<SecurityCapabilities> probeCapabilities({
-  required SecureKeyStorage keyStorage,
-  required HardwareTierVault hardwareVault,
-  BiometricAuth? biometricAuth,
-  FprintdClient? fprintdClient,
+/// needs.
+///
+/// Routes through `lfs_core::security::capabilities_orchestrator::run`
+/// (FRB async): the orchestrator fans out the four probes concurrently
+/// via `tokio::join!`, applies a 5 s per-probe timeout, composes the
+/// snapshot, pushes it through the `capabilities_cache` actor, and
+/// returns it. The biometric availability probe runs in-process
+/// via `lfs_os_security::biometric_auth::check_availability` (or
+/// the Linux fprintd D-Bus walk for Linux hosts). Keychain probe +
+/// hardware-vault detail still reach the orchestrator through Dart
+/// subscribers (`KeychainProbePromptListener`,
+/// `HardwareVaultProbePromptListener`) until those probes also
+/// land Rust-side.
+///
+/// Errors propagate directly. **Don't add a Dart-mirror fallback
+/// pipeline** — it would silently mask a Rust-side failure with a
+/// shadow probe whose semantics drift from the orchestrator's.
+Future<DbSecurityCapabilities> probeCapabilities({
   bool? isLinuxHostOverride,
 }) async {
   final linux = isLinuxHostOverride ?? Platform.isLinux;
-  final bio = biometricAuth ?? BiometricAuth();
-  final fprintd = fprintdClient ?? FprintdClient();
-
-  Future<T> safely<T>(Future<T> Function() fn, T fallback, String probe) async {
-    try {
-      return await fn();
-    } catch (e) {
-      // Log the miss so a support trace shows which capability
-      // probe timed out / threw — silent fallbacks used to leave
-      // the wizard's tier list looking "unexpectedly small" on
-      // boxes where D-Bus stalls or a plugin is misregistered.
-      AppLogger.instance.log(
-        'Capability probe "$probe" failed (defaulting): $e',
-        name: 'SecurityBootstrap',
-      );
-      return fallback;
-    }
-  }
-
-  // Single probe per capability — deep probes are expensive (real
-  // SE / Keystore / TPM round-trip) so every duplicate call shows
-  // up as a UI stutter when Settings opens. `hardwareVault.probeDetail`
-  // already runs the same round-trip as `hardwareVault.isAvailable`,
-  // so we skip the separate `isAvailable` call and derive the bool
-  // from the reason code; same trick for keychain, where `probe()`
-  // returns a classified enum and the bool is "probe says available".
+  final caps = await rust_orch.capabilitiesProbeRun(isLinuxHost: linux);
   AppLogger.instance.log(
-    'Probing security capabilities (linuxHost=$linux)',
-    name: 'SecurityBootstrap',
-  );
-
-  final results = await Future.wait<Object>([
-    safely(keyStorage.probe, KeyringProbeResult.probeFailed, 'keychain'),
-    safely(
-      () async {
-        final res = await bio.availability();
-        return res == null;
-      },
-      false,
-      'biometric',
-    ),
-    linux
-        ? safely(
-            () async {
-              final hash = await fprintd.getEnrolmentHash();
-              return hash != null && hash.isNotEmpty;
-            },
-            false,
-            'fprintd',
-          )
-        : Future.value(false),
-    // Raw platform-specific hardware-vault reason code. Carried as a
-    // string so `core/security` does not need to import the
-    // `HardwareProbeDetail` enum from the providers layer (which
-    // would invert the dependency direction); the wizard + Settings
-    // code at the widgets/providers layer map the code back to an
-    // enum + localised reason copy.
-    safely(hardwareVault.probeDetail, 'unknown', 'hardware'),
-  ]);
-
-  final keyringProbe = results[0] as KeyringProbeResult;
-  final hardwareCode = results[3] as String;
-  final caps = SecurityCapabilities(
-    keychainAvailable: keyringProbe == KeyringProbeResult.available,
-    hardwareVaultAvailable: hardwareCode == 'available',
-    biometricAvailable: results[1] as bool,
-    fprintdAvailable: results[2] as bool,
-    isLinuxHost: linux,
-    keychainProbe: keyringProbe,
-    hardwareProbeCode: hardwareCode,
-  );
-  // Flat, greppable one-liner so a support trace pins which branches
-  // the wizard went down. No user strings in here — enum names and
-  // booleans only — so the sanitizer has nothing to do.
-  AppLogger.instance.log(
-    'Capabilities: keychain=${caps.keychainProbe.name} '
-    'hardware=${caps.hardwareProbeCode} biometric=${caps.biometricAvailable} '
+    'Capabilities (orchestrator): keychain=${caps.keychainProbe.name} '
+    'hardware=${caps.hardwareProbeCode} '
+    'biometric=${caps.biometricAvailable} '
     'fprintd=${caps.fprintdAvailable}',
     name: 'SecurityBootstrap',
   );
@@ -260,8 +110,8 @@ Future<SecurityCapabilities> probeCapabilities({
 /// Pure mapping (tier selected in wizard + modifier flags) → the
 /// existing `SecurityTier` enum value plus the secret field the
 /// downstream `_applyTierChange` / `_firstLaunchSetup` code paths
-/// look up. Keeps the wizard UI decoupled from the current persistence
-/// shape while the Phase F enum-collapse lands.
+/// look up. Keeps the wizard UI decoupled from the current
+/// persistence shape until the eventual enum-collapse refactor.
 ///
 /// T2 + password → `hardware` tier with the password routed into the
 /// `pin` field. The HardwareTierVault's HMAC gate does not care about
@@ -280,8 +130,8 @@ class MappedSetupChoice {
   final SecurityTierModifiers modifiers;
 
   /// The user-typed secret the downstream caller needs, routed into
-  /// whichever of `masterPassword` / `shortPassword` / `pin` the
-  /// legacy switch-case expects for the chosen tier.
+  /// whichever of `masterPassword` / `shortPassword` / `pin` matches
+  /// the chosen tier's auth shape.
   final String? masterPassword;
   final String? shortPassword;
   final String? pin;
@@ -298,50 +148,41 @@ class MappedSetupChoice {
 /// Translate the wizard's (T0/T1/T2/Paranoid + password + biometric +
 /// typed secret) shape into the persistence-layer `SecurityTier` +
 /// typed secret the current `_applyTierChange` cascade expects. The
-/// Phase F refactor will drop this adapter and let the wizard return
-/// `SecurityConfig` directly.
+/// eventual enum-collapse refactor will drop this adapter and let
+/// the wizard return `SecurityConfig` directly.
+///
+/// Routes through `lfs_core::security::map_wizard_choice` (FRB sync)
+/// — the choice grammar (which secret slot the typed secret routes
+/// into per tier, when keychain splits into the with-password
+/// variant) lives in Rust.
 MappedSetupChoice mapWizardChoice({
   required WizardTier chosen,
   required bool password,
   required bool biometric,
   String? typedSecret,
 }) {
-  final modifiers = SecurityTierModifiers(
+  final r = rust_wizard.securityMapWizardChoice(
+    tierWireName: chosen.name,
     password: password,
     biometric: biometric,
-    biometricShortcut: biometric,
+    typedSecret: typedSecret,
   );
-  switch (chosen) {
-    case WizardTier.plaintext:
-      return MappedSetupChoice(
-        tier: SecurityTier.plaintext,
-        modifiers: modifiers,
-      );
-    case WizardTier.keychain:
-      if (password) {
-        return MappedSetupChoice(
-          tier: SecurityTier.keychainWithPassword,
-          modifiers: modifiers,
-          shortPassword: typedSecret,
-        );
-      }
-      return MappedSetupChoice(
-        tier: SecurityTier.keychain,
-        modifiers: modifiers,
-      );
-    case WizardTier.hardware:
-      return MappedSetupChoice(
-        tier: SecurityTier.hardware,
-        modifiers: modifiers,
-        pin: typedSecret,
-      );
-    case WizardTier.paranoid:
-      return MappedSetupChoice(
-        tier: SecurityTier.paranoid,
-        modifiers: modifiers,
-        masterPassword: typedSecret,
-      );
-  }
+  return MappedSetupChoice(
+    // The Rust mapper already filtered unknown wire names; fall back
+    // to plaintext on the off-chance a future caller hands us a tier
+    // string this build doesn't know yet (defensive, the wizard side
+    // is the only producer and rides the same enum).
+    tier:
+        rust_sec_cfg.securityTierFromWire(value: r.tierWireName) ??
+        SecurityTier.plaintext,
+    modifiers: SecurityTierModifiers(
+      password: r.password,
+      biometric: r.biometric,
+    ),
+    masterPassword: r.masterPassword,
+    shortPassword: r.shortPassword,
+    pin: r.pin,
+  );
 }
 
 /// Normalised tier id the wizard radio-set exposes. Lives in bootstrap

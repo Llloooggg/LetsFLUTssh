@@ -72,7 +72,17 @@ class SRu extends S {
   String get copyModeExtending => 'Ведите пальцем, чтобы расширить выделение';
 
   @override
+  String get copyModeSetAnchor => 'Поставить якорь';
+
+  @override
+  String get copyModeCopySelection => 'Скопировать выделение';
+
+  @override
   String get required => 'Обязательное поле';
+
+  @override
+  String get errFillRequiredFields =>
+      'Заполните обязательные поля, отмеченные *';
 
   @override
   String get settings => 'Настройки';
@@ -384,6 +394,45 @@ class SRu extends S {
   String get auth => 'Авторизация';
 
   @override
+  String get sectionAuthentication => 'Аутентификация';
+
+  @override
+  String get sectionAdvanced => 'Дополнительно';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString правил проброса',
+      many: '$countString правил проброса',
+      few: '$countString правила проброса',
+      one: '$countString правило проброса',
+      zero: 'Нет правил проброса портов',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Управлять…';
+
+  @override
+  String get authMethodAgent => 'Использовать системный ssh-agent';
+
+  @override
+  String get authMethodAgentSubtitle =>
+      'Авторизация через \$SSH_AUTH_SOCK (Linux/macOS) или OpenSSH named pipe (Windows). Удобно, если ключи лежат в gpg-agent, Pageant или системном ssh-agent.';
+
+  @override
+  String get authMethodAgentMobileUnsupported =>
+      'Недоступно на мобильных — endpoint системного ssh-agent работает только на десктопе.';
+
+  @override
   String get options => 'Параметры';
 
   @override
@@ -421,6 +470,9 @@ class SRu extends S {
 
   @override
   String get hintOptional => 'Необязательно';
+
+  @override
+  String get savedTypeToChange => 'Сохранено — введите для замены';
 
   @override
   String get hidePemText => 'Скрыть PEM-текст';
@@ -535,11 +587,6 @@ class SRu extends S {
   @override
   String get importModeReplaceDescription =>
       'Заменить все сессии импортированными';
-
-  @override
-  String errorPrefix(String error) {
-    return 'Ошибка: $error';
-  }
 
   @override
   String get folderName => 'Имя папки';
@@ -880,9 +927,6 @@ class SRu extends S {
   String get sourceCode => 'Исходный код';
 
   @override
-  String get enableLogging => 'Включить журналирование';
-
-  @override
   String get logIsEmpty => 'Журнал пуст';
 
   @override
@@ -984,6 +1028,26 @@ class SRu extends S {
   String get disconnected => 'Отключено';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Подключение к $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Подключено к $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Отключено от $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Не удалось подключиться к $host';
+  }
+
+  @override
   String get exit => 'Выход';
 
   @override
@@ -999,19 +1063,12 @@ class SRu extends S {
   String get exportSessionsViaQr => 'Экспорт сессий через QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Пароли и SSH-ключи НЕ включены.\nДля импортированных сессий потребуется заполнить учётные данные.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Слишком много сессий для одного QR-кода. Снимите часть выделения или используйте экспорт в .lfs.';
 
   @override
   String get qrTooLarge =>
       'Слишком большой объём — снимите часть выделения или используйте экспорт в файл .lfs.';
-
-  @override
-  String get exportAll => 'Экспортировать все';
 
   @override
   String get showQr => 'Показать QR';
@@ -1027,6 +1084,25 @@ class SRu extends S {
 
   @override
   String get liveLog => 'Лог в реальном времени';
+
+  @override
+  String get archivedLog => 'Архивный лог';
+
+  @override
+  String get loggingLevel => 'Уровень логирования';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'Обычные записи + предупреждения + ошибки';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Только проблемные пути и ошибки';
+
+  @override
+  String get loggingLevelSubtitleError => 'Только ошибки';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Обычные логи не пишутся';
 
   @override
   String transferNItems(int count) {
@@ -1319,30 +1395,6 @@ class SRu extends S {
   String get progressDecrypting => 'Расшифровка…';
 
   @override
-  String get progressParsingArchive => 'Разбор архива…';
-
-  @override
-  String get progressImportingSessions => 'Импорт сессий';
-
-  @override
-  String get progressImportingFolders => 'Импорт папок';
-
-  @override
-  String get progressImportingManagerKeys => 'Импорт SSH-ключей';
-
-  @override
-  String get progressImportingTags => 'Импорт тегов';
-
-  @override
-  String get progressImportingSnippets => 'Импорт сниппетов';
-
-  @override
-  String get progressApplyingConfig => 'Применение конфигурации…';
-
-  @override
-  String get progressImportingKnownHosts => 'Импорт known_hosts…';
-
-  @override
   String get progressCollectingData => 'Сбор данных…';
 
   @override
@@ -1481,23 +1533,6 @@ class SRu extends S {
 
   @override
   String get transferStatusQueued => 'В очереди';
-
-  @override
-  String get transferStartingUpload => 'Начало загрузки...';
-
-  @override
-  String get transferStartingDownload => 'Начало скачивания...';
-
-  @override
-  String get transferCopying => 'Копирование...';
-
-  @override
-  String get transferDone => 'Готово';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total файлов';
-  }
 
   @override
   String get fileConflictTitle => 'Файл уже существует';
@@ -1692,6 +1727,52 @@ class SRu extends S {
   String get publicKeyCopied => 'Публичный ключ скопирован в буфер обмена';
 
   @override
+  String get sshCertificate => 'Сертификат';
+
+  @override
+  String get certImport => 'Импортировать сертификат';
+
+  @override
+  String get certImportPickerTitle => 'Выберите файл сертификата OpenSSH';
+
+  @override
+  String get certValidFrom => 'Действителен с';
+
+  @override
+  String get certValidTo => 'Действителен до';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Срок действия сертификата скоро истекает.';
+
+  @override
+  String get certExpired => 'Истёк';
+
+  @override
+  String get certRemove => 'Удалить сертификат';
+
+  @override
+  String get certRemoveConfirmTitle => 'Удалить сертификат?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'После удаления сертификата сессия будет подключаться по обычному публичному ключу.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Не удалось разобрать сертификат: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Этот сертификат не привязан к выбранному ключу.';
+
+  @override
   String get pastePrivateKey => 'Вставить приватный ключ (PEM)';
 
   @override
@@ -1720,21 +1801,7 @@ class SRu extends S {
   String get generated => 'Сгенерирован';
 
   @override
-  String get passphraseRequired => 'Требуется парольная фраза';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'SSH-ключ для $host зашифрован. Введите парольную фразу для разблокировки.';
-  }
-
-  @override
-  String get passphraseWrong => 'Неверная парольная фраза. Попробуйте ещё раз.';
-
-  @override
   String get passphrase => 'Парольная фраза';
-
-  @override
-  String get rememberPassphrase => 'Запомнить для этой сессии';
 
   @override
   String get enterMasterPassword =>
@@ -1742,9 +1809,6 @@ class SRu extends S {
 
   @override
   String get wrongMasterPassword => 'Неверный пароль. Попробуйте ещё раз.';
-
-  @override
-  String get newPassword => 'Новый пароль';
 
   @override
   String get currentPassword => 'Текущий пароль';
@@ -1836,12 +1900,6 @@ class SRu extends S {
   @override
   String get wizardReducedBanner =>
       'Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'На этом уровне — ничего.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Непокрытых угроз нет.';
 
   @override
   String get tierBadgeCurrent => 'Текущий';
@@ -2082,9 +2140,6 @@ class SRu extends S {
   String get snippetFillSubmit => 'Выполнить';
 
   @override
-  String get snippetPreview => 'Предпросмотр';
-
-  @override
   String get broadcastSetDriver => 'Транслировать из этой панели';
 
   @override
@@ -2126,13 +2181,13 @@ class SRu extends S {
   String get deleteForwardRule => 'Удалить правило';
 
   @override
-  String get localForward => 'Локальный (-L)';
+  String get localForward => 'Локальный';
 
   @override
-  String get remoteForward => 'Удалённый (-R)';
+  String get remoteForward => 'Удалённый';
 
   @override
-  String get dynamicForward => 'Динамический (-D)';
+  String get dynamicForward => 'Динамический';
 
   @override
   String get forwardKind => 'Тип';
@@ -2160,10 +2215,6 @@ class SRu extends S {
       'Привязка к 0.0.0.0 открывает туннель на всех интерфейсах — обычно нужен 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Локальные (-L), удалённые (-R) и динамические SOCKS5 (-D) туннели все активны.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Локальный: открывает порт на этом устройстве и туннелирует к цели, доступной с SSH-сервера. Удобно для доступа к удалённым БД или админкам через localhost:bindPort.';
 
@@ -2176,21 +2227,6 @@ class SRu extends S {
       'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажи браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
 
   @override
-  String get forwardExample => 'Пример';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → доступ к удалённой БД через localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → опубликовать локальный dev-сервер на порту 9000 сервера';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → SOCKS5 браузера на localhost:1080';
-
-  @override
   String get proxyJump => 'Подключаться через';
 
   @override
@@ -2200,24 +2236,11 @@ class SRu extends S {
   String get proxyJumpSavedSession => 'Сохранённая сессия';
 
   @override
-  String get proxyJumpCustom => 'Своё значение (user@host:port)';
+  String get proxyJumpCustom => 'Своё';
 
   @override
   String get proxyJumpCustomNote =>
       'Свои хопы используют учётные данные этой сессии. Для другой аутентификации бастиона сохрани бастион отдельной сессией.';
-
-  @override
-  String get errProxyJumpCycle => 'Цепочка прокси замыкается на саму себя.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Цепочка прокси слишком глубокая (максимум $max хопов).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Бастион $label не подключился.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2255,6 +2278,15 @@ class SRu extends S {
 
   @override
   String get recordingSpeedInstant => 'Мгновенно';
+
+  @override
+  String get recordingScrubTooltipUnavailable =>
+      'Scrub bar требует sidecar index — у старых записей (сделанных до этой сборки) его нет. Новые записи будут поддерживать перемотку.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
 
   @override
   String get tags => 'Теги';
@@ -2380,20 +2412,6 @@ class SRu extends S {
       'Проверять новую версию на GitHub при запуске приложения';
 
   @override
-  String get enableLoggingSubtitle =>
-      'Записывать события приложения в ротируемый лог-файл';
-
-  @override
-  String get exportWithoutPassword => 'Экспортировать без пароля?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.';
-
-  @override
-  String get continueWithoutPassword => 'Продолжить без пароля';
-
-  @override
   String get threatColdDiskTheft => 'Кража диска с выключенной машины';
 
   @override
@@ -2460,9 +2478,6 @@ class SRu extends S {
   String get colT1PasswordBiometric => 'T1 + пароль + биометрия';
 
   @override
-  String get colT2 => 'T2 Аппаратный';
-
-  @override
   String get colT2Password => 'T2 + пароль';
 
   @override
@@ -2495,6 +2510,11 @@ class SRu extends S {
   String get resetAllDataConfirmAction => 'Сбросить всё';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Введите $phrase ниже для подтверждения:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Сброс…';
 
   @override
@@ -2502,6 +2522,60 @@ class SRu extends S {
 
   @override
   String get resetAllDataFailed => 'Не удалось выполнить сброс';
+
+  @override
+  String get recordingsTitle => 'Записи';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Занято';
+
+  @override
+  String get recordingsCapLabel => 'Лимит';
+
+  @override
+  String get recordingsCapHint =>
+      'Жёсткий лимит на папку recordings/. При превышении первой удаляется самая старая запись; текущая запись не трогается.';
+
+  @override
+  String get recordingsClearAllAction => 'Удалить все записи';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Удалить все записи?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Каждая запись сессии в <app>/recordings/ будет удалена. Текущая запись (если есть) останется. Действие необратимо.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'Удалено записей: $count';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Лимит обновлён. Освобождено: $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => 'Лимит обновлён. Удалять нечего.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2512,7 +2586,7 @@ class SRu extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Продвинутый: ключ привязан к оборудованию. Данные невосстановимы, если чип этого устройства утерян или заменён.';
+      'Продвинутый: ключ привязан к оборудованию, всегда защищён паролем. Данные невосстановимы, если чип этого устройства утерян или заменён.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2534,6 +2608,10 @@ class SRu extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Вводимый секрет — барьер перед разблокировкой хранилища.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Обязательно — Hardware-уровень всегда защищён паролем.';
 
   @override
   String get modifierBiometricLabel => 'Биометрический ярлык';
@@ -2563,8 +2641,64 @@ class SRu extends S {
       'fprintd не установлен или нет зарегистрированного отпечатка.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM без пароля обеспечивает изоляцию, но не аутентификацию. Любой, кто может запустить это приложение, сможет разблокировать данные.';
+  String get t2RequiresPasswordTitle =>
+      'Задайте мастер-пароль для Hardware-уровня';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware-уровень требует пароль как модификатор. Биометрия — опциональный ярлык поверх него.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware-уровень требует пароль';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Существующие установки Hardware без пароля должны задать его сейчас, чтобы продолжить.';
+
+  @override
+  String get t2MigrationContinue => 'Продолжить';
+
+  @override
+  String get t2MigrationSetPasswordTitle => 'Задайте пароль для Hardware-тира';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Введите новый мастер-пароль. DB-ключ, уже запечатанный в hardware-модуле, перезапечатается под этим паролем — сессии и ключи останутся целы.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Стереть и начать заново';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Не удалось перезапечатать Hardware-тир — выберите другой пароль или сотрите всё.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Включить биометрический ярлык на Hardware-уровне';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Освобождает пароль из биометрически защищённого слота ОС.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Биометрическая оболочка пока недоступна на этой платформе.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Сначала задайте пароль Hardware-уровня.';
+
+  @override
+  String get t2UnlockTitle => 'Разблокировать мастер-паролем';
+
+  @override
+  String get t2UnlockSubtitle => 'Hardware-bound ключ защищён вашим паролем.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Использовать биометрию';
+
+  @override
+  String get t2PasswordChanged => 'Пароль Hardware-уровня обновлён.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2590,4 +2724,906 @@ class SRu extends S {
 
   @override
   String get masterPasswordLabel => 'Мастер-пароль';
+
+  @override
+  String get globalErrorTitle => 'Непредвиденная ошибка';
+
+  @override
+  String get globalErrorBody =>
+      'Произошла непредвиденная ошибка. Приложение продолжит работу.';
+
+  @override
+  String get globalErrorLogSavedNote => 'Подробности записаны в журнал.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Включите логирование в настройках, чтобы сохранять детали ошибок.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Ошибка: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Включить логирование';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Логирование включено — ошибки будут сохраняться в журнал';
+
+  @override
+  String get fatalErrorQuitButton => 'Выйти';
+
+  @override
+  String get fatalErrorWipeButton => 'Удалить все данные';
+
+  @override
+  String get fatalErrorWipingButton => 'Удаление…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Удаление сотрёт все файлы приложения (конфигурацию, базу, vault-блобы, логи) — следующий запуск начнётся с чистой установки. Это необратимо.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Удалить все данные?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'Это безвозвратно удалит все файлы конфигурации, базы данных и хранилищ. Приложение перезапустится с пустой установкой. Продолжить?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Удалить всё';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'Архив не защищён паролем. Любой, у кого есть файл, может прочитать содержимое.';
+
+  @override
+  String get clipboardCopyFailed => 'Не удалось скопировать в буфер.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Имя хоста содержит не-ASCII символы — проверьте каждый символ. Визуально похожие кодпоинты (кириллица / греческий) могут подменить латинский домен.';
+
+  @override
+  String get recordingPlayLocked =>
+      'Разблокируйте приложение, чтобы воспроизвести зашифрованную запись';
+
+  @override
+  String get foregroundServiceTitle => 'SSH активен';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count активных подключений',
+      few: '$count активных подключения',
+      one: '1 активное подключение',
+      zero: 'Нет активных подключений',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Тип сессии';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Имя пользователя';
+
+  @override
+  String get webDavAuthMethod => 'Метод аутентификации';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer токен';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint self-signed сертификата (опционально)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, оставьте пустым для системного trust';
+
+  @override
+  String get webDavCopyUrl => 'Скопировать WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'Открыть в браузере';
+
+  @override
+  String get errWebDavAuthFailed => 'Сбой аутентификации WebDAV';
+
+  @override
+  String get errWebDavNotFound => 'Путь не найден';
+
+  @override
+  String get errWebDavConflict => 'Операция конфликтует с текущим состоянием';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV сервер отклонил запрос: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Нужен base URL WebDAV';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL должен быть http:// или https://';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Пусто для AWS, или укажи для MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style адресация';
+
+  @override
+  String get s3PathStyleHint => 'Нужно для MinIO; выключи для AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket по умолчанию';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix по умолчанию';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Сгенерировать presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Истекает через';
+
+  @override
+  String get s3CopyUri => 'Скопировать s3://bucket/key URI';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 минут';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 час';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 часа';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 часа';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 дней';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (проверь access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket не существует или недоступен';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket в другом регионе, чем настроено';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 сервер отклонил запрос: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Включить WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Шифрует sync-архив. Должен отличаться от мастер-пароля.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase не должен совпадать с мастер-паролем.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'Путь под base URL WebDAV — по умолчанию letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Последний push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Последний pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Никогда';
+
+  @override
+  String get syncUpToDate => 'Sync актуален';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Отправлено $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Применено $count изменений с remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync выключён';
+
+  @override
+  String get errSyncEtagMismatch =>
+      'Remote изменился — сначала pull, потом push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV-аутентификация не прошла';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Сетевая ошибка: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Sync-архив с remote требует более новой сборки';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Коснитесь hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key не ответил';
+
+  @override
+  String get hardwareKeyNotFound => 'Hardware key не найден';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Прямой доступ к hardware key недоступен на этой платформе';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Требуется Apple Developer Program entitlement; используйте ssh-agent на macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Этому SSH-ключу нужен hardware key — коснитесь устройства для аутентификации';
+
+  @override
+  String get errSkWrongPin => 'Неверный PIN';
+
+  @override
+  String get hardwareKeyImport => 'Импорт hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Запрос hardware key отменён';
+
+  @override
+  String get agentEndpointSectionTitle => 'Интеграция с внешними SSH-клиентами';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Открыть hardware-bound ключи системным SSH-клиентам';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Позволяет git, ssh, плагинам IDE на этом устройстве использовать ваши FIDO2 / smart-card / TPM ключи.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Скопировать export-команду';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Скопировать имя pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Запрос на подпись';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester запрашивает подпись ключом $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Внешний SSH-клиент';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Разрешить один раз';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Разрешить и запомнить';
+
+  @override
+  String get agentEndpointDeny => 'Отклонить';
+
+  @override
+  String get agentEndpointStatusRunning => 'Работает';
+
+  @override
+  String get agentEndpointStatusStopped => 'Остановлено';
+
+  @override
+  String get agentEndpointStatusUnsupported =>
+      'Не поддерживается на этой платформе';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Отказано: внешние клиенты не могут добавлять ключи.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Не удалось запустить ssh-agent endpoint: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'Добавить ключ со смарт-карты или токена';
+
+  @override
+  String get pkcs11ModuleLabel => 'Модуль PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Найдено автоматически';
+
+  @override
+  String get pkcs11ModuleCustom => 'Указать модуль...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Выбор библиотеки PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Модуль PKCS#11 не найден. Установите OpenSC или укажите библиотеку вендора.';
+
+  @override
+  String get pkcs11InitializeFailed => 'Модуль PKCS#11 не инициализировался.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Нет токена в считывателе.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Токен: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Серийный номер: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Требуется вход на токен.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN для $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Подтвердите на PIN-паде токена.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'Неверный PIN. Осталось попыток: $remaining.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN заблокирован. Разблокируйте через PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'На токене нет ключей, пригодных для SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Ключи GOST не работают по SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Токен \"$label\" не вставлен.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Сохранённый токен не найден. Переподключите и повторите.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Подпись не удалась: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Смарт-карты и токены PKCS#11 недоступны на этой платформе.';
+
+  @override
+  String get pkcs11Badge => 'Смарт-карта / токен';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Модуль: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Серийный номер токена: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Объект: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Выберите модуль PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Выберите токен';
+
+  @override
+  String get pkcs11WizardStepKey => 'Выберите ключ';
+
+  @override
+  String get pkcs11WizardStepPin => 'Введите PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Импортировать ключ';
+
+  @override
+  String get pkcs11SaveInProgress => 'Чтение публичного ключа с токена...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Ключ со смарт-карты добавлен.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Поиск модулей PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Загрузка токенов...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Загрузка ключей...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Модуль загружен.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Токен не вставлен.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Не удалось загрузить модуль.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN-пад на устройстве)';
+
+  @override
+  String get pkcs11WizardBack => 'Назад';
+
+  @override
+  String get pkcs11WizardNext => 'Далее';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Добавить hardware-ключ';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Приватный ключ хранится в защищённом hardware и не может быть экспортирован.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound =>
+      'Этот ключ работает только на этом Mac.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Этот ключ работает только на этом iPhone.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'Этот ключ работает только на этом PC.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Требовать Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Разрешить passcode устройства как fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Требовать Windows Hello (PIN, отпечаток или лицо)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware-ключи недоступны';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Для Secure Enclave приложение должно быть подписано.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello не настроен на этом PC.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM не обнаружен — только software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Сгенерировать';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Генерация ключа в защищённом hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Требуется code-signing — см. USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Подписание через защищённое hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'Скопировать публичный ключ';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Добавьте эту строку в ~/.ssh/authorized_keys на сервере.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'SSH-ключ в Secure Enclave';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Название ключа';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'SSH-ключ Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Метка ключа';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Подтвердите через Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, отпечаток или лицо — Windows Hello подпишет SSH-запрос.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'На устройстве нет TPM. Ключ ляжет в пользовательское хранилище; Windows Hello всё равно прогоняет каждую подпись.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Прошивка TPM не поддерживает P-384. Выберите P-256 или RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Сначала настройте Windows Hello: Параметры -> Варианты входа.';
+
+  @override
+  String get tpmSshTitle => 'Создать SSH-ключ через TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (рекомендуется)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Прошивка TPM не поддерживает этот algorithm.';
+
+  @override
+  String get tpmSshPinProtect => 'Защитить PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'После нескольких неверных PIN TPM блокирует ключ.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN не совпадают.';
+
+  @override
+  String get tpmSshStorageBlob => 'Хранить wrapped-ключ в данных приложения';
+
+  @override
+  String get tpmSshStorageHandle => 'Положить в слот памяти TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Подпись быстрее. Занимает один из persistent-слотов TPM.';
+
+  @override
+  String get tpmSshLabel => 'Метка ключа';
+
+  @override
+  String get tpmSshImportTitle => 'Импортировать SSH-ключ под TPM';
+
+  @override
+  String get tpmSshImportFormat => 'Файл TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN для $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN неверный.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM в lockout-кулдауне. Подождите $duration и повторите.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Создаём ключ в TPM...';
+
+  @override
+  String get tpmSshSigning => 'Подписываем через TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'TPM на устройстве не найден.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM выключен в прошивке.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'Приложение не может обратиться к TPM. Добавьте пользователя в группу `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Слот $handle уже занят.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Ключ подписывает БЕЗ запроса Hello / PIN — пока вы залогинены, любой с доступом к рабочему столу сможет им подписать.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (аппаратная привязка)';
+
+  @override
+  String get keystoreKeyGenerating => 'Генерируется аппаратный ключ...';
+
+  @override
+  String get keystoreKeyAuthPrompt =>
+      'Подтвердите личность для использования SSH-ключа';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Ключ уничтожен: добавлен новый биометрический шаблон. Зарегистрируйте новый публичный ключ на серверах.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM недоступен на этом устройстве';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Требовать биометрию / разблокировку устройства для каждой подписи';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Аппаратные ключи нельзя экспортировать';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Удаление ключа сотрёт его из аппаратного хранилища. Серверы будут отклонять этот ключ, пока вы не зарегистрируете новый.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Сначала настройте биометрию или PIN устройства';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (поддерживает StrongBox)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, только TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (максимальная совместимость)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM недоступен';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Устройство не отдаёт StrongBox HSM. Создать вместо этого ключ с привязкой к TEE? Аппаратная привязка останется, только без изоляции StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Использовать TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Отмена';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Аппаратные ключи безопасности';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Системный диалог security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'Системный security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Системный security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'Прямой USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Недоступно на этой платформе';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Использовать прямой USB HID вместо системного диалога';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Для продвинутых пользователей: обойти $brokerLabel там, где работают оба пути. Прямой HID поддерживает больше возможностей аутентификатора, но требует разрешений на доступ к устройству.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'SSH-интеграция';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Поддержка аппаратных ключей недоступна на этом устройстве.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'На этом устройстве доступен только $transport; переключатель отключён.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'Импортированный стаб';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Импортирован с другого устройства — сгенерируйте здесь, чтобы использовать';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Сгенерировать здесь';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Удалить стаб';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Сгенерируйте этот ключ на этом устройстве перед использованием';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Укажите путь к модулю PKCS#11 для токена «$token»';
+  }
 }

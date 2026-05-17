@@ -1,13 +1,18 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/port_forwards_dao.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../core/ssh/port_forward_rule.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_dialog.dart';
@@ -26,6 +31,8 @@ import 'session_edit_dialog.dart';
 import 'session_panel_controller.dart';
 import 'session_tree_view.dart';
 
+part 'session_panel_folder_actions.dart';
+part 'session_panel_session_actions.dart';
 part 'session_panel_widgets.dart';
 
 /// Session sidebar — tree view + search + actions.
@@ -135,12 +142,26 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       ),
     );
     if (confirmed) {
-      final notifier = ref.read(sessionProvider.notifier);
+      final mutator = ref.read(sessionMutatorProvider);
       if (_ctrl.selectedIds.isNotEmpty) {
-        await notifier.deleteMultiple(Set.of(_ctrl.selectedIds));
+        // Drop WebDAV SecretStore entries first so a same-id session
+        // recreated afterwards starts from a clean slot. The DB row
+        // delete that follows cascades the `webdav_session_details`
+        // join row via the FK; secrets have no FK so the cleanup is
+        // explicit.
+        final byId = {for (final s in ref.read(sessionProvider)) s.id: s};
+        for (final id in _ctrl.selectedIds) {
+          final match = byId[id];
+          if (match != null && match.isWebDav) {
+            rust_app.secretsDrop(
+              id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: id),
+            );
+          }
+        }
+        await mutator.deleteMultiple(Set.of(_ctrl.selectedIds));
       }
       for (final folderPath in _ctrl.selectedFolderPaths) {
-        await notifier.deleteFolder(folderPath);
+        await mutator.deleteFolder(folderPath);
       }
       if (_ctrl.selectMode) {
         _ctrl.exitSelectMode();
@@ -152,8 +173,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   Future<void> _moveSelected(BuildContext context) async {
     if (!_ctrl.hasSelection) return;
-    final store = ref.read(sessionStoreProvider);
-    final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
+    final mutator = ref.read(sessionMutatorProvider);
+    final allFolders = <String>{
+      '',
+      ...mutator.folders(),
+      ...ref.read(emptyFoldersProvider),
+    };
 
     final selected = await AppDialog.show<String>(
       context,
@@ -186,12 +211,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   Future<void> _applyMove(String target) async {
-    final notifier = ref.read(sessionProvider.notifier);
+    final mutator = ref.read(sessionMutatorProvider);
     if (_ctrl.selectedIds.isNotEmpty) {
-      await notifier.moveMultiple(Set.of(_ctrl.selectedIds), target);
+      await mutator.moveMultiple(Set.of(_ctrl.selectedIds), target);
     }
     for (final folderPath in _ctrl.selectedFolderPaths) {
-      await notifier.moveFolder(folderPath, target);
+      await mutator.moveFolder(folderPath, target);
     }
     if (_ctrl.selectMode) {
       _ctrl.exitSelectMode();
@@ -204,10 +229,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   ({Set<String> connected, Set<String> connecting}) _connectionSessionIds(
     WidgetRef ref,
   ) {
-    // Watch the derived summary, not the raw stream — a cachedPassphrase
-    // write or a progress-step append on an unrelated connection does
-    // not change which session ids belong to which bucket, so value
-    // equality on ConnectionSummary suppresses the rebuild.
+    // Watch the derived summary, not the raw stream — a progress-step
+    // append on an unrelated connection does not change which session
+    // ids belong to which bucket, so value equality on
+    // ConnectionSummary suppresses the rebuild.
     final summary = ref.watch(connectionSummaryProvider);
     return (
       connected: summary.connectedSessionIds,
@@ -233,17 +258,35 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// [explicitTarget] overrides the focus-derived target — used by the
   /// folder-row context menu, which pastes into the right-clicked
   /// folder regardless of what is currently focused.
+  ///
+  /// Clipboard slot can be either a session id or a folder path
+  /// (mutually exclusive — see [SessionPanelController.copyFolderPath]).
+  /// Cut on a folder paths becomes [SessionMutator.moveFolder]; copy
+  /// becomes [SessionMutator.duplicateFolder] (deep duplicate of the
+  /// folder + every session and subfolder inside).
   @visibleForTesting
   void pasteCopiedSession({String? explicitTarget}) {
     final id = _ctrl.copiedSessionId;
-    if (id == null) return;
+    final folderPath = _ctrl.copiedFolderPath;
+    if (id == null && folderPath == null) return;
     final target = explicitTarget ?? _resolvePasteTargetFolder();
+    final mutator = ref.read(sessionMutatorProvider);
+    if (id != null) {
+      if (_ctrl.cutPending) {
+        mutator.moveSession(id, target);
+        _ctrl.clearClipboard();
+        return;
+      }
+      mutator.duplicate(id, targetFolder: target);
+      return;
+    }
+    // Folder-path branch.
     if (_ctrl.cutPending) {
-      ref.read(sessionProvider.notifier).moveSession(id, target);
+      mutator.moveFolder(folderPath!, target);
       _ctrl.clearClipboard();
       return;
     }
-    ref.read(sessionProvider.notifier).duplicate(id, targetFolder: target);
+    mutator.duplicateFolder(folderPath!, target);
   }
 
   /// Resolve where a paste should land. Focused folder wins, then
@@ -284,10 +327,50 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     _editSession(context, ref, session);
   }
 
+  /// Delete the focused folder (shows confirmation dialog). Mirror of
+  /// [deleteFocusedSession] for the folder side — without it the
+  /// `Delete` keyboard shortcut on a focused folder no-ops because
+  /// the binding only knew the session-id branch.
+  @visibleForTesting
+  void deleteFocusedFolder() {
+    final path = _ctrl.focusedFolderPath;
+    if (path == null || path.isEmpty) return;
+    _confirmDeleteFolder(context, ref, path);
+  }
+
+  /// Rename the focused folder (shows rename dialog). The session-edit
+  /// shortcut (F2 / Enter) doubles as folder-rename when a folder
+  /// row holds focus instead of a session.
+  @visibleForTesting
+  void renameFocusedFolder() {
+    final path = _ctrl.focusedFolderPath;
+    if (path == null || path.isEmpty) return;
+    _renameFolder(context, ref, path);
+  }
+
+  /// Folder path the next "create" should land in: focused folder if
+  /// any; otherwise the focused session's folder; otherwise root.
+  /// Same rule as [_resolvePasteTargetFolder] — a single focus pointer
+  /// drives every "create / paste lands here" affordance so the user
+  /// doesn't have to open a context menu just to scope a new entry.
+  String _resolveFocusedTargetFolder() {
+    final folder = _ctrl.focusedFolderPath;
+    if (folder != null) return folder;
+    final sid = _ctrl.focusedSessionId;
+    if (sid != null) {
+      final sess = ref
+          .read(sessionProvider)
+          .where((s) => s.id == sid)
+          .firstOrNull;
+      if (sess != null) return sess.folder;
+    }
+    return '';
+  }
+
   Map<ShortcutActivator, VoidCallback> _buildShortcutBindings() {
     return AppShortcutRegistry.instance.buildCallbackMap({
-      AppShortcut.sessionUndo: () => ref.read(sessionProvider.notifier).undo(),
-      AppShortcut.sessionRedo: () => ref.read(sessionProvider.notifier).redo(),
+      AppShortcut.sessionUndo: () => ref.read(sessionMutatorProvider).undo(),
+      AppShortcut.sessionRedo: () => ref.read(sessionMutatorProvider).redo(),
       AppShortcut.sessionCopy: copyFocusedSession,
       AppShortcut.sessionCut: cutFocusedSession,
       AppShortcut.sessionPaste: pasteCopiedSession,
@@ -296,14 +379,53 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           _deleteSelected(context);
           return;
         }
-        if (_ctrl.focusedSessionId == null) return;
-        deleteFocusedSession();
+        if (_ctrl.focusedSessionId != null) {
+          deleteFocusedSession();
+          return;
+        }
+        if (_ctrl.focusedFolderPath != null) {
+          deleteFocusedFolder();
+        }
       },
       AppShortcut.sessionEdit: () {
-        if (_ctrl.focusedSessionId == null) return;
-        editFocusedSession();
+        if (_ctrl.focusedSessionId != null) {
+          editFocusedSession();
+          return;
+        }
+        if (_ctrl.focusedFolderPath != null) {
+          renameFocusedFolder();
+        }
       },
+      AppShortcut.openContextMenu: () => _openContextMenuFromKeyboard(context),
+      AppShortcut.openContextMenuApps: () =>
+          _openContextMenuFromKeyboard(context),
     });
+  }
+
+  /// Anchor the right-click menu under a Shift+F10 / Apps Menu key
+  /// open. The exact focused-row rect would require per-row keys;
+  /// the panel-relative top-left + small inset is close enough for
+  /// users to see and navigate the menu.
+  void _openContextMenuFromKeyboard(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box?.localToGlobal(const Offset(8, 8)) ?? Offset.zero;
+    final sid = _ctrl.focusedSessionId;
+    if (sid != null) {
+      final session = ref
+          .read(sessionProvider)
+          .where((s) => s.id == sid)
+          .firstOrNull;
+      if (session != null) {
+        _showContextMenu(context, ref, session, origin);
+        return;
+      }
+    }
+    final folder = _ctrl.focusedFolderPath;
+    if (folder != null) {
+      _showFolderContextMenu(context, ref, folder, origin);
+      return;
+    }
+    _showFolderContextMenu(context, ref, '', origin);
   }
 
   @override
@@ -434,8 +556,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
     return [
       _PanelHeader(
-        onAddSession: () => _addSession(context, ref),
-        onAddFolder: () => _createFolder(context, ref, ''),
+        // Pick the focused folder (or the focused session's folder)
+        // as the parent for new entries — matches the user's mental
+        // model "I selected this folder, the new thing goes here".
+        // Falls back to root when nothing is focused.
+        onAddSession: () =>
+            _addSessionInFolder(context, ref, _resolveFocusedTargetFolder()),
+        onAddFolder: () =>
+            _createFolder(context, ref, _resolveFocusedTargetFolder()),
       ),
       _SearchBar(
         value: searchQuery,
@@ -476,9 +604,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       tree: tree,
       connectedSessionIds: connState.connected,
       connectingSessionIds: connState.connecting,
-      collapsedFolders: ref.watch(sessionStoreProvider).collapsedFolders,
+      collapsedFolders: ref.watch(collapsedFoldersProvider),
       onToggleFolderCollapsed: (path) =>
-          ref.read(sessionStoreProvider).toggleFolderCollapsed(path),
+          ref.read(sessionMutatorProvider).toggleFolderCollapsed(path),
       selectMode: mobile && _ctrl.selectMode,
       selectedIds: _ctrl.selectedIds,
       onToggleSelected: _ctrl.toggleSelected,
@@ -515,18 +643,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         _showFolderContextMenu(context, ref, '', position);
       },
       onSessionMoved: (sessionId, targetFolder) {
-        ref.read(sessionProvider.notifier).moveSession(sessionId, targetFolder);
+        ref.read(sessionMutatorProvider).moveSession(sessionId, targetFolder);
       },
       onFolderMoved: (folderPath, targetParent) {
-        ref.read(sessionProvider.notifier).moveFolder(folderPath, targetParent);
+        ref.read(sessionMutatorProvider).moveFolder(folderPath, targetParent);
       },
       onBulkMoved: (sessionIds, folderPaths, targetFolder) async {
-        final notifier = ref.read(sessionProvider.notifier);
+        final mutator = ref.read(sessionMutatorProvider);
         if (sessionIds.isNotEmpty) {
-          await notifier.moveMultiple(sessionIds, targetFolder);
+          await mutator.moveMultiple(sessionIds, targetFolder);
         }
         for (final gp in folderPaths) {
-          await notifier.moveFolder(gp, targetFolder);
+          await mutator.moveFolder(gp, targetFolder);
         }
         _ctrl.clearDesktopSelection();
       },
@@ -534,710 +662,5 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       onMarqueeEnd: () => _ctrl.setMarqueeInProgress(false),
       onMarqueeSelect: _ctrl.setMarqueeSelection,
     );
-  }
-
-  Future<void> _handleDialogResult(
-    WidgetRef ref,
-    SessionDialogResult result,
-  ) async {
-    switch (result) {
-      case SaveResult(:final session, :final connect, :final forwards):
-        await ref.read(sessionProvider.notifier).add(session);
-        await _syncForwards(ref, session.id, forwards);
-        if (connect) widget.onConnect(session);
-    }
-  }
-
-  /// Diff the rule list against what the store holds for [sessionId]
-  /// and write the delta. Removed rules drop via `deletePortForward`,
-  /// added or edited rules go through `upsertPortForward` (which is
-  /// idempotent on the rule id). Runs in its own pass after the
-  /// session row commits so the FK constraint sees a real parent.
-  Future<void> _syncForwards(
-    WidgetRef ref,
-    String sessionId,
-    List<PortForwardRule> nextRules,
-  ) async {
-    final store = ref.read(sessionStoreProvider);
-    final existing = await store.loadPortForwards(sessionId);
-    final keep = nextRules.map((r) => r.id).toSet();
-    for (final old in existing) {
-      if (!keep.contains(old.id)) {
-        await store.deletePortForward(old.id);
-      }
-    }
-    for (final r in nextRules) {
-      await store.upsertPortForward(sessionId, r);
-    }
-  }
-
-  Future<void> _addSession(BuildContext context, WidgetRef ref) async {
-    final result = await SessionEditDialog.show(context);
-    if (result == null) return;
-    await _handleDialogResult(ref, result);
-  }
-
-  void _showContextMenu(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-    Offset position,
-  ) {
-    if (isMobilePlatform) {
-      _showMobileSessionSheet(context, ref, session);
-      return;
-    }
-    showAppContextMenu(
-      context: context,
-      position: position,
-      items: [
-        StandardMenuAction.terminal.item(
-          context,
-          onTap: () => widget.onConnect(session),
-        ),
-        if (widget.onSftpConnect != null)
-          StandardMenuAction.files.item(
-            context,
-            onTap: () => widget.onSftpConnect?.call(session),
-          ),
-        const ContextMenuItem.divider(),
-        StandardMenuAction.copy.item(
-          context,
-          shortcut: AppShortcut.sessionCopy,
-          onTap: () => _ctrl.copySessionId(session.id),
-        ),
-        StandardMenuAction.cut.item(
-          context,
-          shortcut: AppShortcut.sessionCut,
-          onTap: () => _ctrl.cutSessionId(session.id),
-        ),
-        // Paste is always visible — matches Finder / Explorer / Nautilus,
-        // where the entry stays present and silently no-ops when the
-        // clipboard is empty. Hiding it would make the menu layout jitter
-        // between copy-then-paste actions.
-        StandardMenuAction.paste.item(
-          context,
-          shortcut: AppShortcut.sessionPaste,
-          onTap: () => pasteCopiedSession(explicitTarget: session.folder),
-        ),
-        const ContextMenuItem.divider(),
-        StandardMenuAction.editConnection.item(
-          context,
-          onTap: () => _editSession(context, ref, session),
-        ),
-        StandardMenuAction.duplicate.item(
-          context,
-          onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
-        ),
-        const ContextMenuItem.divider(),
-        StandardMenuAction.delete.item(
-          context,
-          onTap: () => _confirmDelete(context, ref, session),
-        ),
-      ],
-    );
-  }
-
-  void _showMobileSessionSheet(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-  ) {
-    final label = session.label.isNotEmpty
-        ? session.label
-        : session.displayName;
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppFonts.xl,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (session.host.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    session.host,
-                    style: TextStyle(
-                      fontSize: AppFonts.lg,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ),
-              const AppDivider(),
-              ListTile(
-                leading: Icon(Icons.terminal, color: AppTheme.blue),
-                title: Text(S.of(ctx).terminal),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onConnect(session);
-                },
-              ),
-              if (widget.onSftpConnect != null)
-                ListTile(
-                  leading: Icon(Icons.folder, color: AppTheme.yellow),
-                  title: Text(S.of(ctx).files),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    widget.onSftpConnect?.call(session);
-                  },
-                ),
-              const AppDivider(),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: Text(S.of(ctx).editConnection),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _editSession(context, ref, session);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.copy),
-                title: Text(S.of(ctx).duplicate),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ref.read(sessionProvider.notifier).duplicate(session.id);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_move),
-                title: Text(S.of(ctx).moveTo),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _moveSession(context, ref, session);
-                },
-              ),
-              const AppDivider(),
-              ListTile(
-                leading: Icon(Icons.delete, color: AppTheme.disconnected),
-                title: Text(
-                  S.of(ctx).delete,
-                  style: TextStyle(color: AppTheme.disconnected),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _confirmDelete(context, ref, session);
-                },
-              ),
-              const AppDivider(),
-              ListTile(
-                leading: const Icon(Icons.checklist),
-                title: Text(S.of(ctx).select),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  enterSelectModeWithSession(session.id);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _moveSession(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-  ) async {
-    final store = ref.read(sessionStoreProvider);
-    final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
-
-    final selected = await AppDialog.show<String>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: S.of(context).moveToFolder,
-        scrollable: false,
-        contentPadding: EdgeInsets.zero,
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: allFolders.length,
-            itemBuilder: (ctx, index) => _buildMoveFolderTile(
-              ctx,
-              allFolders.elementAt(index),
-              session.folder,
-            ),
-          ),
-        ),
-        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
-      ),
-    );
-
-    if (selected != null) {
-      ref.read(sessionProvider.notifier).moveSession(session.id, selected);
-    }
-  }
-
-  Widget _buildMoveFolderTile(
-    BuildContext context,
-    String folder,
-    String currentFolder,
-  ) {
-    final isCurrent = folder == currentFolder;
-    return ListTile(
-      leading: Icon(
-        folder.isEmpty ? Icons.home : Icons.folder,
-        color: isCurrent ? Theme.of(context).colorScheme.primary : null,
-      ),
-      title: Text(
-        folder.isEmpty ? S.of(context).rootFolder : folder,
-        style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : null),
-      ),
-      trailing: isCurrent ? const Icon(Icons.check, size: 18) : null,
-      onTap: isCurrent ? null : () => Navigator.of(context).pop(folder),
-    );
-  }
-
-  Future<void> _editSession(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-  ) async {
-    // In-memory cached [session] has no credentials (lazy-load). Reload
-    // from DB so the edit form pre-fills password/keyData/passphrase
-    // correctly; fall back to the bare cache entry if the row vanished.
-    final store = ref.read(sessionStoreProvider);
-    final full = await store.loadWithCredentials(session.id) ?? session;
-    if (!context.mounted) return;
-    final result = await SessionEditDialog.show(context, session: full);
-    if (result == null) return;
-    if (result is SaveResult) {
-      await ref.read(sessionProvider.notifier).update(result.session);
-      await _syncForwards(ref, result.session.id, result.forwards);
-      if (result.connect) widget.onConnect(result.session);
-    }
-  }
-
-  void _showFolderContextMenu(
-    BuildContext context,
-    WidgetRef ref,
-    String folderPath,
-    Offset position,
-  ) {
-    if (isMobilePlatform) {
-      _showMobileFolderSheet(context, ref, folderPath);
-      return;
-    }
-    showAppContextMenu(
-      context: context,
-      position: position,
-      items: [
-        StandardMenuAction.newConnection.item(
-          context,
-          onTap: () => _addSessionInFolder(context, ref, folderPath),
-        ),
-        StandardMenuAction.newFolder.item(
-          context,
-          onTap: () => _createFolder(context, ref, folderPath),
-        ),
-        // Paste lands directly inside the right-clicked folder — the
-        // explicit target overrides the focus-derived default, so the
-        // user does not have to pre-focus the folder.
-        StandardMenuAction.paste.item(
-          context,
-          shortcut: AppShortcut.sessionPaste,
-          onTap: () => pasteCopiedSession(explicitTarget: folderPath),
-        ),
-        if (folderPath.isNotEmpty) ...[
-          const ContextMenuItem.divider(),
-          StandardMenuAction.renameFolder.item(
-            context,
-            onTap: () => _renameFolder(context, ref, folderPath),
-          ),
-          StandardMenuAction.editTags.item(
-            context,
-            onTap: () {
-              final folderId = ref
-                  .read(sessionStoreProvider)
-                  .folderIdByPath(folderPath);
-              if (folderId != null) {
-                TagAssignDialog.showForFolder(context, folderId: folderId);
-              }
-            },
-          ),
-          StandardMenuAction.deleteFolder.item(
-            context,
-            onTap: () => _confirmDeleteFolder(context, ref, folderPath),
-          ),
-        ],
-      ],
-    );
-  }
-
-  void _showMobileFolderSheet(
-    BuildContext context,
-    WidgetRef ref,
-    String folderPath,
-  ) {
-    final folderName = folderPath.isEmpty
-        ? S.of(context).root
-        : folderPath.split('/').last;
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Text(
-                  folderName,
-                  style: TextStyle(
-                    fontSize: AppFonts.xl,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const AppDivider(),
-              ListTile(
-                leading: const Icon(Icons.add),
-                title: Text(S.of(ctx).newConnection),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _addSessionInFolder(context, ref, folderPath);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.create_new_folder),
-                title: Text(S.of(ctx).newFolder),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _createFolder(context, ref, folderPath);
-                },
-              ),
-              if (folderPath.isNotEmpty) ...[
-                const AppDivider(),
-                ListTile(
-                  leading: const Icon(Icons.drive_file_rename_outline),
-                  title: Text(S.of(ctx).renameFolder),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _renameFolder(context, ref, folderPath);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.delete, color: AppTheme.disconnected),
-                  title: Text(
-                    S.of(ctx).deleteFolder,
-                    style: TextStyle(color: AppTheme.disconnected),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _confirmDeleteFolder(context, ref, folderPath);
-                  },
-                ),
-                const AppDivider(),
-                ListTile(
-                  leading: const Icon(Icons.checklist),
-                  title: Text(S.of(ctx).select),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    enterSelectModeWithFolder(folderPath);
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _addSessionInFolder(
-    BuildContext context,
-    WidgetRef ref,
-    String folderPath,
-  ) async {
-    final result = await SessionEditDialog.show(
-      context,
-      defaultFolder: folderPath,
-    );
-    if (result == null) return;
-    await _handleDialogResult(ref, result);
-  }
-
-  Future<void> _createFolder(
-    BuildContext context,
-    WidgetRef ref,
-    String parentFolder,
-  ) async {
-    final existingFolders = _collectAllFolderPaths(ref);
-
-    final result = await _showFolderNameDialog(
-      context,
-      title: S.of(context).newFolder,
-      confirmLabel: S.of(context).create,
-      existingFolders: existingFolders,
-      parentPath: parentFolder,
-    );
-
-    if (result == null || result.trim().isEmpty) return;
-
-    final newFolder = parentFolder.isEmpty
-        ? result.trim()
-        : '$parentFolder/${result.trim()}';
-    await ref.read(sessionProvider.notifier).addEmptyFolder(newFolder);
-  }
-
-  Future<void> _renameFolder(
-    BuildContext context,
-    WidgetRef ref,
-    String folderPath,
-  ) async {
-    // Extract the folder's own name (last segment)
-    final parts = folderPath.split('/');
-    final currentName = parts.last;
-    final parentPath = parts.length > 1
-        ? parts.sublist(0, parts.length - 1).join('/')
-        : '';
-
-    final existingFolders = _collectAllFolderPaths(ref);
-
-    final result = await _showFolderNameDialog(
-      context,
-      title: S.of(context).renameFolder,
-      confirmLabel: S.of(context).rename,
-      initialValue: currentName,
-      existingFolders: existingFolders,
-      parentPath: parentPath,
-      currentName: currentName,
-    );
-
-    if (result == null ||
-        result.trim().isEmpty ||
-        result.trim() == currentName) {
-      return;
-    }
-
-    final newPath = parentPath.isEmpty
-        ? result.trim()
-        : '$parentPath/${result.trim()}';
-    await ref.read(sessionProvider.notifier).renameFolder(folderPath, newPath);
-  }
-
-  /// Collects all existing folder paths including implicit parent segments.
-  /// E.g. "A/B/C" implies "A" and "A/B" also exist.
-  Set<String> _collectAllFolderPaths(WidgetRef ref) {
-    final store = ref.read(sessionStoreProvider);
-    final result = <String>{};
-    for (final g in [...store.folders(), ...store.emptyFolders]) {
-      final parts = g.split('/');
-      for (var i = 1; i <= parts.length; i++) {
-        result.add(parts.sublist(0, i).join('/'));
-      }
-    }
-    return result;
-  }
-
-  /// Shows a folder name input dialog with duplicate validation.
-  /// Returns the entered name, or null if cancelled.
-  Future<String?> _showFolderNameDialog(
-    BuildContext context, {
-    required String title,
-    required String confirmLabel,
-    required Set<String> existingFolders,
-    required String parentPath,
-    String? initialValue,
-    String? currentName,
-  }) async {
-    final nameCtrl = TextEditingController(text: initialValue ?? '');
-    String? errorText;
-
-    try {
-      return await showDialog<String>(
-        context: context,
-        animationStyle: AnimationStyle.noAnimation,
-        builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return _buildFolderNameAlert(
-              ctx,
-              title: title,
-              confirmLabel: confirmLabel,
-              nameCtrl: nameCtrl,
-              errorText: errorText,
-              onChanged: (_) {
-                final name = nameCtrl.text.trim();
-                final fullPath = parentPath.isEmpty
-                    ? name
-                    : '$parentPath/$name';
-                final isDuplicate =
-                    name.isNotEmpty &&
-                    name != currentName &&
-                    existingFolders.contains(fullPath);
-                setDialogState(() {
-                  errorText = isDuplicate
-                      ? S.of(context).folderAlreadyExists(name)
-                      : null;
-                });
-              },
-              hintText: S.of(context).hintFolderExample,
-            );
-          },
-        ),
-      );
-    } finally {
-      nameCtrl.dispose();
-    }
-  }
-
-  Widget _buildFolderNameAlert(
-    BuildContext context, {
-    required String title,
-    required String confirmLabel,
-    required TextEditingController nameCtrl,
-    required String? errorText,
-    required ValueChanged<String> onChanged,
-    String? hintText,
-  }) {
-    return AppDialog(
-      title: title,
-      maxWidth: 360,
-      scrollable: false,
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            S.of(context).folderNameLabel,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.xs,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-              color: AppTheme.fgFaint,
-            ),
-          ),
-          const SizedBox(height: 4),
-          TextFormField(
-            controller: nameCtrl,
-            autofocus: true,
-            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: AppFonts.mono(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgFaint,
-              ),
-              filled: true,
-              fillColor: AppTheme.bg3,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.accent),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.red),
-              ),
-              errorText: errorText,
-              errorStyle: AppFonts.inter(
-                fontSize: AppFonts.xs,
-                color: AppTheme.red,
-              ),
-            ),
-            onChanged: onChanged,
-            onFieldSubmitted: (v) {
-              if (errorText == null && v.trim().isNotEmpty) {
-                Navigator.of(context).pop(v);
-              }
-            },
-          ),
-        ],
-      ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
-        AppButton.primary(
-          label: confirmLabel,
-          enabled: errorText == null,
-          onTap: () => Navigator.of(context).pop(nameCtrl.text),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _confirmDeleteFolder(
-    BuildContext context,
-    WidgetRef ref,
-    String folderPath,
-  ) async {
-    final store = ref.read(sessionStoreProvider);
-    final sessionCount = store.countSessionsInFolder(folderPath);
-    final folderName = folderPath.split('/').last;
-
-    final confirmed = await ConfirmDialog.show(
-      context,
-      title: S.of(context).deleteFolder,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(S.of(context).deleteFolderConfirm(folderName)),
-          if (sessionCount > 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              S.of(context).willDeleteSessionsInside(sessionCount),
-              style: TextStyle(
-                color: AppTheme.disconnected,
-                fontSize: AppFonts.lg,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-    if (confirmed) {
-      await ref.read(sessionProvider.notifier).deleteFolder(folderPath);
-    }
-  }
-
-  Future<void> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-  ) async {
-    final confirmed = await ConfirmDialog.show(
-      context,
-      title: S.of(context).deleteSession,
-      content: Text(
-        S
-            .of(context)
-            .deleteSessionConfirm(
-              session.label.isNotEmpty ? session.label : session.displayName,
-            ),
-      ),
-    );
-    if (confirmed) {
-      await ref.read(sessionProvider.notifier).delete(session.id);
-    }
   }
 }
