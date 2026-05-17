@@ -37,7 +37,14 @@ jobs:
           # Advisory Database on PRs; OSV here adds the broader OSV
           # DB (aggregates GHSA + RustSec + Go vuln DB + PyPI
           # advisories + ...) on push and weekly cron.
+          # `--config=osv-scanner.toml` points at the repo-root
+          # suppression file (see its header for the policy). Without
+          # the explicit flag, osv-scanner looks for one config next
+          # to each lockfile (`./osv-scanner.toml` for `pubspec.lock`,
+          # `rust/osv-scanner.toml` for `rust/Cargo.lock`) — and the
+          # Rust-side scan never picks up the root suppressions.
           scan-args: |-
+            --config=osv-scanner.toml
             --lockfile=pubspec.lock
             --lockfile=rust/Cargo.lock
             --format=sarif
