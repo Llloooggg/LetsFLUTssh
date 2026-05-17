@@ -122,4 +122,14 @@ class WebDavFileSystem implements FileSystem {
       return false;
     }
   }
+
+  /// WebDAV's PROPFIND has no POSIX mode property — every row
+  /// would render as `--------` if the column were shown.
+  @override
+  bool get supportsPosixMode => false;
+
+  /// `displayname` isn't an owner; WebDAV has no per-resource
+  /// owner attribute in the standard property set.
+  @override
+  bool get supportsOwner => false;
 }

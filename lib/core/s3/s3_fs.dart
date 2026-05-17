@@ -102,4 +102,15 @@ class S3FileSystem implements FileSystem {
       return false;
     }
   }
+
+  /// S3 objects have no POSIX mode metadata — the column would
+  /// render `--------` on every row.
+  @override
+  bool get supportsPosixMode => false;
+
+  /// S3 objects belong to the bucket's owning AWS account; no
+  /// per-object owner string the file pane could meaningfully
+  /// surface.
+  @override
+  bool get supportsOwner => false;
 }

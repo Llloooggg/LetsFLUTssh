@@ -26,6 +26,12 @@ class _MockFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => false;
+
+  @override
+  bool get supportsOwner => false;
 }
 
 /// Configurable in-memory `RemoteSftpFs` for the init tests. Each

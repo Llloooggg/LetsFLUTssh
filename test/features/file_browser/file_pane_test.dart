@@ -14,6 +14,19 @@ import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 
+/// In-memory file system mimicking a WebDAV / S3-style backend
+/// (no POSIX mode bits, no owner string). Used by the column-gate
+/// regression test below.
+class _NonPosixMockFS extends _MockFS {
+  _NonPosixMockFS(super.dirs);
+
+  @override
+  bool get supportsPosixMode => false;
+
+  @override
+  bool get supportsOwner => false;
+}
+
 /// In-memory file system for testing.
 class _MockFS implements FileSystem {
   final Map<String, List<FileEntry>> dirs;
@@ -39,6 +52,12 @@ class _MockFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => true;
+
+  @override
+  bool get supportsOwner => true;
 }
 
 /// A file system whose list() never completes until complete() is called.
@@ -62,6 +81,12 @@ class _NeverCompleteFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => true;
+
+  @override
+  bool get supportsOwner => true;
 }
 
 /// Find FilePane's outermost Listener (the one with back/forward mouse handling).
@@ -2784,6 +2809,52 @@ void main() {
   // Column visibility at various widths
   // ===========================================================================
   group('FilePane — column visibility', () {
+    testWidgets(
+      'non-POSIX backend hides mode + owner columns even on a wide pane',
+      (tester) async {
+        // Regression: WebDAV / S3 backends don't carry POSIX mode
+        // bits or per-resource owner strings — every row would
+        // render `--------` / blank for those columns, just wasting
+        // screen space. `FileSystem.supportsPosixMode` /
+        // `supportsOwner` capability flags gate column visibility
+        // ahead of the width check, so the same wide pane that
+        // shows Mode for SFTP omits it for HTTP backends.
+        final fs = _NonPosixMockFS({'/home': makeEntries()});
+        final ctrl = FilePaneController(fs: fs, label: 'L');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 400,
+                child: FilePane(controller: ctrl, paneId: 'test'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // File name is visible — column gate hides Mode/Owner
+        // but the row itself renders.
+        expect(find.text('readme.md'), findsOneWidget);
+        // No rwx/permission glyphs anywhere on the page.
+        expect(
+          find.textContaining(RegExp(r'rwx|r-x|rw-')),
+          findsNothing,
+          reason:
+              'Mode column must be hidden for backends whose '
+              '`supportsPosixMode` returns false (WebDAV, S3).',
+        );
+
+        ctrl.dispose();
+      },
+    );
+
     testWidgets('narrow pane hides size/modified/mode columns', (tester) async {
       final fs = _MockFS({'/home': makeEntries()});
       final ctrl = FilePaneController(fs: fs, label: 'L');
@@ -3080,4 +3151,10 @@ class _WindowsMockFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => true;
+
+  @override
+  bool get supportsOwner => true;
 }

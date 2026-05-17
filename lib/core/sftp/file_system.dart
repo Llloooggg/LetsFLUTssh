@@ -45,6 +45,25 @@ abstract class FileSystem {
 
   /// Recursively calculate the total size of a directory.
   Future<int> dirSize(String path);
+
+  /// Whether this backend populates `FileEntry.mode` with
+  /// meaningful POSIX permission bits. True for SFTP (server
+  /// returns `st_mode`) and LocalFS on Unix; false for HTTP-based
+  /// backends (WebDAV PROPFIND doesn't surface POSIX modes, S3
+  /// `HeadObject` doesn't carry them either). The file-browser
+  /// pane gates the "Mode" column on this so non-POSIX backends
+  /// don't reserve screen space for a column that would render
+  /// `--------` on every row.
+  bool get supportsPosixMode => false;
+
+  /// Whether this backend populates `FileEntry.owner` with a
+  /// meaningful string. True for SFTP (server returns the owning
+  /// uid/name); false for backends without a per-resource owner
+  /// concept (WebDAV `displayname` is not an owner, S3 buckets
+  /// have a single account owner not per-object). LocalFS returns
+  /// `true` because Rust's `localFsList` populates the field on
+  /// every platform (uid name on Unix, "owner" SID on Windows).
+  bool get supportsOwner => false;
 }
 
 String _posixDirname(String path) {
@@ -207,6 +226,17 @@ class LocalFS implements FileSystem {
       return false;
     }
   }
+
+  /// LocalFS lists carry `st_mode` (Unix) or a synthesised mode
+  /// (Windows / Android) on every entry, so the column always has
+  /// useful content.
+  @override
+  bool get supportsPosixMode => true;
+
+  /// `localFsList` populates `owner` on every host (Unix uid name,
+  /// Windows account string).
+  @override
+  bool get supportsOwner => true;
 
   @override
   Future<void> rename(String oldPath, String newPath) async {

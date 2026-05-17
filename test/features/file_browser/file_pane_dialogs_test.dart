@@ -37,6 +37,12 @@ class _MockFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => false;
+
+  @override
+  bool get supportsOwner => false;
 }
 
 /// FS that throws on mkdir.
@@ -57,6 +63,12 @@ class _ErrorMkdirFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => false;
+
+  @override
+  bool get supportsOwner => false;
 }
 
 /// FS that throws on rename.
@@ -78,6 +90,12 @@ class _ErrorRenameFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => false;
+
+  @override
+  bool get supportsOwner => false;
 }
 
 /// FS that throws on remove/removeDir.
@@ -98,6 +116,12 @@ class _ErrorDeleteFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  bool get supportsPosixMode => false;
+
+  @override
+  bool get supportsOwner => false;
 }
 
 void main() {

@@ -95,21 +95,33 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   double _ownerColWidth = 50;
 
   /// Determine which data columns fit within [width], hiding from right to left.
+  ///
+  /// `mode` / `owner` are gated by [`FileSystem.supportsPosixMode`]
+  /// / [`FileSystem.supportsOwner`] before the width check —
+  /// WebDAV and S3 don't carry POSIX mode bits or per-resource
+  /// owner strings, so reserving columns for those backends just
+  /// leaves dead space (the column would render `--------` /
+  /// empty on every row). The owner column also keeps the
+  /// per-entry probe (`entries.any((e) => e.owner.isNotEmpty)`)
+  /// as a belt-and-braces for SFTP servers that omit the owner
+  /// attribute on certain entries.
   ({bool size, bool modified, bool mode, bool owner}) _visibleColumns(
     double width,
   ) {
     const base = 36.0; // icon(20) + padding(16)
-    final hasOwner = ctrl.entries.any((e) => e.owner.isNotEmpty);
+    final modeAllowed = ctrl.fs.supportsPosixMode;
+    final hasOwner =
+        ctrl.fs.supportsOwner && ctrl.entries.any((e) => e.owner.isNotEmpty);
     final s = 10 + _sizeColWidth;
     final m = 10 + _modifiedColWidth;
-    final d = 10 + _modeColWidth;
+    final d = modeAllowed ? 10 + _modeColWidth : 0.0;
     final o = hasOwner ? 10 + _ownerColWidth : 0.0;
     final avail = width - base;
     if (avail >= s + m + d + o) {
-      return (size: true, modified: true, mode: true, owner: hasOwner);
+      return (size: true, modified: true, mode: modeAllowed, owner: hasOwner);
     }
     if (avail >= s + m + d) {
-      return (size: true, modified: true, mode: true, owner: false);
+      return (size: true, modified: true, mode: modeAllowed, owner: false);
     }
     if (avail >= s + m) {
       return (size: true, modified: true, mode: false, owner: false);
