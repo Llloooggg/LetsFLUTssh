@@ -32,7 +32,7 @@ subtle = { workspace = true }
 # `rand::rng()` for the `linux::tpm::WorkDir` mkdtemp suffix.
 # Cross-target because cfg-gated imports compile on every host
 # even when their bodies never run.
-rand = { version = "0.10", default-features = false, features = ["std", "std_rng"] }
+rand = { version = "0.10", default-features = false, features = ["std", "std_rng", "thread_rng"] }
 # `thiserror::Error` derive used by every OS-side error envelope
 # that surfaces typed variants — `apple_se_ssh::Error`,
 # `windows::ncrypt_ssh::Error`, and any future per-platform Error
