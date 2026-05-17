@@ -8,6 +8,7 @@ import '../../widgets/app_empty_state.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/marquee_mixin.dart';
+import '../../widgets/session_kind_icon.dart';
 import '../../widgets/tag_dots.dart';
 import '../../widgets/threshold_draggable.dart';
 import 'session_via_badge.dart';

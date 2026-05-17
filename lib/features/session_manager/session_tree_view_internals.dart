@@ -489,23 +489,6 @@ extension _Internals on _SessionTreeViewState {
     }
   }
 
-  /// Per-protocol row icon. SSH stays on `Icons.terminal` because
-  /// the row leads into a shell + SFTP browser; WebDAV gets an
-  /// outlined cloud to signal an HTTP-backed file store; S3 gets
-  /// the outlined inventory glyph to read as a bucket / object
-  /// store. All three are outline-weight so they sit consistently
-  /// among the connected / connecting / faint state tints.
-  IconData _iconForKind(SessionKind kind) {
-    switch (kind) {
-      case SessionKind.ssh:
-        return Icons.terminal;
-      case SessionKind.webdav:
-        return Icons.cloud_outlined;
-      case SessionKind.s3:
-        return Icons.inventory_2_outlined;
-    }
-  }
-
   List<Widget> _buildSessionRowChildren(
     SessionTreeNode node,
     Session session,
@@ -540,11 +523,7 @@ extension _Internals on _SessionTreeViewState {
       else
         ..._buildRowLeading(
           depth: depth,
-          icon: Icon(
-            _iconForKind(session.kind),
-            size: _authIconSize,
-            color: iconColor,
-          ),
+          icon: Icon(session.kind.icon, size: _authIconSize, color: iconColor),
         ),
       if (!session.isValid)
         Padding(
