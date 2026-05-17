@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show Selectable, SelectedContent;
 import 'package:flutter/services.dart';
+import 'package:xterm/xterm.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
@@ -67,6 +67,7 @@ import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_popup_select.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_selection_area.dart';
+import '../../widgets/readonly_terminal_view.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/typed_name_confirm_dialog.dart';
@@ -246,7 +247,10 @@ class _MobileSettingsScreen extends ConsumerWidget {
       // `SelectionArea` wraps the body because this route is pushed
       // on the root Navigator, above the MainScreen-level
       // `SelectionArea` — so without an inner one the body's Text
-      // widgets would lose drag-to-select.
+      // widgets would lose drag-to-select. The log viewer no longer
+      // nests its own `SelectionArea` (it renders to an xterm
+      // `Terminal` which has independent selection), so there is no
+      // `ContextMenuController` contention any more.
       body: AppSelectionArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

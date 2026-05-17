@@ -23,7 +23,8 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
-import 'anchor_pinning_terminal_controller.dart';
+import '../../widgets/anchor_pinning_terminal_controller.dart';
+import '../../widgets/app_terminal_view.dart';
 import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
@@ -92,6 +93,16 @@ class TerminalPane extends ConsumerStatefulWidget {
 class TerminalPaneState extends ConsumerState<TerminalPane> {
   late final Terminal _terminal;
   late final AnchorPinningTerminalController _terminalController;
+
+  /// Owned focus node so the pane can `requestFocus()` on its own
+  /// schedule: `TerminalView`'s built-in `autofocus` fires only on
+  /// initial mount, and xterm's `_onTapDown` requests focus only
+  /// when there is no active selection — neither path covers the
+  /// "tab becomes the focused pane while the user already had a
+  /// selection running" or the post-connect "the pane just opened,
+  /// the user wants to start typing immediately" cases. Owning the
+  /// node lets [didUpdateWidget] grab focus on `isFocused` flips.
+  final FocusNode _terminalFocus = FocusNode(debugLabel: 'TerminalPane');
   late final void Function() _scrubFn;
   ShellConnection? _shellConn;
   StreamSubscription<ConnectionStep>? _progressSub;
@@ -165,6 +176,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     TerminalScrubber.instance.register(_scrubFn);
     HardwareKeyboard.instance.addHandler(_onShiftToggle);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Grab focus explicitly after the first frame. `TerminalView`'s
+      // built-in `autofocus` flag occasionally misses when an
+      // external `focusNode` is supplied (the Focus widget receives
+      // the node + autofocus together but the auto-claim runs once
+      // during initial mount and can be lost to focus contention
+      // with the surrounding workspace shell). Re-asserting it
+      // post-frame, when the focus tree is fully assembled, makes
+      // the new-session "ready to type immediately" path robust.
+      if (widget.isFocused) _terminalFocus.requestFocus();
       _connectAndOpenShell();
     });
   }
@@ -371,6 +392,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (oldWidget.isFocused && !widget.isFocused) {
       _terminalController.clearSelection();
     }
+    if (!oldWidget.isFocused && widget.isFocused) {
+      // Tab just became the focused pane — grab focus so the user
+      // can start typing without an extra click. `autofocus` only
+      // fires on initial mount; the post-open "session ready" path
+      // sets `isFocused: true` on a previously-existing widget,
+      // which is exactly the case `autofocus` misses.
+      _terminalFocus.requestFocus();
+    }
   }
 
   @override
@@ -381,6 +410,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (widget.paneId != null) _broadcast?.unregisterSink(widget.paneId!);
     _shellConn?.close();
     _terminalController.dispose();
+    _terminalFocus.dispose();
     _showSearch.dispose();
     super.dispose();
   }
@@ -519,56 +549,25 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     );
   }
 
-  /// Inner Listener + Stack(TerminalView, CursorTextOverlay). Extracted
-  /// so the LayoutBuilder above can pin the terminal widget to an
-  /// integer-row height via a `SizedBox` parent.
+  /// Inner Listener + Stack(TerminalView, CursorTextOverlay).
+  /// Delegated to [AppTerminalView] — the shared widget centralises
+  /// secondary-tap dispatch, primary-mouse `beginDrag` / `endDrag`,
+  /// padding, theme and font. The cursor overlay rides as an
+  /// `overlayBuilder` (only the live PTY pane shows it; the
+  /// read-only log viewer leaves it off).
   Widget _buildTerminalStack(double fontSize) {
-    return Listener(
-      onPointerDown: (event) {
-        if (event.buttons == kSecondaryButton) {
-          _showContextMenu(context, event.position);
-          return;
-        }
-        // xterm's drag handler recomputes both selection endpoints
-        // every update from raw widget pixels, so a wheel scroll
-        // mid-drag re-anchors `base` to whatever cell the start
-        // pixel maps to under the new scroll. Pin the first base
-        // for the duration of this drag — but only for primary
-        // mouse buttons: touch goes through long-press word-extend
-        // (xterm passes the merged range's leftmost word as `base`
-        // when extending leftward, which the pin would freeze), and
-        // alt-buffer has no scrollback so the bug cannot occur.
-        if (event.kind == PointerDeviceKind.mouse &&
-            event.buttons == kPrimaryButton &&
-            !_terminal.isUsingAltBuffer) {
-          _terminalController.beginDrag();
-        }
-      },
-      onPointerUp: (_) => _terminalController.endDrag(),
-      onPointerCancel: (_) => _terminalController.endDrag(),
+    return AppTerminalView(
+      terminal: _terminal,
+      controller: _terminalController,
+      focusNode: _terminalFocus,
+      fontSize: fontSize,
+      autofocus: widget.isFocused,
+      hardwareKeyboardOnly: plat.isDesktopPlatform,
+      onKeyEvent: _handleTerminalKey,
       onPointerSignal: _onPointerSignal,
-      child: Stack(
-        children: [
-          TerminalView(
-            _terminal,
-            controller: _terminalController,
-            autofocus: widget.isFocused,
-            hardwareKeyboardOnly: plat.isDesktopPlatform,
-            onKeyEvent: _handleTerminalKey,
-            backgroundOpacity: 1.0,
-            padding: const EdgeInsets.all(AppSpacing.xs),
-            theme: _terminalTheme,
-            textStyle: TerminalStyle(
-              fontSize: fontSize,
-              fontFamily: AppFonts.monoFamily,
-              fontFamilyFallback: AppFonts.monoFallback,
-            ),
-          ),
-          Positioned.fill(
-            child: CursorTextOverlay(terminal: _terminal, fontSize: fontSize),
-          ),
-        ],
-      ),
+      secondaryTapBuilder: _showContextMenu,
+      overlayBuilder: (_) =>
+          CursorTextOverlay(terminal: _terminal, fontSize: fontSize),
     );
   }
 

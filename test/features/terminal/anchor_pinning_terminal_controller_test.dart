@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/features/terminal/anchor_pinning_terminal_controller.dart';
+import 'package:letsflutssh/widgets/anchor_pinning_terminal_controller.dart';
 import 'package:xterm/xterm.dart';
 
 /// Helper: write [n] non-empty lines into [terminal] so the buffer has

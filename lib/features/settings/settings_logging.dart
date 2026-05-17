@@ -191,8 +191,30 @@ class _LiveLogViewer extends ConsumerStatefulWidget {
 
 class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   final _searchController = TextEditingController();
-  final _scrollController = ScrollController();
   late final LogStore _store;
+
+  /// Backing xterm `Terminal`. Holds the ANSI-formatted stream that
+  /// renders into [ReadOnlyTerminalView]. Sized for the LogStore's
+  /// 50k entry cap × ~2 visual lines per entry (with continuations)
+  /// — well under xterm's per-line memory budget.
+  ///
+  /// Migrated from a `SelectionArea + ListView.builder + _LogRow`
+  /// shape because Flutter's `SelectableRegion` had compounding
+  /// right-click bugs in this configuration: nested regions fought
+  /// over the global `ContextMenuController`, the lazy `ListView`
+  /// triggered `RenderParagraph.getBoxesForSelection` assertion
+  /// floods when its children mounted mid-selection, and
+  /// inflating row selection rects to fix the "click-between-glyphs"
+  /// collapse only papered over symptoms. xterm owns selection and
+  /// the context menu internally (via `ReadOnlyTerminalView`'s
+  /// `Listener`-based secondary-tap handler), so the log viewer
+  /// no longer participates in Flutter's selection machinery at all.
+  late final Terminal _terminal;
+
+  /// Last batch of filteredEntries we wrote to [_terminal]. Used by
+  /// [_syncTerminal] to choose between appending a tail-only diff
+  /// vs. tearing down and re-streaming the whole filtered set.
+  List<LogEntry>? _lastWrittenSnapshot;
 
   /// Which severity levels render in the viewer. All three start on;
   /// users can hide info noise to focus on warnings + errors during a
@@ -207,6 +229,18 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   void initState() {
     super.initState();
     _store = ref.read(logStoreProvider);
+    // No `onResize` wiring: rewriting the whole buffer to refresh
+    // wrap-points on every resize wipes the scrollback (`\x1B[3J`
+    // in `_syncTerminal`) and invalidates every active selection
+    // anchor — a single-pixel viewport-width change (e.g.
+    // scrollbar toggling on a scroll burst) drops the user's
+    // active selection mid-interaction. Old lines keep their
+    // write-time wrap; new lines use the current width. Modern
+    // terminal emulators behave similarly — they don't reflow on
+    // resize either, so this is the conventional trade-off.
+    _terminal = Terminal(maxLines: 100000);
+    _store.addListener(_syncTerminal);
+    _syncTerminal();
     // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
     // already kicked the seed at boot. This just reads the
     // already-primed singleton; if the seed is still running the
@@ -216,20 +250,184 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _store.removeListener(_syncTerminal);
     _searchController.dispose();
     super.dispose();
   }
 
   void _pushFilter() {
     _store.applyFilter(visibleLevels: _visibleLevels, query: _query);
-    // No re-snap to bottom needed — with `reverse: true` on the
-    // viewer ListView, offset 0 IS the bottom and the default
-    // position. If the user had scrolled up before changing the
-    // filter, the new filtered list keeps the same pixel offset,
-    // which is the closest analogue we can provide without tracking
-    // the focused entry across filter changes.
   }
+
+  /// Reconcile [_terminal] with [`LogStore.filteredEntries`]. Two
+  /// shapes:
+  ///   * **Append**: the new list is a strict extension of the
+  ///     last snapshot (same references at every prior index, just
+  ///     more entries at the tail). Stream only the new tail
+  ///     through `terminal.write`; the cursor follows the writes so
+  ///     the viewer scrolls to the bottom automatically.
+  ///   * **Full rewrite**: filter changed, store was wiped, or the
+  ///     LogStore's `_maxEntries` cap trimmed older entries. Wipe
+  ///     the terminal and re-stream the entire filtered set.
+  ///
+  /// `identical` is the right comparison: [LogStore] hands out the
+  /// same `LogEntry` instance every time, only replacing the outer
+  /// `List` on change. The append-vs-rewrite check is therefore a
+  /// cheap reference walk, not a structural compare.
+  void _syncTerminal() {
+    final current = _store.filteredEntries;
+    final lastSnap = _lastWrittenSnapshot;
+    if (lastSnap == null ||
+        current.length < lastSnap.length ||
+        !_startsWith(current, lastSnap)) {
+      // CSI H = home cursor; CSI 2J = erase visible viewport;
+      // CSI 3J = erase scrollback. The 2J alone wipes only the
+      // visible area — xterm preserves scrollback above unless
+      // 3J asks otherwise. Without 3J the previously-written
+      // banner + entries linger above the freshly-rewritten ones
+      // (visible on scroll-up as a duplicate session) every time
+      // a resize or filter change forces a full rewrite.
+      _terminal.write('\x1B[H\x1B[2J\x1B[3J');
+      for (final entry in current) {
+        _terminal.write(_formatEntry(entry));
+      }
+    } else if (current.length > lastSnap.length) {
+      for (var i = lastSnap.length; i < current.length; i++) {
+        _terminal.write(_formatEntry(current[i]));
+      }
+    }
+    _lastWrittenSnapshot = current;
+  }
+
+  bool _startsWith(List<LogEntry> longer, List<LogEntry> shorter) {
+    if (longer.length < shorter.length) return false;
+    for (var i = 0; i < shorter.length; i++) {
+      if (!identical(longer[i], shorter[i])) return false;
+    }
+    return true;
+  }
+
+  /// ANSI-format a single [LogEntry] for the terminal stream.
+  ///
+  /// Routine entries: `▎ HH:MM:SS [TAG] message` where:
+  ///   * `▎` (U+258E LEFT ONE QUARTER BLOCK) is a per-level
+  ///     vertical stripe (info/warn/error → blue / yellow / red),
+  ///     the xterm equivalent of the 2 px `Border(left: ...)` the
+  ///     pre-migration `_LogRow` rendered. xterm has no cell-
+  ///     border concept; a coloured glyph in column 0 is the
+  ///     closest visual analog.
+  ///   * The tag is bold-tinted in the level colour. No padding —
+  ///     padding to a fixed column read as a "weird gap" after
+  ///     `]` since short tags left big trailing whitespace.
+  ///   * Long lines are **manually wrapped** to the terminal's
+  ///     current `viewWidth`, with the stripe re-emitted on every
+  ///     visual row so the level marker stays continuous on
+  ///     wraps. xterm's built-in wrap drops to column 0 on each
+  ///     wrap → stripe disappears from the tail of a wrapped
+  ///     entry. The cached `_lastWrittenSnapshot` is invalidated
+  ///     on terminal resize (see [_onTerminalResize]) so wrap
+  ///     points stay in sync with the column count.
+  ///   * Continuation lines repeat the stripe (and the message-
+  ///     start indent) so the row remains visually contiguous,
+  ///     and dim the body.
+  ///
+  /// Session-banner headers (`--- Log started ...`) get a hairline
+  /// divider above (`────────` across the viewport) so multi-
+  /// session logs stay scannable at a glance. The `--- ` / ` ---`
+  /// framing the parser emits is stripped from the visible text —
+  /// the divider already signals "new session" loudly enough.
+  /// Other headers (`Platform: ...`, `Dart: ...`) just render as
+  /// dim text with no decoration.
+  ///
+  /// `\r\n` line breaks throughout so xterm's terminal state
+  /// machine treats each line as its own row — a bare `\n` would
+  /// scroll without carriage return and the next entry would
+  /// start at the previous column.
+  String _formatEntry(LogEntry entry) {
+    if (entry.isHeader) {
+      if (entry.message.startsWith('--- ')) {
+        final dividerWidth = _terminal.viewWidth.clamp(20, 200);
+        final divider = '\x1B[2m${'─' * dividerWidth}\x1B[0m';
+        final cleaned = entry.message.replaceAll(
+          RegExp(r'^---\s+|\s+---$'),
+          '',
+        );
+        return '$divider\r\n\x1B[2m  $cleaned\x1B[0m\r\n';
+      }
+      return '\x1B[2m  ${entry.message}\x1B[0m\r\n';
+    }
+    final code = _levelAnsiCode(entry.level);
+    final stripeAnsi = '\x1B[${code}m▎\x1B[0m ';
+    const stripeColumns = 2; // `▎` + space
+    final tsRaw = entry.timestamp != null ? '${entry.timestamp} ' : '';
+    final tagRaw = '[${entry.tag ?? 'App'}] ';
+    final headerColumns = tsRaw.length + tagRaw.length;
+    final tsAnsi = entry.timestamp != null
+        ? '\x1B[2m${entry.timestamp}\x1B[0m '
+        : '';
+    final tagAnsi = '\x1B[1;${code}m${tagRaw.trimRight()}\x1B[0m ';
+
+    final viewWidth = _terminal.viewWidth;
+    final availRest = (viewWidth - stripeColumns).clamp(8, viewWidth);
+    final availFirst = (availRest - headerColumns).clamp(8, availRest);
+
+    final buf = StringBuffer();
+
+    // First visual row: stripe + timestamp + tag + first chunk of
+    // message. Subsequent wrap rows: stripe + chunk only.
+    final wrapped = _wrapText(entry.message, availFirst, availRest);
+    buf.write('$stripeAnsi$tsAnsi$tagAnsi${wrapped.first}\r\n');
+    for (var i = 1; i < wrapped.length; i++) {
+      buf.write('$stripeAnsi${wrapped[i]}\r\n');
+    }
+
+    for (final cont in entry.continuations) {
+      // Continuations carry no header — wrap against the same
+      // available-rest width on all visual rows.
+      final contWrapped = _wrapText(cont, availRest, availRest);
+      for (final line in contWrapped) {
+        buf.write('$stripeAnsi\x1B[2m$line\x1B[0m\r\n');
+      }
+    }
+
+    return buf.toString();
+  }
+
+  /// Word-wrap [text] so the FIRST visual chunk fits in [firstWidth]
+  /// columns and SUBSEQUENT chunks fit in [restWidth]. Splits at the
+  /// last whitespace within the width budget where possible; falls
+  /// back to a hard split mid-word when no space fits. Returns the
+  /// original string in a single-element list when it already fits
+  /// in [firstWidth].
+  ///
+  /// Width inputs MUST exclude any ANSI escape sequences — the
+  /// caller applies ANSI to each chunk after wrapping.
+  List<String> _wrapText(String text, int firstWidth, int restWidth) {
+    if (text.length <= firstWidth) return [text];
+    final chunks = <String>[];
+    var remaining = text;
+    var budget = firstWidth;
+    while (remaining.length > budget) {
+      var splitAt = remaining.lastIndexOf(' ', budget);
+      if (splitAt <= 0) splitAt = budget; // hard split — no whitespace fits
+      chunks.add(remaining.substring(0, splitAt).trimRight());
+      remaining = remaining.substring(splitAt).trimLeft();
+      budget = restWidth;
+    }
+    if (remaining.isNotEmpty) chunks.add(remaining);
+    return chunks;
+  }
+
+  /// ANSI SGR colour parameter for a level's tint. Matches the
+  /// per-row tint the previous `_LogRow` renderer used (info →
+  /// `AppTheme.blue`, warn → `AppTheme.yellow`, error → `AppTheme.red`).
+  /// Headers fall through to `0` (default fg, dimmed by the caller).
+  String _levelAnsiCode(LogLevel? level) => switch (level) {
+    LogLevel.info => '34',
+    LogLevel.warn => '33',
+    LogLevel.error => '31',
+    _ => '0',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -402,11 +600,17 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   }
 
   Widget _buildLogBody() {
+    // The log viewer renders to an xterm `Terminal` through
+    // [ReadOnlyTerminalView]. The terminal owns scrollback,
+    // selection, right-click context menu, and Ctrl+C copy — none
+    // of which go through Flutter's `SelectableRegion` machinery.
+    // The "is the buffer empty?" overlay still rebuilds when the
+    // store notifies (via `ListenableBuilder`), so the
+    // localized empty-state stays in sync with `_store.allEntries`.
     return ListenableBuilder(
       listenable: _store,
       builder: (context, _) {
-        final entries = _store.filteredEntries;
-        if (entries.isEmpty) {
+        if (_store.allEntries.isEmpty) {
           return Center(
             child: Text(
               S.of(context).logIsEmpty,
@@ -418,217 +622,18 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
             ),
           );
         }
-        return Scrollbar(
-          controller: _scrollController,
-          child: SelectionArea(
-            // `reverse: true` paints items bottom-up: scroll offset 0
-            // sits at the visual bottom (newest entry visible). New
-            // entries land at index 0 (transformed below) and naturally
-            // appear at the bottom without any manual scroll — sticky
-            // tail by construction. A user scrolled up keeps their pixel
-            // offset across rebuilds, so reading older entries while
-            // new ones arrive doesn't yank the view. The previous
-            // `_follow` + `jumpTo(maxScrollExtent)` post-frame dance
-            // produced a visible jump on tab open (the lazy sliver's
-            // first `maxScrollExtent` estimate didn't match the post-
-            // layout extent, so the position clamped backward by a
-            // few rows). With `reverse: true` there is no initial jump
-            // because the natural starting offset (0) is already the
-            // tail.
-            child: ListView.builder(
-              controller: _scrollController,
-              reverse: true,
-              padding: EdgeInsets.zero,
-              itemCount: entries.length,
-              // Index 0 in a reverse list is the bottom item, which
-              // must be the newest entry (last in `entries`).
-              itemBuilder: (context, i) =>
-                  _LogRow(entry: entries[entries.length - 1 - i]),
-            ),
+        // `ClipRect` so xterm's last partial row (when the
+        // container's pixel height isn't an integer multiple of
+        // the row height) is clipped at the bottom border instead
+        // of bleeding past it.
+        return ClipRect(
+          child: ReadOnlyTerminalView(
+            terminal: _terminal,
+            fontSize: AppFonts.sm,
           ),
         );
       },
     );
-  }
-}
-
-/// One styled row in the log list. Every entry — routine OR header
-/// (`--- Log started ... ---`, `Platform: ...`, `Dart: ...`) — is
-/// rendered through the SAME `Container + Text.rich` shape; only the
-/// border decoration and the inline span sequence change per type.
-/// Each row is exactly ONE `Selectable` (one `Text.rich`, no
-/// `WidgetSpan`-driven satellites, no per-type wrapper widgets), so
-/// drag-select inside the surrounding `SelectionArea` walks rows in
-/// paint order without fragmenting.
-///
-/// Variants:
-///   * Routine: 2 px left border in the level colour. Spans:
-///     `[timestamp dim] [TAG] [message] [\n + continuation lines, dim]`.
-///     Tag is inline text — no chip widget — keeping the row a
-///     single `Selectable`.
-///   * Header (anything `parseLogEntries` flagged `isHeader: true`):
-///     no border, one dim mono span carrying the line verbatim. The
-///     per-process `--- Log started <ts> | <platform> | <ver> ---`
-///     marker rides this same path — the `---` framing is enough
-///     visual signal; bespoke hairlines / segment splitting only
-///     introduced non-uniform geometry that broke the SelectionArea
-///     run.
-///
-/// Rows are physically contiguous (no vertical margins on the
-/// `Container`, `height: 1.55` on the `TextStyle`) — the `Text.rich`
-/// fills the row vertically, so drag-select doesn't drop on inter-row
-/// gaps or in-row padding zones.
-class _LogRow extends StatefulWidget {
-  final LogEntry entry;
-
-  const _LogRow({required this.entry});
-
-  @override
-  State<_LogRow> createState() => _LogRowState();
-
-  /// Spans for a routine entry: timestamp + `[TAG]` + message + any
-  /// continuation lines below. Tag is inline text, NOT a
-  /// `WidgetSpan` — keeps the row a single `Selectable`.
-  static List<InlineSpan> _routineSpans(
-    LogEntry entry,
-    Color levelColor,
-    TextStyle base,
-  ) {
-    final dim = _dim(base);
-    final tag = TextStyle(
-      fontSize: base.fontSize,
-      fontFamily: base.fontFamily,
-      fontFamilyFallback: base.fontFamilyFallback,
-      color: levelColor,
-      fontWeight: FontWeight.w600,
-      height: base.height,
-    );
-    return <InlineSpan>[
-      // Leading 2-space indent — inside the row's Selectable so a
-      // click on the leftmost column starts selection on this row
-      // instead of dropping any existing selection.
-      TextSpan(text: '  ', style: dim),
-      if (entry.timestamp != null)
-        TextSpan(text: '${entry.timestamp!} ', style: dim),
-      TextSpan(text: '[${entry.tag ?? 'App'}] ', style: tag),
-      TextSpan(text: entry.message, style: base),
-      for (final cont in entry.continuations)
-        TextSpan(text: '\n  $cont', style: dim),
-    ];
-  }
-
-  static TextStyle _dim(TextStyle base) => base.copyWith(color: AppTheme.fgDim);
-
-  static Color _levelColor(LogLevel? level) => switch (level) {
-    LogLevel.error => AppTheme.red,
-    LogLevel.warn => AppTheme.yellow,
-    LogLevel.info => AppTheme.blue,
-    null => AppTheme.fgDim,
-  };
-}
-
-class _LogRowState extends State<_LogRow> {
-  /// Per-row `SelectionContainer` delegate that appends `\n` to the
-  /// row's selected text on copy. Each row owns its own instance —
-  /// the delegate carries selection-tracking state that must not be
-  /// shared across rows.
-  late final _RowNewlineSuffixDelegate _selectionDelegate =
-      _RowNewlineSuffixDelegate();
-
-  @override
-  void dispose() {
-    _selectionDelegate.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final entry = widget.entry;
-    final baseStyle = TextStyle(
-      fontSize: AppFonts.sm,
-      fontFamily: AppFonts.monoFamily,
-      fontFamilyFallback: AppFonts.monoFallback,
-      color: AppTheme.fg,
-      height: 1.55,
-    );
-
-    final BoxBorder? border;
-    final List<InlineSpan> spans;
-
-    if (entry.isHeader) {
-      // The `--- Log started ... ---` session-start row gets a green
-      // left stripe so the run-boundary catches the eye while keeping
-      // the same Container + Text.rich shape (one Selectable, no
-      // bespoke widgets, drag-select stays uninterrupted). Other
-      // header rows (`Platform: ...`, `Dart: ...` from rotated legacy
-      // files) stay unstriped — they're not session boundaries.
-      final isBanner = entry.message.startsWith('--- ');
-      border = isBanner
-          ? Border(left: BorderSide(color: AppTheme.green, width: 2))
-          : null;
-      spans = [
-        TextSpan(text: '  ${entry.message}', style: _LogRow._dim(baseStyle)),
-      ];
-    } else {
-      final color = _LogRow._levelColor(entry.level);
-      border = Border(left: BorderSide(color: color, width: 2));
-      spans = _LogRow._routineSpans(entry, color, baseStyle);
-    }
-
-    // `SelectionContainer` wraps the row so the outer `SelectionArea`
-    // sees this row as ONE Selectable. The delegate's
-    // `getSelectedContent` override appends `\n` to whatever the
-    // inner `Text.rich` reports as selected text — without that,
-    // `SelectableRegion._copy` concatenates per-row content with no
-    // separator and drag-select + Ctrl+C lands on the clipboard as
-    // one run-on line. The newline lives in the copy pipeline only,
-    // never in the rendered spans, so on-screen row geometry is
-    // unchanged.
-    return SelectionContainer(
-      delegate: _selectionDelegate,
-      child: Container(
-        decoration: border == null ? null : BoxDecoration(border: border),
-        // No `Container.padding` on purpose — paddings sit OUTSIDE the
-        // child `Text.rich` and are not part of any `Selectable`, so
-        // clicks landing on them dropped the active selection. The
-        // 2-space leading TextSpan in `spans` carries the visual indent
-        // INSIDE the row's single Selectable, and `textWidthBasis:
-        // parent` stretches that Selectable to the full row width so
-        // the right-side empty area also belongs to it.
-        child: Text.rich(
-          TextSpan(children: spans),
-          softWrap: true,
-          textWidthBasis: TextWidthBasis.parent,
-        ),
-      ),
-    );
-  }
-}
-
-/// `SelectionContainer` delegate for `_LogRow`. Wraps the default
-/// `MultiSelectableSelectionContainerDelegate` aggregation and
-/// appends `\n` to the joined plain text so that the surrounding
-/// `SelectionArea` sees each row's content terminated by a line
-/// break. The single overridden method runs only when Flutter
-/// builds the clipboard payload (`SelectableRegion._copy`,
-/// `onSelectionChanged` callbacks); render geometry is unaffected.
-///
-/// `ensureChildUpdated` is a no-op: a `_LogRow` mounts with exactly
-/// one child `Text.rich` (one `Selectable`) for its entire lifetime,
-/// so the synthesised-edge-event bookkeeping the base class relies
-/// on for mid-selection inserts never has a Selectable to catch up.
-class _RowNewlineSuffixDelegate
-    extends MultiSelectableSelectionContainerDelegate {
-  @override
-  void ensureChildUpdated(Selectable selectable) {}
-
-  @override
-  SelectedContent? getSelectedContent() {
-    final base = super.getSelectedContent();
-    if (base == null) return null;
-    final text = base.plainText;
-    if (text.isEmpty || text.endsWith('\n')) return base;
-    return SelectedContent(plainText: '$text\n');
   }
 }
 
