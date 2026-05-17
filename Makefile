@@ -341,8 +341,22 @@ rust-format-check: ## Verify Rust formatting (exit non-zero if changes needed)
 # Any feature-branch push that introduces a cfg-gated regression
 # trips here before the operator commits, not on the CI matrix
 # after push.
-rust-lint: rust-lint-host rust-lint-android rust-lint-windows-gnu ## Run clippy (host + Android + Windows-GNU; Apple targets added on macOS hosts)
-	@if [ "$$(uname -s)" = "Darwin" ]; then \
+# Override-friendly list of cross-target clippy gates the umbrella
+# `rust-lint` walks alongside `rust-lint-host`. Default = Android +
+# Windows-GNU (cross-target rustup std ships on every host). Apple
+# targets append when `uname` is `Darwin` (Apple SDK link step
+# requires macOS).
+#
+# CI sets `RUST_CROSS_LINT_TARGETS=` (empty) because the same lints
+# run in the separate `rust-cross-check` matrix job in
+# `.github/workflows/ci.yml` — running them again under `make
+# check` would serially double the work the matrix does in
+# parallel. Local developers keep the cross-target catch on every
+# `make check` invocation.
+RUST_CROSS_LINT_TARGETS ?= rust-lint-android rust-lint-windows-gnu
+
+rust-lint: rust-lint-host $(RUST_CROSS_LINT_TARGETS) ## Run clippy (host + cross-targets per RUST_CROSS_LINT_TARGETS)
+	@if [ "$$(uname -s)" = "Darwin" ] && [ -n "$(RUST_CROSS_LINT_TARGETS)" ]; then \
 		$(MAKE) rust-lint-ios rust-lint-macos-arm; \
 	fi
 
