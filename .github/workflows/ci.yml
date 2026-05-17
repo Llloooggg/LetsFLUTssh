@@ -45,9 +45,13 @@ jobs:
         # which `cc-rs` invokes when build scripts (ring, openssl-src,
         # etc.) compile C for the `x86_64-pc-windows-gnu` target used
         # by `make rust-lint-windows-gnu`.
+        # `libudev-dev` ships `libudev.pc` for pkg-config; `hidapi`
+        # (pulled by `cryptoki` / pkcs11 paths) needs it on Linux.
+        # Only activated under `make rust-coverage` (`--all-features`)
+        # — base `make rust-test` doesn't flip the cryptoki flag.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libtss2-dev gcc-mingw-w64-x86-64
+          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev gcc-mingw-w64-x86-64
 
       - name: Install Rust toolchain
         # FRB native blob (`rust/target/release/liblfs_frb.so`) must
