@@ -10,18 +10,20 @@ import 'anchor_pinning_terminal_controller.dart';
 ///
 /// Centralises the gesture wiring + standard styling that every
 /// consumer in the app needs:
-///   * `Listener.onPointerDown` for right-click → consumer's
-///     [secondaryTapBuilder] shows the context menu. Using
-///     `Listener` at the parent rather than `GestureDetector`
-///     ensures the handler fires even when the widget nests
-///     inside an outer `SelectableRegion` whose tap recognisers
-///     would otherwise win the arena.
+///   * `GestureDetector.onSecondaryTapDown` for right-click →
+///     consumer's [secondaryTapBuilder] shows the context menu.
+///     Claiming the secondary-tap gesture in the arena (rather than
+///     observing it via `Listener`) keeps xterm's own tap-down
+///     handler from running on the same event — xterm would
+///     otherwise clear the active selection the instant the menu
+///     opens. `HitTestBehavior.translucent` keeps primary-button
+///     events flowing through to `TerminalView`.
 ///   * `beginDrag` / `endDrag` on the [AnchorPinningTerminalController]
 ///     for primary mouse buttons so wheel-scroll mid-drag does
 ///     not re-anchor the selection base onto the new cell under
 ///     the original click pixel.
-///   * Standard padding / theme / monospace font matching the
-///     app's terminal look.
+///   * Standard padding ([padding]) / theme / monospace font
+///     matching the app's terminal look.
 ///   * Optional [CursorTextOverlay] (toggled via [showCursorOverlay])
 ///     for the live PTY view — the read-only log viewer leaves
 ///     it off and writes `\x1B[?25l` itself to hide the cursor.
@@ -33,6 +35,19 @@ typedef SecondaryTapBuilder =
     void Function(BuildContext context, Offset globalPosition);
 
 class AppTerminalView extends StatelessWidget {
+  /// Inset around the inner `TerminalView`. Single source of truth
+  /// across every terminal surface — PTY pane, log viewer, connection
+  /// progress all read this constant rather than hardcoding their
+  /// own. The PTY pane's row-snap math (`_buildTerminalStack`) reads
+  /// [verticalPadding] so a future tweak here propagates without a
+  /// silent miscalculation.
+  static const double padding = AppSpacing.xs;
+
+  /// Combined vertical inset (top + bottom). Exposed for callers that
+  /// need to subtract the padding from a `LayoutBuilder` constraint
+  /// before computing how many cells fit.
+  static const double verticalPadding = padding * 2;
+
   /// The xterm `Terminal` instance to render. Owned by the caller.
   final Terminal terminal;
 
@@ -118,7 +133,7 @@ class AppTerminalView extends StatelessWidget {
       hardwareKeyboardOnly: hardwareKeyboardOnly,
       onKeyEvent: onKeyEvent,
       backgroundOpacity: 1.0,
-      padding: const EdgeInsets.all(AppSpacing.xs),
+      padding: const EdgeInsets.all(padding),
       theme: AppTheme.terminalTheme,
       textStyle: TerminalStyle(
         fontSize: fontSize,
@@ -136,12 +151,31 @@ class AppTerminalView extends StatelessWidget {
             ],
           );
 
+    // Secondary-tap dispatch via `GestureDetector` (not the surrounding
+    // `Listener`) so the gesture arena hands the event to us before
+    // xterm's own tap recogniser sees it. xterm's `_onTapDown` clears
+    // the active selection on every tap-down — wrapping the menu
+    // trigger in a `Listener.onPointerDown` (the previous shape)
+    // observed the right-click but did not claim it, so xterm still
+    // ran its tap-down handler and the selection disappeared the
+    // instant the user opened the menu. Best-practice (xshell,
+    // Windows Terminal, browsers): right-click anywhere keeps the
+    // current selection visible so Copy / Paste still operate on it.
+    // `HitTestBehavior.translucent` keeps non-secondary pointer
+    // events flowing through to `TerminalView` so primary-tap focus
+    // / drag-select / wheel-scroll continue to work.
+    final Widget secondaryTrap = secondaryTapBuilder == null
+        ? body
+        : GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onSecondaryTapDown: (details) {
+              secondaryTapBuilder!.call(context, details.globalPosition);
+            },
+            child: body,
+          );
+
     return Listener(
       onPointerDown: (event) {
-        if (event.buttons == kSecondaryButton) {
-          secondaryTapBuilder?.call(context, event.position);
-          return;
-        }
         // Primary mouse button down → pin the drag base so a wheel
         // scroll mid-drag doesn't re-anchor `base` to the cell
         // under the original click pixel after scrolling. Alt-buffer
@@ -157,7 +191,7 @@ class AppTerminalView extends StatelessWidget {
       onPointerUp: (_) => controller.endDrag(),
       onPointerCancel: (_) => controller.endDrag(),
       onPointerSignal: onPointerSignal,
-      child: body,
+      child: secondaryTrap,
     );
   }
 }

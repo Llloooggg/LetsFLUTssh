@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/app_terminal_view.dart';
 
 /// Overlay that paints the character under the block cursor with an inverted
 /// color so it stays readable.  xterm-flutter draws the cursor as a solid
@@ -33,7 +34,7 @@ class CursorTextOverlay extends StatefulWidget {
     required this.fontSize,
     this.fontFamily = AppFonts.monoFamily,
     this.fontFamilyFallback = AppFonts.monoFallback,
-    this.padding = const EdgeInsets.all(AppSpacing.xs),
+    this.padding = const EdgeInsets.all(AppTerminalView.padding),
   });
 
   final Terminal terminal;

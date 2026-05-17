@@ -16,6 +16,7 @@ import '../../core/ssh/shell_helper.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_terminal_view.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
@@ -500,8 +501,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       builder: (context, constraints) {
         // Cell height mirrors xterm's painter: fontSize × the shared
         // `kTerminalLineHeight` multiplier. Padding is the same
-        // `EdgeInsets.all(AppSpacing.xs)` we pass to TerminalView below.
-        const verticalPadding = 8.0; // EdgeInsets.all(AppSpacing.xs).vertical
+        // `AppTerminalView.padding` we pass to TerminalView below —
+        // we read the combined vertical from `AppTerminalView` so a
+        // future tweak to the shared constant propagates without a
+        // stale magic number here.
+        const verticalPadding = AppTerminalView.verticalPadding;
         final cellHeight = _fontSize * kTerminalLineHeight;
         final usable = constraints.maxHeight - verticalPadding;
         final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
@@ -561,7 +565,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               // into a separate `TerminalPane`, untouched.
               autofocus: false,
               backgroundOpacity: 1.0,
-              padding: const EdgeInsets.all(AppSpacing.xs),
+              padding: const EdgeInsets.all(AppTerminalView.padding),
               theme: AppTheme.terminalTheme,
               textStyle: TerminalStyle(
                 fontSize: _fontSize,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/app_terminal_view.dart';
 import '../terminal/cursor_overlay.dart' show kTerminalLineHeight;
 
 /// Trackpad-style copy mode for the mobile terminal.
@@ -35,7 +36,7 @@ class TerminalCopyOverlay extends StatefulWidget {
     required this.fontSize,
     required this.fontFamily,
     required this.fontFamilyFallback,
-    this.padding = const EdgeInsets.all(AppSpacing.xs),
+    this.padding = const EdgeInsets.all(AppTerminalView.padding),
   });
 
   final Terminal terminal;
