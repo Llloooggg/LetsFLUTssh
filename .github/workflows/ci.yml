@@ -459,30 +459,35 @@ jobs:
 
       - name: Install Strawberry Perl with full CPAN core (Windows MSVC)
         # The `windows-2025-vs2026` runner image puts Git-bundled
-        # MSYS2 perl first on PATH. That perl ships a stripped-down
-        # `@INC` (no `Locale::Maketext::Simple`, `Params::Check`,
-        # `IPC::Cmd`), and `openssl-sys`'s build script invokes
-        # `perl Configure` which `require`s those modules. The
-        # earlier `cpan -T -i ...` attempt installed the modules
-        # into a DIFFERENT perl (Strawberry's own cpan), so the
-        # build's perl still couldn't find them — two perls on the
-        # runner, modules in the wrong one.
+        # MSYS2 perl (`C:\Program Files\Git\usr\bin\perl.exe`)
+        # first on PATH. That perl ships a stripped-down `@INC` (no
+        # `Locale::Maketext::Simple`, `Params::Check`, `IPC::Cmd`),
+        # and `openssl-sys`'s build script invokes `perl Configure`
+        # which `require`s those modules. Cargo's child resolves
+        # plain `perl` via PATH lookup, so the fix is to force
+        # Strawberry (`C:\Strawberry\perl\bin`) ahead of Git's perl.
         #
-        # `choco install -y strawberryperl` reinstalls Strawberry
-        # with a full CPAN core, and the `$env:GITHUB_PATH` push
-        # prepends `C:\Strawberry\perl\bin` ahead of the Git-MSYS2
-        # path so `cargo`'s child `perl Configure` resolves to
-        # Strawberry first — same perl that owns the CPAN library
-        # the `openssl-src` script needs.
+        # `choco install -y strawberryperl` ensures Strawberry is
+        # present with a full CPAN core. The bash `printf` writes
+        # plain ASCII to `$GITHUB_PATH` — a previous attempt used
+        # PowerShell's `Out-File -Encoding utf8` which silently
+        # emitted a BOM that the runner's GITHUB_PATH parser
+        # mis-handled (Strawberry never made it to PATH; cargo
+        # kept resolving to MSYS2 perl). Bash redirection writes
+        # one line per entry with a trailing `\n`, no encoding
+        # surprise.
         if: matrix.target == 'x86_64-pc-windows-msvc'
-        shell: pwsh
+        shell: bash
         run: |
           choco install -y strawberryperl --no-progress
-          "C:\Strawberry\perl\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          "C:\Strawberry\c\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          # Sanity print so a future regression is easy to diagnose
-          # from the workflow log alone.
-          & "C:\Strawberry\perl\bin\perl.exe" -e 'use Locale::Maketext::Simple; use Params::Check; use IPC::Cmd; print "Strawberry Perl ready: ", $^V, "\n"'
+          printf '%s\n' 'C:\Strawberry\perl\bin' >> "$GITHUB_PATH"
+          printf '%s\n' 'C:\Strawberry\c\bin' >> "$GITHUB_PATH"
+          # Sanity probe + a diagnostic `where perl` so a future
+          # regression is visible from the workflow log without
+          # spelunking openssl-sys build script output.
+          /c/Strawberry/perl/bin/perl.exe -e 'use Locale::Maketext::Simple; use Params::Check; use IPC::Cmd; print "Strawberry Perl ready: ", $^V, "\n"'
+          echo "GITHUB_PATH after prepend (one entry per line):"
+          cat "$GITHUB_PATH"
 
       - name: Cache cargo registry + workspace target
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
