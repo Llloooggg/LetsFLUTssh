@@ -41,9 +41,13 @@ jobs:
       - name: Install Linux build dependencies
         # `libtss2-dev` is required by `tss-esapi` for the native TPM2
         # backend (`lfs_core::platform::linux::tpm_native`).
+        # `gcc-mingw-w64-x86-64` provides `x86_64-w64-mingw32-gcc`,
+        # which `cc-rs` invokes when build scripts (ring, openssl-src,
+        # etc.) compile C for the `x86_64-pc-windows-gnu` target used
+        # by `make rust-lint-windows-gnu`.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libtss2-dev
+          sudo apt-get install -y libsecret-1-dev libtss2-dev gcc-mingw-w64-x86-64
 
       - name: Install Rust toolchain
         # FRB native blob (`rust/target/release/liblfs_frb.so`) must
