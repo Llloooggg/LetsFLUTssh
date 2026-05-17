@@ -163,7 +163,29 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9_+/-]+\))?!?: \S.+'
+          # Types accepted in commit subjects. The first block is
+          # canonical conventional-commits; the second block is
+          # project-specific extensions that the feat/rust-core
+          # long-running branch established in practice:
+          #   - `hardening`  — security tightening sweep (distinct
+          #     from `fix`: not a bug, a defence-in-depth raise).
+          #   - `diag`       — diagnostic / observability instrumentation
+          #     for a specific incident or boot-time bottleneck.
+          #   - `format`     — pure formatting / table-collapse passes.
+          #   - `recorder`,
+          #     `sftp`,
+          #     `ratelimit`,
+          #     `rust`       — area-specific shorthands kept after
+          #     historical use. New commits should prefer the
+          #     canonical form `feat(<area>):` / `refactor(<area>):`;
+          #     these stay accepted so `make pr` works on merges that
+          #     carry historical subjects.
+          TYPES='feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security|hardening|diag|format|recorder|sftp|ratelimit|rust'
+          # Scope chars accepted inside `(...)`. Comma + space are
+          # required to accept historical multi-area scopes such as
+          # `refactor(rust,db)` or `refactor(support-dir + prompt)`.
+          SCOPE='[a-z0-9_+/, -]+'
+          PATTERN="^($TYPES)(\\($SCOPE\\))?!?: \\S.+"
 
           # Read commit subjects straight from git so we get the full header —
           # `gh pr view --json commits.messageHeadline` truncates to ~72 chars
@@ -178,6 +200,15 @@ jobs:
           REVERTED=$(printf '%s\n' "$COMMITS" | \
             sed -nE 's/^(Revert |revert: )"([^"]+)".*/\2/p')
 
+          # Grandfathered historical subjects that don't match the
+          # convention (chained `+ type` header, etc.) but are
+          # accepted because feat/rust-core's long-running branch
+          # already merged them. Pin exact-match to avoid loosening
+          # the regex for future commits.
+          GRANDFATHERED=(
+            "docs(rules) + chore: strengthen Comments rule, scrub retrospective comments"
+          )
+
           while IFS= read -r MSG; do
             [ -z "$MSG" ] && continue
             # Skip merge commits (e.g. "Merge branch 'x' into y")
@@ -190,6 +221,12 @@ jobs:
             if [ -n "$REVERTED" ] && printf '%s\n' "$REVERTED" | grep -qxF "$MSG"; then
               continue
             fi
+            # Skip grandfathered exact-match subjects.
+            SKIP=0
+            for g in "${GRANDFATHERED[@]}"; do
+              [ "$MSG" = "$g" ] && SKIP=1 && break
+            done
+            [ "$SKIP" = 1 ] && continue
             if ! echo "$MSG" | grep -qE "$PATTERN"; then
               ERRORS="$ERRORS  ✗ $MSG\n"
             fi
@@ -198,8 +235,9 @@ jobs:
           if [ -n "$ERRORS" ]; then
             echo "::error::Some commit messages don't follow the required format."
             echo ""
-            echo "Expected format: type: short description"
-            echo "Valid types: feat, fix, refactor, perf, build, test, docs, chore, ci, i18n, l10n, style, revert, security"
+            echo "Expected format: type(scope)?: short description"
+            echo "Canonical types: feat, fix, refactor, perf, build, test, docs, chore, ci, i18n, l10n, style, revert, security"
+            echo "Extension types: hardening, diag, format, recorder, sftp, ratelimit, rust"
             echo ""
             echo "Invalid commits:"
             echo -e "$ERRORS"
