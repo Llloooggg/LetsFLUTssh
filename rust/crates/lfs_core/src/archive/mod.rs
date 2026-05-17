@@ -734,67 +734,37 @@ mod tests {
         assert_eq!(preview.schema_version, 1);
     }
 
-    /// Chain test pinning the v1 → v2 → v3 archive-shape compat —
-    /// each older version's archive parses cleanly through the v3
-    /// reader without surfacing unknown-entry warnings or
-    /// future-version rejection. The reader treats every version in
-    /// `1..=SchemaVersions::ARCHIVE` as supported; new fields land
-    /// as `Option<String>` on `PendingImport` so the v1/v2 entries
-    /// stay `None` after parse. The forward-version gate
-    /// (v3-version archive vs an older client) is covered by the
+    /// v1 archive carrying every typed slot the reader knows about —
+    /// manifest, sessions, child tables, `sync_origin`. Pins that
+    /// the slim `read_archive_to_pending` accepts the current shape
+    /// end-to-end without surfacing unknown-entry warnings. The
+    /// forward-version gate is covered by the
     /// `rejects_future_version` test above.
     #[test]
-    fn read_archive_to_pending_chain_v1_v2_v3_all_parse() {
+    fn read_archive_to_pending_v1_with_all_typed_slots_parses() {
+        let zip = build_test_zip(&[
+            (
+                "manifest.json",
+                r#"{"schema_version":1,"sync_origin":"install-x:42"}"#,
+            ),
+            ("sessions.json", "[]"),
+            ("ssh_key_certificates.json", "[]"),
+            ("webdav_session_details.json", "[]"),
+            ("s3_session_details.json", "[]"),
+            ("sftp_bookmarks.json", "[]"),
+            ("port_forward_rules.json", "[]"),
+        ]);
         let dir = tempfile::TempDir::new().unwrap();
-        let cases: &[(i32, &[(&str, &str)])] = &[
-            // v1: manifest only.
-            (1, &[("manifest.json", r#"{"schema_version":1}"#)]),
-            // v2: manifest + sync_origin field.
-            (
-                2,
-                &[(
-                    "manifest.json",
-                    r#"{"schema_version":2,"sync_origin":"install-x:42"}"#,
-                )],
-            ),
-            // v3: manifest + child-table entries. The reader keeps
-            // them in PendingImport's typed slots.
-            (
-                3,
-                &[
-                    ("manifest.json", r#"{"schema_version":3}"#),
-                    ("sessions.json", "[]"),
-                    ("ssh_key_certificates.json", "[]"),
-                    ("webdav_session_details.json", "[]"),
-                    ("s3_session_details.json", "[]"),
-                    ("sftp_bookmarks.json", "[]"),
-                    ("port_forward_rules.json", "[]"),
-                ],
-            ),
-        ];
-        for (version, entries) in cases {
-            let zip = build_test_zip(entries);
-            let path = dir.path().join(format!("v{version}.lfs"));
-            std::fs::write(&path, &zip).unwrap();
-            let (pending, preview) = read_archive_to_pending(path.to_str().unwrap(), "")
-                .unwrap_or_else(|e| panic!("v{version} parse: {e:?}"));
-            assert_eq!(preview.schema_version, i64::from(*version));
-            // v3-only child tables only show up when explicitly
-            // shipped — v1/v2 leave the slots as `None`.
-            if *version == 3 {
-                assert!(pending.ssh_key_certificates_json.is_some());
-                assert!(pending.webdav_session_details_json.is_some());
-                assert!(pending.s3_session_details_json.is_some());
-                assert!(pending.sftp_bookmarks_json.is_some());
-                assert!(pending.port_forward_rules_json.is_some());
-            } else {
-                assert!(pending.ssh_key_certificates_json.is_none());
-                assert!(pending.webdav_session_details_json.is_none());
-                assert!(pending.s3_session_details_json.is_none());
-                assert!(pending.sftp_bookmarks_json.is_none());
-                assert!(pending.port_forward_rules_json.is_none());
-            }
-        }
+        let path = dir.path().join("v1-full.lfs");
+        std::fs::write(&path, &zip).unwrap();
+        let (pending, preview) =
+            read_archive_to_pending(path.to_str().unwrap(), "").expect("v1 parse");
+        assert_eq!(preview.schema_version, 1);
+        assert!(pending.ssh_key_certificates_json.is_some());
+        assert!(pending.webdav_session_details_json.is_some());
+        assert!(pending.s3_session_details_json.is_some());
+        assert!(pending.sftp_bookmarks_json.is_some());
+        assert!(pending.port_forward_rules_json.is_some());
     }
 
     #[test]

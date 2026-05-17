@@ -10,12 +10,11 @@
 //! over FRB and consumes the [`Report`].
 //!
 //! Registered artefacts: `config.json`, `credentials.kdf`,
-//! `security_pass_hash.bin`, `hardware_vault_salt.bin`. The
-//! `config.json` chain currently spans v1→v7; the other three
-//! sit at v1 with no migrations registered yet (presence +
-//! version probe only). Future format bumps ship a
-//! [`Migration`] impl and bump the matching [`SchemaVersions`]
-//! constant.
+//! `security_pass_hash.bin`, `hardware_vault_salt.bin`. Every
+//! artefact currently sits at v1 with no [`Migration`] impls
+//! registered — the runner only performs the presence + version
+//! probe pass. Future format bumps ship a [`Migration`] impl and
+//! bump the matching [`SchemaVersions`] constant.
 //!
 //! The `HW_VAULT_*`, `ARCHIVE`, `QR_PAYLOAD` slots stay outside
 //! the registry by design — see
@@ -52,58 +51,7 @@ impl SchemaVersions {
     /// `config.json` payload format. `config_schema_version` is
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
-    ///
-    /// v7 (current): flips the Hardware (T2) tier to always
-    /// carry `security_modifiers.password=true`. The pre-flip
-    /// model treated the password as an optional modifier on T2;
-    /// the bank-style refactor pins it on so biometric is the
-    /// optional shortcut on top of a typed password instead of
-    /// the only gate. v6 → v7 stamps `password=true` for every
-    /// stored config that carries `security_tier="hardware"` and
-    /// writes a sibling
-    /// `.hardware_v7_password_set_pending` marker when the
-    /// pre-flip modifier was `password=false` — the next
-    /// bootstrap routes through the Tier-C password-set wizard
-    /// before the regular unlock path runs.
-    ///
-    /// v6: stamps the `sync_*` family of fields at the
-    /// top level so the WebDAV sync orchestrator
-    /// (`crate::sync`) has a place to persist endpoint config +
-    /// last-push state alongside the rest of `AppConfig`. v5
-    /// readers had no such fields — the v5→v6 migration writes
-    /// the default [`crate::config::SyncConfig`] so existing
-    /// installs adopt the canonical shape on first launch under
-    /// v6.
-    ///
-    /// v5: stamps a `recordings_storage_cap_bytes` field
-    /// at the top level so the recorder's LRU eviction sweep has a
-    /// user-configurable byte ceiling. v4 readers had no such field
-    /// — the v4→v5 migration writes the default
-    /// ([`crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`])
-    /// when the field is absent so existing installs adopt the
-    /// canonical shape on first launch under v5.
-    ///
-    /// v4: drops the legacy `biometric_shortcut` /
-    /// `pin_length` fields from `security_modifiers`. Both were
-    /// retained as backward-compat aliases after the bank-style
-    /// password modifier landed; v4 retires them entirely (no
-    /// runtime caller, deprecated 1:1 alias).
-    ///
-    /// v3: the security-tier model is fully bank-style.
-    /// `security_tier` carries one of {plaintext, keychain, hardware,
-    /// paranoid} and the `password` / `biometric` switches live in
-    /// `security_modifiers`. v2 still carried `keychain_with_password`
-    /// as its own tier value alongside the modifiers — half-finished
-    /// migration from the per-combination enum shape to the bank-style
-    /// shape. v3 finishes that collapse; the v2→v3 migration rewrites
-    /// existing files (`security_tier == "keychain_with_password"` →
-    /// `tier == "keychain"` + `modifiers.password = true`).
-    ///
-    /// v2: `security_probe_cache` is always emitted as an explicit
-    /// value — either an object or `null`. v1→v2 ensures the field
-    /// exists (as `null` if absent) so post-migration reads can
-    /// distinguish "never probed" from "probed-but-empty".
-    pub const CONFIG: i32 = 7;
+    pub const CONFIG: i32 = 1;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked
@@ -114,81 +62,33 @@ impl SchemaVersions {
     /// `security_pass_hash.bin` — keychain password gate.
     pub const PASS_GATE: i32 = 1;
 
-    /// `hardware_vault_*.bin` — per-platform hw vault blob.
-    ///
-    /// v2: every platform's blob carries a `LFHV` magic + version
-    ///     + platform-id prefix so format evolution can be sniffed
-    ///     without per-platform header probes. v1 had no magic; v2
-    ///     readers reject v1 files outright (no migration ships in
-    ///     this revision — existing installs hit
-    ///     `HardwareVaultError::Corrupt` and route through the
-    ///     documented tier-reset cascade).
-    ///
-    /// v3 (Linux only): body switched from the custom
-    ///     `[u32 BE pub_len][pub][u32 BE priv_len][priv]` shape to a
-    ///     TCG ASN.1 DER blob per `draft-bottomley-tpm2-keys-asn1`
-    ///     (`id-loadablekey`) — same wire format `openssl-tpm2-engine`
-    ///     and `ssh-tpm-agent` consume. Decouples the envelope from
-    ///     `tss-esapi` builder defaults so the workspace can carry a
-    ///     caret-major declaration. No migration ships: pre-rev
-    ///     envelopes hit `HardwareVaultError::Corrupt` via the typed
-    ///     "unsupported envelope version: this build expects TCG
-    ///     ASN.1 PEM body" rejection and route through the existing
-    ///     tier-reset cascade.
-    pub const HW_VAULT_ANDROID: i32 = 2;
-    pub const HW_VAULT_APPLE: i32 = 2;
-    pub const HW_VAULT_WINDOWS: i32 = 2;
-    pub const HW_VAULT_LINUX: i32 = 3;
+    /// `hardware_vault_*.bin` — per-platform hw vault blob. Every
+    /// platform's body carries an `LFHV` magic + version + platform
+    /// id prefix so format evolution can be sniffed without
+    /// per-platform header probes. Linux blobs carry a TCG ASN.1
+    /// DER body per `draft-bottomley-tpm2-keys-asn1`
+    /// (`id-loadablekey`) — the same wire format
+    /// `openssl-tpm2-engine` / `ssh-tpm-agent` consume.
+    pub const HW_VAULT_ANDROID: i32 = 1;
+    pub const HW_VAULT_APPLE: i32 = 1;
+    pub const HW_VAULT_WINDOWS: i32 = 1;
+    pub const HW_VAULT_LINUX: i32 = 1;
 
     /// `hardware_vault_salt.bin` — raw 32-byte salt.
     pub const HW_SALT: i32 = 1;
 
-    /// `.lfs` archive schema carried in `manifest.json`.
-    ///
-    /// v3 (current): manifest payload grows five optional child-table
-    /// entries — `ssh_key_certificates.json`,
-    /// `webdav_session_details.json`, `s3_session_details.json`,
-    /// `sftp_bookmarks.json`, `port_forward_rules.json` — and the
-    /// `keys.json` shape gains an explicit `backend` discriminator
-    /// per row plus per-backend payload (FIDO2 `credential_id` +
-    /// `application_string`; PKCS#11 `pkcs11_uri` +
-    /// `pkcs11_token_serial` + `pkcs11_object_id` +
-    /// `pkcs11_object_label`; device-bound backends
-    /// `enclave` / `hello` / `tpm` / `keystore` travel as stubs with
-    /// label + public key only). The `pkcs11_module_path` column is
-    /// NEVER on the wire (per-host install location, resolved
-    /// locally on first use). Credential bytes for WebDAV / S3 stay
-    /// on the source device — only the opaque SecretStore id
-    /// pointer (`credential_secret_id` / `secret_access_key_secret_id`)
-    /// travels. The apply driver tolerates v2 archives because every
-    /// new field is `Option<String>` on `PendingImport`; older
-    /// builds (v2 client reading a v3 archive) reject the manifest
-    /// via `read_archive_to_pending`'s future-version gate.
-    ///
-    /// v2: manifest carries an optional `sync_origin` field stamping
-    /// a unique `<install-id>:<unix_ms>` token on every push from
-    /// the sync orchestrator (`crate::sync`). A peer device's pull
-    /// keys the "this is my own push echoing back" check off this
-    /// field so a fresh PROPFIND that returns our last archive does
-    /// not re-apply it.
-    ///
-    /// v1: original archive payload (no `sync_origin`, no per-backend
-    /// key payload, no v3 child tables).
-    ///
-    /// No `Migration` ships in the registry for ARCHIVE — `.lfs`
-    /// files are user-supplied import payloads that never persist
-    /// under app-support. Forward-version archives are rejected by
-    /// `read_archive_to_pending`; backward-compat for older shapes
-    /// is handled inline in the apply driver (new fields default to
-    /// `None` on `PendingImport`).
-    pub const ARCHIVE: i32 = 3;
+    /// `.lfs` archive schema carried in `manifest.json`. No
+    /// `Migration` ships in the registry for ARCHIVE — `.lfs` files
+    /// are user-supplied import payloads that never persist under
+    /// app-support. Forward-version archives are rejected by
+    /// `read_archive_to_pending`.
+    pub const ARCHIVE: i32 = 1;
 
     /// QR / paste-link payload schema (the `v` field inside the
     /// deflated JSON envelope). Same future-version-rejection shape
     /// as [`Self::ARCHIVE`] — older builds reject newer payloads
-    /// rather than upgrading them, so the registry is the public
-    /// source of truth for the version surface.
-    pub const QR_PAYLOAD: i32 = 4;
+    /// rather than upgrading them.
+    pub const QR_PAYLOAD: i32 = 1;
 }
 
 /// A single migrate-able piece of on-disk state.

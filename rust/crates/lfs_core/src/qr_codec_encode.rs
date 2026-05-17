@@ -146,7 +146,7 @@ mod tests {
         use flate2::read::DeflateDecoder;
         use std::io::Read;
 
-        let original = r#"{"v":4,"s":[{"l":"my-server","h":"example.com","u":"root"}]}"#;
+        let original = r#"{"v":1,"s":[{"l":"my-server","h":"example.com","u":"root"}]}"#;
         let payload = compress_to_payload(original);
         let compressed = URL_SAFE_NO_PAD.decode(payload.as_bytes()).unwrap();
         let mut decoder = DeflateDecoder::new(&compressed[..]);
@@ -173,7 +173,7 @@ mod tests {
         // production `qr_codec_decode::decode_payload` path to prove
         // the encode + decode halves agree on alphabet + deflate
         // parameters, byte-for-byte.
-        let original = r#"{"v":4,"s":[{"l":"x","h":"y","u":"z"}]}"#;
+        let original = r#"{"v":1,"s":[{"l":"x","h":"y","u":"z"}]}"#;
         let encoded = compress_to_payload(original);
         let decoded = crate::qr_codec_decode::decode_payload(&encoded);
         // `decode_payload` returns a `DecodedQrPayload`; the

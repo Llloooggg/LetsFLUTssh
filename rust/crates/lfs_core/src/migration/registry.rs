@@ -10,10 +10,7 @@
 
 use std::collections::HashMap;
 
-use super::artefacts::{
-    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, ConfigV4ToV5, ConfigV5ToV6,
-    ConfigV6ToV7, HwSaltArtefact, KdfArtefact, PassGateArtefact,
-};
+use super::artefacts::{ConfigArtefact, HwSaltArtefact, KdfArtefact, PassGateArtefact};
 use super::{Artefact, Migration};
 
 /// Mutable registry of every artefact + migration the runner knows
@@ -56,38 +53,10 @@ pub fn build_app_registry() -> Registry {
     reg.artefacts.push(Box::new(KdfArtefact));
     reg.artefacts.push(Box::new(PassGateArtefact));
     reg.artefacts.push(Box::new(HwSaltArtefact));
-    // v1 → v2: `security_probe_cache` always emitted as an explicit
-    // value (object or `null`) on the wire; v1 writers omitted on
-    // `None`, collapsing the round-trip distinction.
-    reg.migrations.push(Box::new(ConfigV1ToV2));
-    // v2 → v3: collapse the legacy `keychain_with_password` tier
-    // wire value into `keychain` + `security_modifiers.password =
-    // true`. Finishes the half-migration to the bank-style tier
-    // model so the enum carries one value per key-storage strategy
-    // and password is purely a modifier.
-    reg.migrations.push(Box::new(ConfigV2ToV3));
-    // v3 → v4: drop the legacy `biometric_shortcut` and
-    // `pin_length` fields from `security_modifiers`. Both were
-    // backward-compat carries (deprecated alias / advisory) with
-    // no runtime caller in either Rust or Dart by the time the
-    // bank-style password modifier landed; v4 retires them.
-    reg.migrations.push(Box::new(ConfigV3ToV4));
-    // v4 → v5: stamp `recordings_storage_cap_bytes` with the
-    // canonical 500 MiB default when absent so the recorder's LRU
-    // eviction sweep has a configurable byte ceiling persisted
-    // alongside the rest of the user preferences.
-    reg.migrations.push(Box::new(ConfigV4ToV5));
-    // v5 → v6: stamp the `sync_*` family of fields with the
-    // canonical `SyncConfig::default` so the WebDAV sync
-    // orchestrator sees the same shape every read produces.
-    reg.migrations.push(Box::new(ConfigV5ToV6));
-    // v6 → v7: flip the Hardware (T2) tier to always carry
-    // `security_modifiers.password=true`. Pre-flip Hardware
-    // installs with `password=false` also get a sibling
-    // `.hardware_v7_password_set_pending` marker so the next
-    // bootstrap routes the Tier-C password-set wizard ahead of
-    // the regular unlock path.
-    reg.migrations.push(Box::new(ConfigV6ToV7));
+    // No [`super::Migration`] impls registered — every artefact sits
+    // at v1 and the runner only performs the presence + version probe
+    // pass. Future format bumps add the matching `reg.migrations.push`
+    // line alongside the impl + its registry-completeness unit test.
     reg
 }
 
@@ -131,90 +100,16 @@ mod tests {
     }
 
     #[test]
-    fn config_v1_to_v2_migration_registered() {
+    fn app_registry_has_no_migrations_at_v1_baseline() {
+        // Every artefact currently sits at v1 — the registry exposes
+        // only the artefact list, no `Migration` impls. Pin the
+        // invariant so a future commit that adds a migration without
+        // bumping `SchemaVersions` is caught immediately.
         let reg = build_app_registry();
         assert!(
-            reg.migrations
-                .iter()
-                .any(|m| m.artefact_id() == "config.json"
-                    && m.source_version() == 1
-                    && m.target_version() == 2),
-            "ConfigV1ToV2 must be registered so v1 installs migrate \
-             to v2 on the next launch",
-        );
-    }
-
-    #[test]
-    fn config_v2_to_v3_migration_registered() {
-        let reg = build_app_registry();
-        assert!(
-            reg.migrations
-                .iter()
-                .any(|m| m.artefact_id() == "config.json"
-                    && m.source_version() == 2
-                    && m.target_version() == 3),
-            "ConfigV2ToV3 must be registered so v2 installs migrate \
-             to v3 on the next launch (keychain_with_password tier \
-             collapse into bank-style modifier)",
-        );
-    }
-
-    #[test]
-    fn config_v3_to_v4_migration_registered() {
-        let reg = build_app_registry();
-        assert!(
-            reg.migrations
-                .iter()
-                .any(|m| m.artefact_id() == "config.json"
-                    && m.source_version() == 3
-                    && m.target_version() == 4),
-            "ConfigV3ToV4 must be registered so v3 installs migrate \
-             to v4 on the next launch (drop legacy biometric_shortcut \
-             + pin_length fields)",
-        );
-    }
-
-    #[test]
-    fn config_v4_to_v5_migration_registered() {
-        let reg = build_app_registry();
-        assert!(
-            reg.migrations
-                .iter()
-                .any(|m| m.artefact_id() == "config.json"
-                    && m.source_version() == 4
-                    && m.target_version() == 5),
-            "ConfigV4ToV5 must be registered so v4 installs migrate \
-             to v5 on the next launch (stamp default recordings \
-             storage cap)",
-        );
-    }
-
-    #[test]
-    fn config_v5_to_v6_migration_registered() {
-        let reg = build_app_registry();
-        assert!(
-            reg.migrations
-                .iter()
-                .any(|m| m.artefact_id() == "config.json"
-                    && m.source_version() == 5
-                    && m.target_version() == 6),
-            "ConfigV5ToV6 must be registered so v5 installs migrate \
-             to v6 on the next launch (stamp default sync settings)",
-        );
-    }
-
-    #[test]
-    fn config_v6_to_v7_migration_registered() {
-        let reg = build_app_registry();
-        assert!(
-            reg.migrations
-                .iter()
-                .any(|m| m.artefact_id() == "config.json"
-                    && m.source_version() == 6
-                    && m.target_version() == 7),
-            "ConfigV6ToV7 must be registered so v6 installs migrate \
-             to v7 on the next launch (flip Hardware tier to always \
-             carry the password modifier + stamp password-set marker)",
+            reg.migrations.is_empty(),
+            "no migration impls expected at the v1 baseline, found {}",
+            reg.migrations.len(),
         );
     }
 }

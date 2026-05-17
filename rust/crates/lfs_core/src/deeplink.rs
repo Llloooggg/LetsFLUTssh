@@ -647,8 +647,8 @@ mod tests {
         // Versions are detected before staging — this branch never
         // touches AppState::imports, so we can exercise it without
         // initialising the singleton.
-        // Encode a payload with v=999 (above CURRENT_FORMAT_VERSION = 4).
-        // Smallest valid wrapper: just `{"v":999}` deflate+base64url.
+        // Encode a payload with v=999 (above the current
+        // `SchemaVersions::QR_PAYLOAD`).
         use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine as _};
         use flate2::write::DeflateEncoder;
         use flate2::Compression;
@@ -662,7 +662,10 @@ mod tests {
         match route(&uri) {
             DeeplinkOutcome::QrImportRejected { found, supported } => {
                 assert_eq!(found, 999);
-                assert_eq!(supported, 4);
+                assert_eq!(
+                    supported,
+                    i64::from(crate::migration::SchemaVersions::QR_PAYLOAD),
+                );
             }
             other => panic!("expected QrImportRejected, got {other:?}"),
         }

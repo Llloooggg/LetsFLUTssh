@@ -1453,7 +1453,7 @@ mod split_v16_tests {
     //! database.
 
     use super::*;
-    use crate::db::{bootstrap_schema, Db, SCHEMA_VERSION};
+    use crate::db::{bootstrap_schema, Db};
 
     fn db() -> Db {
         let conn = Connection::open_in_memory().unwrap();
@@ -1462,21 +1462,6 @@ mod split_v16_tests {
             .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
-    }
-
-    /// Mirror of the private `db::mod::read_schema_version` —
-    /// duplicated here because the original is `#[cfg(test)]`
-    /// inside `db/mod.rs` and not reachable from sibling test
-    /// modules without exporting it crate-wide.
-    fn read_schema_version(conn: &Connection) -> i32 {
-        let mut v: i32 = 0;
-        conn.inner()
-            .pragma_query(None, "user_version", |row| {
-                v = row.get::<_, i32>(0)?;
-                Ok(())
-            })
-            .unwrap();
-        v
     }
 
     fn ssh_join_row_count(db: &Db, id: &str) -> i64 {
@@ -1597,166 +1582,5 @@ mod split_v16_tests {
             0,
             "kind change away from SSH must wipe ssh_session_details"
         );
-    }
-
-    /// Simulate a v15 database (legacy `sessions` shape with all
-    /// SSH-shaped columns in-line) and verify bootstrap migrates
-    /// it to the slim v16 shape with data preserved in
-    /// `ssh_session_details`.
-    #[test]
-    fn bootstrap_v15_to_v16_splits_ssh_columns_into_join_table() {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.raw()
-            .execute_batch("PRAGMA foreign_keys = ON")
-            .unwrap();
-        bootstrap_schema(&conn).unwrap();
-
-        // Revert the schema to v15 shape: drop the new join table
-        // + indexes (CASCADE not needed — nothing references them
-        // yet) and re-attach the SSH-shaped columns on `sessions`.
-        // Then stamp user_version back to v15 so the bootstrap arm
-        // fires on the next call.
-        conn.raw()
-            .execute_batch(
-                "DROP INDEX IF EXISTS idx_ssh_session_details_session_id; \
-                 DROP INDEX IF EXISTS idx_ssh_session_details_via_session_id; \
-                 DROP INDEX IF EXISTS idx_ssh_session_details_key_id; \
-                 DROP TABLE IF EXISTS ssh_session_details; \
-                 ALTER TABLE sessions ADD COLUMN host TEXT NOT NULL DEFAULT ''; \
-                 ALTER TABLE sessions ADD COLUMN port INTEGER NOT NULL DEFAULT 22; \
-                 ALTER TABLE sessions ADD COLUMN user TEXT NOT NULL DEFAULT ''; \
-                 ALTER TABLE sessions ADD COLUMN auth_type TEXT NOT NULL DEFAULT 'password'; \
-                 ALTER TABLE sessions ADD COLUMN password TEXT NOT NULL DEFAULT ''; \
-                 ALTER TABLE sessions ADD COLUMN key_path TEXT NOT NULL DEFAULT ''; \
-                 ALTER TABLE sessions ADD COLUMN key_data TEXT NOT NULL DEFAULT ''; \
-                 ALTER TABLE sessions ADD COLUMN key_id TEXT; \
-                 ALTER TABLE sessions ADD COLUMN passphrase TEXT NOT NULL DEFAULT ''; \
-                 ALTER TABLE sessions ADD COLUMN via_session_id TEXT; \
-                 ALTER TABLE sessions ADD COLUMN via_host TEXT; \
-                 ALTER TABLE sessions ADD COLUMN via_port INTEGER; \
-                 ALTER TABLE sessions ADD COLUMN via_user TEXT;",
-            )
-            .unwrap();
-        // Seed an SSH session row directly via the legacy columns
-        // — exactly the shape a v15-shipped build would have left
-        // behind on disk.
-        conn.raw()
-            .execute(
-                "INSERT INTO sessions (\
-                   id, label, kind, sort_order, notes, extras, created_at, updated_at, \
-                   host, port, user, auth_type, password, key_path, key_data, \
-                   key_id, passphrase, via_session_id, via_host, via_port, via_user\
-                 ) VALUES (\
-                   ?1, ?2, 'ssh', 0, '', '', 0, 0, \
-                   ?3, ?4, ?5, ?6, ?7, '', ?8, NULL, ?9, NULL, NULL, NULL, NULL\
-                 )",
-                rusqlite::params![
-                    "legacy-1",
-                    "old-server",
-                    "10.1.2.3",
-                    2222_i64,
-                    "deploy",
-                    "key",
-                    "legacy-pw",
-                    "PEM-BYTES",
-                    "phrase",
-                ],
-            )
-            .unwrap();
-        // Seed a WebDAV session — the v15 build still wrote the
-        // SessionRow host/user columns even for non-SSH sessions,
-        // so the migration must not invent a phantom SSH join row
-        // for it (the `WHERE kind = 'ssh'` filter is the gate).
-        conn.raw()
-            .execute(
-                "INSERT INTO sessions (\
-                   id, label, kind, sort_order, notes, extras, created_at, updated_at, \
-                   host, port, user, auth_type, password, key_path, key_data, \
-                   key_id, passphrase, via_session_id, via_host, via_port, via_user\
-                 ) VALUES (\
-                   ?1, ?2, 'webdav', 0, '', '', 0, 0, \
-                   'cloud.example.com', 443, 'alice', 'password', '', '', '', \
-                   NULL, '', NULL, NULL, NULL, NULL\
-                 )",
-                rusqlite::params!["legacy-dav", "nextcloud"],
-            )
-            .unwrap();
-
-        conn.inner()
-            .pragma_update(None, "user_version", 15)
-            .unwrap();
-
-        // Migration fires here. After it, sessions is slim and
-        // ssh_session_details carries the SSH session's columns.
-        bootstrap_schema(&conn).unwrap();
-        assert_eq!(read_schema_version(&conn), SCHEMA_VERSION);
-
-        let mut sessions_cols: std::collections::HashSet<String> = Default::default();
-        conn.inner()
-            .pragma(None, "table_info", "sessions", |row| {
-                sessions_cols.insert(row.get::<_, String>("name")?);
-                Ok(())
-            })
-            .unwrap();
-        assert!(
-            !sessions_cols.contains("auth_type"),
-            "post-v16 sessions must not carry auth_type"
-        );
-        assert!(
-            !sessions_cols.contains("host"),
-            "post-v16 sessions must not carry host"
-        );
-        assert!(
-            !sessions_cols.contains("key_data"),
-            "post-v16 sessions must not carry key_data"
-        );
-
-        // SSH row backfilled with all the legacy column values.
-        let join_row: (String, i64, String, String, String, String, String) = conn
-            .raw()
-            .query_row(
-                "SELECT host, port, user, auth_type, password, key_data, passphrase \
-                 FROM ssh_session_details WHERE session_id = ?1",
-                rusqlite::params!["legacy-1"],
-                |r| {
-                    Ok((
-                        r.get(0)?,
-                        r.get(1)?,
-                        r.get(2)?,
-                        r.get(3)?,
-                        r.get(4)?,
-                        r.get(5)?,
-                        r.get(6)?,
-                    ))
-                },
-            )
-            .unwrap();
-        assert_eq!(join_row.0, "10.1.2.3");
-        assert_eq!(join_row.1, 2222);
-        assert_eq!(join_row.2, "deploy");
-        assert_eq!(join_row.3, "key");
-        assert_eq!(join_row.4, "legacy-pw");
-        assert_eq!(join_row.5, "PEM-BYTES");
-        assert_eq!(join_row.6, "phrase");
-
-        // WebDAV row does NOT mint a phantom SSH join row.
-        let dav_join: i64 = conn
-            .raw()
-            .query_row(
-                "SELECT COUNT(*) FROM ssh_session_details WHERE session_id = ?1",
-                rusqlite::params!["legacy-dav"],
-                |r| r.get(0),
-            )
-            .unwrap();
-        assert_eq!(
-            dav_join, 0,
-            "WebDAV sessions must not be backfilled into ssh_session_details"
-        );
-
-        // Second bootstrap is a no-op — the version stamp gate +
-        // `column_exists` probe inside `split_ssh_session_details`
-        // both short-circuit on a v16 database.
-        bootstrap_schema(&conn).unwrap();
-        assert_eq!(read_schema_version(&conn), SCHEMA_VERSION);
     }
 }

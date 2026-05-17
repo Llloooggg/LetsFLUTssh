@@ -730,10 +730,10 @@ self-signed fingerprint) plus the password / bearer token from the
 `s3_session_details` (access key id, region, endpoint, addressing
 style, default bucket, default prefix) plus the secret access key
 from `session.s3.<id>` in the `SecretStore`. The `kind` column is
-`NOT NULL DEFAULT 'ssh'` so legacy rows backfill on the v4 → v5
-hop; the v15 → v16 hop extracts the SSH-shaped columns out of
-`Sessions` into the new `SshSessionDetails` join table. See §11
-for the migration shape.
+`NOT NULL DEFAULT 'ssh'` so a row inserted without an explicit
+kind lands as an SSH session. SSH-specific columns live on
+`SshSessionDetails` so non-SSH rows do not carry SSH-shaped
+fields. See §11 for the table shape.
 
 **Kind-change cleanup.** `db::sessions::upsert` keeps the live
 kind's detail row in sync and drops the rows from the other two
@@ -833,7 +833,7 @@ native rename.
 
 ##### Session.extras — JSON escape hatch
 
-Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column (added in DB schema v2). Holds feature flags that don't justify their own column — recording opt-in, layout hints, agent-forwarding state, future per-session preferences. The map is unmodifiable; mutate through [`Session.withExtras(delta)`] which returns a copy with the delta merged (a `null` value in `delta` removes the key).
+Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column. Holds feature flags that don't justify their own column — recording opt-in, layout hints, agent-forwarding state, future per-session preferences. The map is unmodifiable; mutate through [`Session.withExtras(delta)`] which returns a copy with the delta merged (a `null` value in `delta` removes the key).
 
 **Why a JSON column instead of a column per flag.** Many features add at least one Session field. Doing that one column at a time means a schema bump per feature; doing it via `extras` means one bump covers them all. Load-bearing fields that need indexed lookups or load-time access at connect time (auth, port forwards, proxy jump) keep their own columns; everything else funnels through `extras`.
 
@@ -1108,14 +1108,11 @@ bypasses the OS keychain layer).
   keychain; compared in constant time before the KEK provider is
   touched. Paranoid and Hardware always imply `password == true` by
   design — Apple + Android were always password-gated on T2, and the
-  Linux + Windows arms now match. `SecurityTierModifiers::is_valid_for_tier`
-  rejects `(tier=Hardware, password=false)` outright; the v6 → v7
-  `ConfigArtefact` migration stamps the flag on for every Hardware
-  install whose v6 config carried `password=false` (and writes a
-  sibling `.hardware_v7_password_set_pending` marker so the next
-  bootstrap routes through the Tier-C password-set wizard before
-  the regular unlock path runs — the wrapped key on disk still
-  carries the pre-flip empty-PIN-HMAC seal).
+  Linux + Windows arms now match.
+  `SecurityTierModifiers::is_valid_for_tier` rejects
+  `(tier=Hardware, password=false)` outright; the Hardware
+  password-set wizard handles the one-time enrolment so the
+  wrapped key on disk is sealed against the user's typed password.
 - `biometric` — when true, the user opted into the biometric
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected
@@ -1125,11 +1122,10 @@ bypasses the OS keychain layer).
   `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
   biometric unlock releases the password from that slot and replays
   the HMAC gate without requiring the user to retype.
-Pre-v4 configs also carried `biometric_shortcut` (a 1:1 alias of
-`biometric`) and `pin_length` (advisory only). Both fields are
-dropped by the `ConfigV3ToV4` Rust-side migration on first read; the
-runtime struct no longer carries them, and the JSON decoder silently
-ignores them on hand-edited configs that still mention them.
+The JSON decoder silently ignores any unknown modifier keys on
+hand-edited configs (e.g. `biometric_shortcut`, `pin_length`) so a
+config that picks up a stray field outside the typed
+`SecurityTierModifiers` shape still parses.
 
 Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 
@@ -1451,7 +1447,7 @@ sequenceDiagram
   Frb-->>Dart: SshSession (live)
 ```
 
-Persistence: `db::ssh_keys` carries three FIDO2 columns (`credential_id BLOB`, `application_string TEXT`, `has_user_verification INTEGER`) from schema v7 onwards. Software keys leave the columns NULL / 0; `sk-*` rows populate all three at import. The row's `key_type` short tag is `sk-ed25519` or `sk-ecdsa-p256`; the connect dispatch maps these back to `ssh_key::Algorithm::SkEd25519` / `SkEcdsaSha2NistP256` through `ssh::sk::algorithm_from_key_type`.
+Persistence: `db::ssh_keys` carries three FIDO2 columns (`credential_id BLOB`, `application_string TEXT`, `has_user_verification INTEGER`). Software keys leave the columns NULL / 0; `sk-*` rows populate all three at import. The row's `key_type` short tag is `sk-ed25519` or `sk-ecdsa-p256`; the connect dispatch maps these back to `ssh_key::Algorithm::SkEd25519` / `SkEcdsaSha2NistP256` through `ssh::sk::algorithm_from_key_type`.
 
 Wire format: the `FidoSigner` impl of russh's `Signer` (publicly re-exported at the crate root in `russh = "0.59"`, see `russh/src/lib_inner.rs`) SHA-256-hashes the SSH userauth signature input, asks the device for an assertion against `(rp_id=application, clientDataHash)`, then composes the OpenSSH `sk-*` signature trailer — `64-byte raw Ed25519 sig || u8 flags || u32 counter` for sk-ed25519, `string mpint r || string mpint s || u8 flags || u32 counter` for sk-ecdsa-p256 — and appends `string(algo_name) || string(sk_signature)` as a single length-prefixed SSH string to the buffer russh handed in. The signer impl lives at `lfs_core::ssh::sk_signer::FidoSigner`; the shared byte-layout helpers (mpint encoding, ECDSA DER → SSH mpint, public-key blob construction) live at `lfs_core::ssh::wire` so subsequent hardware-bound `Signer` impls (PKCS#11, TPM 2.0, Apple Secure Enclave, Windows NCrypt, Android Hardware Keystore) reuse them — see [Hardware-bound SSH signer wire helpers](#hardware-bound-ssh-signer-wire-helpers) below.
 
@@ -1526,7 +1522,7 @@ sequenceDiagram
   Note over Dart,Tok: on connect: russh Signer drives C_Sign per challenge
 ```
 
-Persistence: `db::ssh_keys` carries an explicit `backend` discriminator from schema v9 onwards (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name), the Apple Secure Enclave `enclave_tag` blob (schema v10 — the opaque `kSecAttrApplicationTag` bytes the Keychain matches on; only populated for `backend = 'enclave'` rows), and the Windows Hello `hello_credential_name` string (schema v11 — the CNG persistent-key name the `NCryptOpenKey` lookup re-binds to; only populated for `backend = 'hello'` rows). The v8 -> v9 migration arm UPDATEs every pre-existing `credential_id IS NOT NULL` row to `backend = 'fido2'` so the dispatcher's typed switch never falls through to a software arm for a hardware-bound key. The v9 -> v10 hop is additive (one `ALTER TABLE ssh_keys ADD COLUMN enclave_tag BLOB NULL`); the v10 -> v11 hop is additive in the same shape (`ALTER TABLE ssh_keys ADD COLUMN hello_credential_name TEXT NULL`); existing rows backfill to NULL on both hops.
+Persistence: `db::ssh_keys` carries an explicit `backend` discriminator (one of `software` / `fido2` / `pkcs11` / `tpm` / `enclave` / `hello` / `keystore`), plus the PKCS#11 ingredient block (`pkcs11_uri` for the RFC 7512 URI captured at import, `pkcs11_module_path` for the resolved on-disk library path, `pkcs11_token_serial` to confirm the same physical token, `pkcs11_object_id` for the opaque `CKA_ID` of the private-key object, `pkcs11_object_label` for the human-readable name), the Apple Secure Enclave `enclave_tag` blob (the opaque `kSecAttrApplicationTag` bytes the Keychain matches on; only populated for `backend = 'enclave'` rows), and the Windows Hello `hello_credential_name` string (the CNG persistent-key name the `NCryptOpenKey` lookup re-binds to; only populated for `backend = 'hello'` rows). The agent / connect dispatcher reads `backend` to route to the right `Signer` impl rather than inferring from `credential_id IS NOT NULL`, so a hardware-bound row never falls through to a software arm.
 
 Mechanism → SSH algorithm table:
 
@@ -1632,7 +1628,7 @@ flowchart LR
 
 Both shapes pin to `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` so the key never syncs (iCloud Keychain stays out of the loop) and never persists past a passcode unset.
 
-**Application tag.** Each key registers under a unique `kSecAttrApplicationTag` blob — `letsflutssh.ssh.<lowercase-hex-uuid>` — generated at creation time and persisted in `ssh_keys.enclave_tag` (BLOB NULL, schema v10). The Keychain query at sign time matches on the tag; storing the tag in our own DB rather than letting Keychain enumerate by partial match keeps the mapping unambiguous when multiple keys co-exist on the same device.
+**Application tag.** Each key registers under a unique `kSecAttrApplicationTag` blob — `letsflutssh.ssh.<lowercase-hex-uuid>` — generated at creation time and persisted in `ssh_keys.enclave_tag` (BLOB NULL). The Keychain query at sign time matches on the tag; storing the tag in our own DB rather than letting Keychain enumerate by partial match keeps the mapping unambiguous when multiple keys co-exist on the same device.
 
 **LAContext caching.** Mirrors Secretive's `PersistentAuthenticationHandler` pattern — the caller may cache a single `LAContext` per session and pass it via `kSecUseAuthenticationContext` on subsequent `SecItemCopyMatching` calls. The OS skips the biometric prompt while the context's `evaluatedPolicyDomainState` blob is still valid (a few minutes per Apple's docs; we mirror PKCS#11's 5-minute idle drop). For T-5 the caching surface is wired (`load_private_key` accepts `Option<&Retained<LAContext>>`) but the per-session reuse path lives at the FRB worker boundary (one `LAContext` per connect / agent dispatch); the in-process ssh-agent endpoint reuses it across SIGN_REQUEST bursts from the same external client.
 
@@ -1684,7 +1680,7 @@ flowchart LR
 
 **Module layout.** The native driver lives at `rust/crates/lfs_os_security/src/windows/ncrypt_ssh.rs` (cfg-gated to `target_os = "windows"`). The Signer adapter lives at `rust/crates/lfs_core/src/ssh/hello_signer.rs` (mirrors the PKCS#11 / FIDO2 / Enclave shape — `russh::Signer` impl wrapping the FFI surface). The FRB shim lives at `rust/crates/lfs_frb/src/api/hello.rs`. The driver crate stays free of `lfs_core` deps (audit invariant: `lfs_core` depends on `lfs_os_security`, never the reverse), so it returns raw bytes via `HelloSignature` / `HelloPublicKey` and the caller in `lfs_core` wraps them via the shared `lfs_core::ssh::wire` helpers.
 
-**CNG provider + persistent key naming.** Every SSH-bound key is minted under `MS_PLATFORM_KEY_STORAGE_PROVIDER`. The provider prefers TPM 2.0 when present; on hosts without a TPM it transparently falls back to a software KSP. CNG name format: `letsflutssh-ssh-<user-hash>-<uuid>` — the user-hash prefix (first 4 bytes of `SHA-256(USERNAME)`) protects shared-workstation installs from collisions across user profiles. The name persists in `ssh_keys.hello_credential_name` (TEXT NULL, schema v11); `NCryptOpenKey` re-binds to the same persistent key on every connect / agent dispatch.
+**CNG provider + persistent key naming.** Every SSH-bound key is minted under `MS_PLATFORM_KEY_STORAGE_PROVIDER`. The provider prefers TPM 2.0 when present; on hosts without a TPM it transparently falls back to a software KSP. CNG name format: `letsflutssh-ssh-<user-hash>-<uuid>` — the user-hash prefix (first 4 bytes of `SHA-256(USERNAME)`) protects shared-workstation installs from collisions across user profiles. The name persists in `ssh_keys.hello_credential_name` (TEXT NULL); `NCryptOpenKey` re-binds to the same persistent key on every connect / agent dispatch.
 
 **Algorithm matrix.**
 
@@ -1802,7 +1798,7 @@ Ed25519 is not defined by the TPM 2.0 specification — the wizard refuses with 
 | Windows without PCP / Server Core minimal | `ProviderUnavailable` | 4 honestly hide | "No TPM detected on this device" |
 | macOS / iOS / Android | `Unsupported` | 4 honestly hide | Toolbar entry hidden — `isApplePlatform` / `isMobilePlatform` gate at the call site routes users to the Secure Enclave wizard on Apple |
 
-**DB schema (v12).** `ssh_keys` carries five new columns alongside the existing FIDO2 / PKCS#11 / Enclave / Hello block: `tpm_blob BLOB NULL` (TSS2 PRIVATE KEY ASN.1 bytes — Linux blob mode), `tpm_handle INTEGER NULL` (persistent NV handle — Linux), `tpm_provider TEXT NULL` (one of `'tss-esapi'` / `'cng-pcp'` — drives the connect dispatcher's signer selection), `tpm_pin_required INTEGER NOT NULL DEFAULT 0` (gates the per-sign PIN prompt), `cng_key_name TEXT NULL` (Windows PCP silent variant's `NCryptOpenKey` name). The columns stay NULL / 0 for every non-TPM row; the v11 → v12 migration arm in `db::bootstrap_schema` lands them via additive ALTERs.
+**DB schema.** `ssh_keys` carries the TPM 2.0 SSH column block alongside the existing FIDO2 / PKCS#11 / Enclave / Hello block: `tpm_blob BLOB NULL` (TSS2 PRIVATE KEY ASN.1 bytes — Linux blob mode), `tpm_handle INTEGER NULL` (persistent NV handle — Linux), `tpm_provider TEXT NULL` (one of `'tss-esapi'` / `'cng-pcp'` — drives the connect dispatcher's signer selection), `tpm_pin_required INTEGER NOT NULL DEFAULT 0` (gates the per-sign PIN prompt), `cng_key_name TEXT NULL` (Windows PCP silent variant's `NCryptOpenKey` name). The columns stay NULL / 0 for every non-TPM row.
 
 **Signing path.** Linux: the signer reads `ssh_keys.tpm_blob`, calls `tpm_ssh::import_blob` to recover the `TpmSshKey`, then `tpm_ssh::sign(cfg, key, auth_value, data)` — the auth value comes from the SecretStore entry under `tpm.pin.<key_id>` for PIN-bound rows, `None` for empty-auth. The TPM driver returns `TpmSshSignature::{EcdsaP256RawConcat, Rsa2048}` (raw bytes); the `lfs_core` caller wraps via `ssh::wire::ecdsa_raw_concat_to_ssh_mpint` / `ssh::wire::rsa_pkcs1_v15_to_ssh_blob` and prefixes the SSH userauth `signature` body. Windows: the signer reads `ssh_keys.cng_key_name`, builds a `TpmSilentKeyHandle`, calls `ncrypt_ssh::sign_for_ssh_silent` (no `set_ui_policy` call ever fires on this row), and wraps the same way. `TPM_RC_BAD_AUTH` / `TPM_RC_LOCKOUT` on the Linux path map to `Error::Tpm("pin incorrect: ...")` / `Error::Tpm("lockout: ...")` so the Dart connect dialog routes a wrong-PIN retry distinctly from a cooldown banner.
 
@@ -1863,7 +1859,7 @@ EC P-256 is the only uniformly StrongBox-eligible algorithm across the project's
 
 **`AndroidManifest.xml::allowBackup` invariant.** `android:allowBackup="false"` (set at line 51 of `android/app/src/main/AndroidManifest.xml`) forces a device transfer / cloud restore to land as a clean install — the AndroidKeyStore alias does not survive the round trip anyway (the chip on the new device is different), but the DB rows must not survive either, otherwise the user lands on a fresh phone with `backend = 'keystore'` rows whose private key is unreachable.
 
-**DB schema (v13).** `ssh_keys` carries four new columns alongside the existing FIDO2 / PKCS#11 / Enclave / Hello / TPM block: `keystore_alias TEXT NULL` (AndroidKeyStore alias the `KeyStore.getEntry(alias, null)` lookup re-binds to on every sign — minted under the `lfs-keystore-` prefix to stay separate from `FlutterSecureStorageKeyAlias_`), `keystore_strongbox INTEGER NOT NULL DEFAULT 0` (`1` when StrongBox actually accepted the request — drives the badge label split), `keystore_user_auth_required INTEGER NOT NULL DEFAULT 0` (`1` for every current Keystore row — the wizard always sets `setUserAuthenticationRequired(true)`; reserved for a future no-auth variant), `keystore_platform TEXT NULL` (capture-time `Build.MODEL` + Android version surfaced in the badge popover). The columns stay NULL / 0 for every non-Keystore row; the v12 → v13 migration arm in `db::bootstrap_schema` lands them via additive ALTERs.
+**DB schema.** `ssh_keys` carries the Android Hardware Keystore / StrongBox column block alongside the existing FIDO2 / PKCS#11 / Enclave / Hello / TPM block: `keystore_alias TEXT NULL` (AndroidKeyStore alias the `KeyStore.getEntry(alias, null)` lookup re-binds to on every sign — minted under the `lfs-keystore-` prefix to stay separate from `FlutterSecureStorageKeyAlias_`), `keystore_strongbox INTEGER NOT NULL DEFAULT 0` (`1` when StrongBox actually accepted the request — drives the badge label split), `keystore_user_auth_required INTEGER NOT NULL DEFAULT 0` (`1` for every current Keystore row — the wizard always sets `setUserAuthenticationRequired(true)`; reserved for a future no-auth variant), `keystore_platform TEXT NULL` (capture-time `Build.MODEL` + Android version surfaced in the badge popover). The columns stay NULL / 0 for every non-Keystore row.
 
 **Signing path.** The signer reads `ssh_keys.keystore_alias`, hands it to `lfs_os_security::android::keystore_signer::sign(alias, algo, data)`, and the JNI bridge fires the BiometricPrompt on the main thread. On `onAuthenticationSucceeded`, the Kotlin side runs `result.cryptoObject.signature.update(data); .sign()` and routes the bytes back through `nativeOnSigned`. The Rust caller wraps via `ssh::wire::ecdsa_der_to_ssh_mpint` (ECDSA P-256 — AndroidKeyStore returns DER `SEQUENCE { INTEGER r, INTEGER s }`), `ssh::wire::ed25519_to_ssh_blob` (Ed25519 — raw 64 bytes), or `ssh::wire::rsa_pkcs1_v15_to_ssh_blob` (RSA-2048 — raw 256-byte block). `KeyPermanentlyInvalidatedException` maps to `Error::Keystore("invalidated: ...")`; `UserNotAuthenticatedException` after BiometricPrompt cooldown maps to `Error::Keystore("user not authenticated: ...")`; BiometricPrompt `ERROR_NEGATIVE_BUTTON` / `ERROR_USER_CANCELED` map to `Error::Keystore("cancelled: ...")`; StrongBox flip-on-us maps to `Error::Keystore("strongbox unavailable: ...")` so the Dart connect dialog routes each path to a distinct toast.
 
@@ -1881,7 +1877,7 @@ EC P-256 is the only uniformly StrongBox-eligible algorithm across the project's
 
 **Agent-endpoint reachability.** The in-process ssh-agent endpoint is `#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]` — Android has no surface to host a Unix-socket agent for system clients (`git`, `ssh`, OpenSSH on a desktop). The `BackendKind::Keystore` arm in `lfs_core::ssh_agent::backends::dispatch_sign_by_kind` surfaces `Error::Keystore("Android Hardware Keystore is reachable only on Android in-app sessions")` to keep the dispatcher's match exhaustive on desktop targets; in practice the listing path filters Keystore rows out before the dispatcher sees them.
 
-**Tests.** Unit tests in `rust/crates/lfs_core/src/ssh/keystore_signer.rs::tests` cover the algorithm round-trip via `from_key_type`, the error mapping, the russh `Algorithm` contract, and the wire-algorithm selection. The agent dispatcher has a `from_row_resolves_keystore_when_backend_is_keystore` test in `rust/crates/lfs_core/src/ssh_agent/backends.rs::tests` plus a `dispatch_keystore_on_desktop_surfaces_unsupported` async test that pins the desktop refusal contract. The v12 → v13 migration hop has its own bootstrap-roundtrip test in `rust/crates/lfs_core/src/db/mod.rs::tests::bootstrap_v12_to_v13_adds_keystore_columns_to_ssh_keys`. The Dart-side wizard test lives in `test/widgets/keystore_ssh_dialog_test.dart` — probe-disabled state, algorithm radio, StrongBox toggle disabled-with-reason on Ed25519, generate calls the FRB backend. End-to-end Keystore generate / sign + BiometricPrompt is the allow-listed "OS-specific capability" exception (no unit test on the bridge side; requires an emulator with biometric enrolled).
+**Tests.** Unit tests in `rust/crates/lfs_core/src/ssh/keystore_signer.rs::tests` cover the algorithm round-trip via `from_key_type`, the error mapping, the russh `Algorithm` contract, and the wire-algorithm selection. The agent dispatcher has a `from_row_resolves_keystore_when_backend_is_keystore` test in `rust/crates/lfs_core/src/ssh_agent/backends.rs::tests` plus a `dispatch_keystore_on_desktop_surfaces_unsupported` async test that pins the desktop refusal contract. The Dart-side wizard test lives in `test/widgets/keystore_ssh_dialog_test.dart` — probe-disabled state, algorithm radio, StrongBox toggle disabled-with-reason on Ed25519, generate calls the FRB backend. End-to-end Keystore generate / sign + BiometricPrompt is the allow-listed "OS-specific capability" exception (no unit test on the bridge side; requires an emulator with biometric enrolled).
 
 #### In-process ssh-agent endpoint
 
@@ -1953,7 +1949,7 @@ The `<pid>` suffix keeps parallel instances from colliding on the same path (the
 
 **Certificate signing.** Cert-form SIGN_REQUEST (`key_blob` algorithm ending in `-cert-v01@openssh.com`) routes through the same backend signer the bare-key request would use. `ssh-agent-lib 0.5`'s `SignRequest::decode` cannot represent a cert in its `KeyData` field — `reader.read_prefixed(KeyData::decode)` injects a length prefix the cert wire layout doesn't carry — so the cert path is intercepted in `loop_runner` before the typed decoder runs. The interceptor reads the SIGN_REQUEST body manually (`string key_blob || string data || uint32 flags`), parses `key_blob` via `ssh_key::Certificate::from_bytes`, extracts the embedded bare `KeyData` via `cert.public_key()`, resolves the matching `ssh_keys` row through the same `find_row_by_keydata` equality check the bare-key path uses, and drives `Endpoint::run_sign` — the helper shared with `Session::sign` that runs the `agent_policy = 'ask'` confirm gate and dispatches to the backend. The SIGN_RESPONSE carries a bare-key signature (`string ssh-ed25519 || string raw_64_byte_sig` for ed25519; matching shapes for the other algorithms). Verified against OpenSSH `process_sign_request2` / `agent_decode_alg` and the per-type sign callbacks (`ssh_ed25519_encode_store_sig` and siblings): every callback writes the bare algorithm name regardless of whether the lookup key was a cert; the cert algorithm appears only as the request-side discriminator that selects the identity. Bare-key SIGN_REQUEST stays on the typed path.
 
-**Per-key dispatch policy.** `ssh_keys.agent_policy` (TEXT NOT NULL DEFAULT `'ask'`, schema v8) drives the gate:
+**Per-key dispatch policy.** `ssh_keys.agent_policy` (TEXT NOT NULL DEFAULT `'ask'`) drives the gate:
 
 - `'always'` — sign silently. The hardware backend's own touch / PIN prompt still fires when the credential carries the user-verification bit.
 - `'ask'` — default. Every SIGN_REQUEST surfaces a Flutter `AgentSignatureRequestDialog` (header: requesting process name + key label; buttons: Authorize once / Authorize and remember / Deny). Mirrors `ssh-add -c` semantics. The "remember" button promotes the row to `'always'` in `ssh_keys`.
@@ -2368,13 +2364,14 @@ controller short-circuits the rest of startup whenever
 `_runMigrations` returns `false`, because the failure handler has
 already taken over. The registered artefacts are `config.json`,
 `credentials.kdf`, `security_pass_hash.bin`, and
-`hardware_vault_salt.bin`. The `config.json` chain spans v1→v7
-(six migrations, latest flips the Hardware tier to always carry
-the `password` modifier); the other three sit at v1 with no
-migrations yet (presence + version probe). On a current-version
-install the runner walks every registered artefact and the report
-is always `noOp == true`, so the app proceeds into
-`SecurityInitController.bootstrap` normally.
+`hardware_vault_salt.bin`. Every artefact sits at v1 with no
+`Migration` impls registered — the runner only performs the
+presence + version probe pass. On a clean install the report is
+always `noOp == true`, so the app proceeds into
+`SecurityInitController.bootstrap` normally. An on-disk artefact
+reporting a version above 1 (downgrade after a forward-version
+build wrote the file) routes through `UnsupportedFutureVersion`
+and the same `DbCorruptDialog`.
 
 ##### Atomicity
 
@@ -2525,11 +2522,11 @@ format](#39-import-coreimport) for the import-path transform shape.
 
 ###### Deferred v1 improvements
 
-Three improvements were designed but intentionally not shipped in the
-v1-floor cleanup, because each one would require bumping the archive
-schema (or adding a native dependency) — and "v1 is the permanent
-floor" means the next format bump should be a single coordinated
-v1 → v2 step, not a drip of back-compat flags inside v1:
+Three improvements were designed but intentionally not shipped at
+the v1 floor, because each one needs an archive format bump (or a
+new native dependency). With every artefact reset to v1, the next
+format bump should be a single coordinated v1 → v2 step, not a
+drip of back-compat flags inside v1:
 
 - **Fast wrong-password canary.** An 8-byte sentinel encrypted with
   the Argon2id-derived key, placed at a known offset before the main
@@ -2627,17 +2624,11 @@ class ConfigNotifier {
 
 ##### `config_schema_version` cutovers
 
-| Version | Wire-shape change | Migration |
+| Version | Wire-shape | Migration |
 |---|---|---|
-| **v1** | Implicit floor — installs without the `config_schema_version` field are reported as v1 by `ConfigArtefact::read_version` so the upgrade path doesn't trigger a reset. `security_probe_cache` is omitted on `None`, present (object) on `Some`. | — |
-| **v2** | `security_probe_cache` is always emitted as an explicit value — either an object or `null`. Distinguishes "never probed" from "probed-but-empty" on round-trip; the v1 writer collapsed both shapes by omitting the field. | `ConfigV1ToV2` (`lfs_core::migration::artefacts`): inserts `security_probe_cache: null` when missing, stamps `config_schema_version: 2`, writes via `path::write_bytes_atomic`. |
-| **v3** | The security-tier model is fully bank-style: `security_tier` carries one of `{plaintext, keychain, hardware, paranoid}` and the `password` / `biometric` switches live in `security_modifiers`. v2 still carried `keychain_with_password` as its own tier value alongside the modifiers — half-finished migration from the per-combination enum shape. v3 finishes the collapse. | `ConfigV2ToV3` (`lfs_core::migration::artefacts`): rewrites `security_tier == "keychain_with_password"` to `tier == "keychain"` + `modifiers.password = true`, stamps `config_schema_version: 3`, writes via `path::write_bytes_atomic`. |
-| **v4** | Drops the legacy `biometric_shortcut` / `pin_length` fields from `security_modifiers`. Both were retained as backward-compat aliases after the bank-style password modifier landed; v4 retires them entirely (no runtime caller, deprecated 1:1 alias). | `ConfigV3ToV4` (`lfs_core::migration::artefacts`): removes the two fields from `security_modifiers` if present, stamps `config_schema_version: 4`, writes via `path::write_bytes_atomic`. Idempotent on already-stripped configs. |
-| **v5** | Adds `recordings_storage_cap_bytes` at the top level (default 500 MiB) so the recorder's LRU eviction sweep has a user-configurable byte ceiling persisted alongside the rest of the preferences. v4 readers had no such field — without the cutover the cap would key off the runtime default every launch and a hand-edited value could never persist. Sanitiser clamps zero / above 1 TiB to the default. | `ConfigV4ToV5` (`lfs_core::migration::artefacts`): inserts `recordings_storage_cap_bytes: 524288000` when missing, stamps `config_schema_version: 5`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
-| **v6** | Adds the `sync_*` family of fields (`sync_enabled`, `sync_webdav_url`, `sync_webdav_username`, `sync_webdav_password_ref`, `sync_webdav_auth_method`, `sync_passphrase_ref`, `sync_remote_path`, `sync_last_pushed_at_ms`, `sync_last_pulled_at_ms`, `sync_last_pushed_sha256`, `sync_last_pushed_etag`) so the WebDAV sync orchestrator ([§3.15](#315-sync-via-webdav-rustcrateslfs_coresrcsync)) has a place to persist endpoint config + last-push state alongside the rest of `AppConfig`. Plaintext credentials live in `lfs_core::secrets::SecretStore`; only the two ref-ids land here. `strip_for_export` drops every `sync_*` key before the JSON enters an `.lfs` archive — sync state is per-install, not portable. The `sync_last_pulled_etag` and `sync_last_pulled_sha256` slots were added additively after v6 shipped — the reader defaults missing fields to empty string per the `SyncConfig::from_json_object` shape, so existing v6/v7 configs round-trip without a schema bump. | `ConfigV5ToV6` (`lfs_core::migration::artefacts`): stamps the defaults from `SyncConfig::default` for every missing `sync_*` key, stamps `config_schema_version: 6`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
-| **v7** (current) | Hardware (T2) tier is mandatory-password: `security_modifiers.password = true` is the only valid shape for `security_tier == "hardware"`. v6 still allowed `password = false` (the "passwordless T2" arm) but the wrapped DB key on disk was sealed under the empty PIN-HMAC — wrong threat model, biometric was acting as the primary unlock instead of the optional shortcut. v7 flips the modifier on every existing Hardware install. Pre-flip configs leave a sibling `.hardware_v7_password_set_pending` marker so the next bootstrap routes the password-set wizard ahead of the regular unlock path (the empty-PIN seal cannot be unsealed once the unlock dispatcher requires a typed secret). | `ConfigV6ToV7` (`lfs_core::migration::artefacts`): rewrites `security_modifiers.password = true` for Hardware-tier configs (no-op when already true), writes `.hardware_v7_password_set_pending` for any v6 install that had `password = false`, stamps `config_schema_version: 7`, writes via `path::write_bytes_atomic`. The config rewrite + marker write are sibling atomic writes — a crash between them surfaces as "v7 config + no marker" on the next bootstrap, which the unlock orchestrator handles by short-circuiting to `hardware_password_required` so the user notices instead of looping on wrong-password. The bootstrap wizard ([`HardwarePasswordSetupWizard`](../lib/widgets/hardware_password_setup_wizard.dart)) reads the existing vault under the empty PIN-HMAC, re-seals the same DB key under `HMAC(new_salt, typed_password)`, then clears the marker so the regular unlock path resumes — user data is preserved, only the auth value changes. A wipe-and-restart escape sits on every screen of the wizard for the edge case where the user does not have a usable password to type. |
+| **v1** (current) | Bank-style security tier model + every persisted `AppConfig` field the runtime needs. `config_schema_version` is stamped explicitly on every write; a missing field on a parseable JSON object is treated as v1 by `ConfigArtefact::read_version` so a hand-edited file without the stamp does not trigger reset. `security_probe_cache` is always an explicit value (object or `null`). `security_modifiers` carries `{password, biometric}` only — no legacy aliases. Hardware (T2) tier is mandatory-password (`SecurityTierModifiers::is_valid_for_tier` rejects `password=false`). The `sync_*` family persists WebDAV sync endpoint config + last-push state; plaintext credentials live in `SecretStore`, only the ref-ids land on the JSON. `strip_for_export` drops every `sync_*` key before the JSON enters an `.lfs` archive — sync state is per-install, not portable. `recordings_storage_cap_bytes` holds the recorder LRU byte ceiling; sanitiser clamps zero / above 1 TiB to the 500 MiB default. | — |
 
-Bumping further follows the framework's [§3.6 → Bumping an existing artefact's format](#bumping-an-existing-artefacts-format) checklist — every step lives in one place so the next bump doesn't have to re-derive the contract.
+The next bump follows the framework's [§3.6 → Bumping an existing artefact's format](#bumping-an-existing-artefacts-format) checklist — every step lives in one place so the next bump doesn't have to re-derive the contract.
 
 ---
 
@@ -2844,16 +2835,17 @@ Child-table portability — every child row is keyed by its parent's id
 | Table | Wire fields | Secret discipline |
 |---|---|---|
 | `ssh_key_certificates` | key_id, certificate, valid_after, valid_before, principals, critical_options, fingerprint | Cert blob is the public half of a CA-signed pair; safe to travel verbatim. Apply drops the row with a warning when the parent key didn't land. |
-| `webdav_session_details` | session_id, base_url, username, auth_method, self_signed_fingerprint, credential_secret_id | The password / bearer token lives on the local `password` column (encrypted at rest by SQLCipher, v17 schema), but the archive / sync codec ships only the opaque pointer (`session.webdav.<session_id>`) rather than the bytes. The receiving device finds the SecretStore slot empty and surfaces "re-enter password" on first connect — same UX contract as before v17, just with on-disk persistence at the source. |
-| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes persist locally on the v17 `secret_access_key` column but stay off the wire — the codec ships the opaque pointer. Same opaque-pointer discipline as WebDAV. |
+| `webdav_session_details` | session_id, base_url, username, auth_method, self_signed_fingerprint, credential_secret_id | The password / bearer token lives on the local `password` column (encrypted at rest by SQLCipher), but the archive / sync codec ships only the opaque pointer (`session.webdav.<session_id>`) rather than the bytes. The receiving device finds the SecretStore slot empty and surfaces "re-enter password" on first connect. |
+| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes persist locally on the `secret_access_key` column (SQLCipher-encrypted at rest) but stay off the wire — the codec ships the opaque pointer. Same opaque-pointer discipline as WebDAV. |
 | `sftp_bookmarks` | id, session_id, remote_path, label, created_at | Full round-trip; tombstone-aware. |
 | `port_forward_rules` | id, session_id, kind, bind_host, bind_port, remote_host, remote_port, description, enabled, sort_order, created_at_ms | Full round-trip. |
 
-Backward compatibility for v1 / v2 archives is automatic: every v3
-field is `Option<String>` on `PendingImport`, so a v2 reader sees an
-absent slot. The reverse — an older client (v2) reading a v3
-archive — hits the future-version rejection in
-`read_archive_to_pending`.
+Every archive entry on the wire is independently optional —
+each new typed slot on `PendingImport` is `Option<...>`, so an
+archive that ships only a subset of entries parses cleanly. The
+forward-version gate in `read_archive_to_pending` rejects any
+manifest whose `schema_version` is greater than
+`SchemaVersions::ARCHIVE`.
 
 #### Import modes
 
@@ -3143,7 +3135,7 @@ When the security tier is `plaintext`, the recorder writes raw asciinema JSON-Li
 
 Recordings live as discrete files at `<appSupport>/recordings/<sessionId>/<isoTimestamp>.<lfsr|cast>`. Each file caps at `maxFileBytes = 100 MB`; on overflow the recorder rotates to a fresh file under the same session (with a fresh asciinema header). 100 MB is large enough for a multi-hour vim-heavy day, small enough that exporting a single file stays trivially shareable.
 
-The aggregate byte ceiling for the tree is configurable through `AppConfig.recordings_storage_cap_bytes` (default 500 MiB, persisted under `config.json` schema v5). `lfs_core::recorder::storage_cap` owns the LRU eviction sweep: a two-level walk under `<recordings_root>` collects every regular file, sorts by `metadata.modified()` ascending (entries with unreadable mtime go first — "delete first" rule), and unlinks oldest entries until the running total is at or below the cap. The currently-writing files (every actor registered via `RecorderRegistry::register_with_io`) are skipped by checking the path against `RecorderRegistry::active_paths()`. The sweep fires automatically on every register + close — defence-in-depth pairs with the per-file 100 MB cap so a forgotten "record everything" toggle cannot eat the disk. Per-file `remove_file` failures (perm denied, IO timeout) log a warning and continue rather than aborting the sweep, and the register / close call paths swallow eviction errors so a stuck unlink never blocks the recording lifecycle.
+The aggregate byte ceiling for the tree is configurable through `AppConfig.recordings_storage_cap_bytes` (default 500 MiB, persisted on `config.json`). `lfs_core::recorder::storage_cap` owns the LRU eviction sweep: a two-level walk under `<recordings_root>` collects every regular file, sorts by `metadata.modified()` ascending (entries with unreadable mtime go first — "delete first" rule), and unlinks oldest entries until the running total is at or below the cap. The currently-writing files (every actor registered via `RecorderRegistry::register_with_io`) are skipped by checking the path against `RecorderRegistry::active_paths()`. The sweep fires automatically on every register + close — defence-in-depth pairs with the per-file 100 MB cap so a forgotten "record everything" toggle cannot eat the disk. Per-file `remove_file` failures (perm denied, IO timeout) log a warning and continue rather than aborting the sweep, and the register / close call paths swallow eviction errors so a stuck unlink never blocks the recording lifecycle.
 
 The FRB surface exposes three storage-cap entry points alongside the existing list / delete / play shims: `recorder_storage_used` (bytes currently used; walks the tree fresh, no cache), `recorder_set_storage_cap` (push a new cap → re-parse + sanitise through `AppConfig::from_json_value` → run an immediate eviction sweep), and `recorder_clear_all_recordings` (delete every non-active file). Caps clamp to the default on zero or above 1 TiB inside `AppConfig::sanitized` so a hand-edited `config.json` cannot disable the sweep by stamping `u64::MAX`.
 
@@ -3443,25 +3435,14 @@ id pointers do.
 
 #### Schema versions
 
-- `SchemaVersions::CONFIG = 7` flips the Hardware (T2) tier to
-  always carry `security_modifiers.password=true`. The v6 → v7
-  migration (`ConfigV6ToV7`) stamps the flag on for every stored
-  config whose `security_tier == "hardware"` and writes a sibling
-  `.hardware_v7_password_set_pending` marker when the pre-flip
-  modifier was `password=false` — the bootstrap then routes the
-  Tier-C password-set wizard ahead of the regular unlock path
-  (the wrapped key on disk still carries the pre-flip empty-PIN-
-  HMAC seal until the wizard re-seals it against the user's typed
-  password).
-- `SchemaVersions::CONFIG = 6` adds the `sync_*` family of
-  fields to `config.json`. The v5 → v6 migration
-  (`ConfigV5ToV6`) stamps the canonical defaults from
-  `SyncConfig::default` so existing installs adopt the shape on
-  first launch.
-- `SchemaVersions::ARCHIVE = 2` adds the optional `sync_origin`
-  field to the manifest. v1 archives have no field; the
-  `archive::read_archive_to_pending` parser accepts both v1 and
-  v2 via the `1..=ARCHIVE` range check.
+Every framework-managed artefact (`config.json`, `.lfs` archive
+manifest, QR payload, hardware vault blobs) sits at v1. The Rust
+runner reads the on-disk version stamp and routes anything
+above 1 through `UnsupportedFutureVersion` → `DbCorruptDialog`
+(see §3.6 → Migration framework). Wire-format additions land
+on the existing v1 shape (every new field is optional / has a
+default); structural bumps wait for the next coordinated v1 → v2
+step.
 
 #### Cadence
 
@@ -5581,7 +5562,7 @@ All application data is stored in a single SQLite database, opened Rust-side via
 | Table | Purpose | Key relationships | Soft-delete |
 |-------|---------|-------------------|-------------|
 | `Sessions` | Saved sessions — protocol-neutral row only (id, label, folder_id, `kind`, sort_order, notes, last_connected_at, `extras` JSON bag, timestamps). Every protocol-specific column lives on its matching join table. | FK → Folders | yes |
-| `SshSessionDetails` | Per-session SSH transport config + credentials (host, port, user, auth_type, password, key_path, key_data, key_id, passphrase, via_session_id, via_host, via_port, via_user). Extracted out of `Sessions` on the v15 → v16 split so non-SSH rows do not carry SSH-shaped columns. | FK → Sessions, cascade on delete; PK = `session_id`; FK → SshKeys (key_id) | yes |
+| `SshSessionDetails` | Per-session SSH transport config + credentials (host, port, user, auth_type, password, key_path, key_data, key_id, passphrase, via_session_id, via_host, via_port, via_user). Kept off `Sessions` so non-SSH rows do not carry SSH-shaped columns. | FK → Sessions, cascade on delete; PK = `session_id`; FK → SshKeys (key_id) | yes |
 | `WebDavSessionDetails` | Per-session WebDAV transport config (base URL, username, auth method, optional self-signed fingerprint) | FK → Sessions, cascade on delete; PK = `session_id` | no (1-to-1 with `Sessions` kind=webdav) |
 | `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK | no |
 | `SshKeys` | SSH key pairs | — | yes |
@@ -5635,9 +5616,9 @@ Plaintext mode (T0) opens the same file with no `PRAGMA key`.
 (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`)
 and stamps `PRAGMA user_version = SCHEMA_VERSION` on every open
 whenever the on-disk value lags. Foreign keys are enabled via
-`PRAGMA foreign_keys = ON` in the same bootstrap pass. The
-v2 → v3 hop also runs `ALTER TABLE … ADD COLUMN deleted_at` per
-soft-deletable table — see Version log below.
+`PRAGMA foreign_keys = ON` in the same bootstrap pass. No per-step
+`ALTER` arms are registered today — every shipping install lands on
+the same column shape directly from `SCHEMA_SQL`.
 
 **POSIX permissions.** Rust pre-creates the DB file before
 SQLite touches it so the very first encrypted page lands on a
@@ -5684,194 +5665,20 @@ same column shape. Future bumps:
    constraint behaviour.
 
 **Version log.**
-- **v1** — initial schema (`folders`, `ssh_keys`, `sessions`,
-  `known_hosts`, `app_configs`, `tags`, `session_tags`,
-  `folder_tags`, `snippets`, `session_snippets`,
-  `sftp_bookmarks`, `port_forward_rules`). Floor for the next
-  `SCHEMA_VERSION` bump — every column an existing user database
-  may already carry is part of v1, so a fresh open never needs to
-  add a column to reach the floor. Reference snapshots that
-  predate v1 live verbatim under
+- **v1** — the column-and-table shape declared in `SCHEMA_SQL`
+  (see the table at the top of §11). Single floor for every
+  shipping install. No `ALTER` arms register in
+  `bootstrap_schema` today — additive bumps (`ADD COLUMN`,
+  `CREATE TABLE IF NOT EXISTS` follow-ups) land alongside their
+  matching match arm + rewind+replay test when the next
+  format change ships. Structural rewrites that SQLite cannot
+  express additively (drop column, rename, change PK) follow the
+  SQLite 12-step rebuild recipe. Reference snapshots predating v1
+  live verbatim under
   [`drift_schemas/drift_schema_v1.json` … `_v4.json`](../drift_schemas/);
   they are not consumed by any runtime path and exist only as
   documentation when proving a column existed in a given
   pre-floor era for archive-import back-compat.
-- **v2** — adds the `ssh_key_certificates` join table (PK = `key_id`
-  TEXT, FK → `ssh_keys.id` ON DELETE CASCADE) so a stored SSH key
-  can be paired with an OpenSSH user certificate. The bump is
-  purely additive — bootstrap runs the same `CREATE TABLE IF NOT
-  EXISTS` over both v1 and v2 databases — so existing installs
-  pick up the table on the next open without a migration step.
-  `bootstrap_schema` forward-stamps `user_version` whenever the
-  on-disk value is below `SCHEMA_VERSION`; that's safe so long as
-  every accumulated diff between the two values is expressible
-  through additive `CREATE TABLE IF NOT EXISTS` /
-  `CREATE INDEX IF NOT EXISTS` (true through v2).
-- **v3** — adds `deleted_at INTEGER NULL` to five user-data tables
-  (`sessions`, `ssh_keys`, `tags`, `snippets`, `sftp_bookmarks`)
-  + a `CREATE INDEX IF NOT EXISTS idx_<table>_deleted_at` per
-  table to keep the live-row filter cheap. The fresh-install path
-  picks the column up via the same `CREATE TABLE IF NOT EXISTS`
-  block; existing v1/v2 databases run `ALTER TABLE … ADD COLUMN
-  deleted_at` inside the `current < SCHEMA_VERSION` arm so the
-  ALTER never re-fires (SQLite errors on duplicate column name).
-  `known_hosts` is **deliberately excluded** — TOFU host trust is
-  per-device and the sync layer must not leak host fingerprints
-  across devices.
-- **v4** — drops the inline `UNIQUE(name)` constraint on `tags` and
-  replaces it with `CREATE UNIQUE INDEX idx_tags_name_live ON tags(name)
-  WHERE deleted_at IS NULL`. SQLite cannot DROP a column-level
-  `UNIQUE` without a table rebuild; the bump runs the documented
-  twelve-step rebuild (disable FKs → BEGIN → CREATE new shape →
-  copy → DROP old → RENAME → re-enable FKs) inside the upgrade
-  arm. Fresh installs hit the new shape directly from
-  `SCHEMA_SQL`.
-- **v5** — adds `kind TEXT NOT NULL DEFAULT 'ssh'` to `sessions` and
-  ships the new `webdav_session_details` join table (PK = `session_id`,
-  FK → `sessions.id` ON DELETE CASCADE) plus
-  `idx_webdav_session_details_session_id`. Existing rows backfill via
-  `ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'ssh'`
-  inside the `(1..5).contains(&current)` arm; fresh installs pick
-  the column up from `SCHEMA_SQL`. The bump is required so the file
-  browser can dispatch by transport (SSH/SFTP vs WebDAV) without
-  reading a side table on every row.
-- **v6** — adds the `s3_session_details` join table (PK = `session_id`,
-  FK → `sessions.id` ON DELETE CASCADE) plus
-  `idx_s3_session_details_session_id`. Columns: `access_key_id`,
-  `region`, `endpoint`, `path_style` (INTEGER boolean),
-  `default_bucket`, `default_prefix`. The secret access key never
-  lands on a column — it stages into the SecretStore under
-  `session.s3.<session_id>` like the WebDAV password does.
-  Existing v5 installs pick up the table via `CREATE TABLE IF NOT
-  EXISTS` in `SCHEMA_SQL`; no per-step `ALTER` is required.
-  `SchemaVersions::CONFIG` is unchanged — S3 transport config
-  lives in the DB, not in `config.json`.
-- **v7** — adds the FIDO2 hardware-key columns on `ssh_keys`:
-  `credential_id BLOB NULL` (opaque CTAP2 blob the device matches
-  against on every assertion), `application_string TEXT NULL` (SSH
-  `application` field, typically `ssh:`), and
-  `has_user_verification INTEGER NOT NULL DEFAULT 0` (PIN-required
-  flag captured at import). Software-key rows leave the three
-  columns NULL / NULL / 0; `sk-*` rows populate all three. The
-  `key_type` short tag distinguishes the two — see the FIDO2
-  subsection of §3 above for the connect path. Existing v6 installs
-  get the columns via `ALTER TABLE ssh_keys ADD COLUMN ...` gated
-  by `(1..7).contains(&current)` in `bootstrap_schema`.
-- **v8** — adds `agent_policy TEXT NOT NULL DEFAULT 'ask'` on
-  `ssh_keys`. Drives the per-key dispatch gate the in-process
-  ssh-agent endpoint (`lfs_core::ssh_agent`, see §3 above)
-  consults before signing a SIGN_REQUEST from an external SSH
-  client. Values: `'always'` (sign silently), `'ask'` (default;
-  route through `AgentSignatureRequestDialog`), `'deny'` (refuse
-  AND hide from `request_identities`). Existing v7 installs
-  backfill to `'ask'` via the additive `ALTER` gated by
-  `(1..8).contains(&current)`; fresh installs take the column from
-  the inline `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL`.
-- **v9** — adds the explicit `backend` discriminator on
-  `ssh_keys` (TEXT NOT NULL DEFAULT `'software'`; one of
-  `'software'` / `'fido2'` / `'pkcs11'` / `'tpm'` / `'enclave'` /
-  `'hello'` / `'keystore'`) plus the PKCS#11 ingredient block
-  (`pkcs11_uri`, `pkcs11_module_path`, `pkcs11_token_serial`,
-  `pkcs11_object_id BLOB`, `pkcs11_object_label`). The connect /
-  agent dispatcher reads `backend` to route to the right Signer
-  impl instead of inferring from `credential_id IS NOT NULL`. The
-  migration arm also issues an `UPDATE ssh_keys SET backend =
-  'fido2' WHERE credential_id IS NOT NULL` so the discriminator is
-  exhaustive on day one — a hardware-bound FIDO2 row never falls
-  through to a software arm. Existing v8 installs backfill via the
-  additive `ALTER` block gated by `(1..9).contains(&current)`;
-  fresh installs take every column from the inline `CREATE TABLE
-  IF NOT EXISTS` in `SCHEMA_SQL`. PKCS#11 columns are populated for
-  `backend = 'pkcs11'` rows only; every other backend leaves them
-  NULL. See the PKCS#11 subsection of §3 above for the wire shape
-  the columns carry.
-- **v14** — adds `imported_as_stub INTEGER NOT NULL DEFAULT 0` on
-  `ssh_keys`. Flips to `1` when a row landed via `.lfs` import /
-  WebDAV sync pull for a device-bound backend (`enclave` / `hello`
-  / `tpm` / `keystore`) — the public half travelled, the private
-  side stayed on the source device's hardware. Drives the Key
-  Manager's desaturated render + the "Re-generate here" / "Remove"
-  action set; the session-edit "Key from manager" picker disables
-  stub rows with a tooltip. The first local "Re-generate" via the
-  per-backend wizard upserts a full row over the stub (the id
-  collides; `imported_as_stub` clears via the upsert). Existing
-  v13 installs backfill to `0` via the additive `ALTER` gated by
-  `(1..14).contains(&current)`.
-- **v16** — splits SSH-specific columns out of `sessions` into the
-  new `ssh_session_details` join table (PK = `session_id`, FK →
-  `sessions.id` ON DELETE CASCADE, FK → `ssh_keys.id` ON DELETE
-  SET NULL on `key_id`). After the hop, `sessions` carries only
-  the protocol-neutral row (`id`, `label`, `folder_id`, `kind`,
-  `sort_order`, `notes`, `last_connected_at`, `extras`, timestamps);
-  every SSH-shaped column (`host`, `port`, `user`, `auth_type`,
-  `password`, `key_path`, `key_data`, `key_id`, `passphrase`,
-  `via_session_id`, `via_host`, `via_port`, `via_user`) lives on the
-  join row. The `idx_sessions_via_session_id` and
-  `idx_sessions_key_id` indexes follow the columns and become
-  `idx_ssh_session_details_via_session_id` /
-  `idx_ssh_session_details_key_id`. The bump is motivated by the
-  "общие поля в одной таблице, специфичные — в отдельной" rule —
-  WebDAV / S3 sessions previously carried empty SSH columns purely
-  for shape symmetry. **Migration**: existing v15 installs run a
-  two-phase upgrade inside the `(1..16).contains(&current)` arm —
-  (a) `INSERT OR IGNORE INTO ssh_session_details SELECT … FROM
-  sessions WHERE kind = 'ssh'` backfills the join row from the
-  legacy columns; (b) the SQLite 12-step recreate
-  (`CREATE sessions_new (slim) → INSERT SELECT common cols → DROP
-  sessions → RENAME sessions_new TO sessions`) inside a
-  `foreign_keys = OFF` window rebuilds the table in the slim
-  shape. `PRAGMA foreign_key_check` runs after the swap as a
-  fail-fast assertion. Inbound FKs from `webdav_session_details`,
-  `s3_session_details`, `session_tags`, `session_snippets`,
-  `sftp_bookmarks`, `port_forward_rules` survive because SQLite
-  resolves FK targets by table name and the rename re-binds every
-  reference. Idempotency: the second bootstrap sees `auth_type`
-  already absent from `sessions` and short-circuits the migration.
-  Fresh installs (`current == 0`) pick up the slim shape directly
-  from `SCHEMA_SQL` and skip this arm. **Wire format**:
-  `SessionRow` keeps the same field list — the archive / QR codecs
-  (`archive/compose`, `archive/apply`, `qr_compose`) continue to
-  operate on the struct verbatim; only the `WHERE` of the read /
-  write paths changed.
-- **v17** — adds persistent secret columns to the two non-SSH
-  detail tables: `webdav_session_details.password TEXT NOT NULL
-  DEFAULT ''` and `s3_session_details.secret_access_key TEXT NOT
-  NULL DEFAULT ''`. The v5 / v6 introduction of those tables left
-  the credential out on purpose — the design assumed
-  `lfs_core::secrets::SecretStore` would be a durable landing pad
-  for non-SSH secrets the same way it was for SSH credentials at
-  connect time. `SecretStore` is a `Mutex<HashMap<String,
-  Zeroizing<Vec<u8>>>>` (`lfs_core::secrets`), process-local with
-  no on-disk back-end, so every restart wiped the WebDAV password
-  and S3 secret access key. The user re-typed the credential on
-  every launch, and the connect path returned `WebDAV secret not
-  staged: session.webdav.<id>` on first reconnect. **Migration**:
-  existing v16 installs land the columns via additive `ALTER
-  TABLE ... ADD COLUMN ... DEFAULT ''` gated by
-  `add_v17_non_ssh_secret_columns` in the `(1..17).contains(&current)`
-  arm; pre-existing rows backfill to empty string, which the new
-  `set_password` / `set_secret_access_key` setters overwrite on the
-  first edit-dialog Save after the upgrade. Fresh installs pick
-  the columns up from `SCHEMA_SQL`. **DAO surface**: each
-  detail-table module gains a `set_*` setter (Dart → Rust on save,
-  one-way through FRB), a `has_*` presence probe (cheap bool the
-  edit dialog reads for its "[Saved] type to change" hint without
-  the plaintext crossing FRB), and a `stage_secret_into_store`
-  reader the connect path calls just before `webdav_connect` /
-  `s3_connect`. **Read path**: `sessions::list_all_with_flags` joins
-  the two detail tables and synthesises `has_webdav_password` /
-  `has_s3_secret_access_key` bools per session id, surfaced to the
-  Dart session-tree provider through `RegistryView.credential_flags`
-  so `Session.isValid` for WebDAV / S3 rows fires the "credentials
-  not set" warning on rows whose column is empty — same UX as the
-  SSH branch already had. **Wire format**: `WebDavSessionRow` /
-  `S3SessionRow` keep their field lists (no password / secret on
-  the struct); the `set_*` setters land the plaintext directly on
-  the column, the `upsert` path leaves the existing value untouched,
-  so saving metadata without re-entering the credential preserves
-  it. The archive / sync wire format is unchanged — those
-  composers still ship the opaque secret-id pointer per the v6
-  contract above.
 
 ### Export portability per table
 
@@ -5885,11 +5692,11 @@ is a quick reference.
 |---|---|---|
 | `folders` | Full | Path-keyed reconstruction on apply. |
 | `sessions` | Full | Slim protocol-neutral row — `id`, `label`, `folder_id`, `kind`, `sort_order`, `notes`, `last_connected_at`, `extras`, timestamps. LWW on `updated_at` for sync. |
-| `ssh_session_details` | Full (passwords inside GCM envelope) | SSH-specific config + credentials; LWW on `updated_at`. The composer flattens this back into the `Session` archive entry so the wire format stays stable across the v15 → v16 schema split. |
+| `ssh_session_details` | Full (passwords inside GCM envelope) | SSH-specific config + credentials; LWW on `updated_at`. The composer flattens this back into the `Session` archive entry so the wire format does not leak the join split. |
 | `ssh_keys` | Backend-dependent | `software` + `fido2` + `pkcs11` round-trip; `enclave` / `hello` / `tpm` / `keystore` ship as stubs. See §3.9. |
 | `ssh_key_certificates` | Full | Cert blob is the public half; safe verbatim. |
-| `webdav_session_details` | Opaque-pointer | Endpoint config + secret-id pointer travels; password bytes stay on the source device's `webdav_session_details.password` column (v17+, SQLCipher-encrypted at rest) and never cross the wire. |
-| `s3_session_details` | Opaque-pointer | Access key id travels; secret access key bytes stay on the source device's `s3_session_details.secret_access_key` column (v17+). |
+| `webdav_session_details` | Opaque-pointer | Endpoint config + secret-id pointer travels; password bytes stay on the source device's `webdav_session_details.password` column (SQLCipher-encrypted at rest) and never cross the wire. |
+| `s3_session_details` | Opaque-pointer | Access key id travels; secret access key bytes stay on the source device's `s3_session_details.secret_access_key` column (SQLCipher-encrypted at rest). |
 | `known_hosts` | Full | Per-device TOFU; archive import unions rows. Sync explicitly does NOT replicate host trust between devices. |
 | `tags` / `session_tags` / `folder_tags` | Full | M2M edges union via `INSERT OR IGNORE`. |
 | `snippets` / `session_snippets` | Full | LWW on `updated_at` for sync. |
@@ -5897,7 +5704,7 @@ is a quick reference.
 | `port_forward_rules` | Full | No tombstone column; replace-mode clears. |
 | `app_configs` | Per-device | Not exported via `.lfs` / sync (UI theme, locale, log threshold etc. stay local). |
 
-### Soft-delete contract (v3+)
+### Soft-delete contract
 
 The five tombstoned tables (`sessions`, `ssh_keys`, `tags`,
 `snippets`, `sftp_bookmarks`) carry an `INTEGER NULL deleted_at`
@@ -5925,8 +5732,9 @@ stays per-device.
 idx_tags_name_live ON tags(name) WHERE deleted_at IS NULL` keeps
 the live-row constraint without reserving the name across
 tombstones, so the "delete `prod`, recreate `prod`" loop works
-immediately. The pre-v4 inline `UNIQUE(name)` column constraint
-was dropped via a one-time table rebuild on bootstrap.
+immediately. No inline `UNIQUE(name)` column constraint on the
+table itself — that would block recreating a same-named tag while
+the tombstoned row sits in the purge queue.
 
 **Performance indexes are baked into the schema.**
 `bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for every

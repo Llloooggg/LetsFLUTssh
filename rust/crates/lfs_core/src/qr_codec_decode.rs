@@ -507,7 +507,7 @@ fn generate_uuid_v4() -> String {
 mod tests {
     use super::*;
 
-    fn encode_v4(json_str: &str) -> String {
+    fn encode_payload_test(json_str: &str) -> String {
         use flate2::write::DeflateEncoder;
         use flate2::Compression;
         let mut enc = DeflateEncoder::new(Vec::new(), Compression::default());
@@ -518,14 +518,14 @@ mod tests {
 
     #[test]
     fn empty_payload_errors() {
-        let payload = encode_v4(r#"{"v": 4}"#);
+        let payload = encode_payload_test(r#"{"v": 1}"#);
         let err = decode_payload(&payload).unwrap_err();
         assert!(err.to_string().contains("empty"));
     }
 
     #[test]
     fn future_version_rejected() {
-        let payload = encode_v4(r#"{"v": 99, "s": []}"#);
+        let payload = encode_payload_test(r#"{"v": 99, "s": []}"#);
         let err = decode_payload(&payload).unwrap_err();
         assert!(err.to_string().contains("version too new"));
     }
@@ -533,13 +533,13 @@ mod tests {
     #[test]
     fn decodes_session_array_with_minted_ids() {
         let json_str = r#"{
-            "v": 4,
+            "v": 1,
             "s": [
                 {"l": "host-a", "h": "a.com", "u": "alice", "p": 2222},
                 {"l": "host-b", "h": "b.com", "u": "bob"}
             ]
         }"#;
-        let result = decode_payload(&encode_v4(json_str)).unwrap();
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
         let sessions: Vec<Value> =
             serde_json::from_str(result.pending.sessions_json.as_deref().unwrap()).unwrap();
         assert_eq!(sessions.len(), 2);
@@ -555,12 +555,12 @@ mod tests {
     #[test]
     fn decodes_manager_key_with_short_ref() {
         let json_str = r#"{
-            "v": 4,
+            "v": 1,
             "s": [{"l": "x", "h": "h", "u": "u", "ki": "k0", "mg": 1}],
             "km": {"k0": "PEM_BYTES"},
             "mk": {"k0": {"l": "MyKey", "t": "ssh-ed25519", "p": "ssh-ed25519 BBBB"}}
         }"#;
-        let result = decode_payload(&encode_v4(json_str)).unwrap();
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
         let sessions: Vec<Value> =
             serde_json::from_str(result.pending.sessions_json.as_deref().unwrap()).unwrap();
         let s0 = sessions[0].as_object().unwrap();
@@ -579,11 +579,11 @@ mod tests {
     #[test]
     fn decodes_embedded_key_inline() {
         let json_str = r#"{
-            "v": 4,
+            "v": 1,
             "s": [{"l": "x", "h": "h", "u": "u", "ki": "k0"}],
             "km": {"k0": "INLINE_PEM"}
         }"#;
-        let result = decode_payload(&encode_v4(json_str)).unwrap();
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
         let sessions: Vec<Value> =
             serde_json::from_str(result.pending.sessions_json.as_deref().unwrap()).unwrap();
         let s0 = sessions[0].as_object().unwrap();
@@ -594,13 +594,13 @@ mod tests {
     #[test]
     fn decodes_tags_and_links() {
         let json_str = r##"{
-            "v": 4,
+            "v": 1,
             "s": [{"l": "x", "h": "h", "u": "u"}],
             "tg": [{"i": "tag1", "n": "Production", "cl": "#ff0000"}],
             "st": [{"si": "sess1", "ti": "tag1"}],
             "ft": [{"fi": "/folder", "ti": "tag1"}]
         }"##;
-        let result = decode_payload(&encode_v4(json_str)).unwrap();
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
         let tags: Vec<Value> =
             serde_json::from_str(result.pending.tags_json.as_deref().unwrap()).unwrap();
         assert_eq!(
@@ -618,11 +618,11 @@ mod tests {
     #[test]
     fn decodes_snippets() {
         let json_str = r#"{
-            "v": 4,
+            "v": 1,
             "s": [{"l": "x", "h": "h", "u": "u"}],
             "sn": [{"i": "s1", "t": "Title", "cm": "echo hi", "d": "desc"}]
         }"#;
-        let result = decode_payload(&encode_v4(json_str)).unwrap();
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
         let snips: Vec<Value> =
             serde_json::from_str(result.pending.snippets_json.as_deref().unwrap()).unwrap();
         let s = snips[0].as_object().unwrap();
@@ -634,12 +634,12 @@ mod tests {
     #[test]
     fn decodes_config_and_known_hosts() {
         let json_str = r#"{
-            "v": 4,
+            "v": 1,
             "s": [{"l": "x", "h": "h", "u": "u"}],
             "c": {"theme": "dark"},
             "kh": "host:22 ssh-rsa AAAA"
         }"#;
-        let result = decode_payload(&encode_v4(json_str)).unwrap();
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
         assert_eq!(
             result.pending.config_json.as_deref(),
             Some(r#"{"theme":"dark"}"#)
