@@ -52,10 +52,23 @@ jobs:
         # `dart-test` -> `rust-build` prereq chain. Toolchain version
         # is pinned in `rust/rust-toolchain.toml`; rustup auto-installs
         # on the first cargo invocation when `working-directory: rust`.
+        #
+        # Cross-target rustup installs cover the targets `make
+        # rust-lint` exercises — `rust-lint-android` clippy-lints
+        # `lfs_os_security` against `aarch64-linux-android`, and
+        # `rust-lint-windows-gnu` lints the workspace against
+        # `x86_64-pc-windows-gnu`. Both gate Apple-cfg / Linux-cfg
+        # divergence before release. Targets must attach to the
+        # rust-toolchain.toml-pinned channel (the working-directory
+        # context above activates it), not to the runner's
+        # pre-existing `stable` — otherwise cargo errors with
+        # `E0463: can't find crate for 'core'` even when rustup
+        # reports the target installed under a different toolchain.
         working-directory: rust
         run: |
           rustup show active-toolchain
           rustup component add rustfmt clippy
+          rustup target add aarch64-linux-android x86_64-pc-windows-gnu
 
       - name: Cache cargo registry + workspace target
         # Single cargo cache for the whole CI job — release-profile
