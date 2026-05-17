@@ -280,20 +280,32 @@ jobs:
           fetch-depth: 1
 
       - name: Install Rust toolchain + target
+        working-directory: rust
         shell: bash
-        # `clippy` component is required by the cross-target clippy
-        # step below — the per-target `cargo clippy` gate that catches
-        # regressions in cfg-gated `lfs_os_security` modules
-        # (`apple_se_ssh`, `fido2_broker`'s Apple branch, `winbio` on
-        # Windows, `android::*`) that the host-target `make rust-lint`
-        # never sees. Coupled to `cargo check` on the same matrix so
-        # both run on the native runner with the platform SDK in
-        # scope; running clippy on `ubuntu-latest` for Apple targets
-        # would fail at the `std` / `core` resolution step because
-        # rustup ships Apple targets without a Linux-hosted stdlib.
+        # `cargo --version` inside `rust/` triggers rustup to install
+        # the channel pinned in `rust-toolchain.toml` (1.95.0) and
+        # mark it active — `rustup component add clippy` and
+        # `rustup target add` then attach to that channel. Installing
+        # the target into the runner's pre-existing `stable` would
+        # silently miss: `cargo check` later runs inside `rust/`
+        # again, activates 1.95.0, and errors with `E0463: can't
+        # find crate for 'core'` because the cross-target std lives
+        # on a different toolchain. Same activation pattern the
+        # composite `./.github/actions/setup-rust` action documents.
+        #
+        # `clippy` is required by the cross-target clippy step below
+        # — the per-target gate that catches regressions in
+        # cfg-gated `lfs_os_security` modules (`apple_se_ssh`,
+        # `fido2_broker`'s Apple branch, `winbio` on Windows,
+        # `android::*`) that the host-target `make rust-lint` never
+        # sees. Coupled to `cargo check` on the same matrix so both
+        # run on the native runner with the platform SDK in scope;
+        # running clippy on `ubuntu-latest` for Apple targets would
+        # fail at the `std` / `core` resolution step because rustup
+        # ships Apple targets without a Linux-hosted stdlib.
         run: |
-          rustup toolchain install stable --profile minimal --component clippy
-          rustup default stable
+          cargo --version
+          rustup component add clippy
           rustup target add ${{ matrix.target }}
           rustup show
 
