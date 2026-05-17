@@ -391,13 +391,9 @@ class RemoteFS implements FileSystem {
   Future<int> dirSize(String path, [int depth = 0]) =>
       sftp.dirSizeRecursive(path, _maxRecursionDepth);
 
-  /// SFTP servers return `st_mode` in every directory listing —
-  /// the column always has meaningful content.
+  /// SFTP listings carry both `st_mode` and the owning uid name
+  /// (server's `OWNER` SFTP attribute) on every entry, so both
+  /// the "Mode" and "Owner" columns always have useful content.
   @override
-  bool get supportsPosixMode => true;
-
-  /// `RemoteSftpFs.list` populates the owning uid name from the
-  /// server's `OWNER` SFTP attribute when available.
-  @override
-  bool get supportsOwner => true;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.posix;
 }

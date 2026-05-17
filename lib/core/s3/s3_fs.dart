@@ -103,14 +103,11 @@ class S3FileSystem implements FileSystem {
     }
   }
 
-  /// S3 objects have no POSIX mode metadata — the column would
-  /// render `--------` on every row.
+  /// S3 objects carry neither POSIX mode metadata nor a per-object
+  /// owner — the bucket has one owning AWS account, and HeadObject
+  /// has no `st_mode` field. Falls back to the all-false default,
+  /// which the file pane uses to hide the "Mode" and "Owner"
+  /// columns.
   @override
-  bool get supportsPosixMode => false;
-
-  /// S3 objects belong to the bucket's owning AWS account; no
-  /// per-object owner string the file pane could meaningfully
-  /// surface.
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }

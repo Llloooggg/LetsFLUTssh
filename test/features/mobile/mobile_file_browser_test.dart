@@ -106,10 +106,7 @@ class FakeFileSystem implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// Error-throwing file system for testing error states.
@@ -139,10 +136,7 @@ class ErrorFileSystem implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// Standard test entries used across tests.

@@ -48,10 +48,7 @@ class _MockFS implements FileSystem {
   Future<bool> exists(String path) async => dirs.containsKey(path);
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 void main() {

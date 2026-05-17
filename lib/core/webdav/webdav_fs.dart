@@ -123,13 +123,11 @@ class WebDavFileSystem implements FileSystem {
     }
   }
 
-  /// WebDAV's PROPFIND has no POSIX mode property — every row
-  /// would render as `--------` if the column were shown.
+  /// WebDAV's PROPFIND surfaces neither POSIX modes nor a
+  /// per-resource owner: `displayname` is a label, not an owner,
+  /// and there is no `st_mode` analog in the standard property
+  /// set. Falls back to the all-false default, which the file
+  /// pane uses to hide the "Mode" and "Owner" columns.
   @override
-  bool get supportsPosixMode => false;
-
-  /// `displayname` isn't an owner; WebDAV has no per-resource
-  /// owner attribute in the standard property set.
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }

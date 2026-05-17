@@ -96,22 +96,22 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
 
   /// Determine which data columns fit within [width], hiding from right to left.
   ///
-  /// `mode` / `owner` are gated by [`FileSystem.supportsPosixMode`]
-  /// / [`FileSystem.supportsOwner`] before the width check —
-  /// WebDAV and S3 don't carry POSIX mode bits or per-resource
-  /// owner strings, so reserving columns for those backends just
-  /// leaves dead space (the column would render `--------` /
-  /// empty on every row). The owner column also keeps the
-  /// per-entry probe (`entries.any((e) => e.owner.isNotEmpty)`)
-  /// as a belt-and-braces for SFTP servers that omit the owner
+  /// `mode` / `owner` are gated by the backend's
+  /// [`FileSystemCapabilities`] before the width check — WebDAV
+  /// and S3 carry neither POSIX mode bits nor per-resource owner
+  /// strings, so reserving columns for those backends just leaves
+  /// dead space (the column would render `--------` / empty on
+  /// every row). The owner column also keeps the per-entry probe
+  /// (`entries.any((e) => e.owner.isNotEmpty)`) as a
+  /// belt-and-braces for SFTP servers that omit the owner
   /// attribute on certain entries.
   ({bool size, bool modified, bool mode, bool owner}) _visibleColumns(
     double width,
   ) {
     const base = 36.0; // icon(20) + padding(16)
-    final modeAllowed = ctrl.fs.supportsPosixMode;
-    final hasOwner =
-        ctrl.fs.supportsOwner && ctrl.entries.any((e) => e.owner.isNotEmpty);
+    final caps = ctrl.fs.capabilities;
+    final modeAllowed = caps.posixMode;
+    final hasOwner = caps.owner && ctrl.entries.any((e) => e.owner.isNotEmpty);
     final s = 10 + _sizeColWidth;
     final m = 10 + _modifiedColWidth;
     final d = modeAllowed ? 10 + _modeColWidth : 0.0;

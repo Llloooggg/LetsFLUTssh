@@ -8,6 +8,51 @@ import '../../utils/logger.dart';
 import '../../utils/platform.dart';
 import 'sftp_models.dart';
 
+/// Capability set a [FileSystem] backend declares to its callers.
+///
+/// One struct per backend is **strictly more economical** than a
+/// getter per capability — adding a new capability is a field on
+/// this class plus a literal update in each production impl; test
+/// stubs that don't care just keep the default-constructed value.
+/// Compare the per-getter shape: every new capability landed an
+/// `@override bool get X => false;` on every `implements FileSystem`
+/// site, which over time turned test files into capability-declaration
+/// boilerplate without any test-related signal.
+///
+/// All fields default to `false`. Backends opt in by listing the
+/// capabilities they actually populate.
+class FileSystemCapabilities {
+  /// Whether the backend populates `FileEntry.mode` with meaningful
+  /// POSIX permission bits. True for SFTP (server returns `st_mode`)
+  /// and LocalFS on every host (Rust's `localFsList` synthesises a
+  /// mode on Windows / Android). False for HTTP-based backends:
+  /// WebDAV PROPFIND doesn't surface POSIX modes and S3 `HeadObject`
+  /// doesn't carry them, so the column would render `--------` on
+  /// every row. The file-browser pane gates the "Mode" column on
+  /// this so non-POSIX backends don't reserve screen space.
+  final bool posixMode;
+
+  /// Whether the backend populates `FileEntry.owner` with a
+  /// meaningful string. True for SFTP (server returns the owning
+  /// uid name) and LocalFS (uid name on Unix, owner SID on
+  /// Windows). False for backends without a per-resource owner
+  /// concept — WebDAV `displayname` is not an owner, S3 buckets
+  /// have a single account owner not per-object.
+  final bool owner;
+
+  const FileSystemCapabilities({this.posixMode = false, this.owner = false});
+
+  /// Convenience constant for the common "HTTP-style object store
+  /// with no POSIX metadata" backend (WebDAV, S3). Lets the impl
+  /// write `capabilities = FileSystemCapabilities.objectStore`
+  /// instead of repeating the all-default struct.
+  static const objectStore = FileSystemCapabilities();
+
+  /// All POSIX metadata available. Used by both SFTP-backed remote
+  /// filesystems and LocalFS.
+  static const posix = FileSystemCapabilities(posixMode: true, owner: true);
+}
+
 /// Abstract file system interface — local or remote.
 abstract class FileSystem {
   Future<List<FileEntry>> list(String path);
@@ -46,24 +91,11 @@ abstract class FileSystem {
   /// Recursively calculate the total size of a directory.
   Future<int> dirSize(String path);
 
-  /// Whether this backend populates `FileEntry.mode` with
-  /// meaningful POSIX permission bits. True for SFTP (server
-  /// returns `st_mode`) and LocalFS on Unix; false for HTTP-based
-  /// backends (WebDAV PROPFIND doesn't surface POSIX modes, S3
-  /// `HeadObject` doesn't carry them either). The file-browser
-  /// pane gates the "Mode" column on this so non-POSIX backends
-  /// don't reserve screen space for a column that would render
-  /// `--------` on every row.
-  bool get supportsPosixMode => false;
-
-  /// Whether this backend populates `FileEntry.owner` with a
-  /// meaningful string. True for SFTP (server returns the owning
-  /// uid/name); false for backends without a per-resource owner
-  /// concept (WebDAV `displayname` is not an owner, S3 buckets
-  /// have a single account owner not per-object). LocalFS returns
-  /// `true` because Rust's `localFsList` populates the field on
-  /// every platform (uid name on Unix, "owner" SID on Windows).
-  bool get supportsOwner => false;
+  /// What this backend can surface. Defaults to "nothing populated"
+  /// — the conservative shape that matches every HTTP-style object
+  /// store. Concrete backends override with the constants on
+  /// [FileSystemCapabilities] or a tailored instance.
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 String _posixDirname(String path) {
@@ -228,15 +260,11 @@ class LocalFS implements FileSystem {
   }
 
   /// LocalFS lists carry `st_mode` (Unix) or a synthesised mode
-  /// (Windows / Android) on every entry, so the column always has
-  /// useful content.
+  /// (Windows / Android) and `owner` (uid name on Unix, account
+  /// string on Windows) on every entry, so both columns always
+  /// have useful content.
   @override
-  bool get supportsPosixMode => true;
-
-  /// `localFsList` populates `owner` on every host (Unix uid name,
-  /// Windows account string).
-  @override
-  bool get supportsOwner => true;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.posix;
 
   @override
   Future<void> rename(String oldPath, String newPath) async {

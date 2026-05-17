@@ -39,10 +39,7 @@ class _MockFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// FS that throws on mkdir.
@@ -65,10 +62,7 @@ class _ErrorMkdirFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// FS that throws on rename.
@@ -92,10 +86,7 @@ class _ErrorRenameFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// FS that throws on remove/removeDir.
@@ -118,10 +109,7 @@ class _ErrorDeleteFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 void main() {

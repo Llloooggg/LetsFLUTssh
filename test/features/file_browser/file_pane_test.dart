@@ -21,10 +21,7 @@ class _NonPosixMockFS extends _MockFS {
   _NonPosixMockFS(super.dirs);
 
   @override
-  bool get supportsPosixMode => false;
-
-  @override
-  bool get supportsOwner => false;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// In-memory file system for testing.
@@ -54,10 +51,7 @@ class _MockFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => true;
-
-  @override
-  bool get supportsOwner => true;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.posix;
 }
 
 /// A file system whose list() never completes until complete() is called.
@@ -83,10 +77,7 @@ class _NeverCompleteFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => true;
-
-  @override
-  bool get supportsOwner => true;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.posix;
 }
 
 /// Find FilePane's outermost Listener (the one with back/forward mouse handling).
@@ -2815,10 +2806,10 @@ void main() {
         // Regression: WebDAV / S3 backends don't carry POSIX mode
         // bits or per-resource owner strings — every row would
         // render `--------` / blank for those columns, just wasting
-        // screen space. `FileSystem.supportsPosixMode` /
-        // `supportsOwner` capability flags gate column visibility
-        // ahead of the width check, so the same wide pane that
-        // shows Mode for SFTP omits it for HTTP backends.
+        // screen space. `FileSystemCapabilities.posixMode` /
+        // `.owner` gate column visibility ahead of the width check,
+        // so the same wide pane that shows Mode for SFTP omits it
+        // for HTTP backends.
         final fs = _NonPosixMockFS({'/home': makeEntries()});
         final ctrl = FilePaneController(fs: fs, label: 'L');
         await ctrl.init();
@@ -2848,7 +2839,7 @@ void main() {
           findsNothing,
           reason:
               'Mode column must be hidden for backends whose '
-              '`supportsPosixMode` returns false (WebDAV, S3).',
+              '`capabilities.posixMode` is false (WebDAV, S3).',
         );
 
         ctrl.dispose();
@@ -3153,8 +3144,5 @@ class _WindowsMockFS implements FileSystem {
   Future<bool> exists(String path) async => false;
 
   @override
-  bool get supportsPosixMode => true;
-
-  @override
-  bool get supportsOwner => true;
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.posix;
 }

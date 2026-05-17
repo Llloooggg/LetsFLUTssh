@@ -507,18 +507,38 @@ class RustSftpFs extends RemoteSftpFs {
 ```dart
 abstract class FileSystem {
   Future<List<FileEntry>> list(String path);
+  Future<String> initialDir();
   Future<void> mkdir(String path);
-  Future<void> delete(String path, {bool recursive = false});
+  Future<void> remove(String path);
+  Future<void> removeDir(String path);                    // recursive
   Future<void> rename(String oldPath, String newPath);
-  Future<int>  dirSize(String path);   // recursive size in bytes
-  String get separator;
+  Future<bool> exists(String path) async { ... }          // default: parent-listing probe
+  Future<int>  dirSize(String path);                      // recursive size in bytes
+
+  /// What this backend can surface. Defaults to "all-false"
+  /// (the conservative shape every HTTP-style object store fits).
+  FileSystemCapabilities get capabilities =>
+      FileSystemCapabilities.objectStore;
 }
 
-class LocalFS implements FileSystem { ... }    // wraps dart:io
-class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capped at 64 levels
+class FileSystemCapabilities {
+  final bool posixMode;   // st_mode bits available in entries
+  final bool owner;       // per-resource owner string available
+  const FileSystemCapabilities({this.posixMode = false, this.owner = false});
+
+  static const objectStore = FileSystemCapabilities();                          // WebDAV, S3
+  static const posix = FileSystemCapabilities(posixMode: true, owner: true);    // LocalFS, RemoteFS
+}
+
+class LocalFS implements FileSystem { ... }              // wraps dart:io
+class RemoteFS implements FileSystem { ... }             // wraps RustSftpFs; dirSize capped at 64 levels
+class WebDavFileSystem implements FileSystem { ... }     // wraps WebDavConnection
+class S3FileSystem implements FileSystem { ... }         // wraps S3Connection
 ```
 
-**Why an interface.** `FilePaneController` works identically with local and remote panes; tests substitute fakes by injecting a different `FileSystem`. New backends (e.g. WebDAV) plug into the same surface without touching the file-browser UI.
+**Why an interface.** `FilePaneController` works identically across every backend; tests substitute fakes by injecting a different `FileSystem`. Adding a new backend (the WebDAV / S3 path) plugs into the same surface without touching the file-browser UI.
+
+**Why capabilities are a struct, not per-getter overrides.** The file-pane gates per-column visibility on whether the backend actually populates that column (Mode + Owner are hidden for WebDAV / S3 — every row would render `--------` / blank). A single `FileSystemCapabilities` struct field means adding a new capability is one struct field plus a literal update in each production impl; test stubs that don't care keep `objectStore` and never need to touch the new flag. The earlier per-getter shape (`supportsPosixMode`, `supportsOwner` etc.) cascaded every new flag through every `implements FileSystem` site, turning test files into capability-declaration boilerplate.
 
 #### Storage provider abstraction (Rust-side, `lfs_core::storage`)
 
