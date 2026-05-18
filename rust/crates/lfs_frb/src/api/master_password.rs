@@ -132,14 +132,34 @@ pub async fn master_password_enable(
 ///
 /// Idempotent on `secret_id` collision: replaces any prior value at
 /// the same id (the previous `Zeroizing` buffer scrubs on drop).
+///
+/// Promotes any pre-existing `.cast` plaintext recordings to fresh
+/// `.lfsr` files wrapped under the new DB key — the `T0 → T1`
+/// transition would otherwise leave the recordings in plaintext
+/// forever. The promotion runs after the key lands in the secret
+/// store so the migration helper reads off the same slot the next
+/// `db_rekey_from_secret` will read.
 pub async fn master_password_enable_to_secret(
     password: Vec<u8>,
     params: DbKdfParams,
     secret_id: String,
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
         let key = master_password::enable(support_dir()?, &password, &params.into())?;
-        lfs_core::app::instance().secrets.put(&secret_id, &key);
+        let key_arr: [u8; 32] = key
+            .as_slice()
+            .try_into()
+            .map_err(|_| "new db key wrong length".to_string())?;
+        app.secrets.put(&secret_id, &key);
+        // Promote plaintext recordings to v1 LFR1 under the new
+        // wrap key. A failure here aborts the enable — the password
+        // files were already written by `master_password::enable`,
+        // so the caller must roll back (delete KDF + verifier) if
+        // the migration cannot complete.
+        let root = recordings_root_for_migrate()?;
+        lfs_core::recorder::migrate::convert_all_cast_to_lfsr(&root, &key_arr)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         Ok::<_, String>(())
     })
     .await
@@ -204,9 +224,39 @@ pub async fn master_password_change_to_secret(
 /// Drop the KDF + verifier files. Caller is responsible for
 /// re-encrypting stores with a fresh random key + writing
 /// `credentials.key`.
+///
+/// Demotes any encrypted `.lfsr` recordings to plaintext `.cast`
+/// BEFORE wiping the password files — the demotion needs the
+/// current ACTIVE DB key in memory to decrypt frame bodies. On
+/// failure the password files stay in place; the caller can retry
+/// after addressing whatever blocked the demotion (typically a
+/// stuck file handle).
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_disable() -> Result<(), String> {
+    let app = lfs_core::app::instance();
+    if let Some(active_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+        if !active_key.is_empty() {
+            let active_arr: [u8; 32] = active_key
+                .as_slice()
+                .try_into()
+                .map_err(|_| "active db key wrong length".to_string())?;
+            let root = recordings_root_for_migrate()?;
+            lfs_core::recorder::migrate::convert_all_lfsr_to_cast(&root, &active_arr)
+                .map_err(|e| crate::api::frb_err::from_core(&e))?;
+        }
+    }
     master_password::disable(support_dir()?)
+}
+
+/// Resolve `<support_dir>/recordings` for the migration hooks.
+/// Mirrors the FRB-exposed `recorder_recordings_root` but stays
+/// inside the same task so the password / rekey paths don't have
+/// to round-trip a `String` through Dart.
+fn recordings_root_for_migrate() -> Result<std::path::PathBuf, String> {
+    let dir = lfs_core::app::instance()
+        .support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(dir.join("recordings"))
 }
 
 /// Drop everything: KDF + verifier + key file. Destructive — only

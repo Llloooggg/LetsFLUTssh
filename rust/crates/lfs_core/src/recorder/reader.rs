@@ -3,29 +3,36 @@
 //! [`open_lfsr_iter`] back into the JSON-Lines record the
 //! `SessionRecorder` produced.
 //!
-//! The reader's contract mirrors the encrypted writer:
+//! Single canonical format — version `0x01` of LFR1. Layout:
 //!
-//! * Magic + version sniff. `LFR1` first four bytes; rejects on
-//!   miss with [`ReaderError::BadMagic`]. Version `0x01` (legacy
-//!   no-AAD) and `0x02` (per-frame AAD = `frame_index_u64_le`)
-//!   both decode through this path; the writer never emits
-//!   `0x01` since the AAD upgrade landed but pre-upgrade files
-//!   still play back.
-//! * Per-frame loop: `[len(4 LE)][nonce(12)][cipher + tag(16)]`,
-//!   AES-256-GCM decrypt with the recording key, push the
-//!   resulting JSON-Lines record (newline-trimmed) through the
-//!   iterator.
+//! ```text
+//! [magic 4 "LFR1"][version 1 = 0x01][wrap_nonce 12][wrapped_recording_key 48]
+//! [frame 0]…[frame N]
+//! ```
 //!
-//! The recording key is the caller's responsibility — the
-//! `lfs_frb` adapter HKDF-derives it from the active DB key
-//! (`secrets::ACTIVE_DBKEY_SECRET_ID` + the
-//! `letsflutssh-recording-v1` info string) so the bytes never
-//! cross the FRB boundary back to Dart.
+//! Reader contract:
+//!
+//! * **Header sniff.** Reads the fixed 65-byte header, verifies the
+//!   magic + version, then unwraps the per-file 32-byte recording
+//!   key with the caller-supplied DB key (AES-256-GCM, AAD =
+//!   `KEYWRAP_AAD`). Bad magic / unsupported version / GCM tag
+//!   mismatch surface as typed [`ReaderError`] variants.
+//! * **Per-frame loop.** `[len(4 LE)][nonce(12)][cipher + tag(16)]`,
+//!   AES-256-GCM decrypt with the unwrapped recording key (AAD =
+//!   `frame_index_u64_le`), push the resulting JSON-Lines record
+//!   (newline-trimmed) through the iterator.
+//!
+//! The DB key is the caller's responsibility — the `lfs_frb`
+//! adapter pulls it from [`crate::secrets::ACTIVE_DBKEY_SECRET_ID`]
+//! before invoking `open_lfsr_iter` so the bytes never cross the
+//! FRB boundary back to Dart. The recording key never leaves Rust
+//! memory; it lives only between the header unwrap and the final
+//! frame decrypt.
 
 use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom};
 use std::path::Path;
 
-use super::{LFR_MAGIC, MAX_FRAME_PLAINTEXT_BYTES, NONCE_LEN};
+use super::{LFR_HEADER_LEN, LFR_MAGIC, LFR_VERSION, MAX_FRAME_PLAINTEXT_BYTES, NONCE_LEN};
 use crate::crypto;
 
 /// Per-line cap for plaintext `.cast` recordings. The asciinema
@@ -83,15 +90,21 @@ impl From<std::io::Error> for ReaderError {
 /// Open `path` and return an iterator yielding decoded JSON-Lines
 /// records (one per encrypted frame). The iterator owns the file
 /// handle until dropped; iterating to completion drives every
-/// frame through AES-256-GCM decrypt with `key` as the
-/// 32-byte recording key.
+/// frame through AES-256-GCM decrypt.
+///
+/// `db_key` is the wrap key — the DB encryption key held in
+/// [`crate::secrets::ACTIVE_DBKEY_SECRET_ID`]. The header's
+/// wrapped recording key unwraps under it; the recording key
+/// itself never crosses this function's API surface, lives only
+/// between the header read and the final frame decrypt, and
+/// drops with the iterator.
 ///
 /// Errors during the magic / version sniff surface as the first
 /// `Some(Err(...))` from the iterator. Per-frame decrypt failures
 /// (truncated frame, GCM tag mismatch, non-utf8 plaintext) yield
 /// `Some(Err(...))` and the iterator terminates on the next call.
-pub fn open_lfsr_iter(path: &Path, key: [u8; 32]) -> Result<LfsrFrameIter, ReaderError> {
-    open_lfsr_iter_at(path, key, None)
+pub fn open_lfsr_iter(path: &Path, db_key: [u8; 32]) -> Result<LfsrFrameIter, ReaderError> {
+    open_lfsr_iter_at(path, db_key, None)
 }
 
 /// Single asciinema-v2 event: `[timestamp_seconds, direction,
@@ -271,22 +284,31 @@ mod decode_header_line_tests {
 /// first frame past the offset.
 pub fn open_lfsr_iter_at(
     path: &Path,
-    key: [u8; 32],
+    db_key: [u8; 32],
     start: Option<(u64, u64)>,
 ) -> Result<LfsrFrameIter, ReaderError> {
     let file = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(file);
-    let mut head = [0u8; 5];
+    let mut header = [0u8; LFR_HEADER_LEN];
     reader
-        .read_exact(&mut head)
+        .read_exact(&mut header)
         .map_err(|_| ReaderError::TruncatedHeader)?;
-    if head[..4] != LFR_MAGIC {
+    if header[..4] != LFR_MAGIC {
         return Err(ReaderError::BadMagic);
     }
-    let version = head[4];
-    if version != 0x01 && version != 0x02 {
+    let version = header[4];
+    if version != LFR_VERSION {
         return Err(ReaderError::UnsupportedVersion(version));
     }
+    // Unwrap the per-file recording key with the caller's DB key.
+    // Wrong DB key, tampered nonce, or a damaged wrap field all
+    // surface as `ReaderError::Crypto` — the playback dialog
+    // surfaces the same "this recording cannot be opened" path
+    // either way.
+    let recording_key = super::unwrap_lfsr_header(&header, &db_key)
+        .map_err(|e| ReaderError::Crypto(e.to_string()))?;
+    let mut key_bytes = [0u8; 32];
+    key_bytes.copy_from_slice(&recording_key[..]);
     let frame_index = if let Some((offset, fi)) = start {
         reader.seek(SeekFrom::Start(offset))?;
         fi
@@ -295,8 +317,7 @@ pub fn open_lfsr_iter_at(
     };
     Ok(LfsrFrameIter {
         reader,
-        key,
-        version,
+        key: key_bytes,
         frame_index,
         finished: false,
     })
@@ -308,7 +329,6 @@ pub fn open_lfsr_iter_at(
 pub struct LfsrFrameIter {
     reader: std::io::BufReader<std::fs::File>,
     key: [u8; 32],
-    version: u8,
     frame_index: u64,
     finished: bool,
 }
@@ -318,7 +338,6 @@ pub struct LfsrFrameIter {
 impl std::fmt::Debug for LfsrFrameIter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LfsrFrameIter")
-            .field("version", &self.version)
             .field("frame_index", &self.frame_index)
             .field("finished", &self.finished)
             .finish_non_exhaustive()
@@ -365,8 +384,7 @@ impl Iterator for LfsrFrameIter {
             return Some(Err(ReaderError::TruncatedFrame));
         }
         let aad_buf = self.frame_index.to_le_bytes();
-        let aad: &[u8] = if self.version == 0x02 { &aad_buf } else { &[] };
-        let pt = crypto::aes_gcm_decrypt_raw(&self.key, &nonce, &ct, aad)
+        let pt = crypto::aes_gcm_decrypt_raw(&self.key, &nonce, &ct, &aad_buf)
             .map_err(|e| ReaderError::Crypto(e.to_string()));
         let pt = match pt {
             Ok(v) => v,
@@ -507,30 +525,29 @@ impl PlaybackIter {
 
 /// Dispatch on the file's extension to pick the right decoder.
 /// `.lfsr` (case-insensitive) opens through [`open_lfsr_iter`]
-/// with the supplied recording key; anything else opens through
+/// with the supplied DB key; anything else opens through
 /// [`open_cast_iter`] as plaintext asciinema. The split lives
 /// Rust-side so the Dart caller hands the path in once and never
 /// branches on extension itself.
 ///
-/// The recording key is required only for the encrypted path —
-/// callers that know the file is plaintext can pass `[0u8; 32]`
-/// (the key is only consumed by the `.lfsr` branch). The FRB
-/// adapter reads the active DB key once per call and forwards
-/// the derived key here so the bytes never cross the FRB
-/// boundary back to Dart.
-pub fn open_for_playback(path: &Path, lfsr_key: [u8; 32]) -> Result<PlaybackIter, ReaderError> {
-    open_for_playback_at(path, lfsr_key, None, 0)
+/// The DB key is required only for the encrypted path — callers
+/// that know the file is plaintext can pass `[0u8; 32]` (the key
+/// is only consumed by the `.lfsr` branch). The FRB adapter reads
+/// the active DB key once per call and forwards it here so the
+/// bytes never cross the FRB boundary back to Dart.
+pub fn open_for_playback(path: &Path, db_key: [u8; 32]) -> Result<PlaybackIter, ReaderError> {
+    open_for_playback_at(path, db_key, None, 0)
 }
 
 /// `open_for_playback` with an optional pre-positioned byte offset.
-/// `start_offset = None` decodes the file from the start (post-magic
+/// `start_offset = None` decodes the file from the start (post-header
 /// for `.lfsr`); `Some(off)` jumps to a sidecar-supplied frame
 /// boundary. `start_frame_index` is the AAD counter the next
 /// encrypted frame is signed under — for the plaintext `.cast` path
 /// the value is ignored.
 pub fn open_for_playback_at(
     path: &Path,
-    lfsr_key: [u8; 32],
+    db_key: [u8; 32],
     start_offset: Option<u64>,
     start_frame_index: u64,
 ) -> Result<PlaybackIter, ReaderError> {
@@ -541,7 +558,7 @@ pub fn open_for_playback_at(
         .unwrap_or(false);
     if is_lfsr {
         let start = start_offset.map(|o| (o, start_frame_index));
-        open_lfsr_iter_at(path, lfsr_key, start).map(PlaybackIter::Lfsr)
+        open_lfsr_iter_at(path, db_key, start).map(PlaybackIter::Lfsr)
     } else {
         open_cast_iter_at(path, start_offset).map(PlaybackIter::Cast)
     }
@@ -553,12 +570,19 @@ mod tests {
     use crate::recorder::{RecorderActor, RecorderRegistry};
     use std::io::Write;
 
-    fn write_v2_recording(path: &Path, key: &[u8; 32], lines: &[&str]) {
-        // Build the file the same way `RecorderRegistry::register_with_io`
-        // does: 4-byte magic + 1-byte version + per-line frame.
+    /// Test-only LFR1 v1 writer. Wraps `recording_key` under
+    /// `db_key` into the 65-byte header and appends one frame per
+    /// line so the reader's round-trip + decrypt path can be
+    /// exercised without spinning a full `RecorderRegistry`.
+    fn write_v1_recording(
+        path: &Path,
+        db_key: &[u8; 32],
+        recording_key: &[u8; 32],
+        lines: &[&str],
+    ) {
         let mut f = std::fs::File::create(path).unwrap();
-        f.write_all(&LFR_MAGIC).unwrap();
-        f.write_all(&[0x02]).unwrap();
+        let header = super::super::build_lfsr_header(db_key, recording_key).unwrap();
+        f.write_all(&header).unwrap();
         for (i, line) in lines.iter().enumerate() {
             // Mirror the writer's `build_frame` shape exactly: append
             // a trailing newline to the plaintext so the round-trip
@@ -567,7 +591,7 @@ mod tests {
             payload.push(b'\n');
             let nonce = [0u8; NONCE_LEN]; // deterministic for tests
             let aad = (i as u64).to_le_bytes();
-            let ct = crypto::aes_gcm_encrypt_raw(key, &nonce, &payload, &aad).unwrap();
+            let ct = crypto::aes_gcm_encrypt_raw(recording_key, &nonce, &payload, &aad).unwrap();
             f.write_all(&(payload.len() as u32).to_le_bytes()).unwrap();
             f.write_all(&nonce).unwrap();
             f.write_all(&ct).unwrap();
@@ -581,6 +605,19 @@ mod tests {
         let _ = std::any::type_name::<RecorderActor>();
     }
 
+    /// Bare-magic header builder for negative tests — emits the
+    /// 65-byte v1 shape but skips the actual wrap so we can hit
+    /// truncated / frame-length / nonce-only fault paths without
+    /// caring about decryptability. Wrap nonce + slot are zeros;
+    /// any test that calls this must NOT also try to decrypt.
+    fn write_v1_header_only(path: &Path) {
+        let mut bytes = LFR_MAGIC.to_vec();
+        bytes.push(LFR_VERSION);
+        bytes.extend_from_slice(&[0u8; NONCE_LEN]);
+        bytes.extend_from_slice(&[0u8; 48]); // wrapped slot
+        std::fs::write(path, &bytes).unwrap();
+    }
+
     #[test]
     fn open_rejects_missing_file() {
         let key = [0u8; 32];
@@ -592,7 +629,11 @@ mod tests {
     #[test]
     fn open_rejects_bad_magic() {
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        std::fs::write(tmp.path(), b"NOPE\x02").unwrap();
+        // 65 bytes so the header read succeeds — fault must come
+        // from the magic compare, not the truncation guard.
+        let mut bytes = vec![b'N', b'O', b'P', b'E', LFR_VERSION];
+        bytes.extend_from_slice(&[0u8; LFR_HEADER_LEN - 5]);
+        std::fs::write(tmp.path(), &bytes).unwrap();
         let key = [0u8; 32];
         let err = open_lfsr_iter(tmp.path(), key).expect_err("bad magic");
         assert!(matches!(err, ReaderError::BadMagic));
@@ -603,6 +644,7 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let mut bytes = LFR_MAGIC.to_vec();
         bytes.push(0xFE);
+        bytes.extend_from_slice(&[0u8; LFR_HEADER_LEN - 5]);
         std::fs::write(tmp.path(), &bytes).unwrap();
         let key = [0u8; 32];
         let err = open_lfsr_iter(tmp.path(), key).expect_err("bad version");
@@ -612,8 +654,8 @@ mod tests {
     #[test]
     fn open_rejects_truncated_header() {
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        // Only 2 of the 5 header bytes; the read fails before we
-        // can branch on the magic.
+        // Only 2 of the 65 header bytes — the read fails before any
+        // field decode.
         std::fs::write(tmp.path(), &LFR_MAGIC[..2]).unwrap();
         let key = [0u8; 32];
         let err = open_lfsr_iter(tmp.path(), key).expect_err("trunc header");
@@ -621,16 +663,17 @@ mod tests {
     }
 
     #[test]
-    fn round_trip_v2_yields_original_lines() {
+    fn round_trip_v1_yields_original_lines() {
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        let key = [0x42u8; 32];
+        let db_key = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
         let lines = vec![
             r#"{"version":2,"width":80,"height":24}"#,
             r#"[0.5,"o","hello"]"#,
             r#"[1.0,"i","q"]"#,
         ];
-        write_v2_recording(tmp.path(), &key, &lines);
-        let iter = open_lfsr_iter(tmp.path(), key).unwrap();
+        write_v1_recording(tmp.path(), &db_key, &recording_key, &lines);
+        let iter = open_lfsr_iter(tmp.path(), db_key).unwrap();
         let decoded: Vec<Result<String, _>> = iter.collect();
         assert_eq!(decoded.len(), 3);
         for (got, want) in decoded.iter().zip(lines.iter()) {
@@ -641,43 +684,38 @@ mod tests {
 
     #[test]
     fn frame_too_large_collapses_to_typed_error() {
-        // Hand-build a frame with a length prefix above the cap;
-        // the iterator must short-circuit with FrameTooLarge before
-        // it tries to allocate the buffer.
+        // Hand-build a real header (so unwrap succeeds) with a
+        // bogus frame length immediately after; the iterator must
+        // short-circuit with FrameTooLarge before it tries to
+        // allocate the body buffer.
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        let mut bytes = LFR_MAGIC.to_vec();
-        bytes.push(0x02);
+        let db_key = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
+        let header = super::super::build_lfsr_header(&db_key, &recording_key).unwrap();
+        let mut bytes = header;
         let bogus_len: u32 = MAX_FRAME_PLAINTEXT_BYTES.saturating_add(1);
         bytes.extend_from_slice(&bogus_len.to_le_bytes());
         std::fs::write(tmp.path(), &bytes).unwrap();
-        let key = [0u8; 32];
-        let mut iter = open_lfsr_iter(tmp.path(), key).expect("magic ok");
+        let mut iter = open_lfsr_iter(tmp.path(), db_key).expect("header ok");
         let first = iter.next().expect("yields error");
         assert!(matches!(first, Err(ReaderError::FrameTooLarge(_))));
-        // Subsequent next() returns None — the iterator is
-        // self-terminating after a fatal frame error.
         assert!(iter.next().is_none());
     }
 
     #[test]
     fn frame_with_u32_max_length_rejects_without_allocating() {
-        // An attacker handing us a file declaring `pt_len = u32::MAX`
-        // (~4 GiB) must be rejected by the cap check *before* the
-        // ciphertext buffer is allocated. The guard is `pt_len >
-        // MAX_FRAME_PLAINTEXT_BYTES` evaluated immediately after
-        // reading the 4-byte length prefix; no nonce / ciphertext
-        // bytes are read, no `Vec` of the declared size is allocated.
-        // The file body therefore stays exactly 9 bytes (magic +
-        // version + length) — proving the iterator never advances
-        // past the length read on the rejection path.
+        // Attacker handing us `pt_len = u32::MAX` (~4 GiB) — the
+        // `pt_len > MAX_FRAME_PLAINTEXT_BYTES` guard fires before
+        // the ciphertext allocation; the file stays at the header
+        // + 4-byte length read.
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        let mut bytes = LFR_MAGIC.to_vec();
-        bytes.push(0x02);
+        let db_key = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
+        let header = super::super::build_lfsr_header(&db_key, &recording_key).unwrap();
+        let mut bytes = header;
         bytes.extend_from_slice(&u32::MAX.to_le_bytes());
-        assert_eq!(bytes.len(), 9);
         std::fs::write(tmp.path(), &bytes).unwrap();
-        let key = [0u8; 32];
-        let mut iter = open_lfsr_iter(tmp.path(), key).expect("magic ok");
+        let mut iter = open_lfsr_iter(tmp.path(), db_key).expect("header ok");
         let first = iter.next().expect("yields error");
         match first {
             Err(ReaderError::FrameTooLarge(reported)) => {
@@ -691,13 +729,14 @@ mod tests {
     #[test]
     fn truncated_frame_after_length_collapses_to_typed_error() {
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        let mut bytes = LFR_MAGIC.to_vec();
-        bytes.push(0x02);
+        let db_key = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
+        let header = super::super::build_lfsr_header(&db_key, &recording_key).unwrap();
+        let mut bytes = header;
         // length = 4, but no nonce / ciphertext follows.
         bytes.extend_from_slice(&4u32.to_le_bytes());
         std::fs::write(tmp.path(), &bytes).unwrap();
-        let key = [0u8; 32];
-        let mut iter = open_lfsr_iter(tmp.path(), key).expect("magic ok");
+        let mut iter = open_lfsr_iter(tmp.path(), db_key).expect("header ok");
         assert!(matches!(
             iter.next(),
             Some(Err(ReaderError::TruncatedFrame))
@@ -706,13 +745,32 @@ mod tests {
     }
 
     #[test]
-    fn wrong_key_yields_crypto_error() {
+    fn wrong_db_key_yields_crypto_error() {
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        let key_write = [0x42u8; 32];
-        write_v2_recording(tmp.path(), &key_write, &[r#"[0,"o","x"]"#]);
-        let key_read = [0x99u8; 32];
-        let mut iter = open_lfsr_iter(tmp.path(), key_read).expect("magic ok");
-        assert!(matches!(iter.next(), Some(Err(ReaderError::Crypto(_)))));
+        let db_key_write = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
+        write_v1_recording(
+            tmp.path(),
+            &db_key_write,
+            &recording_key,
+            &[r#"[0,"o","x"]"#],
+        );
+        let db_key_read = [0x99u8; 32];
+        // Wrap unwrap fails — the wrong DB key cannot decrypt the
+        // recording-key slot, so the iterator never starts.
+        let err = open_lfsr_iter(tmp.path(), db_key_read).expect_err("wrong db key");
+        assert!(matches!(err, ReaderError::Crypto(_)));
+    }
+
+    #[test]
+    fn header_only_with_zero_wrap_yields_crypto_error_on_open() {
+        // A file that carries the magic + version + zeros (no real
+        // wrap) must reject at open-time — the GCM tag mismatches
+        // before any frame read.
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        write_v1_header_only(tmp.path());
+        let err = open_lfsr_iter(tmp.path(), [0u8; 32]).expect_err("zero-wrap");
+        assert!(matches!(err, ReaderError::Crypto(_)));
     }
 
     #[test]
@@ -789,7 +847,7 @@ mod tests {
 
     #[test]
     fn open_for_playback_dispatches_on_extension() {
-        // .cast → CastFrameIter regardless of the supplied lfsr key.
+        // .cast → CastFrameIter regardless of the supplied db key.
         let cast = tempfile::Builder::new().suffix(".cast").tempfile().unwrap();
         std::fs::write(cast.path(), "first\nsecond\n").unwrap();
         let dummy_key = [0u8; 32];
@@ -799,11 +857,12 @@ mod tests {
         assert_eq!(it.next_record().unwrap().unwrap(), "second");
         assert!(it.next_record().is_none());
 
-        // .lfsr → LfsrFrameIter through the magic-sniff path.
+        // .lfsr → LfsrFrameIter through the header-unwrap path.
         let lfsr = tempfile::Builder::new().suffix(".lfsr").tempfile().unwrap();
-        let key = [0x42u8; 32];
-        write_v2_recording(lfsr.path(), &key, &[r#"[0,"o","x"]"#]);
-        let it = open_for_playback(lfsr.path(), key).unwrap();
+        let db_key = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
+        write_v1_recording(lfsr.path(), &db_key, &recording_key, &[r#"[0,"o","x"]"#]);
+        let it = open_for_playback(lfsr.path(), db_key).unwrap();
         assert!(matches!(it, PlaybackIter::Lfsr(_)));
     }
 
@@ -820,14 +879,12 @@ mod tests {
 
     #[test]
     fn open_for_playback_extension_check_is_case_insensitive() {
-        // `.LFSR` (uppercase) routes to the encrypted path. The
-        // browser walk also lowercases extensions, so this case
-        // only fires when a caller hands in a path the walk did
-        // not produce — but the contract is symmetric.
+        // `.LFSR` (uppercase) routes to the encrypted path.
         let lfsr = tempfile::Builder::new().suffix(".LFSR").tempfile().unwrap();
-        let key = [0x42u8; 32];
-        write_v2_recording(lfsr.path(), &key, &[r#"[0,"o","x"]"#]);
-        let it = open_for_playback(lfsr.path(), key).unwrap();
+        let db_key = [0x42u8; 32];
+        let recording_key = [0x33u8; 32];
+        write_v1_recording(lfsr.path(), &db_key, &recording_key, &[r#"[0,"o","x"]"#]);
+        let it = open_for_playback(lfsr.path(), db_key).unwrap();
         assert!(matches!(it, PlaybackIter::Lfsr(_)));
     }
 }

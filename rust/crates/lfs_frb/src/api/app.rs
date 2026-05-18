@@ -201,6 +201,15 @@ pub async fn db_rekey(new_key: Vec<u8>) -> Result<(), String> {
 /// `db_rekey`: SQLCipher either re-encrypts every page under the
 /// new key or leaves the DB on the old key. Bytes never cross the
 /// FRB boundary.
+///
+/// Recordings rewrap runs BEFORE the `PRAGMA rekey`: every `.lfsr`
+/// file's 65-byte header is rewrapped from the current ACTIVE DB
+/// key to the staged new key (frame bodies and sidecars untouched
+/// — only the wrap rotates). On rewrap failure the function
+/// aborts before touching SQLite or the secret slots, so the
+/// caller can retry with the same secret_id without observing a
+/// partially-migrated state. On success the slot rename completes
+/// only after both PRAGMA rekey and the rewrap walk have landed.
 pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
@@ -208,6 +217,26 @@ pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
             .secrets
             .get(&secret_id)
             .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+        let new_key_arr: [u8; 32] = new_key
+            .as_slice()
+            .try_into()
+            .map_err(|_| "new db key wrong length".to_string())?;
+        // Rewrap every `.lfsr` header under (old → new) BEFORE
+        // PRAGMA rekey. If the active slot is empty / missing
+        // (fresh enable from T0) there are no `.lfsr` files to
+        // rewrap — that flow lives on the master-password enable
+        // path, not here.
+        if let Some(old_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+            if !old_key.is_empty() {
+                let old_arr: [u8; 32] = old_key
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| "active db key wrong length".to_string())?;
+                let root = recordings_root_for_migrate()?;
+                lfs_core::recorder::migrate::rewrap_all_headers(&root, &old_arr, &new_key_arr)
+                    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+            }
+        }
         let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
         db.rekey(&new_key)
             .map_err(|e| crate::api::frb_err::from_core(&e))?;
@@ -217,6 +246,18 @@ pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
     })
     .await
     .map_err(|e| format!("db_rekey_from_secret task: {e}"))?
+}
+
+/// Resolve the recordings root the migration helpers walk against —
+/// `<support_dir>/recordings`. Mirrors `recorder_recordings_root`
+/// without the FRB sync surface (the rekey + enable / disable hooks
+/// stay inside one `spawn_blocking` task and don't need the
+/// String round-trip).
+fn recordings_root_for_migrate() -> Result<std::path::PathBuf, String> {
+    let dir = lfs_core::app::instance()
+        .support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(dir.join("recordings"))
 }
 
 /// Cheap existence probe for the on-disk SQLCipher DB at `path`.

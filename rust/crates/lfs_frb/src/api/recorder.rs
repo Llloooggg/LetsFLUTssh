@@ -63,13 +63,6 @@ pub async fn recorder_register(
     .map_err(|e| format!("recorder register task: {e}"))?
 }
 
-/// HKDF-SHA256 info string for the per-recording AES-256 key
-/// derivation. Pinned to this exact byte sequence — bumping it
-/// makes every existing on-disk `.lfsr` recording undecryptable
-/// because the reader recomputes the same HKDF chain off the
-/// active DB key.
-const RECORDER_HKDF_INFO: &[u8] = b"letsflutssh-recording-v1";
-
 /// One playback event. `line` carries a decoded JSON-Lines record;
 /// `error` (when set) carries a typed reason the playback aborted.
 /// Exactly one field is non-null per event. The tagged shape lets
@@ -141,51 +134,32 @@ async fn recorder_open_for_playback_inner(
             .and_then(|e| e.to_str())
             .map(|s| s.eq_ignore_ascii_case("lfsr"))
             .unwrap_or(false);
-        // Encrypted recordings need the active DB key derivation;
-        // plaintext .cast files skip the secret-store probe entirely
-        // so playback works even on a tier with no in-memory key
-        // (e.g. plaintext-tier recordings).
+        // Encrypted recordings need the active DB key — the reader
+        // unwraps the per-file recording key from the file's v1
+        // header internally. Plaintext .cast files skip the secret-
+        // store probe entirely so playback works even on a tier
+        // with no in-memory key (e.g. plaintext-tier recordings).
         let key_arr: [u8; 32] = if is_lfsr {
             let app = lfs_core::app::instance();
             match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
-                None => {
-                    let _ = sink.add(DbPlaybackEvent {
-                        line: None,
-                        error: Some(
-                            "no active DB key — encrypted recording cannot be opened".to_string(),
-                        ),
-                    });
-                    return;
-                }
-                Some(db_key) if db_key.is_empty() => {
-                    let _ = sink.add(DbPlaybackEvent {
-                        line: None,
-                        error: Some(
-                            "no active DB key — encrypted recording cannot be opened".to_string(),
-                        ),
-                    });
-                    return;
-                }
-                Some(db_key) => {
-                    match lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32) {
-                        Ok(rk) => match rk[..].try_into() {
-                            Ok(arr) => arr,
-                            Err(_) => {
-                                let _ = sink.add(DbPlaybackEvent {
-                                    line: None,
-                                    error: Some("recording key wrong size".to_string()),
-                                });
-                                return;
-                            }
-                        },
-                        Err(e) => {
-                            let _ = sink.add(DbPlaybackEvent {
-                                line: None,
-                                error: Some(format!("recorder hkdf: {e}")),
-                            });
-                            return;
-                        }
+                Some(db_key) if !db_key.is_empty() => match db_key.as_slice().try_into() {
+                    Ok(arr) => arr,
+                    Err(_) => {
+                        let _ = sink.add(DbPlaybackEvent {
+                            line: None,
+                            error: Some("active db key wrong length".to_string()),
+                        });
+                        return;
                     }
+                },
+                _ => {
+                    let _ = sink.add(DbPlaybackEvent {
+                        line: None,
+                        error: Some(
+                            "no active DB key — encrypted recording cannot be opened".to_string(),
+                        ),
+                    });
+                    return;
                 }
             }
         } else {
@@ -297,14 +271,38 @@ pub async fn recorder_seek(
         if db_key.is_empty() {
             return Ok(None);
         }
-        let recorder_key = lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32)
-            .map_err(|e| format!("recorder hkdf: {e}"))?;
-        let recorder_arr: [u8; 32] = recorder_key
+        let db_arr: [u8; 32] = db_key
             .as_slice()
             .try_into()
-            .map_err(|_| "recorder key wrong size".to_string())?;
+            .map_err(|_| "active db key wrong length".to_string())?;
+        // Read the v1 header off the main file and unwrap the
+        // per-file recording key under the DB key. The sidecar key
+        // is HKDF-derived off that recording key (same chain the
+        // recorder uses to write the sidecar), so the seek path
+        // looks at the same wrapped material the playback path
+        // uses — one source of truth for the per-file key.
+        let mut head = [0u8; lfs_core::recorder::LFR_HEADER_LEN];
+        match std::fs::File::open(&path) {
+            Ok(mut f) => {
+                use std::io::Read as _;
+                if f.read_exact(&mut head).is_err() {
+                    return Ok(None);
+                }
+            }
+            Err(_) => return Ok(None),
+        }
+        let recording_key = match lfs_core::recorder::unwrap_lfsr_header(&head, &db_arr) {
+            Ok(rk) => rk,
+            Err(_) => {
+                // Wrap mismatch / damaged header — treat as
+                // "no sidecar reachable", fall back to sequential
+                // decode. Playback path will surface the same
+                // crypto error if/when the user retries open.
+                return Ok(None);
+            }
+        };
         let index_key = lfs_core::crypto::hkdf_sha256(
-            &recorder_arr,
+            &recording_key[..],
             &[],
             lfs_core::recorder::index_sidecar::INDEX_HKDF_INFO,
             32,
@@ -322,68 +320,57 @@ pub async fn recorder_seek(
     .map_err(|e| format!("recorder seek task: {e}"))?
 }
 
-/// Derive the per-recording AES-256 key from the active DB key
-/// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
-/// HKDF-SHA256 chain [`recorder_register_from_active`] uses for
-/// the writer. Returns the 32-byte recorder key for callers that
-/// drive AES-GCM decryption Dart-side (today: `RecordingReader`
-/// playback streamer); future migration moves the iter Rust-side
-/// and this entry point retires.
-///
-/// Returns an empty `Vec` when the active slot is empty
-/// (plaintext tier) — caller treats empty as "no encrypted
-/// recordings can be opened from this session".
-pub async fn recorder_derive_key_from_active() -> Result<Vec<u8>, String> {
-    tokio::task::spawn_blocking(|| {
-        let app = lfs_core::app::instance();
-        let Some(db_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) else {
-            return Ok(Vec::new());
-        };
-        if db_key.is_empty() {
-            return Ok(Vec::new());
-        }
-        lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32)
-            .map(|z| z.to_vec())
-            .map_err(|e| format!("recorder hkdf: {e}"))
-    })
-    .await
-    .map_err(|e| format!("recorder derive task: {e}"))?
-}
-
 /// SecretRef variant of [`recorder_register`]. Reads the running
 /// session's DB key from
-/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`], runs the
-/// `letsflutssh-recording-v1` HKDF-SHA256 derivation entirely
-/// Rust-side, and registers the recorder under the derived key.
-/// When the active slot is empty (plaintext tier) the recorder
-/// registers in plaintext-asciinema mode.
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] and registers the
+/// recorder with that DB key as the wrap key. The recorder's
+/// `register_with_io` then mints a fresh random per-file recording
+/// key, wraps it under the DB key in the v1 LFR1 header, and uses
+/// the recording key for every frame's GCM tag + the sidecar HKDF
+/// chain. When the active slot is empty (plaintext tier) the
+/// recorder registers in plaintext-asciinema mode.
+///
+/// `base_path` is the recording path **without an extension**. This
+/// function appends `.lfsr` when the recorder ends up encrypted or
+/// `.cast` when plaintext — having Rust own the extension keeps
+/// the on-disk file shape in lock-step with the actual wire format
+/// (the playback dispatcher routes off the extension). The earlier
+/// shape, where Dart picked the extension off `secrets_has`,
+/// diverged on the plaintext tier (slot present but empty bytes →
+/// `secrets_has = true`, encrypted decision `false`) and produced
+/// `.lfsr`-named files with asciinema-plaintext content the reader
+/// could never decrypt. The returned snapshot's `path` field
+/// carries the final on-disk path so the caller threads it through
+/// to `recorder_queue_spawn` and the eventual `.lfsr` / `.cast`
+/// listing surface.
 ///
 /// Bytes never cross the FRB boundary on this path — both the DB
-/// key and the derived recorder key live in Rust memory only.
+/// key and the random per-file recording key live in Rust memory
+/// only.
 pub async fn recorder_register_from_active(
     id: String,
     session_id: String,
-    path: String,
+    base_path: String,
 ) -> Result<DbRecorderSnapshot, String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
         let key_arr = match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
             Some(db_key) if !db_key.is_empty() => {
-                let derived = lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32)
-                    .map_err(|e| format!("recorder hkdf: {e}"))?;
-                let arr: [u8; 32] = derived
+                let arr: [u8; 32] = db_key
                     .as_slice()
                     .try_into()
-                    .map_err(|_| "recorder derived key length".to_string())?;
+                    .map_err(|_| "active db key wrong length".to_string())?;
                 Some(zeroize::Zeroizing::new(arr))
             }
             _ => None,
         };
+        let ext = if key_arr.is_some() { "lfsr" } else { "cast" };
+        let final_path = format!("{base_path}.{ext}");
         lfs_core::recorder::RecorderRegistry::register_with_io(
             &app.recorders,
             id,
             session_id,
-            path,
+            final_path,
             key_arr,
             &app.bus,
         )
@@ -392,6 +379,149 @@ pub async fn recorder_register_from_active(
     })
     .await
     .map_err(|e| format!("recorder register from active task: {e}"))?
+}
+
+/// Walk the recordings tree under `recordings_root` and rename any
+/// `.lfsr` file whose first bytes do not match the encrypted-frame
+/// magic to `.cast`. This unsticks recordings made before the
+/// extension-decision moved Rust-side: the earlier Dart-side check
+/// of `secrets_has(ACTIVE_DBKEY_SECRET_ID)` returned `true` on the
+/// plaintext tier (slot present but empty bytes), so the file
+/// landed with a `.lfsr` extension even though the writer
+/// registered plaintext-asciinema mode and skipped the
+/// [`recorder::LFR_MAGIC`] header. Playback then routed by
+/// extension into the encrypted reader and failed with "no active
+/// DB key — encrypted recording cannot be opened".
+///
+/// Idempotent: a fresh-write `.lfsr` file (correct encrypted
+/// magic) is left alone; a re-run after a previous rename is a
+/// no-op because there are no misnamed files left to fix.
+///
+/// Returns the number of files renamed. Errors are logged and the
+/// walk continues — one stuck entry shouldn't block the rest from
+/// migrating.
+pub async fn recorder_migrate_misnamed_files(recordings_root: String) -> Result<u32, String> {
+    tokio::task::spawn_blocking(move || {
+        let root = std::path::PathBuf::from(&recordings_root);
+        if !root.is_dir() {
+            return Ok(0u32);
+        }
+        let mut renamed = 0u32;
+        let mut stack = vec![root];
+        while let Some(dir) = stack.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(it) => it,
+                // Best-effort walk — a stuck subdirectory is logged
+                // upstream when the recordings list / playback step
+                // hits it. The migration return value (successful
+                // rename count) is the actionable signal.
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let ty = match entry.file_type() {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+                if ty.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                let file_name = match path.file_name().and_then(|s| s.to_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                // Orphan `.lfsr.idx` sidecar — its `.lfsr` parent has
+                // already been migrated to `.cast` by an earlier
+                // sweep (only the main file moved before this fix
+                // landed), so the playback dialog's scrub probe
+                // hits `<basename>.cast.idx` (absent) and disables
+                // the slider. Rename the orphan in place so the
+                // probe finds the index and re-enables seeking.
+                if file_name.ends_with(".lfsr.idx") {
+                    let cast_main = path.with_file_name(
+                        file_name.trim_end_matches(".lfsr.idx").to_owned() + ".cast",
+                    );
+                    if cast_main.exists() {
+                        let new_idx = cast_main.with_file_name(
+                            file_name.trim_end_matches(".lfsr.idx").to_owned() + ".cast.idx",
+                        );
+                        if std::fs::rename(&path, &new_idx).is_ok() {
+                            renamed += 1;
+                        }
+                    }
+                    continue;
+                }
+                let is_lfsr = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|s| s.eq_ignore_ascii_case("lfsr"))
+                    .unwrap_or(false);
+                if !is_lfsr {
+                    continue;
+                }
+                if !file_starts_with_lfr_magic(&path) {
+                    let renamed_path = path.with_extension("cast");
+                    if std::fs::rename(&path, &renamed_path).is_err() {
+                        // Best-effort — a stuck rename (open handle,
+                        // permission denied) gets retried on next
+                        // migration sweep. Skipping here keeps the
+                        // walk going for the rest of the tree.
+                        continue;
+                    }
+                    // The sidecar lives at `<filename>.idx` —
+                    // `lfs_core::recorder::index_sidecar::sidecar_path`
+                    // appends `.idx` to the full filename, so a
+                    // misnamed `foo.lfsr` ships its index as
+                    // `foo.lfsr.idx`. Without renaming the sidecar
+                    // alongside the main file, the seek lookup for
+                    // the new `foo.cast` would hit `foo.cast.idx`
+                    // (absent) and disable the scrub bar even
+                    // though a valid plaintext index sits right
+                    // next to it. Best-effort: a missing sidecar
+                    // (older recording with no index) silently
+                    // skips; the scrub bar just stays disabled
+                    // for that one file.
+                    let old_idx = {
+                        let mut s = path.clone().into_os_string();
+                        s.push(".idx");
+                        std::path::PathBuf::from(s)
+                    };
+                    if old_idx.exists() {
+                        let new_idx = {
+                            let mut s = renamed_path.clone().into_os_string();
+                            s.push(".idx");
+                            std::path::PathBuf::from(s)
+                        };
+                        let _ = std::fs::rename(&old_idx, &new_idx);
+                    }
+                    renamed += 1;
+                }
+            }
+        }
+        Ok(renamed)
+    })
+    .await
+    .map_err(|e| format!("recorder migrate task: {e}"))?
+}
+
+/// Read the first 4 bytes of [`path`] and compare against the
+/// recorder's encrypted-frame magic. Files shorter than 4 bytes
+/// or any I/O error return `false` so the migration treats them
+/// as candidates for the `.cast` rename (worst case: a broken
+/// file ends up with the `.cast` extension but the playback
+/// dispatcher already tolerates malformed plaintext recordings).
+fn file_starts_with_lfr_magic(path: &std::path::Path) -> bool {
+    use std::io::Read as _;
+    let mut buf = [0u8; 4];
+    let mut file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    if file.read_exact(&mut buf).is_err() {
+        return false;
+    }
+    buf == lfs_core::recorder::lfr_magic()
 }
 
 /// FRB mirror of [`lfs_core::recorder::reader::DecodedEvent`]:
@@ -994,6 +1124,89 @@ mod tests {
         assert_eq!(db.offset, 4096);
         assert_eq!(db.entry_index, 7);
         assert_eq!(db.timestamp_ms, 12_345);
+    }
+
+    #[test]
+    fn migrate_renames_paired_sidecar_alongside_misnamed_main_file() {
+        // Set up `<tmp>/sess/rec.lfsr` (plaintext content, missing
+        // the encrypted-frame magic) + a matching plaintext
+        // sidecar `rec.lfsr.idx`. The migration should rename both
+        // so the scrub-bar probe (which looks for `rec.cast.idx`
+        // next to the `.cast` recording) finds the index after
+        // the sweep.
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, Ordering::SeqCst);
+        let pid = std::process::id();
+        let root = std::env::temp_dir().join(format!("lfs_mig_test_{pid}_{n}"));
+        let session_dir = root.join("sess-1");
+        std::fs::create_dir_all(&session_dir).unwrap();
+        let main_path = session_dir.join("rec.lfsr");
+        let idx_path = session_dir.join("rec.lfsr.idx");
+        // Plaintext recording body — first bytes are an asciinema
+        // header line, not the encrypted-frame magic, so the
+        // migration treats it as a misnamed plaintext file.
+        std::fs::write(&main_path, b"{\"version\":2,\"width\":80,\"height\":24}\n").unwrap();
+        std::fs::write(&idx_path, b"\x00\x01\x02\x03").unwrap();
+
+        let renamed = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(recorder_migrate_misnamed_files(
+                root.to_string_lossy().into_owned(),
+            ))
+            .unwrap();
+        assert_eq!(renamed, 1);
+
+        let new_main = session_dir.join("rec.cast");
+        let new_idx = session_dir.join("rec.cast.idx");
+        assert!(new_main.exists(), "main file should be renamed to .cast");
+        assert!(new_idx.exists(), "sidecar should be renamed alongside");
+        assert!(!main_path.exists(), "old .lfsr file should be gone");
+        assert!(!idx_path.exists(), "old .lfsr.idx sidecar should be gone");
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn migrate_renames_orphan_lfsr_sidecar_when_main_already_cast() {
+        // After the original migration shipped, plaintext
+        // recordings got `.lfsr → .cast` for the main file but
+        // left `.lfsr.idx` behind. Re-running the sweep against
+        // that state should rename the orphan in place so the
+        // scrub probe finds `<basename>.cast.idx`.
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, Ordering::SeqCst);
+        let pid = std::process::id();
+        let root = std::env::temp_dir().join(format!("lfs_mig_orphan_{pid}_{n}"));
+        let session_dir = root.join("sess-1");
+        std::fs::create_dir_all(&session_dir).unwrap();
+        let cast_main = session_dir.join("rec.cast");
+        let orphan_idx = session_dir.join("rec.lfsr.idx");
+        std::fs::write(&cast_main, b"{\"version\":2}\n").unwrap();
+        std::fs::write(&orphan_idx, b"\x00\x01\x02\x03").unwrap();
+
+        let renamed = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(recorder_migrate_misnamed_files(
+                root.to_string_lossy().into_owned(),
+            ))
+            .unwrap();
+        assert_eq!(renamed, 1);
+
+        let new_idx = session_dir.join("rec.cast.idx");
+        assert!(
+            new_idx.exists(),
+            "orphan sidecar should be renamed to .cast.idx"
+        );
+        assert!(!orphan_idx.exists(), "orphan .lfsr.idx should be gone");
+        assert!(cast_main.exists(), "main .cast file must stay untouched");
+
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
