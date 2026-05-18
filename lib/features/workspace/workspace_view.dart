@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 // `SessionKind` (companion-button gate consults `kind.hasTerminal`).
 import '../../core/session/session.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/focused_pane_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/context_menu.dart';
@@ -14,6 +15,7 @@ import '../../widgets/hover_region.dart';
 import '../file_browser/file_browser_tab.dart';
 import '../tabs/tab_model.dart';
 import '../tabs/welcome_screen.dart';
+import '../terminal/pane_recording_registry.dart';
 import '../terminal/terminal_tab.dart';
 import 'drop_zone_overlay.dart';
 import 'panel_tab_bar.dart';
@@ -475,9 +477,73 @@ class _PanelConnectionBar extends ConsumerWidget {
             _retryButton(context, scheme),
             const SizedBox(width: AppSpacing.xs),
           ],
+          if (isTerminal) _recordButton(context, ref),
           _companionButton(context, isTerminal, ref, scheme),
           _maximizeButton(context, ref, scheme),
         ],
+      ),
+    );
+  }
+
+  /// Per-pane recording toggle. Shown only for terminal tabs whose
+  /// kind has a PTY (no recording surface for the file browser; no
+  /// recording for unsaved quick-connect sessions because there is
+  /// no on-disk session folder to write into). Reads the focused
+  /// pane id through [focusedPaneProvider] so a split tab toggles
+  /// recording on whichever pane the user just clicked, and looks
+  /// up the matching [PaneRecordingHandle] in the registry the
+  /// pane registers itself in.
+  ///
+  /// Visual:
+  ///   - Not recording: outlined record icon, muted onSurface tone.
+  ///   - Recording: filled red dot icon, red border — same shape as
+  ///     `_retryButton` so the bar stays visually consistent.
+  ///
+  /// Rebuilds only when (a) focused pane id changes, (b) registry
+  /// has a new handle, (c) the handle's `isRecording` flips. The
+  /// outer `_PanelConnectionBar` does not rebuild on (c) — the
+  /// `ValueListenableBuilder` scopes the rebuild to the icon's
+  /// Container subtree.
+  Widget _recordButton(BuildContext context, WidgetRef ref) {
+    final tabId = activeTab.id;
+    final focusedPaneId = ref.watch(focusedPaneProvider(tabId));
+    if (focusedPaneId == null) return const SizedBox.shrink();
+    final handle = PaneRecordingRegistry.instance.get(focusedPaneId);
+    if (handle == null || !handle.canRecord) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: AppSpacing.xs),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: handle.isRecording,
+        builder: (context, recording, _) {
+          final s = S.of(context);
+          final btnColor = recording ? AppTheme.red : AppTheme.fgDim;
+          final label = recording ? s.recordToggleStop : s.recordToggleStart;
+          final icon = recording
+              ? Icons.fiber_manual_record
+              : Icons.fiber_manual_record_outlined;
+          return Tooltip(
+            message: label,
+            child: HoverRegion(
+              onTap: handle.toggle,
+              builder: (hovered) => Container(
+                height: 18,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: btnColor.withValues(
+                    alpha: hovered ? 0x25 / 255.0 : 0x18 / 255.0,
+                  ),
+                  border: Border.all(
+                    color: btnColor.withValues(
+                      alpha: hovered ? 0x60 / 255.0 : 0x40 / 255.0,
+                    ),
+                  ),
+                  borderRadius: AppTheme.radiusSm,
+                ),
+                child: Icon(icon, size: 11, color: btnColor),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

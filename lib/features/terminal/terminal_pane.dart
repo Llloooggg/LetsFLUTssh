@@ -34,6 +34,7 @@ import '../snippets/snippet_picker.dart';
 import '../../providers/broadcast_provider.dart';
 import '../../widgets/app_dialog.dart';
 import 'broadcast_controller.dart';
+import 'pane_recording_registry.dart';
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
@@ -109,6 +110,13 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   Map<AppShortcut, VoidCallback>? _shortcuts;
   BroadcastController? _broadcast;
 
+  /// Live recording state for this pane. Drives the connection-bar
+  /// record button's icon + red indicator. The button reads it
+  /// through [PaneRecordingRegistry] — the registry handle re-exports
+  /// the notifier as a `ValueListenable<bool>` so the bar only
+  /// rebuilds the icon when recording starts / stops.
+  final ValueNotifier<bool> _isRecording = ValueNotifier<bool>(false);
+
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
 
@@ -175,6 +183,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     };
     TerminalScrubber.instance.register(_scrubFn);
     HardwareKeyboard.instance.addHandler(_onShiftToggle);
+    _registerRecordingHandle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // Grab focus explicitly after the first frame. `TerminalView`'s
@@ -282,6 +291,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         return;
       }
       _shellConn = shellConn;
+      // Reflect the initial recorder state (set when the session has
+      // opted in via extras['record']) so the connection-bar record
+      // button starts in the right state.
+      _isRecording.value = shellConn.recorder != null;
       AppLogger.instance.log(
         'Shell open: success for ${conn.id}',
         name: 'TerminalPane',
@@ -369,12 +382,24 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   Future<SessionRecorder?> _maybeOpenRecorder(Connection conn) async {
     final sessionId = conn.sessionId;
     if (sessionId == null) return null;
-    // Recorder only needs the label + the `record` extras flag — the
-    // cached session model carries both without dragging the
-    // credential columns onto the Dart heap.
     final session = ref.read(sessionMutatorProvider).get(sessionId);
     if (session == null) return null;
     if (session.extrasBool('record') != true) return null;
+    return _openRecorder(conn);
+  }
+
+  /// Build a [SessionRecorder] for the active session — no opt-in
+  /// check. Used by the connection-bar record button to start /
+  /// resume recording mid-session regardless of the session's
+  /// `extras['record']` flag. Returns null when the session is
+  /// unsaved (quick-connect) — recordings need a stable `sessionId`
+  /// folder to land in. Caller is responsible for swapping the
+  /// returned recorder onto `_shellConn` via `setRecorder`.
+  Future<SessionRecorder?> _openRecorder(Connection conn) async {
+    final sessionId = conn.sessionId;
+    if (sessionId == null) return null;
+    final session = ref.read(sessionMutatorProvider).get(sessionId);
+    if (session == null) return null;
     // The recorder reads the active DB key Rust-side via
     // `secretsHas` + `recorderRegisterFromActive` — the bytes never
     // touch the Dart heap.
@@ -384,6 +409,53 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       width: _terminal.viewWidth,
       height: _terminal.viewHeight,
     );
+  }
+
+  /// Register this pane's recording handle so the workspace
+  /// connection bar's record button can find it by paneId. Runs
+  /// once at mount; the registry holds a stable [ValueListenable]
+  /// pointer that survives shell reconnects. `canRecord` is false
+  /// for unsaved quick-connect panes — recordings need a session
+  /// folder to land in, and the button hides itself when this is
+  /// false.
+  void _registerRecordingHandle() {
+    final paneId = widget.paneId;
+    if (paneId == null) return;
+    final sessionId = widget.connection.sessionId;
+    PaneRecordingRegistry.instance.register(
+      paneId,
+      PaneRecordingHandle(
+        isRecording: _isRecording,
+        canRecord: sessionId != null,
+        toggle: _toggleRecording,
+      ),
+    );
+  }
+
+  /// Start or stop recording for the currently-open shell. No-op
+  /// when the shell has not yet opened (e.g. the user mashed the
+  /// button during the connect spinner) — the pane will not record
+  /// pre-shell progress bytes either way.
+  Future<void> _toggleRecording() async {
+    final shellConn = _shellConn;
+    if (shellConn == null) return;
+    if (_isRecording.value) {
+      // Stop: dropping the recorder seals the file. setRecorder
+      // closes the previous one for us.
+      shellConn.setRecorder(null);
+      _isRecording.value = false;
+      return;
+    }
+    final recorder = await _openRecorder(widget.connection);
+    if (recorder == null) return;
+    if (!mounted) {
+      // Pane disposed mid-open. Close the recorder so the half-
+      // initialised file doesn't sit around with a broken header.
+      await recorder.close();
+      return;
+    }
+    shellConn.setRecorder(recorder);
+    _isRecording.value = true;
   }
 
   @override
@@ -407,11 +479,15 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onShiftToggle);
-    if (widget.paneId != null) _broadcast?.unregisterSink(widget.paneId!);
+    if (widget.paneId != null) {
+      _broadcast?.unregisterSink(widget.paneId!);
+      PaneRecordingRegistry.instance.unregister(widget.paneId!);
+    }
     _shellConn?.close();
     _terminalController.dispose();
     _terminalFocus.dispose();
     _showSearch.dispose();
+    _isRecording.dispose();
     super.dispose();
   }
 

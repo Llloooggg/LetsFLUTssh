@@ -15,7 +15,14 @@ class ShellConnection {
 
   final StreamSubscription? eventsSub;
   final Terminal _terminal;
-  final SessionRecorder? recorder;
+
+  /// Per-shell recorder. Mutable so the terminal toolbar's runtime
+  /// record button can swap it in / out mid-stream — the shell's
+  /// stdin / stdout listeners read this field on every chunk
+  /// rather than capturing the value at openShell time. `null` =
+  /// not recording right now; bytes flow to the terminal and back
+  /// to the remote shell only.
+  SessionRecorder? recorder;
 
   ShellConnection({
     required this.transportShell,
@@ -26,6 +33,22 @@ class ShellConnection {
 
   /// Send stdin bytes to the remote shell.
   void write(Uint8List bytes) => transportShell.write(bytes);
+
+  /// Swap the active recorder. Closes the previous one (so the
+  /// `.cast` / `.lfsr` file is sealed and shows up in the
+  /// recordings browser) before adopting the new value. Pass
+  /// `null` to stop recording without starting a new file.
+  ///
+  /// Best-effort close: the previous recorder's `close()` future
+  /// is unawaited so the caller does not have to become async
+  /// just to flip the recording state.
+  void setRecorder(SessionRecorder? next) {
+    final previous = recorder;
+    recorder = next;
+    if (previous != null && !identical(previous, next)) {
+      unawaited(previous.close());
+    }
+  }
 
   /// Cancel stream subscriptions, clear terminal callbacks, and close the shell.
   ///
@@ -82,16 +105,22 @@ class ShellHelper {
 
     const decoder = Utf8Decoder(allowMalformed: true);
 
+    // `late` capture so every chunk reads the live `shellConn.recorder`
+    // field rather than the recorder reference handed in at openShell
+    // time. The terminal-toolbar record button swaps recorders mid-
+    // stream via `ShellConnection.setRecorder`; with a closure-captured
+    // local the new bytes would still feed the old (closed) recorder.
+    late final ShellConnection shellConn;
     final eventsSub = shell.events.listen((event) {
       switch (event) {
         case SshShellOutput(:final bytes):
           final decoded = decoder.convert(bytes);
           terminal.write(decoded);
-          recorder?.recordOutput(bytes);
+          shellConn.recorder?.recordOutput(bytes);
         case SshShellExtendedOutput(:final bytes):
           final decoded = decoder.convert(bytes);
           terminal.write(decoded);
-          recorder?.recordOutput(bytes);
+          shellConn.recorder?.recordOutput(bytes);
         case SshShellEof():
           if (onDone != null) onDone();
         case SshShellExitStatus():
@@ -106,17 +135,18 @@ class ShellHelper {
       // keystroke buffer for nothing.
       final bytes = utf8.encode(data);
       shell.write(bytes);
-      recorder?.recordInput(bytes);
+      shellConn.recorder?.recordInput(bytes);
     };
     terminal.onResize = (cols, rows, _, _) {
       shell.resize(cols: cols, rows: rows);
     };
 
-    return ShellConnection(
+    shellConn = ShellConnection(
       transportShell: shell,
       eventsSub: eventsSub,
       terminal: terminal,
       recorder: recorder,
     );
+    return shellConn;
   }
 }

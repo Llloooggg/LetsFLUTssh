@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/focused_pane_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/logger.dart';
 import 'split_node.dart';
@@ -49,6 +50,14 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
     _focusedPaneId = leaf.id;
     _paneConnections[leaf.id] = widget.connection;
     // Always ready — TerminalPane handles waiting for connection internally
+    // Publish the initial focused-pane id post-frame so cross-subtree
+    // consumers (workspace connection bar's record button) can find
+    // the right pane right after mount. Provider write deferred until
+    // after build to avoid mutating provider state during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(focusedPaneProvider(widget.tabId).notifier).set(leaf.id);
+    });
   }
 
   void _closePane(String paneId) {
@@ -62,6 +71,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
         _focusedPaneId = leafIds.first;
       }
     });
+    ref.read(focusedPaneProvider(widget.tabId).notifier).set(_focusedPaneId);
   }
 
   void _onTreeChanged(SplitNode newRoot) {
@@ -116,6 +126,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       _root = leaf;
       _focusedPaneId = leaf.id;
     });
+    ref.read(focusedPaneProvider(widget.tabId).notifier).set(leaf.id);
   }
 
   /// Run the test-injected reconnect factory with the same lifecycle
@@ -140,7 +151,10 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       root: _root,
       paneConnections: _paneConnections,
       focusedPaneId: _focusedPaneId,
-      onPaneFocused: (id) => setState(() => _focusedPaneId = id),
+      onPaneFocused: (id) {
+        setState(() => _focusedPaneId = id);
+        ref.read(focusedPaneProvider(widget.tabId).notifier).set(id);
+      },
       onClosePane: _closePane,
       onTreeChanged: _onTreeChanged,
     );
