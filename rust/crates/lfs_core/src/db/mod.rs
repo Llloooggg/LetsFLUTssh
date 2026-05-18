@@ -172,8 +172,14 @@ pub mod webdav_sessions;
 /// rusqlite Connection inside a Mutex so concurrent callers
 /// serialise; sqlite itself is single-writer at the file level
 /// regardless.
+///
+/// `path` remembers the on-disk location the handle was opened at
+/// so the tier-downgrade flow (`export_plaintext_copy` →
+/// rename-over-original → `db_init` unkeyed) can swap the file
+/// without the caller threading the path through every FRB hop.
 pub struct Db {
     conn: Mutex<Connection>,
+    path: std::path::PathBuf,
 }
 
 #[cfg(test)]
@@ -186,6 +192,7 @@ impl Db {
     pub fn from_raw_for_tests(conn: Connection) -> Self {
         Self {
             conn: Mutex::new(conn),
+            path: std::path::PathBuf::new(),
         }
     }
 }
@@ -285,7 +292,84 @@ impl Db {
         );
         Ok(Self {
             conn: Mutex::new(conn),
+            path: path.to_path_buf(),
         })
+    }
+
+    /// Path the handle was opened at. Used by the T1 → T0
+    /// (master-password disable) flow to rename the freshly-
+    /// exported plaintext copy over the encrypted source.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Decrypt the current encrypted DB into a plaintext sqlite
+    /// file at `plaintext_path` via SQLCipher's `sqlcipher_export`.
+    /// Empty-string KEY on the ATTACH means the target is written
+    /// with no page cipher at all — this is the only correct way
+    /// to "downgrade" a SQLCipher database to plaintext, since
+    /// `PRAGMA rekey = ''` would just generate a fresh random key
+    /// rather than disable encryption (SQLCipher rejects the empty
+    /// literal as a tier-downgrade signal).
+    ///
+    /// Steps:
+    ///
+    /// 1. `PRAGMA wal_checkpoint(TRUNCATE)` so any pending WAL
+    ///    pages are flushed into the main file before the export
+    ///    reads it.
+    /// 2. `ATTACH DATABASE '<plaintext_path>' AS plaintext KEY ''`
+    ///    opens the target as a brand-new plaintext sqlite file.
+    /// 3. `SELECT sqlcipher_export('plaintext')` walks every table,
+    ///    view, and trigger from the running encrypted DB and copies
+    ///    them into the target. `user_version` / `application_id` /
+    ///    other meta-pragmas carry over.
+    /// 4. `DETACH DATABASE plaintext` flushes the target and
+    ///    releases the handle.
+    ///
+    /// Caller MUST:
+    /// - Close this `Db` (drop the `Arc<Db>` + call
+    ///   `app::db_close`) before renaming `plaintext_path` over
+    ///   `self.path()`.
+    /// - Clean up the encrypted DB's `-wal` / `-shm` sidecars
+    ///   alongside the rename — they hold encrypted page state
+    ///   that the new plaintext file does not need.
+    /// - Re-open the DB at `self.path()` with an empty key via
+    ///   `app::db_init` so the plaintext file becomes the running
+    ///   handle.
+    pub fn export_plaintext_copy(&self, plaintext_path: &Path) -> Result<(), Error> {
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        // Best-effort flush; on the rare case `wal_checkpoint`
+        // fails (an open read-tx holding the WAL pinned), the
+        // export still sees the latest committed pages via the
+        // mvcc snapshot rusqlite holds.
+        let _ = g.inner().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
+        // SQLite string literal escaping: any single quote in the
+        // path doubles. Backslashes need no escape (no shell
+        // interpretation inside a SQL literal). Production paths
+        // under app-support do not carry single quotes; the escape
+        // is a defence-in-depth net for hand-edited installs.
+        let escaped = plaintext_path.to_string_lossy().replace('\'', "''");
+        let attach = format!("ATTACH DATABASE '{escaped}' AS plaintext KEY ''");
+        g.inner()
+            .execute_batch(&attach)
+            .map_err(|e| Error::Db(format!("attach plaintext target: {e}")))?;
+        // sqlcipher_export returns NULL on success; we drive it
+        // via query_row so the rusqlite error path surfaces a
+        // mid-export failure (rare — usually an out-of-disk).
+        let export = g
+            .inner()
+            .query_row("SELECT sqlcipher_export('plaintext')", [], |_row| Ok(()));
+        if let Err(e) = export {
+            // Detach what we attached so a partial failure does
+            // not leave the connection holding a stray schema
+            // attached.
+            let _ = g.inner().execute_batch("DETACH DATABASE plaintext");
+            return Err(Error::Db(format!("sqlcipher_export: {e}")));
+        }
+        g.inner()
+            .execute_batch("DETACH DATABASE plaintext")
+            .map_err(|e| Error::Db(format!("detach plaintext target: {e}")))?;
+        Ok(())
     }
 
     /// Harden the SQLCipher DB file + WAL / SHM sidecars to
@@ -886,6 +970,7 @@ mod tests {
             .unwrap();
         let db = Db {
             conn: Mutex::new(conn),
+            path: std::path::PathBuf::new(),
         };
         let n = db.schema_object_count().unwrap();
         assert!(n >= 1, "schema_object_count was {n}");
@@ -911,6 +996,64 @@ mod tests {
             .schema_object_count()
             .expect("schema count after fresh open");
         assert!(count > 0, "bootstrap_schema should have created tables");
+    }
+
+    /// `Db::export_plaintext_copy` writes a brand-new plaintext
+    /// sqlite file that mirrors every table + row of the running
+    /// encrypted DB. Drives the T1 → T0 downgrade path: the
+    /// caller renames the export over the encrypted source +
+    /// re-opens unkeyed.
+    #[test]
+    fn export_plaintext_copy_round_trips_under_no_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src.db");
+        let dst = dir.path().join("plain.db");
+        let key = [0x42u8; 32];
+        let db = Db::open(&src, &key).expect("open encrypted source");
+        // Drop a row through a user-defined table so the export
+        // carries schema + data, not just empty bootstrap output.
+        db.with_conn(|c| {
+            c.inner()
+                .execute_batch(
+                    "CREATE TABLE migration_probe (id TEXT PRIMARY KEY, payload TEXT);
+                     INSERT INTO migration_probe (id, payload) VALUES ('p1', 'hello');",
+                )
+                .map_err(|e| Error::Db(format!("probe seed: {e}")))
+        })
+        .unwrap();
+
+        db.export_plaintext_copy(&dst)
+            .expect("export plaintext copy");
+        assert!(dst.exists(), "exported plaintext file must exist");
+        assert_eq!(db.path(), src.as_path(), "source path tracked");
+
+        // Open the export directly through rusqlite — no PRAGMA
+        // key, no PRAGMA cipher_compatibility — and read the row
+        // back. This is the same shape `db_init(&dst, &[])` will
+        // exercise post-rename.
+        let plain = rusqlite::Connection::open(&dst).unwrap();
+        let payload: String = plain
+            .query_row(
+                "SELECT payload FROM migration_probe WHERE id = 'p1'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            payload, "hello",
+            "plaintext export must carry the row written under the encrypted source",
+        );
+        // Probing the source with no key now fails — confirms the
+        // source DB is still encrypted (the export did not touch
+        // the original file).
+        let unkeyed = rusqlite::Connection::open(&src).unwrap();
+        let probe = unkeyed.query_row("SELECT count(*) FROM sqlite_master", [], |r| {
+            r.get::<_, i64>(0)
+        });
+        assert!(
+            probe.is_err(),
+            "encrypted source must reject a no-key open after export",
+        );
     }
 
     /// Bootstrap stamps `user_version = SCHEMA_VERSION` on a fresh

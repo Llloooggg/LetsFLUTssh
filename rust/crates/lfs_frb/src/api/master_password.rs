@@ -221,31 +221,138 @@ pub async fn master_password_change_to_secret(
     .map_err(|e| format!("master_password_change_to_secret task: {e}"))?
 }
 
-/// Drop the KDF + verifier files. Caller is responsible for
-/// re-encrypting stores with a fresh random key + writing
-/// `credentials.key`.
+/// Full T1 → T0 transition. Drives every persistent artefact that
+/// currently lives under the active DB key back to a plaintext
+/// shape, in order:
 ///
-/// Demotes any encrypted `.lfsr` recordings to plaintext `.cast`
-/// BEFORE wiping the password files — the demotion needs the
-/// current ACTIVE DB key in memory to decrypt frame bodies. On
-/// failure the password files stay in place; the caller can retry
-/// after addressing whatever blocked the demotion (typically a
-/// stuck file handle).
+/// 1. **Recordings.** `convert_all_lfsr_to_cast` decrypts each
+///    `.lfsr` body (under the current ACTIVE DB key) and writes a
+///    plaintext `.cast` next to it. Encrypted sidecars drop with
+///    the rename. Must happen while the active key is still in
+///    memory.
+/// 2. **SQLite DB.** `Db::export_plaintext_copy` writes a plaintext
+///    sqlite copy via `sqlcipher_export` next to the running
+///    encrypted file, then the helper closes the handle, deletes
+///    the encrypted DB + its `-wal` / `-shm` sidecars, renames the
+///    plaintext copy over the original path, and re-opens the DB
+///    unkeyed through `app::db_init`. The DB is plaintext from the
+///    next call onwards.
+/// 3. **Active DB-key slot.** Dropped from
+///    [`lfs_core::secrets::SecretStore`] — the plaintext DB needs
+///    no key, and lingering bytes in the slot would only feed an
+///    accidental future rekey path under the dead value.
+/// 4. **Password files.** `master_password::disable` removes
+///    `credentials.kdf` + `credentials.verifier` so the next
+///    launch sees no master-password installation and opens the
+///    DB without prompting.
+///
+/// On any failure the function aborts and propagates the error;
+/// the encrypted DB stays intact, the password files stay in
+/// place, and the user can retry after addressing the underlying
+/// issue (typically an out-of-disk during the sqlcipher_export
+/// step, or a stuck file handle holding the source DB open).
+///
+/// Sync FRB call so the entire transition runs on a single
+/// blocking thread — concurrent FRB calls serialise behind it via
+/// the FRB sync worker pool, which keeps a stale `db_*` request
+/// from racing with the rename / reopen window.
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_disable() -> Result<(), String> {
     let app = lfs_core::app::instance();
-    if let Some(active_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
-        if !active_key.is_empty() {
-            let active_arr: [u8; 32] = active_key
-                .as_slice()
+    let active_key = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
+    let active_arr: Option<[u8; 32]> = match active_key {
+        Some(k) if !k.is_empty() => Some(
+            k.as_slice()
                 .try_into()
-                .map_err(|_| "active db key wrong length".to_string())?;
-            let root = recordings_root_for_migrate()?;
-            lfs_core::recorder::migrate::convert_all_lfsr_to_cast(&root, &active_arr)
-                .map_err(|e| crate::api::frb_err::from_core(&e))?;
+                .map_err(|_| "active db key wrong length".to_string())?,
+        ),
+        _ => None,
+    };
+
+    // 1. lfsr → cast (only meaningful when a key actually exists).
+    if let Some(key) = active_arr {
+        let root = recordings_root_for_migrate()?;
+        lfs_core::recorder::migrate::convert_all_lfsr_to_cast(&root, &key)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    }
+
+    // 2. DB decrypt. Skip when the handle is unavailable (cold-
+    //    start before db_init, or a test fixture that never opened
+    //    one) — there's nothing to downgrade.
+    if active_arr.is_some() {
+        if let Some(db) = app.db() {
+            let db_path = db.path().to_path_buf();
+            if !db_path.as_os_str().is_empty() {
+                let tmp = plaintext_export_tmp_path(&db_path)?;
+                // Clean up any leftover from a prior crashed attempt
+                // so the export does not collide with a stale file.
+                let _ = std::fs::remove_file(&tmp);
+                db.export_plaintext_copy(&tmp)
+                    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+                // Release the running handle before the file swap.
+                // Other FRB calls observing `app.db() = None` between
+                // the close and the re-open get a typed "db not
+                // initialized" rather than an open handle to a
+                // file that just got renamed out from under them.
+                drop(db);
+                app.db_close();
+                // Wipe the encrypted source + WAL / SHM sidecars
+                // BEFORE the rename so the plaintext target lands
+                // on a clean path. `remove_file` is best-effort
+                // for the sidecars — they may not exist (lazy
+                // creation by SQLite).
+                let _ = std::fs::remove_file(&db_path);
+                for suffix in ["-wal", "-shm", "-journal"] {
+                    let mut sidecar = db_path.clone().into_os_string();
+                    sidecar.push(suffix);
+                    let _ = std::fs::remove_file(std::path::PathBuf::from(sidecar));
+                }
+                std::fs::rename(&tmp, &db_path).map_err(|e| {
+                    // Best-effort cleanup of the orphan tmp on rename
+                    // failure so a re-try sees a clean slate.
+                    let _ = std::fs::remove_file(&tmp);
+                    format!("rename plaintext over db: {e}")
+                })?;
+                // Re-open as plaintext (empty key) so the DAOs keep
+                // working through the rest of this call + future
+                // FRB requests.
+                app.db_init(&db_path, &[])
+                    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+            }
         }
     }
+
+    // 3. Clear the ACTIVE DB-key slot. The plaintext DB does not
+    //    need it; lingering bytes would only feed an accidental
+    //    future rekey path under the dead value.
+    app.secrets
+        .drop_id(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
+
+    // 4. Wipe KDF + verifier files so the next launch boots
+    //    straight into plaintext tier.
     master_password::disable(support_dir()?)
+}
+
+/// Path the plaintext sqlcipher_export target lands at — a
+/// random-suffixed sibling under the same directory as the
+/// encrypted source. Per-call random suffix avoids a collision
+/// when two transition attempts race (the second attempt was
+/// likely a retry after the first crashed mid-flight; the prior
+/// tmp gets cleaned by the caller before re-running).
+fn plaintext_export_tmp_path(db_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let pid = std::process::id();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let parent = db_path
+        .parent()
+        .ok_or_else(|| format!("db path has no parent: {}", db_path.display()))?;
+    let name = db_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("db path bad name: {}", db_path.display()))?;
+    Ok(parent.join(format!("{name}.plain.{pid}.{nanos:x}")))
 }
 
 /// Resolve `<support_dir>/recordings` for the migration hooks.

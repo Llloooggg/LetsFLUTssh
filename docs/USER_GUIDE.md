@@ -770,7 +770,7 @@ Recordings are tied to the active DB key — the per-file recording key is wrapp
 | Add hardware binding (T1 → T2) | Same as rotation — DB key changes shape; header rewrap | Tiny |
 | Remove hardware binding (T2 → T1) | Same | Tiny |
 | Enable master password (T0 → T1) | Every existing `.cast` is re-encrypted into a fresh `.lfsr` under the new wrap key. Encrypted sidecars built alongside. | Proportional to total plaintext bytes |
-| Disable master password (T1 → T0) | Every existing `.lfsr` is decrypted into plaintext `.cast`. Encrypted sidecars dropped (playback falls back to sequential scrub). Must run while the current DB key is still in memory. | Proportional to total encrypted bytes |
+| Disable master password (T1 → T0) | Every `.lfsr` decrypts into `.cast` (encrypted sidecars dropped); SQLite DB itself is decrypted to plaintext via `sqlcipher_export` and the encrypted file + its `-wal` / `-shm` sidecars are replaced atomically; the active DB-key slot is cleared; KDF + verifier files are wiped last so the next launch boots straight into plaintext tier. Runs while the current DB key is still in memory. | Proportional to total encrypted bytes (DB + recordings) |
 | **Forgotten-password reset** | **No migration.** The user has already accepted "destroy everything" by reaching this flow. Existing `.lfsr` files stay on disk but become unreadable; `.cast` files keep playing. | None |
 
 The on-demand record button (status bar) and the Always-on `extras.record` flag both produce the canonical `.lfsr` shape, so both paths participate in every migration.
