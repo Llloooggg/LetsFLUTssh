@@ -66,8 +66,19 @@ class AppDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget body = Padding(padding: contentPadding, child: content);
+    // Both branches wrap in `Flexible` so the body honours the
+    // dialog's inherited height cap (Material `Dialog` clamps to
+    // viewport minus inset). The scrollable branch additionally
+    // routes overflow to a vertical scroll view; the non-
+    // scrollable branch leaves layout to the caller — which can
+    // place its own `Flexible` / `Expanded` inside [content] to
+    // let oversized children (e.g. the playback dialog's xterm
+    // panel) shrink under pressure instead of overflowing the
+    // dialog with the classic yellow / black stripe pattern.
     if (scrollable) {
       body = Flexible(child: SingleChildScrollView(child: body));
+    } else {
+      body = Flexible(fit: FlexFit.loose, child: body);
     }
 
     // Clamp requested [maxWidth] to the available screen width minus

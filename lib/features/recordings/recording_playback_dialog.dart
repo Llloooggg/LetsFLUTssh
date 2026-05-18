@@ -289,7 +289,10 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
           const SizedBox(height: AppSpacing.sm),
           _buildScrubRow(l10n),
           const SizedBox(height: AppSpacing.md),
-          _buildTerminal(h, fontSize),
+          // Terminal flexes so the dialog never overflows on
+          // short viewports — the recording's nominal row count
+          // is the *preferred* height, not a hard floor.
+          Flexible(fit: FlexFit.loose, child: _buildTerminal(h, fontSize)),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -318,6 +321,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         DropdownButton<double?>(
           value: _speed,
           items: [
+            const DropdownMenuItem(value: 0.5, child: Text('0.5×')),
             const DropdownMenuItem(value: 1.0, child: Text('1×')),
             const DropdownMenuItem(value: 2.0, child: Text('2×')),
             const DropdownMenuItem(value: 4.0, child: Text('4×')),

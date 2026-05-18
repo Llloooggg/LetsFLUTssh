@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/security/active_dbkey.dart';
 import '../../core/session/session.dart';
+import '../../core/session/session_recorder.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../src/rust/api/app.dart' as rust_secrets;
@@ -82,6 +83,25 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
 
   Future<void> _scan() async {
     final root = _recordingsRoot();
+    // Migrate any `.lfsr`-named plaintext recording written by
+    // a build where the Dart side picked the extension off
+    // `secretsHas(ACTIVE_DBKEY_SECRET_ID)` (true on the plaintext
+    // tier because the slot carries empty bytes there). The Rust
+    // helper renames every `.lfsr` whose first bytes are not the
+    // encrypted magic to `.cast` so the dispatcher routes them
+    // through the plaintext reader on the next list pass.
+    // Idempotent — a no-op once the sweep has run on this device.
+    try {
+      final renamed = await SessionRecorder.migrateMisnamedRecordings();
+      if (renamed > 0) {
+        AppLogger.instance.log(
+          'Migrated $renamed misnamed recordings to .cast',
+          name: 'Recording',
+        );
+      }
+    } catch (_) {
+      // The migration is best-effort; the list scan still runs.
+    }
     final list = <_RecordingEntry>[];
     try {
       final entries = await rust_recorder.recorderListRecordings(

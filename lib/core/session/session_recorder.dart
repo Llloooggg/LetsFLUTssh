@@ -4,11 +4,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
-import '../security/active_dbkey.dart' as rust_secrets_consts;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 
@@ -133,14 +131,18 @@ class SessionRecorder {
   }) async {
     try {
       final dirPath = await _sessionDirPath(sessionId);
-      // Active-slot presence determines wire format. `secretsHas` is
-      // a sync FRB lookup — single hashmap probe Rust-side.
-      final encrypted = rust_secrets.secretsHas(
-        id: rust_secrets_consts.kActiveDbKeySecretId,
-      );
-      final ext = encrypted ? 'lfsr' : 'cast';
       final isoTs = _isoTimestamp();
-      final path = p.join(dirPath, '$isoTs.$ext');
+      // Rust owns the file-extension decision so the on-disk shape
+      // matches the wire format the playback dispatcher routes off.
+      // Earlier the Dart side picked `.lfsr` based on `secretsHas`
+      // (true even on the plaintext tier because the slot carries
+      // empty bytes there), while the Rust register-time check used
+      // `!is_empty` — files ended up `.lfsr`-named with plaintext
+      // asciinema content and playback failed with "no active DB
+      // key". Now Dart hands the base path (no extension) and Rust
+      // appends `.lfsr` / `.cast` against the same predicate it
+      // uses for the encryption decision.
+      final basePath = p.join(dirPath, isoTs);
       // `recorderRegisterFromActive` mkdir's the parent + opens the
       // file at 0600 inside `lfs_core::recorder::register_with_io`,
       // so no Dart-side `File.create` / `hardenFilePerms` is needed.
@@ -151,11 +153,16 @@ class SessionRecorder {
       // key. When the active slot is empty (plaintext tier) the
       // recorder registers in plaintext-asciinema mode and the
       // file stays a valid asciinema document.
-      await rust_recorder.recorderRegisterFromActive(
+      final snapshot = await rust_recorder.recorderRegisterFromActive(
         id: handleId,
         sessionId: sessionId,
-        path: path,
+        basePath: basePath,
       );
+      // `snapshot.path` is the final on-disk path with the
+      // Rust-chosen extension. Override the local guess so the
+      // playback / listing surfaces see the same value.
+      final path = snapshot.path;
+      final encrypted = snapshot.encrypted;
       // Spawn the per-id worker before any enqueue arrives. The
       // worker owns the asciinema event ordering on disk.
       await rust_recorder.recorderQueueSpawn(id: handleId);
@@ -264,6 +271,43 @@ class SessionRecorder {
   static Future<String> _sessionDirPath(String sessionId) async {
     final base = await getApplicationSupportDirectory();
     return p.join(base.path, 'recordings', sessionId);
+  }
+
+  /// One-shot migration that fixes recordings written by builds
+  /// where the file extension came from the Dart-side
+  /// `secretsHas(ACTIVE_DBKEY_SECRET_ID)` check. On the plaintext
+  /// tier that slot held empty bytes — `secretsHas` returned true,
+  /// the file landed `.lfsr` but the Rust register-time
+  /// `!is_empty` check kept the recorder in plaintext-asciinema
+  /// mode. Playback then routed by extension to the encrypted
+  /// reader and surfaced `RecordingFormatException: no active DB
+  /// key — encrypted recording cannot be opened`.
+  ///
+  /// The Rust helper walks `<app_support>/recordings/` and renames
+  /// every `.lfsr` whose first four bytes are not the
+  /// [`lfs_core::recorder::LFR_MAGIC`] header. Idempotent: a
+  /// fresh-write `.lfsr` file with the magic is left alone.
+  /// Returns the count of files renamed so the caller can log it
+  /// once on startup; the recordings browser calls this before
+  /// the first list build.
+  static Future<int> migrateMisnamedRecordings() async {
+    try {
+      final base = await getApplicationSupportDirectory();
+      final root = p.join(base.path, 'recordings');
+      final renamed = await rust_recorder.recorderMigrateMisnamedFiles(
+        recordingsRoot: root,
+      );
+      return renamed;
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'recorder migrate sweep failed',
+        name: 'Recorder',
+        error: e,
+        stackTrace: st,
+        level: LogLevel.warn,
+      );
+      return 0;
+    }
   }
 
   /// Tail of the serialised dispatch chain. Each `_enqueueEvent`
