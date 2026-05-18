@@ -1225,11 +1225,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Save-only path lives behind the split-button chevron;
-        // open the popup then select the only entry ("Save").
-        await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Save').last);
+        // Stacked footer — tap the standalone Save button. Match a
+        // `Text` widget whose data is exactly "Save" so we don't hit
+        // the leading half of "Save & Connect".
+        await tester.tap(
+          find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+        );
         await tester.pumpAndSettle();
 
         // Save without connect — dialog closes but no connect callback
@@ -1339,11 +1340,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Save-only path lives behind the split-button chevron;
-      // open the popup then select the only entry ("Save").
-      await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save').last);
+      // Stacked footer — tap the standalone Save button. Match a
+      // `Text` widget whose data is exactly "Save" so we don't hit
+      // the leading half of "Save & Connect".
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+      );
       await tester.pumpAndSettle();
 
       // Dialog should close and onConnect should NOT be called.
@@ -1377,11 +1379,12 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
 
       // Tap Save
-      // Save-only path lives behind the split-button chevron;
-      // open the popup then select the only entry ("Save").
-      await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save').last);
+      // Stacked footer — tap the standalone Save button. Match a
+      // `Text` widget whose data is exactly "Save" so we don't hit
+      // the leading half of "Save & Connect".
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+      );
       await tester.pumpAndSettle();
 
       // Dialog should close
@@ -1609,11 +1612,12 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      // Save-only path lives behind the split-button chevron;
-      // open the popup then select the only entry ("Save").
-      await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save').last);
+      // Stacked footer — tap the standalone Save button. Match a
+      // `Text` widget whose data is exactly "Save" so we don't hit
+      // the leading half of "Save & Connect".
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+      );
       await tester.pumpAndSettle();
 
       expect(connected, isNull);

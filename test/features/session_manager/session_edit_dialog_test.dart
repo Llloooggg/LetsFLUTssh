@@ -114,15 +114,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// Footer split-button — "Save & Connect" is the visible primary
-  /// label; the chevron next to it opens a popup whose only entry
-  /// is the localized "Save" string (save-without-connect). This
-  /// helper exercises the save-only flow without depending on a
-  /// per-call test re-typing the popup mechanics.
+  /// Footer carries three stacked full-width buttons: Save & Connect
+  /// on top, Save below it, Cancel at the bottom. The save-only flow
+  /// taps the middle button directly — no popup mechanics anymore.
+  ///
+  /// `find.text('Save')` would also match the leading half of
+  /// "Save & Connect" via `findRichText`-style matching, so we
+  /// scope to a `Text` widget whose exact string equals `Save`.
   Future<void> tapSaveOnly(WidgetTester tester) async {
-    await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save').last);
+    final saveText = find.byWidgetPredicate(
+      (w) => w is Text && w.data == 'Save',
+    );
+    expect(saveText, findsWidgets, reason: 'stacked footer must expose Save');
+    await tester.tap(saveText.first);
     await tester.pumpAndSettle();
   }
 
@@ -165,24 +169,20 @@ void main() {
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets(
-      'New Connection footer has Cancel + Save & Connect split-button',
-      (tester) async {
-        await tester.pumpWidget(buildApp());
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+    testWidgets('New Connection footer stacks Save & Connect / Save / Cancel '
+        'full-width — three discrete buttons, no popup', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-        // Primary visible action — Save & Connect lives on the left
-        // half of the split button. The chevron next to it opens
-        // the popup with the "Save only" entry (not rendered until
-        // the user taps the arrow).
-        expect(find.text('Save & Connect'), findsOneWidget);
-        expect(find.text('Cancel'), findsOneWidget);
-        expect(find.byIcon(Icons.arrow_drop_down), findsWidgets);
-        // The "Save" popup entry is rendered lazily — absent until tapped.
-        expect(find.text('Save'), findsNothing);
-      },
-    );
+      // All three actions are visible at once. No chevron / popup
+      // — the previous compact split-button hid Save behind one
+      // and user feedback was that it felt demoted.
+      expect(find.text('Save & Connect'), findsOneWidget);
+      expect(find.text('Save'), findsWidgets);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
+    });
 
     testWidgets('validates required fields on submit', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -775,9 +775,7 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
     });
 
-    testWidgets('Save & Connect split-button rendered for edit mode', (
-      tester,
-    ) async {
+    testWidgets('stacked footer rendered for edit mode', (tester) async {
       final session = Session(
         label: 'test',
         server: const ServerAddress(host: 'h', user: 'u'),
@@ -786,10 +784,11 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Primary action visible; the save-only entry is one chevron
-      // tap away (covered by `tapSaveOnly` callers).
+      // Three stacked actions, no popup chevron.
       expect(find.text('Save & Connect'), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_drop_down), findsWidgets);
+      expect(find.text('Save'), findsWidgets);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
     });
 
     testWidgets('fields pre-populated from session', (tester) async {
@@ -891,27 +890,23 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets(
-      'Edit Connection footer has Cancel + Save & Connect split-button',
-      (tester) async {
-        final session = Session(
-          label: 'edit-me',
-          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-          auth: const SessionAuth(authType: AuthType.password),
-        );
-        await tester.pumpWidget(buildApp(session: session));
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+    testWidgets('Edit Connection footer stacks Save & Connect / Save / Cancel '
+        'full-width — three discrete buttons', (tester) async {
+      final session = Session(
+        label: 'edit-me',
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+        auth: const SessionAuth(authType: AuthType.password),
+      );
+      await tester.pumpWidget(buildApp(session: session));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
 
-        expect(find.text('Edit Connection'), findsOneWidget);
-        expect(find.text('Save & Connect'), findsOneWidget);
-        expect(find.text('Cancel'), findsOneWidget);
-        expect(find.byIcon(Icons.arrow_drop_down), findsWidgets);
-        // "Save" entry is inside the chevron popup — not in the tree
-        // until the user taps the arrow.
-        expect(find.text('Save'), findsNothing);
-      },
-    );
+      expect(find.text('Edit Connection'), findsOneWidget);
+      expect(find.text('Save & Connect'), findsOneWidget);
+      expect(find.text('Save'), findsWidgets);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
+    });
   });
 
   group('SessionEditDialog — edit key session preserves all key fields', () {

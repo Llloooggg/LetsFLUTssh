@@ -1219,24 +1219,52 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   // ── Footer ──
 
-  /// Cancel + split-button "Save & Connect ▾". Primary action stays
-  /// the connect-after-save path the user reaches for in the common
-  /// case; the chevron opens a popup with "Save only" for the
-  /// editing-without-testing flow (rename a label, swap a host).
-  /// Compacts the previous three-button row without losing either
-  /// action.
+  /// Three buttons stacked full-width: primary "Save & Connect" on top,
+  /// secondary "Save" below it, plain "Cancel" at the bottom. The
+  /// connect-after-save path is the common case so it owns the top
+  /// slot; rename-only / host-tweak edits land on Save without going
+  /// through a popup. Cancel reads as the lightweight escape — no
+  /// accent, no fill.
+  ///
+  /// The previous compact `Save & Connect ▾` split-button hid the
+  /// "Save only" action behind a chevron popup; user feedback was
+  /// that the popup made the save-without-connect path feel demoted
+  /// for what is a routine intent.
   Widget _buildFooter() {
     final l10n = S.of(context);
-    return AppDialogFooter(
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
-        _SaveAndConnectSplit(
-          primaryLabel: l10n.saveAndConnect,
-          saveOnlyLabel: l10n.save,
-          onSaveAndConnect: () => _save(connect: true),
-          onSaveOnly: _save,
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(border: AppTheme.borderTop),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: AppButton.primary(
+              label: l10n.saveAndConnect,
+              onTap: () => _save(connect: true),
+              fullWidth: true,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: AppButton.secondary(
+              label: l10n.save,
+              onTap: _save,
+              fullWidth: true,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: AppButton.cancel(
+              onTap: () => Navigator.of(context).pop(),
+              fullWidth: true,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1287,117 +1315,4 @@ class _SectionHeader extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Footer "Save & Connect ▾" split-button. Two visually glued tap
-/// regions painted at the accent colour: the wide left half fires
-/// the connect-after-save path the user reaches for in the common
-/// case; the narrow right chevron opens a popup whose only entry is
-/// "Save only" — the editing-without-testing flow (rename a label,
-/// swap a host). Replaces the previous three-button row without
-/// losing either action and without doubling the visible button
-/// count for the rare "save only" case.
-class _SaveAndConnectSplit extends StatelessWidget {
-  final String primaryLabel;
-  final String saveOnlyLabel;
-  final VoidCallback onSaveAndConnect;
-  final VoidCallback onSaveOnly;
-
-  const _SaveAndConnectSplit({
-    required this.primaryLabel,
-    required this.saveOnlyLabel,
-    required this.onSaveAndConnect,
-    required this.onSaveOnly,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = AppTheme.accent;
-    final fg = AppTheme.onAccent;
-    return Semantics(
-      button: true,
-      label: primaryLabel,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Primary action — wide left tap region.
-          HoverRegion(
-            cursor: SystemMouseCursors.click,
-            onTap: onSaveAndConnect,
-            builder: (hovered) => Container(
-              height: AppTheme.controlHeightXs,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: hovered ? _lighten(accent) : accent,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  bottomLeft: Radius.circular(4),
-                ),
-              ),
-              child: Text(
-                primaryLabel,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  fontWeight: FontWeight.w500,
-                  color: fg,
-                ),
-              ),
-            ),
-          ),
-          // Hair-thin divider so the two halves read as glued, not
-          // a single rectangle. `onAccent` at low alpha picks the
-          // separator out without breaking the accent-on-accent
-          // colour pair.
-          Container(
-            height: AppTheme.controlHeightXs,
-            width: 1,
-            color: fg.withValues(alpha: 0.25),
-          ),
-          // Chevron — opens the popup with the secondary action.
-          PopupMenuButton<int>(
-            tooltip: '',
-            popUpAnimationStyle: AnimationStyle.noAnimation,
-            offset: const Offset(0, AppTheme.controlHeightXs),
-            color: AppTheme.bg2,
-            shape: const RoundedRectangleBorder(
-              borderRadius: AppTheme.radiusMd,
-            ),
-            onSelected: (_) => onSaveOnly(),
-            itemBuilder: (_) => [
-              PopupMenuItem<int>(
-                value: 0,
-                child: Text(
-                  saveOnlyLabel,
-                  style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
-                ),
-              ),
-            ],
-            child: HoverRegion(
-              cursor: SystemMouseCursors.click,
-              builder: (hovered) => Container(
-                height: AppTheme.controlHeightXs,
-                width: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: hovered ? _lighten(accent) : accent,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(4),
-                    bottomRight: Radius.circular(4),
-                  ),
-                ),
-                child: Icon(Icons.arrow_drop_down, size: 18, color: fg),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Mix in 8% white — same lift `AppButton._lighten` applies for
-  /// the primary hover state. Inlined here so the split-button does
-  /// not need to import the private helper from the button class.
-  static Color _lighten(Color c) =>
-      Color.lerp(c, const Color(0xFFFFFFFF), 0.08)!;
 }
