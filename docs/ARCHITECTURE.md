@@ -2835,8 +2835,8 @@ Child-table portability — every child row is keyed by its parent's id
 | Table | Wire fields | Secret discipline |
 |---|---|---|
 | `ssh_key_certificates` | key_id, certificate, valid_after, valid_before, principals, critical_options, fingerprint | Cert blob is the public half of a CA-signed pair; safe to travel verbatim. Apply drops the row with a warning when the parent key didn't land. |
-| `webdav_session_details` | session_id, base_url, username, auth_method, self_signed_fingerprint, credential_secret_id | The password / bearer token lives on the local `password` column (encrypted at rest by SQLCipher), but the archive / sync codec ships only the opaque pointer (`session.webdav.<session_id>`) rather than the bytes. The receiving device finds the SecretStore slot empty and surfaces "re-enter password" on first connect. |
-| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes persist locally on the `secret_access_key` column (SQLCipher-encrypted at rest) but stay off the wire — the codec ships the opaque pointer. Same opaque-pointer discipline as WebDAV. |
+| `webdav_session_details` | session_id, base_url, username, auth_method, trusted_cert_pem, insecure_skip_verify, credential_secret_id | The password / bearer token lives on the local `password` column (encrypted at rest by SQLCipher), but the archive / sync codec ships only the opaque pointer (`session.webdav.<session_id>`) rather than the bytes. The receiving device finds the SecretStore slot empty and surfaces "re-enter password" on first connect. `trusted_cert_pem` (PEM blob, optional) and `insecure_skip_verify` (boolean) flow through verbatim — the receiver inherits the same TLS posture. |
+| `s3_session_details` | session_id, access_key_id, region, endpoint, path_style, default_bucket, default_prefix, trusted_cert_pem, insecure_skip_verify, secret_access_key_secret_id | Access key id is the public half of the AWS credential and rides verbatim; the secret access key bytes persist locally on the `secret_access_key` column (SQLCipher-encrypted at rest) but stay off the wire — the codec ships the opaque pointer. `trusted_cert_pem` / `insecure_skip_verify` mirror the WebDAV columns so both transports share one self-signed-endpoint surface. |
 | `sftp_bookmarks` | id, session_id, remote_path, label, created_at | Full round-trip; tombstone-aware. |
 | `port_forward_rules` | id, session_id, kind, bind_host, bind_port, remote_host, remote_port, description, enabled, sort_order, created_at_ms | Full round-trip. |
 
@@ -3046,16 +3046,27 @@ Per-shell terminal recorder that captures the user-visible output stream + input
 
 #### Lifecycle
 
-`SessionRecorder` is opened by `TerminalPane._maybeOpenRecorder` when the session has opted in via `Session.extras['record'] == true`. The recorder is handed to `ShellHelper.openShell` as an optional parameter; the helper tees stdout/stderr bytes (output) and `terminal.onOutput` bytes (input) into the recorder before the normal write paths run. `ShellConnection.close` calls `recorder.close()` after the shell tears down so any final tail bytes (banner, "logout") still land before the file is sealed.
+Two entry points open a recorder, both routed through the same `SessionRecorder.open`:
+
+- **Auto-open at connect** — `TerminalPane._maybeOpenRecorder` consults `Session.extras['record']` and, when true, builds the recorder and hands it to `ShellHelper.openShell` as the `recorder:` parameter.
+- **Toolbar toggle mid-session** — the connection bar's record button (`workspace_view._recordButton`) looks the focused pane up in `PaneRecordingRegistry` and calls its `toggle`. The pane's handler builds the recorder through the same `_openRecorder` helper (no extras check) and swaps it onto the live `ShellConnection` via `setRecorder`.
+
+`ShellHelper.openShell` reads `shellConn.recorder` dynamically on every chunk (late-bound capture, not a closure-captured parameter), so a recorder swap mid-stream takes effect on the next byte without restarting the shell. `ShellConnection.setRecorder` closes the previous recorder (sealing its file) before adopting the new one, so a Stop tap finalises the current `.lfsr` / `.cast` in the recordings browser even while the shell stays live.
+
+`ShellConnection.close` calls `recorder.close()` after the shell tears down so any final tail bytes (banner, "logout") still land before the file is sealed.
 
 ```
 TerminalPane
-  └── reads Session.extras['record']
-       └── SessionRecorder.open(sessionId, label, w, h, dbKey)
-            └── ShellHelper.openShell(... recorder: rec)
-                 ├── stdout/stderr.listen → terminal.write + recorder.recordOutput
-                 └── terminal.onOutput   → shell.write   + recorder.recordInput
+  ├── auto: reads Session.extras['record']
+  │    └── SessionRecorder.open(sessionId, label, w, h)
+  │         └── ShellHelper.openShell(... recorder: rec)
+  │              ├── stdout/stderr.listen → terminal.write + shellConn.recorder?.recordOutput
+  │              └── terminal.onOutput   → shell.write   + shellConn.recorder?.recordInput
+  └── on-demand: PaneRecordingRegistry.toggle
+       └── SessionRecorder.open(...) + ShellConnection.setRecorder(rec | null)
 ```
+
+`PaneRecordingRegistry` is a process-wide singleton keyed by paneId. Each `TerminalPaneState` registers its `PaneRecordingHandle` (a `ValueListenable<bool> isRecording` + a `Future<void> toggle()` + a `canRecord` gate) in `initState` and removes it in `dispose`. The connection bar reads the focused pane id from `focusedPaneProvider` (a per-tab Riverpod `NotifierProvider.family<String?, String>` that `TerminalTabState` writes on every `onPaneFocused` callback) so the button always operates on whichever pane the user just clicked in a split tab. Unsaved quick-connect sessions report `canRecord = false` — recordings need a stable session folder to land in — and the button hides for them.
 
 #### Why per-shell, not per-connection
 
@@ -3077,17 +3088,18 @@ asciinema is the de-facto interop format — `asciinema play file.cast` plays it
 
 #### Encryption envelope
 
-When the running [security tier](#36-security--encryption-coresecurity) carries an in-memory DB encryption key, the recorder derives a recording-specific 32-byte key via `HKDF-SHA-256(prk = dbKey, info = "letsflutssh-recording-v1", salt = empty)`. The HKDF context tag keeps the recording key cryptographically separate from the DB key — a recording leak does not compromise the DB and vice versa.
+When the running [security tier](#36-security--encryption-coresecurity) carries an in-memory DB encryption key, the recorder mints a **random 32-byte per-file recording key**, wraps it under the DB key in the file header, and uses the recording key for every frame's GCM tag. The recording key is **not** derived from the DB key — random per file, wrapped in place — so tier transitions only rotate the wrap, not the body. Per-recording isolation also means a compromise of one file's frames does not unlock its siblings.
 
-File layout:
+File layout (LFR1 version 0x01):
 
 ```
-[LFR1 magic (4)] [version (1)]
+[LFR1 magic (4)] [version (1) = 0x01]
+[wrap_nonce (12)] [wrapped_recording_key (32 ct + 16 GCM tag)]    ← 65-byte header
 loop:
   [plaintext-len (4 LE)] [nonce (12)] [ciphertext (len)] [GCM tag (16)]
 ```
 
-Each plaintext chunk is one asciinema JSON-Lines record (header on first chunk, then `[t_seconds, "o"|"i", "data"]` events). Per-event GCM frames mean a truncated tail (crashed app, full disk) loses only the trailing event, not the whole timeline. Random nonces per frame plus the same authenticated key give standard GCM guarantees per event.
+Wrap: `AES-256-GCM(key = dbKey, nonce = wrap_nonce, plaintext = recording_key, aad = "letsflutssh-recording-keywrap-v1")`. Each plaintext chunk is one asciinema JSON-Lines record (header on first chunk, then `[t_seconds, "o"|"i", "data"]` events). Per-event GCM frames bind `frame_index_u64_le` as AAD so an attacker who swaps two frames byte-for-byte breaks the tag at both swapped positions. Per-event GCM also means a truncated tail (crashed app, full disk) loses only the trailing event, not the whole timeline.
 
 #### Sidecar index (`<recording>.idx`)
 
@@ -3111,7 +3123,9 @@ loop:
 
 Each encrypted block authenticates one 12-byte plaintext entry under AAD = `entry_seq_u64_le` (0 for the first entry, 1 for the second, …). The reader recomputes the sequence number from block position so a disk-side swap of two blocks invalidates the GCM tag at both swapped positions — same posture as the main-file per-frame AAD chain.
 
-The sidecar key is HKDF-SHA-256 derived off the recorder key with a distinct info tag: `letsflutssh-recording-idx-v1`. Chaining off the recorder key (not the DB key) keeps register-time self-sufficient — the actor opens its sidecar at construction without a second secrets-store lookup — and the distinct info tag keeps the index key cryptographically separate from both the recorder key and the DB key. A leak of one key does not compromise the other.
+The sidecar key is HKDF-SHA-256 derived off the per-file recording key with a distinct info tag: `letsflutssh-recording-idx-v1`. Chaining off the recording key (not the DB key) keeps register-time self-sufficient — the actor opens its sidecar at construction without a second secrets-store lookup — and the distinct info tag keeps the index key cryptographically separate from both the recording key and the DB key. A leak of one key does not compromise the other.
+
+Because the recording key is stable across tier transitions (only the header wrap rotates, not the key), the sidecar key is also stable across tier transitions. `migrate::rewrap_all_headers` does NOT touch the sidecar — same chain, same key, same on-disk bytes.
 
 `u32` milliseconds tops out at ~49 days per recording — far past any plausible single file. Keeping the timestamp narrow (`u32` vs `u64`) halves the per-entry size on the plaintext path, which directly cuts the binary-search range a typical seek walks.
 
@@ -3123,9 +3137,30 @@ Both writes go through `BufWriter` with `flush()` after each event so the durabi
 
 #### Sidecar migration: legacy recordings stay playable
 
-Recordings written before this build do NOT have a `<file>.idx` sibling. The reader's seek path returns `None` for any missing / empty sidecar; the playback dialog catches the null and disables the scrub bar with a tooltip explaining why (capability-ladder rung 4: render disabled with a reason rather than ship a weaker path that pretends to scrub). Speed dropdown (`1×` / `2×` / `4×` / instant) keeps working unchanged — the existing sequential playback path is independent of the sidecar.
+Recordings written before this build do NOT have a `<file>.idx` sibling. The reader's seek path returns `None` for any missing / empty sidecar; the playback dialog catches the null and disables the scrub bar with a tooltip explaining why (capability-ladder rung 4: render disabled with a reason rather than ship a weaker path that pretends to scrub). Speed dropdown (`0.5×` / `1×` / `2×` / `4×` / instant) keeps working unchanged — the existing sequential playback path is independent of the sidecar.
 
 The FRB seek entry point is `recorder_seek(recording_path, target_ms, encrypted)`; the playback-start variant `recorder_open_for_playback_at(path, start_offset, start_frame_index, sink)` resumes the iter from a sidecar-supplied frame boundary. Both live under `lfs_core::recorder::index_sidecar` (writer + reader + binary search) and `lfs_frb::api::recorder` (FRB adapter + HKDF chain).
+
+#### Tier-transition migration (`lfs_core::recorder::migrate`)
+
+Every DB-key change (`T0 ↔ T1`, master-password rotation, `T1 ↔ T2` hardware bind / unbind) must keep existing recordings playable — the per-file recording key is wrapped under the DB key in the file header, so a stale wrap leaves the file unreadable even though the body is intact. Three migration operations cover the matrix:
+
+| Transition | Operation | What runs |
+|---|---|---|
+| `T1 → T1'` (password rotation), `T1 → T2`, `T2 → T1`, `T2 → T2'` | `rewrap_all_headers(root, old_db, new_db)` | Walk `.lfsr`, unwrap each 65-byte header with `old_db`, re-wrap with `new_db`, atomic `tmp + fsync + rename`. Body + sidecar untouched. O(num_files × 64 bytes) regardless of recording length. |
+| `T0 → T1` (master-password enable) | `convert_all_cast_to_lfsr(root, new_db)` | Walk `.cast`, mint fresh per-file recording key, write fresh v1 `.lfsr` (header + GCM-framed body), build fresh encrypted sidecar, atomic rename. Source `.cast` removed after `fsync`. |
+| `T1 → T0` (master-password disable) | `convert_all_lfsr_to_cast(root, current_db)` | Walk `.lfsr`, decrypt each frame under the wrapped recording key, write plaintext `.cast` (one JSON-Lines record per frame), atomic rename. Encrypted sidecar dropped — `.cast` playback re-discovers offsets sequentially. Must run BEFORE the DB key leaves memory. |
+
+**Hook placement** (`lfs_frb::api`):
+
+- `db_rekey_from_secret(secret_id)` — runs `rewrap_all_headers(active, staged)` BEFORE `PRAGMA rekey`. On migration failure the function aborts before touching SQLite or the secret slots; the caller retries with the same `secret_id` without observing a partially-migrated state.
+- `master_password_enable_to_secret(...)` — runs `convert_all_cast_to_lfsr(staged)` AFTER staging the new key in `secret_id` (the slot the next `db_rekey_from_secret` will read from).
+- `master_password_disable()` — runs `convert_all_lfsr_to_cast(active)` BEFORE wiping the KDF + verifier files. The DB key still lives in `ACTIVE_DBKEY_SECRET_ID` at this point, which is the invariant the helper needs.
+- **Forgotten-password reset** (`master_password_reset`) — does NOT run any migration. The user has already accepted "destroy everything" by reaching that flow; recordings stay encrypted under a key that no longer exists and become unreadable, matching the rest of the reset's posture.
+
+**Atomicity per file.** Each helper writes the new shape to `<file>.tmp.<random>` in the same directory, `fsync`s, then `rename`s over the original. A crash mid-walk leaves either the old or the new file at every step — never a torn header or half-decrypted body. The walker is also idempotent: re-running `rewrap_all_headers(old, new)` after a clean run is a no-op because the post-rewrap files unwrap under `new`, not `old`.
+
+**No global lock.** The migration walks while the recorder registry may still be appending frames to live recordings. Currently-recording files are not in the migration scope (a fresh recording opened post-tier-change picks up the new DB key on its own header build); files already on disk are atomically swapped under the file system's `rename` semantics. The recorder file handle does not cross between the migration's `read` and the production writer's `write` — a stray open handle to the old inode keeps working until close, at which point the new inode (linked at the same path) is what the next reader opens.
 
 #### Plaintext mode
 
@@ -3845,7 +3880,7 @@ class FilePaneController extends ChangeNotifier {
 | `session_panel_controller.dart` | `SessionPanelController` | Headless `ChangeNotifier` holding the panel's selection set, focused session / folder, marquee progress, and copied-session clipboard. Same pattern as [`FilePaneController`](#filepanecontroller) |
 | `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected). State + lifecycle + MarqueeMixin overrides + tree helpers in this file; drag & drop, pointer handlers, and the per-row build chain in `session_tree_view_internals.dart`. |
 | `session_tree_view_internals.dart` | — (`extension _Internals`) | Drag & drop (`_canAcceptDrop` / `_canAcceptBulkDrop` / `_handleDrop`), pointer handlers (`_onPointerDown` / `_onPointerMove` / `_clampedIndex` / `_onPointerUp`), and the per-row build chain (`_buildDragTarget` / `_buildTreeRow` / `_buildDragFeedback` / `_buildFolderContent` / `_onFolderTap` / `_buildFolderTile` / `_onSessionTap` / `_buildSessionTile`). |
-| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. **Single-form layout, no tabs** — the dialog body is one vertical `SingleChildScrollView` with three section composers (`Identity` block at the top — name + kind picker; `Connection` section with the per-protocol transport block; `Authentication` section with the per-protocol credential block; `Advanced` collapsible holding tags + port forwarding + record-session). The kind picker is the single lever and is visible from every scroll position — flipping it reshapes the Connection / Authentication sections in place rather than swapping hidden tabs. Per-section composers live in part siblings: `session_edit_dialog_connection.dart` (extension `_ConnectionSection` — `_buildIdentityBlock`, `_buildConnectionBlock`, the kind picker, and the per-protocol SSH / WebDAV / S3 sub-builders), `session_edit_dialog_auth.dart` (extension `_AuthSection` — `_buildAuthBlock` dispatch + `_buildSshAuthSection` / `_buildWebDavAuthSection` / `_buildS3AuthSection`; SSH = ssh-agent toggle + password / key store / inline-PEM / passphrase; WebDAV = method chips + credential field whose label flips to "BEARER TOKEN *" for bearer + self-signed-cert fingerprint pin; S3 = single `SECRET ACCESS KEY *` field; the "Key from manager" picker renders each row's backend badge via the shared `HardwareKeyBadge` / `Pkcs11Badge` / `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` widgets), `session_edit_dialog_options.dart` (extension `_AdvancedSection` — `_buildAdvancedBlock` rendered inside an `AnimatedSize` expander; tags universally — applicable to every kind; port forwarding row + Manage button opening `SessionForwardsDialog` for SSH only; record-session toggle for SSH only because WebDAV / S3 transports never open a shell to record). Every required field carries a `*` suffix on its FieldLabel for parity across protocols (`hostRequired` / `usernameRequired` ARB pattern plus programmatic ` *` append on WebDAV/S3-specific labels). `_save` rejects an invalid form with a `Toast.show(level: warning)` ("Fill the required fields marked *") plus the form-level inline-error path (red border + error text per `StyledFormField`), so a stray empty required field surfaces both globally and locally without needing tab routing. The disabled ssh-agent toggle on mobile binds a no-op `onTap` so a tap on it is absorbed at the HoverRegion layer instead of bubbling through to the dialog's `barrierDismissible` and closing the form. Selecting "Use system ssh-agent" stamps `AuthType.agent` on the session row and clears the per-row key / password slots — the connect path reads `SshAuth.useAgent` (set by `Session.toSSHConfig` from `authType`) and short-circuits to `SshAuthAgent` inside `ConnectionsNotifier._authFromConfig` before the auth composer runs. Mobile builds keep the toggle visible but disabled — the agent endpoint is desktop-only because Android / iOS have no system ssh-agent equivalent to dial. |
+| `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. **Single-form layout, no tabs** — the dialog body is one vertical `SingleChildScrollView` with three section composers (`Identity` block at the top — name + kind picker; `Connection` section with the per-protocol transport block; `Authentication` section with the per-protocol credential block; `More options` collapsible holding tags + ProxyJump + port-forwarding row + record-session toggle). The kind picker is the single lever and is visible from every scroll position — flipping it reshapes the Connection / Authentication sections in place rather than swapping hidden tabs. **The SSH connect surface is one smart-paste field** (`_connectCtrl`, labelled `CONNECT TO`) that accepts `[user@]host[:port]`; on every edit a listener parses the text through `rust_sessions.sessionsParseSshTarget` (Rust `lfs_core::sessions::parse_ssh_target`) and writes the result into `_hostCtrl` / `_portCtrl` / `_userCtrl` so the existing save path and Rust-side validators keep reading the same tuple. Parse failures leave the previous good values in place (mid-typing edge case); the field's validator surfaces `connectStringInvalid` ("Invalid format — expected user@host:port") on Save, plus a separate `required` verdict when the parser tolerates a bare host but no user prefix is present. Per-section composers live in part siblings: `session_edit_dialog_connection.dart` (extension `_ConnectionSection` — `_buildIdentityBlock`, `_buildConnectionBlock`, the kind picker, and the per-protocol SSH / WebDAV / S3 sub-builders; the SSH branch is just the smart-paste field — ProxyJump moved to More options), `session_edit_dialog_auth.dart` (extension `_AuthSection` — `_buildAuthBlock` dispatch + `_buildSshAuthSection` / `_buildWebDavAuthSection` / `_buildS3AuthSection`; SSH = ssh-agent toggle + password / key store / inline-PEM / passphrase; WebDAV = method chips + credential field whose label flips to "BEARER TOKEN *" for bearer + self-signed-cert fingerprint pin; S3 = single `SECRET ACCESS KEY *` field; the "Key from manager" picker renders each row's backend badge via the shared `HardwareKeyBadge` / `Pkcs11Badge` / `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` widgets), `session_edit_dialog_options.dart` (extension `_AdvancedSection` — `_buildAdvancedBlock` rendered inside an `AnimatedSize` expander; tags universally — applicable to every kind; ProxyJump editor + port-forwarding row + Manage button opening `SessionForwardsDialog` + record-session toggle for SSH only because WebDAV / S3 transports never open a shell to record). The smart-paste validator collapses the old per-field SSH validators (host required, port range, user required) into one verdict; WebDAV / S3 keep their per-field `*`-suffixed labels because those transport shapes don't compose into a single string. `_save` rejects an invalid form with a `Toast.show(level: warning)` ("Fill the required fields marked *") plus the form-level inline-error path (red border + error text per `StyledFormField`), so a stray empty required field surfaces both globally and locally without needing tab routing. The disabled ssh-agent toggle on mobile binds a no-op `onTap` so a tap on it is absorbed at the HoverRegion layer instead of bubbling through to the dialog's `barrierDismissible` and closing the form. Selecting "Use system ssh-agent" stamps `AuthType.agent` on the session row and clears the per-row key / password slots — the connect path reads `SshAuth.useAgent` (set by `Session.toSSHConfig` from `authType`) and short-circuits to `SshAuthAgent` inside `ConnectionsNotifier._authFromConfig` before the auth composer runs. Mobile builds keep the toggle visible but disabled — the agent endpoint is desktop-only because Android / iOS have no system ssh-agent equivalent to dial. |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionsNotifier. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link). The bottom badge switches between a neutral "No passwords in QR" info and an orange warning (`qrContainsCredentialsWarning`) depending on the `containsCredentials` flag the caller passes — so the screen doesn't claim there are no passwords when the user enabled `includePasswords` / `includeManagerKeys` in the preceding export dialog |

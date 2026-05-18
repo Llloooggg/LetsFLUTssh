@@ -48,9 +48,9 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - **Sidebar → "+"** or `Ctrl+N` → Session edit dialog.
 - **Single-form layout, no tabs.** The dialog scrolls vertically through three sections — every required field is on the same page, so flipping the kind picker reshapes the rest of the form in place rather than swapping hidden tabs.
 - **Identity** (top of form, no header): name + protocol picker (SSH / WebDAV / S3). The picker is the single lever — everything below reshapes off the active kind.
-- **Connection section** ([§3 — see protocol notes](#3-authentication)): per-protocol transport fields — SSH host/port/user/[ProxyJump](#7-proxyjump-bastion-chains); WebDAV base URL + username; S3 access key id / region / endpoint / addressing / default bucket / prefix.
-- **Authentication section** ([§3 Authentication](#3-authentication)): per-protocol credential block — SSH ssh-agent toggle + password / key store / inline-PEM / passphrase; WebDAV method chips (basic / digest / bearer) + credential field whose label flips to "Bearer token" for bearer method + self-signed-cert fingerprint pin; S3 secret access key.
-- **Advanced section** (collapsible, ▶ when collapsed, ▼ when expanded; collapsed by default): tags (universal — any kind), [port forwarding](#6-port-forwarding) (SSH only — "N port-forward rules" row with a Manage button that opens a sub-dialog), [Record session](#9-session-recording--playback) (SSH only — WebDAV / S3 sessions never open a shell).
+- **Connection section** ([§3 — see protocol notes](#3-authentication)): per-protocol transport fields — SSH uses a single smart-paste **Connect to** field that accepts `[user@]host[:port]` (`root@example.com:22`, bare IPv6 `[::1]:22`, port 22 implicit); the dialog parses it through `lfs_core::sessions::parse_ssh_target` and splits the result across the host / port / user storage slots. WebDAV exposes base URL + username; S3 exposes access key id / region / endpoint / addressing / default bucket / prefix.
+- **Authentication section** ([§3 Authentication](#3-authentication)): per-protocol credential block — SSH ssh-agent toggle + password / key store / inline-PEM / passphrase; WebDAV method chips (basic / digest / bearer) + credential field whose label flips to "Bearer token" for bearer method; S3 secret access key. Trusted-cert PEM + "accept any certificate" toggle live inside the More options expander for both WebDAV and S3 — niche surfaces a public-CA endpoint never needs.
+- **More options section** (collapsible, ▶ when collapsed, ▼ when expanded; collapsed by default): tags (universal — any kind) plus the per-kind niche knobs the default form folds out of sight — SSH carries [ProxyJump](#7-proxyjump-bastion-chains), [port forwarding](#6-port-forwarding) ("N port-forward rules" row with a Manage button that opens a sub-dialog), and [Record session](#9-session-recording--playback) (WebDAV / S3 sessions never open a shell, so the toggle hides for those kinds).
 - **Required fields** carry a `*` suffix in their label. The Save button rejects an incomplete form, paints the offending fields red (`StyledFormField` errorBorder), and surfaces a "Fill the required fields marked *" toast in the warning tint.
 - **Footer buttons:** Cancel / Save / Save & Connect.
 
@@ -89,7 +89,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 
 ## 3. Authentication
 
-The Auth tab in the session edit dialog supports five modes; you fill in the parts that apply.
+The Auth section in the session edit dialog supports five modes; you fill in the parts that apply.
 
 ### Password
 
@@ -114,8 +114,8 @@ The Auth tab in the session edit dialog supports five modes; you fill in the par
 
 ### System ssh-agent
 
-- "Use system ssh-agent" toggle at the top of the Auth tab. Defers every signature to a running ssh-agent on this machine — `$SSH_AUTH_SOCK` on Linux / macOS, the OpenSSH named pipe `\\.\pipe\openssh-ssh-agent` (or Pageant) on Windows.
-- No key / passphrase / password slot has to be filled — the agent owns the credential. Selecting the toggle collapses the rest of the Auth tab.
+- "Use system ssh-agent" toggle at the top of the Auth section. Defers every signature to a running ssh-agent on this machine — `$SSH_AUTH_SOCK` on Linux / macOS, the OpenSSH named pipe `\\.\pipe\openssh-ssh-agent` (or Pageant) on Windows.
+- No key / passphrase / password slot has to be filled — the agent owns the credential. Selecting the toggle collapses the rest of the Auth section.
 - Useful if you already keep your keys in `gpg-agent`, Pageant, KeePassXC's SSH-agent integration, or a system ssh-agent, and you don't want a second copy living inside the app.
 - Desktop-only — Android / iOS have no system ssh-agent equivalent to dial, so the toggle renders disabled with a tooltip explaining why. This is distinct from the **outgoing** agent endpoint the app exposes for other tools (see [§10b](#10b-using-hardware-bound-keys-outside-the-app)) — this toggle makes the app a **client** of the existing agent, not a server.
 
@@ -130,7 +130,7 @@ The Auth tab in the session edit dialog supports five modes; you fill in the par
 ### Encrypted PEM detection
 
 - Detection is automatic at import time. The auth chain handles legacy PKCS#1 (`Proc-Type: 4,ENCRYPTED` + `DEK-Info` headers), PKCS#8 encrypted (`-----BEGIN ENCRYPTED PRIVATE KEY-----`), and modern OpenSSH KDF-encrypted (`-----BEGIN OPENSSH PRIVATE KEY-----` with a non-`none` KDF in the binary frame) uniformly.
-- If the key is encrypted and you didn't supply a passphrase up front, Tools → SSH Keys / Session edit → Auth tab prompts for one before saving. On connect the same prompt fires for any key whose passphrase is not stored.
+- If the key is encrypted and you didn't supply a passphrase up front, Tools → SSH Keys / Session edit → Auth section prompts for one before saving. On connect the same prompt fires for any key whose passphrase is not stored.
 
 ### Hardware key (FIDO2 `sk-*`)
 
@@ -143,7 +143,7 @@ OpenSSH supports `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openss
    - `ssh-keygen -t ed25519-sk -O resident -O application=ssh: -f ~/.ssh/id_ed25519_sk`
    - For PIN-required (user verification): add `-O verify-required`.
 2. Copy the matching `~/.ssh/id_ed25519_sk.pub` to the server's `~/.ssh/authorized_keys`.
-3. In the app: **Tools → SSH Keys → Import hardware key (sk-*)**. Pick the private file (`id_ed25519_sk`, not `.pub`). The row shows the "Hardware-bound (FIDO2)" badge once imported.
+3. In the app: **Tools → SSH Keys → + Add → Import hardware key (sk-*)**. Pick the private file (`id_ed25519_sk`, not `.pub`). The row shows the "Hardware-bound (FIDO2)" badge once imported.
 4. Reference the key from a session's **Auth → Key from manager** drop-down.
 5. On connect:
    - **Windows** — the standard Windows Hello / security-key prompt opens. Tap the metal contact when the device asks; type the PIN when prompted; the OS handles everything.
@@ -200,7 +200,7 @@ The private key never leaves the token; every connect-time signature routes thro
    - **Windows** — vendor installer (JaCarta Unified Client, Rutoken Driver, SafeNet Authentication Client, YubiKey Manager + PIV Tool, OpenSC for OpenPGP card / eID).
    - **macOS** — `brew install opensc` or vendor `.pkg`. The macOS hardened-runtime may block unsigned vendor `.dylib`s; if the picker reports "module did not initialise" right after install, open **System Settings → Privacy & Security**, scroll down, click **Allow** next to the blocked library, then re-try.
 2. Plug the token / insert the smart card.
-3. In the app: **Tools → SSH Keys → Add smart-card / token key**. The wizard's first step shows every well-known vendor library it found on disk; pick one (or use **Custom...** to browse for a vendor library at a non-standard path). Each row carries a status dot — **green** = the module loaded and a token is present, **amber** = module loaded but no token in any reader, **red** = the library failed to initialise (vendor driver missing / blocked).
+3. In the app: **Tools → SSH Keys → + Add → Add smart-card / token key**. The wizard's first step shows every well-known vendor library it found on disk; pick one (or use **Custom...** to browse for a vendor library at a non-standard path). Each row carries a status dot — **green** = the module loaded and a token is present, **amber** = module loaded but no token in any reader, **red** = the library failed to initialise (vendor driver missing / blocked).
 4. Step two lists tokens present in the chosen module. The row shows the manufacturer, model, serial number, and any warnings (PIN-final-try, PIN-locked). Tokens with a built-in PIN pad show "(PIN pad on device)" instead of asking for a PIN here.
 5. Step three asks for the PIN (skipped for PIN-pad tokens and for tokens that do not require login). Wrong PINs surface the remaining-tries counter the token reports; **don't keep trying** when "1 try left" appears — the next failure locks the card and recovery requires the SO-PIN / PUK from your administrator.
 6. Step four lists every SSH-usable key on the token (RSA, ECDSA P-256 / P-384 / P-521, Ed25519). GOST-only keys show disabled with the "GOST cannot be used with SSH" reason. Pick the row you want and confirm.
@@ -231,7 +231,7 @@ On macOS (Apple Silicon or T2 Intel) and iOS, LetsFLUTssh can generate SSH keys 
 
 #### Generating a key
 
-1. **Tools → SSH Keys → Add hardware-bound key** (the row is visible only on macOS and iOS — Linux / Windows / Android hide it).
+1. **Tools → SSH Keys → + Add → Add hardware-bound key** (the entry is visible only on macOS and iOS — Linux / Windows / Android hide it).
 2. The wizard probes the chip. On unsigned / ad-hoc-signed dev builds the probe surfaces "App must be code-signed to use the Secure Enclave" — see the "Self-build users" note below.
 3. Pick a label and an auth policy:
    - **Require Touch ID / Face ID** — strongest binding; re-enrolment invalidates the key.
@@ -274,7 +274,7 @@ On Windows 10 1607+ with Windows Hello configured, LetsFLUTssh can generate SSH 
 
 #### Generating a key
 
-1. **Tools → SSH Keys → Windows Hello SSH key** (the row is visible only on Windows — macOS / Linux / Android hide it).
+1. **Tools → SSH Keys → + Add → Windows Hello SSH key** (the entry is visible only on Windows — macOS / Linux / Android hide it).
 2. The wizard probes the Microsoft Platform Crypto Provider. On hosts without Windows Hello configured the probe surfaces "Configure Windows Hello first in Settings -> Sign-in options" — open the Settings app, set up a PIN as the minimum baseline, and re-run the wizard.
 3. Pick a label and an algorithm:
    - **ECDSA P-256** — preferred default; smallest signature, widest TPM support.
@@ -335,17 +335,17 @@ Pick the wizard that matches your security ceremony:
    ```
    The `newgrp` step picks up the new group membership in the current shell without a logout/login cycle.
 4. Verify the chip responds: `tpm2_getrandom 8` should print 8 random bytes.
-5. Open **Tools → SSH Keys → Generate TPM-backed SSH key**.
+5. Open **Tools → SSH Keys → + Add → Generate TPM-backed SSH key**.
 
 #### Setup — Windows
 
 1. The TPM 2.0 path uses the same Microsoft Platform Crypto Provider as the Windows Hello wizard. No extra install — the provider ships with Windows 10 1607+.
 2. Verify TPM is enabled in firmware: open **tpm.msc**; the "TPM Manufacturer Information" pane should show a vendor + version (2.0). If it's missing, enable "TPM" / "fTPM" / "PTT" in your firmware setup (BIOS/UEFI).
-3. Open **Tools → SSH Keys → Generate TPM-backed SSH key**.
+3. Open **Tools → SSH Keys → + Add → Generate TPM-backed SSH key**.
 
 #### Generating a key
 
-1. **Tools → SSH Keys → Generate TPM-backed SSH key** (the row is visible on Linux + Windows; macOS hides it because the Apple Secure Enclave path covers the same security niche, and mobile platforms have no compatible TPM surface).
+1. **Tools → SSH Keys → + Add → Generate TPM-backed SSH key** (the entry is visible on Linux + Windows; macOS hides it because the Apple Secure Enclave path covers the same security niche, and mobile platforms have no compatible TPM surface).
 2. The wizard probes the chip. Disabled-with-reason routes:
    - **Linux** "No TPM detected on this device" — chip is missing or fTPM is disabled in firmware.
    - **Linux** "App cannot access the TPM. Add user to the `tss` group" — the device node exists but the app cannot open it.
@@ -365,7 +365,7 @@ Pick the wizard that matches your security ceremony:
 #### Cross-tool blob compat (Linux)
 
 The Linux blob storage mode uses the TCG draft `draft-bottomley-tpm2-keys-asn1` "TSS2 PRIVATE KEY" PEM format. It's the same shape `ssh-tpm-agent` and `openssl-tpm2-engine` write. You can:
-- **Import** an existing `.tpm` file via **Tools → SSH Keys → Import TPM-protected SSH key**.
+- **Import** an existing `.tpm` file via **Tools → SSH Keys → + Add → Import TPM-protected SSH key**.
 - **Export** an existing LetsFLUTssh-minted blob to another TSS2 PRIVATE KEY consumer by copying the underlying `<appSupportDir>/ssh_tpm_keys/<key_id>.tpm` file (advanced users only — the file is part of LetsFLUTssh's internal layout).
 
 Blobs carrying a **PCR policy** (key bound to specific firmware / boot-loader / kernel measurements) reject at import in v1 with a "PCR-binding not supported" reason — the policy session machinery is on the roadmap for v2.
@@ -397,7 +397,7 @@ On Android, LetsFLUTssh can generate SSH keys whose private half lives in the Ha
 #### Setup
 
 1. Enrol a biometric (fingerprint / face) or a device PIN in **Settings → Security**. The wizard refuses to proceed without one — Android's KeyStore requires `setUserAuthenticationRequired(true)` and the only way to satisfy it is a configured authenticator.
-2. **Tools → SSH Keys → Add Android hardware-bound key** (the row is visible only on Android — other platforms hide it).
+2. **Tools → SSH Keys → + Add → Add Android hardware-bound key** (the entry is visible only on Android — other platforms hide it).
 3. The wizard probes the device. If biometric is missing, the dialog renders disabled with "Enrol biometric or device PIN first" — open Settings and re-run.
 4. Type a label (the row's display name in the key manager).
 5. Pick an algorithm:
@@ -488,17 +488,17 @@ LetsFLUTssh can also browse a WebDAV server (Nextcloud, ownCloud, Apache mod_dav
 
 ### Creating a WebDAV session
 
-- Session manager → New session → set **Session kind** to `WebDAV` at the top of the Connection tab. The dialog reshapes itself for the WebDAV transport: the Connection tab now only asks for Base URL + Username, the Auth tab holds the auth method picker + credential + fingerprint pin, and the Forwarding tab disappears (WebDAV cannot tunnel TCP).
+- Session manager → New session → set **Session kind** to `WebDAV` at the top of the Connection section. The dialog reshapes itself for the WebDAV transport: the Connection section now only asks for Base URL + Username, the Auth section holds the auth method picker + credential, and the More options expander adds trusted-cert PEM / accept-any-cert / folder / tags (port forwarding disappears — WebDAV cannot tunnel TCP).
 - Fill **Base URL** with the WebDAV root collection, including the trailing slash. Examples:
   - Nextcloud: `https://cloud.example.com/remote.php/dav/files/alice/`
   - ownCloud: `https://files.example.com/remote.php/webdav/`
   - Apache mod_dav: `https://example.com/webdav/`
-- Switch to the **Auth tab** and pick **Auth method**:
+- Switch to the **Auth section** and pick **Auth method**:
   - `Basic` — username + password, always sent (only safe over TLS).
   - `Digest` — challenge / response, MD5. Use when the server insists; password never crosses the wire in clear.
   - `Bearer token` — OAuth-style. Paste the access token into the credential field below; the username is ignored at request time.
 - Fill the credential field below the method picker. The field label tracks the chosen method — `PASSWORD` for basic / digest, `BEARER TOKEN` for bearer. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
-- Optional: paste a **Self-signed cert fingerprint** (SHA-256, `aa:bb:cc:…` or `SHA256:…`) when the server uses a self-signed certificate that the system trust store rejects. Leave empty for the default system trust.
+- Optional, under **More options**: paste the server's **Trusted certificate (PEM)** when it uses a self-signed certificate the system trust store rejects. One or more `-----BEGIN CERTIFICATE-----` blocks; the connect path feeds them into the reqwest client as additional root CAs for this session only (other apps stay unaffected). The same expander hosts an **Accept any certificate** toggle that flips on `danger_accept_invalid_certs` + `danger_accept_invalid_hostnames` — last-resort escape hatch with a visible MITM warning, intended only for trusted private networks.
 
 ### Connecting and browsing
 
@@ -519,7 +519,7 @@ LetsFLUTssh can also browse any S3-compatible object store (AWS S3, MinIO, Wasab
 
 ### Creating an S3 session
 
-- Session manager → New session → set **Session kind** to `S3` at the top of the Connection tab. The dialog reshapes itself for the S3 transport: the Connection tab carries the access-key / region / endpoint / addressing block, the Auth tab holds a single Secret access key field, and the Forwarding tab disappears (S3 cannot tunnel TCP).
+- Session manager → New session → set **Session kind** to `S3` at the top of the Connection section. The dialog reshapes itself for the S3 transport: the Connection section carries the access-key / region / endpoint / addressing block, the Auth section holds a single Secret access key field, and the port-forwarding row inside More options disappears (S3 cannot tunnel TCP).
 - Fill **Access key ID** with the public-side key (AWS `AKIA…`, MinIO console-generated key, R2 access key id, etc.).
 - Fill **Region** with the bucket's region wire value:
   - AWS: `us-east-1`, `eu-west-2`, etc.
@@ -536,7 +536,8 @@ LetsFLUTssh can also browse any S3-compatible object store (AWS S3, MinIO, Wasab
 - Toggle **Path-style addressing** when the server requires it. MinIO needs it; AWS, R2, Spaces, Wasabi all default to virtual-host and the toggle stays off.
 - Fill **Default bucket** with the bucket the browser should open at. Leave empty to require the `s3://bucket/key` shorthand on every navigation.
 - Optional: fill **Default prefix** with the prefix the browser should open under (`logs/`, `2024/`). The browser still walks above the prefix when the user types an `s3://` path that points elsewhere.
-- Switch to the **Auth tab** and type the **Secret access key** into the single `SECRET ACCESS KEY` field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
+- Switch to the **Auth section** and type the **Secret access key** into the single `SECRET ACCESS KEY` field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
+- Optional, under **More options**: paste the endpoint's **Trusted certificate (PEM)** when it uses a self-signed cert the system trust store rejects (MinIO on a private network, internal Ceph / StorageGRID, a self-hosted R2-clone). One or more `-----BEGIN CERTIFICATE-----` blocks; the connect path feeds them into the reqwest client as additional root CAs for this session only (other apps stay unaffected). The same expander hosts an **Accept any certificate** toggle that flips on `danger_accept_invalid_certs` + `danger_accept_invalid_hostnames` — last-resort escape hatch with a visible MITM warning, intended only for trusted private networks. Mirrors the WebDAV self-signed-endpoint surface byte-for-byte.
 
 ### Connecting and browsing
 
@@ -734,10 +735,15 @@ Per-session terminal output + input capture, encrypted at rest, playable in-app 
 
 ### Enabling per session
 
-1. Edit the session.
-2. **Options** tab → toggle **"Record session"** ON.
-3. Save → connect → recording starts automatically.
-4. Each shell channel records to its own file.
+Two ways to record a session, choose either:
+
+**1. Always-on (auto-start at connect).** Edit the session → **More options** → toggle **"Record session"** ON → save. Every future connect starts a recorder automatically and seals it on disconnect.
+
+**2. On demand (start / stop mid-session).** Open the connection → the terminal panel's status bar shows a small record button (◯ outline icon) next to the SFTP/Terminal swap. Click to start; the icon flips to a filled red dot. Click again to seal the current recording file and stop. Use this when you only want to capture a specific block — running a deploy, reproducing a bug — without leaving recording on permanently.
+
+The toolbar button shows / hides per **focused** pane in a split tab, so you can record one pane independently of its neighbours. Quick-connect sessions (no saved session id) hide the button because recordings need a session folder to land in.
+
+Each shell channel records to its own file under `<appSupport>/recordings/<sessionId>/`.
 
 ### File location
 
@@ -751,8 +757,23 @@ Per-session terminal output + input capture, encrypted at rest, playable in-app 
 
 ### Two formats
 
-- **`.lfsr`** — encrypted (when running on T1/T2/Paranoid tier). Recording key derived from your DB encryption key via HKDF-SHA-256 with info-tag `letsflutssh-recording-v1`. Per-event AES-256-GCM frames so a truncated tail loses one event, not the whole file.
+- **`.lfsr`** — encrypted (when running on T1/T2/Paranoid tier). Each file carries a random per-file recording key wrapped under your DB encryption key in a 65-byte header. Per-event AES-256-GCM frames bind a frame counter into the GCM AAD so a tamper-swap of two frames breaks the tag at both swapped positions; a truncated tail loses one event, not the whole file.
 - **`.cast`** — plaintext asciinema v2 (when running on T0 plaintext tier — you opted out of crypto). Directly playable by `asciinema play file.cast`.
+
+### What happens to recordings when you change security tier
+
+Recordings are tied to the active DB key — the per-file recording key is wrapped under that key in the file header. Switching tier migrates every file under the recordings tree atomically (write to `<file>.tmp` → `fsync` → rename) so a crash mid-migration leaves the old or new shape, never a torn file. **No data loss in either direction** as long as the migration completes before the old key leaves memory.
+
+| Change | What runs | I/O cost |
+|---|---|---|
+| Master password rotation (T1 → T1') | Re-wrap the 65-byte header of every `.lfsr` under the new password's key. Bodies + sidecars untouched. | Tiny — ~64 bytes per recording |
+| Add hardware binding (T1 → T2) | Same as rotation — DB key changes shape; header rewrap | Tiny |
+| Remove hardware binding (T2 → T1) | Same | Tiny |
+| Enable master password (T0 → T1) | Every existing `.cast` is re-encrypted into a fresh `.lfsr` under the new wrap key. Encrypted sidecars built alongside. | Proportional to total plaintext bytes |
+| Disable master password (T1 → T0) | Every existing `.lfsr` is decrypted into plaintext `.cast`. Encrypted sidecars dropped (playback falls back to sequential scrub). Must run while the current DB key is still in memory. | Proportional to total encrypted bytes |
+| **Forgotten-password reset** | **No migration.** The user has already accepted "destroy everything" by reaching this flow. Existing `.lfsr` files stay on disk but become unreadable; `.cast` files keep playing. | None |
+
+The on-demand record button (status bar) and the Always-on `extras.record` flag both produce the canonical `.lfsr` shape, so both paths participate in every migration.
 
 ### Browsing + replay
 
@@ -792,7 +813,7 @@ Centralised key store so a single key can be referenced from many sessions.
 
 ### Importing a key
 
-1. **Tools → SSH Keys → Import**.
+1. **Tools → SSH Keys → + Add → Import Key**.
 2. File picker. Supported formats:
    - **OpenSSH** (`-----BEGIN OPENSSH PRIVATE KEY-----`).
    - **PKCS#1** (`-----BEGIN RSA PRIVATE KEY-----`).
@@ -803,11 +824,11 @@ Centralised key store so a single key can be referenced from many sessions.
 
 ### Using a key from the manager
 
-- Session edit → Auth tab → **Key from manager** dropdown → pick the imported key.
+- Session edit → Auth section → **Key from manager** dropdown → pick the imported key.
 
 ### Generating a key inside the app
 
-- Tools → SSH Keys → "Generate". Pick algorithm (Ed25519 recommended). Optional passphrase.
+- **Tools → SSH Keys → + Add → Generate Key**. Pick algorithm (Ed25519 recommended). Optional passphrase.
 - Public-key blob is shown for copy-paste into the server's `~/.ssh/authorized_keys`.
 
 ### Exporting a key
@@ -905,7 +926,7 @@ If you've paired an OpenSSH certificate to a key (Tools → SSH Keys → key →
 
 ### Refused operations
 
-The endpoint never accepts key material from external clients — `ssh-add <file>` / `ssh-add -d` / `ssh-add -D` all fail with `SSH_AGENT_FAILURE`. Keys flow only one way: through the in-app import flow (Tools → SSH Keys → Import).
+The endpoint never accepts key material from external clients — `ssh-add <file>` / `ssh-add -d` / `ssh-add -D` all fail with `SSH_AGENT_FAILURE`. Keys flow only one way: through the in-app import flow (Tools → SSH Keys → + Add → Import Key).
 
 ### Pageant interop
 
