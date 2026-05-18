@@ -11,17 +11,34 @@ import '../terminal/cursor_overlay.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only xterm widget at
-/// a user-selectable speed (1× / 2× / 4× / instant) with a scrub bar.
+/// a user-selectable speed (0.5× / 1× / 2× / 4× / instant) with a
+/// fully-functional scrub bar.
 ///
-/// **Scrub bar.** The recorder writes a fixed-width `<recording>.idx`
-/// sidecar alongside every event. Each entry binds an event's byte
-/// offset to its asciinema timestamp; the dialog binary-searches the
-/// sidecar via [`RecordingReader.seek`] to translate the slider value
-/// into a frame boundary, then restarts the FRB playback stream
-/// pre-positioned at that offset. Recordings made before the sidecar
-/// landed have no `.idx` — the slider disables with a tooltip
-/// explaining why (capability-ladder rung 4: hide rather than ship a
-/// weaker path that pretends to scrub).
+/// **Why pre-decode + Timer-driven playback.** Earlier shape was a
+/// `Stream.listen` with `await Future.delayed` between frames — each
+/// asciinema event went through a microtask + a delayed Future. For
+/// dense recordings (htop refresh = dozens of ANSI frames clustered
+/// inside 100 ms) every frame paid a microtask + a `Future.delayed`
+/// rounding-loss penalty, and the renderer painted between every
+/// event. Visually that surfaces as choppy / jerky playback.
+///
+/// The new shape loads the full event list once on dialog open,
+/// then drives the screen off a single 60 Hz `Timer.periodic`. Each
+/// tick advances a virtual position by `wall_elapsed × speed` and
+/// applies every event whose timestamp crossed under the new
+/// position. Renders coalesce on the single tick boundary — xterm
+/// gets a tight burst of writes per tick, paints once.
+///
+/// **Scrub correctness.** asciinema events are ANSI deltas: a
+/// "move cursor to row 5, write 'CPU: 12%'" frame at second 30 has
+/// no value without the preceding frames that put the cursor +
+/// screen state in the right place. Seek-via-sidecar (the previous
+/// scrub path) jumped the byte cursor mid-stream and rendered
+/// garbage for htop-style recordings. The new scrub clears the
+/// terminal and re-applies every event from `t=0` up to the target
+/// in one tight synchronous loop — no microtask between events,
+/// xterm only paints when the next Flutter frame ticks. The user
+/// sees a single transition, not a fast-scroll-from-beginning.
 ///
 /// **Why a custom replay loop, not asciinema's player package.**
 /// Their package is built on package:web — it injects a `<canvas>`
@@ -61,42 +78,65 @@ class RecordingPlaybackDialog extends StatefulWidget {
       _RecordingPlaybackDialogState();
 }
 
+/// One asciinema event extracted from the decoded stream. Held in
+/// memory as a flat triple so the playback tick's hot loop walks
+/// the list without intermediate object construction.
+class _Event {
+  final double timestamp;
+  final String direction;
+  final String data;
+  const _Event(this.timestamp, this.direction, this.data);
+}
+
 class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
 
-  /// Replay speed multiplier. `null` means "instant" (skip every
-  /// inter-event delay so the user lands at the final frame
-  /// immediately).
+  /// Replay speed multiplier. `null` means "instant" — jump straight
+  /// to the final frame so the user lands at the recording's last
+  /// rendered state immediately.
   double? _speed = 1.0;
 
-  bool _running = false;
   bool _disposed = false;
+  bool _loading = true;
   String? _error;
 
-  /// Current playback position in milliseconds. Drives the scrub-bar
-  /// thumb; updated as events stream past their timestamp.
+  /// Pre-decoded event list. Loaded once in `initState` via the
+  /// existing stream API; populated before the user can interact
+  /// with the playback controls so every replay / scrub action runs
+  /// off the in-memory list, not a fresh disk decode.
+  List<_Event> _events = const [];
+
+  /// Index of the next event to apply on the next tick. Reset to 0
+  /// on scrub so `_applyEventsTo` reconstructs terminal state from
+  /// the beginning.
+  int _cursor = 0;
+
+  /// Virtual playback position in milliseconds. Drives the scrub
+  /// bar's thumb + the "should this event have fired by now?"
+  /// check inside `_applyEventsTo`.
   int _positionMs = 0;
 
-  /// Total recording duration in milliseconds, taken from
-  /// `RecordingMeta` if present. The scrub bar renders against this
-  /// max; a null / zero meta forces the bar into disabled mode.
-  late final int _totalMs;
+  /// Total recording duration in milliseconds. Computed from
+  /// `RecordingMeta.durationSeconds` when present; on the fallback
+  /// path (`durationSeconds == 0`) we infer it from the last
+  /// event's timestamp once the full list is loaded.
+  int _totalMs = 0;
 
-  /// Probe result for the sidecar. `true` means at least one entry
-  /// exists → scrub bar enabled. `false` (legacy recording or
-  /// missing sidecar) → scrub bar disabled with tooltip.
-  bool? _scrubAvailable;
-
-  /// Active playback subscription. Held so a scrub event can cancel
-  /// the current pump and restart from the new offset.
-  StreamSubscription<RecordingDecodedLine>? _playSub;
-
-  /// Set during an in-flight slider drag so the play loop pauses
-  /// (event timestamps stop advancing the cursor) while the user
-  /// drags. The pump itself remains alive; the slider's
-  /// `onChangeEnd` triggers a [_jumpTo] to the released value.
+  /// True while the user holds the scrub thumb. The tick is a
+  /// no-op during this window; release fires `_jumpTo` against the
+  /// released value.
   bool _scrubbing = false;
+
+  /// 60 Hz tick that advances `_positionMs` and dispatches due
+  /// events. Cancelled at dispose + when playback reaches the end.
+  Timer? _ticker;
+
+  /// Wall-clock timestamp of the last tick. The delta between two
+  /// ticks is what we feed (scaled by `_speed`) into the virtual
+  /// cursor — making the playback rate independent of jitter in
+  /// `Timer.periodic`'s real cadence.
+  DateTime? _lastTickAt;
 
   @override
   void initState() {
@@ -107,168 +147,138 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     _terminal.resize(w, h);
     _terminalController = TerminalController();
     _totalMs = ((widget.meta?.durationSeconds ?? 0) * 1000).round();
-    _probeScrubAvailability();
-    _start();
+    _loadAll();
   }
 
-  Future<void> _probeScrubAvailability() async {
-    // A seek to ts=0 returns Some(...) when the sidecar exists with
-    // at least one entry; null otherwise. Fast — binary-search over
-    // the whole sidecar is `O(log n)` on a multi-KB index file.
+  /// Drain the recording's decoded-line stream once into the
+  /// in-memory event list. Header line skipped via the same
+  /// `decodeHeaderLine` predicate the live pump used; malformed
+  /// records skipped silently. Errors land on `_error`; the user
+  /// sees the localized message inline.
+  Future<void> _loadAll() async {
+    final stream = RecordingReader.open(widget.filePath);
+    final collected = <_Event>[];
+    var sawHeader = false;
     try {
-      final hit = await RecordingReader.seek(
-        widget.filePath,
-        targetMs: _totalMs > 0 ? _totalMs : 0,
-        encrypted: widget.encrypted,
-      );
-      if (!mounted) return;
-      setState(() => _scrubAvailable = hit != null && _totalMs > 0);
+      await for (final line in stream) {
+        if (_disposed) return;
+        if (!sawHeader) {
+          sawHeader = true;
+          if (decodeHeaderLine(line.value) != null) continue;
+        }
+        final frame = decodeEventLine(line.value);
+        if (frame == null) continue;
+        collected.add(_Event(frame.timestamp, frame.direction, frame.data));
+      }
     } catch (e, st) {
       AppLogger.instance.log(
-        'Scrub-bar probe failed; falling back to sequential-only',
+        'Recording load failed',
         name: 'Recording',
         error: e,
         stackTrace: st,
       );
-      if (mounted) setState(() => _scrubAvailable = false);
+      if (mounted) setState(() => _error = e.toString());
+      return;
     }
+    if (!mounted) return;
+    setState(() {
+      _events = collected;
+      _loading = false;
+      if (_totalMs == 0 && collected.isNotEmpty) {
+        // Fallback for recordings with no `durationSeconds` in the
+        // meta — the last event's timestamp is the authoritative
+        // upper bound for the scrub bar.
+        _totalMs = (collected.last.timestamp * 1000).round();
+      }
+    });
+    _startTicker();
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _lastTickAt = DateTime.now();
+    _ticker = Timer.periodic(const Duration(milliseconds: 16), (_) => _tick());
+  }
+
+  /// 60 Hz tick. Reads wall-clock delta since the previous tick,
+  /// scales by `_speed`, advances the virtual position, and
+  /// dispatches every event whose timestamp falls in the new
+  /// window. No-op when paused (instant speed) or scrubbing.
+  void _tick() {
+    if (_disposed) return;
+    final now = DateTime.now();
+    if (_scrubbing || _speed == null) {
+      _lastTickAt = now;
+      return;
+    }
+    final elapsedMs = _lastTickAt == null
+        ? 16
+        : now.difference(_lastTickAt!).inMilliseconds.clamp(0, 250);
+    _lastTickAt = now;
+    final newPosMs = _positionMs + (elapsedMs * _speed!).round();
+    _applyEventsTo(newPosMs);
+    if (_cursor >= _events.length) {
+      _ticker?.cancel();
+      _ticker = null;
+    }
+    if (mounted) {
+      setState(() => _positionMs = newPosMs.clamp(0, _totalMs));
+    }
+  }
+
+  /// Apply every event from `_cursor` onwards whose timestamp lies
+  /// at or below `targetMs`. Hot path — kept tight with no
+  /// allocations + a single `Terminal.write` per output event.
+  void _applyEventsTo(int targetMs) {
+    final targetSec = targetMs / 1000.0;
+    while (_cursor < _events.length &&
+        _events[_cursor].timestamp <= targetSec) {
+      final e = _events[_cursor];
+      if (e.direction == 'o') _terminal.write(e.data);
+      _cursor++;
+    }
+  }
+
+  /// Scrub to `targetMs`. Always rebuilds terminal state from
+  /// `t=0` so ANSI deltas land on the correct cursor / screen
+  /// positions — htop's "redraw row 5" only makes sense if the
+  /// preceding row-setup frames already ran.
+  ///
+  /// Synchronous: `_applyEventsTo` runs inside a tight `while` with
+  /// no Future / Timer yields, so xterm accumulates writes and the
+  /// next Flutter frame paints a single transition. The user does
+  /// not see a fast-scroll-from-beginning even on recordings with
+  /// thousands of events before the target.
+  void _jumpTo(int targetMs) {
+    if (_loading || _disposed) return;
+    _terminal.buffer.clear();
+    _terminal.setCursor(0, 0);
+    _cursor = 0;
+    _applyEventsTo(targetMs);
+    setState(() => _positionMs = targetMs.clamp(0, _totalMs));
+    _lastTickAt = DateTime.now();
+    if (_ticker == null || !_ticker!.isActive) _startTicker();
+  }
+
+  void _setSpeed(double? speed) {
+    setState(() => _speed = speed);
+    if (speed == null) {
+      // Instant — jump to the recording's end so the user lands on
+      // the final rendered state in one transition.
+      _jumpTo(_totalMs);
+      return;
+    }
+    _lastTickAt = DateTime.now();
+    if (_ticker == null || !_ticker!.isActive) _startTicker();
   }
 
   @override
   void dispose() {
     _disposed = true;
-    _playSub?.cancel();
+    _ticker?.cancel();
+    _ticker = null;
     _terminalController.dispose();
     super.dispose();
-  }
-
-  Future<void> _start() async {
-    setState(() {
-      _running = true;
-      _error = null;
-      _positionMs = 0;
-    });
-    await _pumpFrom(
-      stream: RecordingReader.open(widget.filePath),
-      startMs: 0,
-      skipHeader: false,
-    );
-  }
-
-  /// Cancel any in-flight playback subscription, clear the terminal,
-  /// and restart the decoder pre-positioned at the matched sidecar
-  /// offset. Falls back to a full re-decode (target reached by
-  /// sequentially streaming the file from start) when the sidecar
-  /// returns null — same UX as a legacy recording, just slower.
-  Future<void> _jumpTo(int targetMs) async {
-    await _playSub?.cancel();
-    _playSub = null;
-    if (_disposed) return;
-    setState(() {
-      _running = true;
-      _error = null;
-      _positionMs = targetMs;
-    });
-    _terminal.buffer.clear();
-    _terminal.setCursor(0, 0);
-    final hit = await RecordingReader.seek(
-      widget.filePath,
-      targetMs: targetMs,
-      encrypted: widget.encrypted,
-    );
-    if (_disposed) return;
-    if (hit == null) {
-      // No sidecar — sequentially replay from start, fast-forwarding
-      // every event whose timestamp is below the target (we let the
-      // dialog's normal pump drive the terminal write so trailing
-      // ANSI state lands cleanly).
-      await _pumpFrom(
-        stream: RecordingReader.open(widget.filePath),
-        startMs: 0,
-        skipHeader: false,
-        forwardUntilMs: targetMs,
-      );
-      return;
-    }
-    await _pumpFrom(
-      stream: RecordingReader.openAt(
-        widget.filePath,
-        byteOffset: hit.byteOffset,
-        startFrameIndex: hit.startFrameIndex,
-      ),
-      startMs: hit.timestampMs,
-      skipHeader: true,
-    );
-  }
-
-  /// Common pump loop shared by [_start] and [_jumpTo]. Drives the
-  /// decoded-line stream into the xterm widget at the active speed,
-  /// updating `_positionMs` after every applied event.
-  ///
-  /// `forwardUntilMs` (when non-null) suppresses the inter-event
-  /// delay until the cursor crosses the threshold — used for the
-  /// legacy fallback when no sidecar exists, so the user does not
-  /// have to wait at 1× to reach a deep scrub target.
-  Future<void> _pumpFrom({
-    required Stream<RecordingDecodedLine> stream,
-    required int startMs,
-    required bool skipHeader,
-    int? forwardUntilMs,
-  }) async {
-    var prevTimestamp = startMs / 1000.0;
-    var sawHeader = skipHeader;
-    final completer = Completer<void>();
-    _playSub = stream.listen(
-      (line) async {
-        if (_disposed) return;
-        if (!sawHeader) {
-          sawHeader = true;
-          // The Rust-side `decodeHeaderLine` returns non-null only
-          // for the asciinema-v2 header object (first record of
-          // every cast); event tuples and malformed lines fall
-          // through to the event-decode path below.
-          if (decodeHeaderLine(line.value) != null) return;
-        }
-        final frame = decodeEventLine(line.value);
-        if (frame == null) return;
-        final speed = _speed;
-        final fastForward =
-            forwardUntilMs != null && (frame.timestamp * 1000) < forwardUntilMs;
-        if (speed != null && !fastForward && !_scrubbing) {
-          final delta = frame.timestamp - prevTimestamp;
-          if (delta > 0) {
-            final waitSeconds = (delta / speed).clamp(0.0, 5.0);
-            await Future.delayed(
-              Duration(milliseconds: (waitSeconds * 1000).round()),
-            );
-          }
-        }
-        if (_disposed) return;
-        if (frame.direction == 'o') {
-          _terminal.write(frame.data);
-        }
-        prevTimestamp = frame.timestamp;
-        if (mounted) {
-          setState(() => _positionMs = (frame.timestamp * 1000).round());
-        }
-      },
-      onDone: () {
-        if (!completer.isCompleted) completer.complete();
-      },
-      onError: (Object e, StackTrace st) {
-        AppLogger.instance.log(
-          'Recording playback failed',
-          name: 'Recording',
-          error: e,
-          stackTrace: st,
-        );
-        if (mounted) setState(() => _error = e.toString());
-        if (!completer.isCompleted) completer.complete();
-      },
-      cancelOnError: true,
-    );
-    await completer.future;
-    if (mounted) setState(() => _running = false);
   }
 
   @override
@@ -279,7 +289,10 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     final fontSize = AppFonts.sm;
     return AppDialog(
       title: l10n.recordingPlaybackTitle,
-      maxWidth: (w * fontSize * 0.6).clamp(420.0, 900.0),
+      // Wide enough to seat a 132-col recording at the current
+      // font; AppDialog clamps to `viewport - 48 px` so the upper
+      // bound is the screen, not this number.
+      maxWidth: (w * fontSize * 0.62).clamp(480.0, 1600.0),
       scrollable: false,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -291,8 +304,18 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
           const SizedBox(height: AppSpacing.md),
           // Terminal flexes so the dialog never overflows on
           // short viewports — the recording's nominal row count
-          // is the *preferred* height, not a hard floor.
+          // is the preferred height, not a hard floor.
           Flexible(fit: FlexFit.loose, child: _buildTerminal(h, fontSize)),
+          if (_loading) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -330,42 +353,21 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
               child: Text(l10n.recordingSpeedInstant),
             ),
           ],
-          onChanged: (v) => setState(() => _speed = v),
+          onChanged: _loading ? null : _setSpeed,
         ),
-        const Spacer(),
-        if (_running)
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
       ],
     );
   }
 
   Widget _buildScrubRow(S l10n) {
-    final available = _scrubAvailable ?? false;
+    // Slider stays enabled as long as we've loaded the event list
+    // — no sidecar dependency anymore (scrub re-applies from t=0
+    // synchronously, so terminal state is always correct). The
+    // previous "disabled scrub bar" branch retires with the
+    // sidecar-driven seek.
+    final available = !_loading && _events.isNotEmpty && _totalMs > 0;
     final maxValue = _totalMs > 0 ? _totalMs.toDouble() : 1.0;
     final value = _positionMs.clamp(0, _totalMs > 0 ? _totalMs : 0).toDouble();
-    final slider = Slider(
-      min: 0,
-      max: maxValue,
-      value: value.clamp(0, maxValue),
-      onChanged: available
-          ? (v) {
-              setState(() {
-                _scrubbing = true;
-                _positionMs = v.round();
-              });
-            }
-          : null,
-      onChangeEnd: available
-          ? (v) {
-              _scrubbing = false;
-              unawaited(_jumpTo(v.round()));
-            }
-          : null,
-    );
     final positionLabel = l10n.recordingScrubPositionLabel(
       _formatDuration(_positionMs),
       _formatDuration(_totalMs),
@@ -373,12 +375,25 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     return Row(
       children: [
         Expanded(
-          child: available
-              ? slider
-              : Tooltip(
-                  message: l10n.recordingScrubTooltipUnavailable,
-                  child: slider,
-                ),
+          child: Slider(
+            min: 0,
+            max: maxValue,
+            value: value.clamp(0, maxValue),
+            onChanged: available
+                ? (v) {
+                    setState(() {
+                      _scrubbing = true;
+                      _positionMs = v.round();
+                    });
+                  }
+                : null,
+            onChangeEnd: available
+                ? (v) {
+                    _scrubbing = false;
+                    _jumpTo(v.round());
+                  }
+                : null,
+          ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(
@@ -395,18 +410,16 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   Widget _buildTerminal(int h, double fontSize) {
+    // The recording's nominal row count + a generous cap. Tight
+    // viewports still squeeze via the surrounding `Flexible`.
+    final preferred = h * fontSize * kTerminalLineHeight;
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: AppTheme.borderLight),
         borderRadius: AppTheme.radiusSm,
       ),
-      // SizedBox sized to fit the recording's column count at
-      // the active font size — keeps the playback geometry
-      // honest (a 132-col session does not get squashed into
-      // 80 cols). Height capped so the dialog stays inside
-      // the viewport on mobile.
       child: SizedBox(
-        height: (h * fontSize * kTerminalLineHeight).clamp(200.0, 480.0),
+        height: preferred.clamp(200.0, 900.0),
         child: TerminalView(
           _terminal,
           controller: _terminalController,
