@@ -2717,6 +2717,9 @@ class SKo extends S {
       'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
 
   @override
+  String get playbackPause => '일시정지';
+
+  @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
 

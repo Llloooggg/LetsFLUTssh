@@ -97,6 +97,13 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   /// rendered state immediately.
   double? _speed = 1.0;
 
+  /// Whether playback is paused. The tick stays scheduled but the
+  /// "advance virtual time" branch short-circuits, so toggling on
+  /// resumes from the exact `_positionMs` the pause landed on
+  /// without re-applying any events. Defaults to `false` so the
+  /// recording auto-plays on open; user can pause at any point.
+  bool _paused = false;
+
   bool _disposed = false;
   bool _loading = true;
   String? _error;
@@ -151,10 +158,21 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   /// Drain the recording's decoded-line stream once into the
-  /// in-memory event list. Header line skipped via the same
-  /// `decodeHeaderLine` predicate the live pump used; malformed
-  /// records skipped silently. Errors land on `_error`; the user
+  /// in-memory event list. The first line is the asciinema-v2
+  /// header — we extract its width / height + resize the terminal
+  /// to match, then skip it as not-an-event. Subsequent malformed
+  /// records skip silently. Errors land on `_error`; the user
   /// sees the localized message inline.
+  ///
+  /// Resizing here (not just from `widget.meta`) covers the case
+  /// where the pre-loaded `RecordingMeta` is null / missing dims —
+  /// `widget.meta` is read via `RecordingReader.readMeta` which is
+  /// best-effort. Resizing inside `_loadAll` reads the canonical
+  /// dims off the first line of the recording itself; htop / vim /
+  /// any curses workload then writes its ANSI cursor-position
+  /// sequences against the same column count it was originally
+  /// rendered at, so a "col 132 write" lands at col 132 instead of
+  /// wrapping back onto column 0 of the next line.
   Future<void> _loadAll() async {
     final stream = RecordingReader.open(widget.filePath);
     final collected = <_Event>[];
@@ -164,7 +182,18 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         if (_disposed) return;
         if (!sawHeader) {
           sawHeader = true;
-          if (decodeHeaderLine(line.value) != null) continue;
+          final header = decodeHeaderLine(line.value);
+          if (header != null) {
+            // Resize the terminal off the recording's authoritative
+            // dims. The header is always the first line of an
+            // asciinema-v2 stream; a recording that has no header
+            // line stays on the `widget.meta` defaults and inherits
+            // the wrap-on-col-80 problem the comment above
+            // describes, but at least the rest of the playback
+            // path keeps working.
+            _terminal.resize(header.width, header.height);
+            continue;
+          }
         }
         final frame = decodeEventLine(line.value);
         if (frame == null) continue;
@@ -203,11 +232,14 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   /// 60 Hz tick. Reads wall-clock delta since the previous tick,
   /// scales by `_speed`, advances the virtual position, and
   /// dispatches every event whose timestamp falls in the new
-  /// window. No-op when paused (instant speed) or scrubbing.
+  /// window. No-op when paused, scrubbing, or on "instant" speed
+  /// (which only advances via `_jumpTo`, never the tick).
   void _tick() {
     if (_disposed) return;
     final now = DateTime.now();
-    if (_scrubbing || _speed == null) {
+    if (_scrubbing || _paused || _speed == null) {
+      // Reset the elapsed anchor so resume after pause does not
+      // pay back the paused window in one big jump.
       _lastTickAt = now;
       return;
     }
@@ -262,6 +294,10 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
 
   void _setSpeed(double? speed) {
     setState(() => _speed = speed);
+    // Drop focus off the dropdown so the next keyboard event
+    // (Tab, Space, Esc) lands on the dialog instead of bouncing
+    // back into the dropdown's focus ring.
+    FocusManager.instance.primaryFocus?.unfocus();
     if (speed == null) {
       // Instant — jump to the recording's end so the user lands on
       // the final rendered state in one transition.
@@ -270,6 +306,21 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     }
     _lastTickAt = DateTime.now();
     if (_ticker == null || !_ticker!.isActive) _startTicker();
+  }
+
+  /// Toggle play / pause. When pausing, the tick stays scheduled
+  /// (we keep `_ticker` alive so resume is cheap), it just no-ops
+  /// inside `_tick`. When resuming, reset `_lastTickAt` so the
+  /// elapsed window the next tick reads starts at "now", not at
+  /// "the moment we paused" — otherwise the first post-resume tick
+  /// would burn through the paused interval in one big jump.
+  void _togglePause() {
+    if (_loading || _events.isEmpty) return;
+    setState(() => _paused = !_paused);
+    if (!_paused) {
+      _lastTickAt = DateTime.now();
+      if (_ticker == null || !_ticker!.isActive) _startTicker();
+    }
   }
 
   @override
@@ -330,8 +381,24 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   Widget _buildSpeedRow(S l10n) {
+    // Pause toggle gates on `!_loading && _events.isNotEmpty` —
+    // a pre-load tap is meaningless and an empty recording (no
+    // events past the header) cannot meaningfully be paused.
+    // Instant speed disables pause too: there is no continuous
+    // playback to pause once the user already jumped to the end.
+    final canTogglePause = !_loading && _events.isNotEmpty && _speed != null;
     return Row(
       children: [
+        Tooltip(
+          message: _paused ? l10n.playRecording : l10n.playbackPause,
+          child: IconButton(
+            icon: Icon(_paused ? Icons.play_arrow : Icons.pause, size: 20),
+            onPressed: canTogglePause ? _togglePause : null,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
         Text(
           l10n.recordingSpeed,
           style: TextStyle(
@@ -343,6 +410,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         const SizedBox(width: AppSpacing.sm),
         DropdownButton<double?>(
           value: _speed,
+          focusNode: FocusNode(skipTraversal: true),
           items: [
             const DropdownMenuItem(value: 0.5, child: Text('0.5×')),
             const DropdownMenuItem(value: 1.0, child: Text('1×')),

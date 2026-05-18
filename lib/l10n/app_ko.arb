@@ -920,6 +920,7 @@
   "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
   "clipboardCopyFailed": "Copy to clipboard failed.",
   "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "playbackPause": "일시정지",
   "recordingPlayLocked": "Unlock the app to play this encrypted recording",
   "recordToggleStart": "녹화 시작",
   "recordToggleStop": "녹화 중지",

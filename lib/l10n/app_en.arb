@@ -1585,6 +1585,10 @@
   "@nonAsciiHostnameWarning": {
     "description": "TOFU host-key dialog warning when the hostname contains non-ASCII codepoints (IDN homograph hint)."
   },
+  "playbackPause": "Pause",
+  "@playbackPause": {
+    "description": "Tooltip on the play/pause toggle button in the recording playback dialog. Displayed when playback is running; tapping pauses the tick + dispatch loop so the terminal freezes at the current frame."
+  },
   "recordingPlayLocked": "Unlock the app to play this encrypted recording",
   "@recordingPlayLocked": {
     "description": "Tooltip / disabled-row hint when an encrypted recording cannot be played because the active DB key slot is empty (plaintext tier or auto-locked)."

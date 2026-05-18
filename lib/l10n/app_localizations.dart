@@ -4893,6 +4893,12 @@ abstract class S {
   /// **'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.'**
   String get nonAsciiHostnameWarning;
 
+  /// Tooltip on the play/pause toggle button in the recording playback dialog. Displayed when playback is running; tapping pauses the tick + dispatch loop so the terminal freezes at the current frame.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get playbackPause;
+
   /// Tooltip / disabled-row hint when an encrypted recording cannot be played because the active DB key slot is empty (plaintext tier or auto-locked).
   ///
   /// In en, this message translates to:
