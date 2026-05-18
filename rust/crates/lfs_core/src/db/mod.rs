@@ -534,6 +534,82 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     }
     create_tombstone_indexes(conn)?;
     create_partial_unique_indexes(conn)?;
+    ensure_additive_columns(conn)?;
+    Ok(())
+}
+
+/// Idempotent `ALTER TABLE ADD COLUMN` sweep. `CREATE TABLE IF NOT
+/// EXISTS` in [`SCHEMA_SQL`] is a no-op against a pre-existing table
+/// even when the column list grew, so an install upgraded from an
+/// earlier build with the old column shape lands here to pick up
+/// the new fields. Every entry is gated on `pragma_table_info` so
+/// re-running the sweep on a current-shape table is a no-op too.
+///
+/// Add new columns to this list when widening a DAO; never remove
+/// entries — the schema is forward-only.
+fn ensure_additive_columns(conn: &Connection) -> Result<(), Error> {
+    // (table, column, type + default clause)
+    const COLUMNS: &[(&str, &str, &str)] = &[
+        // WebDAV cert-pin surface — was `self_signed_fingerprint`
+        // pre-release; existing DBs upgrade by gaining the two new
+        // columns. The fingerprint column stays untouched (SQLite
+        // has no `DROP COLUMN` short of a rebuild; the DAO simply
+        // stops reading from it).
+        ("webdav_session_details", "trusted_cert_pem", "TEXT NULL"),
+        (
+            "webdav_session_details",
+            "insecure_skip_verify",
+            "INTEGER NOT NULL DEFAULT 0",
+        ),
+        // Same pair on the S3 side — kept in lock-step with the
+        // WebDAV change because both transports route through
+        // reqwest with identical knob semantics.
+        ("s3_session_details", "trusted_cert_pem", "TEXT NULL"),
+        (
+            "s3_session_details",
+            "insecure_skip_verify",
+            "INTEGER NOT NULL DEFAULT 0",
+        ),
+    ];
+    for (table, column, type_decl) in COLUMNS {
+        ensure_column(conn, table, column, type_decl)?;
+    }
+    Ok(())
+}
+
+/// Add `<column>` to `<table>` when missing. Uses `pragma_table_info`
+/// so the check stays inside SQLite's metadata layer (no string
+/// parsing of `sqlite_master.sql`). When the table itself does not
+/// exist the function is a no-op — fresh-install path already
+/// created the column inside `SCHEMA_SQL`.
+fn ensure_column(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    type_decl: &str,
+) -> Result<(), Error> {
+    let pragma = format!("PRAGMA table_info('{table}')");
+    let mut stmt = conn
+        .inner()
+        .prepare(&pragma)
+        .map_err(|e| Error::Db(format!("table_info({table}): {e}")))?;
+    let names: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))
+        .and_then(std::iter::Iterator::collect)
+        .map_err(|e| Error::Db(format!("table_info({table}) rows: {e}")))?;
+    if names.is_empty() {
+        // Table missing (rare — e.g. fresh DB before SCHEMA_SQL ran;
+        // bootstrap_schema sequences SCHEMA_SQL before this sweep so
+        // production never hits it). Skip silently.
+        return Ok(());
+    }
+    if names.iter().any(|n| n == column) {
+        return Ok(());
+    }
+    let alter = format!("ALTER TABLE {table} ADD COLUMN {column} {type_decl}");
+    conn.inner()
+        .execute_batch(&alter)
+        .map_err(|e| Error::Db(format!("alter add column {table}.{column}: {e}")))?;
     Ok(())
 }
 
@@ -1054,6 +1130,77 @@ mod tests {
             probe.is_err(),
             "encrypted source must reject a no-key open after export",
         );
+    }
+
+    /// `bootstrap_schema` re-runs on an existing DB that pre-dates
+    /// the cert-pin columns must add `trusted_cert_pem` +
+    /// `insecure_skip_verify` to both `webdav_session_details` and
+    /// `s3_session_details` instead of throwing
+    /// `no such column: trusted_cert_pem` on the next list query.
+    #[test]
+    fn bootstrap_adds_missing_cert_pin_columns_to_existing_db() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Stand up a fully-bootstrapped DB first so foreign-key
+        // targets + reverse-edge indexes resolve, then drop the
+        // two detail tables and recreate them in the pre-release
+        // shape (with `self_signed_fingerprint`, no cert-pin /
+        // insecure columns). This is the layout a real install
+        // upgraded from the older build carries on disk.
+        bootstrap_schema(&conn).expect("bootstrap canonical shape");
+        conn.inner()
+            .execute_batch(
+                "DROP TABLE webdav_session_details;
+                 DROP TABLE s3_session_details;
+                 CREATE TABLE webdav_session_details (
+                    session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+                    base_url TEXT NOT NULL,
+                    username TEXT NOT NULL DEFAULT '',
+                    auth_method TEXT NOT NULL,
+                    self_signed_fingerprint TEXT NULL,
+                    password TEXT NOT NULL DEFAULT '',
+                    updated_at INTEGER NOT NULL DEFAULT 0,
+                    deleted_at INTEGER NULL
+                 );
+                 CREATE TABLE s3_session_details (
+                    session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+                    endpoint_url TEXT NOT NULL,
+                    region TEXT NULL,
+                    bucket TEXT NULL,
+                    access_key_id TEXT NULL,
+                    secret_access_key TEXT NULL,
+                    self_signed_fingerprint TEXT NULL,
+                    updated_at INTEGER NOT NULL DEFAULT 0,
+                    deleted_at INTEGER NULL
+                 );",
+            )
+            .unwrap();
+
+        bootstrap_schema(&conn).expect("re-bootstrap on pre-release shape");
+
+        // Both tables must now carry the new columns.
+        let names = |table: &str| -> Vec<String> {
+            let q = format!("PRAGMA table_info('{table}')");
+            let mut stmt = conn.inner().prepare(&q).unwrap();
+            stmt.query_map([], |row| row.get::<_, String>(1))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        for table in ["webdav_session_details", "s3_session_details"] {
+            let cols = names(table);
+            assert!(
+                cols.iter().any(|n| n == "trusted_cert_pem"),
+                "{table} must carry trusted_cert_pem after bootstrap, got {cols:?}",
+            );
+            assert!(
+                cols.iter().any(|n| n == "insecure_skip_verify"),
+                "{table} must carry insecure_skip_verify after bootstrap, got {cols:?}",
+            );
+        }
+
+        // Re-running bootstrap on a current-shape DB is a no-op
+        // (idempotency proof).
+        bootstrap_schema(&conn).expect("bootstrap is idempotent on current shape");
     }
 
     /// Bootstrap stamps `user_version = SCHEMA_VERSION` on a fresh
