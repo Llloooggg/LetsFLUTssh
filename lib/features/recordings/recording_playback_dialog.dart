@@ -1,13 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_dialog.dart';
-import '../terminal/cursor_overlay.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only xterm widget at
@@ -91,6 +92,18 @@ class _Event {
 class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
+
+  /// Scroll controllers for the terminal panel's two axes. The
+  /// `Scrollbar` widget needs an explicit controller when more
+  /// than one `Scrollable` is in scope (the panel nests vertical
+  /// inside horizontal so two distinct scroll positions live in
+  /// the subtree) — passing the controller pins each bar to its
+  /// matching `SingleChildScrollView` and stops the
+  /// `_debugCheckHasValidScrollPosition` assertion that the
+  /// previous controller-less Scrollbar tripped when its
+  /// fade-out animation fired against a half-built attachment.
+  final ScrollController _vScroll = ScrollController();
+  final ScrollController _hScroll = ScrollController();
 
   /// Replay speed multiplier. `null` means "instant" — jump straight
   /// to the final frame so the user lands at the recording's last
@@ -329,6 +342,8 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     _ticker?.cancel();
     _ticker = null;
     _terminalController.dispose();
+    _vScroll.dispose();
+    _hScroll.dispose();
     super.dispose();
   }
 
@@ -478,25 +493,30 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   Widget _buildTerminal(int h, double fontSize) {
-    // Measure the actual mono char advance off the same font the
+    // Measure the actual mono cell metrics off the same font the
     // terminal renders with, then pin the terminal panel to
-    // `cols × advance` + `rows × line-height`. Without this the
+    // `cols × cellWidth` + `rows × cellHeight`. Without this the
     // surrounding Flexible / Column gives the TerminalView
     // whatever pixels fit, xterm runs its own
     // `Terminal.resize(cols, rows)` against the rendered width,
     // and a 132-col recording lands at 80-or-so cols — htop's
     // row-130 ANSI write then wraps onto the first columns of
-    // the next line, which is the "куски в первые символы"
-    // symptom the user reported.
+    // the next line.
     //
-    // Pinning the widget size + letting `SingleChildScrollView`
-    // take overflow horizontally keeps the in-memory Terminal at
-    // the recording's nominal cols on any viewport.
+    // Both axes get their own `SingleChildScrollView` + their own
+    // `ScrollController` + `Scrollbar` pair. The previous "one
+    // Scrollbar around two nested ScrollViews" shape tripped
+    // `_debugCheckHasValidScrollPosition` because the bar tried
+    // to attach to whichever PrimaryScrollController it could
+    // find — neither inner scroll view publishes itself as
+    // primary by default, so the bar's animation callback fired
+    // against a half-built attachment and threw on the validity
+    // assertion.
     final w = widget.meta?.header.width ?? 80;
-    final charAdvance = _measureMonoCharWidth(fontSize);
+    final cell = _measureMonoCell(fontSize);
     const innerPadding = AppSpacing.xs * 2.0;
-    final terminalWidth = w * charAdvance + innerPadding;
-    final terminalHeight = h * fontSize * kTerminalLineHeight + innerPadding;
+    final terminalWidth = w * cell.width + innerPadding;
+    final terminalHeight = h * cell.height + innerPadding;
     // `SelectionContainer.disabled` opts the xterm subtree out of
     // the dialog's outer `AppSelectionArea` (AppDialog wraps every
     // dialog body in one). With it on, the SelectionArea's drag
@@ -511,29 +531,47 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
           borderRadius: AppTheme.radiusSm,
         ),
         clipBehavior: Clip.hardEdge,
-        // Both axes scroll independently: a 132×40 htop recording on
-        // a short / narrow viewport stays at its nominal dims and
-        // pans rather than re-flowing into a wrap-prone smaller
-        // terminal.
-        child: Scrollbar(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
+        // Two-axis pan via explicit scrollbars (always visible) +
+        // mouse-wheel routing. Both inner `SingleChildScrollView`s
+        // run on `NeverScrollableScrollPhysics` so a drag inside
+        // the terminal stays a drag (xterm's selection
+        // recogniser), not a scroll. The wheel listener routes
+        // plain vertical scroll to `_vScroll` and Shift+wheel to
+        // `_hScroll` — the conventional desktop gesture for
+        // horizontal pan when only one wheel axis exists.
+        child: Listener(
+          onPointerSignal: _handleWheel,
+          child: Scrollbar(
+            controller: _vScroll,
+            thumbVisibility: true,
             child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: terminalWidth,
-                height: terminalHeight,
-                child: TerminalView(
-                  _terminal,
-                  controller: _terminalController,
-                  autofocus: false,
-                  hardwareKeyboardOnly: false,
-                  backgroundOpacity: 1.0,
-                  padding: const EdgeInsets.all(AppSpacing.xs),
-                  textStyle: TerminalStyle(
-                    fontSize: fontSize,
-                    fontFamily: AppFonts.monoFamily,
-                    fontFamilyFallback: AppFonts.monoFallback,
+              controller: _vScroll,
+              scrollDirection: Axis.vertical,
+              physics: const NeverScrollableScrollPhysics(),
+              child: Scrollbar(
+                controller: _hScroll,
+                thumbVisibility: true,
+                notificationPredicate: (notif) => notif.depth == 0,
+                child: SingleChildScrollView(
+                  controller: _hScroll,
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: SizedBox(
+                    width: terminalWidth,
+                    height: terminalHeight,
+                    child: TerminalView(
+                      _terminal,
+                      controller: _terminalController,
+                      autofocus: false,
+                      hardwareKeyboardOnly: false,
+                      backgroundOpacity: 1.0,
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      textStyle: TerminalStyle(
+                        fontSize: fontSize,
+                        fontFamily: AppFonts.monoFamily,
+                        fontFamilyFallback: AppFonts.monoFallback,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -544,18 +582,40 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     );
   }
 
-  /// Cached advance width of a mono character at `fontSize` in the
-  /// terminal's font stack. xterm renders every cell at this
-  /// width; pinning the SizedBox to `cols × advance` makes the
-  /// internal `Terminal.resize` land on the recording's nominal
-  /// column count.
+  /// Route mouse-wheel events to the panel's two scroll
+  /// controllers. Plain wheel → vertical pan; Shift+wheel →
+  /// horizontal pan (desktop convention when only one wheel axis
+  /// exists). Step size matches the per-tick delta the OS hands
+  /// us so two-finger trackpad gestures + scroll-wheel feel
+  /// identical to native scroll regions.
+  void _handleWheel(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    final shift = HardwareKeyboard.instance.isShiftPressed;
+    final controller = shift ? _hScroll : _vScroll;
+    if (!controller.hasClients) return;
+    final delta = shift ? event.scrollDelta.dy : event.scrollDelta.dy;
+    final next = (controller.offset + delta).clamp(
+      controller.position.minScrollExtent,
+      controller.position.maxScrollExtent,
+    );
+    controller.jumpTo(next);
+  }
+
+  /// One terminal cell's pixel size at `fontSize` in the mono font
+  /// stack xterm renders with. Returns the `TextPainter`'s
+  /// `width / height` for a single capital `M` — capital glyphs
+  /// fill the cell width and the painter's `height` exposes the
+  /// font's full line-height (ascent + descent + leading) which
+  /// xterm uses internally. Earlier the cell height was computed
+  /// off `fontSize * kTerminalLineHeight = fontSize × 1.2`, which
+  /// undershot the actual rendered cell height for some font
+  /// stacks (system mono on Linux clocks ~1.22 ratio); the top
+  /// row then ended up offset by a fraction of a pixel and the
+  /// container's `Clip.hardEdge` shaved its top stroke.
   ///
-  /// Measured once per build via `TextPainter` against the same
-  /// `AppFonts.monoFamily` + fallback list the terminal uses, so
-  /// the result tracks any future font swap automatically.
-  /// `TextPainter.layout` on a single glyph is microseconds; not
-  /// worth memoising past the build-call frame.
-  double _measureMonoCharWidth(double fontSize) {
+  /// `TextPainter.layout` on a single glyph is microseconds —
+  /// fine to recompute per build.
+  Size _measureMonoCell(double fontSize) {
     final painter = TextPainter(
       text: TextSpan(
         text: 'M',
@@ -567,7 +627,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    return painter.width;
+    return Size(painter.width, painter.height);
   }
 
   /// Format `ms` as `mm:ss`. Hours roll into the minutes field
