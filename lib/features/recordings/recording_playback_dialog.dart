@@ -1,14 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/readonly_terminal_view.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only xterm widget at
@@ -91,18 +90,9 @@ class _Event {
 
 class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   late final Terminal _terminal;
-  late final TerminalController _terminalController;
-
-  /// Scroll controllers for the terminal panel's two axes. The
-  /// `Scrollbar` widget needs an explicit controller when more
-  /// than one `Scrollable` is in scope (the panel nests vertical
-  /// inside horizontal so two distinct scroll positions live in
-  /// the subtree) — passing the controller pins each bar to its
-  /// matching `SingleChildScrollView` and stops the
-  /// `_debugCheckHasValidScrollPosition` assertion that the
-  /// previous controller-less Scrollbar tripped when its
-  /// fade-out animation fired against a half-built attachment.
-  final ScrollController _vScroll = ScrollController();
+  // Horizontal scroll for the terminal panel — vertical lives
+  // inside xterm's own scrollback (wheel scroll inside the
+  // terminal pans the buffer history).
   final ScrollController _hScroll = ScrollController();
 
   /// Replay speed multiplier. `null` means "instant" — jump straight
@@ -165,7 +155,6 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     final h = widget.meta?.header.height ?? 24;
     _terminal = Terminal(maxLines: 10000);
     _terminal.resize(w, h);
-    _terminalController = TerminalController();
     _totalMs = ((widget.meta?.durationSeconds ?? 0) * 1000).round();
     _loadAll();
   }
@@ -341,8 +330,6 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     _disposed = true;
     _ticker?.cancel();
     _ticker = null;
-    _terminalController.dispose();
-    _vScroll.dispose();
     _hScroll.dispose();
     super.dispose();
   }
@@ -493,88 +480,60 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   Widget _buildTerminal(int h, double fontSize) {
-    // Measure the actual mono cell metrics off the same font the
-    // terminal renders with, then pin the terminal panel to
-    // `cols × cellWidth` + `rows × cellHeight`. Without this the
-    // surrounding Flexible / Column gives the TerminalView
-    // whatever pixels fit, xterm runs its own
-    // `Terminal.resize(cols, rows)` against the rendered width,
-    // and a 132-col recording lands at 80-or-so cols — htop's
-    // row-130 ANSI write then wraps onto the first columns of
-    // the next line.
+    // Delegate to `ReadOnlyTerminalView` — the same widget the log
+    // viewer uses. Brings xterm's drag-to-select, the right-click
+    // context menu (Copy / Select All via
+    // `showAppContextMenu`), and the Ctrl+C / Cmd+C copy shortcut
+    // for free. The shared widget already handles
+    // `TerminalView.onSecondaryTapDown` correctly so two-finger
+    // trackpad-tap context menus work alongside mouse right-click
+    // (see commit 9301c8c5 in `terminal_pane.dart`).
     //
-    // Both axes get their own `SingleChildScrollView` + their own
-    // `ScrollController` + `Scrollbar` pair. The previous "one
-    // Scrollbar around two nested ScrollViews" shape tripped
-    // `_debugCheckHasValidScrollPosition` because the bar tried
-    // to attach to whichever PrimaryScrollController it could
-    // find — neither inner scroll view publishes itself as
-    // primary by default, so the bar's animation callback fired
-    // against a half-built attachment and threw on the validity
-    // assertion.
+    // Pin the recording's nominal cols × rows via `SizedBox` so
+    // xterm's auto-resize lands on the recording's authoritative
+    // dimensions — without the pin, htop / curses recordings
+    // wrap onto column 0 because the rendered cell count
+    // disagrees with the recorded one. Cell metrics come from a
+    // `TextPainter` against the same mono stack the terminal
+    // renders with so the math matches xterm's internal layout
+    // byte-for-byte.
     final w = widget.meta?.header.width ?? 80;
     final cell = _measureMonoCell(fontSize);
-    const innerPadding = AppSpacing.xs * 2.0;
-    final terminalWidth = w * cell.width + innerPadding;
-    final terminalHeight = h * cell.height + innerPadding;
-    // `SelectionContainer.disabled` opts the xterm subtree out of
-    // the dialog's outer `AppSelectionArea` (AppDialog wraps every
-    // dialog body in one). With it on, the SelectionArea's drag
-    // recogniser claims the pan + steals xterm's built-in
-    // drag-to-select; with it off, xterm's selection works again
-    // (drag highlights cells, Ctrl+C / right-click copies the
-    // text — same shape as the live terminal pane).
-    return SelectionContainer.disabled(
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.borderLight),
-          borderRadius: AppTheme.radiusSm,
-        ),
-        clipBehavior: Clip.hardEdge,
-        // Two-axis pan via explicit scrollbars (always visible) +
-        // mouse-wheel routing. Both inner `SingleChildScrollView`s
-        // run on `NeverScrollableScrollPhysics` so a drag inside
-        // the terminal stays a drag (xterm's selection
-        // recogniser), not a scroll. The wheel listener routes
-        // plain vertical scroll to `_vScroll` and Shift+wheel to
-        // `_hScroll` — the conventional desktop gesture for
-        // horizontal pan when only one wheel axis exists.
-        child: Listener(
-          onPointerSignal: _handleWheel,
-          child: Scrollbar(
-            controller: _vScroll,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: _vScroll,
-              scrollDirection: Axis.vertical,
-              physics: const NeverScrollableScrollPhysics(),
-              child: Scrollbar(
-                controller: _hScroll,
-                thumbVisibility: true,
-                notificationPredicate: (notif) => notif.depth == 0,
-                child: SingleChildScrollView(
-                  controller: _hScroll,
-                  scrollDirection: Axis.horizontal,
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: SizedBox(
-                    width: terminalWidth,
-                    height: terminalHeight,
-                    child: TerminalView(
-                      _terminal,
-                      controller: _terminalController,
-                      autofocus: false,
-                      hardwareKeyboardOnly: false,
-                      backgroundOpacity: 1.0,
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      textStyle: TerminalStyle(
-                        fontSize: fontSize,
-                        fontFamily: AppFonts.monoFamily,
-                        fontFamilyFallback: AppFonts.monoFallback,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+    // AppTerminalView paints with `AppTerminalView.verticalPadding`
+    // on the top + bottom edges; horizontal uses the same
+    // constant. Both contribute to the SizedBox's outer pixel
+    // size so the inner xterm grid takes the full nominal
+    // cols × rows.
+    const innerPad = AppSpacing.xs * 2.0;
+    final terminalWidth = w * cell.width + innerPad;
+    final terminalHeight = h * cell.height + innerPad;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.borderLight),
+        borderRadius: AppTheme.radiusSm,
+      ),
+      clipBehavior: Clip.hardEdge,
+      // Horizontal-only scroll: vertical scrollback lives inside
+      // xterm itself (mouse wheel inside the terminal area scrolls
+      // the buffer history the same way it does in the live PTY
+      // pane). Wrapping the horizontal scroll INSIDE a vertical
+      // one was the source of the previous nested-scroll grief —
+      // the inner horizontal Scrollbar ended up positioned at the
+      // bottom of the SCROLLED content rather than the visible
+      // viewport, so user-visible drag never worked. One scroll
+      // axis, one bar, one Scrollable.
+      child: Scrollbar(
+        controller: _hScroll,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _hScroll,
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: terminalWidth,
+            height: terminalHeight,
+            child: ReadOnlyTerminalView(
+              terminal: _terminal,
+              fontSize: fontSize,
             ),
           ),
         ),
@@ -582,36 +541,12 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     );
   }
 
-  /// Route mouse-wheel events to the panel's two scroll
-  /// controllers. Plain wheel → vertical pan; Shift+wheel →
-  /// horizontal pan (desktop convention when only one wheel axis
-  /// exists). Step size matches the per-tick delta the OS hands
-  /// us so two-finger trackpad gestures + scroll-wheel feel
-  /// identical to native scroll regions.
-  void _handleWheel(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
-    final shift = HardwareKeyboard.instance.isShiftPressed;
-    final controller = shift ? _hScroll : _vScroll;
-    if (!controller.hasClients) return;
-    final delta = shift ? event.scrollDelta.dy : event.scrollDelta.dy;
-    final next = (controller.offset + delta).clamp(
-      controller.position.minScrollExtent,
-      controller.position.maxScrollExtent,
-    );
-    controller.jumpTo(next);
-  }
-
   /// One terminal cell's pixel size at `fontSize` in the mono font
   /// stack xterm renders with. Returns the `TextPainter`'s
   /// `width / height` for a single capital `M` — capital glyphs
   /// fill the cell width and the painter's `height` exposes the
   /// font's full line-height (ascent + descent + leading) which
-  /// xterm uses internally. Earlier the cell height was computed
-  /// off `fontSize * kTerminalLineHeight = fontSize × 1.2`, which
-  /// undershot the actual rendered cell height for some font
-  /// stacks (system mono on Linux clocks ~1.22 ratio); the top
-  /// row then ended up offset by a fraction of a pixel and the
-  /// container's `Clip.hardEdge` shaved its top stroke.
+  /// xterm uses internally.
   ///
   /// `TextPainter.layout` on a single glyph is microseconds —
   /// fine to recompute per build.
