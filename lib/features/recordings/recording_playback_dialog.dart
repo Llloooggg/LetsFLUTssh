@@ -478,31 +478,96 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   Widget _buildTerminal(int h, double fontSize) {
-    // The recording's nominal row count + a generous cap. Tight
-    // viewports still squeeze via the surrounding `Flexible`.
-    final preferred = h * fontSize * kTerminalLineHeight;
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderLight),
-        borderRadius: AppTheme.radiusSm,
-      ),
-      child: SizedBox(
-        height: preferred.clamp(200.0, 900.0),
-        child: TerminalView(
-          _terminal,
-          controller: _terminalController,
-          autofocus: false,
-          hardwareKeyboardOnly: false,
-          backgroundOpacity: 1.0,
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          textStyle: TerminalStyle(
-            fontSize: fontSize,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
+    // Measure the actual mono char advance off the same font the
+    // terminal renders with, then pin the terminal panel to
+    // `cols × advance` + `rows × line-height`. Without this the
+    // surrounding Flexible / Column gives the TerminalView
+    // whatever pixels fit, xterm runs its own
+    // `Terminal.resize(cols, rows)` against the rendered width,
+    // and a 132-col recording lands at 80-or-so cols — htop's
+    // row-130 ANSI write then wraps onto the first columns of
+    // the next line, which is the "куски в первые символы"
+    // symptom the user reported.
+    //
+    // Pinning the widget size + letting `SingleChildScrollView`
+    // take overflow horizontally keeps the in-memory Terminal at
+    // the recording's nominal cols on any viewport.
+    final w = widget.meta?.header.width ?? 80;
+    final charAdvance = _measureMonoCharWidth(fontSize);
+    const innerPadding = AppSpacing.xs * 2.0;
+    final terminalWidth = w * charAdvance + innerPadding;
+    final terminalHeight = h * fontSize * kTerminalLineHeight + innerPadding;
+    // `SelectionContainer.disabled` opts the xterm subtree out of
+    // the dialog's outer `AppSelectionArea` (AppDialog wraps every
+    // dialog body in one). With it on, the SelectionArea's drag
+    // recogniser claims the pan + steals xterm's built-in
+    // drag-to-select; with it off, xterm's selection works again
+    // (drag highlights cells, Ctrl+C / right-click copies the
+    // text — same shape as the live terminal pane).
+    return SelectionContainer.disabled(
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppTheme.borderLight),
+          borderRadius: AppTheme.radiusSm,
+        ),
+        clipBehavior: Clip.hardEdge,
+        // Both axes scroll independently: a 132×40 htop recording on
+        // a short / narrow viewport stays at its nominal dims and
+        // pans rather than re-flowing into a wrap-prone smaller
+        // terminal.
+        child: Scrollbar(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: terminalWidth,
+                height: terminalHeight,
+                child: TerminalView(
+                  _terminal,
+                  controller: _terminalController,
+                  autofocus: false,
+                  hardwareKeyboardOnly: false,
+                  backgroundOpacity: 1.0,
+                  padding: const EdgeInsets.all(AppSpacing.xs),
+                  textStyle: TerminalStyle(
+                    fontSize: fontSize,
+                    fontFamily: AppFonts.monoFamily,
+                    fontFamilyFallback: AppFonts.monoFallback,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  /// Cached advance width of a mono character at `fontSize` in the
+  /// terminal's font stack. xterm renders every cell at this
+  /// width; pinning the SizedBox to `cols × advance` makes the
+  /// internal `Terminal.resize` land on the recording's nominal
+  /// column count.
+  ///
+  /// Measured once per build via `TextPainter` against the same
+  /// `AppFonts.monoFamily` + fallback list the terminal uses, so
+  /// the result tracks any future font swap automatically.
+  /// `TextPainter.layout` on a single glyph is microseconds; not
+  /// worth memoising past the build-call frame.
+  double _measureMonoCharWidth(double fontSize) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: 'M',
+        style: TextStyle(
+          fontFamily: AppFonts.monoFamily,
+          fontFamilyFallback: AppFonts.monoFallback,
+          fontSize: fontSize,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    return painter.width;
   }
 
   /// Format `ms` as `mm:ss`. Hours roll into the minutes field
