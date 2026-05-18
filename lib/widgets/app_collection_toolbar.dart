@@ -95,11 +95,18 @@ class AppCollectionToolbar extends StatelessWidget {
   }
 
   /// Wide layout (desktop dialogs, tablets): single row with the
-  /// search + count label on the left, actions right-aligned. The
-  /// actions live in an `Expanded` + `Align.centerRight` so they
-  /// receive a bounded main-axis width from [Row] and the inner
-  /// `Wrap` can legitimately wrap to a second row on locale builds
-  /// that push total button width past the available space.
+  /// search field stretched to fill the available width, the count
+  /// label sitting to its right, and the action buttons hugging the
+  /// trailing edge at their intrinsic widths. Actions intentionally
+  /// drop the surrounding `Expanded` so the search bar absorbs every
+  /// pixel the action group does not need — the previous layout
+  /// reserved an equal-flex slot for actions, which left a wide
+  /// empty strip between search and the single `+ Add` trigger
+  /// inside one-button toolbars (key-manager, snippet-manager,
+  /// tag-manager). Action overflow on extreme-locale builds still
+  /// degrades gracefully — the wide branch only fires above the
+  /// 480-px breakpoint where two icon+label buttons fit alongside
+  /// a stretched search field with comfortable margin.
   Widget _buildWide() {
     return Row(
       // The search field is taller than the bare count label because
@@ -121,18 +128,10 @@ class AppCollectionToolbar extends StatelessWidget {
           _CountLabel(countLabel!),
           const SizedBox(width: AppSpacing.sm),
         ],
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: actions,
-            ),
-          ),
-        ),
+        for (int i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          actions[i],
+        ],
       ],
     );
   }

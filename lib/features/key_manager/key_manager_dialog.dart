@@ -27,6 +27,7 @@ import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_picker_chip.dart';
 import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/enclave_ssh_dialog.dart';
@@ -123,164 +124,185 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Widget _buildToolbar(S s) {
-    // Three discrete actions in the order the user expects to reach
-    // for them:
-    //   1. Add Key     — paste-and-label dialog. Fastest path when
-    //                    the user already has the PEM in the
-    //                    clipboard.
-    //   2. Import Key  — native file picker. On systems where the
-    //                    picker is unavailable (WSL without an
-    //                    explorer package, some hardened Linux
-    //                    containers) this degrades to a toast;
-    //                    the user can still use Add Key.
-    //   3. Generate    — fresh in-app key.
-    // Earlier builds folded Add + Import into a single "Import"
-    // dialog with a file-picker button on top of the paste
-    // textarea. That put the file picker and paste flows one indent
-    // apart from each other and made the picker failure mode read
-    // as "this key is invalid" instead of "no picker available".
     return AppCollectionToolbar(
       hasItems: _keys.isNotEmpty,
       // Search + count mirror the snippet / tag manager toolbars so
-      // every collection dialog reads the same way. Without the search
-      // field the key list layout drifted visually from snippets even
-      // though both use AppCollectionToolbar.
+      // every collection dialog reads the same way.
       search: AppDataSearchBar(
         onChanged: (v) => setState(() => _filter = v),
         hintText: s.search,
       ),
       countLabel: s.keyCount(_keys.length),
-      actions: [
-        _ToolbarButton(
-          icon: Icons.edit_outlined,
-          label: s.addKey,
-          onTap: _addKey,
-        ),
-        _ToolbarButton(
-          icon: Icons.file_download_outlined,
-          label: s.importKey,
-          onTap: _importKey,
-        ),
-        // Hardware-key (sk-*) import. Gated on the direct CTAP2 HID
-        // path being reachable; disabled with a tap-toast reason
-        // when not (Linux without udev rules, mobile / macOS without
-        // the Apple entitlement). The `try` guards flutter_test
-        // contexts where FRB is not loaded — the probe falls back
-        // to "not available" rather than throwing through the build.
-        _ToolbarButton(
-          icon: Icons.usb,
-          label: s.hardwareKeyImport,
-          tooltip: _fido2Available
-              ? s.hardwareKeyImport
-              : s.hardwareKeyUnsupported,
-          onTap: _fido2Available ? _importHardwareKey : null,
-        ),
-        // PKCS#11 smart-card / token import. Capability-ladder rung 3
-        // on desktop (native Cryptoki via `dlopen`); rung 4 on mobile
-        // (disabled with `pkcs11HwUnavailableMobile` tooltip — Android
-        // has no compatible vendor `.so` ABI, iOS sandbox forbids
-        // `dlopen` of arbitrary `.dylib`).
-        _ToolbarButton(
-          icon: Icons.memory,
-          label: s.pkcs11AddTitle,
-          tooltip: _pkcs11Available
-              ? s.pkcs11AddTitle
-              : s.pkcs11HwUnavailableMobile,
-          onTap: _pkcs11Available ? _importPkcs11Key : null,
-        ),
-        // Hardware-tier toolbar entries — driven by the central
-        // `supportedHardwareTiersForPlatform()` capability table so a
-        // future platform / driver addition flows through one decision
-        // point instead of fanning out into inline `Platform.isXyz`
-        // branches on every wizard entry. Per-tier runtime probes
-        // (Secure Enclave entitlement on macOS dev builds, Hello
-        // configuration, TPM presence) still gate the actual generate
-        // call inside the wizard's probe step.
-        ..._buildHardwareTierToolbarEntries(s),
-        _ToolbarButton(
-          icon: Icons.add,
-          label: s.generateKey,
-          onTap: _generateKey,
-        ),
-      ],
+      // Single `+ Add ▾` trigger collapses the import / generate /
+      // hardware-tier / smart-card paths into one popup so the
+      // toolbar stays a flat decision surface (one button) instead
+      // of a horizontal stack of 4–9 icon+label rectangles. Items
+      // unavailable on the host platform (FIDO2 without HID access,
+      // PKCS#11 on mobile, unsupported hardware tiers) drop from
+      // the menu rather than render disabled — action menus hide,
+      // configuration surfaces disable (CLAUDE.md UI rule).
+      actions: [_buildAddMenuButton(s)],
     );
   }
 
-  /// Render the hardware-backed key entries that the current OS
-  /// supports. Tier order matches the visual order the toolbar
-  /// renders entries: Apple Enclave → Windows Hello → TPM (+ Linux
-  /// TPM import) → Android Keystore. Each branch keeps the wizard
-  /// dispatch local so the surrounding toolbar list stays a single
-  /// flat sequence — no nested spreads, no per-tier method on the
-  /// state class.
-  List<Widget> _buildHardwareTierToolbarEntries(S s) {
-    final tiers = supportedHardwareTiersForPlatform();
-    final entries = <Widget>[];
-    for (final tier in tiers) {
+  /// `+ Add ▾` popup trigger styled to match `AppButton.secondary
+  /// (dense: true)` so it sits visually beside the search bar at the
+  /// same height the previous icon+label buttons did.
+  Widget _buildAddMenuButton(S s) {
+    return PopupMenuButton<_AddKeyAction>(
+      onSelected: _dispatchAddAction,
+      tooltip: '',
+      // `PopupMenuButton` owns its own `AnimationController` and
+      // ignores the root `MediaQuery(disableAnimations: true)` —
+      // opt out so the open matches the project-wide hard-off.
+      popUpAnimationStyle: AnimationStyle.noAnimation,
+      offset: const Offset(0, AppTheme.controlHeightXs),
+      constraints: const BoxConstraints(
+        minWidth: 220,
+        maxHeight: AppTheme.popupMaxHeight,
+      ),
+      color: AppTheme.bg2,
+      shape: const RoundedRectangleBorder(borderRadius: AppTheme.radiusMd),
+      itemBuilder: (_) => _buildAddMenuItems(s),
+      child: _AddMenuTrigger(label: s.addKey),
+    );
+  }
+
+  /// Build the popup item list. Common paths (paste / file / generate)
+  /// always render; hardware-backed paths are folded under a divider
+  /// in the order `supportedHardwareTiersForPlatform()` returns them
+  /// so a future tier addition lands in the same shape without a
+  /// new layout decision.
+  List<PopupMenuEntry<_AddKeyAction>> _buildAddMenuItems(S s) {
+    final items = <PopupMenuEntry<_AddKeyAction>>[
+      _addMenuItem(
+        _AddKeyAction.pastePem,
+        Icons.edit_outlined,
+        s.addKeyMenuPaste,
+      ),
+      _addMenuItem(
+        _AddKeyAction.importFile,
+        Icons.file_download_outlined,
+        s.importKey,
+      ),
+      _addMenuItem(_AddKeyAction.generate, Icons.add, s.generateKey),
+    ];
+    final hardware = _buildHardwareMenuItems(s);
+    if (hardware.isNotEmpty) {
+      items.add(const PopupMenuDivider());
+      items.addAll(hardware);
+    }
+    return items;
+  }
+
+  /// Hardware-tier menu items for the current platform plus the
+  /// FIDO2 + PKCS#11 entries when the host's runtime probes accept
+  /// them. Per-tier wizard probes (Enclave entitlement, Hello
+  /// configuration, TPM presence) still gate the actual mint call.
+  List<PopupMenuEntry<_AddKeyAction>> _buildHardwareMenuItems(S s) {
+    final entries = <PopupMenuEntry<_AddKeyAction>>[];
+    for (final tier in supportedHardwareTiersForPlatform()) {
       switch (tier) {
         case HardwareTier.appleEnclave:
-          // Capability-ladder rung 3 on macOS / iOS — native
-          // `SecKeyCreateRandomKey` against the chip. Ad-hoc-signed
-          // dev builds reach this entry but the wizard's probe step
-          // surfaces the code-signing reason instead of minting.
           entries.add(
-            _ToolbarButton(
-              icon: Icons.shield_outlined,
-              label: s.sshKeyAddHardwareBound,
-              tooltip: s.sshKeyAddHardwareBound,
-              onTap: _generateEnclaveKey,
+            _addMenuItem(
+              _AddKeyAction.hwEnclave,
+              Icons.shield_outlined,
+              s.sshKeyAddHardwareBound,
             ),
           );
         case HardwareTier.windowsHello:
-          // Rung 3 on Windows — `NCryptCreatePersistedKey` against
-          // the Microsoft Platform Crypto Provider. Hosts without
-          // Hello configured reach the wizard probe step and route
-          // to the "configure first" reason.
           entries.add(
-            _ToolbarButton(
-              icon: Icons.shield_outlined,
-              label: s.helloWizardTitle,
-              tooltip: s.helloWizardTitle,
-              onTap: _generateHelloKey,
+            _addMenuItem(
+              _AddKeyAction.hwHello,
+              Icons.shield_outlined,
+              s.helloWizardTitle,
             ),
           );
         case HardwareTier.tpm:
-          // Rung 3 on Linux (`tss-esapi`) + Windows (PCP silent
-          // variant). The Linux-only import-blob action ships beside
-          // the generate entry; Windows CNG owns its own keystore
-          // and has no portable import shape.
           entries.add(
-            _ToolbarButton(
-              icon: Icons.memory,
-              label: s.tpmSshTitle,
-              tooltip: s.tpmSshTitle,
-              onTap: _generateTpmKey,
-            ),
+            _addMenuItem(_AddKeyAction.hwTpm, Icons.memory, s.tpmSshTitle),
           );
+          // Linux owns the only portable TPM blob format the app
+          // ingests; Windows CNG keystore is opaque and has no
+          // import path.
           if (Platform.isLinux) {
             entries.add(
-              _ToolbarButton(
-                icon: Icons.file_download_outlined,
-                label: s.tpmSshImportTitle,
-                tooltip: s.tpmSshImportTitle,
-                onTap: _importTpmBlob,
+              _addMenuItem(
+                _AddKeyAction.hwTpmImport,
+                Icons.file_download_outlined,
+                s.tpmSshImportTitle,
               ),
             );
           }
         case HardwareTier.androidKeystore:
-          // Rung 3 on Android — AndroidKeyStore JNI via
-          // `lfs_os_security::android::keystore_ssh`.
           entries.add(
-            _ToolbarButton(
-              icon: Icons.security,
-              label: s.keystoreWizardTitle,
-              tooltip: s.keystoreWizardTitle,
-              onTap: _generateKeystoreKey,
+            _addMenuItem(
+              _AddKeyAction.hwKeystore,
+              Icons.security,
+              s.keystoreWizardTitle,
             ),
           );
       }
     }
+    if (_fido2Available) {
+      entries.add(
+        _addMenuItem(_AddKeyAction.hwFido2, Icons.usb, s.hardwareKeyImport),
+      );
+    }
+    if (_pkcs11Available) {
+      entries.add(
+        _addMenuItem(_AddKeyAction.pkcs11, Icons.memory, s.pkcs11AddTitle),
+      );
+    }
     return entries;
+  }
+
+  PopupMenuItem<_AddKeyAction> _addMenuItem(
+    _AddKeyAction action,
+    IconData icon,
+    String label,
+  ) {
+    return PopupMenuItem<_AddKeyAction>(
+      value: action,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppTheme.fgDim),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _dispatchAddAction(_AddKeyAction action) {
+    switch (action) {
+      case _AddKeyAction.pastePem:
+        _addKey();
+      case _AddKeyAction.importFile:
+        _importKey();
+      case _AddKeyAction.generate:
+        _generateKey();
+      case _AddKeyAction.hwEnclave:
+        _generateEnclaveKey();
+      case _AddKeyAction.hwHello:
+        _generateHelloKey();
+      case _AddKeyAction.hwTpm:
+        _generateTpmKey();
+      case _AddKeyAction.hwTpmImport:
+        _importTpmBlob();
+      case _AddKeyAction.hwKeystore:
+        _generateKeystoreKey();
+      case _AddKeyAction.hwFido2:
+        _importHardwareKey();
+      case _AddKeyAction.pkcs11:
+        _importPkcs11Key();
+    }
   }
 
   List<SshKeyMetadata> _filtered() => filterSshKeys(_keys, _filter);
@@ -1127,16 +1149,23 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
             // device by `ssh-keygen -t ed25519-sk` / `-t ecdsa-sk`,
             // not by the app. The key-manager toolbar exposes a
             // separate "Import hardware key" action for those.
+            //
+            // `AppPickerChip` (not Material's `ChoiceChip`) paints
+            // the active state synchronously from theme colors —
+            // ChoiceChip cross-fades over Material's selection
+            // animation, so the previously-selected chip's tint
+            // briefly appeared on the just-tapped one before the
+            // accent overrode it. The picker chip is also our
+            // shared design-system shape.
             children: SshKeyType.values.where((t) => !t.isHardwareBound).map((
               t,
             ) {
               final selected = t == _type;
-              return ChoiceChip(
-                label: Text(t.label),
-                selected: selected,
-                onSelected: _generating
-                    ? null
-                    : (_) => setState(() => _type = t),
+              return AppPickerChip(
+                active: selected,
+                label: t.label,
+                expand: false,
+                onTap: _generating ? null : () => setState(() => _type = t),
               );
             }).toList(),
           ),
@@ -1294,31 +1323,57 @@ class _AddKeyDialogState extends State<_AddKeyDialog> {
   }
 }
 
-// ── Toolbar button ──────────────────────────────────────────────────
+// ── Add-key menu ────────────────────────────────────────────────────
 
-class _ToolbarButton extends StatelessWidget {
-  final IconData icon;
+/// One row of the `+ Add ▾` popup menu. Used by [_dispatchAddAction]
+/// to route the chosen entry to the matching wizard / dialog handler.
+enum _AddKeyAction {
+  pastePem,
+  importFile,
+  generate,
+  hwEnclave,
+  hwHello,
+  hwTpm,
+  hwTpmImport,
+  hwKeystore,
+  hwFido2,
+  pkcs11,
+}
+
+/// Trigger surface for the `+ Add ▾` [PopupMenuButton]. Visually
+/// matches `AppButton.secondary(dense: true)` — same `bg4` fill,
+/// `radiusSm` corner, compact `controlHeightXs` height — so it
+/// reads as part of the same toolbar vocabulary the other
+/// collection dialogs (snippets, tags, known hosts) use. The
+/// trailing `arrow_drop_down` chevron signals the popup affordance
+/// that distinguishes it from a one-shot action button.
+class _AddMenuTrigger extends StatelessWidget {
   final String label;
-  final String? tooltip;
-  final VoidCallback? onTap;
-
-  const _ToolbarButton({
-    required this.icon,
-    required this.label,
-    this.tooltip,
-    this.onTap,
-  });
+  const _AddMenuTrigger({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final button = AppButton.secondary(
-      label: label,
-      icon: icon,
-      onTap: onTap,
-      dense: true,
+    return Container(
+      height: AppTheme.controlHeightXs,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.bg4,
+        borderRadius: AppTheme.radiusSm,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add, size: AppFonts.sm + 2, color: AppTheme.fg),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
+        ],
+      ),
     );
-    if (tooltip == null) return button;
-    return Tooltip(message: tooltip!, child: button);
   }
 }
 
@@ -1577,7 +1632,7 @@ class _KeyRowActions extends StatelessWidget {
         else
           AppIconButton(
             icon: Icons.workspace_premium_outlined,
-            tooltip: s.certImport,
+            tooltip: s.certImportTooltip,
             dense: true,
             onTap: onImportCertificate,
           ),

@@ -132,9 +132,22 @@ void main() {
       await tester.pumpAndSettle();
       // The action cluster lives inside `_KeyRowActions`; tooltip
       // strings (`S.of(context).publicKey` etc.) are the public
-      // surface to assert against.
+      // surface to assert against. The import-certificate slot
+      // now uses an extended tooltip that explains the SSH CA
+      // use case — match the first sentence so a future copy
+      // tweak does not invalidate the test.
       expect(find.byTooltip('Public Key'), findsOneWidget);
-      expect(find.byTooltip('Import certificate'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Tooltip &&
+              (w.message?.startsWith(
+                    'Attach an OpenSSH certificate signed by your CA',
+                  ) ??
+                  false),
+        ),
+        findsOneWidget,
+      );
       expect(find.byTooltip('Delete Key'), findsOneWidget);
       // Stub-only actions must not appear on a non-stub row.
       expect(find.byTooltip('Re-generate here'), findsNothing);
@@ -164,6 +177,29 @@ void main() {
         expect(find.byTooltip('Remove stub'), findsOneWidget);
         expect(find.byTooltip('Public Key'), findsNothing);
         expect(find.byTooltip('Import certificate'), findsNothing);
+      },
+    );
+  });
+
+  group('KeyManagerPanel + Add menu', () {
+    testWidgets(
+      'toolbar renders a single + Add trigger; tapping it opens a popup '
+      'that lists the always-on paste / import / generate paths',
+      (tester) async {
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        // Trigger label is `S.of(context).addKey` — exactly one
+        // instance in the toolbar (the toolbar's only action).
+        final trigger = find.text('Add Key');
+        expect(trigger, findsOneWidget);
+        await tester.tap(trigger);
+        await tester.pumpAndSettle();
+        // Common paths always appear regardless of hardware tier
+        // probes — the host platform's available rungs may add more
+        // entries below the divider but these three are unconditional.
+        expect(find.text('Paste PEM'), findsOneWidget);
+        expect(find.text('Import Key'), findsOneWidget);
+        expect(find.text('Generate Key'), findsOneWidget);
       },
     );
   });
