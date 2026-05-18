@@ -401,6 +401,18 @@ class SAr extends S {
   String get sectionAdvanced => 'متقدم';
 
   @override
+  String get moreOptions => 'المزيد من الخيارات';
+
+  @override
+  String get connectTo => 'الاتصال بـ';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => 'تنسيق غير صالح — متوقع user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -439,6 +451,15 @@ class SAr extends S {
 
   @override
   String get sessionName => 'اسم الجلسة';
+
+  @override
+  String get sessionNameAutoFromHost => 'تلقائي من المضيف';
+
+  @override
+  String get sessionNameAutoFromUrl => 'تلقائي من مضيف URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'تلقائي من السلة الافتراضية';
 
   @override
   String get hintMyServer => 'خادمي';
@@ -1426,10 +1447,8 @@ class SAr extends S {
   String get importAction => 'استيراد';
 
   @override
-  String get saveSessionToAssignTags => 'احفظ الجلسة أولاً لتعيين العلامات';
-
-  @override
-  String get noTagsAssigned => 'لم يتم تعيين علامات';
+  String get noTagsAvailable =>
+      'لا توجد علامات بعد — أنشئ واحدة في الأدوات → العلامات.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1670,6 +1689,9 @@ class SAr extends S {
   String get addKey => 'إضافة مفتاح';
 
   @override
+  String get addKeyMenuPaste => 'لصق PEM';
+
+  @override
   String get filePickerUnavailable => 'منتقي الملفات غير متاح في هذا النظام';
 
   @override
@@ -1721,6 +1743,10 @@ class SAr extends S {
 
   @override
   String get certImport => 'استيراد certificate';
+
+  @override
+  String get certImportTooltip =>
+      'اربط شهادة OpenSSH موقّعة من CA الخاص بك (ملف `-cert.pub` من `ssh-keygen -s …`). استخدم هذا عندما تتحقق الخوادم عبر توقيع CA بدلاً من `authorized_keys`. تجاوز إذا كانت خوادمك تستخدم plain key auth.';
 
   @override
   String get certImportPickerTitle => 'اختر ملف certificate من نوع OpenSSH';
@@ -2235,7 +2261,7 @@ class SAr extends S {
 
   @override
   String get recordSessionHelp =>
-      'حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر عند توفر كلمة مرور رئيسية أو مفتاح أجهزة.';
+      'حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر في حالة السكون عندما تحمي كلمة مرور رئيسية أو مفتاح أجهزة قاعدة بيانات الجلسات؛ وإلا يُخزَّن كنص عادي بجانب القاعدة.';
 
   @override
   String get recordingsBrowserTitle => 'التسجيلات';
@@ -2773,6 +2799,12 @@ class SAr extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'بدء التسجيل';
+
+  @override
+  String get recordToggleStop => 'إيقاف التسجيل';
+
+  @override
   String get foregroundServiceTitle => 'SSH نشط';
 
   @override
@@ -2819,12 +2851,25 @@ class SAr extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint لشهادة self-signed (اختياري)';
+  String get trustedCert => 'شهادة موثوقة (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256، اتركه فارغًا لاستخدام trust النظام';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'ألصق شهادة الخادم (كتلة PEM واحدة أو أكثر). تُضاف كجذر CA إضافي لهذه الجلسة فقط — لا تؤثر على التطبيقات الأخرى. اتركها فارغة لاستخدام مخزن الثقة في النظام.';
+
+  @override
+  String get acceptAnyCert => 'قبول أي شهادة';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'تخطّي كل فحوصات الشهادة واسم المضيف لمصافحات TLS هذه الجلسة. مخرج طوارئ عندما لا يناسب مخزن ثقة النظام أو شهادة مثبتة.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'عرضة لهجمات MITM — يمكن لأي شخص على الشبكة انتحال هوية الخادم. استخدمها فقط على شبكات خاصة موثوقة.';
 
   @override
   String get webDavCopyUrl => 'نسخ WebDAV URL';

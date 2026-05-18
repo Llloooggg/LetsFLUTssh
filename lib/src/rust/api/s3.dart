@@ -97,6 +97,16 @@ class S3ConnectRequest {
   final String defaultBucket;
   final String defaultPrefix;
 
+  /// PEM blob (one or more `-----BEGIN CERTIFICATE-----` blocks)
+  /// added as an additional root for the reqwest client. `None`
+  /// falls back to the system trust store.
+  final String? trustedCertPem;
+
+  /// Last-resort skip-all-cert-verification toggle. The dialog
+  /// renders an explicit MITM warning before letting the user
+  /// flip it on.
+  final bool insecureSkipVerify;
+
   const S3ConnectRequest({
     required this.connectionId,
     required this.accessKeyId,
@@ -106,6 +116,8 @@ class S3ConnectRequest {
     required this.pathStyle,
     required this.defaultBucket,
     required this.defaultPrefix,
+    this.trustedCertPem,
+    required this.insecureSkipVerify,
   });
 
   @override
@@ -117,7 +129,9 @@ class S3ConnectRequest {
       endpoint.hashCode ^
       pathStyle.hashCode ^
       defaultBucket.hashCode ^
-      defaultPrefix.hashCode;
+      defaultPrefix.hashCode ^
+      trustedCertPem.hashCode ^
+      insecureSkipVerify.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -131,7 +145,9 @@ class S3ConnectRequest {
           endpoint == other.endpoint &&
           pathStyle == other.pathStyle &&
           defaultBucket == other.defaultBucket &&
-          defaultPrefix == other.defaultPrefix;
+          defaultPrefix == other.defaultPrefix &&
+          trustedCertPem == other.trustedCertPem &&
+          insecureSkipVerify == other.insecureSkipVerify;
 }
 
 /// One directory entry surfaced by [`S3Connection::list`]. Field

@@ -423,6 +423,19 @@ class SDe extends S {
   String get sectionAdvanced => 'Erweitert';
 
   @override
+  String get moreOptions => 'Weitere Optionen';
+
+  @override
+  String get connectTo => 'Verbinden mit';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Ungültiges Format — erwartet user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -458,6 +471,15 @@ class SDe extends S {
 
   @override
   String get sessionName => 'Sitzungsname';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto vom Host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto vom URL-Host';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto vom Default-Bucket';
 
   @override
   String get hintMyServer => 'Mein Server';
@@ -1474,11 +1496,8 @@ class SDe extends S {
   String get importAction => 'Importieren';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Sitzung zuerst speichern, um Tags zuzuweisen';
-
-  @override
-  String get noTagsAssigned => 'Keine Tags zugewiesen';
+  String get noTagsAvailable =>
+      'Noch keine Tags — leg in Tools → Tags einen an.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1729,6 +1748,9 @@ class SDe extends S {
   String get addKey => 'Schlüssel hinzufügen';
 
   @override
+  String get addKeyMenuPaste => 'PEM einfügen';
+
+  @override
   String get filePickerUnavailable =>
       'Dateiauswahl auf diesem System nicht verfügbar';
 
@@ -1782,6 +1804,10 @@ class SDe extends S {
 
   @override
   String get certImport => 'Zertifikat importieren';
+
+  @override
+  String get certImportTooltip =>
+      'OpenSSH-Zertifikat anhängen, das von deiner CA signiert wurde (`-cert.pub` aus `ssh-keygen -s …`). Verwenden, wenn der Server über CA-Signatur statt `authorized_keys` verifiziert. Überspringen, wenn deine Server plain key auth nutzen.';
 
   @override
   String get certImportPickerTitle => 'OpenSSH-Zertifikatsdatei auswählen';
@@ -2300,7 +2326,7 @@ class SDe extends S {
 
   @override
   String get recordSessionHelp =>
-      'Terminal-Ausgabe für diese Sitzung auf der Festplatte speichern. Bei aktiviertem Master-Passwort / Hardware-Key verschlüsselt im Ruhezustand.';
+      'Terminal-Ausgabe für diese Sitzung auf der Festplatte speichern. Im Ruhezustand verschlüsselt, wenn ein Master-Passwort oder Hardware-Key die Sitzungs-DB schützt; sonst als Klartext neben der DB abgelegt.';
 
   @override
   String get recordingsBrowserTitle => 'Aufzeichnungen';
@@ -2842,6 +2868,12 @@ class SDe extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Aufzeichnung starten';
+
+  @override
+  String get recordToggleStop => 'Aufzeichnung stoppen';
+
+  @override
   String get foregroundServiceTitle => 'SSH aktiv';
 
   @override
@@ -2887,12 +2919,25 @@ class SDe extends S {
   String get webDavAuthBearer => 'Bearer-Token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint des Self-signed-Zertifikats (optional)';
+  String get trustedCert => 'Vertrauenswürdiges Zertifikat (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, leer lassen für System-Trust';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Server-Zertifikat einfügen (ein oder mehrere PEM-Blöcke). Wird nur für diese Sitzung als zusätzliche Root-CA hinzugefügt — andere Apps bleiben unberührt. Leer lassen, um den System-Trust-Store zu nutzen.';
+
+  @override
+  String get acceptAnyCert => 'Jedes Zertifikat akzeptieren';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Überspringt alle Zertifikat- und Hostnamen-Prüfungen für die TLS-Handshakes dieser Sitzung. Notausgang, wenn weder System-Trust-Store noch ein gepinntes Zertifikat passen.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Anfällig für MITM-Angriffe — jeder im Netz kann den Server imitieren. Nur in vertrauenswürdigen privaten Netzen verwenden.';
 
   @override
   String get webDavCopyUrl => 'WebDAV-URL kopieren';

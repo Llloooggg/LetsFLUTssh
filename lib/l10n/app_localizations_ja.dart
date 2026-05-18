@@ -390,6 +390,18 @@ class SJa extends S {
   String get sectionAdvanced => '詳細';
 
   @override
+  String get moreOptions => '詳細オプション';
+
+  @override
+  String get connectTo => '接続先';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => '形式が無効です — user@host:port が必要です';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -424,6 +436,15 @@ class SJa extends S {
 
   @override
   String get sessionName => 'セッション名';
+
+  @override
+  String get sessionNameAutoFromHost => 'ホストから自動';
+
+  @override
+  String get sessionNameAutoFromUrl => 'URLホストから自動';
+
+  @override
+  String get sessionNameAutoFromBucket => 'デフォルトバケットから自動';
 
   @override
   String get hintMyServer => 'マイサーバー';
@@ -1389,10 +1410,7 @@ class SJa extends S {
   String get importAction => 'インポート';
 
   @override
-  String get saveSessionToAssignTags => 'タグを割り当てるには、まずセッションを保存してください';
-
-  @override
-  String get noTagsAssigned => 'タグが割り当てられていません';
+  String get noTagsAvailable => 'まだタグがありません — Tools → Tags で作成してください。';
 
   @override
   String errWithPath(String error, String path) {
@@ -1631,6 +1649,9 @@ class SJa extends S {
   String get addKey => 'キーを追加';
 
   @override
+  String get addKeyMenuPaste => 'PEMを貼り付け';
+
+  @override
   String get filePickerUnavailable => 'このシステムではファイルピッカーを利用できません';
 
   @override
@@ -1682,6 +1703,10 @@ class SJa extends S {
 
   @override
   String get certImport => '証明書をインポート';
+
+  @override
+  String get certImportTooltip =>
+      'CA が署名した OpenSSH 証明書（`ssh-keygen -s …` で生成した `-cert.pub` ファイル）を添付します。サーバーが `authorized_keys` ではなく CA 署名で検証する場合に使用。サーバーが plain key auth を使う場合はスキップ。';
 
   @override
   String get certImportPickerTitle => 'OpenSSH 証明書ファイルを選択';
@@ -2181,7 +2206,7 @@ class SJa extends S {
 
   @override
   String get recordSessionHelp =>
-      'このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキー有効時は保存時に暗号化されます。';
+      'このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキーがセッションDBを保護している場合は保存時に暗号化され、そうでない場合はDBと並んで平文で保存されます。';
 
   @override
   String get recordingsBrowserTitle => '録画';
@@ -2699,6 +2724,12 @@ class SJa extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => '録画を開始';
+
+  @override
+  String get recordToggleStop => '録画を停止';
+
+  @override
   String get foregroundServiceTitle => 'SSH 接続中';
 
   @override
@@ -2744,10 +2775,25 @@ class SJa extends S {
   String get webDavAuthBearer => 'Bearer トークン';
 
   @override
-  String get webDavSelfSignedFingerprint => 'Self-signed 証明書の Fingerprint(任意)';
+  String get trustedCert => '信頼する証明書 (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint => 'SHA-256、空ならシステム trust を使用';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'サーバー証明書を貼り付けてください (1つ以上のPEMブロック)。このセッションのみの追加ルートCAとして登録され、他のアプリには影響しません。空のままでシステムの trust store を使用します。';
+
+  @override
+  String get acceptAnyCert => 'すべての証明書を許可';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'このセッションのTLSハンドシェイクで証明書とホスト名のチェックをすべて省略します。システムの trust store もピン留めした証明書も使えないときの最後の手段です。';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'MITM攻撃に脆弱です — ネットワーク上の誰でもサーバーを偽装できます。信頼できるプライベートネットワークでのみ使用してください。';
 
   @override
   String get webDavCopyUrl => 'WebDAV URL をコピー';

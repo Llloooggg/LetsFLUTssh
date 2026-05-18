@@ -429,6 +429,18 @@ class SFr extends S {
   String get sectionAdvanced => 'Avancé';
 
   @override
+  String get moreOptions => 'Plus d\'options';
+
+  @override
+  String get connectTo => 'Se connecter à';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => 'Format invalide — attendu user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -464,6 +476,15 @@ class SFr extends S {
 
   @override
   String get sessionName => 'Nom de la session';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto depuis l\'hôte';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto depuis l\'hôte de l\'URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto depuis le bucket par défaut';
 
   @override
   String get hintMyServer => 'Mon serveur';
@@ -1481,11 +1502,8 @@ class SFr extends S {
   String get importAction => 'Importer';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Enregistrez d\'abord la session pour attribuer des étiquettes';
-
-  @override
-  String get noTagsAssigned => 'Aucune étiquette attribuée';
+  String get noTagsAvailable =>
+      'Pas encore d\'étiquette — créez-en une dans Outils → Étiquettes.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1736,6 +1754,9 @@ class SFr extends S {
   String get addKey => 'Ajouter une clé';
 
   @override
+  String get addKeyMenuPaste => 'Coller le PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Sélecteur de fichiers indisponible sur ce système';
 
@@ -1788,6 +1809,10 @@ class SFr extends S {
 
   @override
   String get certImport => 'Importer un certificat';
+
+  @override
+  String get certImportTooltip =>
+      'Joindre un certificat OpenSSH signé par votre CA (le fichier `-cert.pub` produit par `ssh-keygen -s …`). À utiliser lorsque les serveurs vérifient par signature CA au lieu d\'`authorized_keys`. Sauter si vos serveurs utilisent l\'auth par clé simple.';
 
   @override
   String get certImportPickerTitle =>
@@ -2310,7 +2335,7 @@ class SFr extends S {
 
   @override
   String get recordSessionHelp =>
-      'Sauvegarder la sortie du terminal sur disque pour cette session. Chiffrée au repos avec mot de passe maître ou clé matérielle.';
+      'Sauvegarder la sortie du terminal sur disque pour cette session. Chiffrée au repos quand un mot de passe maître ou une clé matérielle protège la base de sessions ; sinon stockée en clair à côté de la base.';
 
   @override
   String get recordingsBrowserTitle => 'Enregistrements';
@@ -2859,6 +2884,12 @@ class SFr extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Démarrer l\'enregistrement';
+
+  @override
+  String get recordToggleStop => 'Arrêter l\'enregistrement';
+
+  @override
   String get foregroundServiceTitle => 'SSH actif';
 
   @override
@@ -2904,12 +2935,25 @@ class SFr extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint du certificat self-signed (optionnel)';
+  String get trustedCert => 'Certificat de confiance (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, laisser vide pour utiliser le trust système';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Colle le certificat du serveur (un ou plusieurs blocs PEM). Ajouté comme CA racine supplémentaire pour cette session seulement — n\'affecte pas les autres applis. Laisse vide pour utiliser le trust store du système.';
+
+  @override
+  String get acceptAnyCert => 'Accepter tout certificat';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Ignore toutes les vérifications de certificat et de nom d\'hôte pour les handshakes TLS de cette session. Issue de secours quand ni le trust store système ni un certificat épinglé ne conviennent.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Vulnérable aux attaques MITM — n\'importe qui sur le réseau peut usurper le serveur. À n\'utiliser que sur des réseaux privés de confiance.';
 
   @override
   String get webDavCopyUrl => 'Copier l’URL WebDAV';

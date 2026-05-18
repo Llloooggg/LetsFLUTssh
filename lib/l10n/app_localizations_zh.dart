@@ -389,6 +389,18 @@ class SZh extends S {
   String get sectionAdvanced => '高级';
 
   @override
+  String get moreOptions => '更多选项';
+
+  @override
+  String get connectTo => '连接到';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => '格式无效 — 期望 user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -423,6 +435,15 @@ class SZh extends S {
 
   @override
   String get sessionName => '会话名称';
+
+  @override
+  String get sessionNameAutoFromHost => '自动取自 host';
+
+  @override
+  String get sessionNameAutoFromUrl => '自动取自 URL host';
+
+  @override
+  String get sessionNameAutoFromBucket => '自动取自默认 bucket';
 
   @override
   String get hintMyServer => '我的服务器';
@@ -1382,10 +1403,7 @@ class SZh extends S {
   String get importAction => '导入';
 
   @override
-  String get saveSessionToAssignTags => '先保存会话才能分配标签';
-
-  @override
-  String get noTagsAssigned => '未分配标签';
+  String get noTagsAvailable => '还没有标签 — 在工具 → 标签中创建一个。';
 
   @override
   String errWithPath(String error, String path) {
@@ -1621,6 +1639,9 @@ class SZh extends S {
   String get addKey => '添加密钥';
 
   @override
+  String get addKeyMenuPaste => '粘贴 PEM';
+
+  @override
   String get filePickerUnavailable => '此系统上无法使用文件选择器';
 
   @override
@@ -1672,6 +1693,10 @@ class SZh extends S {
 
   @override
   String get certImport => '导入证书';
+
+  @override
+  String get certImportTooltip =>
+      '附加一个由您的 CA 签名的 OpenSSH 证书（`ssh-keygen -s …` 生成的 `-cert.pub` 文件）。当服务器通过 CA 签名而非 `authorized_keys` 验证时使用。如果服务器使用 plain key auth 则跳过。';
 
   @override
   String get certImportPickerTitle => '选择 OpenSSH 证书文件';
@@ -2163,7 +2188,8 @@ class SZh extends S {
   String get recordSession => '录制会话';
 
   @override
-  String get recordSessionHelp => '将此会话的终端输出保存到磁盘。启用主密码或硬件密钥时静态加密。';
+  String get recordSessionHelp =>
+      '将此会话的终端输出保存到磁盘。当主密码或硬件密钥保护会话数据库时静态加密;否则与数据库一同以明文存储。';
 
   @override
   String get recordingsBrowserTitle => '录制';
@@ -2674,6 +2700,12 @@ class SZh extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => '开始录制';
+
+  @override
+  String get recordToggleStop => '停止录制';
+
+  @override
   String get foregroundServiceTitle => 'SSH 已连接';
 
   @override
@@ -2719,10 +2751,24 @@ class SZh extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint => 'Self-signed 证书 fingerprint(可选)';
+  String get trustedCert => '信任的证书 (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint => 'SHA-256,留空则使用系统 trust';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      '粘贴服务器证书(一个或多个 PEM 块)。仅作为此会话的附加根 CA 添加,不影响其他应用。留空以使用系统 trust store。';
+
+  @override
+  String get acceptAnyCert => '接受任意证书';
+
+  @override
+  String get acceptAnyCertHelp =>
+      '跳过此会话 TLS 握手中所有证书和主机名检查。当系统 trust store 和固定证书都不合适时的最后手段。';
+
+  @override
+  String get acceptAnyCertWarn => '易受 MITM 攻击 — 网络上任何人都能冒充服务器。仅在可信的私有网络中使用。';
 
   @override
   String get webDavCopyUrl => '复制 WebDAV URL';

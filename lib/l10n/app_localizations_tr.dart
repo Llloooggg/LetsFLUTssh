@@ -394,6 +394,19 @@ class STr extends S {
   String get sectionAdvanced => 'Gelişmiş';
 
   @override
+  String get moreOptions => 'Diğer seçenekler';
+
+  @override
+  String get connectTo => 'Bağlantı';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Geçersiz biçim — user@host:port bekleniyor';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -428,6 +441,15 @@ class STr extends S {
 
   @override
   String get sessionName => 'Oturum Adı';
+
+  @override
+  String get sessionNameAutoFromHost => 'Host\'tan otomatik';
+
+  @override
+  String get sessionNameAutoFromUrl => 'URL host\'undan otomatik';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Varsayılan bucket\'tan otomatik';
 
   @override
   String get hintMyServer => 'Sunucum';
@@ -1418,11 +1440,8 @@ class STr extends S {
   String get importAction => 'İçe aktar';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Etiket atamak için önce oturumu kaydedin';
-
-  @override
-  String get noTagsAssigned => 'Atanmış etiket yok';
+  String get noTagsAvailable =>
+      'Henüz etiket yok — Tools → Tags üzerinden oluşturun.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1664,6 +1683,9 @@ class STr extends S {
   String get addKey => 'Anahtar ekle';
 
   @override
+  String get addKeyMenuPaste => 'PEM yapıştır';
+
+  @override
   String get filePickerUnavailable => 'Dosya seçici bu sistemde kullanılamıyor';
 
   @override
@@ -1715,6 +1737,10 @@ class STr extends S {
 
   @override
   String get certImport => 'Sertifika içe aktar';
+
+  @override
+  String get certImportTooltip =>
+      'CA\'nızın imzaladığı bir OpenSSH sertifikası ekleyin (`ssh-keygen -s …` ile üretilen `-cert.pub` dosyası). Sunucular `authorized_keys` yerine CA imzasıyla doğruluyorsa kullanın. Sunucularınız plain key auth kullanıyorsa atlayın.';
 
   @override
   String get certImportPickerTitle => 'OpenSSH sertifika dosyasını seç';
@@ -2229,7 +2255,7 @@ class STr extends S {
 
   @override
   String get recordSessionHelp =>
-      'Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı varsa diskte şifreli.';
+      'Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı oturum veritabanını koruyorsa diskte şifrelidir; aksi takdirde veritabanının yanına plaintext olarak yazılır.';
 
   @override
   String get recordingsBrowserTitle => 'Kayıtlar';
@@ -2774,6 +2800,12 @@ class STr extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Kaydı başlat';
+
+  @override
+  String get recordToggleStop => 'Kaydı durdur';
+
+  @override
   String get foregroundServiceTitle => 'SSH aktif';
 
   @override
@@ -2819,12 +2851,25 @@ class STr extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Self-signed sertifika fingerprint (opsiyonel)';
+  String get trustedCert => 'Güvenilen sertifika (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, sistem trust kullanmak için boş bırak';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Sunucu sertifikasını yapıştırın (bir veya birden çok PEM bloğu). Sadece bu oturum için ek bir root CA olarak eklenir — diğer uygulamaları etkilemez. Sistem trust store\'unu kullanmak için boş bırakın.';
+
+  @override
+  String get acceptAnyCert => 'Her sertifikayı kabul et';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Bu oturumun TLS handshake\'lerinde tüm sertifika ve hostname kontrollerini atla. Sistem trust store da pinned cert de uygun değilse son çare.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'MITM saldırılarına karşı savunmasız — ağdaki herkes sunucu kimliğine bürünebilir. Yalnızca güvenilir özel ağlarda kullanın.';
 
   @override
   String get webDavCopyUrl => 'WebDAV URL kopyala';

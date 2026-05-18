@@ -400,6 +400,19 @@ class SRu extends S {
   String get sectionAdvanced => 'Дополнительно';
 
   @override
+  String get moreOptions => 'Дополнительно';
+
+  @override
+  String get connectTo => 'Подключение';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Неверный формат — ожидается user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -437,6 +450,15 @@ class SRu extends S {
 
   @override
   String get sessionName => 'Имя сессии';
+
+  @override
+  String get sessionNameAutoFromHost => 'Авто из host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Авто из host\'а URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Авто из default bucket';
 
   @override
   String get hintMyServer => 'Мой сервер';
@@ -1431,11 +1453,7 @@ class SRu extends S {
   String get importAction => 'Импортировать';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Сначала сохраните сессию, чтобы назначить теги';
-
-  @override
-  String get noTagsAssigned => 'Теги не назначены';
+  String get noTagsAvailable => 'Тегов пока нет — создайте в Tools → Tags.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1679,6 +1697,9 @@ class SRu extends S {
   String get addKey => 'Добавить ключ';
 
   @override
+  String get addKeyMenuPaste => 'Вставить PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Файловый пикер недоступен в этой системе';
 
@@ -1731,6 +1752,10 @@ class SRu extends S {
 
   @override
   String get certImport => 'Импортировать сертификат';
+
+  @override
+  String get certImportTooltip =>
+      'Прикрепить OpenSSH-сертификат, подписанный вашим CA (файл `-cert.pub` от `ssh-keygen -s …`). Используйте, когда серверы проверяют по подписи CA вместо `authorized_keys`. Пропустите, если ваши серверы используют plain key auth.';
 
   @override
   String get certImportPickerTitle => 'Выберите файл сертификата OpenSSH';
@@ -2252,7 +2277,7 @@ class SRu extends S {
 
   @override
   String get recordSessionHelp =>
-      'Сохранять вывод терминала на диск для этой сессии. Шифруется на диске при включённом мастер-пароле или аппаратном ключе.';
+      'Сохранять вывод терминала на диск для этой сессии. Шифруется на диске когда мастер-пароль или аппаратный ключ защищает базу сессий; иначе пишется plaintext рядом с базой.';
 
   @override
   String get recordingsBrowserTitle => 'Записи';
@@ -2790,6 +2815,12 @@ class SRu extends S {
       'Разблокируйте приложение, чтобы воспроизвести зашифрованную запись';
 
   @override
+  String get recordToggleStart => 'Начать запись';
+
+  @override
+  String get recordToggleStop => 'Остановить запись';
+
+  @override
   String get foregroundServiceTitle => 'SSH активен';
 
   @override
@@ -2837,12 +2868,25 @@ class SRu extends S {
   String get webDavAuthBearer => 'Bearer токен';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint self-signed сертификата (опционально)';
+  String get trustedCert => 'Доверенный сертификат (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, оставьте пустым для системного trust';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Вставьте сертификат сервера (один или несколько PEM-блоков). Добавляется как дополнительный root CA только для этой сессии — другие приложения не затрагиваются. Оставьте пустым, чтобы использовать системный trust store.';
+
+  @override
+  String get acceptAnyCert => 'Принимать любой сертификат';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Пропустить все проверки сертификата и hostname для TLS-handshake\'ов этой сессии. Аварийный выход когда ни системный trust store, ни pinned cert не подходят.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Уязвимо к MITM-атакам — любой в сети может выдать себя за сервер. Используй только в доверенных приватных сетях.';
 
   @override
   String get webDavCopyUrl => 'Скопировать WebDAV URL';

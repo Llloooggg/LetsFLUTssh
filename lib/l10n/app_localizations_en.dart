@@ -421,6 +421,18 @@ class SEn extends S {
   String get sectionAdvanced => 'Advanced';
 
   @override
+  String get moreOptions => 'More options';
+
+  @override
+  String get connectTo => 'Connect to';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => 'Invalid format — expected user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -456,6 +468,15 @@ class SEn extends S {
 
   @override
   String get sessionName => 'Session Name';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto from host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto from URL host';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto from default bucket';
 
   @override
   String get hintMyServer => 'My Server';
@@ -1454,10 +1475,7 @@ class SEn extends S {
   String get importAction => 'Import';
 
   @override
-  String get saveSessionToAssignTags => 'Save the session first to assign tags';
-
-  @override
-  String get noTagsAssigned => 'No tags assigned';
+  String get noTagsAvailable => 'No tags yet — create one in Tools → Tags.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1705,6 +1723,9 @@ class SEn extends S {
   String get addKey => 'Add Key';
 
   @override
+  String get addKeyMenuPaste => 'Paste PEM';
+
+  @override
   String get filePickerUnavailable => 'File picker unavailable on this system';
 
   @override
@@ -1756,6 +1777,10 @@ class SEn extends S {
 
   @override
   String get certImport => 'Import certificate';
+
+  @override
+  String get certImportTooltip =>
+      'Attach an OpenSSH certificate signed by your CA (the `-cert.pub` file from `ssh-keygen -s …`). Use when servers verify by CA signature instead of `authorized_keys`. Skip if your servers use plain key auth.';
 
   @override
   String get certImportPickerTitle => 'Select OpenSSH certificate file';
@@ -2268,7 +2293,7 @@ class SEn extends S {
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Save terminal output to disk for this session. Encrypted at rest when a master password or hardware key protects the session database; otherwise stored as plaintext alongside the database.';
 
   @override
   String get recordingsBrowserTitle => 'Recordings';
@@ -2806,6 +2831,12 @@ class SEn extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Start recording';
+
+  @override
+  String get recordToggleStop => 'Stop recording';
+
+  @override
   String get foregroundServiceTitle => 'SSH active';
 
   @override
@@ -2851,12 +2882,25 @@ class SEn extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Self-signed cert fingerprint (optional)';
+  String get trustedCert => 'Trusted certificate (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, leave empty to use system trust';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Paste the server\'s certificate (one or more PEM blocks). Added as an additional root CA for this session only — doesn\'t affect other apps. Leave empty to use the system trust store.';
+
+  @override
+  String get acceptAnyCert => 'Accept any certificate';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Skip every certificate and hostname check for this session\'s TLS handshakes. Last-resort escape hatch when neither the system trust store nor a pinned certificate fits.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Vulnerable to MITM attacks — anyone on the network can impersonate the server. Use only on trusted private networks.';
 
   @override
   String get webDavCopyUrl => 'Copy WebDAV URL';

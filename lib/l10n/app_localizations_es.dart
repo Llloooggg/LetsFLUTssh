@@ -429,6 +429,19 @@ class SEs extends S {
   String get sectionAdvanced => 'Avanzado';
 
   @override
+  String get moreOptions => 'Más opciones';
+
+  @override
+  String get connectTo => 'Conectar a';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Formato inválido — se espera user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -464,6 +477,15 @@ class SEs extends S {
 
   @override
   String get sessionName => 'Nombre de la sesión';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto desde host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto desde host de URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto desde bucket por defecto';
 
   @override
   String get hintMyServer => 'Mi servidor';
@@ -1475,11 +1497,8 @@ class SEs extends S {
   String get importAction => 'Importar';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Guarda la sesión primero para asignar etiquetas';
-
-  @override
-  String get noTagsAssigned => 'Sin etiquetas asignadas';
+  String get noTagsAvailable =>
+      'Aún no hay etiquetas — crea una en Herramientas → Etiquetas.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1729,6 +1748,9 @@ class SEs extends S {
   String get addKey => 'Agregar clave';
 
   @override
+  String get addKeyMenuPaste => 'Pegar PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Selector de archivos no disponible en este sistema';
 
@@ -1781,6 +1803,10 @@ class SEs extends S {
 
   @override
   String get certImport => 'Importar certificado';
+
+  @override
+  String get certImportTooltip =>
+      'Adjuntar un certificado OpenSSH firmado por tu CA (el archivo `-cert.pub` de `ssh-keygen -s …`). Úsalo cuando los servidores verifican por firma de CA en lugar de `authorized_keys`. Sáltatelo si tus servidores usan plain key auth.';
 
   @override
   String get certImportPickerTitle =>
@@ -2300,7 +2326,7 @@ class SEs extends S {
 
   @override
   String get recordSessionHelp =>
-      'Guardar la salida del terminal en disco para esta sesión. Cifrada en reposo si hay contraseña maestra o clave de hardware.';
+      'Guardar la salida del terminal en disco para esta sesión. Cifrada en reposo cuando una contraseña maestra o clave de hardware protege la base de sesiones; de lo contrario se guarda en texto plano junto a la base.';
 
   @override
   String get recordingsBrowserTitle => 'Grabaciones';
@@ -2846,6 +2872,12 @@ class SEs extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Iniciar grabación';
+
+  @override
+  String get recordToggleStop => 'Detener grabación';
+
+  @override
   String get foregroundServiceTitle => 'SSH activo';
 
   @override
@@ -2891,12 +2923,25 @@ class SEs extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint del certificado self-signed (opcional)';
+  String get trustedCert => 'Certificado de confianza (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, deja vacío para usar el trust del sistema';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Pega el certificado del servidor (uno o más bloques PEM). Se añade como CA raíz adicional solo para esta sesión — no afecta a otras apps. Déjalo vacío para usar el trust store del sistema.';
+
+  @override
+  String get acceptAnyCert => 'Aceptar cualquier certificado';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Omite todas las comprobaciones de certificado y hostname en los handshakes TLS de esta sesión. Salida de emergencia cuando no funcionan ni el trust store del sistema ni un certificado fijado.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Vulnerable a ataques MITM — cualquiera en la red puede suplantar al servidor. Úsalo solo en redes privadas de confianza.';
 
   @override
   String get webDavCopyUrl => 'Copiar URL de WebDAV';

@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sessions.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `db_session_json_value_to_core`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `hash`, `hash`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `hash`, `hash`
 
 /// Parse a stored `auth_type` wire-string into the typed enum. The
 /// FRB sync shim around [`AuthType::from_wire_name`] — used by the
@@ -63,6 +63,29 @@ int sessionsCountInFolder({
 }) => RustLib.instance.api.crateApiSessionsSessionsCountInFolder(
   sessionFolders: sessionFolders,
   folderPath: folderPath,
+);
+
+/// Parse a smart-paste connect string into its host / port / user
+/// components. Returns `None` for inputs that cannot be coerced to
+/// a non-empty host inside the same validation envelope as the
+/// deeplink connect parser (host ≤ 253 chars, user ≤ 256 chars,
+/// port 1..=65535, no `/`, no `\`, no C0/C1 control characters).
+DbSshTarget? sessionsParseSshTarget({required String input}) =>
+    RustLib.instance.api.crateApiSessionsSessionsParseSshTarget(input: input);
+
+/// Probe whether picking `candidate_id` as the ProxyJump bastion
+/// for `seed_id` would close a cycle through the saved-session
+/// graph. `seed_id = None` is the new-session branch and always
+/// returns `false`. Pre-existing orphan loops in the chain (data
+/// already on disk) are not the dialog's concern and do not trip.
+bool sessionsDetectProxyCycle({
+  String? seedId,
+  required String candidateId,
+  required List<DbSessionProxyRef> chain,
+}) => RustLib.instance.api.crateApiSessionsSessionsDetectProxyCycle(
+  seedId: seedId,
+  candidateId: candidateId,
+  chain: chain,
 );
 
 /// Return a label that does not collide with any entry in
@@ -532,6 +555,26 @@ sealed class DbSessionJsonValue with _$DbSessionJsonValue {
 /// on this directly instead of comparing wire strings.
 enum DbSessionKind { ssh, webdav, s3 }
 
+/// One vertex in the ProxyJump-cycle probe. Mirrors
+/// [`lfs_core::sessions::ProxyRef`] one-to-one.
+class DbSessionProxyRef {
+  final String sessionId;
+  final String? viaSessionId;
+
+  const DbSessionProxyRef({required this.sessionId, this.viaSessionId});
+
+  @override
+  int get hashCode => sessionId.hashCode ^ viaSessionId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionProxyRef &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          viaSessionId == other.viaSessionId;
+}
+
 /// FRB mirror of Dart `ProxyJumpOverride` — used inside
 /// [`DbSessionJsonInput`] to carry an optional via-override.
 class DbSessionViaOverride {
@@ -552,6 +595,30 @@ class DbSessionViaOverride {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is DbSessionViaOverride &&
+          runtimeType == other.runtimeType &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user;
+}
+
+/// FRB mirror of [`lfs_core::sessions::SshTarget`]. Used by the
+/// session-edit dialog's smart-paste "Connect to" field to split
+/// `[user@]host[:port]` into the host / port / user controllers
+/// the existing form already drives.
+class DbSshTarget {
+  final String host;
+  final int? port;
+  final String? user;
+
+  const DbSshTarget({required this.host, this.port, this.user});
+
+  @override
+  int get hashCode => host.hashCode ^ port.hashCode ^ user.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSshTarget &&
           runtimeType == other.runtimeType &&
           host == other.host &&
           port == other.port &&

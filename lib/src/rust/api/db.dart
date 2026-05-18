@@ -931,6 +931,17 @@ class DbS3SessionDetails {
   final String defaultBucket;
   final String defaultPrefix;
 
+  /// Trusted certificate PEM (one or more `-----BEGIN
+  /// CERTIFICATE-----` blocks) added as an additional root for
+  /// the S3 session's reqwest client. `None` falls back to the
+  /// system trust store.
+  final String? trustedCertPem;
+
+  /// Last-resort skip-all-cert-verification toggle. The dialog
+  /// renders an explicit MITM warning before letting the user
+  /// flip it on.
+  final bool insecureSkipVerify;
+
   const DbS3SessionDetails({
     required this.sessionId,
     required this.accessKeyId,
@@ -939,6 +950,8 @@ class DbS3SessionDetails {
     required this.pathStyle,
     required this.defaultBucket,
     required this.defaultPrefix,
+    this.trustedCertPem,
+    required this.insecureSkipVerify,
   });
 
   @override
@@ -949,7 +962,9 @@ class DbS3SessionDetails {
       endpoint.hashCode ^
       pathStyle.hashCode ^
       defaultBucket.hashCode ^
-      defaultPrefix.hashCode;
+      defaultPrefix.hashCode ^
+      trustedCertPem.hashCode ^
+      insecureSkipVerify.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -962,7 +977,9 @@ class DbS3SessionDetails {
           endpoint == other.endpoint &&
           pathStyle == other.pathStyle &&
           defaultBucket == other.defaultBucket &&
-          defaultPrefix == other.defaultPrefix;
+          defaultPrefix == other.defaultPrefix &&
+          trustedCertPem == other.trustedCertPem &&
+          insecureSkipVerify == other.insecureSkipVerify;
 }
 
 class DbSession {
@@ -1777,14 +1794,25 @@ class DbWebDavSessionDetails {
   /// `"basic"` / `"digest"` / `"bearer"`. The connect path parses
   /// this into the typed `lfs_core::webdav::AuthMethod`.
   final String authMethod;
-  final String? selfSignedFingerprint;
+
+  /// Trusted certificate PEM (one or more `-----BEGIN
+  /// CERTIFICATE-----` blocks) added as an additional root for
+  /// this session's TLS handshakes. `None` falls back to the
+  /// system trust store.
+  final String? trustedCertPem;
+
+  /// Last-resort skip-all-cert-verification toggle. The dialog
+  /// renders an explicit MITM warning before letting the user
+  /// flip it on.
+  final bool insecureSkipVerify;
 
   const DbWebDavSessionDetails({
     required this.sessionId,
     required this.baseUrl,
     required this.username,
     required this.authMethod,
-    this.selfSignedFingerprint,
+    this.trustedCertPem,
+    required this.insecureSkipVerify,
   });
 
   @override
@@ -1793,7 +1821,8 @@ class DbWebDavSessionDetails {
       baseUrl.hashCode ^
       username.hashCode ^
       authMethod.hashCode ^
-      selfSignedFingerprint.hashCode;
+      trustedCertPem.hashCode ^
+      insecureSkipVerify.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1804,5 +1833,6 @@ class DbWebDavSessionDetails {
           baseUrl == other.baseUrl &&
           username == other.username &&
           authMethod == other.authMethod &&
-          selfSignedFingerprint == other.selfSignedFingerprint;
+          trustedCertPem == other.trustedCertPem &&
+          insecureSkipVerify == other.insecureSkipVerify;
 }

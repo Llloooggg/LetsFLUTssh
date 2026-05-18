@@ -429,6 +429,19 @@ class SPt extends S {
   String get sectionAdvanced => 'Avançado';
 
   @override
+  String get moreOptions => 'Mais opções';
+
+  @override
+  String get connectTo => 'Conectar a';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Formato inválido — esperado user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -464,6 +477,15 @@ class SPt extends S {
 
   @override
   String get sessionName => 'Nome da Sessão';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto a partir do host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto a partir do host da URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto a partir do bucket padrão';
 
   @override
   String get hintMyServer => 'Meu Servidor';
@@ -1473,11 +1495,8 @@ class SPt extends S {
   String get importAction => 'Importar';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Salve a sessão primeiro para atribuir tags';
-
-  @override
-  String get noTagsAssigned => 'Nenhuma tag atribuída';
+  String get noTagsAvailable =>
+      'Ainda sem tags — crie uma em Ferramentas → Tags.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1727,6 +1746,9 @@ class SPt extends S {
   String get addKey => 'Adicionar chave';
 
   @override
+  String get addKeyMenuPaste => 'Colar PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Seletor de arquivos indisponível neste sistema';
 
@@ -1780,6 +1802,10 @@ class SPt extends S {
 
   @override
   String get certImport => 'Importar certificado';
+
+  @override
+  String get certImportTooltip =>
+      'Anexar um certificado OpenSSH assinado pela sua CA (o arquivo `-cert.pub` de `ssh-keygen -s …`). Use quando os servidores verificam por assinatura CA em vez de `authorized_keys`. Pule se seus servidores usam plain key auth.';
 
   @override
   String get certImportPickerTitle =>
@@ -2296,7 +2322,7 @@ class SPt extends S {
 
   @override
   String get recordSessionHelp =>
-      'Guardar saída do terminal em disco para esta sessão. Cifrada em repouso quando há password mestra ou chave de hardware.';
+      'Guardar saída do terminal em disco para esta sessão. Cifrada em repouso quando uma password mestra ou chave de hardware protege a base de sessões; caso contrário, gravada em texto plano junto da base.';
 
   @override
   String get recordingsBrowserTitle => 'Gravações';
@@ -2839,6 +2865,12 @@ class SPt extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Iniciar gravação';
+
+  @override
+  String get recordToggleStop => 'Parar gravação';
+
+  @override
   String get foregroundServiceTitle => 'SSH ativo';
 
   @override
@@ -2884,12 +2916,25 @@ class SPt extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint do certificado self-signed (opcional)';
+  String get trustedCert => 'Certificado confiável (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, deixe vazio para usar o trust do sistema';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Cola o certificado do servidor (um ou mais blocos PEM). Adicionado como CA raiz adicional apenas para esta sessão — não afeta outras apps. Deixa vazio para usar o trust store do sistema.';
+
+  @override
+  String get acceptAnyCert => 'Aceitar qualquer certificado';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Ignora todas as verificações de certificado e hostname nos handshakes TLS desta sessão. Saída de emergência quando nem o trust store do sistema nem um certificado fixado servem.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Vulnerável a ataques MITM — qualquer pessoa na rede pode se passar pelo servidor. Use apenas em redes privadas de confiança.';
 
   @override
   String get webDavCopyUrl => 'Copiar URL WebDAV';

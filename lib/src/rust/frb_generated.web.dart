@@ -507,6 +507,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSshTarget dco_decode_box_autoadd_db_ssh_target(dynamic raw);
+
+  @protected
   DbStagedImport dco_decode_box_autoadd_db_staged_import(dynamic raw);
 
   @protected
@@ -978,6 +981,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
 
   @protected
+  DbSessionProxyRef dco_decode_db_session_proxy_ref(dynamic raw);
+
+  @protected
   DbSessionRegistryView dco_decode_db_session_registry_view(dynamic raw);
 
   @protected
@@ -1015,6 +1021,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKeyMetadata dco_decode_db_ssh_key_metadata(dynamic raw);
+
+  @protected
+  DbSshTarget dco_decode_db_ssh_target(dynamic raw);
 
   @protected
   DbStagedFolderTagLink dco_decode_db_staged_folder_tag_link(dynamic raw);
@@ -1260,6 +1269,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSessionJsonValue> dco_decode_list_db_session_json_value(dynamic raw);
 
   @protected
+  List<DbSessionProxyRef> dco_decode_list_db_session_proxy_ref(dynamic raw);
+
+  @protected
   List<DbSessionTreeInput> dco_decode_list_db_session_tree_input(dynamic raw);
 
   @protected
@@ -1482,6 +1494,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKeyCertificate? dco_decode_opt_box_autoadd_db_ssh_key_certificate(
     dynamic raw,
   );
+
+  @protected
+  DbSshTarget? dco_decode_opt_box_autoadd_db_ssh_target(dynamic raw);
 
   @protected
   DbStagedSecrets? dco_decode_opt_box_autoadd_db_staged_secrets(dynamic raw);
@@ -2018,6 +2033,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKeyCertificate sse_decode_box_autoadd_db_ssh_key_certificate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSshTarget sse_decode_box_autoadd_db_ssh_target(
     SseDeserializer deserializer,
   );
 
@@ -2665,6 +2685,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSessionProxyRef sse_decode_db_session_proxy_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSessionRegistryView sse_decode_db_session_registry_view(
     SseDeserializer deserializer,
   );
@@ -2714,6 +2739,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKeyMetadata sse_decode_db_ssh_key_metadata(SseDeserializer deserializer);
+
+  @protected
+  DbSshTarget sse_decode_db_ssh_target(SseDeserializer deserializer);
 
   @protected
   DbStagedFolderTagLink sse_decode_db_staged_folder_tag_link(
@@ -3045,6 +3073,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DbSessionProxyRef> sse_decode_list_db_session_proxy_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbSessionTreeInput> sse_decode_list_db_session_tree_input(
     SseDeserializer deserializer,
   );
@@ -3321,6 +3354,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKeyCertificate? sse_decode_opt_box_autoadd_db_ssh_key_certificate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSshTarget? sse_decode_opt_box_autoadd_db_ssh_target(
     SseDeserializer deserializer,
   );
 
@@ -3972,6 +4010,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_ssh_key_certificate(
     DbSshKeyCertificate self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_ssh_target(
+    DbSshTarget self,
     SseSerializer serializer,
   );
 
@@ -4804,6 +4848,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_session_proxy_ref(
+    DbSessionProxyRef self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_session_registry_view(
     DbSessionRegistryView self,
     SseSerializer serializer,
@@ -4868,6 +4918,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbSshKeyMetadata self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_ssh_target(DbSshTarget self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_staged_folder_tag_link(
@@ -5281,6 +5334,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_session_proxy_ref(
+    List<DbSessionProxyRef> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_session_tree_input(
     List<DbSessionTreeInput> self,
     SseSerializer serializer,
@@ -5624,6 +5683,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_ssh_key_certificate(
     DbSshKeyCertificate? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_ssh_target(
+    DbSshTarget? self,
     SseSerializer serializer,
   );
 

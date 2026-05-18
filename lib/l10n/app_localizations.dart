@@ -795,6 +795,30 @@ abstract class S {
   /// **'Advanced'**
   String get sectionAdvanced;
 
+  /// Header text for the collapsible block at the bottom of the session edit dialog. Holds tags (universal), folder, and per-kind niche knobs (SSH: ProxyJump + port forwarding + record-session; WebDAV: fingerprint pin; S3: path-style + default prefix). Collapsed by default so the default form stays compact.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get moreOptions;
+
+  /// Label for the SSH smart-paste field in the session edit dialog. The user types '[user@]host[:port]' into this one field; the dialog parses the input via lfs_core::sessions::parse_ssh_target and splits the result across the host / port / user storage slots.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to'**
+  String get connectTo;
+
+  /// Placeholder text inside the SSH smart-paste field. Demonstrates the expected '[user@]host[:port]' shape; not a translatable string because the example URL stays the same across locales.
+  ///
+  /// In en, this message translates to:
+  /// **'root@example.com:22'**
+  String get connectHint;
+
+  /// Validation error surfaced when the SSH smart-paste field cannot be parsed (control chars, missing host, out-of-range port, malformed IPv6 bracket). Mentions the expected shape so the user knows what to type.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid format — expected user@host:port'**
+  String get connectStringInvalid;
+
   /// Compact pluralised summary shown in the Advanced section of the session edit dialog (SSH only) next to the 'Manage…' button that opens the Forwarding rule editor sub-dialog. {count} is the current number of rules on the session.
   ///
   /// In en, this message translates to:
@@ -836,6 +860,24 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Session Name'**
   String get sessionName;
+
+  /// Placeholder text for the SSH session-name field. Tells the user the label will be derived from the typed host when left empty — saves a basic-connection from having to invent a name. Re-rendered per-kind: the WebDAV variant points at the base URL host, the S3 variant at the default bucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto from host'**
+  String get sessionNameAutoFromHost;
+
+  /// Placeholder text for the WebDAV session-name field. Tells the user the label will be derived from the base URL's host when left empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto from URL host'**
+  String get sessionNameAutoFromUrl;
+
+  /// Placeholder text for the S3 session-name field. Tells the user the label will be derived from the default bucket when left empty (falls back to the endpoint host when no default bucket is set).
+  ///
+  /// In en, this message translates to:
+  /// **'Auto from default bucket'**
+  String get sessionNameAutoFromBucket;
 
   /// No description provided for @hintMyServer.
   ///
@@ -2589,17 +2631,11 @@ abstract class S {
   /// **'Import'**
   String get importAction;
 
-  /// No description provided for @saveSessionToAssignTags.
+  /// Empty-state copy for the session-edit dialog's inline tag picker (More options → Tags). Renders when the workspace has zero tags defined; points the user at the tag manager surface where they can create one.
   ///
   /// In en, this message translates to:
-  /// **'Save the session first to assign tags'**
-  String get saveSessionToAssignTags;
-
-  /// No description provided for @noTagsAssigned.
-  ///
-  /// In en, this message translates to:
-  /// **'No tags assigned'**
-  String get noTagsAssigned;
+  /// **'No tags yet — create one in Tools → Tags.'**
+  String get noTagsAvailable;
 
   /// No description provided for @errWithPath.
   ///
@@ -2967,6 +3003,12 @@ abstract class S {
   /// **'Add Key'**
   String get addKey;
 
+  /// No description provided for @addKeyMenuPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste PEM'**
+  String get addKeyMenuPaste;
+
   /// No description provided for @filePickerUnavailable.
   ///
   /// In en, this message translates to:
@@ -3056,6 +3098,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Import certificate'**
   String get certImport;
+
+  /// Expanded tooltip on the Import Certificate row action in the Key Manager. Replaces the bare 'Import certificate' label so the user understands when the feature is useful (org-managed SSH CA flow) and when it does not apply (plain authorized_keys auth). Wraps in the row tooltip popover when the user hovers the button.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach an OpenSSH certificate signed by your CA (the `-cert.pub` file from `ssh-keygen -s …`). Use when servers verify by CA signature instead of `authorized_keys`. Skip if your servers use plain key auth.'**
+  String get certImportTooltip;
 
   /// No description provided for @certImportPickerTitle.
   ///
@@ -3930,7 +3978,7 @@ abstract class S {
   /// No description provided for @recordSessionHelp.
   ///
   /// In en, this message translates to:
-  /// **'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.'**
+  /// **'Save terminal output to disk for this session. Encrypted at rest when a master password or hardware key protects the session database; otherwise stored as plaintext alongside the database.'**
   String get recordSessionHelp;
 
   /// No description provided for @recordingsBrowserTitle.
@@ -4851,6 +4899,18 @@ abstract class S {
   /// **'Unlock the app to play this encrypted recording'**
   String get recordingPlayLocked;
 
+  /// Tooltip on the per-connection record button in the terminal panel's connection bar when the focused pane is not recording. Tapping starts a new .lfsr / .cast file under <appSupport>/recordings/<sessionId>/.
+  ///
+  /// In en, this message translates to:
+  /// **'Start recording'**
+  String get recordToggleStart;
+
+  /// Tooltip on the per-connection record button in the terminal panel's connection bar when the focused pane is recording. Tapping seals the current recording file so it shows up in the recordings browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording'**
+  String get recordToggleStop;
+
   /// No description provided for @foregroundServiceTitle.
   ///
   /// In en, this message translates to:
@@ -4923,17 +4983,41 @@ abstract class S {
   /// **'Bearer token'**
   String get webDavAuthBearer;
 
-  /// No description provided for @webDavSelfSignedFingerprint.
+  /// Header for the trusted-certificate textarea in the More options section of the session edit dialog. Shown for WebDAV / S3 sessions; lets the user paste one or more `-----BEGIN CERTIFICATE-----` blocks that the reqwest client treats as additional root CAs for that session's TLS handshakes. Self-signed endpoints then validate without OS-trust-store changes.
   ///
   /// In en, this message translates to:
-  /// **'Self-signed cert fingerprint (optional)'**
-  String get webDavSelfSignedFingerprint;
+  /// **'Trusted certificate (PEM)'**
+  String get trustedCert;
 
-  /// No description provided for @webDavSelfSignedFingerprintHint.
+  /// Placeholder text for the trusted-cert textarea. Not localised — the placeholder shows the canonical PEM header so the user knows the expected shape.
   ///
   /// In en, this message translates to:
-  /// **'SHA-256, leave empty to use system trust'**
-  String get webDavSelfSignedFingerprintHint;
+  /// **'-----BEGIN CERTIFICATE-----'**
+  String get trustedCertHint;
+
+  /// Hint paragraph rendered below the trusted-cert textarea. Explains scope (per session), source (server admin), and the fall-back (system trust store).
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the server\'s certificate (one or more PEM blocks). Added as an additional root CA for this session only — doesn\'t affect other apps. Leave empty to use the system trust store.'**
+  String get trustedCertHelp;
+
+  /// Label for the insecure-skip-verify toggle in the More options section. Switches reqwest to `danger_accept_invalid_certs(true)` + `danger_accept_invalid_hostnames(true)`.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept any certificate'**
+  String get acceptAnyCert;
+
+  /// Subtitle for the insecure-skip-verify toggle, explaining when it makes sense.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip every certificate and hostname check for this session\'s TLS handshakes. Last-resort escape hatch when neither the system trust store nor a pinned certificate fits.'**
+  String get acceptAnyCertHelp;
+
+  /// Red-tinted warning rendered below the insecure-skip-verify toggle when it is on. Names the threat (MITM) and the safe context (trusted private network).
+  ///
+  /// In en, this message translates to:
+  /// **'Vulnerable to MITM attacks — anyone on the network can impersonate the server. Use only on trusted private networks.'**
+  String get acceptAnyCertWarn;
 
   /// No description provided for @webDavCopyUrl.
   ///

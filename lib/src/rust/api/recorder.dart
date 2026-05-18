@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'recorder.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `read_cap_from_store`, `recorder_open_for_playback_inner`
+// These functions are ignored because they are not marked as `pub`: `file_starts_with_lfr_magic`, `read_cap_from_store`, `recorder_open_for_playback_inner`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
@@ -95,39 +95,66 @@ Future<DbSeekHit?> recorderSeek({
   encrypted: encrypted,
 );
 
-/// Derive the per-recording AES-256 key from the active DB key
-/// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
-/// HKDF-SHA256 chain [`recorder_register_from_active`] uses for
-/// the writer. Returns the 32-byte recorder key for callers that
-/// drive AES-GCM decryption Dart-side (today: `RecordingReader`
-/// playback streamer); future migration moves the iter Rust-side
-/// and this entry point retires.
-///
-/// Returns an empty `Vec` when the active slot is empty
-/// (plaintext tier) — caller treats empty as "no encrypted
-/// recordings can be opened from this session".
-Future<Uint8List> recorderDeriveKeyFromActive() =>
-    RustLib.instance.api.crateApiRecorderRecorderDeriveKeyFromActive();
-
 /// SecretRef variant of [`recorder_register`]. Reads the running
 /// session's DB key from
-/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`], runs the
-/// `letsflutssh-recording-v1` HKDF-SHA256 derivation entirely
-/// Rust-side, and registers the recorder under the derived key.
-/// When the active slot is empty (plaintext tier) the recorder
-/// registers in plaintext-asciinema mode.
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] and registers the
+/// recorder with that DB key as the wrap key. The recorder's
+/// `register_with_io` then mints a fresh random per-file recording
+/// key, wraps it under the DB key in the v1 LFR1 header, and uses
+/// the recording key for every frame's GCM tag + the sidecar HKDF
+/// chain. When the active slot is empty (plaintext tier) the
+/// recorder registers in plaintext-asciinema mode.
+///
+/// `base_path` is the recording path **without an extension**. This
+/// function appends `.lfsr` when the recorder ends up encrypted or
+/// `.cast` when plaintext — having Rust own the extension keeps
+/// the on-disk file shape in lock-step with the actual wire format
+/// (the playback dispatcher routes off the extension). The earlier
+/// shape, where Dart picked the extension off `secrets_has`,
+/// diverged on the plaintext tier (slot present but empty bytes →
+/// `secrets_has = true`, encrypted decision `false`) and produced
+/// `.lfsr`-named files with asciinema-plaintext content the reader
+/// could never decrypt. The returned snapshot's `path` field
+/// carries the final on-disk path so the caller threads it through
+/// to `recorder_queue_spawn` and the eventual `.lfsr` / `.cast`
+/// listing surface.
 ///
 /// Bytes never cross the FRB boundary on this path — both the DB
-/// key and the derived recorder key live in Rust memory only.
+/// key and the random per-file recording key live in Rust memory
+/// only.
 Future<DbRecorderSnapshot> recorderRegisterFromActive({
   required String id,
   required String sessionId,
-  required String path,
+  required String basePath,
 }) => RustLib.instance.api.crateApiRecorderRecorderRegisterFromActive(
   id: id,
   sessionId: sessionId,
-  path: path,
+  basePath: basePath,
 );
+
+/// Walk the recordings tree under `recordings_root` and rename any
+/// `.lfsr` file whose first bytes do not match the encrypted-frame
+/// magic to `.cast`. This unsticks recordings made before the
+/// extension-decision moved Rust-side: the earlier Dart-side check
+/// of `secrets_has(ACTIVE_DBKEY_SECRET_ID)` returned `true` on the
+/// plaintext tier (slot present but empty bytes), so the file
+/// landed with a `.lfsr` extension even though the writer
+/// registered plaintext-asciinema mode and skipped the
+/// [`recorder::LFR_MAGIC`] header. Playback then routed by
+/// extension into the encrypted reader and failed with "no active
+/// DB key — encrypted recording cannot be opened".
+///
+/// Idempotent: a fresh-write `.lfsr` file (correct encrypted
+/// magic) is left alone; a re-run after a previous rename is a
+/// no-op because there are no misnamed files left to fix.
+///
+/// Returns the number of files renamed. Errors are logged and the
+/// walk continues — one stuck entry shouldn't block the rest from
+/// migrating.
+Future<int> recorderMigrateMisnamedFiles({required String recordingsRoot}) =>
+    RustLib.instance.api.crateApiRecorderRecorderMigrateMisnamedFiles(
+      recordingsRoot: recordingsRoot,
+    );
 
 /// Parse one JSON-Lines record from a recording. Returns
 /// `Some(event)` for a 3-tuple event row, `None` for the header

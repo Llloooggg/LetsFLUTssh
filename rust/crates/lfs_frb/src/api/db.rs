@@ -1695,7 +1695,15 @@ pub struct DbWebDavSessionDetails {
     /// `"basic"` / `"digest"` / `"bearer"`. The connect path parses
     /// this into the typed `lfs_core::webdav::AuthMethod`.
     pub auth_method: String,
-    pub self_signed_fingerprint: Option<String>,
+    /// Trusted certificate PEM (one or more `-----BEGIN
+    /// CERTIFICATE-----` blocks) added as an additional root for
+    /// this session's TLS handshakes. `None` falls back to the
+    /// system trust store.
+    pub trusted_cert_pem: Option<String>,
+    /// Last-resort skip-all-cert-verification toggle. The dialog
+    /// renders an explicit MITM warning before letting the user
+    /// flip it on.
+    pub insecure_skip_verify: bool,
 }
 
 impl From<lfs_core::db::webdav_sessions::WebDavSessionRow> for DbWebDavSessionDetails {
@@ -1705,7 +1713,8 @@ impl From<lfs_core::db::webdav_sessions::WebDavSessionRow> for DbWebDavSessionDe
             base_url: r.base_url,
             username: r.username,
             auth_method: r.auth_method,
-            self_signed_fingerprint: r.self_signed_fingerprint,
+            trusted_cert_pem: r.trusted_cert_pem,
+            insecure_skip_verify: r.insecure_skip_verify,
         }
     }
 }
@@ -1717,7 +1726,8 @@ impl From<DbWebDavSessionDetails> for lfs_core::db::webdav_sessions::WebDavSessi
             base_url: r.base_url,
             username: r.username,
             auth_method: r.auth_method,
-            self_signed_fingerprint: r.self_signed_fingerprint,
+            trusted_cert_pem: r.trusted_cert_pem,
+            insecure_skip_verify: r.insecure_skip_verify,
         }
     }
 }
@@ -1827,6 +1837,15 @@ pub struct DbS3SessionDetails {
     pub path_style: bool,
     pub default_bucket: String,
     pub default_prefix: String,
+    /// Trusted certificate PEM (one or more `-----BEGIN
+    /// CERTIFICATE-----` blocks) added as an additional root for
+    /// the S3 session's reqwest client. `None` falls back to the
+    /// system trust store.
+    pub trusted_cert_pem: Option<String>,
+    /// Last-resort skip-all-cert-verification toggle. The dialog
+    /// renders an explicit MITM warning before letting the user
+    /// flip it on.
+    pub insecure_skip_verify: bool,
 }
 
 impl From<lfs_core::db::s3_sessions::S3SessionRow> for DbS3SessionDetails {
@@ -1839,6 +1858,8 @@ impl From<lfs_core::db::s3_sessions::S3SessionRow> for DbS3SessionDetails {
             path_style: r.path_style,
             default_bucket: r.default_bucket,
             default_prefix: r.default_prefix,
+            trusted_cert_pem: r.trusted_cert_pem,
+            insecure_skip_verify: r.insecure_skip_verify,
         }
     }
 }
@@ -1853,6 +1874,8 @@ impl From<DbS3SessionDetails> for lfs_core::db::s3_sessions::S3SessionRow {
             path_style: r.path_style,
             default_bucket: r.default_bucket,
             default_prefix: r.default_prefix,
+            trusted_cert_pem: r.trusted_cert_pem,
+            insecure_skip_verify: r.insecure_skip_verify,
         }
     }
 }
@@ -2198,12 +2221,14 @@ mod tests {
 
     #[test]
     fn db_webdav_session_details_round_trips_through_core() {
+        let pem = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n";
         let db = DbWebDavSessionDetails {
             session_id: "sess-1".into(),
             base_url: "https://example.com/remote.php/dav/files/alice/".into(),
             username: "alice".into(),
             auth_method: "basic".into(),
-            self_signed_fingerprint: Some("SHA256:abc".into()),
+            trusted_cert_pem: Some(pem.into()),
+            insecure_skip_verify: true,
         };
         let core: lfs_core::db::webdav_sessions::WebDavSessionRow = db.clone().into();
         let back: DbWebDavSessionDetails = core.into();
@@ -2211,7 +2236,8 @@ mod tests {
         assert_eq!(back.base_url, db.base_url);
         assert_eq!(back.username, db.username);
         assert_eq!(back.auth_method, db.auth_method);
-        assert_eq!(back.self_signed_fingerprint, db.self_signed_fingerprint);
+        assert_eq!(back.trusted_cert_pem, db.trusted_cert_pem);
+        assert_eq!(back.insecure_skip_verify, db.insecure_skip_verify);
     }
 
     #[test]

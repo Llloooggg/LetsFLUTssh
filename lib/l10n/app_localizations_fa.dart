@@ -393,6 +393,18 @@ class SFa extends S {
   String get sectionAdvanced => 'پیشرفته';
 
   @override
+  String get moreOptions => 'گزینه‌های بیشتر';
+
+  @override
+  String get connectTo => 'اتصال به';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => 'قالب نامعتبر — انتظار user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -427,6 +439,15 @@ class SFa extends S {
 
   @override
   String get sessionName => 'نام جلسه';
+
+  @override
+  String get sessionNameAutoFromHost => 'خودکار از میزبان';
+
+  @override
+  String get sessionNameAutoFromUrl => 'خودکار از میزبان URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'خودکار از سطل پیش‌فرض';
 
   @override
   String get hintMyServer => 'سرور من';
@@ -1411,11 +1432,8 @@ class SFa extends S {
   String get importAction => 'وارد کردن';
 
   @override
-  String get saveSessionToAssignTags =>
-      'برای اختصاص برچسب، ابتدا نشست را ذخیره کنید';
-
-  @override
-  String get noTagsAssigned => 'برچسبی اختصاص داده نشده';
+  String get noTagsAvailable =>
+      'هنوز برچسبی نیست — یکی در ابزارها → برچسب‌ها بسازید.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1655,6 +1673,9 @@ class SFa extends S {
   String get addKey => 'افزودن کلید';
 
   @override
+  String get addKeyMenuPaste => 'جای‌گذاری PEM';
+
+  @override
   String get filePickerUnavailable =>
       'انتخابگر فایل در این سیستم در دسترس نیست';
 
@@ -1707,6 +1728,10 @@ class SFa extends S {
 
   @override
   String get certImport => 'ایمپورت certificate';
+
+  @override
+  String get certImportTooltip =>
+      'یک گواهی OpenSSH امضاشده توسط CA خود را پیوست کنید (فایل `-cert.pub` از `ssh-keygen -s …`). زمانی استفاده کنید که سرورها به‌جای `authorized_keys` با امضای CA تأیید می‌کنند. اگر سرورهای شما از plain key auth استفاده می‌کنند، صرف نظر کنید.';
 
   @override
   String get certImportPickerTitle =>
@@ -2220,7 +2245,7 @@ class SFa extends S {
 
   @override
   String get recordSessionHelp =>
-      'ذخیره خروجی پایانه روی دیسک برای این نشست. هنگام فعال بودن گذرواژه اصلی یا کلید سخت‌افزاری رمزنگاری می‌شود.';
+      'ذخیره خروجی پایانه روی دیسک برای این نشست. در حالت ساکن رمزگذاری می‌شود وقتی گذرواژه اصلی یا کلید سخت‌افزاری از پایگاه‌داده نشست‌ها محافظت می‌کند؛ در غیر این صورت در کنار پایگاه‌داده به‌صورت متن ساده ذخیره می‌شود.';
 
   @override
   String get recordingsBrowserTitle => 'ضبط‌ها';
@@ -2759,6 +2784,12 @@ class SFa extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'شروع ضبط';
+
+  @override
+  String get recordToggleStop => 'توقف ضبط';
+
+  @override
   String get foregroundServiceTitle => 'SSH فعال';
 
   @override
@@ -2804,12 +2835,25 @@ class SFa extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint گواهی self-signed (اختیاری)';
+  String get trustedCert => 'گواهی مورد اعتماد (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256، خالی برای استفاده از trust سیستم';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'گواهی سرور را الصاق کنید (یک یا چند بلوک PEM). به‌عنوان CA ریشه اضافی فقط برای این نشست افزوده می‌شود — سایر برنامه‌ها تحت تأثیر قرار نمی‌گیرند. خالی بگذارید تا از مخزن اعتماد سیستم استفاده شود.';
+
+  @override
+  String get acceptAnyCert => 'پذیرش هر گواهی';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'همه بررسی‌های گواهی و نام میزبان را برای دست‌دادن‌های TLS این نشست رد کند. درب اضطراری وقتی نه مخزن اعتماد سیستم و نه گواهی پین‌شده کار می‌کند.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'آسیب‌پذیر در برابر حملات MITM — هر کسی در شبکه می‌تواند هویت سرور را جعل کند. فقط در شبکه‌های خصوصی مورد اعتماد استفاده کنید.';
 
   @override
   String get webDavCopyUrl => 'کپی WebDAV URL';

@@ -392,6 +392,19 @@ class SVi extends S {
   String get sectionAdvanced => 'Nâng cao';
 
   @override
+  String get moreOptions => 'Tùy chọn khác';
+
+  @override
+  String get connectTo => 'Kết nối tới';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Định dạng không hợp lệ — cần user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -426,6 +439,15 @@ class SVi extends S {
 
   @override
   String get sessionName => 'Tên phiên';
+
+  @override
+  String get sessionNameAutoFromHost => 'Tự động từ host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Tự động từ host của URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Tự động từ bucket mặc định';
 
   @override
   String get hintMyServer => 'Máy chủ của tôi';
@@ -1413,10 +1435,8 @@ class SVi extends S {
   String get importAction => 'Nhập';
 
   @override
-  String get saveSessionToAssignTags => 'Lưu phiên trước để gán thẻ';
-
-  @override
-  String get noTagsAssigned => 'Chưa gán thẻ';
+  String get noTagsAvailable =>
+      'Chưa có thẻ nào — tạo một thẻ trong Tools → Tags.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1656,6 +1676,9 @@ class SVi extends S {
   String get addKey => 'Thêm khóa';
 
   @override
+  String get addKeyMenuPaste => 'Dán PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Trình chọn tệp không khả dụng trên hệ thống này';
 
@@ -1708,6 +1731,10 @@ class SVi extends S {
 
   @override
   String get certImport => 'Import certificate';
+
+  @override
+  String get certImportTooltip =>
+      'Đính kèm OpenSSH certificate đã được CA của bạn ký (file `-cert.pub` từ `ssh-keygen -s …`). Dùng khi server verify bằng CA signature thay vì `authorized_keys`. Bỏ qua nếu server dùng plain key auth.';
 
   @override
   String get certImportPickerTitle => 'Chọn file certificate OpenSSH';
@@ -2218,7 +2245,7 @@ class SVi extends S {
 
   @override
   String get recordSessionHelp =>
-      'Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ nếu bật master password hoặc khóa phần cứng.';
+      'Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ khi master password hoặc khóa phần cứng bảo vệ cơ sở dữ liệu phiên; nếu không, lưu dưới dạng plaintext bên cạnh cơ sở dữ liệu.';
 
   @override
   String get recordingsBrowserTitle => 'Bản ghi';
@@ -2754,6 +2781,12 @@ class SVi extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Bắt đầu ghi';
+
+  @override
+  String get recordToggleStop => 'Dừng ghi';
+
+  @override
   String get foregroundServiceTitle => 'SSH đang hoạt động';
 
   @override
@@ -2799,12 +2832,25 @@ class SVi extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint chứng chỉ self-signed (tuỳ chọn)';
+  String get trustedCert => 'Chứng chỉ tin cậy (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, để trống dùng trust hệ thống';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Dán chứng chỉ máy chủ (một hoặc nhiều khối PEM). Được thêm như một CA gốc bổ sung chỉ cho phiên này — không ảnh hưởng đến ứng dụng khác. Để trống để dùng trust store hệ thống.';
+
+  @override
+  String get acceptAnyCert => 'Chấp nhận mọi chứng chỉ';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Bỏ qua mọi kiểm tra chứng chỉ và hostname trong các TLS handshake của phiên này. Lối thoát cuối cùng khi cả trust store hệ thống lẫn chứng chỉ được pin đều không phù hợp.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Dễ bị tấn công MITM — bất kỳ ai trên mạng có thể giả mạo máy chủ. Chỉ dùng trên mạng riêng tin cậy.';
 
   @override
   String get webDavCopyUrl => 'Sao chép WebDAV URL';

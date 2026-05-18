@@ -30,26 +30,30 @@ DbServerAddressFields webdavServerAddressFromBaseUrl({
 /// URL as a connect probe — so a bad URL or wrong credential
 /// surfaces at connect time rather than at the first list.
 ///
-/// `self_signed_fingerprint` is reserved for the future TOFU
-/// pinning surface; the current `WebDavClient` constructor relies
-/// on the bundled webpki-roots so a non-null value here is a
-/// no-op for now. Wiring it through the FRB layer up-front lets
-/// the Dart UI persist the value before the transport-side
-/// hookup lands.
+/// `trusted_cert_pem` carries an optional PEM blob (one or more
+/// `-----BEGIN CERTIFICATE-----` blocks) added to the reqwest
+/// client as an additional root CA — the in-app "trust this
+/// self-signed cert" surface that lets users connect to private
+/// endpoints without polluting the OS trust store. `insecure_skip_verify`
+/// is the escape hatch — flips on `danger_accept_invalid_certs` +
+/// `danger_accept_invalid_hostnames`; the dialog UI renders an
+/// explicit MITM warning before letting the user enable it.
 Future<WebDavConnection> webdavConnect({
   required String connectionId,
   required String baseUrl,
   required String username,
   required String passwordSecretId,
   required String authMethod,
-  String? selfSignedFingerprint,
+  String? trustedCertPem,
+  required bool insecureSkipVerify,
 }) => RustLib.instance.api.crateApiWebdavWebdavConnect(
   connectionId: connectionId,
   baseUrl: baseUrl,
   username: username,
   passwordSecretId: passwordSecretId,
   authMethod: authMethod,
-  selfSignedFingerprint: selfSignedFingerprint,
+  trustedCertPem: trustedCertPem,
+  insecureSkipVerify: insecureSkipVerify,
 );
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WebDavConnection>>

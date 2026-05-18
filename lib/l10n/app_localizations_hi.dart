@@ -395,6 +395,18 @@ class SHi extends S {
   String get sectionAdvanced => 'उन्नत';
 
   @override
+  String get moreOptions => 'अधिक विकल्प';
+
+  @override
+  String get connectTo => 'कनेक्ट करें';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => 'अमान्य प्रारूप — user@host:port अपेक्षित';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -430,6 +442,15 @@ class SHi extends S {
 
   @override
   String get sessionName => 'सत्र का नाम';
+
+  @override
+  String get sessionNameAutoFromHost => 'host से auto';
+
+  @override
+  String get sessionNameAutoFromUrl => 'URL host से auto';
+
+  @override
+  String get sessionNameAutoFromBucket => 'default bucket से auto';
 
   @override
   String get hintMyServer => 'मेरा सर्वर';
@@ -1419,11 +1440,7 @@ class SHi extends S {
   String get importAction => 'आयात करें';
 
   @override
-  String get saveSessionToAssignTags =>
-      'टैग असाइन करने के लिए पहले सत्र सहेजें';
-
-  @override
-  String get noTagsAssigned => 'कोई टैग असाइन नहीं';
+  String get noTagsAvailable => 'अभी कोई टैग नहीं — Tools → Tags में एक बनाएं।';
 
   @override
   String errWithPath(String error, String path) {
@@ -1666,6 +1683,9 @@ class SHi extends S {
   String get addKey => 'कुंजी जोड़ें';
 
   @override
+  String get addKeyMenuPaste => 'PEM पेस्ट करें';
+
+  @override
   String get filePickerUnavailable =>
       'इस सिस्टम पर फ़ाइल चयनकर्ता उपलब्ध नहीं है';
 
@@ -1718,6 +1738,10 @@ class SHi extends S {
 
   @override
   String get certImport => 'Certificate इम्पोर्ट करें';
+
+  @override
+  String get certImportTooltip =>
+      'अपने CA द्वारा साइन किया गया OpenSSH certificate अटैच करें (`ssh-keygen -s …` से बना `-cert.pub` फ़ाइल). तब उपयोग करें जब servers `authorized_keys` के बजाय CA signature से verify करते हैं. यदि आपके servers plain key auth उपयोग करते हैं तो skip करें.';
 
   @override
   String get certImportPickerTitle => 'OpenSSH certificate फ़ाइल चुनें';
@@ -2231,7 +2255,7 @@ class SHi extends S {
 
   @override
   String get recordSessionHelp =>
-      'इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या हार्डवेयर कुंजी सक्षम होने पर रेस्ट में एन्क्रिप्टेड।';
+      'इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या hardware key सत्र डेटाबेस को सुरक्षित करने पर रेस्ट पर encrypted; अन्यथा डेटाबेस के पास plaintext के रूप में संग्रहीत।';
 
   @override
   String get recordingsBrowserTitle => 'रिकॉर्डिंग';
@@ -2770,6 +2794,12 @@ class SHi extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'रिकॉर्डिंग शुरू करें';
+
+  @override
+  String get recordToggleStop => 'रिकॉर्डिंग रोकें';
+
+  @override
   String get foregroundServiceTitle => 'SSH सक्रिय';
 
   @override
@@ -2815,12 +2845,25 @@ class SHi extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Self-signed प्रमाणपत्र का fingerprint (वैकल्पिक)';
+  String get trustedCert => 'विश्वसनीय प्रमाणपत्र (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, सिस्टम trust के लिए खाली छोड़ें';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'सर्वर का प्रमाणपत्र पेस्ट करें (एक या अधिक PEM ब्लॉक)। केवल इस सत्र के लिए अतिरिक्त रूट CA के रूप में जोड़ा जाता है — अन्य ऐप्स प्रभावित नहीं होते। सिस्टम trust store उपयोग करने के लिए खाली छोड़ें।';
+
+  @override
+  String get acceptAnyCert => 'कोई भी प्रमाणपत्र स्वीकार करें';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'इस सत्र के TLS handshakes के लिए हर certificate और hostname check छोड़ें। जब न तो system trust store और न ही pinned certificate काम करता तो last-resort escape hatch।';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'MITM हमलों के प्रति vulnerable — network पर कोई भी सर्वर का impersonate कर सकता है। केवल trusted private networks पर उपयोग करें।';
 
   @override
   String get webDavCopyUrl => 'WebDAV URL कॉपी करें';

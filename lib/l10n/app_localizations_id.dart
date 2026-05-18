@@ -393,6 +393,19 @@ class SId extends S {
   String get sectionAdvanced => 'Lanjutan';
 
   @override
+  String get moreOptions => 'Opsi lainnya';
+
+  @override
+  String get connectTo => 'Hubungkan ke';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid =>
+      'Format tidak valid — diharapkan user@host:port';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -427,6 +440,15 @@ class SId extends S {
 
   @override
   String get sessionName => 'Nama Sesi';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto dari host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto dari host URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto dari bucket default';
 
   @override
   String get hintMyServer => 'Server Saya';
@@ -1419,11 +1441,7 @@ class SId extends S {
   String get importAction => 'Impor';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Simpan sesi terlebih dahulu untuk menetapkan tag';
-
-  @override
-  String get noTagsAssigned => 'Tidak ada tag yang ditetapkan';
+  String get noTagsAvailable => 'Belum ada tag — buat satu di Tools → Tags.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1663,6 +1681,9 @@ class SId extends S {
   String get addKey => 'Tambah kunci';
 
   @override
+  String get addKeyMenuPaste => 'Tempel PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Pemilih berkas tidak tersedia pada sistem ini';
 
@@ -1715,6 +1736,10 @@ class SId extends S {
 
   @override
   String get certImport => 'Import certificate';
+
+  @override
+  String get certImportTooltip =>
+      'Attach OpenSSH certificate yang di-sign oleh CA Anda (file `-cert.pub` dari `ssh-keygen -s …`). Pakai saat server verifikasi lewat CA signature, bukan `authorized_keys`. Skip kalau server Anda pakai plain key auth.';
 
   @override
   String get certImportPickerTitle => 'Pilih file certificate OpenSSH';
@@ -2230,7 +2255,7 @@ class SId extends S {
 
   @override
   String get recordSessionHelp =>
-      'Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password / kunci hardware aktif.';
+      'Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password atau hardware key melindungi database sesi; selain itu disimpan sebagai plaintext di samping database.';
 
   @override
   String get recordingsBrowserTitle => 'Rekaman';
@@ -2771,6 +2796,12 @@ class SId extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => 'Mulai recording';
+
+  @override
+  String get recordToggleStop => 'Hentikan recording';
+
+  @override
   String get foregroundServiceTitle => 'SSH aktif';
 
   @override
@@ -2816,12 +2847,25 @@ class SId extends S {
   String get webDavAuthBearer => 'Bearer token';
 
   @override
-  String get webDavSelfSignedFingerprint =>
-      'Fingerprint sertifikat self-signed (opsional)';
+  String get trustedCert => 'Sertifikat tepercaya (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint =>
-      'SHA-256, kosongkan untuk pakai trust sistem';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Tempel sertifikat server (satu atau lebih blok PEM). Ditambahkan sebagai CA root tambahan hanya untuk sesi ini — tidak memengaruhi aplikasi lain. Kosongkan untuk menggunakan trust store sistem.';
+
+  @override
+  String get acceptAnyCert => 'Terima sertifikat apa pun';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Lewati semua pemeriksaan sertifikat dan hostname untuk handshake TLS sesi ini. Pintu darurat ketika baik trust store sistem maupun sertifikat yang di-pin tidak cocok.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Rentan terhadap serangan MITM — siapa pun di jaringan dapat menyamar sebagai server. Gunakan hanya di jaringan privat tepercaya.';
 
   @override
   String get webDavCopyUrl => 'Salin URL WebDAV';

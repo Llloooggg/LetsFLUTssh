@@ -390,6 +390,18 @@ class SKo extends S {
   String get sectionAdvanced => '고급';
 
   @override
+  String get moreOptions => '추가 옵션';
+
+  @override
+  String get connectTo => '연결 대상';
+
+  @override
+  String get connectHint => 'root@example.com:22';
+
+  @override
+  String get connectStringInvalid => '잘못된 형식 — user@host:port 형식 필요';
+
+  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
@@ -424,6 +436,15 @@ class SKo extends S {
 
   @override
   String get sessionName => '세션 이름';
+
+  @override
+  String get sessionNameAutoFromHost => '호스트에서 자동';
+
+  @override
+  String get sessionNameAutoFromUrl => 'URL 호스트에서 자동';
+
+  @override
+  String get sessionNameAutoFromBucket => '기본 버킷에서 자동';
 
   @override
   String get hintMyServer => '내 서버';
@@ -1387,10 +1408,7 @@ class SKo extends S {
   String get importAction => '가져오기';
 
   @override
-  String get saveSessionToAssignTags => '태그를 할당하려면 먼저 세션을 저장하세요';
-
-  @override
-  String get noTagsAssigned => '할당된 태그 없음';
+  String get noTagsAvailable => '아직 태그가 없습니다 — Tools → Tags에서 만드세요.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1627,6 +1645,9 @@ class SKo extends S {
   String get addKey => '키 추가';
 
   @override
+  String get addKeyMenuPaste => 'PEM 붙여넣기';
+
+  @override
   String get filePickerUnavailable => '이 시스템에서 파일 선택기를 사용할 수 없습니다';
 
   @override
@@ -1678,6 +1699,10 @@ class SKo extends S {
 
   @override
   String get certImport => '인증서 가져오기';
+
+  @override
+  String get certImportTooltip =>
+      'CA가 서명한 OpenSSH 인증서(`ssh-keygen -s …`로 생성한 `-cert.pub` 파일)를 첨부합니다. 서버가 `authorized_keys` 대신 CA 서명으로 검증할 때 사용합니다. 서버가 plain key auth를 쓰면 건너뜁니다.';
 
   @override
   String get certImportPickerTitle => 'OpenSSH 인증서 파일 선택';
@@ -2178,7 +2203,7 @@ class SKo extends S {
 
   @override
   String get recordSessionHelp =>
-      '이 세션의 터미널 출력을 디스크에 저장합니다. 마스터 비밀번호 또는 하드웨어 키가 활성화된 경우 저장 시 암호화됩니다.';
+      '이 세션의 터미널 출력을 디스크에 저장합니다. 마스터 비밀번호 또는 하드웨어 키가 세션 데이터베이스를 보호하는 경우 저장 시 암호화되며, 그렇지 않으면 데이터베이스 옆에 평문으로 저장됩니다.';
 
   @override
   String get recordingsBrowserTitle => '녹화';
@@ -2696,6 +2721,12 @@ class SKo extends S {
       'Unlock the app to play this encrypted recording';
 
   @override
+  String get recordToggleStart => '녹화 시작';
+
+  @override
+  String get recordToggleStop => '녹화 중지';
+
+  @override
   String get foregroundServiceTitle => 'SSH 활성';
 
   @override
@@ -2741,10 +2772,25 @@ class SKo extends S {
   String get webDavAuthBearer => 'Bearer 토큰';
 
   @override
-  String get webDavSelfSignedFingerprint => 'Self-signed 인증서 Fingerprint (선택)';
+  String get trustedCert => '신뢰할 수 있는 인증서 (PEM)';
 
   @override
-  String get webDavSelfSignedFingerprintHint => 'SHA-256, 비워두면 시스템 trust 사용';
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      '서버 인증서를 붙여넣으세요 (하나 이상의 PEM 블록). 이 세션에만 추가 루트 CA로 등록되며 다른 앱에는 영향을 주지 않습니다. 시스템 trust store를 사용하려면 비워두세요.';
+
+  @override
+  String get acceptAnyCert => '모든 인증서 수락';
+
+  @override
+  String get acceptAnyCertHelp =>
+      '이 세션의 TLS 핸드셰이크에서 인증서와 호스트 이름 검사를 모두 건너뜁니다. 시스템 trust store나 고정 인증서가 적합하지 않을 때 최후 수단.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'MITM 공격에 취약 — 네트워크 상의 누구나 서버를 가장할 수 있습니다. 신뢰할 수 있는 사설 네트워크에서만 사용하세요.';
 
   @override
   String get webDavCopyUrl => 'WebDAV URL 복사';
