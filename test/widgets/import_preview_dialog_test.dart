@@ -4,6 +4,7 @@ import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/app_picker_chip.dart';
 import 'package:letsflutssh/widgets/import_preview_dialog.dart';
 
 void main() {
@@ -355,24 +356,19 @@ void main() {
       },
     );
 
-    testWidgets('preset ChoiceChips hide the default checkmark overlay so the '
-        'avatar icon stays visible when selected', (tester) async {
-      await tester.pumpWidget(buildDialog());
-      await tester.pump();
-      final chips = tester
-          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
-          .toList();
-      expect(chips, isNotEmpty);
-      for (final chip in chips) {
-        expect(
-          chip.showCheckmark,
-          isFalse,
-          reason:
-              'checkmark overlay must be disabled — the avatar icon is the '
-              'only indicator, selection is signalled by background colour',
-        );
-      }
-    });
+    testWidgets(
+      'preset chips render via AppPickerChip — no Material ChoiceChip in the '
+      'subtree (avoids the selection cross-fade tint flash)',
+      (tester) async {
+        await tester.pumpWidget(buildDialog());
+        await tester.pump();
+        final chips = tester
+            .widgetList<AppPickerChip>(find.byType(AppPickerChip))
+            .toList();
+        expect(chips, isNotEmpty);
+        expect(find.byType(ChoiceChip), findsNothing);
+      },
+    );
   });
 }
 

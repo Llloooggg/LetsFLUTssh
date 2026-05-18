@@ -7,6 +7,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
+import 'package:letsflutssh/widgets/app_picker_chip.dart';
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -604,7 +605,7 @@ void main() {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(ChoiceChip, 'Full backup'));
+          await tester.tap(find.widgetWithText(AppPickerChip, 'Full backup'));
           await tester.pump();
           await tester.tap(find.text('Export'));
           await tester.pumpAndSettle();
@@ -648,7 +649,7 @@ void main() {
 
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-          await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
+          await tester.tap(find.widgetWithText(AppPickerChip, 'Sessions'));
           await tester.pump();
           await tester.tap(find.text('Export'));
           await tester.pumpAndSettle();
@@ -754,7 +755,7 @@ void main() {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
           // Start from Sessions-only so both key flags begin OFF.
-          await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
+          await tester.tap(find.widgetWithText(AppPickerChip, 'Sessions'));
           await tester.pump();
           await tester.tap(find.text('What to export:'));
           await tester.pumpAndSettle();
@@ -892,31 +893,30 @@ void main() {
   );
 
   group('UnifiedExportDialog — preset chips', () {
-    testWidgets('preset ChoiceChips hide the default checkmark overlay so the '
-        'avatar icon stays visible when selected', (tester) async {
-      await tester.pumpWidget(buildDialog(sessions: [makeSession('1', 'A')]));
-      await tester.pump();
-      final chips = tester
-          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
-          .toList();
-      expect(
-        chips,
-        isNotEmpty,
-        reason: 'dialog should render at least one preset chip',
-      );
-      for (final chip in chips) {
+    testWidgets(
+      'preset chips render via AppPickerChip — no Material ChoiceChip in the '
+      'subtree (avoids the selection cross-fade tint flash)',
+      (tester) async {
+        await tester.pumpWidget(buildDialog(sessions: [makeSession('1', 'A')]));
+        await tester.pump();
+        final chips = tester
+            .widgetList<AppPickerChip>(find.byType(AppPickerChip))
+            .toList();
         expect(
-          chip.showCheckmark,
-          isFalse,
-          reason:
-              'checkmark overlay must be disabled — the avatar icon is the '
-              'only indicator, selection is signalled by background colour',
+          chips,
+          isNotEmpty,
+          reason: 'dialog should render at least one preset chip',
         );
-      }
-    });
+        // Defensive — make sure we didn't regress by re-introducing
+        // a Material ChoiceChip alongside the new picker chip.
+        expect(find.byType(ChoiceChip), findsNothing);
+      },
+    );
 
-    ChoiceChip chipWithLabel(WidgetTester tester, String label) {
-      return tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
+    AppPickerChip chipWithLabel(WidgetTester tester, String label) {
+      return tester.widget<AppPickerChip>(
+        find.widgetWithText(AppPickerChip, label),
+      );
     }
 
     testWidgets(
@@ -933,14 +933,14 @@ void main() {
         );
         await tester.pump();
 
-        expect(chipWithLabel(tester, 'Full backup').selected, isTrue);
+        expect(chipWithLabel(tester, 'Full backup').active, isTrue);
 
         // Deselect session A (index 1: select-all, then per-session).
         await tester.tap(find.byType(Checkbox).at(1));
         await tester.pump();
 
         expect(
-          chipWithLabel(tester, 'Full backup').selected,
+          chipWithLabel(tester, 'Full backup').active,
           isFalse,
           reason:
               'a partial session selection cannot still be called a '
@@ -977,10 +977,10 @@ void main() {
       // the chip itself can register as active. Otherwise the tap
       // would visibly do nothing because `_isPresetActive` still
       // returns false on a partial selection.
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
+      await tester.tap(find.widgetWithText(AppPickerChip, 'Sessions'));
       await tester.pump();
 
-      expect(chipWithLabel(tester, 'Sessions').selected, isTrue);
+      expect(chipWithLabel(tester, 'Sessions').active, isTrue);
 
       // Select-all checkbox should now report fully-selected (true).
       final selectAll = tester

@@ -5,6 +5,7 @@ import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
+import 'app_picker_chip.dart';
 import 'data_checkboxes.dart';
 import 'mode_button.dart';
 
@@ -147,22 +148,26 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
       alignment: Alignment.centerLeft,
       child: Wrap(
         spacing: 8,
+        // `AppPickerChip` (not Material's `ChoiceChip`) paints the
+        // active state synchronously from theme colors — ChoiceChip
+        // cross-fades over Material's selection animation, which
+        // briefly tints the just-tapped chip with the previously-
+        // selected one's color before the accent settles. Same
+        // shape used by the key-manager generate dialog.
         children: [
-          ChoiceChip(
-            avatar: const Icon(Icons.download_for_offline, size: 18),
-            label: Text(S.of(context).presetFullImport),
-            selected: _isPresetActive(_fullPreset),
-            selectedColor: AppTheme.accent.withValues(alpha: 0.2),
-            showCheckmark: false,
-            onSelected: (_) => setState(() => _options = _fullPreset),
+          AppPickerChip(
+            active: _isPresetActive(_fullPreset),
+            label: S.of(context).presetFullImport,
+            icon: Icons.download_for_offline,
+            expand: false,
+            onTap: () => setState(() => _options = _fullPreset),
           ),
-          ChoiceChip(
-            avatar: const Icon(Icons.filter_alt, size: 18),
-            label: Text(S.of(context).presetSelective),
-            selected: _isPresetActive(_selectivePreset),
-            selectedColor: AppTheme.accent.withValues(alpha: 0.2),
-            showCheckmark: false,
-            onSelected: (_) => setState(() => _options = _selectivePreset),
+          AppPickerChip(
+            active: _isPresetActive(_selectivePreset),
+            label: S.of(context).presetSelective,
+            icon: Icons.filter_alt,
+            expand: false,
+            onTap: () => setState(() => _options = _selectivePreset),
           ),
         ],
       ),

@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
 import 'app_divider.dart';
+import 'app_picker_chip.dart';
 import 'data_checkboxes.dart';
 import 'hover_region.dart';
 import 'toast.dart';
@@ -204,22 +205,24 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
       children: [
         Wrap(
           spacing: 8,
+          // `AppPickerChip` paints the active state synchronously
+          // — Material's `ChoiceChip` cross-fades through the
+          // previously-selected chip's tint before the accent
+          // settles. Matches the import-preview + keygen pickers.
           children: [
-            ChoiceChip(
-              avatar: const Icon(Icons.backup, size: 18),
-              label: Text(S.of(context).fullBackup),
-              selected: _ctrl.activePreset == ExportPreset.fullBackup,
-              selectedColor: AppTheme.accent.withValues(alpha: 0.2),
-              showCheckmark: false,
-              onSelected: (_) => _ctrl.applyFullBackupPreset(),
+            AppPickerChip(
+              active: _ctrl.activePreset == ExportPreset.fullBackup,
+              label: S.of(context).fullBackup,
+              icon: Icons.backup,
+              expand: false,
+              onTap: _ctrl.applyFullBackupPreset,
             ),
-            ChoiceChip(
-              avatar: const Icon(Icons.dns, size: 18),
-              label: Text(S.of(context).sessionsOnly),
-              selected: _ctrl.activePreset == ExportPreset.sessions,
-              selectedColor: AppTheme.accent.withValues(alpha: 0.2),
-              showCheckmark: false,
-              onSelected: (_) => _ctrl.applySessionsPreset(),
+            AppPickerChip(
+              active: _ctrl.activePreset == ExportPreset.sessions,
+              label: S.of(context).sessionsOnly,
+              icon: Icons.dns,
+              expand: false,
+              onTap: _ctrl.applySessionsPreset,
             ),
           ],
         ),
