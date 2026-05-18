@@ -507,33 +507,43 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     const innerPad = AppSpacing.xs * 2.0;
     final terminalWidth = w * cell.width + innerPad;
     final terminalHeight = h * cell.height + innerPad;
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.borderLight),
-        borderRadius: AppTheme.radiusSm,
-      ),
-      clipBehavior: Clip.hardEdge,
-      // Horizontal-only scroll: vertical scrollback lives inside
-      // xterm itself (mouse wheel inside the terminal area scrolls
-      // the buffer history the same way it does in the live PTY
-      // pane). Wrapping the horizontal scroll INSIDE a vertical
-      // one was the source of the previous nested-scroll grief —
-      // the inner horizontal Scrollbar ended up positioned at the
-      // bottom of the SCROLLED content rather than the visible
-      // viewport, so user-visible drag never worked. One scroll
-      // axis, one bar, one Scrollable.
-      child: Scrollbar(
-        controller: _hScroll,
-        thumbVisibility: true,
-        child: SingleChildScrollView(
+    // `SelectionContainer.disabled` opts the xterm subtree out of
+    // the dialog's outer `AppSelectionArea` (AppDialog wraps every
+    // dialog body in one — line 138 of `widgets/app_dialog.dart`).
+    // Without the opt-out, SelectionArea's pan recogniser claims
+    // every secondary-tap / drag inside the panel BEFORE the
+    // inner `TerminalView.onSecondaryTapDown` sees it, so the
+    // right-click context menu never opens and drag-to-select
+    // never starts. The log viewer (the other `ReadOnlyTerminalView`
+    // caller) does NOT need this because it lives in the Settings
+    // page, not inside an AppDialog.
+    return SelectionContainer.disabled(
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppTheme.borderLight),
+          borderRadius: AppTheme.radiusSm,
+        ),
+        clipBehavior: Clip.hardEdge,
+        // Horizontal-only scroll: vertical scrollback lives inside
+        // xterm itself (mouse wheel inside the terminal area scrolls
+        // the buffer history the same way it does in the live PTY
+        // pane). One scroll axis, one bar, one Scrollable — the
+        // previous nested-vertical-around-horizontal layout
+        // mis-positioned the inner bar at the bottom of the
+        // SCROLLED content (not the visible viewport).
+        child: Scrollbar(
           controller: _hScroll,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: terminalWidth,
-            height: terminalHeight,
-            child: ReadOnlyTerminalView(
-              terminal: _terminal,
-              fontSize: fontSize,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: _hScroll,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: terminalWidth,
+              height: terminalHeight,
+              child: ReadOnlyTerminalView(
+                terminal: _terminal,
+                fontSize: fontSize,
+              ),
             ),
           ),
         ),
