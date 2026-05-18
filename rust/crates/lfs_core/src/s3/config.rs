@@ -40,6 +40,16 @@ pub struct S3Config {
     /// Optional default prefix — prepended to every relative key
     /// before the request is signed. Empty disables the rewrite.
     pub default_prefix: String,
+    /// Trusted certificate PEM (one or more `-----BEGIN
+    /// CERTIFICATE-----` blocks) added as an additional root for
+    /// the reqwest client. `None` falls back to the system trust
+    /// store. Mirrors the WebDAV transport's self-signed-endpoint
+    /// surface.
+    pub trusted_cert_pem: Option<String>,
+    /// Last-resort `danger_accept_invalid_certs(true)` toggle. The
+    /// dialog renders an explicit MITM warning before letting the
+    /// user flip it on.
+    pub insecure_skip_verify: bool,
 }
 
 /// Validate a bucket name against AWS S3 naming rules (RFC-grade
@@ -181,6 +191,8 @@ mod tests {
             path_style,
             default_bucket: "".into(),
             default_prefix: "".into(),
+            trusted_cert_pem: None,
+            insecure_skip_verify: false,
         }
     }
 

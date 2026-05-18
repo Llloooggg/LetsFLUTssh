@@ -406,6 +406,154 @@ pub fn validate_session_fields(host: &str, port: i32, user: &str) -> Option<Stri
     None
 }
 
+/// One target parsed from an SSH-style `[user@]host[:port]` string.
+/// Backs the session-edit dialog's smart-paste "Connect to" field —
+/// the user types `root@example.com:22` (or any subset) and the
+/// dialog splits the result into the host / port / user controllers
+/// the existing form already drives.
+///
+/// `user` and `port` are optional because the smart-paste field
+/// accepts every legitimate subset: bare host, `host:port`,
+/// `user@host`, `user@host:port`, plus bracketed IPv6 literals
+/// (`[::1]`, `[::1]:22`). When the parser cannot fill a slot the
+/// caller keeps its existing default (port 22, empty user).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SshTarget {
+    pub host: String,
+    pub port: Option<u16>,
+    pub user: Option<String>,
+}
+
+/// Parse a smart-paste connect string into its host / port / user
+/// components. Returns `None` for inputs that cannot be coerced to a
+/// non-empty host with the same validation envelope as
+/// [`parse_connect_uri`](crate::deeplink::parse_connect_uri): host
+/// length ≤ 253, user length ≤ 256, port in 1..=65535, no `/`, no
+/// `\\`, no C0/C1 control characters.
+///
+/// Bracketed IPv6 literals are recognised verbatim — `[::1]` and
+/// `[::1]:22` both parse, with the brackets stripped from the host
+/// slot so the connect path stores `::1`.
+#[must_use]
+pub fn parse_ssh_target(input: &str) -> Option<SshTarget> {
+    let s = input.trim();
+    if s.is_empty() {
+        return None;
+    }
+    // user@host split — rfind so `user@with@at.example` keeps the
+    // last `@` as the separator; OpenSSH rejects `@` inside usernames
+    // by convention but the in-app smart-paste only needs the same
+    // tolerance as `ssh user@host:port` on the command line.
+    let (user, rest) = if let Some(at) = s.rfind('@') {
+        let candidate = &s[..at];
+        if candidate.is_empty() || candidate.len() > 256 || contains_invalid(candidate) {
+            return None;
+        }
+        (Some(candidate.to_string()), &s[at + 1..])
+    } else {
+        (None, s)
+    };
+    let (host, port_part) = split_host_port(rest)?;
+    if host.is_empty() || host.len() > 253 || contains_invalid(host) {
+        return None;
+    }
+    let port = match port_part {
+        None | Some("") => None,
+        Some(p) => match p.parse::<u32>() {
+            Ok(n) if (1..=65535).contains(&n) => Some(n as u16),
+            _ => return None,
+        },
+    };
+    Some(SshTarget {
+        host: host.to_string(),
+        port,
+        user,
+    })
+}
+
+/// Pull host + optional port out of the post-`@` remainder. Splits
+/// on the last `:` for plain hosts (so `host:22` works); recognises
+/// bracketed IPv6 literals (`[::1]`, `[::1]:22`) by stripping the
+/// brackets and inspecting the trailing `:` only after the closing
+/// `]` so the colons inside the address are not mistaken for the
+/// host/port separator.
+fn split_host_port(rest: &str) -> Option<(&str, Option<&str>)> {
+    if let Some(stripped) = rest.strip_prefix('[') {
+        let close = stripped.find(']')?;
+        let host = &stripped[..close];
+        let tail = &stripped[close + 1..];
+        if tail.is_empty() {
+            return Some((host, None));
+        }
+        let port = tail.strip_prefix(':')?;
+        Some((host, Some(port)))
+    } else if let Some(colon) = rest.rfind(':') {
+        Some((&rest[..colon], Some(&rest[colon + 1..])))
+    } else {
+        Some((rest, None))
+    }
+}
+
+/// Reject any byte that would corrupt downstream storage / shell
+/// interpolation: C0/C1 control chars (`\0`, CR, LF, BEL, ESC),
+/// path separators (`/`, `\\`). Mirrors the deeplink parser's
+/// `contains_control_char` envelope so the smart-paste field and
+/// the deep-link connect path share one validation contract.
+fn contains_invalid(s: &str) -> bool {
+    s.bytes()
+        .any(|b| b < 0x20 || (0x7F..=0x9F).contains(&b) || b == b'/' || b == b'\\')
+}
+
+/// One vertex in the session-edit dialog's ProxyJump-cycle probe.
+/// Carries the session id and its current `via_session_id` (the
+/// "saved-session" bastion target) so [`detect_proxy_cycle`] can
+/// walk the chain forward without re-reading the DB. Sessions with
+/// no saved bastion carry `via_session_id = None`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProxyRef {
+    pub session_id: String,
+    pub via_session_id: Option<String>,
+}
+
+/// Return `true` when picking `candidate_id` as the ProxyJump
+/// bastion for the session identified by `seed_id` would create a
+/// cycle through the saved-session graph.
+///
+/// Walks the chain forward from `candidate_id` (each step follows
+/// the candidate's own `via_session_id`); a cycle exists when the
+/// walk reaches `seed_id` before terminating. A pre-existing cycle
+/// in the data unrelated to `seed_id` (`A → B → A` already on disk)
+/// returns `false` so the probe stays a tight "would THIS edit
+/// introduce a loop through me" question — orphan loops are the
+/// connect path's concern at dial time.
+///
+/// `seed_id = None` is the new-session branch: a session that does
+/// not exist yet cannot be re-entered, so every candidate is safe.
+/// Direct self-reference (`candidate_id == seed_id`) is the
+/// shortest cycle and trips on the first iteration.
+#[must_use]
+pub fn detect_proxy_cycle(seed_id: Option<&str>, candidate_id: &str, chain: &[ProxyRef]) -> bool {
+    let Some(seed) = seed_id else {
+        return false;
+    };
+    let lookup: std::collections::HashMap<&str, Option<&str>> = chain
+        .iter()
+        .map(|r| (r.session_id.as_str(), r.via_session_id.as_deref()))
+        .collect();
+    let mut visited = std::collections::HashSet::new();
+    let mut current = Some(candidate_id);
+    while let Some(node) = current {
+        if !visited.insert(node) {
+            return false;
+        }
+        if node == seed {
+            return true;
+        }
+        current = lookup.get(node).copied().flatten();
+    }
+    false
+}
+
 /// Distinct, sorted folder names referenced by [`session_folders`].
 /// Drops empty paths (sessions at root) — only named folders
 /// surface. Used by the SessionStore.folders() accessor and any
@@ -1035,5 +1183,171 @@ mod tests {
         assert_eq!(r.count_in_folder(""), 1);
         // Unknown path → 0.
         assert_eq!(r.count_in_folder("Staging"), 0);
+    }
+
+    #[test]
+    fn parse_ssh_target_bare_host_returns_host_only() {
+        let t = parse_ssh_target("example.com").expect("bare host parses");
+        assert_eq!(t.host, "example.com");
+        assert_eq!(t.user, None);
+        assert_eq!(t.port, None);
+    }
+
+    #[test]
+    fn parse_ssh_target_user_at_host() {
+        let t = parse_ssh_target("root@example.com").expect("user@host parses");
+        assert_eq!(t.host, "example.com");
+        assert_eq!(t.user.as_deref(), Some("root"));
+        assert_eq!(t.port, None);
+    }
+
+    #[test]
+    fn parse_ssh_target_host_colon_port() {
+        let t = parse_ssh_target("example.com:2222").expect("host:port parses");
+        assert_eq!(t.host, "example.com");
+        assert_eq!(t.user, None);
+        assert_eq!(t.port, Some(2222));
+    }
+
+    #[test]
+    fn parse_ssh_target_full_form() {
+        let t = parse_ssh_target("alice@example.com:2222").expect("full form parses");
+        assert_eq!(t.host, "example.com");
+        assert_eq!(t.user.as_deref(), Some("alice"));
+        assert_eq!(t.port, Some(2222));
+    }
+
+    #[test]
+    fn parse_ssh_target_ipv6_bracketed_no_port() {
+        let t = parse_ssh_target("[::1]").expect("bracketed IPv6 parses");
+        assert_eq!(t.host, "::1");
+        assert_eq!(t.port, None);
+    }
+
+    #[test]
+    fn parse_ssh_target_ipv6_bracketed_with_port() {
+        let t = parse_ssh_target("root@[2001:db8::1]:22").expect("user + IPv6 + port");
+        assert_eq!(t.host, "2001:db8::1");
+        assert_eq!(t.user.as_deref(), Some("root"));
+        assert_eq!(t.port, Some(22));
+    }
+
+    #[test]
+    fn parse_ssh_target_trims_surrounding_whitespace() {
+        let t = parse_ssh_target("  root@example.com:22  ").expect("trimmed input parses");
+        assert_eq!(t.host, "example.com");
+        assert_eq!(t.user.as_deref(), Some("root"));
+        assert_eq!(t.port, Some(22));
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_empty() {
+        assert!(parse_ssh_target("").is_none());
+        assert!(parse_ssh_target("   ").is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_zero_and_overflow_port() {
+        assert!(parse_ssh_target("h:0").is_none());
+        assert!(parse_ssh_target("h:65536").is_none());
+        assert!(parse_ssh_target("h:99999999").is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_non_numeric_port() {
+        assert!(parse_ssh_target("h:abc").is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_control_chars_in_host() {
+        assert!(parse_ssh_target("evil\rhost").is_none());
+        assert!(parse_ssh_target("evil\nhost").is_none());
+        assert!(parse_ssh_target("evil\0host").is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_path_separators_in_host() {
+        assert!(parse_ssh_target("a/b").is_none());
+        assert!(parse_ssh_target("a\\b").is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_empty_user_part() {
+        assert!(parse_ssh_target("@host").is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_oversize_host() {
+        let host = "a".repeat(254);
+        assert!(parse_ssh_target(&host).is_none());
+    }
+
+    #[test]
+    fn parse_ssh_target_rejects_oversize_user() {
+        let user = "u".repeat(257);
+        let input = format!("{}@host", user);
+        assert!(parse_ssh_target(&input).is_none());
+    }
+
+    fn pr(id: &str, via: Option<&str>) -> ProxyRef {
+        ProxyRef {
+            session_id: id.to_string(),
+            via_session_id: via.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn detect_proxy_cycle_new_session_never_loops() {
+        // No seed id (new-session branch) — every candidate is safe.
+        let chain = vec![pr("a", None), pr("b", Some("a"))];
+        assert!(!detect_proxy_cycle(None, "a", &chain));
+        assert!(!detect_proxy_cycle(None, "b", &chain));
+    }
+
+    #[test]
+    fn detect_proxy_cycle_direct_self_trips() {
+        let chain = vec![pr("a", None)];
+        assert!(detect_proxy_cycle(Some("a"), "a", &chain));
+    }
+
+    #[test]
+    fn detect_proxy_cycle_two_step_cycle_trips() {
+        // Editing A; A wants to go via B; B already goes via A.
+        let chain = vec![pr("a", None), pr("b", Some("a"))];
+        assert!(detect_proxy_cycle(Some("a"), "b", &chain));
+    }
+
+    #[test]
+    fn detect_proxy_cycle_three_step_cycle_trips() {
+        // A → B → C → A: picking C while editing A trips the probe
+        // because the chain walks C → A which is the seed.
+        let chain = vec![pr("a", None), pr("b", Some("a")), pr("c", Some("b"))];
+        assert!(detect_proxy_cycle(Some("a"), "c", &chain));
+    }
+
+    #[test]
+    fn detect_proxy_cycle_safe_chain_does_not_trip() {
+        // A → B → C, picking C while editing A is fine — chain
+        // walks C, then None (C has no via).
+        let chain = vec![pr("a", Some("b")), pr("b", Some("c")), pr("c", None)];
+        assert!(!detect_proxy_cycle(Some("a"), "c", &chain));
+    }
+
+    #[test]
+    fn detect_proxy_cycle_orphan_loop_does_not_trip_for_unrelated_seed() {
+        // Pre-existing loop B → C → B in the data; editing A wants
+        // to go via B. The probe is asking "would THIS edit close a
+        // loop through me" — orphan loops elsewhere stay the connect
+        // path's problem, not the dialog's.
+        let chain = vec![pr("a", None), pr("b", Some("c")), pr("c", Some("b"))];
+        assert!(!detect_proxy_cycle(Some("a"), "b", &chain));
+    }
+
+    #[test]
+    fn detect_proxy_cycle_missing_via_target_is_safe() {
+        // Candidate's via points at a deleted session — the chain
+        // terminates with None lookup. Not a cycle.
+        let chain = vec![pr("b", Some("ghost"))];
+        assert!(!detect_proxy_cycle(Some("a"), "b", &chain));
     }
 }

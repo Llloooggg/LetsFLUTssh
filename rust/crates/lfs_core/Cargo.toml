@@ -139,6 +139,18 @@ tempfile = "3"
 # canned responses. Picks an ephemeral port per test so
 # parallel runs don't collide.
 wiremock = "0.6"
+# In-test self-signed cert generation for the TLS-handshake
+# integration tests around the trusted-cert-pin / accept-any-cert
+# surfaces. `rcgen` produces a fresh cert + key per test so the
+# corpus does not carry on-disk PEM fixtures with hard-coded
+# Subject Alternative Names.
+rcgen = "0.13"
+# Loopback TLS listener for the same integration tests. Wraps a
+# raw `tokio::net::TcpStream` with a rustls server-side handshake
+# so a `reqwest::Client` under test exercises a real TLS connect
+# path (not just the builder's success-without-handshake check).
+tokio-rustls = "0.26"
+rustls-pemfile = "2"
 
 # Hardening: deny `unsafe` blocks at the lfs_core level. Transitive
 # crates (russh, tokio, ring, ...) still use `unsafe` internally —

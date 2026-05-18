@@ -155,6 +155,60 @@ pub fn sessions_count_in_folder(session_folders: Vec<String>, folder_path: Strin
     sessions::count_in_folder(&session_folders, &folder_path) as u32
 }
 
+/// FRB mirror of [`lfs_core::sessions::SshTarget`]. Used by the
+/// session-edit dialog's smart-paste "Connect to" field to split
+/// `[user@]host[:port]` into the host / port / user controllers
+/// the existing form already drives.
+#[derive(Debug, Clone)]
+pub struct DbSshTarget {
+    pub host: String,
+    pub port: Option<u16>,
+    pub user: Option<String>,
+}
+
+/// Parse a smart-paste connect string into its host / port / user
+/// components. Returns `None` for inputs that cannot be coerced to
+/// a non-empty host inside the same validation envelope as the
+/// deeplink connect parser (host ≤ 253 chars, user ≤ 256 chars,
+/// port 1..=65535, no `/`, no `\`, no C0/C1 control characters).
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_parse_ssh_target(input: String) -> Option<DbSshTarget> {
+    sessions::parse_ssh_target(&input).map(|t| DbSshTarget {
+        host: t.host,
+        port: t.port,
+        user: t.user,
+    })
+}
+
+/// One vertex in the ProxyJump-cycle probe. Mirrors
+/// [`lfs_core::sessions::ProxyRef`] one-to-one.
+#[derive(Debug, Clone)]
+pub struct DbSessionProxyRef {
+    pub session_id: String,
+    pub via_session_id: Option<String>,
+}
+
+/// Probe whether picking `candidate_id` as the ProxyJump bastion
+/// for `seed_id` would close a cycle through the saved-session
+/// graph. `seed_id = None` is the new-session branch and always
+/// returns `false`. Pre-existing orphan loops in the chain (data
+/// already on disk) are not the dialog's concern and do not trip.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_detect_proxy_cycle(
+    seed_id: Option<String>,
+    candidate_id: String,
+    chain: Vec<DbSessionProxyRef>,
+) -> bool {
+    let refs: Vec<sessions::ProxyRef> = chain
+        .into_iter()
+        .map(|r| sessions::ProxyRef {
+            session_id: r.session_id,
+            via_session_id: r.via_session_id,
+        })
+        .collect();
+    sessions::detect_proxy_cycle(seed_id.as_deref(), &candidate_id, &refs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

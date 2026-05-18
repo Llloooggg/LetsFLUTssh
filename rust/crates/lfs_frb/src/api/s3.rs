@@ -225,6 +225,14 @@ pub struct S3ConnectRequest {
     pub path_style: bool,
     pub default_bucket: String,
     pub default_prefix: String,
+    /// PEM blob (one or more `-----BEGIN CERTIFICATE-----` blocks)
+    /// added as an additional root for the reqwest client. `None`
+    /// falls back to the system trust store.
+    pub trusted_cert_pem: Option<String>,
+    /// Last-resort skip-all-cert-verification toggle. The dialog
+    /// renders an explicit MITM warning before letting the user
+    /// flip it on.
+    pub insecure_skip_verify: bool,
 }
 
 pub async fn s3_connect(req: S3ConnectRequest) -> Result<S3Connection, String> {
@@ -237,6 +245,8 @@ pub async fn s3_connect(req: S3ConnectRequest) -> Result<S3Connection, String> {
         path_style,
         default_bucket,
         default_prefix,
+        trusted_cert_pem,
+        insecure_skip_verify,
     } = req;
     // Borrow UTF-8 via `&secret_bytes` so the `Zeroizing<Vec<u8>>`
     // scrubs on the early-return path. `String::from_utf8(_.to_vec())`
@@ -257,6 +267,8 @@ pub async fn s3_connect(req: S3ConnectRequest) -> Result<S3Connection, String> {
         path_style,
         default_bucket: default_bucket.clone(),
         default_prefix,
+        trusted_cert_pem,
+        insecure_skip_verify,
     };
     let client = Arc::new(S3Client::new(cfg).map_err(|e| crate::api::frb_err::from_core(&e))?);
     // Connect probe — only meaningful when `default_bucket` is set;
@@ -312,6 +324,8 @@ mod tests {
             path_style: false,
             default_bucket: String::new(),
             default_prefix: String::new(),
+            trusted_cert_pem: None,
+            insecure_skip_verify: false,
         })
         .await;
         app.secrets.drop_id(secret_id);
@@ -343,6 +357,8 @@ mod tests {
             path_style: false,
             default_bucket: String::new(),
             default_prefix: String::new(),
+            trusted_cert_pem: None,
+            insecure_skip_verify: false,
         })
         .await;
         let err = match result {

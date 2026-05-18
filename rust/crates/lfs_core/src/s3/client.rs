@@ -122,10 +122,35 @@ impl std::fmt::Debug for S3Client {
 
 impl S3Client {
     /// Construct a new client. `cfg.secret_access_key` is moved in
-    /// behind `Arc` so the secret bytes wipe on drop alongside
-    /// the last clone.
+    /// behind `Arc` so the secret bytes wipe on drop alongside the
+    /// last clone.
+    ///
+    /// `cfg.trusted_cert_pem` (when set) feeds every certificate in
+    /// the PEM blob into [`reqwest::ClientBuilder::add_root_certificate`]
+    /// so the reqwest TLS verifier accepts self-signed endpoints
+    /// without OS-trust-store changes. `cfg.insecure_skip_verify`
+    /// flips on `danger_accept_invalid_certs` + `danger_accept_invalid_hostnames`
+    /// — the escape hatch the dialog guards behind an explicit
+    /// MITM warning. Both paths are mutually exclusive at the user
+    /// level; the transport prefers insecure when both are set.
     pub fn new(cfg: S3Config) -> Result<Self, Error> {
-        let http = reqwest::Client::builder()
+        let mut builder = reqwest::Client::builder();
+        if cfg.insecure_skip_verify {
+            builder = builder
+                .danger_accept_invalid_certs(true)
+                .danger_accept_invalid_hostnames(true);
+        } else if let Some(pem) = cfg
+            .trusted_cert_pem
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+        {
+            for cert in crate::webdav::client::parse_pem_certs(pem)
+                .map_err(|e| Error::S3(format!("trusted cert PEM: {e}")))?
+            {
+                builder = builder.add_root_certificate(cert);
+            }
+        }
+        let http = builder
             .build()
             .map_err(|e| Error::S3(format!("reqwest client build: {e}")))?;
         Ok(Self {

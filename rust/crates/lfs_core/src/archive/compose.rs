@@ -604,8 +604,11 @@ fn webdav_row_to_value(
     obj.insert("base_url".into(), json!(r.base_url));
     obj.insert("username".into(), json!(r.username));
     obj.insert("auth_method".into(), json!(r.auth_method));
-    if let Some(fp) = r.self_signed_fingerprint.as_deref() {
-        obj.insert("self_signed_fingerprint".into(), json!(fp));
+    if let Some(pem) = r.trusted_cert_pem.as_deref() {
+        obj.insert("trusted_cert_pem".into(), json!(pem));
+    }
+    if r.insecure_skip_verify {
+        obj.insert("insecure_skip_verify".into(), json!(true));
     }
     // Credential bytes stay on the source device. The canonical
     // SecretStore id is reconstructed by the receiving device via
@@ -670,6 +673,12 @@ fn s3_row_to_value(
     obj.insert("path_style".into(), json!(r.path_style));
     obj.insert("default_bucket".into(), json!(r.default_bucket));
     obj.insert("default_prefix".into(), json!(r.default_prefix));
+    if let Some(pem) = &r.trusted_cert_pem {
+        obj.insert("trusted_cert_pem".into(), json!(pem));
+    }
+    if r.insecure_skip_verify {
+        obj.insert("insecure_skip_verify".into(), json!(true));
+    }
     // Same opaque-pointer discipline as WebDAV: the access key id is
     // the public half of the AWS credential and travels verbatim;
     // the secret access key bytes don't — the receiving device finds

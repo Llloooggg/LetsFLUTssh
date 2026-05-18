@@ -688,7 +688,20 @@ CREATE TABLE IF NOT EXISTS webdav_session_details (
     base_url TEXT NOT NULL,
     username TEXT NOT NULL DEFAULT '',
     auth_method TEXT NOT NULL,
-    self_signed_fingerprint TEXT NULL,
+    -- Trusted certificate PEM (one or more `-----BEGIN
+    -- CERTIFICATE-----` blocks) added as an additional root for
+    -- this session's TLS handshakes. `NULL` falls back to the
+    -- system trust store. The dialog hosts the textarea inside the
+    -- More options expander since most servers chain to a public CA
+    -- and never need it.
+    trusted_cert_pem TEXT NULL,
+    -- INTEGER boolean. `1` switches the reqwest client to
+    -- `danger_accept_invalid_certs(true)` + `danger_accept_invalid_hostnames(true)`,
+    -- skipping every certificate check. Last-resort escape hatch
+    -- for environments where neither the system trust store nor a
+    -- pinned cert is workable; the dialog renders an explicit
+    -- MITM warning when the user flips it on.
+    insecure_skip_verify INTEGER NOT NULL DEFAULT 0,
     password TEXT NOT NULL DEFAULT '',
     updated_at INTEGER NOT NULL DEFAULT 0,
     deleted_at INTEGER NULL
@@ -709,16 +722,29 @@ CREATE INDEX IF NOT EXISTS idx_webdav_session_details_session_id
 -- addressing) so the column stays compatible with SQLite's type
 -- system.
 CREATE TABLE IF NOT EXISTS s3_session_details (
-    session_id        TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-    access_key_id     TEXT NOT NULL DEFAULT '',
-    region            TEXT NOT NULL DEFAULT '',
-    endpoint          TEXT NOT NULL DEFAULT '',
-    path_style        INTEGER NOT NULL DEFAULT 0,
-    default_bucket    TEXT NOT NULL DEFAULT '',
-    default_prefix    TEXT NOT NULL DEFAULT '',
-    secret_access_key TEXT NOT NULL DEFAULT '',
-    updated_at        INTEGER NOT NULL DEFAULT 0,
-    deleted_at        INTEGER NULL
+    session_id              TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    access_key_id           TEXT NOT NULL DEFAULT '',
+    region                  TEXT NOT NULL DEFAULT '',
+    endpoint                TEXT NOT NULL DEFAULT '',
+    path_style              INTEGER NOT NULL DEFAULT 0,
+    default_bucket          TEXT NOT NULL DEFAULT '',
+    default_prefix          TEXT NOT NULL DEFAULT '',
+    secret_access_key       TEXT NOT NULL DEFAULT '',
+    -- Trusted certificate PEM (one or more `-----BEGIN
+    -- CERTIFICATE-----` blocks) added as an additional root for
+    -- this session's TLS handshakes. `NULL` falls back to the
+    -- system trust store. Mirrors the WebDAV detail row so both
+    -- transports share one self-signed-endpoint surface.
+    trusted_cert_pem        TEXT NULL,
+    -- INTEGER boolean. `1` switches the reqwest client to
+    -- `danger_accept_invalid_certs(true)` + `danger_accept_invalid_hostnames(true)`,
+    -- skipping every certificate check. Last-resort escape hatch
+    -- for environments where neither the system trust store nor a
+    -- pinned cert is workable — the dialog renders an explicit
+    -- MITM warning when the user flips it on.
+    insecure_skip_verify    INTEGER NOT NULL DEFAULT 0,
+    updated_at              INTEGER NOT NULL DEFAULT 0,
+    deleted_at              INTEGER NULL
 );
 CREATE INDEX IF NOT EXISTS idx_s3_session_details_session_id
     ON s3_session_details(session_id);

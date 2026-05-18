@@ -243,19 +243,22 @@ fn parse_auth_method(raw: &str) -> Result<AuthMethod, String> {
 /// URL as a connect probe — so a bad URL or wrong credential
 /// surfaces at connect time rather than at the first list.
 ///
-/// `self_signed_fingerprint` is reserved for the future TOFU
-/// pinning surface; the current `WebDavClient` constructor relies
-/// on the bundled webpki-roots so a non-null value here is a
-/// no-op for now. Wiring it through the FRB layer up-front lets
-/// the Dart UI persist the value before the transport-side
-/// hookup lands.
+/// `trusted_cert_pem` carries an optional PEM blob (one or more
+/// `-----BEGIN CERTIFICATE-----` blocks) added to the reqwest
+/// client as an additional root CA — the in-app "trust this
+/// self-signed cert" surface that lets users connect to private
+/// endpoints without polluting the OS trust store. `insecure_skip_verify`
+/// is the escape hatch — flips on `danger_accept_invalid_certs` +
+/// `danger_accept_invalid_hostnames`; the dialog UI renders an
+/// explicit MITM warning before letting the user enable it.
 pub async fn webdav_connect(
     connection_id: String,
     base_url: String,
     username: String,
     password_secret_id: String,
     auth_method: String,
-    self_signed_fingerprint: Option<String>,
+    trusted_cert_pem: Option<String>,
+    insecure_skip_verify: bool,
 ) -> Result<WebDavConnection, String> {
     let method = parse_auth_method(&auth_method)?;
     // Borrow UTF-8 via `&secret_bytes` so the `Zeroizing<Vec<u8>>`
@@ -278,16 +281,19 @@ pub async fn webdav_connect(
         },
         password_or_token: secret,
     };
-    let client =
-        WebDavClient::new(&base_url, creds).map_err(|e| crate::api::frb_err::from_core(&e))?;
+    let client = WebDavClient::new(
+        &base_url,
+        creds,
+        trusted_cert_pem.as_deref(),
+        insecure_skip_verify,
+    )
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     // Connect probe — PROPFIND depth=0 against the base URL. Fails
     // fast on bad URL, expired credential, or wrong realm.
     client
         .propfind("", 0)
         .await
         .map_err(|e| crate::api::frb_err::from_core(&e))?;
-    // Reserved — pin the fingerprint when the TOFU surface lands.
-    let _ = self_signed_fingerprint;
     let provider = Arc::new(WebDavProvider::new(Arc::new(client)));
     // Register the live provider in the global registry so the
     // transfer worker pool can reach it from outside the FRB-opaque
@@ -383,6 +389,7 @@ mod tests {
             secret_id.into(),
             "basic".into(),
             None,
+            false,
         )
         .await;
         app.secrets.drop_id(secret_id);
@@ -413,6 +420,7 @@ mod tests {
             "test.webdav.does-not-exist".into(),
             "basic".into(),
             None,
+            false,
         )
         .await;
         let err = match result {

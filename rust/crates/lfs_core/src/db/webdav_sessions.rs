@@ -51,22 +51,32 @@ pub fn webdav_secret_id(session_id: &str) -> String {
 /// boundary only carries metadata back to Dart, never the secret
 /// (same one-way discipline as SSH where `password` survives
 /// inside `stage_secrets_into_store` only).
+///
+/// `trusted_cert_pem` carries a PEM blob added as an additional
+/// root CA for the session's reqwest client (lets self-signed
+/// endpoints validate without polluting the OS trust store).
+/// `insecure_skip_verify` is the last-resort escape hatch that
+/// disables every certificate check — the dialog renders an
+/// explicit MITM warning before letting the user flip it on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WebDavSessionRow {
     pub session_id: String,
     pub base_url: String,
     pub username: String,
     pub auth_method: String,
-    pub self_signed_fingerprint: Option<String>,
+    pub trusted_cert_pem: Option<String>,
+    pub insecure_skip_verify: bool,
 }
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<WebDavSessionRow> {
+    let insecure_int: i64 = row.get("insecure_skip_verify")?;
     Ok(WebDavSessionRow {
         session_id: row.get("session_id")?,
         base_url: row.get("base_url")?,
         username: row.get("username")?,
         auth_method: row.get("auth_method")?,
-        self_signed_fingerprint: row.get("self_signed_fingerprint")?,
+        trusted_cert_pem: row.get("trusted_cert_pem")?,
+        insecure_skip_verify: insecure_int != 0,
     })
 }
 
@@ -77,7 +87,8 @@ pub fn get(conn: &impl DbAccess, session_id: &str) -> Result<Option<WebDavSessio
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT session_id, base_url, username, auth_method, self_signed_fingerprint \
+            "SELECT session_id, base_url, username, auth_method, \
+                    trusted_cert_pem, insecure_skip_verify \
              FROM webdav_session_details \
              WHERE session_id = ?1 AND deleted_at IS NULL",
         )
@@ -115,22 +126,24 @@ pub fn upsert_with_stamp(
     conn.raw()
         .execute(
             "INSERT INTO webdav_session_details ( \
-               session_id, base_url, username, auth_method, self_signed_fingerprint, \
-               updated_at \
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+               session_id, base_url, username, auth_method, \
+               trusted_cert_pem, insecure_skip_verify, updated_at \
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
              ON CONFLICT(session_id) DO UPDATE SET \
-               base_url = excluded.base_url, \
-               username = excluded.username, \
-               auth_method = excluded.auth_method, \
-               self_signed_fingerprint = excluded.self_signed_fingerprint, \
-               updated_at = excluded.updated_at, \
-               deleted_at = NULL",
+               base_url             = excluded.base_url, \
+               username             = excluded.username, \
+               auth_method          = excluded.auth_method, \
+               trusted_cert_pem     = excluded.trusted_cert_pem, \
+               insecure_skip_verify = excluded.insecure_skip_verify, \
+               updated_at           = excluded.updated_at, \
+               deleted_at           = NULL",
             params![
                 row.session_id,
                 row.base_url,
                 row.username,
                 row.auth_method,
-                row.self_signed_fingerprint,
+                row.trusted_cert_pem,
+                i64::from(row.insecure_skip_verify),
                 updated_at_ms,
             ],
         )
@@ -269,7 +282,8 @@ pub fn list_all(conn: &impl DbAccess) -> Result<Vec<WebDavSessionRow>, Error> {
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT session_id, base_url, username, auth_method, self_signed_fingerprint \
+            "SELECT session_id, base_url, username, auth_method, \
+                    trusted_cert_pem, insecure_skip_verify \
              FROM webdav_session_details WHERE deleted_at IS NULL \
              ORDER BY session_id ASC",
         )
@@ -295,7 +309,8 @@ pub fn list_all_with_tombstones(
     let mut stmt = conn
         .raw()
         .prepare_cached(
-            "SELECT session_id, base_url, username, auth_method, self_signed_fingerprint, \
+            "SELECT session_id, base_url, username, auth_method, \
+                    trusted_cert_pem, insecure_skip_verify, \
                     updated_at, deleted_at \
              FROM webdav_session_details ORDER BY session_id ASC",
         )
@@ -420,7 +435,8 @@ mod tests {
             base_url: "https://example.com/remote.php/dav/files/alice/".into(),
             username: "alice".into(),
             auth_method: "basic".into(),
-            self_signed_fingerprint: None,
+            trusted_cert_pem: None,
+            insecure_skip_verify: false,
         }
     }
 
@@ -461,17 +477,20 @@ mod tests {
         let db = db();
         seed_session(&db, "s1");
         db.with_conn(|c| upsert(c, &webdav("s1"))).unwrap();
+        let pem = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n";
         let updated = WebDavSessionRow {
             base_url: "https://example.com/webdav/".into(),
             auth_method: "digest".into(),
-            self_signed_fingerprint: Some("SHA256:abc".into()),
+            trusted_cert_pem: Some(pem.into()),
+            insecure_skip_verify: true,
             ..webdav("s1")
         };
         db.with_conn(|c| upsert(c, &updated)).unwrap();
         let got = db.with_conn(|c| get(c, "s1")).unwrap().unwrap();
         assert_eq!(got.base_url, "https://example.com/webdav/");
         assert_eq!(got.auth_method, "digest");
-        assert_eq!(got.self_signed_fingerprint.as_deref(), Some("SHA256:abc"));
+        assert_eq!(got.trusted_cert_pem.as_deref(), Some(pem));
+        assert!(got.insecure_skip_verify);
     }
 
     #[test]
@@ -639,15 +658,18 @@ mod tests {
     #[test]
     fn set_password_does_not_disturb_other_columns() {
         // Bumping the password must not corrupt base_url / username /
-        // auth_method / fingerprint — the setter is a single-column
-        // UPDATE, but assert it on the wire to catch any future
-        // change that switches to an INSERT OR REPLACE shape.
+        // auth_method / trusted_cert_pem / insecure_skip_verify —
+        // the setter is a single-column UPDATE, but assert it on the
+        // wire to catch any future change that switches to an INSERT
+        // OR REPLACE shape.
         let db = db();
         seed_session(&db, "s1");
+        let pem = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n";
         let row = WebDavSessionRow {
             base_url: "https://nc.example.com/dav/files/alice/".into(),
             auth_method: "digest".into(),
-            self_signed_fingerprint: Some("SHA256:pin".into()),
+            trusted_cert_pem: Some(pem.into()),
+            insecure_skip_verify: true,
             ..webdav("s1")
         };
         db.with_conn(|c| upsert(c, &row)).unwrap();
@@ -655,7 +677,8 @@ mod tests {
         let got = db.with_conn(|c| get(c, "s1")).unwrap().unwrap();
         assert_eq!(got.base_url, row.base_url);
         assert_eq!(got.auth_method, "digest");
-        assert_eq!(got.self_signed_fingerprint.as_deref(), Some("SHA256:pin"));
+        assert_eq!(got.trusted_cert_pem.as_deref(), Some(pem));
+        assert!(got.insecure_skip_verify);
     }
 
     #[test]

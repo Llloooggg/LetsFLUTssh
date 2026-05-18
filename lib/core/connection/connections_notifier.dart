@@ -347,6 +347,8 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
           pathStyle: detail.pathStyle,
           defaultBucket: detail.defaultBucket,
           defaultPrefix: detail.defaultPrefix,
+          trustedCertPem: detail.trustedCertPem,
+          insecureSkipVerify: detail.insecureSkipVerify,
         ),
       );
       conn.s3Connection = handle;
@@ -445,7 +447,8 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         username: detail.username,
         passwordSecretId: secretId,
         authMethod: detail.authMethod,
-        selfSignedFingerprint: detail.selfSignedFingerprint,
+        trustedCertPem: detail.trustedCertPem,
+        insecureSkipVerify: detail.insecureSkipVerify,
       );
       conn.webdavConnection = handle;
       conn.webdavBaseUrl = detail.baseUrl;

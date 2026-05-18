@@ -63,10 +63,21 @@ pub struct S3SessionRow {
     pub path_style: bool,
     pub default_bucket: String,
     pub default_prefix: String,
+    /// Trusted certificate PEM (one or more `-----BEGIN
+    /// CERTIFICATE-----` blocks) added as an additional root for
+    /// the S3 session's reqwest client. `None` falls back to the
+    /// system trust store. Mirrors the WebDAV detail row so both
+    /// transports share one self-signed-endpoint surface.
+    pub trusted_cert_pem: Option<String>,
+    /// Last-resort `danger_accept_invalid_certs(true)` toggle.
+    /// `true` skips every certificate check — the dialog renders
+    /// an explicit MITM warning before letting the user flip it on.
+    pub insecure_skip_verify: bool,
 }
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<S3SessionRow> {
     let path_style_int: i64 = row.get("path_style")?;
+    let insecure_int: i64 = row.get("insecure_skip_verify")?;
     Ok(S3SessionRow {
         session_id: row.get("session_id")?,
         access_key_id: row.get("access_key_id")?,
@@ -75,6 +86,8 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<S3SessionRow> {
         path_style: path_style_int != 0,
         default_bucket: row.get("default_bucket")?,
         default_prefix: row.get("default_prefix")?,
+        trusted_cert_pem: row.get("trusted_cert_pem")?,
+        insecure_skip_verify: insecure_int != 0,
     })
 }
 
@@ -86,7 +99,8 @@ pub fn get(conn: &impl DbAccess, session_id: &str) -> Result<Option<S3SessionRow
         .raw()
         .prepare_cached(
             "SELECT session_id, access_key_id, region, endpoint, path_style, \
-                    default_bucket, default_prefix \
+                    default_bucket, default_prefix, \
+                    trusted_cert_pem, insecure_skip_verify \
              FROM s3_session_details \
              WHERE session_id = ?1 AND deleted_at IS NULL",
         )
@@ -122,17 +136,20 @@ pub fn upsert_with_stamp(
         .execute(
             "INSERT INTO s3_session_details ( \
                session_id, access_key_id, region, endpoint, path_style, \
-               default_bucket, default_prefix, updated_at \
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+               default_bucket, default_prefix, \
+               trusted_cert_pem, insecure_skip_verify, updated_at \
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
              ON CONFLICT(session_id) DO UPDATE SET \
-               access_key_id  = excluded.access_key_id, \
-               region         = excluded.region, \
-               endpoint       = excluded.endpoint, \
-               path_style     = excluded.path_style, \
-               default_bucket = excluded.default_bucket, \
-               default_prefix = excluded.default_prefix, \
-               updated_at     = excluded.updated_at, \
-               deleted_at     = NULL",
+               access_key_id        = excluded.access_key_id, \
+               region               = excluded.region, \
+               endpoint             = excluded.endpoint, \
+               path_style           = excluded.path_style, \
+               default_bucket       = excluded.default_bucket, \
+               default_prefix       = excluded.default_prefix, \
+               trusted_cert_pem     = excluded.trusted_cert_pem, \
+               insecure_skip_verify = excluded.insecure_skip_verify, \
+               updated_at           = excluded.updated_at, \
+               deleted_at           = NULL",
             params![
                 row.session_id,
                 row.access_key_id,
@@ -141,6 +158,8 @@ pub fn upsert_with_stamp(
                 i64::from(row.path_style),
                 row.default_bucket,
                 row.default_prefix,
+                row.trusted_cert_pem,
+                i64::from(row.insecure_skip_verify),
                 updated_at_ms,
             ],
         )
@@ -278,7 +297,8 @@ pub fn list_all(conn: &impl DbAccess) -> Result<Vec<S3SessionRow>, Error> {
         .raw()
         .prepare_cached(
             "SELECT session_id, access_key_id, region, endpoint, path_style, \
-                    default_bucket, default_prefix \
+                    default_bucket, default_prefix, \
+                    trusted_cert_pem, insecure_skip_verify \
              FROM s3_session_details WHERE deleted_at IS NULL \
              ORDER BY session_id ASC",
         )
@@ -304,7 +324,9 @@ pub fn list_all_with_tombstones(
         .raw()
         .prepare_cached(
             "SELECT session_id, access_key_id, region, endpoint, path_style, \
-                    default_bucket, default_prefix, updated_at, deleted_at \
+                    default_bucket, default_prefix, \
+                    trusted_cert_pem, insecure_skip_verify, \
+                    updated_at, deleted_at \
              FROM s3_session_details ORDER BY session_id ASC",
         )
         .map_err(|e| {
@@ -431,6 +453,8 @@ mod tests {
             path_style: false,
             default_bucket: "my-bucket".into(),
             default_prefix: "logs/".into(),
+            trusted_cert_pem: None,
+            insecure_skip_verify: false,
         }
     }
 

@@ -572,7 +572,12 @@ fn build_client(cfg: &SyncConfig, password: &str) -> Result<WebDavClient, SyncEr
         },
         password_or_token: Zeroizing::new(password.to_string()),
     };
-    WebDavClient::new(&cfg.webdav_url, creds).map_err(|e| SyncError::ConfigInvalid(e.to_string()))
+    // Sync service connects to the user-configured WebDAV peer for
+    // multi-device sync — the trusted-cert / insecure surface is a
+    // per-session affordance not exposed here; the sync transport
+    // always uses the system trust store.
+    WebDavClient::new(&cfg.webdav_url, creds, None, false)
+        .map_err(|e| SyncError::ConfigInvalid(e.to_string()))
 }
 
 fn prepare() -> Result<(SyncConfig, String), SyncError> {
@@ -674,6 +679,8 @@ mod tests {
                 username: Some("alice".into()),
                 password_or_token: zeroize::Zeroizing::new("p".into()),
             },
+            None,
+            false,
         )
         .unwrap()
     }

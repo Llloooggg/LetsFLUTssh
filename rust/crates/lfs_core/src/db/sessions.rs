@@ -818,19 +818,21 @@ pub fn duplicate_session(
 
     // WebDAV transport tuple — same `INSERT … SELECT` shape so a
     // non-WebDAV source set is a no-op. The duplicate gets its own
-    // copy of the URL / username / auth method / fingerprint pin;
-    // the password / bearer token in SecretStore is NOT cloned (a
-    // duplicate is a fresh row and re-uses the source's secret id
-    // only if the caller explicitly re-stages — typically the
-    // operator re-enters it on first connect of the copy).
+    // copy of the URL / username / auth method / trusted-cert PEM /
+    // insecure-skip flag; the password / bearer token in SecretStore
+    // is NOT cloned (a duplicate is a fresh row and re-uses the
+    // source's secret id only if the caller explicitly re-stages —
+    // typically the operator re-enters it on first connect of the
+    // copy).
     conn.raw()
         .execute(
             "INSERT INTO webdav_session_details ( \
-               session_id, base_url, username, auth_method, self_signed_fingerprint, updated_at \
+               session_id, base_url, username, auth_method, \
+               trusted_cert_pem, insecure_skip_verify, updated_at \
              ) \
              SELECT \
-               ?1 AS session_id, base_url, username, auth_method, self_signed_fingerprint, \
-               ?2 AS updated_at \
+               ?1 AS session_id, base_url, username, auth_method, \
+               trusted_cert_pem, insecure_skip_verify, ?2 AS updated_at \
              FROM webdav_session_details WHERE session_id = ?3",
             params![new_id, now_ms, src_id],
         )
@@ -839,16 +841,19 @@ pub fn duplicate_session(
     // S3 transport tuple — same `INSERT … SELECT` shape. SigV4
     // identity (access_key_id) clones to the copy; the secret access
     // key stays under the source's SecretStore id and the copy
-    // re-stages on first save / re-enter.
+    // re-stages on first save / re-enter. Trust surface
+    // (trusted_cert_pem, insecure_skip_verify) clones verbatim.
     conn.raw()
         .execute(
             "INSERT INTO s3_session_details ( \
-               session_id, access_key_id, region, endpoint, path_style, default_bucket, \
-               default_prefix, updated_at \
+               session_id, access_key_id, region, endpoint, path_style, \
+               default_bucket, default_prefix, \
+               trusted_cert_pem, insecure_skip_verify, updated_at \
              ) \
              SELECT \
-               ?1 AS session_id, access_key_id, region, endpoint, path_style, default_bucket, \
-               default_prefix, ?2 AS updated_at \
+               ?1 AS session_id, access_key_id, region, endpoint, path_style, \
+               default_bucket, default_prefix, \
+               trusted_cert_pem, insecure_skip_verify, ?2 AS updated_at \
              FROM s3_session_details WHERE session_id = ?3",
             params![new_id, now_ms, src_id],
         )

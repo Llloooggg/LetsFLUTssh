@@ -135,7 +135,8 @@ void main() {
           baseUrl: 'https://cloud.example.com/remote.php/dav/files/alice/',
           username: 'alice',
           authMethod: 'basic',
-          selfSignedFingerprint: null,
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
 
@@ -230,7 +231,8 @@ void main() {
           baseUrl: 'https://cloud.example.com/',
           username: 'bob',
           authMethod: 'digest',
-          selfSignedFingerprint: null,
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
       final secretId = rust_db.dbWebdavSessionDetailsSecretId(
@@ -281,6 +283,8 @@ void main() {
         pathStyle: false,
         defaultBucket: 'my-backups',
         defaultPrefix: 'logs/',
+        trustedCertPem: null,
+        insecureSkipVerify: false,
       ),
     );
 
@@ -349,6 +353,8 @@ void main() {
           pathStyle: false,
           defaultBucket: '',
           defaultPrefix: '',
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
       final secretId = rust_db.dbS3SessionDetailsSecretId(
@@ -436,7 +442,8 @@ void main() {
           baseUrl: 'https://cloud.example.com/',
           username: 'alice',
           authMethod: 'basic',
-          selfSignedFingerprint: null,
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
       final secretId = rust_db.dbWebdavSessionDetailsSecretId(
@@ -451,13 +458,19 @@ void main() {
       // the dialog uses when user edits label / fingerprint /
       // username without touching the password field
       // (`passwordDirty=false`).
+      // Upsert mutates the username + trusted-cert PEM; the secret
+      // should not be touched because the dialog only writes secrets
+      // when `passwordDirty=true` is set on the SaveData.
+      const pemPin =
+          '-----BEGIN CERTIFICATE-----\nMIIDazCC...newpin\n-----END CERTIFICATE-----\n';
       await rust_db.dbWebdavSessionDetailsUpsert(
         rec: rust_db.DbWebDavSessionDetails(
           sessionId: session.id,
           baseUrl: 'https://cloud.example.com/',
           username: 'alice-renamed',
           authMethod: 'basic',
-          selfSignedFingerprint: 'SHA256:newpin',
+          trustedCertPem: pemPin,
+          insecureSkipVerify: false,
         ),
       );
 
@@ -490,6 +503,8 @@ void main() {
         pathStyle: false,
         defaultBucket: '',
         defaultPrefix: '',
+        trustedCertPem: null,
+        insecureSkipVerify: false,
       ),
     );
     final secretId = rust_db.dbS3SessionDetailsSecretId(sessionId: session.id);
@@ -508,6 +523,8 @@ void main() {
         pathStyle: false,
         defaultBucket: '',
         defaultPrefix: '',
+        trustedCertPem: null,
+        insecureSkipVerify: false,
       ),
     );
 
@@ -566,13 +583,16 @@ void main() {
     await rust_db.dbSessionsUpsert(
       row: sessionToRustRow(session, folderId: null),
     );
+    const pem =
+        '-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n';
     await rust_db.dbWebdavSessionDetailsUpsert(
       rec: const rust_db.DbWebDavSessionDetails(
         sessionId: 'webdav-dup-src',
         baseUrl: 'https://cloud.example.com/dav/',
         username: 'alice',
         authMethod: 'digest',
-        selfSignedFingerprint: 'SHA256:abc',
+        trustedCertPem: pem,
+        insecureSkipVerify: true,
       ),
     );
 
@@ -597,7 +617,8 @@ void main() {
     expect(copyDetail!.baseUrl, 'https://cloud.example.com/dav/');
     expect(copyDetail.username, 'alice');
     expect(copyDetail.authMethod, 'digest');
-    expect(copyDetail.selfSignedFingerprint, 'SHA256:abc');
+    expect(copyDetail.trustedCertPem, pem);
+    expect(copyDetail.insecureSkipVerify, isTrue);
   });
 
   test('duplicate for S3 copies the s3_session_details row', () async {
@@ -623,6 +644,8 @@ void main() {
         pathStyle: true,
         defaultBucket: 'src-bucket',
         defaultPrefix: 'src/',
+        trustedCertPem: null,
+        insecureSkipVerify: false,
       ),
     );
 
@@ -771,7 +794,8 @@ void main() {
           baseUrl: 'https://cloud.example.com/',
           username: 'alice',
           authMethod: 'basic',
-          selfSignedFingerprint: null,
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
 
@@ -812,7 +836,8 @@ void main() {
           baseUrl: 'https://cloud.example.com/',
           username: 'alice',
           authMethod: 'basic',
-          selfSignedFingerprint: null,
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
 
@@ -841,6 +866,8 @@ void main() {
         pathStyle: false,
         defaultBucket: '',
         defaultPrefix: '',
+        trustedCertPem: null,
+        insecureSkipVerify: false,
       ),
     );
 
@@ -870,6 +897,8 @@ void main() {
           pathStyle: false,
           defaultBucket: '',
           defaultPrefix: '',
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
 

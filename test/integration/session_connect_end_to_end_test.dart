@@ -250,7 +250,8 @@ void main() {
             baseUrl: baseUrl,
             username: 'alice',
             authMethod: 'basic',
-            selfSignedFingerprint: null,
+            trustedCertPem: null,
+            insecureSkipVerify: false,
           ),
         );
         final secretId = rust_db.dbWebdavSessionDetailsSecretId(
@@ -336,7 +337,8 @@ void main() {
             baseUrl: baseUrl,
             username: 'alice',
             authMethod: 'basic',
-            selfSignedFingerprint: null,
+            trustedCertPem: null,
+            insecureSkipVerify: false,
           ),
         );
         // Skip secretsPut on purpose — the connect path's Rust side
@@ -406,7 +408,8 @@ void main() {
           baseUrl: baseUrl,
           username: 'alice',
           authMethod: 'basic',
-          selfSignedFingerprint: null,
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
       // Save flow: persist the password through the new column
@@ -551,6 +554,8 @@ void main() {
             pathStyle: true,
             defaultBucket: 'my-bucket',
             defaultPrefix: '',
+            trustedCertPem: null,
+            insecureSkipVerify: false,
           ),
         );
         final secretId = rust_db.dbS3SessionDetailsSecretId(
@@ -634,6 +639,8 @@ void main() {
             pathStyle: true,
             defaultBucket: 'my-bucket',
             defaultPrefix: '',
+            trustedCertPem: null,
+            insecureSkipVerify: false,
           ),
         );
         // Skip secretsPut.
@@ -690,6 +697,8 @@ void main() {
           pathStyle: true,
           defaultBucket: 'my-bucket',
           defaultPrefix: '',
+          trustedCertPem: null,
+          insecureSkipVerify: false,
         ),
       );
       await rust_db.dbS3SessionDetailsSetSecretAccessKey(

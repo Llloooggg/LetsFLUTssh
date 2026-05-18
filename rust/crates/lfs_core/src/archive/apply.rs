@@ -1531,11 +1531,15 @@ fn apply_webdav_session_details(
             base_url: json_string(&v, "base_url"),
             username: json_string(&v, "username"),
             auth_method: json_string(&v, "auth_method"),
-            self_signed_fingerprint: v
-                .get("self_signed_fingerprint")
+            trusted_cert_pem: v
+                .get("trusted_cert_pem")
                 .and_then(|x| x.as_str())
                 .filter(|s| !s.is_empty())
-                .map(|s| s.to_string()),
+                .map(str::to_string),
+            insecure_skip_verify: v
+                .get("insecure_skip_verify")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false),
         };
         let result = if mode.is_sync() {
             let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
@@ -1627,6 +1631,15 @@ fn apply_s3_session_details(
                 .unwrap_or(false),
             default_bucket: json_string(&v, "default_bucket"),
             default_prefix: json_string(&v, "default_prefix"),
+            trusted_cert_pem: v
+                .get("trusted_cert_pem")
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
+            insecure_skip_verify: v
+                .get("insecure_skip_verify")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false),
         };
         let result = if mode.is_sync() {
             let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);

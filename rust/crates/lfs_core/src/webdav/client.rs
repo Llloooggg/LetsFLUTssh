@@ -120,17 +120,49 @@ impl WebDavClient {
     /// `/` (the URL crate's `join` semantics require a trailing
     /// slash to keep the last segment as a directory). When the
     /// caller omits it, the constructor appends one.
-    pub fn new(base_url: &str, creds: Credentials) -> Result<Self, Error> {
+    ///
+    /// `trusted_cert_pem` is the per-session "trust this cert"
+    /// surface — parse every `-----BEGIN CERTIFICATE-----` block
+    /// in the blob and feed it into the reqwest client builder as
+    /// an additional root CA via [`reqwest::ClientBuilder::add_root_certificate`].
+    /// Self-signed cert presented by the server then chains to
+    /// itself (its own DER bytes match the added root) and the
+    /// rustls verifier accepts. `None` falls back to the bundled
+    /// `webpki-roots` trust store.
+    ///
+    /// `insecure_skip_verify` is the escape hatch — flip every
+    /// rustls cert / hostname check off. Used only when the
+    /// caller-side UI has surfaced the MITM-risk warning and the
+    /// user explicitly opted in. The two paths are mutually
+    /// exclusive at the user level (the dialog disables the cert
+    /// textarea when insecure is on); at the transport level
+    /// insecure wins.
+    pub fn new(
+        base_url: &str,
+        creds: Credentials,
+        trusted_cert_pem: Option<&str>,
+        insecure_skip_verify: bool,
+    ) -> Result<Self, Error> {
         let mut parsed =
             Url::parse(base_url).map_err(|e| Error::WebDav(format!("base url parse: {e}")))?;
         if !parsed.path().ends_with('/') {
             let path = format!("{}/", parsed.path());
             parsed.set_path(&path);
         }
-        let http = reqwest::Client::builder()
+        let mut builder = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .redirect(reqwest::redirect::Policy::limited(MAX_REDIRECTS))
-            .user_agent(format!("letsflutssh-webdav/{}", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("letsflutssh-webdav/{}", env!("CARGO_PKG_VERSION")));
+        if insecure_skip_verify {
+            builder = builder
+                .danger_accept_invalid_certs(true)
+                .danger_accept_invalid_hostnames(true);
+        } else if let Some(pem) = trusted_cert_pem.filter(|s| !s.trim().is_empty()) {
+            for cert in parse_pem_certs(pem)? {
+                builder = builder.add_root_certificate(cert);
+            }
+        }
+        let http = builder
             .build()
             .map_err(|e| Error::WebDav(format!("http client build: {e}")))?;
         Ok(Self {
@@ -553,6 +585,36 @@ fn random_cnonce() -> String {
     s
 }
 
+/// Split a PEM blob into one [`reqwest::Certificate`] per
+/// `-----BEGIN CERTIFICATE-----` block. Returns an empty `Vec`
+/// when the blob contains no certificate blocks, an error when
+/// any block fails to parse as a single X.509 cert (corrupt PEM
+/// or wrong armoring — encrypted PEMs, public keys, RSA params).
+///
+/// Multi-cert bundles are common (`fullchain.pem`, internal CA
+/// chains); `reqwest::Certificate::from_pem` only consumes the
+/// first block per call, so the caller needs the per-block loop
+/// to feed the full chain into [`reqwest::ClientBuilder::add_root_certificate`].
+pub fn parse_pem_certs(pem: &str) -> Result<Vec<reqwest::Certificate>, Error> {
+    const BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+    const END: &str = "-----END CERTIFICATE-----";
+    let mut out = Vec::new();
+    let mut cursor = pem;
+    while let Some(begin) = cursor.find(BEGIN) {
+        let after_begin = &cursor[begin..];
+        let end = after_begin
+            .find(END)
+            .ok_or_else(|| Error::WebDav("trusted cert PEM: unterminated block".to_string()))?;
+        let block_len = end + END.len();
+        let block = &after_begin[..block_len];
+        let cert = reqwest::Certificate::from_pem(block.as_bytes())
+            .map_err(|e| Error::WebDav(format!("trusted cert PEM parse: {e}")))?;
+        out.push(cert);
+        cursor = &after_begin[block_len..];
+    }
+    Ok(out)
+}
+
 /// Static PROPFIND body that asks for the props the parser
 /// actually consumes. RFC 4918 allows `<allprop/>` shorthand
 /// but Microsoft IIS in some configurations rejects it; the
@@ -586,7 +648,50 @@ mod tests {
     }
 
     fn make_client(base: &str) -> WebDavClient {
-        WebDavClient::new(base, basic_creds("alice", "p")).unwrap()
+        WebDavClient::new(base, basic_creds("alice", "p"), None, false).unwrap()
+    }
+
+    /// Sample self-signed certificate — generated once for the test
+    /// suite via `openssl req -x509 -newkey rsa:2048 -nodes -days 1
+    /// -subj /CN=test.local`. The actual subject / validity does
+    /// not matter for the parser test; only the PEM shape matters.
+    const SELF_SIGNED_PEM: &str = "-----BEGIN CERTIFICATE-----\nMIIDazCCAlOgAwIBAgIUFNJyP1HJ9HShdsZRfO4Pg6XnUmwwDQYJKoZIhvcNAQEL\nBQAwRTELMAkGA1UEBhMCVUExDjAMBgNVBAgMBVRlc3RTMQ4wDAYDVQQHDAVUZXN0\nQzEWMBQGA1UEAwwNbG9jYWxob3N0LXRlc3QwHhcNMjUwMTAxMDAwMDAwWhcNMjYw\nMTAxMDAwMDAwWjBFMQswCQYDVQQGEwJVQTEOMAwGA1UECAwFVGVzdFMxDjAMBgNV\nBAcMBVRlc3RDMRYwFAYDVQQDDA1sb2NhbGhvc3QtdGVzdDCCASIwDQYJKoZIhvcN\nAQEBBQADggEPADCCAQoCggEBAMK4tD9PdOmYnVqGRGiyMUuTfbHQpvVNeUkKXY8x\nF8gqK1ZQbS5OZ19o/SH4OQfTRkSqGZ+wMPRdEFm5OETIz1xPgxTbJyfDH8AdvjGM\nxZ6+8ngS+y6m+5+r9rg2nC4q3SNZw4cWQk0Eo2k1NWB+iqsKEXBSeqcuq8/N5UVS\nLpFFszLPB+xa7Ahw4OhQa+H8d0jWpQiAJl7ks7e2OqLAcyHkkpY9XxqA5OFOq5oT\nMfPmYO8xDywPwT5oOZBgyB69+W8Z5kIKxiB7e6/qY/4xBMVAOWMjmnUL76YYg1lh\nL7iSEnq8N9aLb1aMS3KuM4OG+IBhVCC8tRZWvHK0gPvT60UCAwEAAaNTMFEwHQYD\nVR0OBBYEFCKchpljkbAdNJW39CKPjqlf2wmYMB8GA1UdIwQYMBaAFCKchpljkbAd\nNJW39CKPjqlf2wmYMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB\nADV3VlqLZmqHpoBohOY6BdUVnPK7Q4QwI4OQM0pHy5LRdHqIaR0xRY+M3HQRkWcz\nVCw+aMP0zpEIJl9eq2KbjxhJgWxHwlSEPxLE7zX8m1xLM4Tk+1qSc+H6f4WiTwT/\n6w0wTPmTBYsdjF5sZ6vSXP9NxC1pNYykqHo3qq84MlS5KIaa4ZxIVqj/UWB8tnRA\n4iEW8sHbeUXjVprlrG/+/aMM6q9bbDfHmRVl+IpAi1ku3xkXrLb6/EOIUtxc9QmI\n3p8jW9oA4n82BlSdQH8oS6OnRJ81Mg2QmTpC5gLxr8aHEZ2K9D6XHQfdYySFvuRr\nWXFcUUSGOEhcg2Tf2EOAt7s=\n-----END CERTIFICATE-----\n";
+
+    #[test]
+    fn parse_pem_certs_handles_empty_blob() {
+        assert_eq!(parse_pem_certs("").unwrap().len(), 0);
+        assert_eq!(parse_pem_certs("   \n\t  ").unwrap().len(), 0);
+    }
+
+    #[test]
+    fn parse_pem_certs_returns_one_cert_for_single_block() {
+        let parsed = parse_pem_certs(SELF_SIGNED_PEM).unwrap();
+        assert_eq!(parsed.len(), 1);
+    }
+
+    #[test]
+    fn parse_pem_certs_returns_multiple_certs_for_chain_blob() {
+        let doubled = format!("{SELF_SIGNED_PEM}{SELF_SIGNED_PEM}");
+        let parsed = parse_pem_certs(&doubled).unwrap();
+        assert_eq!(parsed.len(), 2);
+    }
+
+    #[test]
+    fn parse_pem_certs_rejects_unterminated_block() {
+        let truncated = "-----BEGIN CERTIFICATE-----\nMIIB...";
+        let err = parse_pem_certs(truncated).unwrap_err();
+        assert!(format!("{err}").contains("unterminated"));
+    }
+
+    #[test]
+    fn webdav_client_insecure_skip_verify_builds() {
+        let client = WebDavClient::new(
+            "https://example.invalid/dav/",
+            basic_creds("u", "p"),
+            None,
+            true,
+        );
+        assert!(client.is_ok());
     }
 
     #[tokio::test]
@@ -742,7 +847,7 @@ mod tests {
             password_or_token: Zeroizing::new("p".into()),
         };
         let base = format!("{}/dav/", server.uri());
-        let client = WebDavClient::new(&base, creds).unwrap();
+        let client = WebDavClient::new(&base, creds, None, false).unwrap();
         let response = client.get("file", None, None).await.unwrap();
         let body = response.bytes().await.unwrap();
         assert_eq!(&body[..], b"ok");

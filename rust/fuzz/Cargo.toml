@@ -66,6 +66,20 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "ssh_target"
+path = "fuzz_targets/ssh_target.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pem_certs"
+path = "fuzz_targets/pem_certs.rs"
+test = false
+doc = false
+bench = false
+
 # Member of the parent rust/ workspace (declared in
 # rust/Cargo.toml `members`). Exclusion from `default-members`
 # keeps `cargo build --workspace` from the parent fast — the
