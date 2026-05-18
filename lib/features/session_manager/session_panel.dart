@@ -11,6 +11,8 @@ import '../../widgets/shortcut_registry.dart';
 import '../../core/ssh/port_forward_rule.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/tag_provider.dart';
+import '../../utils/logger.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../theme/app_theme.dart';

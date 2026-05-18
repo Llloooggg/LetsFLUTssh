@@ -100,21 +100,10 @@ extension _AuthSection on _SessionEditDialogState {
       ),
       const SizedBox(height: AppSpacing.lg),
       _buildWebDavCredentialField(),
-      const SizedBox(height: AppSpacing.lg),
-      StyledFormField(
-        label: l10n.webDavSelfSignedFingerprint,
-        controller: _fingerprintCtrl,
-        hint: 'SHA256:…',
-      ),
-      const SizedBox(height: AppSpacing.xxs),
-      Text(
-        l10n.webDavSelfSignedFingerprintHint,
-        style: TextStyle(
-          color: AppTheme.fgFaint,
-          fontFamily: AppFonts.interFamily,
-          fontSize: AppFonts.xs,
-        ),
-      ),
+      // Trusted-cert PEM + insecure toggle moved into the More
+      // options expander — both fields are niche, rarely needed for
+      // public-CA endpoints, and pad the credential block when
+      // they live here.
     ];
   }
 

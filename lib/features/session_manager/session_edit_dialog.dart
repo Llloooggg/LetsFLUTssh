@@ -18,6 +18,7 @@ import '../../providers/tag_provider.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/s3.dart' as rust_s3;
+import '../../src/rust/api/sessions.dart' as rust_sessions;
 import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
@@ -37,7 +38,7 @@ import '../../widgets/tpm_ssh_dialog.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
-import '../tags/tag_assign_dialog.dart';
+import '../tags/tag_manager_dialog.dart';
 import 'session_forwards_tab.dart';
 import 'session_port_validator.dart';
 
@@ -89,6 +90,15 @@ class SaveResult extends SessionDialogResult {
   /// a stored secret). Null for SSH / WebDAV sessions.
   final S3SaveData? s3Data;
 
+  /// Tag ids the user has marked assigned in the More options tag
+  /// picker. The caller diffs this against the current
+  /// `session_tags` rows and links / unlinks the delta after the
+  /// session row commits. For new sessions the join row didn't
+  /// exist yet — same diff path applies (every selected id becomes
+  /// a fresh link). `null` (legacy) means "leave assignments
+  /// untouched"; an empty set means "user removed every tag".
+  final Set<String>? pendingTagIds;
+
   SaveResult(
     this.session, {
     this.connect = false,
@@ -98,6 +108,7 @@ class SaveResult extends SessionDialogResult {
     this.passphraseDirty = false,
     this.webdavData,
     this.s3Data,
+    this.pendingTagIds,
   });
 }
 
@@ -115,14 +126,23 @@ class WebDavSaveData {
   /// this into the typed `lfs_core::webdav::AuthMethod`.
   final String authMethod;
 
-  /// Optional SHA-256 self-signed certificate pin. Empty / null means
-  /// the connect path falls back to the system trust store.
-  final String? selfSignedFingerprint;
+  /// Optional trusted server certificate (PEM — one or more
+  /// `-----BEGIN CERTIFICATE-----` blocks). Added as an additional
+  /// root CA in the connect path so self-signed endpoints validate
+  /// without OS-trust-store changes. Null / empty falls back to the
+  /// system trust store.
+  final String? trustedCertPem;
 
-  /// Password / bearer token typed in the Auth tab. Always carried
-  /// alongside `passwordDirty`; the caller only stages it into
-  /// SecretStore when the dirty bit is set so untouched edits keep
-  /// the previously stored secret intact.
+  /// Last-resort escape hatch — flip every certificate / hostname
+  /// check off (`reqwest::ClientBuilder::danger_accept_invalid_certs`
+  /// + `danger_accept_invalid_hostnames`). The dialog renders an
+  /// explicit MITM warning before letting the user enable it.
+  final bool insecureSkipVerify;
+
+  /// Password / bearer token typed in the Auth section. Always
+  /// carried alongside `passwordDirty`; the caller only stages it
+  /// into SecretStore when the dirty bit is set so untouched edits
+  /// keep the previously stored secret intact.
   final String password;
   final bool passwordDirty;
 
@@ -130,7 +150,8 @@ class WebDavSaveData {
     required this.baseUrl,
     required this.username,
     required this.authMethod,
-    required this.selfSignedFingerprint,
+    required this.trustedCertPem,
+    required this.insecureSkipVerify,
     required this.password,
     required this.passwordDirty,
   });
@@ -150,7 +171,19 @@ class S3SaveData {
   final String defaultBucket;
   final String defaultPrefix;
 
-  /// Secret access key typed in the Auth tab. Always carried
+  /// Optional trusted server certificate (PEM — one or more
+  /// `-----BEGIN CERTIFICATE-----` blocks). Mirrors the WebDAV
+  /// field; lets users connect to a self-signed S3-compatible
+  /// endpoint (MinIO on a private network, internal Ceph) without
+  /// OS-trust-store changes.
+  final String? trustedCertPem;
+
+  /// Last-resort skip-all-cert-verification toggle. The dialog
+  /// renders an explicit MITM warning before letting the user
+  /// enable it.
+  final bool insecureSkipVerify;
+
+  /// Secret access key typed in the Auth section. Always carried
   /// alongside `passwordDirty`; the caller only stages it into
   /// SecretStore when the dirty bit is set so untouched edits keep
   /// the previously stored secret intact.
@@ -164,6 +197,8 @@ class S3SaveData {
     required this.pathStyle,
     required this.defaultBucket,
     required this.defaultPrefix,
+    required this.trustedCertPem,
+    required this.insecureSkipVerify,
     required this.secretAccessKey,
     required this.passwordDirty,
   });
@@ -202,6 +237,17 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   late final TextEditingController _hostCtrl;
   late final TextEditingController _portCtrl;
   late final TextEditingController _userCtrl;
+
+  /// Smart-paste surface for SSH connections. The user types
+  /// `[user@]host[:port]` into one field; [_onConnectCtrlChanged]
+  /// parses it via [rust_sessions.sessionsParseSshTarget] and writes
+  /// the result into [_hostCtrl] / [_portCtrl] / [_userCtrl] so the
+  /// save path keeps reading the existing tuple. The compose helper
+  /// hydrates the field on edit (`user@host:22` collapses to
+  /// `user@host` when the port equals the default). WebDAV / S3
+  /// still own their own kind-specific fields below the kind picker.
+  late final TextEditingController _connectCtrl;
+  VoidCallback? _connectListener;
   late final TextEditingController _passwordCtrl;
   late final TextEditingController _keyPathCtrl;
   late final TextEditingController _keyDataCtrl;
@@ -259,6 +305,28 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// so a fresh session is opt-out by default — privacy-first).
   bool _recordEnabled = false;
 
+  /// In-memory tag-id selection backing the More options tag
+  /// picker. Edit-mode dialogs hydrate from `sessionTagsProvider`
+  /// inside [_loadInitialTags]; new-session dialogs start empty.
+  /// The save path returns this set verbatim in [SaveResult] so the
+  /// caller can diff against the persisted set and link / unlink
+  /// the delta — same buffering pattern the port-forward rule
+  /// editor uses.
+  Set<String> _pendingTagIds = <String>{};
+
+  /// `true` once the edit-mode hydration has finished resolving the
+  /// session's current tag links into [_pendingTagIds]. Gates the
+  /// picker render so a fresh `setState` after the async load does
+  /// not race a user tap against the empty initial state.
+  bool _pendingTagsLoaded = false;
+
+  /// `true` after the user toggles any chip in the inline tag
+  /// picker. Until then the save path emits `pendingTagIds = null`
+  /// so the caller leaves the persisted `session_tags` rows alone
+  /// — same "don't write what the user didn't touch" discipline the
+  /// password / key / passphrase dirty bits use.
+  bool _pendingTagsTouched = false;
+
   /// Selected transport. Set from `widget.session.kind` on edit;
   /// new sessions default to SSH. The kind picker lives at the top
   /// of the Connection tab; toggling to WebDAV swaps the host /
@@ -272,7 +340,18 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// left empty for fresh sessions or for an SSH→WebDAV flip without
   /// a saved row.
   late final TextEditingController _baseUrlCtrl;
-  late final TextEditingController _fingerprintCtrl;
+
+  /// Shared trusted-cert PEM textarea — drives both WebDAV and S3
+  /// transports. The save path reads the value into the relevant
+  /// `*SaveData` only for the active kind; flipping the kind picker
+  /// keeps the typed PEM in memory (per-kind controllers would lose
+  /// it on flip, which felt punishing on a paste).
+  late final TextEditingController _trustedCertPemCtrl;
+
+  /// Shared "trust any certificate" toggle — drives both WebDAV
+  /// and S3 transports. Hidden behind an explicit MITM warning the
+  /// user has to acknowledge before the save commits.
+  bool _insecureSkipVerify = false;
   String _webdavAuthMethod = 'basic';
   bool _loadingWebDav = false;
 
@@ -367,6 +446,9 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _hostCtrl = TextEditingController(text: s?.host ?? '');
     _portCtrl = TextEditingController(text: '${s?.port ?? 22}');
     _userCtrl = TextEditingController(text: s?.user ?? '');
+    _connectCtrl = TextEditingController(text: _composeConnectText());
+    _connectListener = _onConnectCtrlChanged;
+    _connectCtrl.addListener(_connectListener!);
     // Secret-bearing controllers start empty even on edit — the
     // existing password / private key / passphrase live in the
     // database and cross FRB only via `db_sessions_stage_secrets`,
@@ -443,7 +525,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _recordEnabled = s?.extrasBool('record') ?? false;
     _kind = s?.kind ?? SessionKind.ssh;
     _baseUrlCtrl = TextEditingController();
-    _fingerprintCtrl = TextEditingController();
+    _trustedCertPemCtrl = TextEditingController();
     _accessKeyIdCtrl = TextEditingController();
     _regionCtrl = TextEditingController();
     _endpointCtrl = TextEditingController();
@@ -451,6 +533,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _defaultPrefixCtrl = TextEditingController();
     if (s != null) {
       _loadForwards(s.id);
+      _loadInitialTags(s.id);
       if (s.kind == SessionKind.webdav) {
         _loadingWebDav = true;
         _loadWebDavDetails(s.id);
@@ -459,6 +542,32 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         _loadingS3 = true;
         _loadS3Details(s.id);
       }
+    } else {
+      // New session — no DB row to hydrate from, the picker can
+      // render immediately against an empty selection.
+      _pendingTagsLoaded = true;
+    }
+  }
+
+  /// Hydrate the in-memory tag selection from the persisted
+  /// `session_tags` rows for an edited session. Routes through the
+  /// `sessionTagsProvider` family so dialog widget tests can stub
+  /// the result without bootstrapping a real DB; the live provider
+  /// just forwards to `rust_db.dbTagsListForSession`. The picker
+  /// stays in "loading" state until the future resolves so a fresh
+  /// setState after the async load does not race a user tap against
+  /// the empty initial state.
+  Future<void> _loadInitialTags(String sessionId) async {
+    try {
+      final tags = await ref.read(sessionTagsProvider(sessionId).future);
+      if (!mounted) return;
+      setState(() {
+        _pendingTagIds = {for (final t in tags) t.id};
+        _pendingTagsLoaded = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _pendingTagsLoaded = true);
     }
   }
 
@@ -488,6 +597,8 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           _defaultBucketCtrl.text = detail.defaultBucket;
           _defaultPrefixCtrl.text = detail.defaultPrefix;
           _s3PathStyleEnabled = detail.pathStyle;
+          _trustedCertPemCtrl.text = detail.trustedCertPem ?? '';
+          _insecureSkipVerify = detail.insecureSkipVerify;
         }
         _nonSshSecretStaged = hasSecret;
         _loadingS3 = false;
@@ -531,7 +642,8 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           if (_webDavAuthMethodWireValues.contains(detail.authMethod)) {
             _webdavAuthMethod = detail.authMethod;
           }
-          _fingerprintCtrl.text = detail.selfSignedFingerprint ?? '';
+          _trustedCertPemCtrl.text = detail.trustedCertPem ?? '';
+          _insecureSkipVerify = detail.insecureSkipVerify;
         }
         _nonSshSecretStaged = hasSecret;
         _loadingWebDav = false;
@@ -592,11 +704,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _passwordCtrl.wipeAndClear();
     _keyDataCtrl.wipeAndClear();
     _passphraseCtrl.wipeAndClear();
+    if (_connectListener != null) {
+      _connectCtrl.removeListener(_connectListener!);
+    }
     _labelCtrl.dispose();
     _folderCtrl.dispose();
     _hostCtrl.dispose();
     _portCtrl.dispose();
     _userCtrl.dispose();
+    _connectCtrl.dispose();
     _passwordCtrl.dispose();
     _keyPathCtrl.dispose();
     _keyDataCtrl.dispose();
@@ -605,13 +721,73 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _proxyPortCtrl.dispose();
     _proxyUserCtrl.dispose();
     _baseUrlCtrl.dispose();
-    _fingerprintCtrl.dispose();
+    _trustedCertPemCtrl.dispose();
     _accessKeyIdCtrl.dispose();
     _regionCtrl.dispose();
     _endpointCtrl.dispose();
     _defaultBucketCtrl.dispose();
     _defaultPrefixCtrl.dispose();
     super.dispose();
+  }
+
+  /// Compose the smart-paste field's initial text from the underlying
+  /// host / port / user controllers. Port 22 is the SSH default so
+  /// editing a default-port session shows the cleaner `user@host`
+  /// instead of the noisier `user@host:22`. An empty user collapses
+  /// the `@` separator; an empty host returns the empty string so
+  /// the placeholder hint surfaces on a fresh dialog.
+  String _composeConnectText() {
+    final user = _userCtrl.text.trim();
+    final host = _hostCtrl.text.trim();
+    final portStr = _portCtrl.text.trim();
+    final port = int.tryParse(portStr) ?? 22;
+    if (host.isEmpty) return '';
+    final suffix = port == 22 ? '' : ':$port';
+    return user.isEmpty ? '$host$suffix' : '$user@$host$suffix';
+  }
+
+  /// Listener wired onto [_connectCtrl]. Parses the user's text via
+  /// the Rust [rust_sessions.sessionsParseSshTarget] helper and syncs
+  /// the parsed slots into the underlying controllers the existing
+  /// save path already reads from. Parse failures (mid-typing / empty
+  /// input) leave the underlying controllers untouched so a transient
+  /// invalid state does not wipe the last good values; the smart-paste
+  /// field's validator catches the same case at save time.
+  ///
+  /// `user` and `port` keep their last value when the parsed result
+  /// omits them — typing `host:2222` after editing `root@host:22`
+  /// preserves `root` instead of silently dropping it. The user
+  /// explicitly empties them by retyping `host` (parser then yields
+  /// `user = None`, `port = None`, host non-empty).
+  void _onConnectCtrlChanged() {
+    final parsed = rust_sessions.sessionsParseSshTarget(
+      input: _connectCtrl.text,
+    );
+    if (parsed == null) return;
+    _hostCtrl.text = parsed.host;
+    if (parsed.port != null) {
+      _portCtrl.text = '${parsed.port}';
+    }
+    if (parsed.user != null) {
+      _userCtrl.text = parsed.user!;
+    }
+  }
+
+  /// Validator for the smart-paste SSH connect field. Treats an empty
+  /// or whitespace-only input as the standard required-field error;
+  /// otherwise parses via Rust and surfaces a single "invalid format"
+  /// message when the input cannot be coerced into a host with the
+  /// shared deeplink-style validation envelope. The save logic still
+  /// guards user-required separately because the parser tolerates
+  /// `host`-only inputs (the listener leaves the previous user in
+  /// place when the user prefix is omitted).
+  String? _validateConnect(String? value) {
+    final l10n = S.of(context);
+    if (value == null || value.trim().isEmpty) return l10n.required;
+    final parsed = rust_sessions.sessionsParseSshTarget(input: value);
+    if (parsed == null) return l10n.connectStringInvalid;
+    if (_userCtrl.text.trim().isEmpty) return l10n.required;
+    return null;
   }
 
   Session _buildSession() {
@@ -660,10 +836,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     final String resolvedKeyPath = _useAgent ? '' : keyPath;
     final String resolvedKeyData = _useAgent ? '' : _keyDataCtrl.text.trim();
     final String resolvedPassphrase = _useAgent ? '' : _passphraseCtrl.text;
+    final resolvedLabel = _resolveLabel(server);
     Session built;
     if (_isEditing) {
       built = widget.session!.copyWith(
-        label: _labelCtrl.text.trim(),
+        label: resolvedLabel,
         folder: _folderCtrl.text.trim(),
         kind: _kind,
         server: server,
@@ -680,7 +857,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       );
     } else {
       built = Session(
-        label: _labelCtrl.text.trim(),
+        label: resolvedLabel,
         folder: _folderCtrl.text.trim(),
         kind: _kind,
         server: server,
@@ -697,6 +874,27 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       );
     }
     return built.withExtras(recordDelta);
+  }
+
+  /// Resolve the label to persist. Honours an explicit typed value
+  /// verbatim; falls back to the kind-specific anchor when the user
+  /// left the field empty (the dialog's inline placeholder advertised
+  /// the auto-derive source). Default-bucket / URL host / SSH host
+  /// each surface as a human-readable identifier the session tree
+  /// can render without going through the kind-aware
+  /// `Session.displayName` derivation chain on every render.
+  String _resolveLabel(ServerAddress server) {
+    final typed = _labelCtrl.text.trim();
+    if (typed.isNotEmpty) return typed;
+    if (_kind == SessionKind.s3) {
+      final bucket = _defaultBucketCtrl.text.trim();
+      if (bucket.isNotEmpty) return bucket;
+    }
+    if (_kind == SessionKind.webdav) {
+      final host = server.host.trim();
+      if (host.isNotEmpty) return host;
+    }
+    return server.host.trim();
   }
 
   /// Derive the SSH-shaped [ServerAddress] for a WebDAV session.
@@ -849,14 +1047,16 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       return;
     }
     final session = _buildSession();
+    final trustedPem = _trustedCertPemCtrl.text.trim().isEmpty
+        ? null
+        : _trustedCertPemCtrl.text.trim();
     final webdav = _kind == SessionKind.webdav
         ? WebDavSaveData(
             baseUrl: _baseUrlCtrl.text.trim(),
             username: _userCtrl.text.trim(),
             authMethod: _webdavAuthMethod,
-            selfSignedFingerprint: _fingerprintCtrl.text.trim().isEmpty
-                ? null
-                : _fingerprintCtrl.text.trim(),
+            trustedCertPem: trustedPem,
+            insecureSkipVerify: _insecureSkipVerify,
             password: _passwordCtrl.text,
             passwordDirty: _passwordDirty,
           )
@@ -869,6 +1069,8 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
             pathStyle: _s3PathStyleEnabled,
             defaultBucket: _defaultBucketCtrl.text.trim(),
             defaultPrefix: _defaultPrefixCtrl.text.trim(),
+            trustedCertPem: trustedPem,
+            insecureSkipVerify: _insecureSkipVerify,
             secretAccessKey: _passwordCtrl.text,
             passwordDirty: _passwordDirty,
           )
@@ -883,6 +1085,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         passphraseDirty: _passphraseDirty,
         webdavData: webdav,
         s3Data: s3,
+        // Only carry the picker selection forward when the user
+        // actually interacted with it — leaves untouched sessions
+        // (the overwhelmingly common case) free of an extra
+        // `dbTagsListForSession` round-trip on save and preserves
+        // the existing tag rows for edits that only touched non-tag
+        // fields. Matches the password / key / passphrase
+        // dirty-bit discipline elsewhere in this dialog.
+        pendingTagIds: _pendingTagsTouched ? _pendingTagIds : null,
       ),
     );
   }
@@ -982,7 +1192,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  l10n.sectionAdvanced.toUpperCase(),
+                  l10n.moreOptions.toUpperCase(),
                   style: AppFonts.inter(
                     fontSize: AppFonts.xs,
                     color: AppTheme.fgFaint,
@@ -1009,14 +1219,22 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   // ── Footer ──
 
+  /// Cancel + split-button "Save & Connect ▾". Primary action stays
+  /// the connect-after-save path the user reaches for in the common
+  /// case; the chevron opens a popup with "Save only" for the
+  /// editing-without-testing flow (rename a label, swap a host).
+  /// Compacts the previous three-button row without losing either
+  /// action.
   Widget _buildFooter() {
+    final l10n = S.of(context);
     return AppDialogFooter(
       actions: [
         AppButton.cancel(onTap: () => Navigator.of(context).pop()),
-        AppButton.secondary(label: S.of(context).save, onTap: _save),
-        AppButton.primary(
-          label: S.of(context).saveAndConnect,
-          onTap: () => _save(connect: true),
+        _SaveAndConnectSplit(
+          primaryLabel: l10n.saveAndConnect,
+          saveOnlyLabel: l10n.save,
+          onSaveAndConnect: () => _save(connect: true),
+          onSaveOnly: _save,
         ),
       ],
     );
@@ -1069,4 +1287,117 @@ class _SectionHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Footer "Save & Connect ▾" split-button. Two visually glued tap
+/// regions painted at the accent colour: the wide left half fires
+/// the connect-after-save path the user reaches for in the common
+/// case; the narrow right chevron opens a popup whose only entry is
+/// "Save only" — the editing-without-testing flow (rename a label,
+/// swap a host). Replaces the previous three-button row without
+/// losing either action and without doubling the visible button
+/// count for the rare "save only" case.
+class _SaveAndConnectSplit extends StatelessWidget {
+  final String primaryLabel;
+  final String saveOnlyLabel;
+  final VoidCallback onSaveAndConnect;
+  final VoidCallback onSaveOnly;
+
+  const _SaveAndConnectSplit({
+    required this.primaryLabel,
+    required this.saveOnlyLabel,
+    required this.onSaveAndConnect,
+    required this.onSaveOnly,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppTheme.accent;
+    final fg = AppTheme.onAccent;
+    return Semantics(
+      button: true,
+      label: primaryLabel,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Primary action — wide left tap region.
+          HoverRegion(
+            cursor: SystemMouseCursors.click,
+            onTap: onSaveAndConnect,
+            builder: (hovered) => Container(
+              height: AppTheme.controlHeightXs,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: hovered ? _lighten(accent) : accent,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4),
+                  bottomLeft: Radius.circular(4),
+                ),
+              ),
+              child: Text(
+                primaryLabel,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  fontWeight: FontWeight.w500,
+                  color: fg,
+                ),
+              ),
+            ),
+          ),
+          // Hair-thin divider so the two halves read as glued, not
+          // a single rectangle. `onAccent` at low alpha picks the
+          // separator out without breaking the accent-on-accent
+          // colour pair.
+          Container(
+            height: AppTheme.controlHeightXs,
+            width: 1,
+            color: fg.withValues(alpha: 0.25),
+          ),
+          // Chevron — opens the popup with the secondary action.
+          PopupMenuButton<int>(
+            tooltip: '',
+            popUpAnimationStyle: AnimationStyle.noAnimation,
+            offset: const Offset(0, AppTheme.controlHeightXs),
+            color: AppTheme.bg2,
+            shape: const RoundedRectangleBorder(
+              borderRadius: AppTheme.radiusMd,
+            ),
+            onSelected: (_) => onSaveOnly(),
+            itemBuilder: (_) => [
+              PopupMenuItem<int>(
+                value: 0,
+                child: Text(
+                  saveOnlyLabel,
+                  style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
+                ),
+              ),
+            ],
+            child: HoverRegion(
+              cursor: SystemMouseCursors.click,
+              builder: (hovered) => Container(
+                height: AppTheme.controlHeightXs,
+                width: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: hovered ? _lighten(accent) : accent,
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(4),
+                    bottomRight: Radius.circular(4),
+                  ),
+                ),
+                child: Icon(Icons.arrow_drop_down, size: 18, color: fg),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Mix in 8% white — same lift `AppButton._lighten` applies for
+  /// the primary hover state. Inlined here so the split-button does
+  /// not need to import the private helper from the button class.
+  static Color _lighten(Color c) =>
+      Color.lerp(c, const Color(0xFFFFFFFF), 0.08)!;
 }

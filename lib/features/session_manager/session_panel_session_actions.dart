@@ -19,6 +19,7 @@ extension _SessionActions on SessionPanelState {
         :final forwards,
         :final webdavData,
         :final s3Data,
+        :final pendingTagIds,
       ):
         await ref.read(sessionMutatorProvider).add(session);
         await _syncForwards(ref, session.id, forwards);
@@ -28,7 +29,55 @@ extension _SessionActions on SessionPanelState {
         if (s3Data != null) {
           await _syncS3Details(session.id, s3Data);
         }
+        if (pendingTagIds != null) {
+          // Tag sync is best-effort — a transient DB hiccup must
+          // not block the connect callback that follows. The user's
+          // session is already persisted at this point; a missed
+          // tag link surfaces as "no tag chip on the row" on next
+          // workspace refresh, recoverable from the More options
+          // picker.
+          try {
+            await _syncTagAssignments(ref, session.id, pendingTagIds);
+          } catch (e, st) {
+            AppLogger.instance.log(
+              'Tag sync after save failed for <id>: $e',
+              name: 'SessionEdit',
+              error: e,
+              stackTrace: st,
+              level: LogLevel.warn,
+            );
+          }
+        }
         if (connect) widget.onConnect(session);
+    }
+  }
+
+  /// Diff the dialog's pending tag selection against the persisted
+  /// `session_tags` rows and link / unlink the delta. Same buffering
+  /// shape [_syncForwards] uses — the dialog returns the desired set
+  /// in [SaveResult.pendingTagIds] and this helper drives the per-id
+  /// FRB calls after the session row commits (the FK constraint
+  /// needs a real parent before any link write).
+  Future<void> _syncTagAssignments(
+    WidgetRef ref,
+    String sessionId,
+    Set<String> nextTagIds,
+  ) async {
+    final existing = await rust_db.dbTagsListForSession(sessionId: sessionId);
+    final existingIds = {for (final t in existing) t.id};
+    final toAdd = nextTagIds.difference(existingIds);
+    final toRemove = existingIds.difference(nextTagIds);
+    // Skip the `tagsProvider.notifier` lookup entirely when there is
+    // no delta — touching the notifier forces the workspace tag list
+    // to materialise, which spends an FRB roundtrip the no-op path
+    // should not pay for.
+    if (toAdd.isEmpty && toRemove.isEmpty) return;
+    final notifier = ref.read(tagsProvider.notifier);
+    for (final id in toAdd) {
+      await notifier.tagSession(sessionId, id);
+    }
+    for (final id in toRemove) {
+      await notifier.untagSession(sessionId, id);
     }
   }
 
@@ -52,6 +101,8 @@ extension _SessionActions on SessionPanelState {
         pathStyle: data.pathStyle,
         defaultBucket: data.defaultBucket,
         defaultPrefix: data.defaultPrefix,
+        trustedCertPem: data.trustedCertPem,
+        insecureSkipVerify: data.insecureSkipVerify,
       ),
     );
     if (data.passwordDirty && data.secretAccessKey.isNotEmpty) {
@@ -85,7 +136,8 @@ extension _SessionActions on SessionPanelState {
         baseUrl: data.baseUrl,
         username: data.username,
         authMethod: data.authMethod,
-        selfSignedFingerprint: data.selfSignedFingerprint,
+        trustedCertPem: data.trustedCertPem,
+        insecureSkipVerify: data.insecureSkipVerify,
       ),
     );
     if (data.passwordDirty && data.password.isNotEmpty) {

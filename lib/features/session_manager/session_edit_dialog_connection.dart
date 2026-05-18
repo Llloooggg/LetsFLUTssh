@@ -12,25 +12,42 @@ part of 'session_edit_dialog.dart';
 /// joins the file into the same library so library-private names
 /// stay reachable.
 extension _ConnectionSection on _SessionEditDialogState {
-  /// Identity block at the top of the single-form layout. Holds
-  /// the session name and the transport-kind picker. Switching the
-  /// kind reshapes the per-protocol blocks below without
-  /// re-rendering the rest of the form.
+  /// Identity block at the top of the single-form layout. The kind
+  /// picker comes first because it shapes everything below it; the
+  /// session-name field follows inline with an auto-derive
+  /// placeholder so the user can leave it empty for a basic
+  /// connection (save fills it from the kind-specific anchor —
+  /// host for SSH, URL host for WebDAV, bucket for S3).
   Widget _buildIdentityBlock() {
     final l10n = S.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        _buildKindPicker(l10n),
+        const SizedBox(height: AppSpacing.md),
         StyledFormField(
           label: l10n.sessionName,
           controller: _labelCtrl,
-          hint: l10n.hintMyServer,
+          hint: _autoLabelHint(l10n),
         ),
-        const SizedBox(height: AppSpacing.md),
-        _buildKindPicker(l10n),
       ],
     );
+  }
+
+  /// Placeholder text for the label field — names the field the
+  /// save path will auto-derive from when the user leaves the label
+  /// empty. Re-evaluated on every build so flipping the kind picker
+  /// reshapes the hint in place.
+  String _autoLabelHint(S l10n) {
+    switch (_kind) {
+      case SessionKind.webdav:
+        return l10n.sessionNameAutoFromUrl;
+      case SessionKind.s3:
+        return l10n.sessionNameAutoFromBucket;
+      case SessionKind.ssh:
+        return l10n.sessionNameAutoFromHost;
+    }
   }
 
   /// Per-kind transport block, dispatched off `_kind`. The single-
@@ -184,39 +201,21 @@ extension _ConnectionSection on _SessionEditDialogState {
 
   List<Widget> _buildSshFields(S l10n) {
     return [
-      Row(
-        children: [
-          Expanded(
-            child: StyledFormField(
-              label: l10n.hostRequired,
-              controller: _hostCtrl,
-              hint: l10n.hintHost,
-              validator: _requiredValidator,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          SizedBox(
-            width: 80,
-            child: StyledFormField(
-              label: l10n.port,
-              controller: _portCtrl,
-              hint: l10n.hintPort,
-              keyboardType: TextInputType.number,
-              validator: (v) =>
-                  isValidConnectionPort(v) ? null : l10n.portRange,
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: AppSpacing.md),
+      // Single smart-paste surface — `[user@]host[:port]`. The text
+      // parses through `lfs_core::sessions::parse_ssh_target` on every
+      // edit and writes the result into `_hostCtrl` / `_portCtrl` /
+      // `_userCtrl` so the existing save path keeps reading the same
+      // tuple. Port 22 stays implicit on output (the compose helper
+      // strips it on hydration) — the user only types a port when it
+      // differs from the SSH default. ProxyJump moved to More options
+      // because >90% of sessions never set one and the section was
+      // taking three chips of vertical space upfront.
       StyledFormField(
-        label: l10n.usernameRequired,
-        controller: _userCtrl,
-        hint: l10n.hintUsername,
-        validator: _requiredValidator,
+        label: l10n.connectTo,
+        controller: _connectCtrl,
+        hint: l10n.connectHint,
+        validator: _validateConnect,
       ),
-      const SizedBox(height: AppSpacing.lg),
-      _buildProxyJumpSection(),
     ];
   }
 
@@ -273,13 +272,32 @@ extension _ConnectionSection on _SessionEditDialogState {
   Widget _buildProxyJumpSection() {
     final l10n = S.of(context);
     final allSessions = ref.watch(sessionProvider);
-    // Exclude the session being edited so it can't reference itself —
-    // cycle detection at runtime would catch it but inline UI is the
-    // friendlier guard.
     final myId = widget.session?.id;
+    // Snapshot of the saved-session proxy graph driven into the
+    // Rust cycle probe. Every session ships its `viaSessionId` so a
+    // candidate's chain can be walked forward to spot a loop back
+    // to the seed without an extra DB roundtrip.
+    final chain = [
+      for (final s in allSessions)
+        rust_sessions.DbSessionProxyRef(
+          sessionId: s.id,
+          viaSessionId: s.viaSessionId,
+        ),
+    ];
+    // Filter out direct self-reference plus any candidate whose
+    // saved-session chain walks back to the seed. The Rust probe
+    // owns the decision so the dialog and the connect path share
+    // one cycle-detection truth (the connect path catches orphan
+    // loops at dial time — same algorithm, different entry point).
     final candidates = [
       for (final s in allSessions)
-        if (s.id != myId) s,
+        if (s.id != myId &&
+            !rust_sessions.sessionsDetectProxyCycle(
+              seedId: myId,
+              candidateId: s.id,
+              chain: chain,
+            ))
+          s,
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

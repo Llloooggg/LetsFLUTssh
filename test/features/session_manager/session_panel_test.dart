@@ -819,9 +819,8 @@ void main() {
       await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
-      // SessionEditDialog should open — labels have asterisks for required fields
-      expect(find.text('HOST *'), findsOneWidget);
-      expect(find.text('USERNAME *'), findsOneWidget);
+      // SessionEditDialog opens with the smart-paste connect field.
+      expect(find.text('CONNECT TO'), findsOneWidget);
     });
   });
 
@@ -846,9 +845,8 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      // SessionEditDialog should show with pre-filled values
-      expect(find.text('HOST *'), findsOneWidget);
-      expect(find.text('USERNAME *'), findsOneWidget);
+      // SessionEditDialog opens with the smart-paste connect field.
+      expect(find.text('CONNECT TO'), findsOneWidget);
     });
   });
 
@@ -1167,17 +1165,16 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, '192.168.1.1'),
-          'test.com',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'root'),
-          'user',
+          find.widgetWithText(TextFormField, 'root@example.com:22'),
+          'user@test.com',
         );
         await tester.pumpAndSettle();
 
-        // Fill password (required)
-        await tester.tap(find.textContaining('Auth'));
+        // Single-form layout — password is on the same scrollable
+        // page as the smart-paste connect field; scroll it into view.
+        await tester.ensureVisible(
+          find.widgetWithText(TextFormField, '••••••••'),
+        );
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextFormField, '••••••••'),
@@ -1211,17 +1208,16 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, '192.168.1.1'),
-          'save.com',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'root'),
-          'admin',
+          find.widgetWithText(TextFormField, 'root@example.com:22'),
+          'admin@save.com',
         );
         await tester.pumpAndSettle();
 
-        // Fill password (required)
-        await tester.tap(find.textContaining('Auth'));
+        // Single-form layout — password is on the same scrollable
+        // page as the smart-paste connect field; scroll it into view.
+        await tester.ensureVisible(
+          find.widgetWithText(TextFormField, '••••••••'),
+        );
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextFormField, '••••••••'),
@@ -1229,7 +1225,11 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Save'));
+        // Save-only path lives behind the split-button chevron;
+        // open the popup then select the only entry ("Save").
+        await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Save').last);
         await tester.pumpAndSettle();
 
         // Save without connect — dialog closes but no connect callback
@@ -1265,17 +1265,16 @@ void main() {
 
       // Fill fields and tap Save & Connect
       await tester.enterText(
-        find.widgetWithText(TextFormField, '192.168.1.1'),
-        'example.com',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'root'),
-        'root',
+        find.widgetWithText(TextFormField, 'root@example.com:22'),
+        'root@example.com',
       );
       await tester.pumpAndSettle();
 
-      // Fill password (required)
-      await tester.tap(find.textContaining('Auth'));
+      // Single-form layout — password is on the same scrollable
+      // page as the smart-paste connect field; scroll it into view.
+      await tester.ensureVisible(
+        find.widgetWithText(TextFormField, '••••••••'),
+      );
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, '••••••••'),
@@ -1323,17 +1322,16 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, '192.168.1.1'),
-        '10.0.0.5',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'root'),
-        'admin',
+        find.widgetWithText(TextFormField, 'root@example.com:22'),
+        'admin@10.0.0.5',
       );
       await tester.pumpAndSettle();
 
-      // Fill password (required)
-      await tester.tap(find.textContaining('Auth'));
+      // Single-form layout — password is on the same scrollable
+      // page as the smart-paste connect field; scroll it into view.
+      await tester.ensureVisible(
+        find.widgetWithText(TextFormField, '••••••••'),
+      );
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, '••••••••'),
@@ -1341,11 +1339,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save'));
+      // Save-only path lives behind the split-button chevron;
+      // open the popup then select the only entry ("Save").
+      await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save').last);
       await tester.pumpAndSettle();
 
-      // Dialog should close and onConnect should NOT be called
-      expect(find.text('HOST *'), findsNothing);
+      // Dialog should close and onConnect should NOT be called.
+      expect(find.text('CONNECT TO'), findsNothing);
       expect(connected, isNull);
     });
   });
@@ -1375,7 +1377,11 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
 
       // Tap Save
-      await tester.tap(find.text('Save'));
+      // Save-only path lives behind the split-button chevron;
+      // open the popup then select the only entry ("Save").
+      await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save').last);
       await tester.pumpAndSettle();
 
       // Dialog should close
@@ -1603,7 +1609,11 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save'));
+      // Save-only path lives behind the split-button chevron;
+      // open the popup then select the only entry ("Save").
+      await tester.tap(find.byIcon(Icons.arrow_drop_down).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save').last);
       await tester.pumpAndSettle();
 
       expect(connected, isNull);
