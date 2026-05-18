@@ -122,40 +122,49 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.dns_outlined,
-            size: 40,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            S.of(context).noSavedSessions,
-            style: TextStyle(
-              fontSize: AppFonts.md,
+      child: Padding(
+        // Gutter on every side so the centred column stops short of
+        // the sidebar edge — matches the rhythm of [AppEmptyState]
+        // used in the collection dialogs and keeps the primary
+        // action button surrounded by visible breathing room.
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.dns_outlined,
+              size: 40,
               color: Theme.of(
                 context,
-              ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // `SelectionContainer.disabled` keeps the ambient MainScreen
-          // `SelectionArea` from registering the button's label as
-          // selectable — without it drag-select caught "+ Add Session"
-          // as if it were body text, and Ctrl+C copied the label.
-          SelectionContainer.disabled(
-            child: AppButton.secondary(
-              label: S.of(context).addSession,
-              icon: Icons.add,
-              onTap: onAdd,
-              dense: true,
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              S.of(context).noSavedSessions,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+            // The only action this state offers — render at the
+            // primary accent weight so the user reads it as the
+            // expected next move. `SelectionContainer.disabled`
+            // keeps the ambient MainScreen `SelectionArea` from
+            // registering the button's label as drag-selectable
+            // body text.
+            SelectionContainer.disabled(
+              child: AppButton.primary(
+                label: S.of(context).addSession,
+                icon: Icons.add,
+                onTap: onAdd,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
