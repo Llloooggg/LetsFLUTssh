@@ -249,13 +249,12 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
           iconColor: e.encrypted ? AppTheme.accent : AppTheme.fgDim,
           title: label,
           secondary: secondary,
+          // Whole row is the play target — the dedicated play icon
+          // was redundant noise (row-tap + icon-tap both routed to
+          // `_play`). Trailing slot stays for actions that aren't
+          // the row's primary intent (delete).
           onTap: canPlay ? () => _play(e) : null,
           trailing: [
-            AppIconButton(
-              icon: Icons.play_arrow,
-              tooltip: canPlay ? l10n.playRecording : l10n.recordingPlayLocked,
-              onTap: canPlay ? () => _play(e) : null,
-            ),
             AppIconButton(
               icon: Icons.delete_outline,
               tooltip: l10n.deleteRecording,
