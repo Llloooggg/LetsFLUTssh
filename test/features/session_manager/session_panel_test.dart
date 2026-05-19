@@ -819,7 +819,8 @@ void main() {
       await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
-      // SessionEditDialog opens with the smart-paste connect field.
+      // SessionEditDialog opens — the SSH transport block renders
+      // a labelled HOST field as its first input.
       expect(find.text('HOST *'), findsOneWidget);
     });
   });
@@ -845,7 +846,8 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      // SessionEditDialog opens with the smart-paste connect field.
+      // SessionEditDialog opens — the SSH transport block renders
+      // a labelled HOST field as its first input.
       expect(find.text('HOST *'), findsOneWidget);
     });
   });

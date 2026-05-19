@@ -1206,8 +1206,60 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// Flip the active session kind. The single-form layout reshapes
   /// the Connection / Authentication sections in place — no tabs
   /// to hide or re-focus.
+  ///
+  /// Reseting transport-specific state on every flip stops typed
+  /// values from leaking across kinds. The shared controllers
+  /// (`_userCtrl`, `_passwordCtrl`, `_trustedCertPemCtrl`,
+  /// `_insecureSkipVerify`) back inputs in more than one kind's
+  /// form, so an SSH-typed username silently surviving into the
+  /// WebDAV USERNAME field — or a password typed for SSH ending
+  /// up as the WebDAV bearer token at save time — would be a
+  /// silent data swap the user cannot see without re-reading every
+  /// field. Identity (label / folder / tags) + record toggle live
+  /// at the form level and stay untouched.
   void _switchKind(SessionKind next) {
-    setState(() => _kind = next);
+    if (next == _kind) return;
+    // Mutate text controllers OUTSIDE setState. `TextEditingController.text`
+    // notifies listeners synchronously; the secret-bearing controllers
+    // run their own dirty-bit listeners that call setState themselves,
+    // which would re-enter the outer setState and throw
+    // `setState() called during build`. Their notifyListeners is
+    // enough to schedule a rebuild — the `_kind` flag below is the
+    // only one that actually needs the explicit setState reschedule.
+    _hostCtrl.clear();
+    _portCtrl.text = '22';
+    _userCtrl.clear();
+    _passwordCtrl.wipeAndClear();
+    _keyDataCtrl.wipeAndClear();
+    _passphraseCtrl.wipeAndClear();
+    _keyPathCtrl.clear();
+    _proxyHostCtrl.clear();
+    _proxyPortCtrl.text = '22';
+    _proxyUserCtrl.clear();
+    _baseUrlCtrl.clear();
+    _trustedCertPemCtrl.clear();
+    _accessKeyIdCtrl.clear();
+    _regionCtrl.clear();
+    _endpointCtrl.clear();
+    _defaultBucketCtrl.clear();
+    _defaultPrefixCtrl.clear();
+    setState(() {
+      _kind = next;
+      _selectedKeyId = '';
+      _selectedKeyLabel = '';
+      _showKeyText = false;
+      _useAgent = false;
+      _passwordDirty = false;
+      _keyDataDirty = false;
+      _passphraseDirty = false;
+      _proxyMode = _ProxyMode.none;
+      _proxyViaSessionId = null;
+      _webdavAuthMethod = 'basic';
+      _insecureSkipVerify = false;
+      _s3PathStyleEnabled = false;
+      _nonSshSecretStaged = false;
+      _authError = null;
+    });
   }
 }
 

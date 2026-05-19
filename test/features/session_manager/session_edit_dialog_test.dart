@@ -83,11 +83,9 @@ void main() {
     String user = 'testuser',
     String password = 'pass',
   }) async {
-    // Separate Host + Username inputs — the previous single smart-paste
-    // surface was reverted because users found the merged
-    // `[user@]host[:port]` shape harder to scan at a glance and the
-    // kind-switch flow (SSH → WebDAV) carried SSH-side parses into the
-    // WebDAV username field, which silently changed the saved value.
+    // Fill the three required SSH inputs (Host / Username / Password)
+    // by hint text. Hints are stable across locales — `hintHost` /
+    // `hintUsername` ARB values pin the literal strings used here.
     await tester.enterText(fieldByHint('192.168.1.1'), host);
     await tester.enterText(fieldByHint('root'), user);
     await tester.enterText(fieldByHint('••••••••'), password);
@@ -2700,15 +2698,44 @@ void main() {
       },
     );
 
+    testWidgets('switching kinds wipes the transport-specific controllers', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // SSH defaults render — fill them.
+      await tester.enterText(fieldByHint('192.168.1.1'), 'ssh.example.com');
+      await tester.enterText(fieldByHint('22'), '2222');
+      await tester.enterText(fieldByHint('root'), 'ssh-user');
+      await tester.enterText(fieldByHint('••••••••'), 'ssh-password');
+      await tester.pumpAndSettle();
+
+      // Flip to WebDAV via the kind chip. After typing into auth
+      // / connection fields the kind picker may have scrolled out
+      // of view in the dialog body — `ensureVisible` walks the
+      // scroll parent back to it before the tap.
+      await tester.ensureVisible(find.text('WebDAV'));
+      await tester.pumpAndSettle();
+      await selectKind(tester, 'WebDAV');
+      // Confirm the kind actually switched (WebDAV-only label rendered).
+      expect(find.text('BASE URL *'), findsOneWidget);
+      // The USERNAME field is shared with SSH — confirm it lost
+      // the SSH-typed value.
+      expect(find.text('ssh-user'), findsNothing);
+      // SSH host value gone (host slot is SSH-only, the WebDAV form
+      // doesn't mount it).
+      expect(find.text('ssh.example.com'), findsNothing);
+    });
+
     testWidgets(
       'switching SSH → WebDAV mid-dialog then Save returns a webdav SaveResult',
       (tester) async {
         // Regression: a user reported "filled SSH then switched to
         // WebDAV in the same dialog, hit Save, nothing happened".
         // The flow must surface SaveResult.session.kind = webdav with
-        // a non-null webdavData payload — and `_userCtrl` carried
-        // from the SSH path must not silently survive a kind switch
-        // when the WebDAV username field is left untouched.
+        // a non-null webdavData payload.
         await tester.pumpWidget(buildApp());
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
@@ -2719,13 +2746,12 @@ void main() {
         await tester.enterText(fieldByHint('root'), 'ignored-ssh-user');
         await tester.pumpAndSettle();
 
-        // Step 2 — flip to WebDAV via the kind chip.
+        // Step 2 — flip to WebDAV via the kind chip. `_switchKind`
+        // wipes every transport-specific controller, so the WebDAV
+        // form below renders empty.
         await selectKind(tester, 'WebDAV');
 
-        // Step 3 — fill the WebDAV-specific fields. The username
-        // field controller is shared with SSH, so the SSH user
-        // typed above is already inside it; overwrite explicitly to
-        // assert the WebDAV form-state is what saves.
+        // Step 3 — fill the WebDAV-specific fields.
         await tester.enterText(
           fieldByHint('https://example.com/remote.php/dav/files/alice/'),
           'https://dav.example.com',

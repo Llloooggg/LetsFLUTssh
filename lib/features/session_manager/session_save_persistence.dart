@@ -12,20 +12,22 @@ import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import 'session_edit_dialog.dart';
 
-/// Persist every payload [SaveResult] carries for a *new* session.
-/// Shared between the session-panel context menu's add handler and
-/// the main-screen "New session" handler — both call
-/// `SessionEditDialog` and used to drift on what they actually
-/// persisted (the sidebar handled webdavData / s3Data, the
-/// main-screen path lost them, so saving a WebDAV session from
-/// there created an SSH-shaped row with no `webdav_session_details`
-/// companion and the next launch rendered the session as broken).
+/// Persist every payload [SaveResult] carries for a *new* session —
+/// parent `sessions` row, transport-specific detail row
+/// (`ssh_session_details` / `webdav_session_details` /
+/// `s3_session_details`), port-forward rules, tag links. Single funnel
+/// shared by every call site that opens [SessionEditDialog] so any
+/// new payload field reaches every code path with one edit instead
+/// of N parallel destructure lists drifting out of sync.
+///
+/// Invariant: the parent row writes BEFORE every detail / link
+/// table — the FK constraints (`ON DELETE CASCADE` keyed by
+/// `session_id`) need a real parent row before any child row can
+/// land. `applySessionSaveResult` orders the calls accordingly.
 ///
 /// `onConnect` runs after every write finishes when [SaveResult]'s
 /// `connect` flag is set; passing `null` skips the connect step
-/// (sidebar edit / move paths). The persistence step itself never
-/// throws — DAO failures log + continue so a transient DB hiccup
-/// cannot wedge the caller mid-flow.
+/// (sidebar edit / move paths).
 Future<void> applySessionSaveResult(
   WidgetRef ref,
   SaveResult result, {
