@@ -89,11 +89,33 @@ class _Event {
 }
 
 class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
-  late final Terminal _terminal;
+  /// Terminal instance the playback writes into. Re-built on every
+  /// scrub so the rebuild from `t=0` lands on a pristine state —
+  /// `buffer.clear()` alone leaves alt-screen / scroll-region /
+  /// character-attribute modes from the prior position alive, which
+  /// surfaces as ghost characters on htop / vim recordings (the
+  /// next ANSI line lands at the wrong column / colour because the
+  /// terminal still thinks it is in the previous mode). Re-creating
+  /// the `Terminal` is the only way to get a true reset; xterm-flutter
+  /// exposes no hard-reset escape.
+  late Terminal _terminal;
+  int _terminalCols = 80;
+  int _terminalRows = 24;
   // Horizontal scroll for the terminal panel — vertical lives
   // inside xterm's own scrollback (wheel scroll inside the
   // terminal pans the buffer history).
   final ScrollController _hScroll = ScrollController();
+
+  /// Stable focus node for the speed dropdown. Held here (not
+  /// inlined into `build`) so `_setSpeed` can target the exact
+  /// node to unfocus after a selection — a fresh inline
+  /// `FocusNode(...)` per build would leak (no dispose) and
+  /// `FocusManager.primaryFocus` may not be the dropdown by the
+  /// time the menu's pop animation finishes.
+  final FocusNode _speedFocusNode = FocusNode(
+    skipTraversal: true,
+    debugLabel: 'PlaybackSpeed',
+  );
 
   /// Replay speed multiplier. `null` means "instant" — jump straight
   /// to the final frame so the user lands at the recording's last
@@ -151,10 +173,10 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   @override
   void initState() {
     super.initState();
-    final w = widget.meta?.header.width ?? 80;
-    final h = widget.meta?.header.height ?? 24;
+    _terminalCols = widget.meta?.header.width ?? 80;
+    _terminalRows = widget.meta?.header.height ?? 24;
     _terminal = Terminal(maxLines: 10000);
-    _terminal.resize(w, h);
+    _terminal.resize(_terminalCols, _terminalRows);
     _totalMs = ((widget.meta?.durationSeconds ?? 0) * 1000).round();
     _loadAll();
   }
@@ -193,7 +215,9 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
             // the wrap-on-col-80 problem the comment above
             // describes, but at least the rest of the playback
             // path keeps working.
-            _terminal.resize(header.width, header.height);
+            _terminalCols = header.width;
+            _terminalRows = header.height;
+            _terminal.resize(_terminalCols, _terminalRows);
             continue;
           }
         }
@@ -285,8 +309,13 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   /// thousands of events before the target.
   void _jumpTo(int targetMs) {
     if (_loading || _disposed) return;
-    _terminal.buffer.clear();
-    _terminal.setCursor(0, 0);
+    // Re-create the terminal so alt-screen / scroll-region /
+    // character-attribute modes from the previous position cannot
+    // bleed into the rebuild from t=0. `buffer.clear()` alone left
+    // those modes alive and htop / vim recordings rendered ghost
+    // characters on lines re-written under the wrong mode.
+    _terminal = Terminal(maxLines: 10000);
+    _terminal.resize(_terminalCols, _terminalRows);
     _cursor = 0;
     _applyEventsTo(targetMs);
     setState(() => _positionMs = targetMs.clamp(0, _totalMs));
@@ -298,8 +327,16 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     setState(() => _speed = speed);
     // Drop focus off the dropdown so the next keyboard event
     // (Tab, Space, Esc) lands on the dialog instead of bouncing
-    // back into the dropdown's focus ring.
-    FocusManager.instance.primaryFocus?.unfocus();
+    // back into the dropdown's focus ring. Material's
+    // `DropdownButton` reasserts focus on its anchor button when
+    // the popup menu's pop animation completes (one frame after
+    // selection), so an inline `unfocus()` runs too early — the
+    // post-frame callback fires after the menu's cleanup.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      _speedFocusNode.unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
     if (speed == null) {
       // Instant — jump to the recording's end so the user lands on
       // the final rendered state in one transition.
@@ -331,6 +368,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     _ticker?.cancel();
     _ticker = null;
     _hScroll.dispose();
+    _speedFocusNode.dispose();
     super.dispose();
   }
 
@@ -412,7 +450,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         const SizedBox(width: AppSpacing.sm),
         DropdownButton<double?>(
           value: _speed,
-          focusNode: FocusNode(skipTraversal: true),
+          focusNode: _speedFocusNode,
           items: [
             const DropdownMenuItem(value: 0.5, child: Text('0.5×')),
             const DropdownMenuItem(value: 1.0, child: Text('1×')),
