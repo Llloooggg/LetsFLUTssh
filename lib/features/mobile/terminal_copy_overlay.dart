@@ -1,11 +1,9 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/app_terminal_view.dart';
-import '../terminal/cursor_overlay.dart' show kTerminalLineHeight;
+import '../../widgets/terminal_cell_metrics.dart';
 
 /// Trackpad-style copy mode for the mobile terminal.
 ///
@@ -116,26 +114,13 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
         _measuredFontFamily == widget.fontFamily) {
       return _cellSize!;
     }
-    // Must match xterm's painter: `height: kTerminalLineHeight` on both
-    // the paragraph style and the text style, otherwise the virtual
-    // cursor marker lands ~20 % off from the xterm-rendered glyphs and
-    // selection anchors drift below the cursor cell.
-    final style = ui.TextStyle(
+    _cellSize = measureMonoCell(
+      fontSize: widget.fontSize,
       fontFamily: widget.fontFamily,
       fontFamilyFallback: widget.fontFamilyFallback,
-      fontSize: widget.fontSize,
-      height: kTerminalLineHeight,
     );
-    final builder =
-        ui.ParagraphBuilder(ui.ParagraphStyle(height: kTerminalLineHeight))
-          ..pushStyle(style)
-          ..addText('mmmmmmmmmm');
-    final paragraph = builder.build()
-      ..layout(const ui.ParagraphConstraints(width: double.infinity));
-    _cellSize = Size(paragraph.maxIntrinsicWidth / 10, paragraph.height);
     _measuredFontSize = widget.fontSize;
     _measuredFontFamily = widget.fontFamily;
-    paragraph.dispose();
     return _cellSize!;
   }
 

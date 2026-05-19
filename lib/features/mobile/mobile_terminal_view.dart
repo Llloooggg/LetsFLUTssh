@@ -21,6 +21,7 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../snippets/snippet_picker.dart';
+import '../../widgets/terminal_cell_metrics.dart';
 import '../terminal/cursor_overlay.dart';
 import 'ssh_keyboard_bar.dart';
 import 'terminal_copy_overlay.dart';

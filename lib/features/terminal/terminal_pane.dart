@@ -25,6 +25,7 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/anchor_pinning_terminal_controller.dart';
 import '../../widgets/app_terminal_view.dart';
+import '../../widgets/terminal_cell_metrics.dart';
 import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';

@@ -6,6 +6,7 @@ import 'package:xterm/xterm.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/app_terminal_view.dart';
+import '../../widgets/terminal_cell_metrics.dart';
 
 /// Overlay that paints the character under the block cursor with an inverted
 /// color so it stays readable.  xterm-flutter draws the cursor as a solid
@@ -15,17 +16,10 @@ import '../../widgets/app_terminal_view.dart';
 ///
 /// Place inside a [Stack] on top of [TerminalView] with identical sizing.
 ///
-/// ### Line-height invariant
-///
-/// xterm's [TerminalStyle] defaults to `height: 1.2` (line_height multiplier)
-/// and the internal painter multiplies the ParagraphStyle by that value when
-/// measuring cell size. Our overlay measures cells independently to place the
-/// inverted-colour glyph, so the measurement must use the same multiplier —
-/// otherwise the cell row stride drifts by ~20 % and the painted character
-/// lands a couple of rows off from the real cursor for every scroll. Same
-/// reason the mobile [TerminalCopyOverlay] applies [kTerminalLineHeight] to
-/// its virtual-cursor marker + selection anchor math.
-const double kTerminalLineHeight = 1.2;
+/// Cell sizing routes through the shared [measureMonoCell] helper so this
+/// overlay, the mobile copy overlay, and the recording playback host all
+/// land pixels on the same xterm-flutter cell grid — see
+/// `widgets/terminal_cell_metrics.dart` for the algorithm.
 
 class CursorTextOverlay extends StatefulWidget {
   const CursorTextOverlay({
@@ -128,32 +122,14 @@ class _CursorCharPainter extends CustomPainter {
   Size? _cellSize;
   double? _cachedFontSize;
 
-  /// Measure cell size the same way xterm does: lay out "mmmmmmmmmm" with
-  /// the matching line-height multiplier and divide by 10 for width. The
-  /// [kTerminalLineHeight] multiplier is applied on the [ui.ParagraphStyle]
-  /// — xterm passes it via `ParagraphStyle.height`, which is how its
-  /// painter lands cell rows at `row * (fontSize * 1.2)` rather than raw
-  /// ascent+descent. Drop the multiplier here and every cursor paint lands
-  /// ~20 % higher than the real glyph.
   Size _measureCellSize() {
     if (_cellSize != null && _cachedFontSize == fontSize) return _cellSize!;
-
-    final style = ui.TextStyle(
+    _cellSize = measureMonoCell(
+      fontSize: fontSize,
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
-      fontSize: fontSize,
-      height: kTerminalLineHeight,
     );
-    final builder =
-        ui.ParagraphBuilder(ui.ParagraphStyle(height: kTerminalLineHeight))
-          ..pushStyle(style)
-          ..addText('mmmmmmmmmm');
-    final paragraph = builder.build()
-      ..layout(const ui.ParagraphConstraints(width: double.infinity));
-
-    _cellSize = Size(paragraph.maxIntrinsicWidth / 10, paragraph.height);
     _cachedFontSize = fontSize;
-    paragraph.dispose();
     return _cellSize!;
   }
 

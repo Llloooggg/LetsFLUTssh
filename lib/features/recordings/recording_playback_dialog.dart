@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show ParagraphBuilder, ParagraphConstraints;
 
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
@@ -9,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/readonly_terminal_view.dart';
+import '../../widgets/terminal_cell_metrics.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only xterm widget at
@@ -537,7 +537,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     // renders with so the math matches xterm's internal layout
     // byte-for-byte.
     final w = widget.meta?.header.width ?? 80;
-    final cell = _measureMonoCell(fontSize);
+    final cell = measureMonoCell(fontSize: fontSize);
     // AppTerminalView paints with `AppTerminalView.verticalPadding`
     // on the top + bottom edges; horizontal uses the same
     // constant. Both contribute to the SizedBox's outer pixel
@@ -588,44 +588,6 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         ),
       ),
     );
-  }
-
-  /// One terminal cell's pixel size at `fontSize` in the mono font
-  /// stack xterm renders with. Matches xterm-flutter's internal
-  /// `RenderTerminal._measureCharSize` byte-for-byte: a 10-char
-  /// `'mmmmmmmmmm'` paragraph, divide by `test.length` for width,
-  /// `paragraph.height` for height. Aligning the algorithm matters
-  /// because `_buildTerminal` sizes the host `SizedBox` to
-  /// `cols * cell.width` and xterm-flutter's `TerminalView`
-  /// auto-resizes the underlying `Terminal` based on its own cell
-  /// measurement applied to that SizedBox — a per-glyph width
-  /// mismatch of even 0.1 px against a 132-col recording lands
-  /// xterm on 131 cols, and curses workloads like htop / vim that
-  /// position the cursor at col 132 wrap onto col 1 of the next
-  /// row, garbling every redrawn frame.
-  ///
-  /// `ParagraphBuilder` builds the paragraph against the exact
-  /// `TextStyle` xterm renders with so the font fallback +
-  /// hinting + tracking path is shared, not approximated by a
-  /// single-char `TextPainter`.
-  Size _measureMonoCell(double fontSize) {
-    const test = 'mmmmmmmmmm';
-    final textStyle = TextStyle(
-      fontFamily: AppFonts.monoFamily,
-      fontFamilyFallback: AppFonts.monoFallback,
-      fontSize: fontSize,
-    );
-    final builder = ParagraphBuilder(textStyle.getParagraphStyle())
-      ..pushStyle(textStyle.getTextStyle());
-    builder.addText(test);
-    final paragraph = builder.build()
-      ..layout(const ParagraphConstraints(width: double.infinity));
-    final size = Size(
-      paragraph.maxIntrinsicWidth / test.length,
-      paragraph.height,
-    );
-    paragraph.dispose();
-    return size;
   }
 
   /// Format `ms` as `mm:ss`. Hours roll into the minutes field
