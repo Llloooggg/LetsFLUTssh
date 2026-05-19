@@ -1,18 +1,12 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/session/port_forwards_dao.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../widgets/shortcut_registry.dart';
-import '../../core/ssh/port_forward_rule.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
-import '../../providers/tag_provider.dart';
-import '../../utils/logger.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../theme/app_theme.dart';
@@ -31,6 +25,7 @@ import '../workspace/workspace_node.dart';
 import '../tags/tag_assign_dialog.dart';
 import 'session_edit_dialog.dart';
 import 'session_panel_controller.dart';
+import 'session_save_persistence.dart';
 import 'session_tree_view.dart';
 
 part 'session_panel_folder_actions.dart';

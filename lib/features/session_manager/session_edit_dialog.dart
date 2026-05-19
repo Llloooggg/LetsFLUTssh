@@ -238,16 +238,6 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   late final TextEditingController _portCtrl;
   late final TextEditingController _userCtrl;
 
-  /// Smart-paste surface for SSH connections. The user types
-  /// `[user@]host[:port]` into one field; [_onConnectCtrlChanged]
-  /// parses it via [rust_sessions.sessionsParseSshTarget] and writes
-  /// the result into [_hostCtrl] / [_portCtrl] / [_userCtrl] so the
-  /// save path keeps reading the existing tuple. The compose helper
-  /// hydrates the field on edit (`user@host:22` collapses to
-  /// `user@host` when the port equals the default). WebDAV / S3
-  /// still own their own kind-specific fields below the kind picker.
-  late final TextEditingController _connectCtrl;
-  VoidCallback? _connectListener;
   late final TextEditingController _passwordCtrl;
   late final TextEditingController _keyPathCtrl;
   late final TextEditingController _keyDataCtrl;
@@ -446,9 +436,6 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _hostCtrl = TextEditingController(text: s?.host ?? '');
     _portCtrl = TextEditingController(text: '${s?.port ?? 22}');
     _userCtrl = TextEditingController(text: s?.user ?? '');
-    _connectCtrl = TextEditingController(text: _composeConnectText());
-    _connectListener = _onConnectCtrlChanged;
-    _connectCtrl.addListener(_connectListener!);
     // Secret-bearing controllers start empty even on edit — the
     // existing password / private key / passphrase live in the
     // database and cross FRB only via `db_sessions_stage_secrets`,
@@ -704,15 +691,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _passwordCtrl.wipeAndClear();
     _keyDataCtrl.wipeAndClear();
     _passphraseCtrl.wipeAndClear();
-    if (_connectListener != null) {
-      _connectCtrl.removeListener(_connectListener!);
-    }
     _labelCtrl.dispose();
     _folderCtrl.dispose();
     _hostCtrl.dispose();
     _portCtrl.dispose();
     _userCtrl.dispose();
-    _connectCtrl.dispose();
     _passwordCtrl.dispose();
     _keyPathCtrl.dispose();
     _keyDataCtrl.dispose();
@@ -728,66 +711,6 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _defaultBucketCtrl.dispose();
     _defaultPrefixCtrl.dispose();
     super.dispose();
-  }
-
-  /// Compose the smart-paste field's initial text from the underlying
-  /// host / port / user controllers. Port 22 is the SSH default so
-  /// editing a default-port session shows the cleaner `user@host`
-  /// instead of the noisier `user@host:22`. An empty user collapses
-  /// the `@` separator; an empty host returns the empty string so
-  /// the placeholder hint surfaces on a fresh dialog.
-  String _composeConnectText() {
-    final user = _userCtrl.text.trim();
-    final host = _hostCtrl.text.trim();
-    final portStr = _portCtrl.text.trim();
-    final port = int.tryParse(portStr) ?? 22;
-    if (host.isEmpty) return '';
-    final suffix = port == 22 ? '' : ':$port';
-    return user.isEmpty ? '$host$suffix' : '$user@$host$suffix';
-  }
-
-  /// Listener wired onto [_connectCtrl]. Parses the user's text via
-  /// the Rust [rust_sessions.sessionsParseSshTarget] helper and syncs
-  /// the parsed slots into the underlying controllers the existing
-  /// save path already reads from. Parse failures (mid-typing / empty
-  /// input) leave the underlying controllers untouched so a transient
-  /// invalid state does not wipe the last good values; the smart-paste
-  /// field's validator catches the same case at save time.
-  ///
-  /// `user` and `port` keep their last value when the parsed result
-  /// omits them — typing `host:2222` after editing `root@host:22`
-  /// preserves `root` instead of silently dropping it. The user
-  /// explicitly empties them by retyping `host` (parser then yields
-  /// `user = None`, `port = None`, host non-empty).
-  void _onConnectCtrlChanged() {
-    final parsed = rust_sessions.sessionsParseSshTarget(
-      input: _connectCtrl.text,
-    );
-    if (parsed == null) return;
-    _hostCtrl.text = parsed.host;
-    if (parsed.port != null) {
-      _portCtrl.text = '${parsed.port}';
-    }
-    if (parsed.user != null) {
-      _userCtrl.text = parsed.user!;
-    }
-  }
-
-  /// Validator for the smart-paste SSH connect field. Treats an empty
-  /// or whitespace-only input as the standard required-field error;
-  /// otherwise parses via Rust and surfaces a single "invalid format"
-  /// message when the input cannot be coerced into a host with the
-  /// shared deeplink-style validation envelope. The save logic still
-  /// guards user-required separately because the parser tolerates
-  /// `host`-only inputs (the listener leaves the previous user in
-  /// place when the user prefix is omitted).
-  String? _validateConnect(String? value) {
-    final l10n = S.of(context);
-    if (value == null || value.trim().isEmpty) return l10n.required;
-    final parsed = rust_sessions.sessionsParseSshTarget(input: value);
-    if (parsed == null) return l10n.connectStringInvalid;
-    if (_userCtrl.text.trim().isEmpty) return l10n.required;
-    return null;
   }
 
   Session _buildSession() {

@@ -392,15 +392,6 @@ class SZh extends S {
   String get moreOptions => '更多选项';
 
   @override
-  String get connectTo => '连接到';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => '格式无效 — 期望 user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

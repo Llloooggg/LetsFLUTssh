@@ -395,16 +395,6 @@ class SVi extends S {
   String get moreOptions => 'Tùy chọn khác';
 
   @override
-  String get connectTo => 'Kết nối tới';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Định dạng không hợp lệ — cần user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

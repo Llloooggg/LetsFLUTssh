@@ -424,15 +424,6 @@ class SEn extends S {
   String get moreOptions => 'More options';
 
   @override
-  String get connectTo => 'Connect to';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => 'Invalid format — expected user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

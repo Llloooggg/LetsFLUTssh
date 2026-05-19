@@ -348,12 +348,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Future<void> _newSession(BuildContext context, WidgetRef ref) async {
     final result = await SessionEditDialog.show(context);
     if (result == null || !context.mounted) return;
-    switch (result) {
-      case SaveResult(:final session, :final connect):
-        await ref.read(sessionMutatorProvider).add(session);
-        if (connect && context.mounted) {
-          await SessionConnect.connectTerminal(context, ref, session);
+    if (result is! SaveResult) return;
+    await applySessionSaveResult(
+      ref,
+      result,
+      onConnect: (session) {
+        if (context.mounted) {
+          SessionConnect.connectTerminal(context, ref, session);
         }
-    }
+      },
+    );
   }
 }

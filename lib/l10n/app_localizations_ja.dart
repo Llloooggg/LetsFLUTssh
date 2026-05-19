@@ -393,15 +393,6 @@ class SJa extends S {
   String get moreOptions => '詳細オプション';
 
   @override
-  String get connectTo => '接続先';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => '形式が無効です — user@host:port が必要です';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

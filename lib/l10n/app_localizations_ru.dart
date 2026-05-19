@@ -403,16 +403,6 @@ class SRu extends S {
   String get moreOptions => 'Дополнительно';
 
   @override
-  String get connectTo => 'Подключение';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Неверный формат — ожидается user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

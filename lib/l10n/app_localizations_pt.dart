@@ -432,16 +432,6 @@ class SPt extends S {
   String get moreOptions => 'Mais opções';
 
   @override
-  String get connectTo => 'Conectar a';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Formato inválido — esperado user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

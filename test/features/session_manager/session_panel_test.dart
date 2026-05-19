@@ -820,7 +820,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // SessionEditDialog opens with the smart-paste connect field.
-      expect(find.text('CONNECT TO'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
     });
   });
 
@@ -846,7 +846,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // SessionEditDialog opens with the smart-paste connect field.
-      expect(find.text('CONNECT TO'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
     });
   });
 
@@ -1165,13 +1165,17 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'root@example.com:22'),
-          'user@test.com',
+          find.widgetWithText(TextFormField, '192.168.1.1'),
+          'test.com',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'root'),
+          'user',
         );
         await tester.pumpAndSettle();
 
         // Single-form layout — password is on the same scrollable
-        // page as the smart-paste connect field; scroll it into view.
+        // page as the host / user fields; scroll it into view.
         await tester.ensureVisible(
           find.widgetWithText(TextFormField, '••••••••'),
         );
@@ -1184,7 +1188,7 @@ void main() {
 
         await tester.tap(find.text('Save & Connect'));
         await tester.pumpAndSettle();
-        // `_handleDialogResult` awaits `_syncForwards` → `loadPortForwards`,
+        // `_handleDialogResult` awaits `syncForwards` → `loadPortForwards`,
         // which is a real FRB DB call now that the bootstrap is wired in.
         // The cross-thread completion lands outside the Dart microtask queue
         // `pumpAndSettle` drains, so let real time pass before the assertion.
@@ -1208,13 +1212,17 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'root@example.com:22'),
-          'admin@save.com',
+          find.widgetWithText(TextFormField, '192.168.1.1'),
+          'save.com',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'root'),
+          'admin',
         );
         await tester.pumpAndSettle();
 
         // Single-form layout — password is on the same scrollable
-        // page as the smart-paste connect field; scroll it into view.
+        // page as the host / user fields; scroll it into view.
         await tester.ensureVisible(
           find.widgetWithText(TextFormField, '••••••••'),
         );
@@ -1266,13 +1274,17 @@ void main() {
 
       // Fill fields and tap Save & Connect
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'root@example.com:22'),
-        'root@example.com',
+        find.widgetWithText(TextFormField, '192.168.1.1'),
+        'example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'root'),
+        'root',
       );
       await tester.pumpAndSettle();
 
       // Single-form layout — password is on the same scrollable
-      // page as the smart-paste connect field; scroll it into view.
+      // page as the host / user fields; scroll it into view.
       await tester.ensureVisible(
         find.widgetWithText(TextFormField, '••••••••'),
       );
@@ -1285,7 +1297,7 @@ void main() {
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
-      // `_handleDialogResult` awaits `_syncForwards` → `loadPortForwards`,
+      // `_handleDialogResult` awaits `syncForwards` → `loadPortForwards`,
       // which is a real FRB DB call now that the bootstrap is wired in.
       // The cross-thread completion lands outside the Dart microtask queue
       // `pumpAndSettle` drains, so let real time pass before the assertion.
@@ -1323,13 +1335,17 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'root@example.com:22'),
-        'admin@10.0.0.5',
+        find.widgetWithText(TextFormField, '192.168.1.1'),
+        '10.0.0.5',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'root'),
+        'admin',
       );
       await tester.pumpAndSettle();
 
       // Single-form layout — password is on the same scrollable
-      // page as the smart-paste connect field; scroll it into view.
+      // page as the host / user fields; scroll it into view.
       await tester.ensureVisible(
         find.widgetWithText(TextFormField, '••••••••'),
       );
@@ -1349,7 +1365,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog should close and onConnect should NOT be called.
-      expect(find.text('CONNECT TO'), findsNothing);
+      expect(find.text('HOST *'), findsNothing);
       expect(connected, isNull);
     });
   });

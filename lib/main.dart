@@ -37,6 +37,7 @@ import 'features/mobile/mobile_shell.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
 import 'features/session_manager/session_panel.dart';
+import 'features/session_manager/session_save_persistence.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/tabs/tab_model.dart';
 import 'features/tools/tools_dialog.dart';

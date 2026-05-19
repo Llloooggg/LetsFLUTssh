@@ -432,15 +432,6 @@ class SFr extends S {
   String get moreOptions => 'Plus d\'options';
 
   @override
-  String get connectTo => 'Se connecter à';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => 'Format invalide — attendu user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

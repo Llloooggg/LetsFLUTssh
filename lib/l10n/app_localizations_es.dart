@@ -432,16 +432,6 @@ class SEs extends S {
   String get moreOptions => 'Más opciones';
 
   @override
-  String get connectTo => 'Conectar a';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Formato inválido — se espera user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

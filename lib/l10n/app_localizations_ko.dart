@@ -393,15 +393,6 @@ class SKo extends S {
   String get moreOptions => '추가 옵션';
 
   @override
-  String get connectTo => '연결 대상';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => '잘못된 형식 — user@host:port 형식 필요';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

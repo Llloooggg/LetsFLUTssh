@@ -426,16 +426,6 @@ class SDe extends S {
   String get moreOptions => 'Weitere Optionen';
 
   @override
-  String get connectTo => 'Verbinden mit';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Ungültiges Format — erwartet user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

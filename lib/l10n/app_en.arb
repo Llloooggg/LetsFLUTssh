@@ -255,18 +255,6 @@
   "@moreOptions": {
     "description": "Header text for the collapsible block at the bottom of the session edit dialog. Holds tags (universal), folder, and per-kind niche knobs (SSH: ProxyJump + port forwarding + record-session; WebDAV: fingerprint pin; S3: path-style + default prefix). Collapsed by default so the default form stays compact."
   },
-  "connectTo": "Connect to",
-  "@connectTo": {
-    "description": "Label for the SSH smart-paste field in the session edit dialog. The user types '[user@]host[:port]' into this one field; the dialog parses the input via lfs_core::sessions::parse_ssh_target and splits the result across the host / port / user storage slots."
-  },
-  "connectHint": "root@example.com:22",
-  "@connectHint": {
-    "description": "Placeholder text inside the SSH smart-paste field. Demonstrates the expected '[user@]host[:port]' shape; not a translatable string because the example URL stays the same across locales."
-  },
-  "connectStringInvalid": "Invalid format — expected user@host:port",
-  "@connectStringInvalid": {
-    "description": "Validation error surfaced when the SSH smart-paste field cannot be parsed (control chars, missing host, out-of-range port, malformed IPv6 bracket). Mentions the expected shape so the user knows what to type."
-  },
   "forwardRulesSummary": "{count, plural, =0{No port-forward rules} =1{1 port-forward rule} other{{count} port-forward rules}}",
   "@forwardRulesSummary": {
     "description": "Compact pluralised summary shown in the Advanced section of the session edit dialog (SSH only) next to the 'Manage…' button that opens the Forwarding rule editor sub-dialog. {count} is the current number of rules on the session.",

@@ -201,20 +201,36 @@ extension _ConnectionSection on _SessionEditDialogState {
 
   List<Widget> _buildSshFields(S l10n) {
     return [
-      // Single smart-paste surface — `[user@]host[:port]`. The text
-      // parses through `lfs_core::sessions::parse_ssh_target` on every
-      // edit and writes the result into `_hostCtrl` / `_portCtrl` /
-      // `_userCtrl` so the existing save path keeps reading the same
-      // tuple. Port 22 stays implicit on output (the compose helper
-      // strips it on hydration) — the user only types a port when it
-      // differs from the SSH default. ProxyJump moved to More options
-      // because >90% of sessions never set one and the section was
-      // taking three chips of vertical space upfront.
+      Row(
+        children: [
+          Expanded(
+            child: StyledFormField(
+              label: l10n.hostRequired,
+              controller: _hostCtrl,
+              hint: l10n.hintHost,
+              validator: _requiredValidator,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          SizedBox(
+            width: 80,
+            child: StyledFormField(
+              label: l10n.port,
+              controller: _portCtrl,
+              hint: l10n.hintPort,
+              keyboardType: TextInputType.number,
+              validator: (v) =>
+                  isValidConnectionPort(v) ? null : l10n.portRange,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.md),
       StyledFormField(
-        label: l10n.connectTo,
-        controller: _connectCtrl,
-        hint: l10n.connectHint,
-        validator: _validateConnect,
+        label: l10n.usernameRequired,
+        controller: _userCtrl,
+        hint: l10n.hintUsername,
+        validator: _requiredValidator,
       ),
     ];
   }

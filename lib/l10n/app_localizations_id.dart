@@ -396,16 +396,6 @@ class SId extends S {
   String get moreOptions => 'Opsi lainnya';
 
   @override
-  String get connectTo => 'Hubungkan ke';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Format tidak valid — diharapkan user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

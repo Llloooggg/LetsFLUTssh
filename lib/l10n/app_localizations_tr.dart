@@ -397,16 +397,6 @@ class STr extends S {
   String get moreOptions => 'Diğer seçenekler';
 
   @override
-  String get connectTo => 'Bağlantı';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid =>
-      'Geçersiz biçim — user@host:port bekleniyor';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

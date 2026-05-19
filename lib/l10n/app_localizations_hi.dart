@@ -398,15 +398,6 @@ class SHi extends S {
   String get moreOptions => 'अधिक विकल्प';
 
   @override
-  String get connectTo => 'कनेक्ट करें';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => 'अमान्य प्रारूप — user@host:port अपेक्षित';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

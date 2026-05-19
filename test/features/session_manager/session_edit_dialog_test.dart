@@ -83,10 +83,13 @@ void main() {
     String user = 'testuser',
     String password = 'pass',
   }) async {
-    // Single smart-paste surface — `[user@]host[:port]` parses via
-    // Rust `parse_ssh_target` and the listener writes the result
-    // into the host / port / user controllers the save path reads.
-    await tester.enterText(fieldByHint('root@example.com:22'), '$user@$host');
+    // Separate Host + Username inputs — the previous single smart-paste
+    // surface was reverted because users found the merged
+    // `[user@]host[:port]` shape harder to scan at a glance and the
+    // kind-switch flow (SSH → WebDAV) carried SSH-side parses into the
+    // WebDAV username field, which silently changed the saved value.
+    await tester.enterText(fieldByHint('192.168.1.1'), host);
+    await tester.enterText(fieldByHint('root'), user);
     await tester.enterText(fieldByHint('••••••••'), password);
     await tester.pumpAndSettle();
   }
@@ -144,10 +147,13 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Single-form layout — smart-paste replaces the old
-      // HOST / PORT / USERNAME row with one combined field.
+      // Separate HOST + PORT + USERNAME inputs on the single-form
+      // layout. The shared session-name label sits in the identity
+      // block on top.
       expect(find.text('SESSION NAME'), findsOneWidget);
-      expect(find.text('CONNECT TO'), findsOneWidget);
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('PORT'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
 
     testWidgets('has password and key sections on Auth tab', (tester) async {
@@ -217,16 +223,19 @@ void main() {
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('smart-paste hint advertises the [user@]host[:port] shape', (
+    testWidgets('host + port + username render as separate inputs', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // The placeholder is the canonical example URL kept identical
-      // across every locale (the `connectHint` ARB value).
-      expect(find.text('root@example.com:22'), findsOneWidget);
+      // Three independent fields — each one carries the
+      // required-marker label `*` for host / username (port has
+      // a sane default so its label is unmarked).
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('PORT'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -290,12 +299,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Port rides on the smart-paste field; the parser writes the
-      // non-default port into `_portCtrl` so the SaveResult carries it.
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'testuser@example.com:2222',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('22'), '2222');
+      await tester.enterText(fieldByHint('root'), 'testuser');
       await tester.enterText(fieldByHint('••••••••'), 'pass');
       await tester.pumpAndSettle();
 
@@ -606,65 +612,61 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — smart-paste validation', () {
-    // The smart-paste field collapses the old HOST / PORT / USERNAME
-    // validators into one. Out-of-range ports, non-numeric ports,
-    // control characters, and missing host all surface the shared
-    // `connectStringInvalid` message; an entirely empty field reuses
-    // the existing `required` copy.
-    testWidgets('out-of-range port surfaces the invalid-format error', (
+  group('SessionEditDialog — port validation', () {
+    // The dedicated PORT field runs `isValidConnectionPort`, which
+    // rejects everything outside `1..=65535`. Each test types an
+    // invalid value into the port slot and expects the inline
+    // `portRange` error to render under the field.
+    testWidgets('out-of-range port surfaces the port-range error', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'root@example.com:99999',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('22'), '99999');
+      await tester.enterText(fieldByHint('root'), 'root');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Invalid format'), findsOneWidget);
+      expect(find.textContaining('1-65535'), findsOneWidget);
     });
 
-    testWidgets('non-numeric port surfaces the invalid-format error', (
+    testWidgets('non-numeric port surfaces the port-range error', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'root@example.com:abc',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('22'), 'abc');
+      await tester.enterText(fieldByHint('root'), 'root');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Invalid format'), findsOneWidget);
+      expect(find.textContaining('1-65535'), findsOneWidget);
     });
 
-    testWidgets('port 0 surfaces the invalid-format error', (tester) async {
+    testWidgets('port 0 surfaces the port-range error', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'root@example.com:0',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('22'), '0');
+      await tester.enterText(fieldByHint('root'), 'root');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Invalid format'), findsOneWidget);
+      expect(find.textContaining('1-65535'), findsOneWidget);
     });
   });
 
@@ -795,8 +797,12 @@ void main() {
       final session = Session(
         label: 'my-server',
         folder: 'Production',
+        // Pick values distinct from the field placeholders
+        // (`192.168.1.1` / `22` / `root`) so the value-text finders
+        // do not collide with the hint-text rendered by the empty
+        // placeholder layer.
         server: const ServerAddress(
-          host: '192.168.1.1',
+          host: '10.0.0.5',
           port: 2222,
           user: 'admin',
         ),
@@ -806,9 +812,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('my-server'), findsOneWidget);
-      // The smart-paste field renders the composed `user@host:port`
-      // tuple verbatim (port 22 collapses; non-default ports stay).
-      expect(find.text('admin@192.168.1.1:2222'), findsOneWidget);
+      // Separate inputs render each piece of the SSH tuple verbatim
+      // (host / port / user). The dialog hydrates each controller
+      // from the saved session row.
+      expect(find.text('10.0.0.5'), findsOneWidget);
+      expect(find.text('2222'), findsOneWidget);
+      expect(find.text('admin'), findsOneWidget);
     });
   });
 
@@ -853,10 +862,10 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Clear the smart-paste field on an edited session — the
-      // validator surfaces the same `required` copy the empty-form
-      // path does, and the dialog stays open so the user can fix.
-      await tester.enterText(fieldByHint('root@example.com:22'), '');
+      // Clear the host field on an edited session — the validator
+      // surfaces the same `required` copy the empty-form path does,
+      // and the dialog stays open so the user can fix.
+      await tester.enterText(fieldByHint('192.168.1.1'), '');
       await tester.pumpAndSettle();
 
       await tapSaveOnly(tester);
@@ -951,16 +960,16 @@ void main() {
   });
 
   group('SessionEditDialog — additional validation', () {
-    testWidgets('Save & Connect with empty smart-paste field is blocked', (
+    testWidgets('Save & Connect on empty form blocks with Required', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // The smart-paste field is empty on a fresh dialog — Save &
-      // Connect routes through the validator and surfaces the same
-      // `required` copy the old per-field validators did.
+      // Both host and username are required; pressing Save on an
+      // untouched form must surface the `required` copy on each empty
+      // field and leave the dialog open.
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
@@ -968,17 +977,17 @@ void main() {
       expect(dialogResult, isNull);
     });
 
-    testWidgets('Save & Connect with a bare host (no user prefix) is blocked', (
+    testWidgets('Save & Connect with a host but no user is blocked', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // The parser tolerates a host-only string — the validator
-      // catches the missing user separately so the user has to add
-      // `user@` before Save proceeds.
-      await tester.enterText(fieldByHint('root@example.com:22'), 'host.com');
+      // Host is filled but the dedicated USERNAME slot is left empty —
+      // its `_requiredValidator` must fire so Save bails out without
+      // closing the dialog.
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -989,16 +998,17 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — smart-paste port boundary values', () {
-    testWidgets('port 1 is accepted by the smart-paste parser', (tester) async {
+  group('SessionEditDialog — port boundary values', () {
+    testWidgets('port 1 is accepted by the port-range validator', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'testuser@example.com:1',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('22'), '1');
+      await tester.enterText(fieldByHint('root'), 'testuser');
       await tester.enterText(fieldByHint('••••••••'), 'pass');
       await tester.pumpAndSettle();
 
@@ -1009,17 +1019,16 @@ void main() {
       expect((dialogResult as SaveResult).session.port, 1);
     });
 
-    testWidgets('port 65535 is accepted by the smart-paste parser', (
+    testWidgets('port 65535 is accepted by the port-range validator', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'testuser@example.com:65535',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
+      await tester.enterText(fieldByHint('22'), '65535');
+      await tester.enterText(fieldByHint('root'), 'testuser');
       await tester.enterText(fieldByHint('••••••••'), 'pass');
       await tester.pumpAndSettle();
 
@@ -1049,19 +1058,18 @@ void main() {
     });
   });
 
-  group('SessionEditDialog — smart-paste validation surfaces inline', () {
-    testWidgets('bare host (no user prefix) blocks Save with Required', (
+  group('SessionEditDialog — host/user validation surfaces inline', () {
+    testWidgets('host filled but user empty blocks Save with Required', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Type host alone — parser tolerates it, but the validator
-      // catches the missing `user@` prefix and surfaces "Required"
-      // on the smart-paste field itself (single-form layout means
-      // no tab to switch to).
-      await tester.enterText(fieldByHint('root@example.com:22'), 'host.com');
+      // Host filled, password filled, but USERNAME left blank — the
+      // username field's `_requiredValidator` surfaces "Required" and
+      // Save bails without closing the dialog.
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
       await tester.enterText(fieldByHint('••••••••'), 'secret');
       await tester.pumpAndSettle();
 
@@ -1072,21 +1080,19 @@ void main() {
       expect(dialogResult, isNull);
     });
 
-    testWidgets('empty smart-paste field blocks Save with Required', (
-      tester,
-    ) async {
+    testWidgets('empty host blocks Save with Required', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Don't touch the smart-paste field; only fill the password.
+      // Don't touch the host / user fields; only fill the password.
       await tester.enterText(fieldByHint('••••••••'), 'secret');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Required'), findsOneWidget);
+      expect(find.text('Required'), findsWidgets);
       expect(dialogResult, isNull);
     });
   });
@@ -1129,13 +1135,11 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Fill the smart-paste field with user@host; leave the
-      // password / key fields untouched. The auth-side validator
-      // surfaces the "provide a password or SSH key" verdict.
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'user@host.com',
-      );
+      // Fill host + user; leave the password / key fields untouched.
+      // The auth-side validator surfaces the
+      // "provide a password or SSH key" verdict.
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+      await tester.enterText(fieldByHint('root'), 'user');
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
@@ -1149,10 +1153,8 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'user@host.com',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+      await tester.enterText(fieldByHint('root'), 'user');
       await switchToAuth(tester);
       await tester.enterText(fieldByHint('••••••••'), 'secret');
 
@@ -1204,10 +1206,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        fieldByHint('root@example.com:22'),
-        'u@h.com:2222',
-      );
+      await tester.enterText(fieldByHint('192.168.1.1'), 'h.com');
+      await tester.enterText(fieldByHint('22'), '2222');
+      await tester.enterText(fieldByHint('root'), 'u');
 
       await switchToAuth(tester);
 
@@ -1368,8 +1369,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Fill the smart-paste connection field first.
-      await tester.enterText(fieldByHint('root@example.com:22'), 'u@h.com');
+      // Fill host + user first.
+      await tester.enterText(fieldByHint('192.168.1.1'), 'h.com');
+      await tester.enterText(fieldByHint('root'), 'u');
       await tester.pumpAndSettle();
 
       await switchToAuth(tester);
@@ -2439,10 +2441,14 @@ void main() {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
 
-          // Fill the smart-paste connect field so the form validates.
+          // Fill host + user so the form validates.
           await tester.enterText(
-            find.widgetWithText(TextFormField, 'root@example.com:22'),
-            'testuser@example.com',
+            find.widgetWithText(TextFormField, '192.168.1.1'),
+            'example.com',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextFormField, 'root'),
+            'testuser',
           );
           // Single-form: the agent toggle sits inside the same
           // scrollable page. Scroll it into view before tapping so
@@ -2693,6 +2699,62 @@ void main() {
         expect(find.text('Bearer token'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'switching SSH → WebDAV mid-dialog then Save returns a webdav SaveResult',
+      (tester) async {
+        // Regression: a user reported "filled SSH then switched to
+        // WebDAV in the same dialog, hit Save, nothing happened".
+        // The flow must surface SaveResult.session.kind = webdav with
+        // a non-null webdavData payload — and `_userCtrl` carried
+        // from the SSH path must not silently survive a kind switch
+        // when the WebDAV username field is left untouched.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // Step 1 — type some SSH-side data first (simulating the
+        // user who started in SSH then changed their mind).
+        await tester.enterText(fieldByHint('192.168.1.1'), 'ignored-ssh-host');
+        await tester.enterText(fieldByHint('root'), 'ignored-ssh-user');
+        await tester.pumpAndSettle();
+
+        // Step 2 — flip to WebDAV via the kind chip.
+        await selectKind(tester, 'WebDAV');
+
+        // Step 3 — fill the WebDAV-specific fields. The username
+        // field controller is shared with SSH, so the SSH user
+        // typed above is already inside it; overwrite explicitly to
+        // assert the WebDAV form-state is what saves.
+        await tester.enterText(
+          fieldByHint('https://example.com/remote.php/dav/files/alice/'),
+          'https://dav.example.com',
+        );
+        await tester.enterText(fieldByHint('root'), 'webdav-user');
+        await tester.enterText(fieldByHint('••••••••'), 'dav-secret');
+        await tester.pumpAndSettle();
+
+        // Step 4 — Save. Dialog must close with a SaveResult whose
+        // session.kind == webdav and whose webdavData carries the
+        // typed URL + username + password.
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.kind, SessionKind.webdav);
+        expect(result.webdavData, isNotNull);
+        expect(result.webdavData!.baseUrl, 'https://dav.example.com');
+        expect(result.webdavData!.username, 'webdav-user');
+        expect(result.webdavData!.password, 'dav-secret');
+        expect(result.webdavData!.passwordDirty, isTrue);
+        // The session row's host falls out of the URL parse — the
+        // upsert path needs a non-empty host or `validate_session_fields`
+        // throws ArgumentError silently after the dialog closes.
+        expect(result.session.host, 'dav.example.com');
+        expect(result.session.port, 443);
+        expect(result.session.user, 'webdav-user');
+      },
+    );
   });
 
   group(
@@ -2822,16 +2884,16 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('SSH renders the smart-paste connect field + password', (
+    testWidgets('SSH renders Host + Port + Username + password', (
       tester,
     ) async {
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      // The single smart-paste surface replaces the old HOST / PORT /
-      // USERNAME row; its label comes from the `connectTo` ARB key
-      // and `FieldLabel` uppercases it.
-      expect(find.text('CONNECT TO'), findsOneWidget);
+      // Separate fields surface their own required-marker labels.
+      expect(find.text('HOST *'), findsOneWidget);
+      expect(find.text('PORT'), findsOneWidget);
+      expect(find.text('USERNAME *'), findsOneWidget);
       // Auth password is on the same scrollable form.
       expect(find.text('PASSWORD'), findsOneWidget);
     });
@@ -2906,15 +2968,16 @@ void main() {
         await tester.tap(find.text('Custom'));
         await tester.pumpAndSettle();
 
-        // The proxy host / port / user hints no longer overlap with
-        // any main-form field — the smart-paste surface ate the old
-        // host / port / user hints. Hit each placeholder directly.
+        // Proxy port (`22`) and proxy user (`root`) share placeholder
+        // copy with the main SSH host/user fields above, so finders
+        // resolve to two matches when More options is expanded —
+        // `.last` pins to the proxy row at the bottom of the form.
         await tester.enterText(
           fieldByHint('bastion.example.com'),
           'bastion.example.com',
         );
-        await tester.enterText(fieldByHint('22'), '2222');
-        await tester.enterText(fieldByHint('root'), 'ops');
+        await tester.enterText(fieldByHint('22').last, '2222');
+        await tester.enterText(fieldByHint('root').last, 'ops');
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Save & Connect'));
@@ -2971,9 +3034,11 @@ void main() {
         fieldByHint('bastion.example.com'),
         'bastion.example.com',
       );
-      // 99999 is out of the 1..65535 SSH port range.
-      await tester.enterText(fieldByHint('22'), '99999');
-      await tester.enterText(fieldByHint('root'), 'ops');
+      // 99999 is out of the 1..65535 SSH port range. Main SSH port +
+      // user above share placeholder copy with the proxy row, so the
+      // finder pins to the proxy widget via `.last`.
+      await tester.enterText(fieldByHint('22').last, '99999');
+      await tester.enterText(fieldByHint('root').last, 'ops');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));

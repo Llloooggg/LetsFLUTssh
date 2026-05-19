@@ -396,15 +396,6 @@ class SFa extends S {
   String get moreOptions => 'گزینه‌های بیشتر';
 
   @override
-  String get connectTo => 'اتصال به';
-
-  @override
-  String get connectHint => 'root@example.com:22';
-
-  @override
-  String get connectStringInvalid => 'قالب نامعتبر — انتظار user@host:port';
-
-  @override
   String forwardRulesSummary(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,

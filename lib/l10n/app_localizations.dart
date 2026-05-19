@@ -801,24 +801,6 @@ abstract class S {
   /// **'More options'**
   String get moreOptions;
 
-  /// Label for the SSH smart-paste field in the session edit dialog. The user types '[user@]host[:port]' into this one field; the dialog parses the input via lfs_core::sessions::parse_ssh_target and splits the result across the host / port / user storage slots.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect to'**
-  String get connectTo;
-
-  /// Placeholder text inside the SSH smart-paste field. Demonstrates the expected '[user@]host[:port]' shape; not a translatable string because the example URL stays the same across locales.
-  ///
-  /// In en, this message translates to:
-  /// **'root@example.com:22'**
-  String get connectHint;
-
-  /// Validation error surfaced when the SSH smart-paste field cannot be parsed (control chars, missing host, out-of-range port, malformed IPv6 bracket). Mentions the expected shape so the user knows what to type.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid format — expected user@host:port'**
-  String get connectStringInvalid;
-
   /// Compact pluralised summary shown in the Advanced section of the session edit dialog (SSH only) next to the 'Manage…' button that opens the Forwarding rule editor sub-dialog. {count} is the current number of rules on the session.
   ///
   /// In en, this message translates to:
