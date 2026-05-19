@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ParagraphBuilder, ParagraphConstraints;
 
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
@@ -590,27 +591,41 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   }
 
   /// One terminal cell's pixel size at `fontSize` in the mono font
-  /// stack xterm renders with. Returns the `TextPainter`'s
-  /// `width / height` for a single capital `M` — capital glyphs
-  /// fill the cell width and the painter's `height` exposes the
-  /// font's full line-height (ascent + descent + leading) which
-  /// xterm uses internally.
+  /// stack xterm renders with. Matches xterm-flutter's internal
+  /// `RenderTerminal._measureCharSize` byte-for-byte: a 10-char
+  /// `'mmmmmmmmmm'` paragraph, divide by `test.length` for width,
+  /// `paragraph.height` for height. Aligning the algorithm matters
+  /// because `_buildTerminal` sizes the host `SizedBox` to
+  /// `cols * cell.width` and xterm-flutter's `TerminalView`
+  /// auto-resizes the underlying `Terminal` based on its own cell
+  /// measurement applied to that SizedBox — a per-glyph width
+  /// mismatch of even 0.1 px against a 132-col recording lands
+  /// xterm on 131 cols, and curses workloads like htop / vim that
+  /// position the cursor at col 132 wrap onto col 1 of the next
+  /// row, garbling every redrawn frame.
   ///
-  /// `TextPainter.layout` on a single glyph is microseconds —
-  /// fine to recompute per build.
+  /// `ParagraphBuilder` builds the paragraph against the exact
+  /// `TextStyle` xterm renders with so the font fallback +
+  /// hinting + tracking path is shared, not approximated by a
+  /// single-char `TextPainter`.
   Size _measureMonoCell(double fontSize) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: 'M',
-        style: TextStyle(
-          fontFamily: AppFonts.monoFamily,
-          fontFamilyFallback: AppFonts.monoFallback,
-          fontSize: fontSize,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    return Size(painter.width, painter.height);
+    const test = 'mmmmmmmmmm';
+    final textStyle = TextStyle(
+      fontFamily: AppFonts.monoFamily,
+      fontFamilyFallback: AppFonts.monoFallback,
+      fontSize: fontSize,
+    );
+    final builder = ParagraphBuilder(textStyle.getParagraphStyle())
+      ..pushStyle(textStyle.getTextStyle());
+    builder.addText(test);
+    final paragraph = builder.build()
+      ..layout(const ParagraphConstraints(width: double.infinity));
+    final size = Size(
+      paragraph.maxIntrinsicWidth / test.length,
+      paragraph.height,
+    );
+    paragraph.dispose();
+    return size;
   }
 
   /// Format `ms` as `mm:ss`. Hours roll into the minutes field
