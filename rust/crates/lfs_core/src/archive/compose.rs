@@ -57,6 +57,13 @@ pub struct ExportOptions {
     /// all. When false, no `keys.json` entry is written even if the
     /// previous toggle is true.
     pub has_manager_keys: bool,
+    /// True → bundle every `.cast` / `.lfsr` under the recordings
+    /// tree into the archive as plaintext `.cast` files (encrypted
+    /// recordings are decrypted at compose time with the current
+    /// DB key — see `ExportInput.recording_db_key` — so the
+    /// receiver can play them regardless of their own DB key).
+    /// False → recordings section is skipped entirely.
+    pub include_recordings: bool,
 }
 
 /// Inputs to [`export_archive`]. Sessions / folders / tags / snippets
@@ -99,6 +106,19 @@ pub struct ExportInput {
     /// shape, manual exports from the Data → Export dialog).
     /// Available since `SchemaVersions::ARCHIVE` v2.
     pub sync_origin: Option<String>,
+    /// Root of the recordings tree to bundle when
+    /// `options.include_recordings` is true. Typically
+    /// `<support_dir>/recordings`. `None` skips the recordings
+    /// section even if the option is on — convenient for tests
+    /// that compose without touching the filesystem.
+    pub recordings_root: Option<std::path::PathBuf>,
+    /// DB key the writer uses to unwrap `.lfsr` headers at compose
+    /// time. The archive ships plaintext `.cast` files so the
+    /// receiver does not need the sender's DB key to play them
+    /// back. `None` → only plain `.cast` recordings make it into
+    /// the archive; any encountered `.lfsr` is skipped with a
+    /// warn-level log entry.
+    pub recording_db_key: Option<[u8; 32]>,
 }
 
 /// Compose and (optionally) encrypt the `.lfs` archive.
@@ -280,9 +300,132 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
         }
     }
 
+    if input.options.include_recordings {
+        if let Some(root) = input.recordings_root.as_deref() {
+            write_recordings_entries(&mut zw, opts, root, input.recording_db_key.as_ref())?;
+        }
+    }
+
     zw.finish()
         .map_err(|e| Error::Archive(format!("zip finish: {e}")))?;
     Ok(buf.into_inner())
+}
+
+/// Walk `<root>/<session_id>/<file>.{cast,lfsr}` and bundle every
+/// recording into the archive as a plaintext `.cast` entry under
+/// `recordings/<session_id>/<base>.cast`. `.lfsr` files are
+/// decrypted at compose time using `db_key` (the writer's DB
+/// encryption key); a `None` `db_key` skips them since the
+/// receiver could not play an encrypted recording bound to the
+/// sender's DB key anyway. Sidecar `.idx` files are dropped —
+/// the receiver rebuilds them on first scan if/when the scrub
+/// path needs them.
+///
+/// Any per-file failure (truncated header, GCM tag mismatch,
+/// I/O hiccup) logs at warn and continues with the next file so
+/// one bad recording does not abort the whole export.
+fn write_recordings_entries(
+    zw: &mut zip::ZipWriter<&mut Cursor<Vec<u8>>>,
+    opts: SimpleFileOptions,
+    root: &std::path::Path,
+    db_key: Option<&[u8; 32]>,
+) -> Result<(), Error> {
+    if !root.is_dir() {
+        return Ok(());
+    }
+    let session_entries = match std::fs::read_dir(root) {
+        Ok(it) => it,
+        Err(_) => return Ok(()),
+    };
+    for session_entry in session_entries.flatten() {
+        let session_path = session_entry.path();
+        let ty = match session_entry.file_type() {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if !ty.is_dir() {
+            continue;
+        }
+        let Some(session_id) = session_path.file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        let inner = match std::fs::read_dir(&session_path) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        for file_entry in inner.flatten() {
+            let file_path = file_entry.path();
+            let ft = match file_entry.file_type() {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            if !ft.is_file() {
+                continue;
+            }
+            let Some(file_name) = file_path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let ext = file_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|s| s.to_ascii_lowercase());
+            let cast_bytes: Option<Vec<u8>> = match ext.as_deref() {
+                Some("cast") => std::fs::read(&file_path).ok(),
+                Some("lfsr") => match db_key {
+                    None => {
+                        crate::app_log_warn!(
+                            "ArchiveExport",
+                            "skip encrypted recording {}: no DB key available",
+                            file_path.display()
+                        );
+                        None
+                    }
+                    Some(k) => decrypt_lfsr_to_cast_bytes(&file_path, k).ok(),
+                },
+                // `.idx` sidecars + any stray extension: skip.
+                _ => None,
+            };
+            let Some(bytes) = cast_bytes else {
+                continue;
+            };
+            let base = file_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(file_name);
+            let entry_name = format!("recordings/{session_id}/{base}.cast");
+            // Same `Stored` compression the rest of `build_zip` uses
+            // — keeps the outer LFSE envelope deterministic without
+            // reaching for an extra compression feature from the
+            // `zip` crate's default feature set.
+            zw.start_file::<_, ()>(entry_name.clone(), opts)
+                .map_err(|e| Error::Archive(format!("recording start {entry_name}: {e}")))?;
+            std::io::Write::write_all(zw, &bytes)
+                .map_err(|e| Error::Archive(format!("recording write {entry_name}: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
+/// Stream-decrypt a `.lfsr` file under `db_key` and reassemble the
+/// plaintext asciinema events into a `.cast`-shaped byte buffer.
+/// The reader's `LfsrFrameIter` yields one JSON-Lines record per
+/// decoded frame, header included; we restore the trailing newline
+/// the reader trims and concatenate. Returns the resulting bytes —
+/// suitable for direct write into the archive zip entry.
+fn decrypt_lfsr_to_cast_bytes(
+    lfsr_path: &std::path::Path,
+    db_key: &[u8; 32],
+) -> Result<Vec<u8>, Error> {
+    let iter = crate::recorder::reader::open_lfsr_iter(lfsr_path, *db_key)
+        .map_err(|e| Error::Archive(format!("lfsr open {}: {e}", lfsr_path.display())))?;
+    let mut out: Vec<u8> = Vec::new();
+    for record in iter {
+        let line = record
+            .map_err(|e| Error::Archive(format!("lfsr frame {}: {e}", lfsr_path.display())))?;
+        out.extend_from_slice(line.as_bytes());
+        out.push(b'\n');
+    }
+    Ok(out)
 }
 
 fn write_manifest(
@@ -942,6 +1085,8 @@ mod tests {
             kdf_parallelism: 1,
             created_at_ms: 1_700_000_000_000, // 2023-11-14T22:13:20Z
             sync_origin: None,
+            recordings_root: None,
+            recording_db_key: None,
         }
     }
 

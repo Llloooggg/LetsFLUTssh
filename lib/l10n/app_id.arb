@@ -221,6 +221,7 @@
   "maxHistory": "Riwayat Maksimal",
   "calculateFolderSizes": "Hitung Ukuran Folder",
   "exportData": "Ekspor Data",
+  "exportRecordings": "Rekaman Sesi",
   "sshConfigPreviewHostsFound": "{count} host ditemukan",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

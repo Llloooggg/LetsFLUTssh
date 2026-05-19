@@ -428,6 +428,11 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            // Recordings travel only inside the `.lfs` archive
+            // pipeline (binary payloads, MB-scale per recording);
+            // QR / paste-link envelopes are bandwidth-bound and
+            // skip them entirely.
+            recordings: Vec::new(),
         },
         schema_version: version,
     })

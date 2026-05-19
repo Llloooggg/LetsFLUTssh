@@ -22,6 +22,14 @@ class UnifiedExportDialogData {
   /// All snippets for size calculation and export.
   final List<Snippet> snippets;
 
+  /// Pre-measured `<appSupport>/recordings/` total. Resolved by the
+  /// caller (Rust hop is async, the controller's size getters are
+  /// sync) and held here so the Recordings checkbox row can render
+  /// the byte total without an extra round-trip on every rebuild.
+  /// Defaults to 0 — call sites that don't expose recordings pass
+  /// nothing.
+  final int recordingsBytes;
+
   const UnifiedExportDialogData({
     required this.sessions,
     required this.emptyFolders,
@@ -29,6 +37,7 @@ class UnifiedExportDialogData {
     this.knownHostsContent,
     this.tags = const [],
     this.snippets = const [],
+    this.recordingsBytes = 0,
   });
 }
 

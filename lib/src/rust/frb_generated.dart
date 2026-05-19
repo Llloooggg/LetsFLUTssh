@@ -26527,8 +26527,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbApplyOptions dco_decode_db_apply_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return DbApplyOptions(
       mode: dco_decode_db_import_mode(arr[0]),
       applySessions: dco_decode_bool(arr[1]),
@@ -26536,6 +26536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       applyTags: dco_decode_bool(arr[3]),
       applySnippets: dco_decode_bool(arr[4]),
       applyKnownHosts: dco_decode_bool(arr[5]),
+      applyRecordings: dco_decode_bool(arr[6]),
     );
   }
 
@@ -26850,8 +26851,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbExportOptions dco_decode_db_export_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return DbExportOptions(
       includeSessions: dco_decode_bool(arr[0]),
       includeKnownHosts: dco_decode_bool(arr[1]),
@@ -26860,6 +26861,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       includeSnippets: dco_decode_bool(arr[4]),
       includeAllManagerKeys: dco_decode_bool(arr[5]),
       hasManagerKeys: dco_decode_bool(arr[6]),
+      includeRecordings: dco_decode_bool(arr[7]),
     );
   }
 
@@ -27085,8 +27087,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbImportPreview dco_decode_db_import_preview(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return DbImportPreview(
       schemaVersion: dco_decode_i_64(arr[0]),
       sessionCount: dco_decode_i_64(arr[1]),
@@ -27097,6 +27099,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       emptyFolderCount: dco_decode_i_64(arr[6]),
       hasConfig: dco_decode_bool(arr[7]),
       hasKnownHosts: dco_decode_bool(arr[8]),
+      recordingCount: dco_decode_i_64(arr[9]),
     );
   }
 
@@ -31599,6 +31602,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_applyTags = sse_decode_bool(deserializer);
     var var_applySnippets = sse_decode_bool(deserializer);
     var var_applyKnownHosts = sse_decode_bool(deserializer);
+    var var_applyRecordings = sse_decode_bool(deserializer);
     return DbApplyOptions(
       mode: var_mode,
       applySessions: var_applySessions,
@@ -31606,6 +31610,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       applyTags: var_applyTags,
       applySnippets: var_applySnippets,
       applyKnownHosts: var_applyKnownHosts,
+      applyRecordings: var_applyRecordings,
     );
   }
 
@@ -31986,6 +31991,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_includeSnippets = sse_decode_bool(deserializer);
     var var_includeAllManagerKeys = sse_decode_bool(deserializer);
     var var_hasManagerKeys = sse_decode_bool(deserializer);
+    var var_includeRecordings = sse_decode_bool(deserializer);
     return DbExportOptions(
       includeSessions: var_includeSessions,
       includeKnownHosts: var_includeKnownHosts,
@@ -31994,6 +32000,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       includeSnippets: var_includeSnippets,
       includeAllManagerKeys: var_includeAllManagerKeys,
       hasManagerKeys: var_hasManagerKeys,
+      includeRecordings: var_includeRecordings,
     );
   }
 
@@ -32230,6 +32237,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_emptyFolderCount = sse_decode_i_64(deserializer);
     var var_hasConfig = sse_decode_bool(deserializer);
     var var_hasKnownHosts = sse_decode_bool(deserializer);
+    var var_recordingCount = sse_decode_i_64(deserializer);
     return DbImportPreview(
       schemaVersion: var_schemaVersion,
       sessionCount: var_sessionCount,
@@ -32240,6 +32248,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       emptyFolderCount: var_emptyFolderCount,
       hasConfig: var_hasConfig,
       hasKnownHosts: var_hasKnownHosts,
+      recordingCount: var_recordingCount,
     );
   }
 
@@ -38035,6 +38044,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.applyTags, serializer);
     sse_encode_bool(self.applySnippets, serializer);
     sse_encode_bool(self.applyKnownHosts, serializer);
+    sse_encode_bool(self.applyRecordings, serializer);
   }
 
   @protected
@@ -38358,6 +38368,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.includeSnippets, serializer);
     sse_encode_bool(self.includeAllManagerKeys, serializer);
     sse_encode_bool(self.hasManagerKeys, serializer);
+    sse_encode_bool(self.includeRecordings, serializer);
   }
 
   @protected
@@ -38573,6 +38584,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.emptyFolderCount, serializer);
     sse_encode_bool(self.hasConfig, serializer);
     sse_encode_bool(self.hasKnownHosts, serializer);
+    sse_encode_i_64(self.recordingCount, serializer);
   }
 
   @protected

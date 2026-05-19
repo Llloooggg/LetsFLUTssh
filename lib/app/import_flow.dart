@@ -69,6 +69,7 @@ class ImportFlowSeams {
     required bool applyTags,
     required bool applySnippets,
     required bool applyKnownHosts,
+    required bool applyRecordings,
     Future<void> Function()? refreshAfterImport,
   })
   applyHandle;
@@ -193,6 +194,10 @@ Future<ImportSummary> _applyRustQrSource({
     applyTags: choice.options.includeTags,
     applySnippets: choice.options.includeSnippets,
     applyKnownHosts: choice.options.includeKnownHosts,
+    // QR / paste-link payloads never carry a recordings tree —
+    // only the `.lfs` composer bundles them. Pass false so the
+    // Rust side skips the filesystem-apply step entirely.
+    applyRecordings: false,
     refreshAfterImport: () => _refreshStores(ref),
   );
   // Config restore stays Dart-side — `lfs_core::archive::apply`
@@ -305,6 +310,11 @@ Future<void> showLfsImportDialog(
       applyTags: true,
       applySnippets: true,
       applyKnownHosts: opened.preview.hasKnownHosts,
+      // `.lfs` archive may carry a `recordings/` tree; let the
+      // Rust apply step extract it after the DB transaction
+      // commits. The LFS import dialog has no per-component
+      // toggles today — receiver gets everything in the archive.
+      applyRecordings: opened.preview.recordingCount > 0,
       refreshAfterImport: () => _refreshStores(ref),
     );
     handleId = null; // consumed by apply on success

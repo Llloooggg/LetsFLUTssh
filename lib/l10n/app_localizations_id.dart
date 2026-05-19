@@ -771,6 +771,9 @@ class SId extends S {
   String get exportData => 'Ekspor Data';
 
   @override
+  String get exportRecordings => 'Rekaman Sesi';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host ditemukan';
   }

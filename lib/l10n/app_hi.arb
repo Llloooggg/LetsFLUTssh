@@ -221,6 +221,7 @@
   "maxHistory": "अधिकतम इतिहास",
   "calculateFolderSizes": "फ़ोल्डर आकार गणना करें",
   "exportData": "डेटा निर्यात करें",
+  "exportRecordings": "सेशन रिकॉर्डिंग",
   "sshConfigPreviewHostsFound": "{count} होस्ट मिले",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

@@ -221,6 +221,7 @@
   "maxHistory": "Histórico Máximo",
   "calculateFolderSizes": "Calcular Tamanho das Pastas",
   "exportData": "Exportar Dados",
+  "exportRecordings": "Gravações de sessão",
   "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts encontrados} =1{1 host encontrado} other{{count} hosts encontrados}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

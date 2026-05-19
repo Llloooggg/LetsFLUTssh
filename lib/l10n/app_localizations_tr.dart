@@ -771,6 +771,9 @@ class STr extends S {
   String get exportData => 'Veriyi Dışa Aktar';
 
   @override
+  String get exportRecordings => 'Oturum Kayıtları';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host bulundu';
   }

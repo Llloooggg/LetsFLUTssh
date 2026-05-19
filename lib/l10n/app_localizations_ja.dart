@@ -761,6 +761,9 @@ class SJa extends S {
   String get exportData => 'データをエクスポート';
 
   @override
+  String get exportRecordings => 'セッション録画';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count 件のホストが見つかりました';
   }

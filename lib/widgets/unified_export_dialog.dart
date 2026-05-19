@@ -314,6 +314,18 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           () => _ctrl.setIncludeSnippets(!opts.includeSnippets),
           UnifiedExportController.formatSize(_ctrl.snippetsSize),
         ),
+        // Recordings live on the filesystem under `<appSupport>/recordings/`,
+        // not in `letsflutssh.db`; the QR composer does not bundle them.
+        // Hide the row in QR mode and when the folder is empty, matching
+        // the knownHosts / tags row guards above.
+        if (!widget.isQrMode && _ctrl.recordingsSize > 0)
+          _buildCheckboxRow(
+            Icons.fiber_manual_record_outlined,
+            s.exportRecordings,
+            opts.includeRecordings,
+            () => _ctrl.setIncludeRecordings(!opts.includeRecordings),
+            UnifiedExportController.formatSize(_ctrl.recordingsSize),
+          ),
       ],
     );
   }

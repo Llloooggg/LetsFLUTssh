@@ -43,6 +43,7 @@ pub struct DbExportOptions {
     pub include_snippets: bool,
     pub include_all_manager_keys: bool,
     pub has_manager_keys: bool,
+    pub include_recordings: bool,
 }
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB
@@ -80,39 +81,7 @@ pub struct DbExportInput {
 /// Atomicity lives Rust-side end-to-end; Dart callers do **not**
 /// re-implement tmp + write + rename on top.
 pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Result<i64, String> {
-    let core_input = ExportInput {
-        options: ExportOptions {
-            include_sessions: input.options.include_sessions,
-            include_known_hosts: input.options.include_known_hosts,
-            include_config: input.options.include_config,
-            include_tags: input.options.include_tags,
-            include_snippets: input.options.include_snippets,
-            include_all_manager_keys: input.options.include_all_manager_keys,
-            has_manager_keys: input.options.has_manager_keys,
-        },
-        selected_session_ids: input.selected_session_ids,
-        selected_empty_folders: input.selected_empty_folders,
-        config_json: input.config_json,
-        schema_version: input.schema_version,
-        app_version: input.app_version,
-        master_password: if input.master_password.is_empty() {
-            None
-        } else {
-            Some(String::from_utf8(input.master_password).map_err(|_| {
-                crate::api::frb_err::wire(
-                    crate::api::frb_err::kind::AUTH_OTHER,
-                    "master_password is not valid UTF-8",
-                )
-            })?)
-        },
-        kdf_memory_kib: input.kdf_memory_kib,
-        kdf_iterations: input.kdf_iterations,
-        kdf_parallelism: input.kdf_parallelism,
-        created_at_ms: input.created_at_ms,
-        // Manual exports do not stamp `sync_origin` — the
-        // orchestrator does that on its own push path.
-        sync_origin: None,
-    };
+    let core_input = build_core_export_input(input)?;
 
     tokio::task::spawn_blocking(move || -> Result<i64, String> {
         let db = require_db()?;
@@ -150,7 +119,36 @@ pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Res
 /// user reaches the password prompt.
 #[flutter_rust_bridge::frb(sync)]
 pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
-    let core_input = ExportInput {
+    let core_input = build_core_export_input(input)?;
+    let db = require_db()?;
+    db.with_conn(|c| export_archive_size(c, &core_input))
+        .map_err(|e| crate::api::frb_err::from_core(&e))
+}
+
+/// Shared FRB → core translator for both the export-bytes and
+/// export-size paths. Both reach for the same source data
+/// (selected sessions, config JSON, KDF cost knobs) AND the same
+/// recordings-section inputs (root + active DB key from
+/// `app::instance()`); centralising the conversion keeps the two
+/// surfaces from drifting on a future field add.
+fn build_core_export_input(input: DbExportInput) -> Result<ExportInput, String> {
+    // Recordings root + DB key are pulled from the running app
+    // singleton — they're not user-controlled inputs the dialog
+    // could lie about. When the option is off, both stay None so
+    // `build_zip` short-circuits before touching the filesystem.
+    let (recordings_root, recording_db_key) = if input.options.include_recordings {
+        let app = lfs_core::app::instance();
+        let root = app.support_dir().ok().map(|d| d.join("recordings"));
+        let key_arr: Option<[u8; 32]> =
+            match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+                Some(k) if !k.is_empty() => k.as_slice().try_into().ok(),
+                _ => None,
+            };
+        (root, key_arr)
+    } else {
+        (None, None)
+    };
+    Ok(ExportInput {
         options: ExportOptions {
             include_sessions: input.options.include_sessions,
             include_known_hosts: input.options.include_known_hosts,
@@ -159,6 +157,7 @@ pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
             include_snippets: input.options.include_snippets,
             include_all_manager_keys: input.options.include_all_manager_keys,
             has_manager_keys: input.options.has_manager_keys,
+            include_recordings: input.options.include_recordings,
         },
         selected_session_ids: input.selected_session_ids,
         selected_empty_folders: input.selected_empty_folders,
@@ -179,13 +178,12 @@ pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
         kdf_iterations: input.kdf_iterations,
         kdf_parallelism: input.kdf_parallelism,
         created_at_ms: input.created_at_ms,
-        // Manual exports do not stamp `sync_origin` — see the
-        // matching note above on `db_export_archive`.
+        // Manual exports do not stamp `sync_origin` — the sync
+        // orchestrator owns that field on its push path.
         sync_origin: None,
-    };
-    let db = require_db()?;
-    db.with_conn(|c| export_archive_size(c, &core_input))
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        recordings_root,
+        recording_db_key,
+    })
 }
 
 /// Mirror of `QrExportOptions` over the FRB boundary.
@@ -289,6 +287,7 @@ pub struct DbImportPreview {
     pub empty_folder_count: i64,
     pub has_config: bool,
     pub has_known_hosts: bool,
+    pub recording_count: i64,
 }
 
 impl From<lfs_core::archive::ImportPreview> for DbImportPreview {
@@ -303,6 +302,7 @@ impl From<lfs_core::archive::ImportPreview> for DbImportPreview {
             empty_folder_count: p.empty_folder_count,
             has_config: p.has_config,
             has_known_hosts: p.has_known_hosts,
+            recording_count: p.recording_count,
         }
     }
 }
@@ -502,6 +502,10 @@ pub async fn db_import_stage(input: DbStagedImport) -> Result<String, String> {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            // Same rationale as the v3-only child tables above —
+            // staged-import callers (QR / paste-link / OpenSSH-
+            // config) stay on the bandwidth-bound subset.
+            recordings: Vec::new(),
         };
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();
@@ -552,6 +556,7 @@ pub struct DbApplyOptions {
     pub apply_tags: bool,
     pub apply_snippets: bool,
     pub apply_known_hosts: bool,
+    pub apply_recordings: bool,
 }
 
 /// Counters returned by [`db_import_apply`]. Mirrors
@@ -621,6 +626,7 @@ pub async fn db_import_apply(
         apply_tags: options.apply_tags,
         apply_snippets: options.apply_snippets,
         apply_known_hosts: options.apply_known_hosts,
+        apply_recordings: options.apply_recordings,
     };
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
@@ -635,6 +641,30 @@ pub async fn db_import_apply(
                 lfs_core::archive::apply_pending_import(c, &pending, &core_options, created_at_ms)
             })
             .map_err(|e| crate::api::frb_err::from_core(&e))?;
+        // Recordings extraction is filesystem-only (no DB rows
+        // change), so it runs OUTSIDE the DB transaction the
+        // sessions / keys / tags apply just committed. Errors land
+        // in the FRB outer Result rather than per-entry strings —
+        // the recordings tree is bounded + writes are atomic, so a
+        // top-level failure is "disk full / permission denied"
+        // territory, not "one bad row in 500".
+        if options.apply_recordings && !pending.recordings.is_empty() {
+            let recordings_root = app
+                .support_dir()
+                .map(|d| d.join("recordings"))
+                .map_err(|e| crate::api::frb_err::from_core(&e))?;
+            let active_key: Option<[u8; 32]> =
+                match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+                    Some(k) if !k.is_empty() => k.as_slice().try_into().ok(),
+                    _ => None,
+                };
+            lfs_core::archive::apply_recordings_to_filesystem(
+                &pending,
+                &recordings_root,
+                active_key.as_ref(),
+            )
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
+        }
         let mut frb_result = DbApplyResult::from(result);
         frb_result.config_json = staged_config_json;
         // Apply mutates `sessions` / `ssh_keys` / `known_hosts` /
@@ -704,6 +734,7 @@ mod tests {
             empty_folder_count: 1,
             has_config: true,
             has_known_hosts: false,
+            recording_count: 0,
         };
         let db: DbImportPreview = core.into();
         assert_eq!(db.schema_version, 4);

@@ -779,6 +779,9 @@ class SRu extends S {
   String get exportData => 'Экспорт данных';
 
   @override
+  String get exportRecordings => 'Записи сессий';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'Найдено хостов: $count';
   }

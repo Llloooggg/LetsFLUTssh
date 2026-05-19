@@ -180,6 +180,13 @@ pub struct ApplyOptions {
     pub apply_tags: bool,
     pub apply_snippets: bool,
     pub apply_known_hosts: bool,
+    /// True → write every `.cast` entry from the archive's
+    /// `recordings/` directory under
+    /// `<recordings_root>/imported/<session_id>/<file_name>` via
+    /// [`apply_recordings_to_filesystem`]. False skips the
+    /// extraction even if the staged `PendingImport.recordings`
+    /// is non-empty.
+    pub apply_recordings: bool,
 }
 
 /// Aggregate counters the apply driver returns. `errors` carries
@@ -1831,6 +1838,134 @@ fn apply_port_forward_rules(
 /// of the dedup compare reading the same hash. Empty input →
 /// empty fingerprint so missing-public-key rows do not
 /// false-match the dedup set.
+/// Outcome of a recordings extraction. Mirrors the per-kind
+/// `applied` counters on [`ApplyResult`] without sneaking onto
+/// that struct — recordings land on the filesystem, not the DB,
+/// and a downstream consumer that cares only about the DB delta
+/// should not have to look at this field.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RecordingApplyOutcome {
+    /// Number of `.cast` files written under
+    /// `<recordings_root>/imported/<session_id>/`.
+    pub written: u32,
+    /// Number of files skipped because the destination already
+    /// existed — re-importing the same archive a second time
+    /// does not overwrite a recording the user may have already
+    /// edited locally.
+    pub skipped: u32,
+    /// Number of `.cast` files the post-extract sweep promoted
+    /// to `.lfsr` under the receiver's active DB key (T1 / T2
+    /// tier). `0` on the plaintext tier.
+    pub promoted_to_lfsr: u32,
+}
+
+/// Extract every `recordings/<session_id>/<file_name>` entry the
+/// archive carried into
+/// `<recordings_root>/imported/<session_id>/<file_name>`. Existing
+/// destination files are skipped (the import is idempotent on
+/// re-run + does not stomp a recording the user may have edited
+/// locally). Each write goes through `<dest>.tmp.<rand>` + atomic
+/// rename so a crashed extract leaves either the old file or the
+/// new one — never a torn write.
+///
+/// When `db_key` is `Some(...)`, the imported subtree is then
+/// run through
+/// [`crate::recorder::migrate::convert_all_cast_to_lfsr`] so the
+/// receiver's recordings live under the same tier discipline as
+/// the rest of the local tree. On plaintext tier (`db_key =
+/// None`) the recordings stay as `.cast` and the receiver can
+/// promote them later by enabling the master password.
+pub fn apply_recordings_to_filesystem(
+    pending: &PendingImport,
+    recordings_root: &std::path::Path,
+    db_key: Option<&[u8; 32]>,
+) -> Result<RecordingApplyOutcome, Error> {
+    if pending.recordings.is_empty() {
+        return Ok(RecordingApplyOutcome::default());
+    }
+    let imported_root = recordings_root.join("imported");
+    let mut outcome = RecordingApplyOutcome::default();
+    for rec in &pending.recordings {
+        if !is_safe_segment(&rec.session_id) || !is_safe_segment(&rec.file_name) {
+            crate::app_log_warn!(
+                "ArchiveImport",
+                "skip recording with unsafe path: session={} file={}",
+                rec.session_id,
+                rec.file_name
+            );
+            continue;
+        }
+        let session_dir = imported_root.join(&rec.session_id);
+        std::fs::create_dir_all(&session_dir).map_err(|e| {
+            Error::Archive(format!("recordings mkdir {}: {e}", session_dir.display()))
+        })?;
+        let dest = session_dir.join(&rec.file_name);
+        if dest.exists() {
+            outcome.skipped = outcome.skipped.saturating_add(1);
+            continue;
+        }
+        let tmp = atomic_tmp_path(&dest);
+        std::fs::write(&tmp, &rec.bytes)
+            .map_err(|e| Error::Archive(format!("recordings tmp write {}: {e}", tmp.display())))?;
+        if let Err(msg) = crate::path::harden_file_perms(&tmp) {
+            crate::app_log_warn!(
+                "ArchiveImport",
+                "recordings tmp harden {}: {msg}",
+                tmp.display()
+            );
+        }
+        std::fs::rename(&tmp, &dest).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            Error::Archive(format!("recordings rename {}: {e}", dest.display()))
+        })?;
+        outcome.written = outcome.written.saturating_add(1);
+    }
+    // T1 / T2 receiver: promote the just-extracted `.cast` files
+    // to `.lfsr` under the active DB key so they match the rest
+    // of the recordings tree's tier discipline. Plaintext tier
+    // skips this step — recordings stay as `.cast`.
+    if let Some(key) = db_key {
+        if imported_root.is_dir() {
+            let migrate_outcome =
+                crate::recorder::migrate::convert_all_cast_to_lfsr(&imported_root, key)?;
+            outcome.promoted_to_lfsr = migrate_outcome.cast_to_lfsr;
+        }
+    }
+    Ok(outcome)
+}
+
+/// `<dest>.tmp.<pid>.<nanos>` scratch path. Matches the discipline
+/// the recordings migration helper uses for its own atomic writes.
+fn atomic_tmp_path(dest: &std::path::Path) -> std::path::PathBuf {
+    let pid = std::process::id();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let parent = dest.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let name = dest
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("recording");
+    parent.join(format!("{name}.tmp.{pid}.{nanos:x}"))
+}
+
+/// Reject path segments that could escape the `imported/` root
+/// (`.` / `..` / embedded separators). The archive parser already
+/// runs the same check in [`super::parse_recording_entry_path`];
+/// the duplication here defends against a hand-crafted
+/// `PendingImport` reaching `apply_recordings_to_filesystem`
+/// directly (today only the parse path produces one, but the
+/// public API does not gate on that).
+fn is_safe_segment(s: &str) -> bool {
+    !s.is_empty()
+        && s != "."
+        && s != ".."
+        && !s.contains('/')
+        && !s.contains('\\')
+        && !s.contains('\0')
+}
+
 fn key_pub_fingerprint(s: &str) -> String {
     use sha2::{Digest, Sha256};
     let normalised = s.replace("\r\n", "\n");
@@ -1870,6 +2005,7 @@ mod tests {
             apply_tags: true,
             apply_snippets: true,
             apply_known_hosts: true,
+            apply_recordings: false,
         }
     }
 
@@ -1891,6 +2027,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         }
     }
 

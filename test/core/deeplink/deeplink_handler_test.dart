@@ -320,6 +320,7 @@ void main() {
           emptyFolderCount: 0,
           hasConfig: false,
           hasKnownHosts: false,
+          recordingCount: 0,
         );
 
     late DeepLinkHandler handler;

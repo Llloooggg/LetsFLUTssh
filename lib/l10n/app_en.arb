@@ -449,6 +449,7 @@
   "maxHistory": "Max History",
   "calculateFolderSizes": "Calculate Folder Sizes",
   "exportData": "Export Data",
+  "exportRecordings": "Session recordings",
   "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts found} =1{1 host found} other{{count} hosts found}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

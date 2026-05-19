@@ -758,6 +758,9 @@ class SZh extends S {
   String get exportData => '导出数据';
 
   @override
+  String get exportRecordings => '会话录制';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '找到 $count 个主机';
   }

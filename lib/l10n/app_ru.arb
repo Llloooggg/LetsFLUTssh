@@ -221,6 +221,7 @@
   "maxHistory": "Макс. история",
   "calculateFolderSizes": "Вычислять размеры папок",
   "exportData": "Экспорт данных",
+  "exportRecordings": "Записи сессий",
   "sshConfigPreviewHostsFound": "Найдено хостов: {count}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

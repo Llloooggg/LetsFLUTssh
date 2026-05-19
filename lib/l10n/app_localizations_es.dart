@@ -808,6 +808,9 @@ class SEs extends S {
   String get exportData => 'Exportar datos';
 
   @override
+  String get exportRecordings => 'Grabaciones de sesión';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

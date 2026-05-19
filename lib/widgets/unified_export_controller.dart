@@ -251,6 +251,7 @@ class UnifiedExportController extends ChangeNotifier {
           includeSnippets: _options.includeSnippets,
           includeAllManagerKeys: _options.includeAllManagerKeys,
           hasManagerKeys: _options.hasManagerKeys,
+          includeRecordings: _options.includeRecordings,
         ),
         selectedSessionIds: selectedIds,
         selectedEmptyFolders: relevantEmptyFolders.toList(growable: false),
@@ -433,6 +434,19 @@ class UnifiedExportController extends ChangeNotifier {
     );
   }
 
+  /// Total `<appSupport>/recordings/` size — drives the per-row
+  /// label on the Recordings checkbox so the user sees the
+  /// archive's true cost before ticking it on. Pre-measured by the
+  /// caller (the Rust getter is async) and threaded in via
+  /// [UnifiedExportDialogData.recordingsBytes], same number the
+  /// Settings → Data → Recordings tile shows.
+  ///
+  /// The estimate is the on-disk total; the compose path decrypts
+  /// `.lfsr` to plaintext `.cast` (typically smaller because GCM
+  /// tags + per-file-header overhead drop), so the actual archive
+  /// delta sits at or below this number.
+  int get recordingsSize => data.recordingsBytes;
+
   bool? isFolderPartial(String folderPath) {
     final folderSessionIds = data.sessions
         .where(
@@ -457,7 +471,8 @@ class UnifiedExportController extends ChangeNotifier {
         _options.includeManagerKeys == preset.includeManagerKeys &&
         _options.includeAllManagerKeys == preset.includeAllManagerKeys &&
         _options.includeTags == preset.includeTags &&
-        _options.includeSnippets == preset.includeSnippets;
+        _options.includeSnippets == preset.includeSnippets &&
+        _options.includeRecordings == preset.includeRecordings;
   }
 
   // ---- Mutations -----------------------------------------------------
@@ -546,6 +561,9 @@ class UnifiedExportController extends ChangeNotifier {
   void setIncludeSnippets(bool value) =>
       _updateOptions((o) => o.withIncludeSnippets(value));
 
+  void setIncludeRecordings(bool value) =>
+      _updateOptions((o) => o.withIncludeRecordings(value));
+
   void _updateOptions(ExportOptions Function(ExportOptions) f) {
     _invalidatePayloadCache();
     _options = f(_options);
@@ -582,6 +600,7 @@ class UnifiedExportController extends ChangeNotifier {
     includeKnownHosts: true,
     includeTags: true,
     includeSnippets: true,
+    includeRecordings: true,
   );
 
   static const _fullBackupPreset = ExportOptions(
@@ -593,6 +612,7 @@ class UnifiedExportController extends ChangeNotifier {
     includeAllManagerKeys: true,
     includeTags: true,
     includeSnippets: true,
+    includeRecordings: true,
   );
 
   static const _sessionsPreset = ExportOptions(

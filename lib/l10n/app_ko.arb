@@ -221,6 +221,7 @@
   "maxHistory": "최대 기록 수",
   "calculateFolderSizes": "폴더 크기 계산",
   "exportData": "데이터 내보내기",
+  "exportRecordings": "세션 녹화",
   "sshConfigPreviewHostsFound": "호스트 {count}개를 찾았습니다",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

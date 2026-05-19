@@ -40,6 +40,15 @@ class ExportOptions {
   /// Snippets and their session links.
   final bool includeSnippets;
 
+  /// Session recordings under `<appSupport>/recordings/`. When on,
+  /// the Rust archive composer walks the recordings tree, decrypts
+  /// `.lfsr` files with the active DB key (so the receiver does
+  /// not need the sender's key to play them back), and bundles
+  /// every recording into the archive as a plaintext `.cast` entry.
+  /// Empty default — recordings can be MBs each, so the user
+  /// opts in explicitly.
+  final bool includeRecordings;
+
   const ExportOptions({
     this.includeSessions = true,
     this.includeConfig = true,
@@ -50,6 +59,7 @@ class ExportOptions {
     this.includeAllManagerKeys = false,
     this.includeTags = false,
     this.includeSnippets = false,
+    this.includeRecordings = false,
   });
 
   /// Whether any manager key mode is enabled.
@@ -65,6 +75,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeConfig(bool v) => ExportOptions(
@@ -77,6 +88,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeKnownHosts(bool v) => ExportOptions(
@@ -89,6 +101,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludePasswords(bool v) => ExportOptions(
@@ -101,6 +114,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeEmbeddedKeys(bool v) => ExportOptions(
@@ -113,6 +127,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeManagerKeys(bool v) => ExportOptions(
@@ -125,6 +140,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeAllManagerKeys(bool v) => ExportOptions(
@@ -137,6 +153,7 @@ class ExportOptions {
     includeAllManagerKeys: v,
     includeTags: includeTags,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeTags(bool v) => ExportOptions(
@@ -149,6 +166,7 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: v,
     includeSnippets: includeSnippets,
+    includeRecordings: includeRecordings,
   );
 
   ExportOptions withIncludeSnippets(bool v) => ExportOptions(
@@ -161,6 +179,20 @@ class ExportOptions {
     includeAllManagerKeys: includeAllManagerKeys,
     includeTags: includeTags,
     includeSnippets: v,
+    includeRecordings: includeRecordings,
+  );
+
+  ExportOptions withIncludeRecordings(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+    includeRecordings: v,
   );
 
   /// True when at least one *standalone* entity is selected. Used to gate the
@@ -179,7 +211,8 @@ class ExportOptions {
       includeKnownHosts ||
       includeAllManagerKeys ||
       includeTags ||
-      includeSnippets;
+      includeSnippets ||
+      includeRecordings;
 
   @override
   bool operator ==(Object other) =>
@@ -193,7 +226,8 @@ class ExportOptions {
           includeManagerKeys == other.includeManagerKeys &&
           includeAllManagerKeys == other.includeAllManagerKeys &&
           includeTags == other.includeTags &&
-          includeSnippets == other.includeSnippets;
+          includeSnippets == other.includeSnippets &&
+          includeRecordings == other.includeRecordings;
 
   @override
   int get hashCode => Object.hash(
@@ -206,6 +240,7 @@ class ExportOptions {
     includeAllManagerKeys,
     includeTags,
     includeSnippets,
+    includeRecordings,
   );
 }
 

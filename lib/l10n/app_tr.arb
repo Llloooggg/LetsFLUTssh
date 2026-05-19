@@ -221,6 +221,7 @@
   "maxHistory": "Maks Geçmiş",
   "calculateFolderSizes": "Klasör Boyutlarını Hesapla",
   "exportData": "Veriyi Dışa Aktar",
+  "exportRecordings": "Oturum Kayıtları",
   "sshConfigPreviewHostsFound": "{count} host bulundu",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

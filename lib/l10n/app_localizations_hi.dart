@@ -769,6 +769,9 @@ class SHi extends S {
   String get exportData => 'डेटा निर्यात करें';
 
   @override
+  String get exportRecordings => 'सेशन रिकॉर्डिंग';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count होस्ट मिले';
   }

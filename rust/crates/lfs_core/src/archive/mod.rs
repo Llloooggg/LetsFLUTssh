@@ -58,8 +58,9 @@ pub mod probe;
 pub mod qr_compose;
 
 pub use apply::{
-    apply_pending_import, apply_pending_import_merge, apply_pending_to_db, ApplyMode, ApplyOptions,
-    ApplyOutcome, ApplyResult, ImportMode,
+    apply_pending_import, apply_pending_import_merge, apply_pending_to_db,
+    apply_recordings_to_filesystem, ApplyMode, ApplyOptions, ApplyOutcome, ApplyResult, ImportMode,
+    RecordingApplyOutcome,
 };
 pub use compose::{export_archive, export_archive_size, ExportInput, ExportOptions};
 pub use envelope::decrypt_archive_with_password;
@@ -166,6 +167,11 @@ pub struct ImportPreview {
     pub empty_folder_count: i64,
     pub has_config: bool,
     pub has_known_hosts: bool,
+    /// Number of `.cast` recordings the archive carried. The preview
+    /// dialog renders this as a "X recordings" line so the user
+    /// sees the upcoming write into `<support>/recordings/imported/`
+    /// before approving the apply.
+    pub recording_count: i64,
 }
 
 /// Decrypted-but-not-yet-applied import. Held inside the registry
@@ -204,6 +210,27 @@ pub struct PendingImport {
     /// Local / Remote / Dynamic port-forward rules
     /// (`port_forward_rules`). v3+.
     pub port_forward_rules_json: Option<String>,
+    /// Plaintext `.cast` recordings the archive shipped. Bundled
+    /// when the sender ticked the "Recordings" checkbox in the
+    /// export dialog. Apply step writes each entry to
+    /// `<support>/recordings/imported/<session_id>/<file_name>`
+    /// and (when the receiver has an active DB key) re-encrypts
+    /// them via [`crate::recorder::migrate::convert_all_cast_to_lfsr`]
+    /// so the local tier discipline matches every other file
+    /// under the recordings root. Empty `Vec` when the archive
+    /// did not ship recordings.
+    pub recordings: Vec<PendingRecording>,
+}
+
+/// One recording carried by an `.lfs` archive. The `bytes` payload
+/// is asciinema-v2 plaintext (`.cast`); encrypted senders decrypt
+/// at compose time so the receiver can play / re-encrypt without
+/// needing the sender's DB key.
+#[derive(Debug, Clone)]
+pub struct PendingRecording {
+    pub session_id: String,
+    pub file_name: String,
+    pub bytes: Vec<u8>,
 }
 
 impl PendingImport {
@@ -240,6 +267,7 @@ impl PendingImport {
                 .known_hosts_text
                 .as_deref()
                 .is_some_and(|s| !s.is_empty()),
+            recording_count: self.recordings.len() as i64,
         }
     }
 }
@@ -293,6 +321,60 @@ impl Default for ImportRegistry {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Decoded `recordings/<session_id>/<file_name>` zip entry path.
+/// Returned by [`parse_recording_entry_path`] when the entry sits
+/// under the recordings prefix; the caller binds the two segments
+/// straight into [`PendingRecording`].
+struct RecordingEntryPath {
+    session_id: String,
+    file_name: String,
+}
+
+/// Parse an `recordings/<session_id>/<file_name>` zip entry path.
+/// Returns `Some(...)` only when the path has exactly three
+/// forward-slash-separated segments starting with the `recordings`
+/// prefix and the session_id / file_name are safe (no `..`, no
+/// nested separators, non-empty). Anything else — sub-sub paths,
+/// embedded `..`, empty components — returns `None` and the caller
+/// drops the entry as unrecognised.
+///
+/// Path traversal defence: the apply step writes
+/// `<recordings_root>/imported/<session_id>/<file_name>`. Without
+/// the `..` reject, a hostile archive entry like
+/// `recordings/..%2F..%2Fetc%2Fpasswd/foo.cast` could escape the
+/// recordings tree. The `==` equality checks below collapse every
+/// such shape into `None`.
+fn parse_recording_entry_path(raw: &str) -> Option<RecordingEntryPath> {
+    let stripped = raw.strip_prefix("recordings/")?;
+    let parts: Vec<&str> = stripped.split('/').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+    let session_id = parts[0];
+    let file_name = parts[1];
+    if session_id.is_empty() || file_name.is_empty() {
+        return None;
+    }
+    if session_id == "." || session_id == ".." || session_id.contains('\\') {
+        return None;
+    }
+    if file_name == "." || file_name == ".." || file_name.contains('\\') {
+        return None;
+    }
+    // `.cast` only — encrypted senders decrypt at compose time so
+    // every recording inside the archive is plaintext asciinema.
+    // A stray `.lfsr` entry is a forward-compat shape we do not
+    // know how to handle yet; reject so the importer drops it via
+    // the unknown-entry log path.
+    if !file_name.to_ascii_lowercase().ends_with(".cast") {
+        return None;
+    }
+    Some(RecordingEntryPath {
+        session_id: session_id.to_string(),
+        file_name: file_name.to_string(),
+    })
 }
 
 /// Serialise the `known_hosts` table to the
@@ -390,6 +472,7 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
         s3_session_details_json: None,
         sftp_bookmarks_json: None,
         port_forward_rules_json: None,
+        recordings: Vec::new(),
     };
 
     for i in 0..zip.len() {
@@ -404,6 +487,28 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
         // `take(cap+1)` lets us catch the over-cap case as a
         // post-read length check without pre-allocating cap bytes.
         let cap = MAX_DECOMPRESSED_BYTES;
+        // Recording payloads use the `read_to_end` binary path so
+        // the entry's bytes survive UTF-8 sniffing intact — even
+        // though `.cast` files are valid UTF-8 by spec, going
+        // through `read_to_string` for every entry path adds an
+        // invariant the format does not enforce.
+        if let Some(rec) = parse_recording_entry_path(&name) {
+            let mut bytes: Vec<u8> = Vec::new();
+            std::io::Read::take(&mut entry, cap.saturating_add(1))
+                .read_to_end(&mut bytes)
+                .map_err(|e| Error::Archive(format!("import read {name}: {e}")))?;
+            if bytes.len() as u64 > cap {
+                return Err(Error::Archive(format!(
+                    "import zip entry {name}: decompressed size exceeds {cap}-byte cap (zip bomb?)"
+                )));
+            }
+            pending.recordings.push(PendingRecording {
+                session_id: rec.session_id,
+                file_name: rec.file_name,
+                bytes,
+            });
+            continue;
+        }
         let mut buf = String::new();
         std::io::Read::take(&mut entry, cap.saturating_add(1))
             .read_to_string(&mut buf)
@@ -555,6 +660,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         }
     }
 
@@ -786,6 +892,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         };
         assert_eq!(parse_sync_origin(&pending).as_deref(), Some("inst-1:42"));
     }
@@ -809,6 +916,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         };
         assert!(parse_sync_origin(&pending).is_none());
         pending.manifest_json = Some(r#"{"schema_version":2,"sync_origin":""}"#.into());

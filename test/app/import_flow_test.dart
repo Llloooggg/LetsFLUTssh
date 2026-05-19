@@ -32,6 +32,7 @@ class _CallLog {
       bool applyTags,
       bool applySnippets,
       bool applyKnownHosts,
+      bool applyRecordings,
       bool refreshProvided,
     })
   >
@@ -42,18 +43,21 @@ class _CallLog {
   int linkDialogShown = 0;
 }
 
-rust_archive.DbImportPreview _previewWith({bool hasKnownHosts = false}) =>
-    rust_archive.DbImportPreview(
-      schemaVersion: 1,
-      sessionCount: 1,
-      sessionLabels: const ['demo'],
-      managerKeyCount: 0,
-      tagCount: 0,
-      snippetCount: 0,
-      emptyFolderCount: 0,
-      hasConfig: false,
-      hasKnownHosts: hasKnownHosts,
-    );
+rust_archive.DbImportPreview _previewWith({
+  bool hasKnownHosts = false,
+  int recordingCount = 0,
+}) => rust_archive.DbImportPreview(
+  schemaVersion: 1,
+  sessionCount: 1,
+  sessionLabels: const ['demo'],
+  managerKeyCount: 0,
+  tagCount: 0,
+  snippetCount: 0,
+  emptyFolderCount: 0,
+  hasConfig: false,
+  hasKnownHosts: hasKnownHosts,
+  recordingCount: recordingCount,
+);
 
 rust_archive.DbApplyResult _applyResult({
   int sessions = 1,
@@ -114,6 +118,7 @@ ImportFlowSeams _seams({
           required applyTags,
           required applySnippets,
           required applyKnownHosts,
+          required applyRecordings,
           refreshAfterImport,
         }) async {
           log.applyCalls.add((
@@ -124,6 +129,7 @@ ImportFlowSeams _seams({
             applyTags: applyTags,
             applySnippets: applySnippets,
             applyKnownHosts: applyKnownHosts,
+            applyRecordings: applyRecordings,
             refreshProvided: refreshAfterImport != null,
           ));
           if (applyThrows != null) throw applyThrows;

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `support_dir`
+// These functions are ignored because they are not marked as `pub`: `plaintext_export_tmp_path`, `recordings_root_for_migrate`, `support_dir`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
 
 /// True when `credentials.kdf` exists under the pinned support
@@ -69,6 +69,13 @@ Future<Uint8List> masterPasswordEnable({
 ///
 /// Idempotent on `secret_id` collision: replaces any prior value at
 /// the same id (the previous `Zeroizing` buffer scrubs on drop).
+///
+/// Promotes any pre-existing `.cast` plaintext recordings to fresh
+/// `.lfsr` files wrapped under the new DB key — the `T0 → T1`
+/// transition would otherwise leave the recordings in plaintext
+/// forever. The promotion runs after the key lands in the secret
+/// store so the migration helper reads off the same slot the next
+/// `db_rekey_from_secret` will read.
 Future<void> masterPasswordEnableToSecret({
   required List<int> password,
   required DbKdfParams params,
@@ -118,9 +125,41 @@ Future<void> masterPasswordChangeToSecret({
   secretId: secretId,
 );
 
-/// Drop the KDF + verifier files. Caller is responsible for
-/// re-encrypting stores with a fresh random key + writing
-/// `credentials.key`.
+/// Full T1 → T0 transition. Drives every persistent artefact that
+/// currently lives under the active DB key back to a plaintext
+/// shape, in order:
+///
+/// 1. **Recordings.** `convert_all_lfsr_to_cast` decrypts each
+///    `.lfsr` body (under the current ACTIVE DB key) and writes a
+///    plaintext `.cast` next to it. Encrypted sidecars drop with
+///    the rename. Must happen while the active key is still in
+///    memory.
+/// 2. **SQLite DB.** `Db::export_plaintext_copy` writes a plaintext
+///    sqlite copy via `sqlcipher_export` next to the running
+///    encrypted file, then the helper closes the handle, deletes
+///    the encrypted DB + its `-wal` / `-shm` sidecars, renames the
+///    plaintext copy over the original path, and re-opens the DB
+///    unkeyed through `app::db_init`. The DB is plaintext from the
+///    next call onwards.
+/// 3. **Active DB-key slot.** Dropped from
+///    [`lfs_core::secrets::SecretStore`] — the plaintext DB needs
+///    no key, and lingering bytes in the slot would only feed an
+///    accidental future rekey path under the dead value.
+/// 4. **Password files.** `master_password::disable` removes
+///    `credentials.kdf` + `credentials.verifier` so the next
+///    launch sees no master-password installation and opens the
+///    DB without prompting.
+///
+/// On any failure the function aborts and propagates the error;
+/// the encrypted DB stays intact, the password files stay in
+/// place, and the user can retry after addressing the underlying
+/// issue (typically an out-of-disk during the sqlcipher_export
+/// step, or a stuck file handle holding the source DB open).
+///
+/// Sync FRB call so the entire transition runs on a single
+/// blocking thread — concurrent FRB calls serialise behind it via
+/// the FRB sync worker pool, which keeps a stale `db_*` request
+/// from racing with the rename / reopen window.
 void masterPasswordDisable() =>
     RustLib.instance.api.crateApiMasterPasswordMasterPasswordDisable();
 

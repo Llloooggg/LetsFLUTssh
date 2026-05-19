@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `recordings_root_for_migrate`
+
 /// Initialise the process-singleton AppState. Idempotent.
 Future<void> appInit() => RustLib.instance.api.crateApiAppAppInit();
 
@@ -136,6 +138,15 @@ Future<void> dbRekey({required List<int> newKey}) =>
 /// `db_rekey`: SQLCipher either re-encrypts every page under the
 /// new key or leaves the DB on the old key. Bytes never cross the
 /// FRB boundary.
+///
+/// Recordings rewrap runs BEFORE the `PRAGMA rekey`: every `.lfsr`
+/// file's 65-byte header is rewrapped from the current ACTIVE DB
+/// key to the staged new key (frame bodies and sidecars untouched
+/// — only the wrap rotates). On rewrap failure the function
+/// aborts before touching SQLite or the secret slots, so the
+/// caller can retry with the same secret_id without observing a
+/// partially-migrated state. On success the slot rename completes
+/// only after both PRAGMA rekey and the rewrap walk have landed.
 Future<void> dbRekeyFromSecret({required String secretId}) =>
     RustLib.instance.api.crateApiAppDbRekeyFromSecret(secretId: secretId);
 

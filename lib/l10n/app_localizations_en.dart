@@ -796,6 +796,9 @@ class SEn extends S {
   String get exportData => 'Export Data';
 
   @override
+  String get exportRecordings => 'Session recordings';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

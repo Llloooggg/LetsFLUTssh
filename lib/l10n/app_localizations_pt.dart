@@ -807,6 +807,9 @@ class SPt extends S {
   String get exportData => 'Exportar Dados';
 
   @override
+  String get exportRecordings => 'Gravações de sessão';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

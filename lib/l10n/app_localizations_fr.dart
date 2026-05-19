@@ -807,6 +807,9 @@ class SFr extends S {
   String get exportData => 'Exporter les données';
 
   @override
+  String get exportRecordings => 'Enregistrements de session';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

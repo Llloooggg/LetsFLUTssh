@@ -221,6 +221,7 @@
   "maxHistory": "最大履歴数",
   "calculateFolderSizes": "フォルダーサイズを計算",
   "exportData": "データをエクスポート",
+  "exportRecordings": "セッション録画",
   "sshConfigPreviewHostsFound": "{count} 件のホストが見つかりました",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

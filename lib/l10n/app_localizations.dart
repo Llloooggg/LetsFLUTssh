@@ -1473,6 +1473,12 @@ abstract class S {
   /// **'Export Data'**
   String get exportData;
 
+  /// No description provided for @exportRecordings.
+  ///
+  /// In en, this message translates to:
+  /// **'Session recordings'**
+  String get exportRecordings;
+
   /// No description provided for @sshConfigPreviewHostsFound.
   ///
   /// In en, this message translates to:

@@ -767,6 +767,9 @@ class SFa extends S {
   String get exportData => 'خروجی گرفتن از داده';
 
   @override
+  String get exportRecordings => 'ضبط‌های نشست';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count میزبان یافت شد';
   }

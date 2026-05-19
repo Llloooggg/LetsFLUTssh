@@ -803,6 +803,9 @@ class SDe extends S {
   String get exportData => 'Daten exportieren';
 
   @override
+  String get exportRecordings => 'Sitzungsaufzeichnungen';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

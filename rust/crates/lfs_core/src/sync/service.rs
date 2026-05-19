@@ -480,6 +480,14 @@ fn compose_archive(
             include_snippets: true,
             include_all_manager_keys: true,
             has_manager_keys: true,
+            // Sync push intentionally skips recordings: the WebDAV
+            // sync channel is for cross-device state replication
+            // (sessions / keys / tags / config), not for
+            // multi-hour terminal-output archives that would blow
+            // up every sync round-trip. Recordings travel only
+            // through user-initiated `.lfs` exports from the
+            // Data → Export dialog.
+            include_recordings: false,
         },
         selected_session_ids: session_ids,
         selected_empty_folders: Vec::new(),
@@ -498,6 +506,11 @@ fn compose_archive(
         ),
         created_at_ms: now_ms,
         sync_origin: Some(sync_origin.to_string()),
+        // Sync push never bundles recordings (see option flag
+        // comment above) — leave both source fields at their
+        // skip-recordings defaults.
+        recordings_root: None,
+        recording_db_key: None,
     };
 
     let bytes = db
@@ -715,6 +728,7 @@ mod tests {
                 include_snippets: true,
                 include_all_manager_keys: true,
                 has_manager_keys: true,
+                include_recordings: false,
             },
             selected_session_ids: Vec::new(),
             selected_empty_folders: Vec::new(),
@@ -727,6 +741,8 @@ mod tests {
             kdf_parallelism: 1,
             created_at_ms: 1_700_000_000_000,
             sync_origin: sync_origin.map(String::from),
+            recordings_root: None,
+            recording_db_key: None,
         };
         export_archive(&conn, &input).expect("compose archive")
     }

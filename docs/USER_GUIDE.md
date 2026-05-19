@@ -1056,9 +1056,11 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 ### Export to encrypted `.lfs` archive
 
 1. Settings → Data → **Export → Encrypted archive**.
-2. Pick what to include (sessions, keys, tags, snippets, known hosts, config).
+2. Pick what to include (sessions, keys, tags, snippets, known hosts, config, session recordings).
 3. Set an export passphrase (Argon2id-derived). **This passphrase is independent of your master password** — anyone with the archive needs both.
 4. Save the `.lfs` file.
+
+Session recordings are bundled as plaintext `.cast` (asciinema v2) entries under `recordings/<sessionId>/<base>.cast` inside the archive: the composer decrypts each `.lfsr` with the active DB key before writing, so the receiving device does not need your DB key to replay them. The row is hidden when `<appSupport>/recordings/` is empty. The receiver gets the archive at the LFSE layer (Argon2id + AES-GCM) — recordings end up on disk only after a successful import.
 
 ### Export to QR
 
@@ -1076,6 +1078,8 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 2. Pick file, type passphrase.
 3. **Preview dialog** lists what's in the archive (sessions / keys / tags / etc.).
 4. Choose **Merge** (additive, ID conflicts mint a fresh UUID) or **Replace** (wipe + insert). Replace is destructive and gated behind a confirm.
+
+Recordings present in the archive land under `<appSupport>/recordings/imported/<sessionId>/<base>.cast`; if the active tier holds a DB key, the importer also re-encrypts them into `.lfsr` in-place. The filesystem write happens after the DB transaction commits, so a recordings IO error never rolls back imported sessions / keys.
 
 ### Import from OpenSSH config
 

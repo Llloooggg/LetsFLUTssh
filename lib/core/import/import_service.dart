@@ -83,6 +83,11 @@ Future<rust_archive.DbApplyResult> applyResultViaRust(
     applyKnownHosts:
         result.knownHostsContent != null &&
         result.knownHostsContent!.isNotEmpty,
+    // Staged-import callers (QR / paste-link / OpenSSH) ship the
+    // bandwidth-bound subset — recordings never travel through
+    // their pipeline; pass `false` so the apply driver does not
+    // even check the (empty) pending.recordings list.
+    applyRecordings: false,
     refreshAfterImport: refreshAfterImport,
   );
 }
@@ -100,6 +105,7 @@ Future<rust_archive.DbApplyResult> applyOpenedHandle({
   required bool applyTags,
   required bool applySnippets,
   required bool applyKnownHosts,
+  required bool applyRecordings,
   Future<void> Function()? refreshAfterImport,
 }) {
   return _applyHandle(
@@ -110,6 +116,7 @@ Future<rust_archive.DbApplyResult> applyOpenedHandle({
     applyTags: applyTags,
     applySnippets: applySnippets,
     applyKnownHosts: applyKnownHosts,
+    applyRecordings: applyRecordings,
     refreshAfterImport: refreshAfterImport,
   );
 }
@@ -122,6 +129,7 @@ Future<rust_archive.DbApplyResult> _applyHandle({
   required bool applyTags,
   required bool applySnippets,
   required bool applyKnownHosts,
+  required bool applyRecordings,
   Future<void> Function()? refreshAfterImport,
 }) async {
   try {
@@ -136,6 +144,7 @@ Future<rust_archive.DbApplyResult> _applyHandle({
         applyTags: applyTags,
         applySnippets: applySnippets,
         applyKnownHosts: applyKnownHosts,
+        applyRecordings: applyRecordings,
       ),
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
     );

@@ -173,6 +173,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         }
     }
 
@@ -341,6 +342,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         };
         let outcome = db
             .with_conn_mut(|c| merge_pending_into_local(c, &pending))
@@ -410,6 +412,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         };
         let outcome = db
             .with_conn_mut(|c| merge_pending_into_local(c, &pending))
@@ -453,6 +456,7 @@ mod tests {
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
+            recordings: Vec::new(),
         };
         let outcome = db
             .with_conn_mut(|c| merge_pending_into_local(c, &pending))

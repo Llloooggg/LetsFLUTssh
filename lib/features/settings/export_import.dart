@@ -141,6 +141,7 @@ class ExportImport {
           includeSnippets: options.includeSnippets,
           includeAllManagerKeys: options.includeAllManagerKeys,
           hasManagerKeys: options.hasManagerKeys,
+          includeRecordings: options.includeRecordings,
         ),
         selectedSessionIds: selectedSessionIds,
         selectedEmptyFolders: selectedEmptyFolders,

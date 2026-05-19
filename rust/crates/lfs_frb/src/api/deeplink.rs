@@ -93,6 +93,7 @@ fn hydrate_preview(handle_id: &str, schema_version: i64) -> super::archive::DbIm
             empty_folder_count: 0,
             has_config: false,
             has_known_hosts: false,
+            recording_count: 0,
         }
     }
 }

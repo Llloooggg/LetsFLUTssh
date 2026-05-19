@@ -26296,6 +26296,7 @@ impl SseDecode for crate::api::archive::DbApplyOptions {
         let mut var_applyTags = <bool>::sse_decode(deserializer);
         let mut var_applySnippets = <bool>::sse_decode(deserializer);
         let mut var_applyKnownHosts = <bool>::sse_decode(deserializer);
+        let mut var_applyRecordings = <bool>::sse_decode(deserializer);
         return crate::api::archive::DbApplyOptions {
             mode: var_mode,
             apply_sessions: var_applySessions,
@@ -26303,6 +26304,7 @@ impl SseDecode for crate::api::archive::DbApplyOptions {
             apply_tags: var_applyTags,
             apply_snippets: var_applySnippets,
             apply_known_hosts: var_applyKnownHosts,
+            apply_recordings: var_applyRecordings,
         };
     }
 }
@@ -26738,6 +26740,7 @@ impl SseDecode for crate::api::archive::DbExportOptions {
         let mut var_includeSnippets = <bool>::sse_decode(deserializer);
         let mut var_includeAllManagerKeys = <bool>::sse_decode(deserializer);
         let mut var_hasManagerKeys = <bool>::sse_decode(deserializer);
+        let mut var_includeRecordings = <bool>::sse_decode(deserializer);
         return crate::api::archive::DbExportOptions {
             include_sessions: var_includeSessions,
             include_known_hosts: var_includeKnownHosts,
@@ -26746,6 +26749,7 @@ impl SseDecode for crate::api::archive::DbExportOptions {
             include_snippets: var_includeSnippets,
             include_all_manager_keys: var_includeAllManagerKeys,
             has_manager_keys: var_hasManagerKeys,
+            include_recordings: var_includeRecordings,
         };
     }
 }
@@ -27063,6 +27067,7 @@ impl SseDecode for crate::api::archive::DbImportPreview {
         let mut var_emptyFolderCount = <i64>::sse_decode(deserializer);
         let mut var_hasConfig = <bool>::sse_decode(deserializer);
         let mut var_hasKnownHosts = <bool>::sse_decode(deserializer);
+        let mut var_recordingCount = <i64>::sse_decode(deserializer);
         return crate::api::archive::DbImportPreview {
             schema_version: var_schemaVersion,
             session_count: var_sessionCount,
@@ -27073,6 +27078,7 @@ impl SseDecode for crate::api::archive::DbImportPreview {
             empty_folder_count: var_emptyFolderCount,
             has_config: var_hasConfig,
             has_known_hosts: var_hasKnownHosts,
+            recording_count: var_recordingCount,
         };
     }
 }
@@ -33033,6 +33039,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::archive::DbApplyOptions {
             self.apply_tags.into_into_dart().into_dart(),
             self.apply_snippets.into_into_dart().into_dart(),
             self.apply_known_hosts.into_into_dart().into_dart(),
+            self.apply_recordings.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -33620,6 +33627,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::archive::DbExportOptions {
             self.include_snippets.into_into_dart().into_dart(),
             self.include_all_manager_keys.into_into_dart().into_dart(),
             self.has_manager_keys.into_into_dart().into_dart(),
+            self.include_recordings.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -34087,6 +34095,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::archive::DbImportPreview {
             self.empty_folder_count.into_into_dart().into_dart(),
             self.has_config.into_into_dart().into_dart(),
             self.has_known_hosts.into_into_dart().into_dart(),
+            self.recording_count.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -38656,6 +38665,7 @@ impl SseEncode for crate::api::archive::DbApplyOptions {
         <bool>::sse_encode(self.apply_tags, serializer);
         <bool>::sse_encode(self.apply_snippets, serializer);
         <bool>::sse_encode(self.apply_known_hosts, serializer);
+        <bool>::sse_encode(self.apply_recordings, serializer);
     }
 }
 
@@ -39006,6 +39016,7 @@ impl SseEncode for crate::api::archive::DbExportOptions {
         <bool>::sse_encode(self.include_snippets, serializer);
         <bool>::sse_encode(self.include_all_manager_keys, serializer);
         <bool>::sse_encode(self.has_manager_keys, serializer);
+        <bool>::sse_encode(self.include_recordings, serializer);
     }
 }
 
@@ -39274,6 +39285,7 @@ impl SseEncode for crate::api::archive::DbImportPreview {
         <i64>::sse_encode(self.empty_folder_count, serializer);
         <bool>::sse_encode(self.has_config, serializer);
         <bool>::sse_encode(self.has_known_hosts, serializer);
+        <i64>::sse_encode(self.recording_count, serializer);
     }
 }
 

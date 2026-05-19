@@ -221,6 +221,7 @@
   "maxHistory": "Lịch sử tối đa",
   "calculateFolderSizes": "Tính kích thước thư mục",
   "exportData": "Xuất dữ liệu",
+  "exportRecordings": "Bản ghi phiên",
   "sshConfigPreviewHostsFound": "Đã tìm thấy {count} host",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

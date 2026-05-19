@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'archive.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `map_open_err`
+// These functions are ignored because they are not marked as `pub`: `build_core_export_input`, `map_open_err`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Resolve the empty-folder set that should ride along with an
@@ -154,6 +154,7 @@ class DbApplyOptions {
   final bool applyTags;
   final bool applySnippets;
   final bool applyKnownHosts;
+  final bool applyRecordings;
 
   const DbApplyOptions({
     required this.mode,
@@ -162,6 +163,7 @@ class DbApplyOptions {
     required this.applyTags,
     required this.applySnippets,
     required this.applyKnownHosts,
+    required this.applyRecordings,
   });
 
   @override
@@ -171,7 +173,8 @@ class DbApplyOptions {
       applyKeys.hashCode ^
       applyTags.hashCode ^
       applySnippets.hashCode ^
-      applyKnownHosts.hashCode;
+      applyKnownHosts.hashCode ^
+      applyRecordings.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -183,7 +186,8 @@ class DbApplyOptions {
           applyKeys == other.applyKeys &&
           applyTags == other.applyTags &&
           applySnippets == other.applySnippets &&
-          applyKnownHosts == other.applyKnownHosts;
+          applyKnownHosts == other.applyKnownHosts &&
+          applyRecordings == other.applyRecordings;
 }
 
 /// Counters returned by [`db_import_apply`]. Mirrors
@@ -378,6 +382,7 @@ class DbExportOptions {
   final bool includeSnippets;
   final bool includeAllManagerKeys;
   final bool hasManagerKeys;
+  final bool includeRecordings;
 
   const DbExportOptions({
     required this.includeSessions,
@@ -387,6 +392,7 @@ class DbExportOptions {
     required this.includeSnippets,
     required this.includeAllManagerKeys,
     required this.hasManagerKeys,
+    required this.includeRecordings,
   });
 
   @override
@@ -397,7 +403,8 @@ class DbExportOptions {
       includeTags.hashCode ^
       includeSnippets.hashCode ^
       includeAllManagerKeys.hashCode ^
-      hasManagerKeys.hashCode;
+      hasManagerKeys.hashCode ^
+      includeRecordings.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -410,7 +417,8 @@ class DbExportOptions {
           includeTags == other.includeTags &&
           includeSnippets == other.includeSnippets &&
           includeAllManagerKeys == other.includeAllManagerKeys &&
-          hasManagerKeys == other.hasManagerKeys;
+          hasManagerKeys == other.hasManagerKeys &&
+          includeRecordings == other.includeRecordings;
 }
 
 /// Mirror of `lfs_core::archive::ImportMode`.
@@ -472,6 +480,7 @@ class DbImportPreview {
   final PlatformInt64 emptyFolderCount;
   final bool hasConfig;
   final bool hasKnownHosts;
+  final PlatformInt64 recordingCount;
 
   const DbImportPreview({
     required this.schemaVersion,
@@ -483,6 +492,7 @@ class DbImportPreview {
     required this.emptyFolderCount,
     required this.hasConfig,
     required this.hasKnownHosts,
+    required this.recordingCount,
   });
 
   @override
@@ -495,7 +505,8 @@ class DbImportPreview {
       snippetCount.hashCode ^
       emptyFolderCount.hashCode ^
       hasConfig.hashCode ^
-      hasKnownHosts.hashCode;
+      hasKnownHosts.hashCode ^
+      recordingCount.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -510,7 +521,8 @@ class DbImportPreview {
           snippetCount == other.snippetCount &&
           emptyFolderCount == other.emptyFolderCount &&
           hasConfig == other.hasConfig &&
-          hasKnownHosts == other.hasKnownHosts;
+          hasKnownHosts == other.hasKnownHosts &&
+          recordingCount == other.recordingCount;
 }
 
 class DbQrExportInput {

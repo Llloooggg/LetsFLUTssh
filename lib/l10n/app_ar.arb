@@ -221,6 +221,7 @@
   "maxHistory": "الحد الأقصى للسجل",
   "calculateFolderSizes": "حساب أحجام المجلدات",
   "exportData": "تصدير البيانات",
+  "exportRecordings": "تسجيلات الجلسات",
   "sshConfigPreviewHostsFound": "تم العثور على {count} مضيف",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {

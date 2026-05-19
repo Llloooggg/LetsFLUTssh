@@ -760,6 +760,9 @@ class SKo extends S {
   String get exportData => '데이터 내보내기';
 
   @override
+  String get exportRecordings => '세션 녹화';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return '호스트 $count개를 찾았습니다';
   }

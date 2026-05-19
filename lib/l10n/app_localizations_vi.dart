@@ -767,6 +767,9 @@ class SVi extends S {
   String get exportData => 'Xuất dữ liệu';
 
   @override
+  String get exportRecordings => 'Bản ghi phiên';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'Đã tìm thấy $count host';
   }

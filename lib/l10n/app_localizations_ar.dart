@@ -779,6 +779,9 @@ class SAr extends S {
   String get exportData => 'تصدير البيانات';
 
   @override
+  String get exportRecordings => 'تسجيلات الجلسات';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'تم العثور على $count مضيف';
   }

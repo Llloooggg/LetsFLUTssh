@@ -221,6 +221,31 @@ class _ExportImportTile extends ConsumerWidget {
         .exportToString();
     if (!context.mounted) return;
 
+    // Pre-measure the recordings tree so the dialog's checkbox row
+    // can render its byte total synchronously. The Rust getter is
+    // async and the controller's per-row size getters are not, so
+    // the value is resolved once here and threaded into
+    // [UnifiedExportDialogData]. Failure (folder missing, IO error)
+    // collapses to 0 — the row then hides via the dialog's empty
+    // guard, matching the knownHosts / tags shape.
+    int recordingsBytes;
+    try {
+      final root = rust_recorder.recorderRecordingsRoot();
+      final used = await rust_recorder.recorderStorageUsed(
+        recordingsRoot: root,
+      );
+      recordingsBytes = used.toInt();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Recordings size measure for export failed',
+        name: 'Settings',
+        error: e,
+        level: LogLevel.warn,
+      );
+      recordingsBytes = 0;
+    }
+    if (!context.mounted) return;
+
     final exportResult = await UnifiedExportDialog.show(
       context,
       data: UnifiedExportDialogData(
@@ -230,6 +255,7 @@ class _ExportImportTile extends ConsumerWidget {
         knownHostsContent: knownHostsContent,
         tags: allTags,
         snippets: allSnippets,
+        recordingsBytes: recordingsBytes,
       ),
       isQrMode: false,
     );
@@ -553,6 +579,7 @@ class _ExportImportTile extends ConsumerWidget {
         applyTags: options.includeTags,
         applySnippets: options.includeSnippets,
         applyKnownHosts: options.includeKnownHosts,
+        applyRecordings: options.includeRecordings,
         refreshAfterImport: () async {
           // Sessions ride the workspace stream — the Rust apply
           // publishes `SessionsChanged` and the stream re-fetches.
