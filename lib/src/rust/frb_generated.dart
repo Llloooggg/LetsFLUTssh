@@ -555,7 +555,7 @@ abstract class RustLibApi extends BaseApi {
     required String inputJson,
   });
 
-  String? crateApiConfigConfigStoreFlush();
+  Future<String?> crateApiConfigConfigStoreFlush();
 
   String? crateApiConfigConfigStoreGetJson();
 
@@ -6007,12 +6007,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  String? crateApiConfigConfigStoreFlush() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<String?> crateApiConfigConfigStoreFlush() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 91)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 91,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,

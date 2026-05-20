@@ -4503,15 +4503,16 @@ fn wire__crate__api__config__config_app_config_validate_json_impl(
     )
 }
 fn wire__crate__api__config__config_store_flush_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "config_store_flush",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -4524,10 +4525,15 @@ fn wire__crate__api__config__config_store_flush_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::config::config_store_flush()?;
-                Ok(output_ok)
-            })())
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::config::config_store_flush().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
@@ -31459,6 +31465,7 @@ fn pde_ffi_dispatcher_primary_impl(
 78 => wire__crate__api__bus__bus_dispatch_impl(port, ptr, rust_vec_len, data_len),
 79 => wire__crate__api__bus__bus_subscribe_impl(port, ptr, rust_vec_len, data_len),
 81 => wire__crate__api__capabilities_orchestrator__capabilities_probe_run_impl(port, ptr, rust_vec_len, data_len),
+91 => wire__crate__api__config__config_store_flush_impl(port, ptr, rust_vec_len, data_len),
 102 => wire__crate__api__bus__connection_connect_impl(port, ptr, rust_vec_len, data_len),
 104 => wire__crate__api__bus__connection_get_session_impl(port, ptr, rust_vec_len, data_len),
 107 => wire__crate__api__auth_compose__connection_prepare_auth_impl(port, ptr, rust_vec_len, data_len),
@@ -31827,7 +31834,6 @@ fn pde_ffi_dispatcher_sync_impl(
 88 => wire__crate__api__config__config_app_config_to_json_impl(ptr, rust_vec_len, data_len),
 89 => wire__crate__api__config__config_app_config_to_json_typed_impl(ptr, rust_vec_len, data_len),
 90 => wire__crate__api__config__config_app_config_validate_json_impl(ptr, rust_vec_len, data_len),
-91 => wire__crate__api__config__config_store_flush_impl(ptr, rust_vec_len, data_len),
 92 => wire__crate__api__config__config_store_get_json_impl(ptr, rust_vec_len, data_len),
 93 => wire__crate__api__config__config_store_get_typed_impl(ptr, rust_vec_len, data_len),
 94 => wire__crate__api__config__config_store_init_impl(ptr, rust_vec_len, data_len),

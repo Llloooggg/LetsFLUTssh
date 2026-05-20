@@ -393,13 +393,23 @@ pub fn config_store_set_json(new_json: String) -> Result<(), String> {
     lfs_core::config_store::instance().set_json(&new_json)
 }
 
-/// Force any pending state to disk synchronously. Returns the
-/// JSON written (or the current snapshot when nothing was
-/// pending). Used at app shutdown / test teardown so the last
-/// `set_json` is durable.
-#[flutter_rust_bridge::frb(sync)]
-pub fn config_store_flush() -> Result<Option<String>, String> {
-    lfs_core::config_store::instance().flush()
+/// Force any pending state to disk. Returns the JSON written (or
+/// the current snapshot when nothing was pending). Used by the
+/// debounced settings save + at app shutdown / test teardown so the
+/// last `set_json` is durable.
+///
+/// Async on purpose: `Store::flush` does a synchronous
+/// `write_bytes_atomic` (temp + fsync + rename), and on Windows that
+/// fsync — plus the AV real-time scan of the new file — can take
+/// well over a second. A `#[frb(sync)]` flush ran that on the Dart
+/// UI isolate, freezing the interface after every settings change
+/// (most visibly on a language switch). Parking the write on
+/// `spawn_blocking` keeps the UI isolate responsive; the background
+/// ticker remains the steady-state persister.
+pub async fn config_store_flush() -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(|| lfs_core::config_store::instance().flush())
+        .await
+        .map_err(|e| format!("config_store_flush join: {e}"))?
 }
 
 /// Drive the debounce loop one tick — caller checks if the

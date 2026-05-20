@@ -155,7 +155,12 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
   rust_config.configStoreInit(supportDir: dir.path);
   final liveSync = rust_config.configStoreGetTyped()?.sync_;
   rust_config.configStoreSetTyped(value: config.toTyped(sync: liveSync));
-  rust_config.configStoreFlush();
+  // `configStoreFlush` is async — the atomic write + fsync runs on a
+  // Rust blocking worker, not the Dart UI isolate. A sync flush here
+  // froze the UI for ~1-2 s after every settings change on Windows
+  // (fsync + AV scan of the new file); awaiting an off-thread write
+  // keeps the interface responsive.
+  await rust_config.configStoreFlush();
 }
 
 /// App config state — initial value comes from

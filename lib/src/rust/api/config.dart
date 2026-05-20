@@ -134,11 +134,20 @@ bool configStoreWasLoadedFromDisk() =>
 void configStoreSetJson({required String newJson}) =>
     RustLib.instance.api.crateApiConfigConfigStoreSetJson(newJson: newJson);
 
-/// Force any pending state to disk synchronously. Returns the
-/// JSON written (or the current snapshot when nothing was
-/// pending). Used at app shutdown / test teardown so the last
-/// `set_json` is durable.
-String? configStoreFlush() =>
+/// Force any pending state to disk. Returns the JSON written (or
+/// the current snapshot when nothing was pending). Used by the
+/// debounced settings save + at app shutdown / test teardown so the
+/// last `set_json` is durable.
+///
+/// Async on purpose: `Store::flush` does a synchronous
+/// `write_bytes_atomic` (temp + fsync + rename), and on Windows that
+/// fsync — plus the AV real-time scan of the new file — can take
+/// well over a second. A `#[frb(sync)]` flush ran that on the Dart
+/// UI isolate, freezing the interface after every settings change
+/// (most visibly on a language switch). Parking the write on
+/// `spawn_blocking` keeps the UI isolate responsive; the background
+/// ticker remains the steady-state persister.
+Future<String?> configStoreFlush() =>
     RustLib.instance.api.crateApiConfigConfigStoreFlush();
 
 /// Drive the debounce loop one tick — caller checks if the
