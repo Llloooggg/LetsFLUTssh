@@ -349,7 +349,10 @@ pub async fn download_with_verification(
             "cannot derive version from asset name {asset_name}"
         ))
     })?;
-    let manifest_name = format!("letsflutssh-{version}.sha256sums");
+    let manifest_name = format!(
+        "{}{version}.sha256sums",
+        update_metadata::RELEASE_ASSET_PREFIX
+    );
     let manifest_url = replace_path_tail(url, &manifest_name);
     let manifest_sig_url = format!("{manifest_url}.sig");
 
@@ -489,13 +492,15 @@ async fn sha256_file(path: &str) -> Result<String, Error> {
     Ok(hex)
 }
 
-/// Walk `dir` and remove every regular file whose name shares a
-/// release-asset suffix with the artefact at `asset_url`. The
-/// suffix is everything from the second dash of the asset
-/// filename onwards (`letsflutssh-1.9.0-windows-x64-setup.exe` →
-/// `-windows-x64-setup.exe`), so the call drops every previous
-/// installer for the same platform variant while leaving the
-/// other persisted files in app-support untouched.
+/// Walk `dir` and remove every stale update artefact: the
+/// per-platform installer (matched by the release-asset suffix —
+/// everything from the second dash of the asset filename onwards,
+/// `letsflutssh-1.9.0-windows-x64-setup.exe` → `-windows-x64-setup
+/// .exe`) plus the shared manifest + Ed25519 signature pair
+/// (`letsflutssh-<version>.sha256sums` / `.sha256sums.sig`). The
+/// manifest pair carries no platform suffix, so a suffix-only match
+/// left every previous version's `.sha256sums` / `.sha256sums.sig`
+/// accumulating in app-support. Other persisted files are untouched.
 ///
 /// Returns the count of files actually removed; per-file delete
 /// failures are logged but not surfaced as `Err` (the next
@@ -531,7 +536,7 @@ pub async fn cleanup_stale_downloads(dir: &Path, asset_url: &str) -> Result<u32,
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        if !name.ends_with(&suffix) {
+        if !(name.ends_with(&suffix) || is_update_manifest_artifact(name)) {
             continue;
         }
         if let Err(e) = tokio::fs::remove_file(&path).await {
@@ -562,6 +567,17 @@ pub async fn cleanup_file(path: &Path) -> Result<(), std::io::Error> {
 /// onward (inclusive). Returns `None` for URLs whose filename has
 /// fewer than two dashes — the caller treats that as "nothing safe
 /// to match".
+/// True when `name` is one of the release manifest artefacts the
+/// update flow downloads alongside the installer
+/// (`letsflutssh-<version>.sha256sums` and its `.sig`). They carry no
+/// per-platform suffix, so the suffix sweep misses them; matching the
+/// manifest extensions keeps stale pairs from accumulating across
+/// versions.
+fn is_update_manifest_artifact(name: &str) -> bool {
+    name.starts_with(update_metadata::RELEASE_ASSET_PREFIX)
+        && (name.ends_with(".sha256sums") || name.ends_with(".sha256sums.sig"))
+}
+
 fn stale_download_suffix(asset_url: &str) -> Option<String> {
     let url_no_query = asset_url
         .split_once(['?', '#'])
@@ -827,6 +843,50 @@ mod tests {
             .exists());
         assert!(path.join("letsflutssh-1.8.0-linux-x64.AppImage").exists());
         assert!(path.join("config.json").exists());
+    }
+
+    #[tokio::test]
+    async fn cleanup_stale_downloads_sweeps_manifest_and_sig_artifacts() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path();
+        // Manifest + signature pairs from prior versions carry no
+        // platform suffix, so before the fix they piled up untouched.
+        for name in [
+            "letsflutssh-1.7.0.sha256sums",
+            "letsflutssh-1.7.0.sha256sums.sig",
+            "letsflutssh-1.8.0.sha256sums",
+            "letsflutssh-1.8.0.sha256sums.sig",
+        ] {
+            tokio::fs::write(path.join(name), b"x").await.unwrap();
+        }
+        // Foreign-prefix lookalike must stay.
+        tokio::fs::write(path.join("other-1.8.0.sha256sums"), b"keep")
+            .await
+            .unwrap();
+
+        let removed = cleanup_stale_downloads(
+            path,
+            "https://example/v1.9.0/letsflutssh-1.9.0-windows-x64-setup.exe",
+        )
+        .await
+        .expect("cleanup");
+        assert_eq!(removed, 4);
+        assert!(path.join("other-1.8.0.sha256sums").exists());
+    }
+
+    #[test]
+    fn is_update_manifest_artifact_matches_manifest_and_sig_only() {
+        assert!(is_update_manifest_artifact("letsflutssh-1.9.0.sha256sums"));
+        assert!(is_update_manifest_artifact(
+            "letsflutssh-1.9.0.sha256sums.sig"
+        ));
+        // Wrong prefix → not ours.
+        assert!(!is_update_manifest_artifact("other-1.9.0.sha256sums"));
+        // The installer is matched by the suffix path, not here.
+        assert!(!is_update_manifest_artifact(
+            "letsflutssh-1.9.0-windows-x64-setup.exe"
+        ));
+        assert!(!is_update_manifest_artifact("letsflutssh-notes.txt"));
     }
 
     #[tokio::test]

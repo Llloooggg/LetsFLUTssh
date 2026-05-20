@@ -107,11 +107,19 @@ where
     None
 }
 
+/// Filename prefix shared by every release artefact
+/// (`letsflutssh-<version>-<platform>…`, `letsflutssh-<version>.sha256sums`
+/// and its `.sig`). Must match the asset names the release workflow
+/// produces (`.github/workflows/build-release.yml`); the update flow
+/// both builds (manifest name) and sweeps (stale-download cleanup)
+/// artefacts off this single prefix.
+pub const RELEASE_ASSET_PREFIX: &str = "letsflutssh-";
+
 /// Extract the semver version from a release asset filename.
 /// Mirrors `UpdateService._parseAssetVersion` regex
 /// `^letsflutssh-([0-9]+\.[0-9]+\.[0-9]+)-`.
 pub fn parse_asset_version(asset_name: &str) -> Option<String> {
-    let rest = asset_name.strip_prefix("letsflutssh-")?;
+    let rest = asset_name.strip_prefix(RELEASE_ASSET_PREFIX)?;
     let dash = rest.find('-')?;
     let candidate = &rest[..dash];
     // Validate `<digits>.<digits>.<digits>` — three numeric
