@@ -154,16 +154,6 @@ pub const HW_VAULT_HEADER_LEN: usize = 6;
 
 /// Prepend `magic[4] + version[1] + platform[1]` to `body` and
 /// return the assembled envelope ready for atomic write.
-#[cfg_attr(
-    not(any(
-        test,
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "windows",
-        target_os = "android"
-    )),
-    allow(dead_code)
-)]
 pub fn prepend_envelope_header(platform: u8, body: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(HW_VAULT_HEADER_LEN + body.len());
     out.extend_from_slice(HW_VAULT_MAGIC);
@@ -178,16 +168,6 @@ pub fn prepend_envelope_header(platform: u8, body: &[u8]) -> Vec<u8> {
 /// truncated input, magic mismatch, version mismatch, or
 /// platform-id mismatch (= cross-platform file copy or downgrade
 /// attempt).
-#[cfg_attr(
-    not(any(
-        test,
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "windows",
-        target_os = "android"
-    )),
-    allow(dead_code)
-)]
 pub fn parse_envelope_header(
     raw: &[u8],
     expected_platform: u8,
@@ -208,17 +188,6 @@ pub fn parse_envelope_header(
 /// here. Random tmp suffix avoids per-process tmp-name collisions;
 /// `sync_data` + parent-dir fsync close the torn-write window on
 /// power loss.
-#[cfg_attr(
-    not(any(
-        test,
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "linux",
-        target_os = "windows",
-        target_os = "android"
-    )),
-    allow(dead_code)
-)]
 pub fn os_atomic_write_0600(
     path: &std::path::Path,
     bytes: &[u8],
@@ -297,10 +266,7 @@ pub fn os_atomic_write_0600(
 /// Length-prefixed binary frame:
 /// `u32(len_be) || bytes`. Used by both the vault and biometric
 /// overlay file formats. `pos` is the input cursor.
-#[cfg_attr(
-    not(any(test, target_os = "macos", target_os = "ios")),
-    allow(dead_code)
-)]
+#[cfg(any(test, target_os = "macos", target_os = "ios"))]
 fn read_len_prefixed(raw: &[u8], pos: &mut usize) -> Option<Vec<u8>> {
     if *pos + 4 > raw.len() {
         return None;
@@ -315,10 +281,7 @@ fn read_len_prefixed(raw: &[u8], pos: &mut usize) -> Option<Vec<u8>> {
     Some(out)
 }
 
-#[cfg_attr(
-    not(any(test, target_os = "macos", target_os = "ios", target_os = "windows")),
-    allow(dead_code)
-)]
+#[cfg(any(test, target_os = "macos", target_os = "ios", target_os = "windows"))]
 pub(crate) fn write_len_prefixed(
     out: &mut Vec<u8>,
     bytes: &[u8],
@@ -347,10 +310,7 @@ pub(crate) fn write_len_prefixed(
 /// timing posture is whatever the audited primitive guarantees;
 /// the local hand-rolled XOR loop relied on the compiler not
 /// short-circuiting, which is not a contract LLVM owes us.
-#[cfg_attr(
-    not(any(test, target_os = "macos", target_os = "ios")),
-    allow(dead_code)
-)]
+#[cfg(any(test, target_os = "macos", target_os = "ios"))]
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     use subtle::ConstantTimeEq;
     if a.len() != b.len() {

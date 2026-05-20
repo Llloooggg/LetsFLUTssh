@@ -1,20 +1,16 @@
-//! Cross-platform helpers used by per-OS modules.
+//! Cross-platform helpers used by the macOS code-signing /
+//! installer pipeline (`macos/code_signing.rs`, `macos/installer.rs`)
+//! and the cross-platform installer hand-off (`installer_launch.rs`).
 //!
-//! Lives outside any `cfg(target_os = "...")` gate so the unit
-//! tests below run on every CI host (`rust-ci` only fires
-//! `cargo test` on `ubuntu-latest`; the `rust-cross-check` matrix
-//! is compile-validation only). Putting these helpers inside e.g.
-//! `macos/code_signing.rs` would have made the tests dead weight
-//! in CI.
+//! The macOS-only helpers carry `#[cfg(any(test, target_os = "macos"))]`
+//! so they compile in macOS builds and under `cargo test` on every CI
+//! host — the unit tests below are their coverage — without registering
+//! as `dead_code` on the non-macOS lib build, where only the macOS
+//! modules reference them. `run_subprocess` / `RunError` /
+//! `SubprocessFailure` stay ungated: `installer_launch.rs` drives them
+//! on every platform.
 
-// Every callsite outside the `#[cfg(test)]` block lives in
-// `macos/code_signing.rs`, which is itself cfg-gated to macOS.
-// On Linux / Windows the helpers register as `dead_code` against
-// the lib build even though the test build does use them — the
-// lint runs per-target. Allow at module scope so the lib build
-// passes; tests remain real coverage.
-#![allow(dead_code)]
-
+#[cfg(any(test, target_os = "macos"))]
 use std::path::{Path, PathBuf};
 
 use tokio::process::Command;
@@ -24,6 +20,10 @@ use tokio::process::Command;
 /// build their own typed errors without re-parsing strings.
 #[derive(Debug)]
 pub(crate) struct SubprocessFailure {
+    // Read only by the macOS code-signing error mapper; the
+    // cross-platform `installer_launch` consumer uses exit_code +
+    // stderr alone, so the field is gated to where it's read.
+    #[cfg(any(test, target_os = "macos"))]
     pub stage: String,
     pub exit_code: Option<i32>,
     pub stderr: String,
@@ -56,11 +56,16 @@ pub(crate) async fn run_subprocess(
     args: &[&str],
     stage: &str,
 ) -> Result<(), RunError> {
+    // `stage` is consumed only by the macOS error mapper (see the
+    // gated field above); other targets' callers ignore the label.
+    #[cfg(not(any(test, target_os = "macos")))]
+    let _ = stage;
     let output = Command::new(program).args(args).output().await?;
     if output.status.success() {
         Ok(())
     } else {
         Err(RunError::NonZero(SubprocessFailure {
+            #[cfg(any(test, target_os = "macos"))]
             stage: stage.to_string(),
             exit_code: output.status.code(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -77,6 +82,7 @@ pub(crate) async fn run_subprocess(
 /// applied to are tiny (e.g. a Flutter macOS bundle = a few
 /// hundred entries). Wrapped in `spawn_blocking` so the FRB
 /// runtime worker isn't pinned by the disk seeks.
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) async fn walk_extension(root: &Path, suffix: &str, want_file: bool) -> Vec<PathBuf> {
     let root = root.to_path_buf();
     let suffix = suffix.to_string();
@@ -89,6 +95,7 @@ pub(crate) async fn walk_extension(root: &Path, suffix: &str, want_file: bool) -
     .unwrap_or_default()
 }
 
+#[cfg(any(test, target_os = "macos"))]
 fn walk_rec(dir: &Path, suffix: &str, want_file: bool, out: &mut Vec<PathBuf>) {
     let entries = match std::fs::read_dir(dir) {
         Ok(it) => it,
@@ -127,6 +134,7 @@ fn walk_rec(dir: &Path, suffix: &str, want_file: bool, out: &mut Vec<PathBuf>) {
 /// load-bearing bits the macOS Keychain Services validates, and
 /// a regression in this string would silently corrupt every
 /// future cert.
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) fn openssl_self_sign_config(cn: &str, org: &str) -> String {
     format!(
         "[req]
@@ -148,6 +156,7 @@ basicConstraints = critical,CA:FALSE
 /// `/Applications/foo.app` + `.new` → `/Applications/foo.app.new`).
 /// Used by the macOS installer to derive `<target>.new` and
 /// `<target>.backup` paths from the live target.
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) fn append_suffix(path: &Path, suffix: &str) -> PathBuf {
     let parent = path.parent().unwrap_or(Path::new(""));
     let file_name = path.file_name().map(|n| n.to_owned()).unwrap_or_default();
@@ -161,6 +170,7 @@ pub(crate) fn append_suffix(path: &Path, suffix: &str) -> PathBuf {
 /// level scan, no recursion. Symlinks not followed. Used by the
 /// macOS installer to locate the `.app` inside a freshly-mounted
 /// DMG without depending on the bundle's exact name.
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) fn find_first_directory_with_extension(dir: &Path, extension: &str) -> Option<PathBuf> {
     let entries = std::fs::read_dir(dir).ok()?;
     for entry in entries.flatten() {
@@ -191,6 +201,7 @@ pub(crate) fn find_first_directory_with_extension(dir: &Path, extension: &str) -
 /// itself when there are fewer than three parents — defensively
 /// preserves the input rather than panicking on a non-bundle
 /// layout (e.g. `flutter_test` running the binary out of `target/`).
+#[cfg(any(test, target_os = "macos"))]
 pub fn bundle_root_from_macos_executable(executable_path: &Path) -> PathBuf {
     let mut current = executable_path.to_path_buf();
     for _ in 0..3 {
@@ -208,6 +219,7 @@ pub fn bundle_root_from_macos_executable(executable_path: &Path) -> PathBuf {
 /// `cert.crt`/`cert.p12`). Per-process atomic + nanosecond mix
 /// keeps tests that hammer this in parallel from colliding on
 /// the same directory name.
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) async fn make_temp_dir(prefix: &str) -> Result<PathBuf, std::io::Error> {
     use std::sync::atomic::{AtomicU64, Ordering};
     static SEQ: AtomicU64 = AtomicU64::new(0);

@@ -406,7 +406,9 @@ pub(crate) mod subprocess_util;
 // `Platform.resolvedExecutable` to the `.app` bundle root —
 // path math the FRB shim runs before delegating into
 // `macos::code_signing` / `macos::installer`. Re-exported
-// without opening the whole `subprocess_util` module.
+// without opening the whole `subprocess_util` module. Gated to
+// match the helper: only the macOS FRB shims (and tests) call it.
+#[cfg(any(test, target_os = "macos"))]
 pub use subprocess_util::bundle_root_from_macos_executable;
 // Cross-platform shape (`-1` outside Windows); real FFI behind
 // a target_os gate inside the module.

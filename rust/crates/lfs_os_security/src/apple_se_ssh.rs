@@ -67,7 +67,6 @@
 //! user at the documented remediation.
 
 #![cfg(any(target_os = "macos", target_os = "ios"))]
-#![allow(non_upper_case_globals)]
 
 use core_foundation::base::{CFType, TCFType};
 use core_foundation::data::CFData;
@@ -101,21 +100,27 @@ use std::ptr;
 // `security-framework-sys` doesn't re-export every Security.framework
 // symbol we need. `kSecAttrApplicationTag`,
 // `kSecUseAuthenticationContext`, and the ECDSA-message algorithm
-// are re-declared here as `extern "C"` statics — the linker resolves
-// them against Security.framework at load time on every macOS / iOS
-// host. Same pattern the T2 hardware-vault path uses for the
-// application tag.
+// are re-declared here as `extern "C"` statics — same pattern the T2
+// hardware-vault path uses for the application tag. Each is
+// `#[link_name]`-bound to its camelCase OS symbol so the Rust binding
+// keeps an `UPPER_CASE` name without a `non_upper_case_globals` allow;
+// the linker resolves the OS symbol at load time on every macOS / iOS
+// host.
 extern "C" {
-    static kSecAttrApplicationTag: CFStringRef;
-    static kSecUseAuthenticationContext: CFStringRef;
-    static kSecKeyAlgorithmECDSASignatureMessageX962SHA256: CFStringRef;
+    #[link_name = "kSecAttrApplicationTag"]
+    static K_SEC_ATTR_APPLICATION_TAG: CFStringRef;
+    #[link_name = "kSecUseAuthenticationContext"]
+    static K_SEC_USE_AUTHENTICATION_CONTEXT: CFStringRef;
+    #[link_name = "kSecKeyAlgorithmECDSASignatureMessageX962SHA256"]
+    static K_SEC_KEY_ALGORITHM_ECDSA_SIGNATURE_MESSAGE_X962_SHA256: CFStringRef;
     // `security-framework-sys` exports `kSecMatchLimit` (the attr
     // key) and `kSecMatchLimitAll` (a value), but not
     // `kSecMatchLimitOne`. Re-declare it here as an extern static so
     // the lookup query can request a single match — the OS resolves
     // the symbol from Security.framework at load time like every
     // other entry in this block.
-    static kSecMatchLimitOne: CFStringRef;
+    #[link_name = "kSecMatchLimitOne"]
+    static K_SEC_MATCH_LIMIT_ONE: CFStringRef;
 }
 
 /// `errSecMissingEntitlement` — Keychain Services refuses an SE
@@ -376,7 +381,7 @@ pub fn sign(
         load_private_key(&handle.application_tag, context)?.ok_or(Error::KeyNotFound)?;
     // SAFETY: identifier is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; reading the static is a plain pointer copy.
-    let algorithm = unsafe { kSecKeyAlgorithmECDSASignatureMessageX962SHA256 };
+    let algorithm = unsafe { K_SEC_KEY_ALGORITHM_ECDSA_SIGNATURE_MESSAGE_X962_SHA256 };
     let data_cf = CFData::from_buffer(data);
     let mut err: *mut core_foundation_sys::error::__CFError = ptr::null_mut();
     // SAFETY: `SecKeyCreateSignature` reads the key + algo + data (all alive on the stack) and
@@ -518,7 +523,7 @@ pub fn list() -> Result<Vec<EnclaveKeyHandle>, Error> {
             unsafe { CFDictionary::<CFString, CFType>::wrap_under_get_rule(*dict_ptr as *const _) };
         // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
         // program-lifetime refcount; the get-rule wrap takes no extra retain.
-        let tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
+        let tag_key = unsafe { CFString::wrap_under_get_rule(K_SEC_ATTR_APPLICATION_TAG) };
         let Some(value) = dict.find(&tag_key) else {
             continue;
         };
@@ -617,7 +622,7 @@ unsafe fn build_private_attrs(
     let is_perm_key = unsafe { CFString::wrap_under_get_rule(kSecAttrIsPermanent) };
     // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; the get-rule wrap takes no extra retain.
-    let app_tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
+    let app_tag_key = unsafe { CFString::wrap_under_get_rule(K_SEC_ATTR_APPLICATION_TAG) };
     // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let ac_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccessControl) };
@@ -693,7 +698,7 @@ unsafe fn build_lookup_query(
     let key_type_val = unsafe { CFString::wrap_under_get_rule(kSecAttrKeyTypeECSECPrimeRandom) };
     // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; the get-rule wrap takes no extra retain.
-    let app_tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
+    let app_tag_key = unsafe { CFString::wrap_under_get_rule(K_SEC_ATTR_APPLICATION_TAG) };
     // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; the get-rule wrap takes no extra retain.
     let return_ref_key = unsafe { CFString::wrap_under_get_rule(kSecReturnRef) };
@@ -702,7 +707,7 @@ unsafe fn build_lookup_query(
     let match_limit_key = unsafe { CFString::wrap_under_get_rule(kSecMatchLimit) };
     // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; the get-rule wrap takes no extra retain.
-    let match_limit_val = unsafe { CFString::wrap_under_get_rule(kSecMatchLimitOne) };
+    let match_limit_val = unsafe { CFString::wrap_under_get_rule(K_SEC_MATCH_LIMIT_ONE) };
     let true_val = CFNumber::from(1i32);
     let mut pairs: Vec<(CFString, CFType)> = vec![
         (class_key, class_val.as_CFType()),
@@ -718,7 +723,8 @@ unsafe fn build_lookup_query(
         // to accept LAContext instances verbatim.
         // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
         // program-lifetime refcount; the get-rule wrap takes no extra retain.
-        let auth_ctx_key = unsafe { CFString::wrap_under_get_rule(kSecUseAuthenticationContext) };
+        let auth_ctx_key =
+            unsafe { CFString::wrap_under_get_rule(K_SEC_USE_AUTHENTICATION_CONTEXT) };
         let ctx_ptr: *const c_void = Retained::as_ptr(ctx) as *const c_void;
         // SAFETY: LAContext is a CFRetain-compatible Obj-C class;
         // wrapping under get-rule retains the existing strong
@@ -802,7 +808,7 @@ unsafe fn build_delete_query(tag: &[u8]) -> CFDictionary<CFString, CFType> {
     let token_val = unsafe { CFString::wrap_under_get_rule(kSecAttrTokenIDSecureEnclave) };
     // SAFETY: argument is a static `CFStringRef` exported by Security.framework with
     // program-lifetime refcount; the get-rule wrap takes no extra retain.
-    let app_tag_key = unsafe { CFString::wrap_under_get_rule(kSecAttrApplicationTag) };
+    let app_tag_key = unsafe { CFString::wrap_under_get_rule(K_SEC_ATTR_APPLICATION_TAG) };
     CFDictionary::from_CFType_pairs(&[
         (class_key, class_val.as_CFType()),
         (key_class_key, key_class_val.as_CFType()),
