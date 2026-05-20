@@ -861,11 +861,11 @@ impl AppConfig {
             m.insert("security_modifiers".into(), Value::Object(modifiers_value));
         }
         // Emit `security_probe_cache` as an explicit value (object or
-        // null) rather than omitting it on `None`. The v1 writer
-        // omitted, which collapsed "never probed" and "probed-but-
-        // empty" on the round-trip. v2 stamps the field unconditionally
-        // so the load path (and the cold-start cache hit / miss
-        // decision) sees the same shape every write produced.
+        // null) rather than omitting it on `None` — omitting would
+        // collapse "never probed" and "probed-but-empty" on the
+        // round-trip. Stamping the field unconditionally keeps the
+        // load path (and the cold-start cache hit / miss decision)
+        // reading the same shape every write produced.
         m.insert(
             "security_probe_cache".into(),
             self.security_probe_cache

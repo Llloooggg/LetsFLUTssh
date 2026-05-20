@@ -34,8 +34,8 @@
 //!   row; M2M edges (`session_tags`, `folder_tags`, `session_snippets`)
 //!   union via `INSERT OR IGNORE`. Hardware-bound key columns are
 //!   per-device and never overwrite — sync rows land as `software`
-//!   stubs (matches the v2 wire shape; Stage 3 adds backend-typed
-//!   stubs).
+//!   stubs because device-bound backends never travel between
+//!   installs.
 //!
 //! # Failure model
 //!
@@ -404,9 +404,9 @@ fn run_apply(
             apply_known_hosts(conn, text, now_ms, outcome);
         }
     }
-    // New-table apply arms. Each is no-op when its JSON entry is
-    // absent from the pending bundle, which is the v1/v2 archive
-    // shape (`SchemaVersions::ARCHIVE` v3 adds the entries).
+    // Child-table apply arms. Each is a no-op when its JSON entry is
+    // absent from the pending bundle (e.g. a manual export that did
+    // not include the section).
     if want_keys {
         if let Some(json) = pending.ssh_key_certificates_json.as_deref() {
             apply_ssh_key_certificates(conn, json, outcome);
@@ -897,9 +897,9 @@ fn apply_sessions(
                 .map(String::from),
             passphrase: json_string(&v, "passphrase"),
             sort_order: 0,
-            // Sync mode doesn't ship `notes` in v2 archives; archive
-            // imports do. Keep both behaviours faithful: archive
-            // reads the field, sync leaves it empty.
+            // Sync mode doesn't ship `notes`; archive imports do.
+            // Keep both behaviours faithful: archive reads the field,
+            // sync leaves it empty.
             notes: if mode.is_sync() {
                 String::new()
             } else {
@@ -1001,8 +1001,8 @@ fn apply_keys(
 /// Sync-mode key fold. LWW on `created_at`; ties keep the local
 /// row. Backend / pkcs11 / hardware-bound columns stay per-device
 /// (sync never overwrites them) — every incoming row lands as
-/// `software` for v2 wire payloads, or as a typed stub when the
-/// peer shipped a v3 backend payload (Stage 3).
+/// `software` because device-bound backends never travel between
+/// installs.
 fn apply_keys_sync(
     conn: &impl crate::db::DbAccess,
     arr: Vec<Value>,
@@ -1048,12 +1048,11 @@ fn apply_keys_sync(
     }
 }
 
-/// Build an `SshKeyRow` from the wire-format JSON value. The current
-/// implementation pins every cross-device row to
-/// [`ssh_keys::KeyBackend::Software`] (matches the v2 archive shape).
-/// Stage 3 rewrites this to honour the v3 backend discriminator and
-/// per-backend payload (stub rows for device-bound backends, full
-/// metadata for FIDO2 / PKCS#11).
+/// Build an `SshKeyRow` from the wire-format JSON value. Every
+/// cross-device row is pinned to [`ssh_keys::KeyBackend::Software`]
+/// — device-bound backends (FIDO2 / PKCS#11) are hardware-resident
+/// and never travel between installs, so an imported key always
+/// lands as a software key.
 fn build_key_row(v: &Value, now_ms: i64) -> Result<ssh_keys::SshKeyRow, String> {
     let public_key = json_string(v, "public_key");
     let id = json_string(v, "id");
@@ -3453,7 +3452,7 @@ mod tests {
         assert_eq!(rows[0].remote_host, "app.example.com");
     }
 
-    // ── Stage 3: SSH key round-trip per backend ────────────────
+    // ── SSH key round-trip per backend ─────────────────────────
 
     fn round_trip_key_through_apply(backend: &str, extra_fields: &str) -> ssh_keys::SshKeyRow {
         let mut conn = fresh_db();
@@ -3566,7 +3565,7 @@ mod tests {
         assert!(row.keystore_alias.is_none());
     }
 
-    // ── Stage 1: cross-mode unified-entry parity ───────────────
+    // ── cross-mode unified-entry parity ────────────────────────
 
     /// Exercise the same Pending fixture through both
     /// ArchiveImport and Sync modes; assert the per-mode DB state

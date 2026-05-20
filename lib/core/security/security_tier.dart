@@ -17,12 +17,9 @@ import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 /// `<` / `>` comparison is a bug. Use tier predicates (`isParanoid`,
 /// `hasKeychain`, `hasHardwareVault`) instead.
 ///
-/// **Bank-style model** (post-v3 schema): one tier per key-storage
-/// strategy + an orthogonal `password` modifier on top. Pre-v3
-/// configs that carried a dedicated `keychainWithPassword` value are
-/// rewritten by the Rust-side `ConfigV2ToV3` migration on next
-/// startup — stored as `tier: keychain` + `modifiers.password: true`.
-/// The legacy enum value is gone; runtime callers branching on
+/// **Bank-style model**: one tier per key-storage strategy + an
+/// orthogonal `password` modifier on top. There is no dedicated
+/// `keychainWithPassword` tier — runtime callers branching on
 /// "T1 + password" check `modifiers.password`, not the tier itself.
 typedef SecurityTier = rust_sec_cfg.DbSecurityTier;
 
@@ -31,11 +28,8 @@ typedef SecurityTier = rust_sec_cfg.DbSecurityTier;
 /// wizard presents. `biometric` requires `password` (biometric is a
 /// shortcut for entering the password, never its replacement).
 ///
-/// Pre-v4 configs also carried `biometric_shortcut` (a deprecated
-/// 1:1 alias for `biometric`) and `pin_length` (advisory in the
-/// bank-style model, no runtime caller). The Rust-side
-/// `ConfigV3ToV4` migration drops both fields on the next read;
-/// the runtime struct no longer carries them.
+/// The bag carries exactly `password` + `biometric`; any other key
+/// in a hand-edited config is ignored on read rather than rejected.
 ///
 /// The class is a plain Dart data holder — wire codec lives Rust-side
 /// in `lfs_core::security::SecurityTierModifiers` and crosses the FRB
@@ -128,8 +122,7 @@ class SecurityConfig {
   /// optional shortcut that releases that password from an
   /// OS-managed slot, never a replacement. Keychain flips on the
   /// explicit `modifiers.password` modifier (the bank-style T1+pw
-  /// shape — pre-v3 installs persisted this as a dedicated
-  /// `keychainWithPassword` tier value).
+  /// shape — a password-gated keychain, not a dedicated tier).
   bool get hasUserSecret {
     switch (tier) {
       case SecurityTier.paranoid:

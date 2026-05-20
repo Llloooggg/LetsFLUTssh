@@ -17,7 +17,7 @@ void main() {
       }
     });
 
-    test('keychain card subsumes keychainWithPassword applied', () {
+    test('keychain card subsumes keychain + password applied', () {
       expect(
         tierCardIsCurrent(
           cardTier: SecurityTier.keychain,
@@ -28,7 +28,7 @@ void main() {
     });
 
     test('keychain card matches the keychain tier regardless of modifier', () {
-      // Bank-style v3: L1+password is `keychain` + `modifiers
+      // Bank-style: L1+password is `keychain` + `modifiers
       // .password = true` (no dedicated tier value). The keychain
       // card matches both the passwordless and the with-password
       // applied state — the modifier is rendered as a separate
@@ -72,9 +72,9 @@ void main() {
     });
 
     test('keychain reports password only when the modifier flag is on', () {
-      // Bank-style v3: the L1+password case folded into keychain
-      // + `modifiers.password = true`; no tier-only signal exists
-      // for it. Without the modifier the predicate stays false
+      // Bank-style: a password-gated L1 is keychain + `modifiers
+      // .password = true`; no tier-only signal exists for it.
+      // Without the modifier the predicate stays false
       // even on the keychain tier.
       expect(
         currentConfigHasPassword(

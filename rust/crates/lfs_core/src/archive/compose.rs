@@ -102,9 +102,8 @@ pub struct ExportInput {
     /// `<install-id>:<unix_ms>` token on every push; a peer
     /// device's pull recognises "this is my own push echoing
     /// back" by comparing the field against its own stamp and
-    /// skips applying the archive. `None` emits no field (legacy
-    /// shape, manual exports from the Data → Export dialog).
-    /// Available since `SchemaVersions::ARCHIVE` v2.
+    /// skips applying the archive. `None` emits no field — manual
+    /// exports from the Data → Export dialog leave it absent.
     pub sync_origin: Option<String>,
     /// Root of the recordings tree to bundle when
     /// `options.include_recordings` is true. Typically
@@ -448,7 +447,6 @@ fn write_manifest(
     // non-empty token. Manual exports leave the field absent;
     // the sync orchestrator passes `<install-id>:<unix_ms>` so a
     // peer device's pull can detect its own push echoing back.
-    // Available since `SchemaVersions::ARCHIVE` v2.
     if let Some(o) = input.sync_origin.as_deref() {
         if !o.is_empty() {
             obj.insert("sync_origin".into(), json!(o));

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `derive_auth_for_pin`, `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_linux_vault_error`, `read_existing_salt`, `reseal_blocking`
+// These functions are ignored because they are not marked as `pub`: `derive_auth_for_pin`, `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_linux_vault_error`, `read_existing_salt`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Encode the salt + sealed-blob pair as the JSON envelope written
@@ -269,52 +269,6 @@ Future<void> hardwareTierVaultClearBiometricPassword({
 }) => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword(
       supportDir: supportDir,
-    );
-
-/// True when the v6 → v7 password-set wizard needs to run before
-/// the regular Hardware-tier unlock path. Sync because the probe is
-/// a pure path-stat under the pinned support_dir — bootstrap calls
-/// this once before `unlock_hardware` to avoid a rate-limited
-/// round-trip against a vault that no live password can unseal.
-/// Returns `false` when the pin is missing (cold-start ordering
-/// misorder), mirroring the path-absent shape so a misordered call
-/// never spuriously kicks off the wizard.
-bool hardwareTierVaultPasswordSetWizardRequired() => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultPasswordSetWizardRequired();
-
-/// Clear the v6 → v7 password-set marker. Idempotent — a missing
-/// target is treated as success. Caller fires this only after the
-/// re-seal succeeded; surfacing the call separately keeps the
-/// wizard widget's success path explicit (no hidden side effect
-/// inside `reseal_with_password`).
-Future<void> hardwareTierVaultClearPasswordSetMarker({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultClearPasswordSetMarker(
-      supportDir: supportDir,
-    );
-
-/// Re-seal the Hardware-tier vault under a freshly-typed password.
-///
-/// Used by the v6 → v7 password-set wizard. Reads the existing
-/// vault under the empty PIN-HMAC the migration left behind, drops
-/// the vault + sibling salt, provisions a fresh salt, and re-stores
-/// the same DB key under `HMAC(new_salt, new_password)`.
-///
-/// Returns `Err(_)` if any step fails — the marker stays in place
-/// (the caller never reaches the `clear_password_set_marker` call),
-/// the vault is either fully under the empty PIN-HMAC (steps 1-2
-/// failed) or fully under the new password (steps 3-5 succeeded).
-/// A new-password that arrives empty short-circuits as
-/// `Err("password must not be empty")` — the contract mirrors
-/// `unlock_hardware`'s typed-secret invariant.
-Future<void> hardwareTierVaultResealWithPassword({
-  required String supportDir,
-  required String newPassword,
-}) => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultResealWithPassword(
-      supportDir: supportDir,
-      newPassword: newPassword,
     );
 
 /// FRB mirror of `lfs_core::security::hardware_tier_vault::LinuxBlob`.

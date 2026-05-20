@@ -2,8 +2,7 @@ import 'dart:async' show unawaited;
 import 'dart:convert' show utf8;
 import 'dart:io' show Platform, exit;
 
-import 'package:flutter/foundation.dart'
-    show ValueListenable, visibleForTesting;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +13,6 @@ import '../core/db/rust_db_init.dart';
 import '../core/security/active_dbkey.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
-import '../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../src/rust/api/recovery.dart'
     as rust_recovery
@@ -52,7 +50,6 @@ import '../utils/logger.dart';
 import '../utils/platform.dart' as plat;
 import '../widgets/app_dialog.dart';
 import '../widgets/db_corrupt_dialog.dart';
-import '../widgets/hardware_password_setup_wizard.dart';
 import '../widgets/security_setup_dialog.dart';
 import '../widgets/tier_secret_unlock_dialog.dart';
 import '../widgets/toast.dart';
@@ -111,30 +108,6 @@ typedef DbReadableProbe = Future<bool> Function();
 /// artefact on disk.
 typedef MigrationRunnerFn = Future<DbMigrationReport> Function();
 
-/// Signature of the v6 → v7 Hardware-tier password-set wizard probe.
-/// Injectable so tests can flip "marker present" / "marker absent"
-/// without touching the filesystem or loading the FRB native lib.
-typedef HardwarePasswordSetWizardProbe = bool Function();
-
-/// Default production probe — routes through the FRB sync shim and
-/// returns false on any FRB failure (flutter_test contexts that
-/// haven't loaded the native bundle), so the wizard never fires
-/// without an actual marker on disk. Rust resolves the support_dir
-/// from the singleton pinned by `configStoreInit` at startup.
-bool _defaultPasswordSetWizardProbe() {
-  try {
-    return rust_vault.hardwareTierVaultPasswordSetWizardRequired();
-  } catch (e) {
-    AppLogger.instance.log(
-      'hardware_tier_vault_password_set_wizard_required FRB '
-      'unreachable: $e',
-      name: 'App',
-      level: LogLevel.warn,
-    );
-    return false;
-  }
-}
-
 class SecurityInitController {
   final WidgetRef ref;
   final bool Function() isMounted;
@@ -147,7 +120,6 @@ class SecurityInitController {
   final DbReadableProbe _verifyReadable;
   final SecurityDialogPrompter _dialogs;
   final MigrationRunnerFn _migrationRunner;
-  final HardwarePasswordSetWizardProbe _hardwarePasswordWizardProbe;
 
   SecurityInitController({
     required this.ref,
@@ -156,13 +128,10 @@ class SecurityInitController {
     DbReadableProbe? verifyReadable,
     SecurityDialogPrompter? dialogPrompter,
     MigrationRunnerFn? migrationRunner,
-    HardwarePasswordSetWizardProbe? hardwarePasswordWizardProbe,
   }) : _dbFileExists = dbFileExists ?? lfsCoreDbExists,
        _verifyReadable = verifyReadable ?? verifyRustDbReadable,
        _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter(),
-       _migrationRunner = migrationRunner ?? runStartupMigrations,
-       _hardwarePasswordWizardProbe =
-           hardwarePasswordWizardProbe ?? _defaultPasswordSetWizardProbe;
+       _migrationRunner = migrationRunner ?? runStartupMigrations;
 
   // ── State fields ────────────────────────────────────────────
 
@@ -504,10 +473,6 @@ class SecurityInitController {
       return;
     }
 
-    if (await handleHardwarePasswordSetWizardIfPending(manager, keyStorage)) {
-      return;
-    }
-
     final dbExists = await _dbFileExists();
     if (dbExists) {
       await _unlockExistingDatabase(manager, keyStorage);
@@ -517,75 +482,6 @@ class SecurityInitController {
     // No DB file — first launch. Show security setup wizard.
     await _firstLaunchSetup(manager, keyStorage);
   }
-
-  /// Detect the v6 → v7 Hardware-tier password-set marker and run
-  /// the bootstrap wizard. Returns true when the wizard handled the
-  /// session (either re-sealed under a new password and the regular
-  /// unlock path picks up, or the user chose wipe-and-restart which
-  /// the wizard's branch fires end-to-end before returning).
-  ///
-  /// The marker check is FRB-touching — must run after
-  /// `_initRustCoreOrFatal` has succeeded. Bootstrap arrives here
-  /// through `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
-  /// → `SecurityInitController.bootstrap` so the invariant holds.
-  ///
-  /// Exposed for tests so the wizard-injection branch is exercisable
-  /// without driving the full migration pipeline.
-  @visibleForTesting
-  Future<bool> handleHardwarePasswordSetWizardIfPending(
-    MasterPasswordManager manager,
-    SecureKeyStorage keyStorage,
-  ) async {
-    final security = ref.read(configProvider).security;
-    if (security == null || security.tier != SecurityTier.hardware) {
-      return false;
-    }
-    final required = _passwordSetWizardRequired();
-    if (!required) return false;
-    final supportDir = await getApplicationSupportDirectory();
-    AppLogger.instance.log(
-      'Hardware-tier v7 password-set marker present — surfacing '
-      'bootstrap wizard before the regular unlock path',
-      name: 'App',
-    );
-    if (!isMounted()) return true;
-    final outcome = await _dialogs.showHardwarePasswordSetup(
-      supportDir: supportDir.path,
-    );
-    if (outcome == HardwarePasswordWizardOutcome.resealed) {
-      AppLogger.instance.log(
-        'Hardware-tier v7 wizard: re-sealed under user password',
-        name: 'App',
-      );
-      // Marker is cleared by the wizard's success path. Falling
-      // through to the regular unlock cascade picks up the new
-      // password the user just typed.
-      return false;
-    }
-    // Wipe path (or unresolved show): treat both as a destructive
-    // reset request so the user does not silently fall into the
-    // rate-limited unlock loop against a vault no live password
-    // can unseal.
-    AppLogger.instance.log(
-      'Hardware-tier v7 wizard: wipe-and-restart requested',
-      name: 'App',
-    );
-    _credentialsWereReset = true;
-    await WipeAllService(
-      credentialCacheEvict: ref.read(sessionCredentialCacheProvider).evictAll,
-    ).wipeAll();
-    if (!isMounted()) return true;
-    await ref
-        .read(configProvider.notifier)
-        .update(
-          (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
-        );
-    if (!isMounted()) return true;
-    await _firstLaunchSetup(manager, keyStorage);
-    return true;
-  }
-
-  bool _passwordSetWizardRequired() => _hardwarePasswordWizardProbe();
 
   Future<void> _clearPendingTierTransition() async {
     final pendingTransition = await SecurityTierSwitcher().readPendingMarker();
@@ -715,10 +611,9 @@ class SecurityInitController {
       case SecurityTier.hardware:
         await _unlockHardware();
       case SecurityTier.keychain:
-        // Bank-style v3: T1+password is `keychain` + `modifiers
-        // .password`; the dispatch was previously a dedicated
-        // `keychainWithPassword` arm and is now a modifier check
-        // inside the keychain arm.
+        // Bank-style: T1+password is `keychain` + `modifiers
+        // .password`, so the keychain arm branches on the modifier
+        // rather than a dedicated tier.
         if (modifiers.password) {
           await _unlockKeychainWithPassword();
         } else {

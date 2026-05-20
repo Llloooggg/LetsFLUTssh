@@ -193,22 +193,19 @@ pub struct PendingImport {
     pub config_json: Option<String>,
     pub known_hosts_text: Option<String>,
     /// Paired OpenSSH certificate rows (`ssh_key_certificates`).
-    /// Available since `SchemaVersions::ARCHIVE` v3. Absent for v1 / v2
-    /// archives.
     pub ssh_key_certificates_json: Option<String>,
     /// WebDAV per-session config (`webdav_session_details`). The
     /// credential bytes stay in the source device's SecretStore;
-    /// only the opaque secret-id pointer travels. v3+.
+    /// only the opaque secret-id pointer travels.
     pub webdav_session_details_json: Option<String>,
     /// S3 per-session config (`s3_session_details`). Same
     /// opaque-secret-id discipline as WebDAV — access key id
-    /// travels, secret access key bytes don't. v3+.
+    /// travels, secret access key bytes don't.
     pub s3_session_details_json: Option<String>,
     /// Per-session SFTP bookmarks (`sftp_bookmarks`). Tombstone-aware.
-    /// v3+.
     pub sftp_bookmarks_json: Option<String>,
     /// Local / Remote / Dynamic port-forward rules
-    /// (`port_forward_rules`). v3+.
+    /// (`port_forward_rules`).
     pub port_forward_rules_json: Option<String>,
     /// Plaintext `.cast` recordings the archive shipped. Bundled
     /// when the sender ticked the "Recordings" checkbox in the

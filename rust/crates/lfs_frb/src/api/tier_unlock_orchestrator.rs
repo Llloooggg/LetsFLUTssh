@@ -253,17 +253,15 @@ pub fn hardware_vault_seal_prompt_cancel(prompt_id: String) {
 /// persist) off the staged key.
 ///
 /// `tier_wire_name` is the same kebab-case wire name the
-/// `tier_machine` exposes (`keychain_with_password`,
-/// `hardware`, etc.). Returns `false` on an unrecognised wire
-/// name so the Dart caller can fall back to inline injection.
+/// `tier_machine` exposes (`keychain`, `hardware`, etc.).
+/// Returns `false` on an unrecognised wire name so the Dart
+/// caller can fall back to inline injection.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_unlock_biometric_commit(tier_wire_name: String, bytes: Vec<u8>) -> bool {
     use lfs_core::security::SecurityTier;
     let tier = match tier_wire_name.as_str() {
         "plaintext" => SecurityTier::Plaintext,
         "keychain" => SecurityTier::Keychain,
-        // Pre-v3 wire-name; v3 collapse rewrites stored configs already, but FRB callers may still hand the legacy string from in-flight bus events captured pre-restart. Map to Keychain identical to the new wire name.
-        "keychain_with_password" => SecurityTier::Keychain,
         "hardware" => SecurityTier::Hardware,
         "paranoid" => SecurityTier::Paranoid,
         _ => return false,
@@ -284,8 +282,6 @@ pub fn tier_unlock_biometric_commit_from_secret(tier_wire_name: String, secret_i
     let tier = match tier_wire_name.as_str() {
         "plaintext" => SecurityTier::Plaintext,
         "keychain" => SecurityTier::Keychain,
-        // Pre-v3 wire-name; v3 collapse rewrites stored configs already, but FRB callers may still hand the legacy string from in-flight bus events captured pre-restart. Map to Keychain identical to the new wire name.
-        "keychain_with_password" => SecurityTier::Keychain,
         "hardware" => SecurityTier::Hardware,
         "paranoid" => SecurityTier::Paranoid,
         _ => return false,

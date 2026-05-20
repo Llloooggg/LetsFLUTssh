@@ -1112,9 +1112,9 @@ bypasses the OS keychain layer).
   design — Apple + Android were always password-gated on T2, and the
   Linux + Windows arms now match.
   `SecurityTierModifiers::is_valid_for_tier` rejects
-  `(tier=Hardware, password=false)` outright; the Hardware
-  password-set wizard handles the one-time enrolment so the
-  wrapped key on disk is sealed against the user's typed password.
+  `(tier=Hardware, password=false)` outright, so a Hardware install
+  is always enrolled with a password at setup time and the wrapped
+  key on disk is sealed against it.
 - `biometric` — when true, the user opted into the biometric
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected
@@ -1124,10 +1124,10 @@ bypasses the OS keychain layer).
   `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
   biometric unlock releases the password from that slot and replays
   the HMAC gate without requiring the user to retype.
-The JSON decoder silently ignores any unknown modifier keys on
-hand-edited configs (e.g. `biometric_shortcut`, `pin_length`) so a
-config that picks up a stray field outside the typed
-`SecurityTierModifiers` shape still parses.
+The JSON decoder silently ignores any key outside the typed
+`SecurityTierModifiers` shape (`password` / `biometric`) on
+hand-edited configs, so a config that picks up a stray field still
+parses.
 
 Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 

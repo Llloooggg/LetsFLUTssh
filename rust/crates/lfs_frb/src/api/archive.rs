@@ -495,16 +495,16 @@ pub async fn db_import_stage(input: DbStagedImport) -> Result<String, String> {
             config_json: input.config_json,
             known_hosts_text: input.known_hosts_text,
             // Staged-import callers (QR / paste-link / OpenSSH-config
-            // path) ship the v2 archive subset only; v3-only child
-            // tables travel through full `.lfs` import.
+            // path) carry only the core subset; the child tables below
+            // travel only through full `.lfs` import.
             ssh_key_certificates_json: None,
             webdav_session_details_json: None,
             s3_session_details_json: None,
             sftp_bookmarks_json: None,
             port_forward_rules_json: None,
-            // Same rationale as the v3-only child tables above —
-            // staged-import callers (QR / paste-link / OpenSSH-
-            // config) stay on the bandwidth-bound subset.
+            // Same rationale as the child tables above — staged-import
+            // callers (QR / paste-link / OpenSSH-config) stay on the
+            // bandwidth-bound subset.
             recordings: Vec::new(),
         };
         let app = lfs_core::app::instance();

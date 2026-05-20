@@ -107,10 +107,9 @@ extension _TierApply on _SecuritySectionState {
       case SecurityTier.plaintext:
         await _applyPlaintextTier(result);
       case SecurityTier.keychain:
-        // Bank-style v3: T1+password is keychain + modifiers.password.
-        // Pre-v3 had a dedicated `keychainWithPassword` enum value
-        // routed to `_applyKeychainWithPasswordTier`; the dispatch
-        // now branches on the modifier instead.
+        // Bank-style: T1+password is keychain + modifiers.password,
+        // so the dispatch branches on the modifier and routes to
+        // `_applyKeychainWithPasswordTier` when it is set.
         if (result.modifiers.password) {
           await _applyKeychainWithPasswordTier(result);
         } else {

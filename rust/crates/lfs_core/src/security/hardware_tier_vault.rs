@@ -137,59 +137,6 @@ pub fn resolve_auth_value(
     }
 }
 
-/// v6 → v7 config migration marker — written when the `ConfigV6ToV7`
-/// migration flips a Hardware config from `modifiers.password=false`
-/// to `modifiers.password=true`. The wrapped key on disk still
-/// carries the empty PIN-HMAC seal from the pre-flip install; the
-/// follow-up bootstrap wizard re-seals against the user's typed
-/// password before the regular unlock path runs.
-///
-/// The marker survives until the wizard explicitly clears it via
-/// [`clear_v6_v7_password_set_marker`]. A bootstrap call to
-/// [`hardware_password_set_wizard_required`] keys off the marker's
-/// presence — the unlock orchestrator would otherwise rate-limit
-/// itself against a vault that no live password can unseal.
-pub const V6_V7_PASSWORD_SET_MARKER_FILE: &str = ".hardware_v7_password_set_pending";
-
-/// Resolve the marker path for the v6 → v7 password-set wizard.
-#[must_use]
-pub fn v6_v7_password_set_marker_path(support_dir: &std::path::Path) -> std::path::PathBuf {
-    support_dir.join(V6_V7_PASSWORD_SET_MARKER_FILE)
-}
-
-/// Write the v6 → v7 password-set marker. Idempotent — a pre-
-/// existing marker is left untouched (the migration is
-/// re-entrant against a partially-applied previous run).
-pub fn write_v6_v7_password_set_marker(support_dir: &std::path::Path) -> std::io::Result<()> {
-    let path = v6_v7_password_set_marker_path(support_dir);
-    if path.exists() {
-        return Ok(());
-    }
-    crate::path::write_bytes_atomic(&path, b"").map_err(|e| std::io::Error::other(e.to_string()))
-}
-
-/// Clear the v6 → v7 password-set marker. Idempotent — a missing
-/// target file is treated as success so the wizard can call this
-/// without branching on pre-existence.
-pub fn clear_v6_v7_password_set_marker(support_dir: &std::path::Path) -> std::io::Result<()> {
-    let path = v6_v7_password_set_marker_path(support_dir);
-    match std::fs::remove_file(&path) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e),
-    }
-}
-
-/// True when the v6 → v7 password-set wizard needs to run before
-/// the regular Hardware-tier unlock path. Bootstrap consults this
-/// ahead of [`crate::security::tier_unlock_orchestrator::unlock_hardware`]
-/// so a stale empty-PIN seal never enters the rate-limited
-/// unlock loop.
-#[must_use]
-pub fn hardware_password_set_wizard_required(support_dir: &std::path::Path) -> bool {
-    v6_v7_password_set_marker_path(support_dir).exists()
-}
-
 /// Sibling-file salt I/O for the Apple / Windows / Android paths.
 ///
 /// `hardware_vault_salt.bin` carries the per-install 32-byte salt
@@ -758,41 +705,6 @@ mod tests {
     fn resolve_biometric_branch_rejects_empty_hash() {
         let salt = vec![0x05u8; 32];
         assert_eq!(resolve_auth_value(AuthIntent::Biometric(&[]), &salt), None);
-    }
-
-    #[test]
-    fn v6_v7_marker_probe_reports_absent_then_present() {
-        // Mismatch detection regression — a v7 config carries
-        // `password=true` but the wrapped key was sealed under an
-        // empty PIN-HMAC by the pre-flip install. The
-        // ConfigV6ToV7 migration writes this marker so bootstrap
-        // can route the password-set wizard ahead of the unlock
-        // path. A missing marker → no wizard required.
-        let dir = tempfile::TempDir::new().unwrap();
-        assert!(!hardware_password_set_wizard_required(dir.path()));
-        write_v6_v7_password_set_marker(dir.path()).unwrap();
-        assert!(hardware_password_set_wizard_required(dir.path()));
-        clear_v6_v7_password_set_marker(dir.path()).unwrap();
-        assert!(!hardware_password_set_wizard_required(dir.path()));
-    }
-
-    #[test]
-    fn v6_v7_marker_write_is_idempotent() {
-        // A migration that re-runs over an already-flipped config
-        // must not blow up on the second pass — the marker write
-        // is re-entrant.
-        let dir = tempfile::TempDir::new().unwrap();
-        write_v6_v7_password_set_marker(dir.path()).unwrap();
-        write_v6_v7_password_set_marker(dir.path()).unwrap();
-        assert!(hardware_password_set_wizard_required(dir.path()));
-    }
-
-    #[test]
-    fn v6_v7_marker_clear_on_missing_target_is_ok() {
-        // The wizard's clear call lands without branching on
-        // pre-existence — a missing target is treated as success.
-        let dir = tempfile::TempDir::new().unwrap();
-        clear_v6_v7_password_set_marker(dir.path()).unwrap();
     }
 
     #[cfg(target_os = "linux")]

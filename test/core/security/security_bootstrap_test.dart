@@ -90,7 +90,7 @@ void main() {
     });
 
     test(
-      'keychain + password → keychainWithPassword with shortPassword set',
+      'keychain + password maps to the keychain tier with shortPassword set',
       () {
         final mapped = mapWizardChoice(
           chosen: WizardTier.keychain,
@@ -156,14 +156,13 @@ void main() {
       expect(m.biometric, isFalse);
     });
 
-    // Wire codec (JSON round-trip, legacy-key stripping) lives
+    // Wire codec (JSON round-trip, unknown-key handling) lives
     // Rust-side in `lfs_core::security::SecurityTierModifiers`; the
-    // Dart class is now a plain data holder. The `from_json_map` /
-    // `to_json_map` contracts (round-trip every field, drop pre-v4
-    // `biometric_shortcut` / `pin_length` keys) are covered by the
-    // `lfs_core::security::tier` unit tests + the `lfs_frb::api::
-    // security_config` FRB shim tests, so the Dart side no longer
-    // re-asserts them.
+    // Dart class is a plain data holder. The `from_json_map` /
+    // `to_json_map` contracts (round-trip every field, ignore unknown
+    // keys) are covered by the `lfs_core::security::tier` unit tests
+    // + the `lfs_frb::api::security_config` FRB shim tests, so the
+    // Dart side no longer re-asserts them.
   });
 
   group('DbSecurityCapabilities value-type contract', () {

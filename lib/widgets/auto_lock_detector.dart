@@ -168,10 +168,9 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   bool _hasTypedSecret() {
     final level = ref.read(securityStateProvider).level;
     if (level == SecurityTier.paranoid) return true;
-    // Bank-style v3: T1+password is `keychain` + the password
-    // modifier; pre-v3 the keychainWithPassword tier value carried
-    // the same signal. The modifier check below covers both the
-    // collapsed T1+password case and the hardware+password case.
+    // Bank-style: T1+password is `keychain` + the password
+    // modifier. The modifier check below covers both the
+    // T1+password case and the hardware+password case.
     final modifiers =
         ref.read(configProvider).security?.modifiers ??
         SecurityTierModifiers.defaults;

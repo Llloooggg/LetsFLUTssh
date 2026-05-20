@@ -112,9 +112,8 @@ void main() {
     });
 
     test('keychain + password modifier allows auto-lock', () {
-      // Bank-style v3: this case used to live as a dedicated
-      // `keychainWithPassword` tier value; the post-v3 collapse
-      // folds it into `keychain` + `modifiers.password = true`.
+      // Bank-style: a password-gated keychain is `keychain` +
+      // `modifiers.password = true`, not a dedicated tier value.
       expect(
         autoLockDisabledReason(
           l10n: l10n,
@@ -231,8 +230,8 @@ void main() {
       },
     );
 
-    test('keychainWithPassword counts as the keychain tier being current', () {
-      // keychain card while keychainWithPassword is applied — must
+    test('keychain + password counts as the keychain tier being current', () {
+      // keychain card while keychain + password is applied — must
       // fall through to "ready" rung instead of "select tier".
       final spec = biometricSpecFor(
         l10n: l10n,
@@ -579,9 +578,8 @@ void main() {
       );
       // Round-trip through jsonDecode for shape assertions — never
       // assert on raw string layout (would lock to formatting).
-      // Bank-style v3: the L1+password case collapsed; the tier
-      // wire name stays `keychain` and the password signal lives
-      // in `mods.password`.
+      // Bank-style: a password-gated L1 keeps the `keychain` wire
+      // name and carries the password signal in `mods.password`.
       final decoded = json.decode(payload);
       expect(decoded, isA<Map<String, dynamic>>());
       expect(decoded['tier'], 'keychain');
@@ -676,7 +674,7 @@ void main() {
       );
     });
 
-    test('keychainWithPassword → keychainGate', () {
+    test('keychain + password → keychainGate', () {
       expect(
         passwordVerifierKindFor(SecurityTier.keychain),
         PasswordVerifierKind.keychainGate,
@@ -1405,9 +1403,8 @@ void main() {
     });
 
     test('keychain + password plan skips both keychain key + gate', () async {
-      // Bank-style v3: this case folded out of a dedicated
-      // `keychainWithPassword` tier value; the modifier is what
-      // drives the plan branch now.
+      // Bank-style: a password-gated keychain is `keychain` +
+      // `modifiers.password`; the modifier drives the plan branch.
       final calls = await runPlan(
         tierVaultClearPlanFor(
           SecurityTier.keychain,
@@ -1467,7 +1464,7 @@ void main() {
         // doesn't have a master-password verifier in scope). The
         // gate must short-circuit so a slow `isEnabled` FRB call
         // never runs for that branch.
-        // Sanity: keychainWithPassword is the tier where the `clearMasterPassword`
+        // Sanity: keychain + password is where the `clearMasterPassword`
         // flag is true; assert the gate fires there.
         var enabledQueried = 0;
         await runVaultClearPlan(
@@ -1546,7 +1543,7 @@ void main() {
     });
 
     test('keychain + password spares both keychain key + gate', () {
-      // Bank-style v3: the modifier carries the password signal —
+      // Bank-style: the modifier carries the password signal —
       // the gate file survives only when `modifiers.password` is on.
       final plan = tierVaultClearPlanFor(
         SecurityTier.keychain,
@@ -1617,10 +1614,10 @@ void main() {
     test('exactly one slot is `false` per (tier, password) — the slot the '
         'apply method just wrote into (plaintext is the all-clear exception, '
         'keychain + password writes two slots)', () {
-      // Bank-style v3: the keychain branch's plan now depends on
-      // the password modifier. Walk both `password = false` and
-      // `password = true` to cover both halves of the formerly-
-      // dedicated keychain / keychainWithPassword tier values.
+      // Bank-style: the keychain branch's plan depends on the
+      // password modifier. Walk both `password = false` and
+      // `password = true` to cover the passwordless and
+      // password-gated keychain shapes.
       for (final tier in SecurityTier.values) {
         for (final pw in [false, true]) {
           final plan = tierVaultClearPlanFor(

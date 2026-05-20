@@ -121,11 +121,9 @@ pub fn merge_pending_into_local(
 
 impl MergeOutcome {
     /// Project the unified [`ApplyOutcome`] onto the sync-shape
-    /// counters Dart's `lfs_frb::api::sync` adapter consumes. The
-    /// per-kind shape matches the pre-unification fields one-for-one;
-    /// new v3 child-table counters land on
-    /// [`MergeOutcome::bookmarks_merged`] (SFTP bookmarks) and stay
-    /// projected straight from the unified outcome.
+    /// counters Dart's `lfs_frb::api::sync` adapter consumes. Each
+    /// per-kind counter maps one-for-one onto the unified outcome;
+    /// SFTP-bookmark counts land on [`MergeOutcome::bookmarks_merged`].
     pub fn from_apply_outcome(o: ApplyOutcome) -> Self {
         Self {
             sessions_merged: o.sessions_applied as u32,

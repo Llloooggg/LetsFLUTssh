@@ -4,11 +4,9 @@ import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
 import '../core/security/tier_unlock_attempt.dart';
 import '../widgets/db_corrupt_dialog.dart';
-import '../widgets/hardware_password_setup_wizard.dart';
 import '../widgets/security_setup_dialog.dart';
 import '../widgets/tier_reset_dialog.dart';
 import '../widgets/tier_secret_unlock_dialog.dart';
-import 'navigator_key.dart';
 import 'security_dialogs.dart';
 
 /// Seam for every blocking security dialog `SecurityInitController`
@@ -72,18 +70,6 @@ abstract class SecurityDialogPrompter {
     Future<void> Function()? onReset,
     bool autoTriggerBiometric = true,
   });
-
-  /// Hardware-tier v6 → v7 password-set wizard. Production wraps
-  /// [HardwarePasswordSetupWizard.show]; tests return a canned
-  /// outcome so the bootstrap orchestrator's marker-cleared /
-  /// wipe-requested branches are exercisable end-to-end.
-  ///
-  /// Returns `null` when the navigator unmounts mid-show — bootstrap
-  /// treats the same outcome as wipe-requested so the user does not
-  /// silently fall into the rate-limited unlock loop.
-  Future<HardwarePasswordWizardOutcome?> showHardwarePasswordSetup({
-    required String supportDir,
-  });
 }
 
 /// Production prompter — delegates to the real widget factories. The
@@ -129,13 +115,4 @@ class ProductionSecurityDialogPrompter implements SecurityDialogPrompter {
           ),
     onReset: onReset,
   );
-
-  @override
-  Future<HardwarePasswordWizardOutcome?> showHardwarePasswordSetup({
-    required String supportDir,
-  }) {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return Future.value(null);
-    return HardwarePasswordSetupWizard.show(ctx, supportDir: supportDir);
-  }
 }

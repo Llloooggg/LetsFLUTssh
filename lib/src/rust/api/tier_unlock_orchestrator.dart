@@ -217,9 +217,9 @@ void hardwareVaultSealPromptCancel({required String promptId}) => RustLib
 /// persist) off the staged key.
 ///
 /// `tier_wire_name` is the same kebab-case wire name the
-/// `tier_machine` exposes (`keychain_with_password`,
-/// `hardware`, etc.). Returns `false` on an unrecognised wire
-/// name so the Dart caller can fall back to inline injection.
+/// `tier_machine` exposes (`keychain`, `hardware`, etc.).
+/// Returns `false` on an unrecognised wire name so the Dart
+/// caller can fall back to inline injection.
 bool tierUnlockBiometricCommit({
   required String tierWireName,
   required List<int> bytes,

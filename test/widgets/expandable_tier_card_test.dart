@@ -370,7 +370,7 @@ void main() {
         );
 
         // Simulate user applying password on → parent rebuild lands
-        // the card with currentTier=keychainWithPassword + password=true.
+        // the card with currentTier=keychain + password=true.
         await tester.pumpWidget(
           _wrap(
             const ExpandableTierCard(

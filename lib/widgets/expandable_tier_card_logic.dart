@@ -17,23 +17,19 @@ bool tierCardIsCurrent({
   required SecurityTier cardTier,
   required SecurityTier currentTier,
 }) {
-  // Bank-style v3: T1+password is `keychain` + the password
-  // modifier; pre-v3 it was a dedicated `keychainWithPassword`
-  // tier value that needed a special-case match against the
-  // keychain card. Now both passwordless T1 and T1+password
-  // resolve to the same `keychain` tier, so the direct
-  // comparison covers both.
+  // Bank-style: both passwordless T1 and T1+password resolve to the
+  // same `keychain` tier (the password rides `modifiers.password`),
+  // so the direct comparison covers both against the keychain card.
   return cardTier == currentTier;
 }
 
 /// Whether the currently-applied tier + modifiers already carry a
 /// user-typed password. Paranoid and Hardware always do (mandatory
 /// by tier — Hardware is password-gated by contract); Keychain
-/// flips on `currentModifiers.password` (the bank-style v3 signal
-/// that replaced the per-combination `keychainWithPassword` tier
-/// value). Used by the card to decide whether to render a fresh
-/// password input (the user is changing tier or adding a
-/// password) or skip it (the user already has one and the
+/// flips on `currentModifiers.password` (the bank-style signal for
+/// a password-gated keychain). Used by the card to decide whether
+/// to render a fresh password input (the user is changing tier or
+/// adding a password) or skip it (the user already has one and the
 /// post-Apply biometric step prompts via the shared dialog).
 bool currentConfigHasPassword({
   required SecurityTier currentTier,

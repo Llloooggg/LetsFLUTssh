@@ -112,8 +112,8 @@ pub fn tier_machine_state() -> DbTierState {
 }
 
 /// Snapshot the active tier wire-name (`plaintext` /
-/// `keychain` / `keychain_with_password` / `hardware` /
-/// `paranoid`). Mirrors `SecurityTier::wire_name`.
+/// `keychain` / `hardware` / `paranoid`). Mirrors
+/// `SecurityTier::wire_name`.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_machine_active_tier_wire_name() -> String {
     machine_lock()

@@ -39,9 +39,9 @@ pub enum RecoveryPromptKind {
     /// `DbCorruptDialog` framed as security-state loss.
     /// Three choices: `Reset` / `TryOtherTier` / `Quit`.
     VaultStateMissing { tier_label: String },
-    /// Legacy state on disk (pre-v3 schema or orphan artefacts
-    /// with no security config) — surface `TierResetDialog`.
-    /// Two choices: `Reset` / `Quit`.
+    /// Unrecognised state on disk (an out-of-range config schema
+    /// version or orphan artefacts with no security config) —
+    /// surface `TierResetDialog`. Two choices: `Reset` / `Quit`.
     LegacyStateFound {
         config_version_on_disk: i32,
         orphan_artefacts: bool,

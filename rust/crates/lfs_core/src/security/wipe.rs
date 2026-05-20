@@ -48,12 +48,6 @@ const WIPE_PENDING_HEADER_LEN: usize = WIPE_PENDING_MAGIC.len() + 1;
 pub const MANAGED_FILES: &[&str] = &[
     // Markers / transient state
     ".tier-transition-pending",
-    // Stamped by `ConfigV6ToV7` for Hardware-tier installs whose
-    // wrapped key was sealed under the empty PIN-HMAC; the bootstrap
-    // wizard clears it once the user types a real password and the
-    // vault is re-sealed. A full wipe must drop it too so a half-
-    // wiped support-dir does not surface a stale wizard prompt.
-    ".hardware_v7_password_set_pending",
     "keychain_enabled",
     "rate_limit_state.bin",
     // Biometric / hw overlay blobs. Filename grammar:
@@ -128,7 +122,6 @@ pub const MANAGED_FILES: &[&str] = &[
 /// credentials artefact.
 pub const ORPHAN_PROBE_FILES: &[&str] = &[
     ".tier-transition-pending",
-    ".hardware_v7_password_set_pending",
     "keychain_enabled",
     "rate_limit_state.bin",
     "hardware_vault_android_bio.bin",
@@ -619,8 +612,6 @@ mod tests {
         let known: &[&str] = &[
             crate::security::tier_transition_marker::MARKER_FILE_NAME,
             crate::security::keychain_marker::MARKER_FILE_NAME,
-            // v6→v7 password-set wizard marker.
-            crate::security::hardware_tier_vault::V6_V7_PASSWORD_SET_MARKER_FILE,
             // Rate-limit on-disk state for the T1+pw keychain gate.
             "rate_limit_state.bin",
             // T1+pw password verifier hash.

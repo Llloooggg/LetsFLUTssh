@@ -135,7 +135,7 @@ class SecuritySetupResult {
 class SecuritySetupDialog extends StatefulWidget {
   final SecurityTier? currentTier;
 
-  /// Bank-style v3 modifiers for [currentTier]. Carried alongside
+  /// Bank-style modifiers for [currentTier]. Carried alongside
   /// the tier so the wizard can pre-fill the password toggle when
   /// the user re-opens it from Settings (T1+password is inferred
   /// from `modifiers.password`, not from a dedicated tier value).
@@ -248,7 +248,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       case SecurityTier.plaintext:
         return WizardTier.plaintext;
       case SecurityTier.keychain:
-        // Bank-style v3: T1+password is `keychain` + the password
+        // Bank-style: T1+password is `keychain` + the password
         // modifier; the wizard pre-fills the toggle from
         // `currentModifiers.password` (modifier-driven, not a
         // dedicated tier value).
@@ -445,8 +445,8 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     subtitle: l10n.tierKeychainSubtitle(_keychainName),
     accent: AppTheme.accent,
     selected: _selected == WizardTier.keychain,
-    // Bank-style v3: T1+password is `keychain` + modifier; the
-    // pre-v3 dedicated `keychainWithPassword` enum check went away.
+    // Bank-style: T1+password is `keychain` + the password
+    // modifier — no dedicated tier value.
     current: widget.currentTier == SecurityTier.keychain,
     recommended: _recommendedTier(caps) == WizardTier.keychain,
     // Prefer the classified probe reason over the generic

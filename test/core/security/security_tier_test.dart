@@ -15,9 +15,9 @@ void main() {
 
   group('SecurityTier enum', () {
     test('carries the four bank-style tier values', () {
-      // Bank-style v3: one tier per key-storage strategy. The
-      // pre-v3 dedicated `keychainWithPassword` value is gone —
-      // L1 + password is `keychain` + `modifiers.password = true`.
+      // Bank-style: one tier per key-storage strategy. There is no
+      // dedicated `keychainWithPassword` value — L1 + password is
+      // `keychain` + `modifiers.password = true`.
       // Adding or removing a tier without updating the wizard,
       // settings, and locales is a bug that must surface here
       // first.
@@ -151,8 +151,8 @@ void main() {
     });
 
     test('keychain with password modifier round-trips (bank-style L2)', () {
-      // Pre-v3 this combo was a dedicated `keychainWithPassword` tier;
-      // post-v3 it's tier=keychain + modifiers.password=true. The
+      // This combo is tier=keychain + modifiers.password=true, not a
+      // dedicated tier. The
       // round-trip exercises both the encode (Rust `to_json_value`)
       // and the decode (permissive parser).
       const cfg = SecurityConfig(

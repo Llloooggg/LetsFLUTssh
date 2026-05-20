@@ -335,7 +335,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   }
 
   /// Normalize the card's tier to the target tier the apply pipeline
-  /// expects. Bank-style v3: the UI treats T1 as a single tier card
+  /// expects. Bank-style: the UI treats T1 as a single tier card
   /// and the password signal lives on `result.modifiers.password`,
   /// which `_applyTierChange` reads to decide whether to drive the
   /// gate-bearing flow. The tier itself stays `keychain` regardless

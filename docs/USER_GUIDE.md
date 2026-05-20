@@ -1027,15 +1027,6 @@ The biometric overlay is the OS-managed slot that holds the Hardware-tier passwo
 - **Windows** — NCrypt persistent key `letsflutssh_hardware_vault_bio_v1` on the Microsoft Platform Crypto Provider with `NCRYPT_UI_PROTECT_KEY_FLAG | NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`; every unwrap fires the Windows Hello prompt. Re-enrolling Hello (new fingerprint / face / PIN reset) invalidates only the overlay — the primary password vault keeps working.
 - **Linux** — TPM2-sealed `hardware_vault_password_overlay_linux.bin` keyed by your fprintd enrolment hash (SHA-256 of your sorted enrolled-finger names). Requires `fprintd` running with at least one enrolled finger; the README install snippet covers per-distro install + first enrol. Re-enrolling (adding / dropping a finger) flips the hash so the TPM unseal fails, and you fall back to typing the password. The primary `hardware_vault.bin` is unaffected — only the shortcut goes away.
 
-### Migrating from earlier versions (Hardware tier password set)
-
-Older builds let the Hardware tier run without a password — biometrics on top of an empty PIN-HMAC. New builds make the password mandatory; biometric is the optional shortcut on top. When you launch the new version with an existing Hardware-tier install that had no password, a one-shot wizard appears before the regular unlock dialog:
-
-- **Set a password.** Type a fresh master password (twice for confirmation). The DB key already sealed in your TPM / Secure Enclave / StrongBox / Windows TPM stays the same — only the auth value changes; sessions, keys and known-hosts survive intact.
-- **Wipe and start over.** A destructive escape hatch sits on every screen of the wizard. Picks this if you have no usable password to type — the install resets to a fresh first-launch wizard.
-
-The wizard is non-dismissible. Once the re-seal succeeds the regular Hardware-tier unlock dialog asks for the password you just typed and the boot continues as usual. If the re-seal fails (wrong-shape vault on disk, hardware suddenly unavailable), the wizard surfaces the failure inline and lets you pick a different password or wipe — the previous vault stays untouched on disk so a retry is always available.
-
 ### Switching tiers
 
 - Settings → Security → tier card → "Change tier".

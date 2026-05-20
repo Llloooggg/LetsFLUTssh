@@ -92,10 +92,10 @@ impl SecurityTier {
     /// drift here breaks round-trip with installs whose `config.json`
     /// already carries a tier string written by the Dart writer.
     ///
-    /// Pre-v3 configs that stored `keychain_with_password` are
-    /// rewritten to `keychain` + `modifiers.password = true` by the
-    /// `ConfigV2ToV3` migration before the runtime ever reads the
-    /// value, so the legacy wire string never reaches `from_wire_name`.
+    /// The bank-style model has no `keychain_with_password` tier — a
+    /// password-gated Keychain install is `keychain` +
+    /// `modifiers.password = true`, so the credential rides the
+    /// modifier bag rather than a dedicated tier wire string.
     pub fn wire_name(self) -> &'static str {
         match self {
             SecurityTier::Plaintext => "plaintext",
@@ -124,11 +124,10 @@ impl SecurityTier {
 /// wizard enforces this; the Rust copy of the predicate enables the
 /// tier machine to validate config the same way.
 ///
-/// Pre-v4 configs also carried `biometric_shortcut` (a 1:1 alias
-/// for `biometric`, deprecated) and `pin_length` (advisory in the
-/// bank-style model, no runtime caller). The `ConfigV3ToV4`
-/// migration drops both fields on next read; the runtime struct
-/// no longer carries them.
+/// The bag carries exactly `password` + `biometric`. Any other key
+/// in a hand-edited config JSON is ignored on read (see
+/// [`SecurityTierModifiers::from_json_map`]) rather than rejected,
+/// so an unrecognised field never wedges config decode.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct SecurityTierModifiers {
     pub password: bool,
@@ -171,10 +170,9 @@ impl SecurityTierModifiers {
 
     /// Inverse of [`to_json_map`] — read the bag from a JSON object.
     /// Mirrors `SecurityTierModifiers.fromJson` Dart-side: missing
-    /// fields fall back to defaults. The `ConfigV3ToV4` migration
-    /// strips legacy `biometric_shortcut` / `pin_length` fields
-    /// before this reader sees them; if either still appears in a
-    /// hand-edited config we silently ignore it.
+    /// fields fall back to defaults, and any key other than
+    /// `password` / `biometric` is silently ignored so an unknown or
+    /// hand-edited field never wedges decode.
     pub fn from_json_map(json: &serde_json::Map<String, serde_json::Value>) -> Self {
         let d = SecurityTierModifiers::default();
         SecurityTierModifiers {
@@ -368,9 +366,8 @@ pub fn map_wizard_choice(
         },
         WizardTier::Keychain if password => MappedSetupChoice {
             // Bank-style: T1 + password is `Keychain` with
-            // `modifiers.password = true`. Pre-v3 configs used a
-            // dedicated `KeychainWithPassword` tier; the
-            // `ConfigV2ToV3` migration rewrites them on read.
+            // `modifiers.password = true` — the credential rides the
+            // modifier bag, there is no dedicated password-gated tier.
             tier: SecurityTier::Keychain,
             modifiers,
             master_password: None,
@@ -423,14 +420,13 @@ mod tests {
     }
 
     #[test]
-    fn from_wire_name_rejects_unknown_and_legacy() {
+    fn from_wire_name_rejects_unknown() {
         assert_eq!(SecurityTier::from_wire_name(""), None);
         assert_eq!(SecurityTier::from_wire_name("L4"), None);
         assert_eq!(SecurityTier::from_wire_name("plaintext "), None);
-        // The pre-v3 wire string is no longer recognised — the
-        // ConfigV2ToV3 migration rewrites stored configs before the
-        // runtime parses them, so this branch only fires on a
-        // genuinely-malformed input from an external caller.
+        // `keychain_with_password` is not a tier wire name in the
+        // bank-style model — a password-gated Keychain rides the
+        // `modifiers.password` flag — so it parses as unknown.
         assert_eq!(SecurityTier::from_wire_name("keychain_with_password"), None);
     }
 
@@ -496,9 +492,9 @@ mod tests {
         let json = m.to_json_map();
         assert!(json.contains_key("password"));
         assert!(json.contains_key("biometric"));
-        // Legacy keys are no longer emitted post-v4.
-        assert!(!json.contains_key("biometric_shortcut"));
-        assert!(!json.contains_key("pin_length"));
+        // The emitter carries exactly `password` + `biometric` — no
+        // stray keys leak into the on-disk shape.
+        assert_eq!(json.len(), 2);
     }
 
     #[test]
@@ -515,10 +511,10 @@ mod tests {
     }
 
     #[test]
-    fn modifiers_from_json_ignores_legacy_keys() {
-        // ConfigV3ToV4 strips these from disk on first read. If a
-        // hand-edited config still carries them, the decoder must
-        // silently ignore them rather than blow up.
+    fn modifiers_from_json_ignores_unknown_keys() {
+        // Only `password` / `biometric` are read. Any other key in a
+        // hand-edited config must be silently ignored rather than
+        // blow up the decode.
         let mut json = serde_json::Map::new();
         json.insert("password".into(), serde_json::Value::Bool(true));
         json.insert("biometric".into(), serde_json::Value::Bool(false));
@@ -597,8 +593,8 @@ mod tests {
             // T2 is mandatory-password by design (the password
             // is the primary gate, biometric is the optional
             // shortcut). A stored `password=false` on a Hardware
-            // config is treated as drift in the model and migrated
-            // by `ConfigV6ToV7` before the runtime ever reads it.
+            // config is treated as drift and overridden by the
+            // mandatory-password invariant when the predicate runs.
             (
                 SecurityTier::Hardware,
                 false,

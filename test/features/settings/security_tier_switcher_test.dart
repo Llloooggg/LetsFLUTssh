@@ -201,18 +201,12 @@ void main() {
     test(
       'each (src, dst) tier pair runs marker + rekey + callbacks once',
       () async {
-        // Enumerate the tier-label cross product (L0/L1/L2/L3/Paranoid
-        // squared) and exercise the switcher for every pair. `src` is
-        // informational — the switcher does not branch on it; the
-        // invariant being asserted is "regardless of the starting
-        // tier, the same orchestration runs for the same target".
-        const tiers = [
-          'plaintext',
-          'keychain',
-          'keychain_with_password',
-          'hardware',
-          'paranoid',
-        ];
+        // Enumerate the tier-label cross product and exercise the
+        // switcher for every pair. `src` is informational — the
+        // switcher does not branch on it; the invariant being
+        // asserted is "regardless of the starting tier, the same
+        // orchestration runs for the same target".
+        const tiers = ['plaintext', 'keychain', 'hardware', 'paranoid'];
         for (final src in tiers) {
           for (final dst in tiers) {
             var rekey = 0;

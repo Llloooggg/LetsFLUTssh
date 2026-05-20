@@ -122,10 +122,9 @@ extension _FirstLaunchFlows on SecurityInitController {
       case SecurityTier.hardware:
         await _firstLaunchHardware(result.takePin(), result.modifiers);
       case SecurityTier.keychain:
-        // Bank-style v3: T1+password is `keychain` + `modifiers
-        // .password`; the dispatch was previously a dedicated
-        // `keychainWithPassword` arm and is now a modifier check
-        // inside the keychain arm.
+        // Bank-style: T1+password is `keychain` + `modifiers
+        // .password`, so the keychain arm branches on the modifier
+        // rather than a dedicated tier.
         if (result.modifiers.password) {
           await _firstLaunchKeychainWithPassword(
             keyStorage: keyStorage,
@@ -392,7 +391,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     // String stays scoped to this function.
     final passwordBytes = Uint8List.fromList(utf8.encode(shortPassword));
     final ok = await _runFirstLaunchOrchestrator(
-      // Bank-style v3: the T1+password tier is `keychain` with
+      // Bank-style: a password-gated T1 is `keychain` with
       // `modifiers.password = true`; the orchestrator publishes
       // events under the keychain tier and the modifier carries
       // the password signal.

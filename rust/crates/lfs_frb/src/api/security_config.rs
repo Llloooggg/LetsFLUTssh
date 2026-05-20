@@ -55,10 +55,10 @@ impl From<DbSecurityTier> for SecurityTier {
 /// `None` for an unknown / empty string so the caller can decide
 /// whether to fall through to plaintext (config-load path) or
 /// surface the misuse (typed FRB caller). Mirrors the
-/// [`SecurityTier::from_wire_name`] semantics — pre-v3 strings
-/// (`keychain_with_password`) are not recognised; the
-/// `ConfigV2ToV3` migration rewrites stored configs before this
-/// reader sees them.
+/// [`SecurityTier::from_wire_name`] semantics — only the four tier
+/// wire names are recognised; a password-gated Keychain rides the
+/// `modifiers.password` flag, so there is no `keychain_with_password`
+/// wire string to parse.
 #[flutter_rust_bridge::frb(sync)]
 pub fn security_tier_from_wire(value: String) -> Option<DbSecurityTier> {
     SecurityTier::from_wire_name(&value).map(Into::into)
@@ -215,10 +215,9 @@ mod tests {
     fn tier_from_wire_rejects_unknown() {
         assert_eq!(security_tier_from_wire("".into()), None);
         assert_eq!(security_tier_from_wire("L4".into()), None);
-        // Pre-v3 wire string no longer recognised — ConfigV2ToV3
-        // migration rewrites stored configs before the runtime
-        // parses them, so this branch only fires on a
-        // genuinely-malformed input from an external caller.
+        // `keychain_with_password` is not a tier wire name in the
+        // bank-style model — a password-gated Keychain rides the
+        // `modifiers.password` flag — so it parses as unknown.
         assert_eq!(
             security_tier_from_wire("keychain_with_password".into()),
             None

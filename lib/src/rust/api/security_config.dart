@@ -12,10 +12,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// `None` for an unknown / empty string so the caller can decide
 /// whether to fall through to plaintext (config-load path) or
 /// surface the misuse (typed FRB caller). Mirrors the
-/// [`SecurityTier::from_wire_name`] semantics — pre-v3 strings
-/// (`keychain_with_password`) are not recognised; the
-/// `ConfigV2ToV3` migration rewrites stored configs before this
-/// reader sees them.
+/// [`SecurityTier::from_wire_name`] semantics — only the four tier
+/// wire names are recognised; a password-gated Keychain rides the
+/// `modifiers.password` flag, so there is no `keychain_with_password`
+/// wire string to parse.
 DbSecurityTier? securityTierFromWire({required String value}) => RustLib
     .instance
     .api

@@ -54,7 +54,7 @@ String? autoLockDisabledReason({
   required SecurityTier level,
   required SecurityTierModifiers modifiers,
 }) {
-  // Bank-style v3: "T1 + password" is `keychain` + `modifiers
+  // Bank-style: "T1 + password" is `keychain` + `modifiers
   // .password`, not a dedicated tier value. Paranoid is always
   // password-true by construction, but we still check the tier
   // explicitly so a malformed config (paranoid with the modifier
@@ -93,11 +93,9 @@ BiometricModifierSpec? biometricSpecFor({
   if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
     return null;
   }
-  // Pre-v3 the T1+password tier had its own enum value, so the
-  // keychain card had to special-case "current is T1+pw" via a
-  // distinct tier comparison. Post-v3 collapse: T1+pw is just
-  // keychain + modifiers.password=true, so `tier == currentLevel`
-  // covers it directly.
+  // T1+pw is `keychain` + `modifiers.password=true`, not a
+  // dedicated tier value, so `tier == currentLevel` covers the
+  // "current is T1+pw" case directly without a special case.
   final isCurrent = tier == currentLevel;
 
   final platformReason = biometricPlatformReason(
@@ -132,9 +130,9 @@ BiometricModifierSpec? biometricSpecFor({
     );
   }
 
-  // Bank-style v3: paranoid is always password-true by
-  // construction, the formerly-dedicated T1+password tier is now
-  // just `currentModifiers.password` on the keychain tier.
+  // Bank-style: paranoid is always password-true by construction;
+  // a password-gated keychain is just `currentModifiers.password`
+  // on the keychain tier, not a dedicated tier.
   final hasPassword =
       currentLevel == SecurityTier.paranoid || currentModifiers.password;
   if (!hasPassword) {
@@ -177,11 +175,10 @@ bool isVerifiablePasswordDrop({
   required SecurityTier nextTier,
   required SecurityTierModifiers nextModifiers,
 }) {
-  // Pre-v3 model carried T1+password as its own tier value, so this
-  // helper used to switch on tier alone. Bank-style v3 puts password
-  // on the modifier — a keychain+pw → keychain transition keeps the
-  // tier intact and only drops the modifier, so the modifier delta
-  // is what gates the prompt now.
+  // Bank-style puts the password on the modifier, not a dedicated
+  // tier — a keychain+pw → keychain transition keeps the tier
+  // intact and only drops the modifier, so the modifier delta is
+  // what gates the prompt.
   final wasKeychainWithPassword =
       currentTier == SecurityTier.keychain && currentModifiers.password;
   final isKeychainWithPassword =
@@ -338,8 +335,8 @@ BiometricKeySource biometricKeySourceFor({
   // tier; the new card's password drives the rekey directly.
   if (currentTier != nextTier) return BiometricKeySource.pullFromAppliedTier;
   // Same-tier flip on bank-style T1+pw — re-prompt against the
-  // gate verifier file. The modifier-aware predicate replaces the
-  // pre-v3 dedicated `keychainWithPassword` enum check.
+  // gate verifier file. The predicate is modifier-aware: a
+  // password-gated keychain is `keychain` + `modifiers.password`.
   if (currentTier == SecurityTier.keychain &&
       currentModifiers.password &&
       nextModifiers.password) {
@@ -637,7 +634,7 @@ Future<void> applyKeychainWithPasswordTier({
     await gateClear();
     throw StateError('keychain write failed');
   }
-  // Bank-style v3: T1+password is `keychain` + `modifiers
+  // Bank-style: T1+password is `keychain` + `modifiers
   // .password=true`; the rekey + clear-plan dispatch both bind on
   // the same tier value as plain keychain.
   await applyAlwaysRekeyFromSecret(secretId, SecurityTier.keychain, modifiers);
@@ -774,9 +771,8 @@ TierVaultClearPlan tierVaultClearPlanFor(
     case SecurityTier.keychain:
       // T1 — apply just wrote a fresh DB key into the keychain.
       // The password gate file survives only when the bank-style
-      // password modifier is on (the pre-v3 `keychainWithPassword`
-      // tier value is now this branch with `modifiers.password ==
-      // true`); everything else clears.
+      // password modifier is on (`modifiers.password == true`);
+      // everything else clears.
       return TierVaultClearPlan(
         clearKeychainKey: false,
         clearKeychainGate: !modifiers.password,

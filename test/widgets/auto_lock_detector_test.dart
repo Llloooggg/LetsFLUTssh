@@ -350,7 +350,7 @@ void main() {
     testWidgets(
       'T1 + password tier arms the timer the same way Paranoid does',
       (tester) async {
-        // Bank-style v3: L1+password is `keychain` + `modifiers
+        // Bank-style: L1+password is `keychain` + `modifiers
         // .password = true` — the detector's `_hasTypedSecret`
         // reads the modifier off configProvider, so the test must
         // pre-load a SecurityConfig with the password modifier on.
@@ -396,7 +396,7 @@ void main() {
           container.read(securityStateProvider).hasActiveDbKey,
           isFalse,
           reason:
-              'keychainWithPassword carries a user-typed secret so the '
+              'keychain + password carries a user-typed secret so the '
               'auto-lock timer must fire — generalisation off Paranoid-only',
         );
       },

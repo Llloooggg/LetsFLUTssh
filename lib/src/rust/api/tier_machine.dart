@@ -17,8 +17,8 @@ DbTierState tierMachineState() =>
     RustLib.instance.api.crateApiTierMachineTierMachineState();
 
 /// Snapshot the active tier wire-name (`plaintext` /
-/// `keychain` / `keychain_with_password` / `hardware` /
-/// `paranoid`). Mirrors `SecurityTier::wire_name`.
+/// `keychain` / `hardware` / `paranoid`). Mirrors
+/// `SecurityTier::wire_name`.
 String tierMachineActiveTierWireName() =>
     RustLib.instance.api.crateApiTierMachineTierMachineActiveTierWireName();
 
