@@ -2781,6 +2781,58 @@ void main() {
         expect(result.session.user, 'webdav-user');
       },
     );
+
+    testWidgets(
+      'creating an S3 session then Save returns an s3 SaveResult payload',
+      (tester) async {
+        // Mirror of the WebDAV save flow for the S3 transport: the
+        // dialog must close with SaveResult.session.kind = s3 and a
+        // non-null s3Data carrying the typed access key / region /
+        // endpoint / bucket / prefix + the secret access key.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'S3');
+
+        // Connection block — access key id (required) + region +
+        // explicit endpoint + bucket + prefix.
+        await tester.enterText(fieldByHint('AKIA…'), 'AKIAEXAMPLE');
+        await tester.enterText(
+          fieldByHint('us-east-1, eu-west-2, auto'),
+          'us-east-1',
+        );
+        await tester.enterText(
+          fieldByHint('Leave empty for AWS, or set for MinIO / R2 / Spaces'),
+          'https://minio.example.com:9000',
+        );
+        await tester.enterText(fieldByHint('my-bucket'), 'logs-bucket');
+        await tester.enterText(fieldByHint('logs/'), 'archive/');
+        // Auth block — secret access key (shares the password slot).
+        await tester.enterText(fieldByHint('••••••••'), 'super-secret');
+        await tester.pumpAndSettle();
+
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.kind, SessionKind.s3);
+        expect(result.s3Data, isNotNull);
+        expect(result.s3Data!.accessKeyId, 'AKIAEXAMPLE');
+        expect(result.s3Data!.region, 'us-east-1');
+        expect(result.s3Data!.endpoint, 'https://minio.example.com:9000');
+        expect(result.s3Data!.defaultBucket, 'logs-bucket');
+        expect(result.s3Data!.defaultPrefix, 'archive/');
+        expect(result.s3Data!.secretAccessKey, 'super-secret');
+        expect(result.s3Data!.passwordDirty, isTrue);
+        // The session row's host/port/user fall out of the endpoint
+        // parse (`s3_server_address_from_endpoint`) so legacy SQL
+        // filters keep a populated row; user mirrors the access key.
+        expect(result.session.host, 'minio.example.com');
+        expect(result.session.port, 9000);
+        expect(result.session.user, 'AKIAEXAMPLE');
+      },
+    );
   });
 
   group(
