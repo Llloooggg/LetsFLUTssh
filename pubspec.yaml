@@ -87,6 +87,21 @@ dev_dependencies:
   # `cryptoSha256` / `cryptoHmacSha256` shims and never import this.
   crypto: ^3.0.5
 
+dependency_overrides:
+  # Hold path_provider_android in the 2.2.x line. 2.3.0 switched its
+  # implementation to `package:jni`, which is an `ffiPlugin` declaring
+  # linux + windows targets. Because the federated `path_provider`
+  # pulls every platform implementation into the dependency graph on
+  # every build, that `jni` then compiles its native CMake on desktop
+  # — linking a JVM into a desktop SSH client that never calls JNI.
+  # On Windows CI the runner's default JDK is ARM64 while the target
+  # is x64, so the jni link fails outright. 2.2.x predates the jni
+  # dependency and still satisfies path_provider's `^2.2.5` floor, so
+  # Android keeps a working path provider while desktop builds stop
+  # dragging in a JVM. Revisit if path_provider_android makes jni
+  # optional or jni stops declaring desktop targets.
+  path_provider_android: '>=2.2.5 <2.3.0'
+
 flutter_launcher_icons:
   android: true
   ios: true
