@@ -56,7 +56,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 ; Uninstall-time tasks (shown in the uninstaller wizard)
 [UninstallDelete]
-; Optional removal handled by Code section below.
+; Inno removes only the files it installed, so anything the running
+; app or a plugin drops into the install tree (Flutter engine
+; sidecars, crash dumps, a locked DLL re-created on next launch)
+; leaves the directory behind — the user sees an empty
+; `…\Programs\LetsFLUTssh` folder after uninstall. Force-remove the
+; whole tree so nothing lingers. User data lives in `{userappdata}`
+; and is untouched here (handled opt-in by the Code section below).
+Type: filesandordirs; Name: "{app}"
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
