@@ -693,9 +693,6 @@
   "playRecording": "चलाएँ",
   "deleteRecording": "हटाएँ",
   "recordingPlaybackTitle": "रिकॉर्डिंग रीप्ले करें",
-  "recordingSpeed": "गति",
-  "recordingSpeedInstant": "तुरंत",
-  "recordingScrubTooltipUnavailable": "Scrub bar के लिए sidecar index चाहिए — पुरानी रिकॉर्डिंग (इस build से पहले की) में यह नहीं है। नई रिकॉर्डिंग scrub हो सकेंगी।",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

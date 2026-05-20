@@ -2270,16 +2270,6 @@ class STr extends S {
   String get recordingPlaybackTitle => 'Kaydı oynat';
 
   @override
-  String get recordingSpeed => 'Hız';
-
-  @override
-  String get recordingSpeedInstant => 'Anında';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar için sidecar index gerekli — eski kayıtlarda (bu build\'den önceki) yok. Yeni kayıtlar scrub edilebilir olacak.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

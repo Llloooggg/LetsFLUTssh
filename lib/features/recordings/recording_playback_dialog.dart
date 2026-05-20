@@ -1,18 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_popup_select.dart';
 import '../../widgets/readonly_terminal_view.dart';
 import '../../widgets/terminal_cell_metrics.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only xterm widget at
-/// a user-selectable speed (0.5× / 1× / 2× / 4× / instant) with a
+/// a user-selectable speed (0.5× / 1× / 2× / 4×) with a
 /// fully-functional scrub bar.
 ///
 /// **Why pre-decode + Timer-driven playback.** Earlier shape was a
@@ -46,7 +49,7 @@ import 'recording_reader.dart';
 /// inside an iframe and is not portable to Flutter desktop / mobile.
 /// Re-implementing the loop ourselves over xterm keeps the same
 /// rendering stack the rest of the app uses.
-class RecordingPlaybackDialog extends StatefulWidget {
+class RecordingPlaybackDialog extends ConsumerStatefulWidget {
   final String filePath;
   final bool encrypted;
   final RecordingMeta? meta;
@@ -75,7 +78,7 @@ class RecordingPlaybackDialog extends StatefulWidget {
   }
 
   @override
-  State<RecordingPlaybackDialog> createState() =>
+  ConsumerState<RecordingPlaybackDialog> createState() =>
       _RecordingPlaybackDialogState();
 }
 
@@ -89,7 +92,27 @@ class _Event {
   const _Event(this.timestamp, this.direction, this.data);
 }
 
-class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
+class _RecordingPlaybackDialogState
+    extends ConsumerState<RecordingPlaybackDialog> {
+  /// Playback's preferred font as a multiple of the user's configured
+  /// terminal font (`configProvider.fontSize`). Above `1.0` so the
+  /// replay reads larger than the live terminal — recordings are
+  /// reviewed, not typed into, so a roomier grid is easier to scan.
+  /// The auto-fit in `_resolveFontSize` only shrinks below this when
+  /// the recorded grid would overflow the dialog (a tall curses
+  /// capture on a short screen).
+  static const double _fontScale = 1.25;
+
+  /// Floor for the auto-fit font. An extreme grid in a tiny viewport
+  /// overflows rather than shrinking past readability.
+  static const double _minFontSize = 6.0;
+
+  /// Guard pixel added to the grid's pixel size so xterm's integer
+  /// `viewport ~/ cellSize` row / col count cannot truncate to one
+  /// less than the recorded `w × h` on a sub-pixel float rounding.
+  /// One pixel is far below a cell, so it never seats an extra cell.
+  static const double _cellGuard = 1.0;
+
   /// Terminal instance the playback writes into. Re-built on every
   /// scrub so the rebuild from `t=0` lands on a pristine state —
   /// `buffer.clear()` alone leaves alt-screen / scroll-region /
@@ -102,26 +125,10 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   late Terminal _terminal;
   int _terminalCols = 80;
   int _terminalRows = 24;
-  // Horizontal scroll for the terminal panel — vertical lives
-  // inside xterm's own scrollback (wheel scroll inside the
-  // terminal pans the buffer history).
-  final ScrollController _hScroll = ScrollController();
 
-  /// Stable focus node for the speed dropdown. Held here (not
-  /// inlined into `build`) so `_setSpeed` can target the exact
-  /// node to unfocus after a selection — a fresh inline
-  /// `FocusNode(...)` per build would leak (no dispose) and
-  /// `FocusManager.primaryFocus` may not be the dropdown by the
-  /// time the menu's pop animation finishes.
-  final FocusNode _speedFocusNode = FocusNode(
-    skipTraversal: true,
-    debugLabel: 'PlaybackSpeed',
-  );
-
-  /// Replay speed multiplier. `null` means "instant" — jump straight
-  /// to the final frame so the user lands at the recording's last
-  /// rendered state immediately.
-  double? _speed = 1.0;
+  /// Replay speed multiplier applied to wall-clock elapsed time on
+  /// each tick.
+  double _speed = 1.0;
 
   /// Whether playback is paused. The tick stays scheduled but the
   /// "advance virtual time" branch short-circuits, so toggling on
@@ -259,12 +266,11 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
   /// 60 Hz tick. Reads wall-clock delta since the previous tick,
   /// scales by `_speed`, advances the virtual position, and
   /// dispatches every event whose timestamp falls in the new
-  /// window. No-op when paused, scrubbing, or on "instant" speed
-  /// (which only advances via `_jumpTo`, never the tick).
+  /// window. No-op when paused or scrubbing.
   void _tick() {
     if (_disposed) return;
     final now = DateTime.now();
-    if (_scrubbing || _paused || _speed == null) {
+    if (_scrubbing || _paused) {
       // Reset the elapsed anchor so resume after pause does not
       // pay back the paused window in one big jump.
       _lastTickAt = now;
@@ -274,7 +280,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
         ? 16
         : now.difference(_lastTickAt!).inMilliseconds.clamp(0, 250);
     _lastTickAt = now;
-    final newPosMs = _positionMs + (elapsedMs * _speed!).round();
+    final newPosMs = _positionMs + (elapsedMs * _speed).round();
     _applyEventsTo(newPosMs);
     if (_cursor >= _events.length) {
       _ticker?.cancel();
@@ -324,26 +330,8 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     if (_ticker == null || !_ticker!.isActive) _startTicker();
   }
 
-  void _setSpeed(double? speed) {
+  void _setSpeed(double speed) {
     setState(() => _speed = speed);
-    // Drop focus off the dropdown so the next keyboard event
-    // (Tab, Space, Esc) lands on the dialog instead of bouncing
-    // back into the dropdown's focus ring. Material's
-    // `DropdownButton` reasserts focus on its anchor button when
-    // the popup menu's pop animation completes (one frame after
-    // selection), so an inline `unfocus()` runs too early — the
-    // post-frame callback fires after the menu's cleanup.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) return;
-      _speedFocusNode.unfocus();
-      FocusManager.instance.primaryFocus?.unfocus();
-    });
-    if (speed == null) {
-      // Instant — jump to the recording's end so the user lands on
-      // the final rendered state in one transition.
-      _jumpTo(_totalMs);
-      return;
-    }
     _lastTickAt = DateTime.now();
     if (_ticker == null || !_ticker!.isActive) _startTicker();
   }
@@ -368,36 +356,57 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     _disposed = true;
     _ticker?.cancel();
     _ticker = null;
-    _hScroll.dispose();
-    _speedFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    final w = widget.meta?.header.width ?? 80;
-    final h = widget.meta?.header.height ?? 24;
-    final fontSize = AppFonts.sm;
+    // Authoritative grid dims come from the recording's own header,
+    // which `_loadAll` decodes and stores in `_terminalCols/Rows`
+    // (seeded from `widget.meta` in `initState`). Reading those — not
+    // `widget.meta` directly — keeps the SizedBox aligned with the
+    // dims xterm is actually resized to even when meta is missing.
+    final w = _terminalCols;
+    final h = _terminalRows;
+    // Match xterm's own cell measurement, which scales by the OS text
+    // scale (`terminal_view.dart`); measuring unscaled here would clip
+    // the bottom row whenever the system text scale is above 1.0.
+    final textScaler = MediaQuery.textScalerOf(context);
+    final settingsFontSize = ref.watch(
+      configProvider.select((c) => c.fontSize),
+    );
+    final desiredFont = settingsFontSize * _fontScale;
+    // Request enough width to seat `w` cols at the desired font plus
+    // the dialog's content padding; AppDialog clamps to
+    // `viewport - 48 px`, and `_buildTerminal`'s LayoutBuilder
+    // shrinks the font further if the clamped width is tighter.
+    final maxWidth =
+        (w *
+                    measureMonoCell(
+                      fontSize: desiredFont,
+                      textScaler: textScaler,
+                    ).width +
+                AppSpacing.xs * 2.0 +
+                AppSpacing.lg * 2)
+            .clamp(560.0, 2400.0);
     return AppDialog(
       title: l10n.recordingPlaybackTitle,
-      // Wide enough to seat a 132-col recording at the current
-      // font; AppDialog clamps to `viewport - 48 px` so the upper
-      // bound is the screen, not this number.
-      maxWidth: (w * fontSize * 0.62).clamp(480.0, 1600.0),
+      maxWidth: maxWidth,
       scrollable: false,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildSpeedRow(l10n),
+          _buildControlsRow(l10n),
           const SizedBox(height: AppSpacing.sm),
-          _buildScrubRow(l10n),
-          const SizedBox(height: AppSpacing.md),
           // Terminal flexes so the dialog never overflows on
           // short viewports — the recording's nominal row count
           // is the preferred height, not a hard floor.
-          Flexible(fit: FlexFit.loose, child: _buildTerminal(h, fontSize)),
+          Flexible(
+            fit: FlexFit.loose,
+            child: _buildTerminal(w, h, settingsFontSize, textScaler),
+          ),
           if (_loading) ...[
             const SizedBox(height: AppSpacing.sm),
             const Center(
@@ -421,13 +430,25 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     );
   }
 
-  Widget _buildSpeedRow(S l10n) {
-    // Pause toggle gates on `!_loading && _events.isNotEmpty` —
-    // a pre-load tap is meaningless and an empty recording (no
-    // events past the header) cannot meaningfully be paused.
-    // Instant speed disables pause too: there is no continuous
-    // playback to pause once the user already jumped to the end.
-    final canTogglePause = !_loading && _events.isNotEmpty && _speed != null;
+  /// Single controls strip: pause / play, speed picker, scrub
+  /// slider, and the position read-out on one row. Folding the former
+  /// two-row layout into one frees the vertical space for the terminal
+  /// panel below.
+  Widget _buildControlsRow(S l10n) {
+    // Pause toggle gates on `!_loading && _events.isNotEmpty` — a
+    // pre-load tap is meaningless and an empty recording (no events
+    // past the header) cannot be paused.
+    final canTogglePause = !_loading && _events.isNotEmpty;
+    // Slider stays enabled once the event list is loaded — scrub
+    // re-applies from t=0 synchronously, so terminal state is always
+    // correct regardless of recording age.
+    final available = !_loading && _events.isNotEmpty && _totalMs > 0;
+    final maxValue = _totalMs > 0 ? _totalMs.toDouble() : 1.0;
+    final value = _positionMs.clamp(0, _totalMs > 0 ? _totalMs : 0).toDouble();
+    final positionLabel = l10n.recordingScrubPositionLabel(
+      _formatDuration(_positionMs),
+      _formatDuration(_totalMs),
+    );
     return Row(
       children: [
         Tooltip(
@@ -439,50 +460,22 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          l10n.recordingSpeed,
-          style: TextStyle(
-            color: AppTheme.fgFaint,
-            fontFamily: AppFonts.interFamily,
-            fontSize: AppFonts.xs,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        DropdownButton<double?>(
+        const SizedBox(width: AppSpacing.xs),
+        // Shared no-animation picker (`AppPopupSelect`) — matches the
+        // project-wide hard-off on dropdown open animations that the
+        // settings pickers already use.
+        AppPopupSelect<double>(
           value: _speed,
-          focusNode: _speedFocusNode,
-          items: [
-            const DropdownMenuItem(value: 0.5, child: Text('0.5×')),
-            const DropdownMenuItem(value: 1.0, child: Text('1×')),
-            const DropdownMenuItem(value: 2.0, child: Text('2×')),
-            const DropdownMenuItem(value: 4.0, child: Text('4×')),
-            DropdownMenuItem(
-              value: null,
-              child: Text(l10n.recordingSpeedInstant),
-            ),
+          menuMinWidth: 96,
+          onChanged: _setSpeed,
+          options: const [
+            AppPopupSelectOption(value: 0.5, label: '0.5×'),
+            AppPopupSelectOption(value: 1.0, label: '1×'),
+            AppPopupSelectOption(value: 2.0, label: '2×'),
+            AppPopupSelectOption(value: 4.0, label: '4×'),
           ],
-          onChanged: _loading ? null : _setSpeed,
         ),
-      ],
-    );
-  }
-
-  Widget _buildScrubRow(S l10n) {
-    // Slider stays enabled as long as we've loaded the event list
-    // — no sidecar dependency anymore (scrub re-applies from t=0
-    // synchronously, so terminal state is always correct). The
-    // previous "disabled scrub bar" branch retires with the
-    // sidecar-driven seek.
-    final available = !_loading && _events.isNotEmpty && _totalMs > 0;
-    final maxValue = _totalMs > 0 ? _totalMs.toDouble() : 1.0;
-    final value = _positionMs.clamp(0, _totalMs > 0 ? _totalMs : 0).toDouble();
-    final positionLabel = l10n.recordingScrubPositionLabel(
-      _formatDuration(_positionMs),
-      _formatDuration(_totalMs),
-    );
-    return Row(
-      children: [
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Slider(
             min: 0,
@@ -518,75 +511,114 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     );
   }
 
-  Widget _buildTerminal(int h, double fontSize) {
+  Widget _buildTerminal(
+    int w,
+    int h,
+    double settingsFontSize,
+    TextScaler textScaler,
+  ) {
     // Delegate to `ReadOnlyTerminalView` — the same widget the log
     // viewer uses. Brings xterm's drag-to-select, the right-click
-    // context menu (Copy / Select All via
-    // `showAppContextMenu`), and the Ctrl+C / Cmd+C copy shortcut
-    // for free. The shared widget already handles
-    // `TerminalView.onSecondaryTapDown` correctly so two-finger
-    // trackpad-tap context menus work alongside mouse right-click
-    // (see commit 9301c8c5 in `terminal_pane.dart`).
+    // context menu (Copy / Select All via `showAppContextMenu`),
+    // and the Ctrl+C / Cmd+C copy shortcut for free.
     //
-    // Pin the recording's nominal cols × rows via `SizedBox` so
-    // xterm's auto-resize lands on the recording's authoritative
-    // dimensions — without the pin, htop / curses recordings
-    // wrap onto column 0 because the rendered cell count
-    // disagrees with the recorded one. Cell metrics come from a
-    // `TextPainter` against the same mono stack the terminal
-    // renders with so the math matches xterm's internal layout
-    // byte-for-byte.
-    final w = widget.meta?.header.width ?? 80;
-    final cell = measureMonoCell(fontSize: fontSize);
-    // AppTerminalView paints with `AppTerminalView.verticalPadding`
-    // on the top + bottom edges; horizontal uses the same
-    // constant. Both contribute to the SizedBox's outer pixel
-    // size so the inner xterm grid takes the full nominal
-    // cols × rows.
-    const innerPad = AppSpacing.xs * 2.0;
-    final terminalWidth = w * cell.width + innerPad;
-    final terminalHeight = h * cell.height + innerPad;
-    // `SelectionContainer.disabled` opts the xterm subtree out of
-    // the dialog's outer `AppSelectionArea` (AppDialog wraps every
-    // dialog body in one — line 138 of `widgets/app_dialog.dart`).
-    // Without the opt-out, SelectionArea's pan recogniser claims
-    // every secondary-tap / drag inside the panel BEFORE the
-    // inner `TerminalView.onSecondaryTapDown` sees it, so the
-    // right-click context menu never opens and drag-to-select
-    // never starts. The log viewer (the other `ReadOnlyTerminalView`
-    // caller) does NOT need this because it lives in the Settings
-    // page, not inside an AppDialog.
-    return SelectionContainer.disabled(
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.borderLight),
-          borderRadius: AppTheme.radiusSm,
-        ),
-        clipBehavior: Clip.hardEdge,
-        // Horizontal-only scroll: vertical scrollback lives inside
-        // xterm itself (mouse wheel inside the terminal area scrolls
-        // the buffer history the same way it does in the live PTY
-        // pane). One scroll axis, one bar, one Scrollable — the
-        // previous nested-vertical-around-horizontal layout
-        // mis-positioned the inner bar at the bottom of the
-        // SCROLLED content (not the visible viewport).
-        child: Scrollbar(
-          controller: _hScroll,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _hScroll,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: terminalWidth,
-              height: terminalHeight,
-              child: ReadOnlyTerminalView(
-                terminal: _terminal,
-                fontSize: fontSize,
+    // The whole recorded grid renders at its natural pixel size with
+    // no surrounding scroll view: `_resolveFontSize` picks the
+    // largest font (capped at the user's terminal font) at which
+    // `w × h` cells fit the dialog. xterm's auto-resize then lands
+    // exactly on the recorded `w × h`, so htop / curses recordings
+    // keep their fixed header + footer rows aligned to the recorded
+    // scroll region. A surrounding `SingleChildScrollView` would
+    // install a drag recogniser that beats xterm's selection pan in
+    // the gesture arena, so dropping it also makes drag-to-select
+    // behave exactly like the log terminal.
+    final desired = settingsFontSize * _fontScale;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = _resolveFontSize(
+          w,
+          h,
+          desired,
+          constraints,
+          textScaler,
+        );
+        // Cell metrics come from a `TextPainter` against the same
+        // mono stack — and the same OS text scale — the terminal
+        // renders with, so the SizedBox math matches xterm's internal
+        // layout byte-for-byte; a sub-cell drift would drop the
+        // auto-resize to `w-1` cols / `h-1` rows and clip the edge.
+        final cell = measureMonoCell(
+          fontSize: fontSize,
+          textScaler: textScaler,
+        );
+        const innerPad = AppSpacing.xs * 2.0;
+        // `+ _cellGuard` keeps xterm's integer `~/ cellSize` row / col
+        // count from truncating to `h-1` / `w-1` on a sub-pixel float
+        // rounding; one extra guard pixel never seats another cell.
+        final terminalWidth = w * cell.width + innerPad + _cellGuard;
+        final terminalHeight = h * cell.height + innerPad + _cellGuard;
+        // `heightFactor: 1` hugs the grid height so a recording
+        // smaller than the viewport keeps the dialog compact;
+        // `topCenter` centres the fixed-width grid horizontally.
+        return Align(
+          alignment: Alignment.topCenter,
+          heightFactor: 1.0,
+          // `SelectionContainer.disabled` opts the xterm subtree out
+          // of the dialog's outer `AppSelectionArea` (AppDialog wraps
+          // every body in one). Without it, SelectionArea's pan
+          // recogniser claims every drag / secondary-tap before
+          // `TerminalView` sees it, so the context menu never opens
+          // and drag-to-select never starts. The log viewer does not
+          // need this — it lives in Settings, not inside an AppDialog.
+          child: SelectionContainer.disabled(
+            child: Container(
+              // Border via `foregroundDecoration` so it paints over
+              // the grid edge instead of insetting the child — an
+              // inset would shrink the render box below `w × h` cells.
+              decoration: const BoxDecoration(borderRadius: AppTheme.radiusSm),
+              foregroundDecoration: BoxDecoration(
+                border: Border.all(color: AppTheme.borderLight),
+                borderRadius: AppTheme.radiusSm,
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: terminalWidth,
+                height: terminalHeight,
+                child: ReadOnlyTerminalView(
+                  terminal: _terminal,
+                  fontSize: fontSize,
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  /// Largest font at which the recording's `w × h` grid fits inside
+  /// [constraints], capped at [desired] (the user's terminal font)
+  /// and floored at [_minFontSize]. Cell size is linear in font size,
+  /// so the fit font is the desired font scaled by the tighter of the
+  /// width / height overflow ratios. [textScaler] keeps the cell
+  /// measurement in step with the OS text scale xterm renders with.
+  double _resolveFontSize(
+    int w,
+    int h,
+    double desired,
+    BoxConstraints c,
+    TextScaler textScaler,
+  ) {
+    final cell = measureMonoCell(fontSize: desired, textScaler: textScaler);
+    const innerPad = AppSpacing.xs * 2.0;
+    return playbackFitFontSize(
+      desiredFontSize: desired,
+      neededWidth: w * cell.width + innerPad + _cellGuard,
+      neededHeight: h * cell.height + innerPad + _cellGuard,
+      maxWidth: c.maxWidth,
+      maxHeight: c.maxHeight,
+      innerPad: innerPad + _cellGuard,
+      minFontSize: _minFontSize,
     );
   }
 
@@ -601,4 +633,36 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     final seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
+}
+
+/// Largest font at which a grid needing [neededWidth] × [neededHeight]
+/// pixels (already including [innerPad]) fits a [maxWidth] × [maxHeight]
+/// viewport, capped at [desiredFontSize] and floored at [minFontSize].
+///
+/// xterm's cell size is linear in font size, so once the grid overflows
+/// an axis the fit font is the desired font scaled by that axis's
+/// overflow ratio — the constant [innerPad] is excluded from the scale
+/// because the terminal padding does not grow with the font. The
+/// tighter of the two axes wins. Infinite (unbounded) constraints leave
+/// the desired font untouched. Pure arithmetic, extracted from the
+/// dialog so the fit logic is unit-testable without the engine.
+double playbackFitFontSize({
+  required double desiredFontSize,
+  required double neededWidth,
+  required double neededHeight,
+  required double maxWidth,
+  required double maxHeight,
+  required double innerPad,
+  required double minFontSize,
+}) {
+  var fs = desiredFontSize;
+  if (maxWidth.isFinite && neededWidth > maxWidth) {
+    fs = desiredFontSize * (maxWidth - innerPad) / (neededWidth - innerPad);
+  }
+  if (maxHeight.isFinite && neededHeight > maxHeight) {
+    final fitH =
+        desiredFontSize * (maxHeight - innerPad) / (neededHeight - innerPad);
+    if (fitH < fs) fs = fitH;
+  }
+  return fs < minFontSize ? minFontSize : fs;
 }

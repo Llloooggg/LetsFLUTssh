@@ -2204,16 +2204,6 @@ class SZh extends S {
   String get recordingPlaybackTitle => '回放录制';
 
   @override
-  String get recordingSpeed => '速度';
-
-  @override
-  String get recordingSpeedInstant => '立即';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar 需要 sidecar index——旧录制（此 build 之前的）没有。新录制可以拖动跳转。';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

@@ -2337,16 +2337,6 @@ class SPt extends S {
   String get recordingPlaybackTitle => 'Reproduzir gravação';
 
   @override
-  String get recordingSpeed => 'Velocidade';
-
-  @override
-  String get recordingSpeedInstant => 'Instantâneo';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'A scrub bar precisa de um sidecar index — gravações antigas (anteriores a este build) não têm. Novas gravações poderão ser scrubbed.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

@@ -693,9 +693,6 @@
   "playRecording": "Abspielen",
   "deleteRecording": "Löschen",
   "recordingPlaybackTitle": "Aufzeichnung wiedergeben",
-  "recordingSpeed": "Geschwindigkeit",
-  "recordingSpeedInstant": "Sofort",
-  "recordingScrubTooltipUnavailable": "Scrub-Leiste benötigt einen Sidecar-Index — alte Aufzeichnungen (vor diesem Build) haben keinen. Neue Aufzeichnungen sind scrubbar.",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

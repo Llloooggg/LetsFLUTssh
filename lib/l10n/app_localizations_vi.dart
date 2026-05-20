@@ -2260,16 +2260,6 @@ class SVi extends S {
   String get recordingPlaybackTitle => 'Phát lại bản ghi';
 
   @override
-  String get recordingSpeed => 'Tốc độ';
-
-  @override
-  String get recordingSpeedInstant => 'Tức thì';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar cần sidecar index — bản ghi cũ (trước build này) không có. Bản ghi mới sẽ scrub được.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

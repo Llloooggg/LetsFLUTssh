@@ -693,9 +693,6 @@
   "playRecording": "تشغيل",
   "deleteRecording": "حذف",
   "recordingPlaybackTitle": "إعادة تشغيل التسجيل",
-  "recordingSpeed": "السرعة",
-  "recordingSpeedInstant": "فوري",
-  "recordingScrubTooltipUnavailable": "Scrub bar يحتاج إلى sidecar index، والتسجيلات القديمة (قبل هذا الإصدار) لا تحتوي عليه. التسجيلات الجديدة ستدعم التمرير.",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

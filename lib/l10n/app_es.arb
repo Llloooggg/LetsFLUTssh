@@ -693,9 +693,6 @@
   "playRecording": "Reproducir",
   "deleteRecording": "Eliminar",
   "recordingPlaybackTitle": "Reproducir grabación",
-  "recordingSpeed": "Velocidad",
-  "recordingSpeedInstant": "Instantáneo",
-  "recordingScrubTooltipUnavailable": "La scrub bar requiere un sidecar index — las grabaciones antiguas (anteriores a este build) no lo tienen. Las nuevas grabaciones permitirán scrubbing.",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

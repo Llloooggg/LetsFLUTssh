@@ -4005,24 +4005,6 @@ abstract class S {
   /// **'Replay recording'**
   String get recordingPlaybackTitle;
 
-  /// No description provided for @recordingSpeed.
-  ///
-  /// In en, this message translates to:
-  /// **'Speed'**
-  String get recordingSpeed;
-
-  /// No description provided for @recordingSpeedInstant.
-  ///
-  /// In en, this message translates to:
-  /// **'Instant'**
-  String get recordingSpeedInstant;
-
-  /// No description provided for @recordingScrubTooltipUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Scrub bar requires a sidecar index, which legacy recordings (made before this build) do not have. Future recordings will scrub.'**
-  String get recordingScrubTooltipUnavailable;
-
   /// No description provided for @recordingScrubPositionLabel.
   ///
   /// In en, this message translates to:

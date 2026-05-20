@@ -693,9 +693,6 @@
   "playRecording": "پخش",
   "deleteRecording": "حذف",
   "recordingPlaybackTitle": "پخش مجدد ضبط",
-  "recordingSpeed": "سرعت",
-  "recordingSpeedInstant": "فوری",
-  "recordingScrubTooltipUnavailable": "Scrub bar به sidecar index نیاز دارد — ضبط‌های قدیمی (قبل از این build) آن را ندارند. ضبط‌های جدید قابل scrub خواهند بود.",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

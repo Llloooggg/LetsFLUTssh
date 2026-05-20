@@ -2309,16 +2309,6 @@ class SEn extends S {
   String get recordingPlaybackTitle => 'Replay recording';
 
   @override
-  String get recordingSpeed => 'Speed';
-
-  @override
-  String get recordingSpeedInstant => 'Instant';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar requires a sidecar index, which legacy recordings (made before this build) do not have. Future recordings will scrub.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

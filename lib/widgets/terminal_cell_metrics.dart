@@ -43,13 +43,21 @@ Size measureMonoCell({
   double lineHeight = kTerminalLineHeight,
   String fontFamily = AppFonts.monoFamily,
   List<String> fontFamilyFallback = AppFonts.monoFallback,
+  TextScaler textScaler = TextScaler.noScaling,
 }) {
   const test = 'mmmmmmmmmm';
+  // Match `TerminalView`, which measures its grid against
+  // `MediaQuery.textScalerOf(context)` (`terminal_view.dart`). A
+  // host that sizes a SizedBox off the unscaled font while xterm
+  // renders the scaled one ends up a row short — the OS text-scale
+  // gap clips the bottom row. Scale the font here so the cell pitch
+  // matches whatever xterm will actually paint with.
+  final scaledFontSize = textScaler.scale(fontSize);
   final paragraphStyle = ui.ParagraphStyle(height: lineHeight);
   final textStyle = ui.TextStyle(
     fontFamily: fontFamily,
     fontFamilyFallback: fontFamilyFallback,
-    fontSize: fontSize,
+    fontSize: scaledFontSize,
     height: lineHeight,
   );
   final paragraph =

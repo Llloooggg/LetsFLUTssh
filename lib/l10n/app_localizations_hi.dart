@@ -2271,16 +2271,6 @@ class SHi extends S {
   String get recordingPlaybackTitle => 'रिकॉर्डिंग रीप्ले करें';
 
   @override
-  String get recordingSpeed => 'गति';
-
-  @override
-  String get recordingSpeedInstant => 'तुरंत';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar के लिए sidecar index चाहिए — पुरानी रिकॉर्डिंग (इस build से पहले की) में यह नहीं है। नई रिकॉर्डिंग scrub हो सकेंगी।';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

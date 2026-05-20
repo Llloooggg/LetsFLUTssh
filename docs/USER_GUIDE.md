@@ -780,8 +780,8 @@ The on-demand record button (status bar) and the Always-on `extras.record` flag 
 1. **Tools → Recordings**.
 2. List sorted by date (newest first). Each row shows session label, timestamp, duration, file size, encrypted/plain badge.
 3. Tap **Play** → modal opens with embedded xterm replay.
-4. **Speed dropdown:** `1×` / `2×` / `4×` / **Instant** (jump to final frame).
-5. **Scrub bar:** drag to jump to any point in the recording. Recordings made before this build are sequential-only — the scrub bar is disabled for them with a tooltip explaining why; they still play back at `1×` / `2×` / `4×` / Instant.
+4. **Speed picker:** `0.5×` / `1×` / `2×` / `4×`.
+5. **Scrub bar:** drag to jump to any point in the recording — playback rebuilds the terminal state from the start up to that point so curses apps (htop / vim) land correctly. Pause, speed, and scrub share one row above the terminal.
 6. **Trash** on a row → delete the file.
 
 ### Storage management

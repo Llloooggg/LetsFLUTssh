@@ -693,9 +693,6 @@
   "playRecording": "Oynat",
   "deleteRecording": "Sil",
   "recordingPlaybackTitle": "Kaydı oynat",
-  "recordingSpeed": "Hız",
-  "recordingSpeedInstant": "Anında",
-  "recordingScrubTooltipUnavailable": "Scrub bar için sidecar index gerekli — eski kayıtlarda (bu build'den önceki) yok. Yeni kayıtlar scrub edilebilir olacak.",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

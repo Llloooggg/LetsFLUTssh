@@ -2277,16 +2277,6 @@ class SAr extends S {
   String get recordingPlaybackTitle => 'إعادة تشغيل التسجيل';
 
   @override
-  String get recordingSpeed => 'السرعة';
-
-  @override
-  String get recordingSpeedInstant => 'فوري';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar يحتاج إلى sidecar index، والتسجيلات القديمة (قبل هذا الإصدار) لا تحتوي عليه. التسجيلات الجديدة ستدعم التمرير.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

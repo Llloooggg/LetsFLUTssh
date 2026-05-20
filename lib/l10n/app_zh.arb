@@ -693,9 +693,6 @@
   "playRecording": "播放",
   "deleteRecording": "删除",
   "recordingPlaybackTitle": "回放录制",
-  "recordingSpeed": "速度",
-  "recordingSpeedInstant": "立即",
-  "recordingScrubTooltipUnavailable": "Scrub bar 需要 sidecar index——旧录制（此 build 之前的）没有。新录制可以拖动跳转。",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

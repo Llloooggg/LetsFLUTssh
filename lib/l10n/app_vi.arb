@@ -693,9 +693,6 @@
   "playRecording": "Phát",
   "deleteRecording": "Xóa",
   "recordingPlaybackTitle": "Phát lại bản ghi",
-  "recordingSpeed": "Tốc độ",
-  "recordingSpeedInstant": "Tức thì",
-  "recordingScrubTooltipUnavailable": "Scrub bar cần sidecar index — bản ghi cũ (trước build này) không có. Bản ghi mới sẽ scrub được.",
   "recordingScrubPositionLabel": "{current} / {total}",
   "@recordingScrubPositionLabel": {
     "placeholders": {

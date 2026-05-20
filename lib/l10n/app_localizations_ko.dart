@@ -2218,16 +2218,6 @@ class SKo extends S {
   String get recordingPlaybackTitle => '녹화 재생';
 
   @override
-  String get recordingSpeed => '속도';
-
-  @override
-  String get recordingSpeedInstant => '즉시';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar에는 sidecar index가 필요합니다. 이 빌드 이전의 녹화에는 없습니다. 새 녹화는 스크럽이 가능합니다.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

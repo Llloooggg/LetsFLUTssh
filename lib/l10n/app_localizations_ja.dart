@@ -2221,16 +2221,6 @@ class SJa extends S {
   String get recordingPlaybackTitle => '録画を再生';
 
   @override
-  String get recordingSpeed => '速度';
-
-  @override
-  String get recordingSpeedInstant => '即時';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'スクラブバーには sidecar index が必要です。このビルド以前の録画にはありません。新しい録画はシークできます。';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }

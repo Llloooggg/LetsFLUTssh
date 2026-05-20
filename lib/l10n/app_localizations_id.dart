@@ -2270,16 +2270,6 @@ class SId extends S {
   String get recordingPlaybackTitle => 'Putar ulang rekaman';
 
   @override
-  String get recordingSpeed => 'Kecepatan';
-
-  @override
-  String get recordingSpeedInstant => 'Langsung';
-
-  @override
-  String get recordingScrubTooltipUnavailable =>
-      'Scrub bar butuh sidecar index — rekaman lama (sebelum build ini) tidak punya. Rekaman baru akan bisa di-scrub.';
-
-  @override
   String recordingScrubPositionLabel(String current, String total) {
     return '$current / $total';
   }
