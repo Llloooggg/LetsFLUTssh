@@ -15791,14 +15791,12 @@ fn wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_init
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_id = <String>::sse_decode(&mut deserializer);
-            let api_file_path = <String>::sse_decode(&mut deserializer);
             let api_hmac_key = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
                     crate::api::persisted_rate_limit_actor::persisted_rate_limit_actor_init_or_get(
                         api_id,
-                        api_file_path,
                         api_hmac_key,
                     ),
                 )?;

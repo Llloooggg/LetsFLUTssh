@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -42,22 +43,30 @@ void main() {
     late Directory tempDir;
     late Uint8List hmacKey;
 
-    setUp(() {
+    setUpAll(() {
       tempDir = Directory.systemTemp.createTempSync('persisted_limiter_');
-      hmacKey = Uint8List.fromList(List<int>.generate(32, (i) => i));
+      // The actor resolves `<support>/rate_limit_state.bin` from the
+      // dir pinned at configStoreInit; pin this temp dir so the
+      // restart-persistence + tamper assertions hit a known file.
+      rust_config.configStoreInit(supportDir: tempDir.path);
     });
 
-    tearDown(() {
+    tearDownAll(() {
       if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
     });
 
     File stateFile() => File('${tempDir.path}/rate_limit_state.bin');
 
+    setUp(() {
+      hmacKey = Uint8List.fromList(List<int>.generate(32, (i) => i));
+      // Shared pinned dir across the group — drop any persisted state a
+      // prior test left so each starts from a clean limiter file.
+      final f = stateFile();
+      if (f.existsSync()) f.deleteSync();
+    });
+
     Future<PersistedRateLimiter> makeLimiter({Uint8List? key}) async {
-      return PersistedRateLimiter(
-        hmacKey: key ?? hmacKey,
-        stateFileFactory: () async => stateFile(),
-      );
+      return PersistedRateLimiter(hmacKey: key ?? hmacKey);
     }
 
     test('fresh state reports unlocked even before first write', () async {

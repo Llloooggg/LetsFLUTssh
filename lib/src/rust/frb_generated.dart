@@ -1683,7 +1683,6 @@ abstract class RustLibApi extends BaseApi {
   DbRateLimitStatus
   crateApiPersistedRateLimitActorPersistedRateLimitActorInitOrGet({
     required String id,
-    required String filePath,
     required List<int> hmacKey,
   });
 
@@ -16257,7 +16256,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbRateLimitStatus
   crateApiPersistedRateLimitActorPersistedRateLimitActorInitOrGet({
     required String id,
-    required String filePath,
     required List<int> hmacKey,
   }) {
     return handler.executeSync(
@@ -16265,7 +16263,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(id, serializer);
-          sse_encode_String(filePath, serializer);
           sse_encode_list_prim_u_8_loose(hmacKey, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
@@ -16279,7 +16276,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiPersistedRateLimitActorPersistedRateLimitActorInitOrGetConstMeta,
-        argValues: [id, filePath, hmacKey],
+        argValues: [id, hmacKey],
         apiImpl: this,
       ),
     );
@@ -16289,7 +16286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorInitOrGetConstMeta =>
       const TaskConstMeta(
         debugName: "persisted_rate_limit_actor_init_or_get",
-        argNames: ["id", "filePath", "hmacKey"],
+        argNames: ["id", "hmacKey"],
       );
 
   @override

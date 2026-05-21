@@ -1,9 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/persisted_rate_limit_actor.dart'
@@ -187,14 +184,10 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
 /// need to drive the limiter against an explicit HMAC + state
 /// file path without going through the gate actor.
 class PersistedRateLimiter extends PasswordRateLimiter {
-  PersistedRateLimiter({
-    required Uint8List hmacKey,
-    Future<File> Function()? stateFileFactory,
-    String? id,
-  }) : _hmacKey = hmacKey,
-       _stateFile = stateFileFactory ?? _defaultStateFile,
-       _id = id ?? const Uuid().v4(),
-       _initialised = false;
+  PersistedRateLimiter({required Uint8List hmacKey, String? id})
+    : _hmacKey = hmacKey,
+      _id = id ?? const Uuid().v4(),
+      _initialised = false;
 
   /// Build a limiter against an id whose Rust-side slot is already
   /// registered (via `keychain_password_gate_actor::
@@ -204,21 +197,13 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   /// `_ensureInit` round-trip — the actor is already wired.
   PersistedRateLimiter.fromPrebuiltId(String id)
     : _hmacKey = Uint8List(0),
-      _stateFile = _defaultStateFile,
       _id = id,
       _initialised = true;
-
-  static const _fileName = 'rate_limit_state.bin';
 
   /// Only consulted by the explicit-constructor path; the
   /// `fromPrebuiltId` factory leaves this empty because the actor
   /// is already wired with the HMAC inside Rust.
   final Uint8List _hmacKey;
-
-  /// Only consulted by the explicit-constructor path; the
-  /// `fromPrebuiltId` factory leaves this at the default because
-  /// the actor already owns the path inside Rust.
-  final Future<File> Function() _stateFile;
 
   /// Per-instance id under which the Rust
   /// `persisted_rate_limit_actor` registers this limiter. Each
@@ -349,11 +334,8 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   Future<void> _ensureInit() async {
     if (_initialised) return;
     try {
-      final file = await _stateFile();
-      await file.parent.create(recursive: true);
       rust_persisted_actor.persistedRateLimitActorInitOrGet(
         id: _id,
-        filePath: file.path,
         hmacKey: _hmacKey,
       );
       _initialised = true;
@@ -363,11 +345,6 @@ class PersistedRateLimiter extends PasswordRateLimiter {
         name: 'PersistedRateLimiter',
       );
     }
-  }
-
-  static Future<File> _defaultStateFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _fileName));
   }
 }
 

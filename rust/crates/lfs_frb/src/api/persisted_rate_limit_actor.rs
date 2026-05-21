@@ -7,11 +7,13 @@
 //! surface that the unlock dialog reads off in render-time hot
 //! paths.
 
-use std::path::PathBuf;
-
+use lfs_core::security::master_password;
 use lfs_core::security::persisted_rate_limit_actor as actor;
 
 use crate::api::rate_limit::DbRateLimitStatus;
+
+/// Canonical persisted-rate-limit state file under the app-support dir.
+const RATE_LIMIT_STATE_FILE: &str = "rate_limit_state.bin";
 
 /// Register or refresh the persisted rate-limiter for `id`. The
 /// actor reads the on-disk frame synchronously (small file,
@@ -19,18 +21,18 @@ use crate::api::rate_limit::DbRateLimitStatus;
 /// the post-restart state immediately. Subsequent calls under the
 /// same `id` reuse the cache until a `clear` drops it.
 ///
-/// `file_path` is the absolute path to the `rate_limit_state.bin`
-/// file (Dart resolves it via `getApplicationSupportDirectory`).
-/// `hmac_key` is the 32-byte HMAC key derived from the T1+pw gate's
-/// keychain pepper.
+/// The state file is `rate_limit_state.bin` under the app-support
+/// directory pinned at `config_store_init` — resolved Rust-side, so
+/// Dart no longer threads a path in. `hmac_key` is the 32-byte HMAC
+/// key derived from the T1+pw gate's keychain pepper. Falls back to
+/// the in-memory baseline (no cooldown) when the pin is not yet set.
 #[flutter_rust_bridge::frb(sync)]
-pub fn persisted_rate_limit_actor_init_or_get(
-    id: String,
-    file_path: String,
-    hmac_key: Vec<u8>,
-) -> DbRateLimitStatus {
+pub fn persisted_rate_limit_actor_init_or_get(id: String, hmac_key: Vec<u8>) -> DbRateLimitStatus {
+    let Ok(dir) = master_password::try_pinned_support_dir() else {
+        return actor::instance().status(&id).into();
+    };
     actor::instance()
-        .init_or_get(&id, PathBuf::from(file_path), hmac_key)
+        .init_or_get(&id, dir.join(RATE_LIMIT_STATE_FILE), hmac_key)
         .into()
 }
 
@@ -81,56 +83,11 @@ pub async fn persisted_rate_limit_actor_flush(id: String) {
 mod tests {
     use super::*;
 
-    fn unique_setup(label: &str) -> (String, String, Vec<u8>, tempfile::TempDir) {
-        // Use a per-test tempdir + uniquely namespaced id so tests
-        // sharing the singleton registry don't collide. The hmac key
-        // is fixed; production derives it from the keychain pepper
-        // but the actor accepts any 32-byte slice.
-        let id = format!("api-prl-test-{label}");
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir
-            .path()
-            .join("rate_limit_state.bin")
-            .to_string_lossy()
-            .into_owned();
-        let key = vec![0xAB; 32];
-        (id, path, key, dir)
-    }
-
-    #[test]
-    fn fresh_id_has_zero_failure_count_and_no_cooldown() {
-        let (id, path, key, _dir) = unique_setup("fresh");
-        let snap = persisted_rate_limit_actor_init_or_get(id.clone(), path, key);
-        assert_eq!(snap.failure_count, 0);
-        assert_eq!(snap.cooldown_remaining_ms, 0);
-        persisted_rate_limit_actor_clear(id);
-    }
-
-    #[test]
-    fn record_failure_increments_counter_and_arms_cooldown() {
-        let (id, path, key, _dir) = unique_setup("fail");
-        let _ = persisted_rate_limit_actor_init_or_get(id.clone(), path, key);
-        let after = persisted_rate_limit_actor_record_failure(id.clone());
-        assert_eq!(after.failure_count, 1);
-        // The schedule's first non-zero entry arms a cooldown — pin
-        // the contract that a failure produces a non-zero wait
-        // (the exact value lives in BACKOFF_SCHEDULE).
-        // Note: the first schedule entry might be 0 (free retry), so
-        // only assert the counter bump.
-        persisted_rate_limit_actor_clear(id);
-    }
-
-    #[test]
-    fn record_success_wipes_counter() {
-        let (id, path, key, _dir) = unique_setup("success");
-        let _ = persisted_rate_limit_actor_init_or_get(id.clone(), path, key);
-        let _ = persisted_rate_limit_actor_record_failure(id.clone());
-        let _ = persisted_rate_limit_actor_record_failure(id.clone());
-        persisted_rate_limit_actor_record_success(id.clone());
-        let snap = persisted_rate_limit_actor_status(id.clone());
-        assert_eq!(snap.failure_count, 0);
-        persisted_rate_limit_actor_clear(id);
-    }
+    // The init_or_get / record / clear lifecycle is covered against
+    // the explicit-path API in
+    // `lfs_core::security::persisted_rate_limit_actor`; these FRB
+    // wrappers only resolve the pinned support dir and delegate. The
+    // path-free status / clear contracts stay pinned here.
 
     #[test]
     fn status_on_unknown_id_returns_zero_baseline() {

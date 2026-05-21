@@ -13,18 +13,17 @@ import 'rate_limit.dart';
 /// the post-restart state immediately. Subsequent calls under the
 /// same `id` reuse the cache until a `clear` drops it.
 ///
-/// `file_path` is the absolute path to the `rate_limit_state.bin`
-/// file (Dart resolves it via `getApplicationSupportDirectory`).
-/// `hmac_key` is the 32-byte HMAC key derived from the T1+pw gate's
-/// keychain pepper.
+/// The state file is `rate_limit_state.bin` under the app-support
+/// directory pinned at `config_store_init` — resolved Rust-side, so
+/// Dart no longer threads a path in. `hmac_key` is the 32-byte HMAC
+/// key derived from the T1+pw gate's keychain pepper. Falls back to
+/// the in-memory baseline (no cooldown) when the pin is not yet set.
 DbRateLimitStatus persistedRateLimitActorInitOrGet({
   required String id,
-  required String filePath,
   required List<int> hmacKey,
 }) => RustLib.instance.api
     .crateApiPersistedRateLimitActorPersistedRateLimitActorInitOrGet(
       id: id,
-      filePath: filePath,
       hmacKey: hmacKey,
     );
 
