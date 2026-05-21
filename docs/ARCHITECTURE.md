@@ -2597,16 +2597,16 @@ class AppConfig {
 #### ConfigNotifier
 
 ```dart
-class ConfigNotifier {
-  ConfigNotifier();
-
-  Future<AppConfig> load();       // JSON → AppConfig + sanitize
-  Future<void> save(AppConfig config);  // atomic write
-
-  // Sanitize: clamps values to valid ranges
-  // e.g.: fontSize < 6 → 6, fontSize > 72 → 72
+class ConfigNotifier extends Notifier<AppConfig> {
+  Future<void> update(AppConfig Function(AppConfig) updater); // mutate + persist
+  Future<void> load();  // re-read the actor's snapshot into state
+  @protected Future<void> persist(AppConfig config); // disk-write seam
 }
 ```
+
+`update()` applies the transform, publishes the new state synchronously (so the UI reflects the change immediately), then arms a 300 ms debounce that coalesces rapid bursts (slider drags, fast toggling) into one trailing write. The eventual write routes through `persist()` → `_saveAppConfigToDisk()`, which pushes the typed value to the `lfs_core::config_store` actor (`config_store_set_typed`, sync FRB) and forces a flush (`config_store_flush`, **async** — the atomic write + fsync runs on a Rust blocking worker, never the UI isolate). Range clamping (`fontSize` ∈ [6, 72], etc.) happens Rust-side in `AppConfig::sanitized` during the typed round-trip.
+
+**Save-path invariant — the store is pinned once, never re-inited per write.** `_saveAppConfigToDisk` does *not* call `path_provider` or `config_store_init` on each save. `config_store_init` is not a no-op: it does a synchronous on-disk read + JSON parse and replaces the in-memory snapshot (clearing any pending write). Running it per settings change — a sync FRB call on the UI isolate — stalled the interface for a beat after every toggle, and the disk reload could also drop an unflushed `sync_*` sub-bag change. The support dir is resolved once at startup (`bootstrapRustConfigStore` → `config_store_init`) and read back from the actor; the save path only reads the live sync sub-bag in memory, sets the typed value, and flushes. Tests that drive a save construct a fresh notifier against a temp dir, so each calls `bootstrapRustConfigStore` in `setUp` to pin the process-global singleton (`Store::init` re-pins on every call).
 
 ##### `config_schema_version` cutovers
 

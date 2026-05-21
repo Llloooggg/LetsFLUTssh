@@ -100,6 +100,11 @@ void main() {
             return null;
           },
         );
+
+    // Pin the config-store singleton to this test's temp dir — the save
+    // path no longer re-inits per write, so the store must be bootstrapped
+    // before any settings change flushes (e.g. on widget teardown).
+    await bootstrapRustConfigStore();
   });
 
   tearDown(() async {

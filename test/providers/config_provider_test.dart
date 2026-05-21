@@ -18,13 +18,19 @@ void main() {
   setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
-  setUp(() {
+  setUp(() async {
     tempDir = Directory.systemTemp.createTempSync('config_prov_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
           (call) async => tempDir.path,
         );
+    // Pin the process-global config-store singleton to this test's temp
+    // dir. The production save path no longer re-inits per write (that
+    // synchronous disk read stalled the UI), so each test must bootstrap
+    // the store itself — `Store::init` re-pins on every call, giving
+    // per-test isolation.
+    await bootstrapRustConfigStore();
   });
 
   tearDown(() {

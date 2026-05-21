@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
@@ -46,7 +49,9 @@ void main() {
   // pipeline.
   setUpAll(requireFrbLoaded);
 
-  setUp(() {
+  late Directory tempDir;
+
+  setUp(() async {
     plat.debugDesktopPlatformOverride = true;
     plat.debugMobilePlatformOverride = false;
     // Bootstrap never completes under flutter_test (no FRB migrations
@@ -55,12 +60,29 @@ void main() {
     // test target. Skip the overlay entirely so tests interact with
     // the widget tree beneath.
     debugShowStartupSplash = false;
+
+    // The update-dialog skip flow flushes a config change (skipped
+    // version). The save path no longer re-inits the store per write,
+    // so route path_provider to a temp dir and pin the store here.
+    tempDir = await Directory.systemTemp.createTemp('main_test_');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => tempDir.path,
+        );
+    await bootstrapRustConfigStore();
   });
 
   tearDown(() {
     plat.debugDesktopPlatformOverride = null;
     plat.debugMobilePlatformOverride = null;
     debugShowStartupSplash = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
+    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
   Widget buildApp({

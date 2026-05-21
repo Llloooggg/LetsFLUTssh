@@ -145,14 +145,15 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
   // the per-push / per-pull state Rust owns survives the round-trip;
   // a missing snapshot collapses to canonical defaults.
   //
-  // `configStoreInit` is idempotent — the Rust singleton's
-  // `OnceLock<PathBuf>` adopts the first path and ignores the rest.
-  // Production runs `bootstrapRustConfigStore` once at startup so
-  // this call is a no-op there; widget tests + unit tests construct
-  // a fresh `ConfigNotifier` per case and rely on this defensive
-  // init to pin the singleton against the test's temp support dir.
-  final dir = await getApplicationSupportDirectory();
-  rust_config.configStoreInit(supportDir: dir.path);
+  // The store's support dir is pinned ONCE at startup by
+  // `bootstrapRustConfigStore`. The save path must not re-resolve
+  // `path_provider` or re-`config_store_init` per change:
+  // `Store::init` is not a no-op — it does a synchronous on-disk read
+  // + JSON parse and replaces the in-memory snapshot (clearing any
+  // pending write). Run on every settings tweak via a sync FRB call,
+  // that disk read stalls the UI isolate; reading the sync sub-bag
+  // straight from the live in-memory snapshot is both faster and
+  // avoids the reload wiping an unflushed sync change.
   final liveSync = rust_config.configStoreGetTyped()?.sync_;
   rust_config.configStoreSetTyped(value: config.toTyped(sync: liveSync));
   // `configStoreFlush` is async — the atomic write + fsync runs on a

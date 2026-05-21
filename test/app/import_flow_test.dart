@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -620,6 +623,30 @@ void main() {
   });
 
   group('config restore branch', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      // These flows flush a restored config. The save path no longer
+      // re-inits the store per write, so route path_provider to a temp
+      // dir and pin the store before the debounced save fires.
+      tempDir = await Directory.systemTemp.createTemp('import_flow_test_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => tempDir.path,
+          );
+      await bootstrapRustConfigStore();
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+
     _testFlow(
       'handleQrImportSource with includeConfig=true updates config provider',
       (tester) async {
