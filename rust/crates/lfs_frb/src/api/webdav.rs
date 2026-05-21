@@ -24,6 +24,7 @@ use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
 use zeroize::Zeroizing;
 
+use crate::api::frb_err;
 use lfs_core::storage::webdav::WebDavProvider;
 use lfs_core::storage::{Entry, EntryKind, Metadata, Provider};
 use lfs_core::webdav::{AuthMethod, Credentials, WebDavClient};
@@ -269,8 +270,12 @@ pub async fn webdav_connect(
         .secrets
         .get(&password_secret_id)
         .ok_or_else(|| format!("WebDAV secret not staged: {password_secret_id}"))?;
-    let secret_str =
-        std::str::from_utf8(&secret_bytes).map_err(|e| format!("WebDAV secret not UTF-8: {e}"))?;
+    let secret_str = std::str::from_utf8(&secret_bytes).map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::WEBDAV,
+            &format!("WebDAV secret not UTF-8: {e}"),
+        )
+    })?;
     let secret = Zeroizing::new(secret_str.to_owned());
     let creds = Credentials {
         method,

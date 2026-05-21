@@ -5,6 +5,8 @@
 //! worker thread free under a big update-feed signature check or
 //! a 46-MiB Argon2id derive.
 
+use crate::api::frb_err;
+
 /// HKDF-SHA-256: derive `length` bytes from `ikm` with the given
 /// `salt` + `info` context tag. `length` must be in 1..=8160.
 pub async fn crypto_hkdf_sha256(
@@ -27,7 +29,7 @@ pub async fn crypto_hkdf_sha256(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("hkdf task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("hkdf task: {e}")))?
 }
 
 /// HMAC-SHA-256: 32-byte MAC tag over `message` keyed by `key`.
@@ -145,7 +147,12 @@ pub async fn crypto_aes_gcm_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Result<
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("aes-gcm encrypt task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("aes-gcm encrypt task: {e}"),
+        )
+    })?
 }
 
 /// AES-256-GCM decrypt for inputs in `nonce || ciphertext || tag`
@@ -158,7 +165,12 @@ pub async fn crypto_aes_gcm_decrypt(key: Vec<u8>, data: Vec<u8>) -> Result<Vec<u
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("aes-gcm decrypt task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("aes-gcm decrypt task: {e}"),
+        )
+    })?
 }
 
 /// Caller-managed nonce variant. `nonce` must be 12 bytes; output is
@@ -175,7 +187,12 @@ pub async fn crypto_aes_gcm_encrypt_raw(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("aes-gcm encrypt-raw task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("aes-gcm encrypt-raw task: {e}"),
+        )
+    })?
 }
 
 /// Caller-managed nonce decrypt. Input is `ciphertext || tag`.
@@ -191,7 +208,12 @@ pub async fn crypto_aes_gcm_decrypt_raw(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("aes-gcm decrypt-raw task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("aes-gcm decrypt-raw task: {e}"),
+        )
+    })?
 }
 
 /// Argon2id key derivation. CPU + memory-heavy — runs on the
@@ -219,7 +241,7 @@ pub async fn crypto_argon2id_derive(
         .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("argon2id task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("argon2id task: {e}")))?
 }
 
 #[cfg(test)]

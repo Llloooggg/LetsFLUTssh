@@ -9,6 +9,8 @@
 //! (`main.dart` after `RustLib.init()`), then any other secrets/* or
 //! db_* commands. Repeat calls are no-ops.
 
+use crate::api::frb_err;
+
 /// Initialise the process-singleton AppState. Idempotent.
 pub fn app_init() {
     lfs_core::app::init();
@@ -126,7 +128,7 @@ pub async fn db_init(path: String, key: Vec<u8>) -> Result<(), String> {
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("db_init task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("db_init task: {e}")))?
 }
 
 /// SecretRef variant of [`db_init`]. Pulls the SQLCipher key from
@@ -166,7 +168,12 @@ pub async fn db_init_from_secret(path: String, secret_id: String) -> Result<(), 
         Ok(())
     })
     .await
-    .map_err(|e| format!("db_init_from_secret task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("db_init_from_secret task: {e}"),
+        )
+    })?
 }
 
 /// Drop the running Rust DB handle. Idempotent. Used by the auto-
@@ -185,12 +192,12 @@ pub async fn db_rekey(new_key: Vec<u8>) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         let db = lfs_core::app::instance()
             .db()
-            .ok_or_else(|| "db not initialized".to_string())?;
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         db.rekey(&new_key)
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("db_rekey task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("db_rekey task: {e}")))?
 }
 
 /// SecretRef variant of [`db_rekey`]. Reads the new key from
@@ -220,7 +227,7 @@ pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
         let new_key_arr: [u8; 32] = new_key
             .as_slice()
             .try_into()
-            .map_err(|_| "new db key wrong length".to_string())?;
+            .map_err(|_| frb_err::wire(frb_err::kind::CRYPTO, "new db key wrong length"))?;
         // Rewrap every `.lfsr` header under (old → new) BEFORE
         // PRAGMA rekey. If the active slot is empty / missing
         // (fresh enable from T0) there are no `.lfsr` files to
@@ -228,16 +235,17 @@ pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
         // path, not here.
         if let Some(old_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
             if !old_key.is_empty() {
-                let old_arr: [u8; 32] = old_key
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| "active db key wrong length".to_string())?;
+                let old_arr: [u8; 32] = old_key.as_slice().try_into().map_err(|_| {
+                    frb_err::wire(frb_err::kind::CRYPTO, "active db key wrong length")
+                })?;
                 let root = recordings_root_for_migrate()?;
                 lfs_core::recorder::migrate::rewrap_all_headers(&root, &old_arr, &new_key_arr)
                     .map_err(|e| crate::api::frb_err::from_core(&e))?;
             }
         }
-        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        let db = app
+            .db()
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         db.rekey(&new_key)
             .map_err(|e| crate::api::frb_err::from_core(&e))?;
         app.secrets
@@ -245,7 +253,12 @@ pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
         Ok(())
     })
     .await
-    .map_err(|e| format!("db_rekey_from_secret task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("db_rekey_from_secret task: {e}"),
+        )
+    })?
 }
 
 /// Resolve the recordings root the migration helpers walk against —
@@ -297,12 +310,17 @@ pub async fn db_schema_object_count() -> Result<i64, String> {
     tokio::task::spawn_blocking(move || {
         let db = lfs_core::app::instance()
             .db()
-            .ok_or_else(|| "db not initialized".to_string())?;
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         db.schema_object_count()
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("db_schema_object_count task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("db_schema_object_count task: {e}"),
+        )
+    })?
 }
 
 #[cfg(test)]

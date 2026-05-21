@@ -17,6 +17,8 @@
 //! rename / multi-file delete, all of which can wedge the Dart
 //! event loop on slow disks.
 
+use crate::api::frb_err;
+
 /// Open the routine-write sink rooted under [`app_support_dir`].
 /// Resolves to `<app_support_dir>/logs/letsflutssh.log`, creates
 /// the `logs/` parent directory if absent, opens the file in
@@ -29,7 +31,12 @@
 pub async fn logger_open_sink(app_support_dir: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || lfs_core::logger::file_sink::open_sink(&app_support_dir))
         .await
-        .map_err(|e| format!("logger_open_sink join: {e}"))?
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("logger_open_sink join: {e}"),
+            )
+        })?
 }
 
 /// Append a single rendered line (no trailing newline — the
@@ -73,7 +80,12 @@ pub fn logger_flush() -> Result<(), String> {
 pub async fn logger_read_all() -> Result<String, String> {
     tokio::task::spawn_blocking(lfs_core::logger::file_sink::read_all)
         .await
-        .map_err(|e| format!("logger_read_all join: {e}"))?
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("logger_read_all join: {e}"),
+            )
+        })?
 }
 
 /// Rotate the current log file if it exceeds [`max_bytes`]. The
@@ -90,7 +102,12 @@ pub async fn logger_rotate_if_needed(max_bytes: u64, max_rotated: u32) -> Result
         lfs_core::logger::file_sink::rotate_if_needed(max_bytes, max_rotated)
     })
     .await
-    .map_err(|e| format!("logger_rotate_if_needed join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("logger_rotate_if_needed join: {e}"),
+        )
+    })?
 }
 
 /// Delete the current log file plus every rotated sibling up to
@@ -99,7 +116,12 @@ pub async fn logger_rotate_if_needed(max_bytes: u64, max_rotated: u32) -> Result
 pub async fn logger_clear_all(max_rotated: u32) -> Result<(), String> {
     tokio::task::spawn_blocking(move || lfs_core::logger::file_sink::clear_all(max_rotated))
         .await
-        .map_err(|e| format!("logger_clear_all join: {e}"))?
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("logger_clear_all join: {e}"),
+            )
+        })?
 }
 
 /// Flush + close the held writer. Idempotent. Sync — the close
@@ -123,7 +145,12 @@ pub async fn logger_export_to(target_path: String) -> Result<u64, String> {
         lfs_core::logger::file_sink::export_to(std::path::Path::new(&target_path))
     })
     .await
-    .map_err(|e| format!("logger_export_to join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("logger_export_to join: {e}"),
+        )
+    })?
 }
 
 /// `true` when the held log path exists and is non-empty.

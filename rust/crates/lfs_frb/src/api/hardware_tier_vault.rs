@@ -24,6 +24,7 @@ fn pinned_support_dir() -> Result<String, String> {
         .map(|p| p.to_string_lossy().into_owned())
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
+use crate::api::frb_err;
 #[cfg(not(target_os = "linux"))]
 use lfs_os_security::hardware_tier_vault::HardwareVaultError;
 
@@ -240,7 +241,7 @@ pub async fn hardware_tier_vault_store(
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || dispatch_store(&support_dir, &db_key, &salt, &pin_hmac))
         .await
-        .map_err(|e| format!("hw_vault store join: {e}"))?
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("hw_vault store join: {e}")))?
 }
 
 /// Combined provision-salt + derive-auth + store. Keeps the PIN
@@ -264,13 +265,22 @@ pub async fn hardware_tier_vault_store_with_pin(
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         let dir = std::path::Path::new(&support_dir);
-        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir)
-            .map_err(|e| format!("hw_vault salt provision: {e}"))?;
+        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::VAULT,
+                &format!("hw_vault salt provision: {e}"),
+            )
+        })?;
         let auth = derive_auth_for_pin(&pin, &salt);
         dispatch_store(&support_dir, &db_key, &salt, &auth)
     })
     .await
-    .map_err(|e| format!("hw_vault store_with_pin join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault store_with_pin join: {e}"),
+        )
+    })?
 }
 
 /// Variant of [`hardware_tier_vault_store`] that pulls `db_key` from
@@ -295,7 +305,12 @@ pub async fn hardware_tier_vault_store_from_secret(
         dispatch_store(&support_dir, &bytes, &salt, &pin_hmac)
     })
     .await
-    .map_err(|e| format!("hw_vault store_from_secret join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault store_from_secret join: {e}"),
+        )
+    })?
 }
 
 /// SecretRef + combined-PIN variant of [`hardware_tier_vault_store`].
@@ -314,13 +329,22 @@ pub async fn hardware_tier_vault_store_from_secret_with_pin(
             .secrets
             .get(&secret_id)
             .ok_or_else(|| format!("secret not found: {secret_id}"))?;
-        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir)
-            .map_err(|e| format!("hw_vault salt provision: {e}"))?;
+        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::VAULT,
+                &format!("hw_vault salt provision: {e}"),
+            )
+        })?;
         let auth = derive_auth_for_pin(&pin, &salt);
         dispatch_store(&support_dir, &bytes, &salt, &auth)
     })
     .await
-    .map_err(|e| format!("hw_vault store_from_secret_with_pin join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault store_from_secret_with_pin join: {e}"),
+        )
+    })?
 }
 
 /// Generate a fresh 32-byte salt via `OsRng` and write it
@@ -335,10 +359,20 @@ pub async fn hardware_tier_vault_provision_salt() -> Result<Vec<u8>, String> {
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         lfs_core::security::hardware_tier_vault::salt::provision(std::path::Path::new(&support_dir))
-            .map_err(|e| format!("hw_vault salt provision: {e}"))
+            .map_err(|e| {
+                frb_err::wire(
+                    frb_err::kind::VAULT,
+                    &format!("hw_vault salt provision: {e}"),
+                )
+            })
     })
     .await
-    .map_err(|e| format!("hw_vault salt provision join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault salt provision join: {e}"),
+        )
+    })?
 }
 
 /// Read the on-disk `hardware_vault_salt.bin` sibling file.
@@ -349,10 +383,15 @@ pub async fn hardware_tier_vault_read_salt() -> Result<Option<Vec<u8>>, String> 
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         lfs_core::security::hardware_tier_vault::salt::read(std::path::Path::new(&support_dir))
-            .map_err(|e| format!("hw_vault salt read: {e}"))
+            .map_err(|e| frb_err::wire(frb_err::kind::VAULT, &format!("hw_vault salt read: {e}")))
     })
     .await
-    .map_err(|e| format!("hw_vault salt read join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault salt read join: {e}"),
+        )
+    })?
 }
 
 /// Idempotent delete of `hardware_vault_salt.bin`. Used by the
@@ -363,10 +402,15 @@ pub async fn hardware_tier_vault_delete_salt() -> Result<(), String> {
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         lfs_core::security::hardware_tier_vault::salt::delete(std::path::Path::new(&support_dir))
-            .map_err(|e| format!("hw_vault salt delete: {e}"))
+            .map_err(|e| frb_err::wire(frb_err::kind::VAULT, &format!("hw_vault salt delete: {e}")))
     })
     .await
-    .map_err(|e| format!("hw_vault salt delete join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault salt delete join: {e}"),
+        )
+    })?
 }
 
 /// Read the on-disk salt for the Linux hardware-vault envelope.
@@ -392,7 +436,7 @@ pub async fn hardware_tier_vault_read(pin_hmac: Vec<u8>) -> Result<Option<Vec<u8
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || dispatch_read(&support_dir, &pin_hmac))
         .await
-        .map_err(|e| format!("hw_vault read join: {e}"))?
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("hw_vault read join: {e}")))?
 }
 
 /// Combined read-salt + derive-auth + unseal. Resolves the on-disk
@@ -417,7 +461,12 @@ pub async fn hardware_tier_vault_read_with_pin(pin: String) -> Result<Option<Vec
         dispatch_read(&support_dir, &auth)
     })
     .await
-    .map_err(|e| format!("hw_vault read_with_pin join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault read_with_pin join: {e}"),
+        )
+    })?
 }
 
 /// Derive the platform-vault auth value from a user-typed PIN +
@@ -462,14 +511,19 @@ pub async fn hardware_tier_vault_read_to_secret(
         _ => Ok(false),
     })
     .await
-    .map_err(|e| format!("hw_vault read_to_secret join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault read_to_secret join: {e}"),
+        )
+    })?
 }
 
 pub async fn hardware_tier_vault_clear() -> Result<(), String> {
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || dispatch_clear(&support_dir))
         .await
-        .map_err(|e| format!("hw_vault clear join: {e}"))?
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("hw_vault clear join: {e}")))?
 }
 
 // ── Cfg-arm dispatchers ─────────────────────────────────────────
@@ -557,7 +611,12 @@ pub async fn hardware_tier_vault_store_biometric_password(
             .map_err(map_hw_vault_error)
         })
         .await
-        .map_err(|e| format!("hw_vault store_bio_pw join: {e}"))?
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("hw_vault store_bio_pw join: {e}"),
+            )
+        })?
     }
 }
 
@@ -576,7 +635,12 @@ pub async fn hardware_tier_vault_read_biometric_password() -> Result<Option<Vec<
                 .map_err(map_hw_vault_error)
         })
         .await
-        .map_err(|e| format!("hw_vault read_bio_pw join: {e}"))?
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("hw_vault read_bio_pw join: {e}"),
+            )
+        })?
     }
 }
 
@@ -595,7 +659,12 @@ pub async fn hardware_tier_vault_clear_biometric_password() -> Result<(), String
         }
     })
     .await
-    .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault clear_bio_pw join: {e}"),
+        )
+    })?
 }
 
 fn read_existing_salt(support_dir: &str) -> Result<Option<Vec<u8>>, String> {
@@ -607,7 +676,7 @@ fn read_existing_salt(support_dir: &str) -> Result<Option<Vec<u8>>, String> {
     #[cfg(not(target_os = "linux"))]
     {
         lfs_core::security::hardware_tier_vault::salt::read(std::path::Path::new(support_dir))
-            .map_err(|e| format!("reseal: salt read: {e}"))
+            .map_err(|e| frb_err::wire(frb_err::kind::VAULT, &format!("reseal: salt read: {e}")))
     }
 }
 

@@ -16,6 +16,7 @@
 //! platform-bound), but the threading concern shrinks to a single
 //! pin call inside `config_store_init`.
 
+use crate::api::frb_err;
 use lfs_core::security::master_password::{self, KdfParams};
 
 /// FRB-safe re-export of `master_password::try_pinned_support_dir`.
@@ -120,7 +121,12 @@ pub async fn master_password_enable(
         master_password::enable(support_dir()?, &password, &params.into()).map(|z| z.to_vec())
     })
     .await
-    .map_err(|e| format!("master_password_enable task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("master_password_enable task: {e}"),
+        )
+    })?
 }
 
 /// SecretRef variant of [`master_password_enable`]. Stages the
@@ -150,7 +156,7 @@ pub async fn master_password_enable_to_secret(
         let key_arr: [u8; 32] = key
             .as_slice()
             .try_into()
-            .map_err(|_| "new db key wrong length".to_string())?;
+            .map_err(|_| frb_err::wire(frb_err::kind::CRYPTO, "new db key wrong length"))?;
         app.secrets.put(&secret_id, &key);
         // Promote plaintext recordings to v1 LFR1 under the new
         // wrap key. A failure here aborts the enable — the password
@@ -163,7 +169,12 @@ pub async fn master_password_enable_to_secret(
         Ok::<_, String>(())
     })
     .await
-    .map_err(|e| format!("master_password_enable_to_secret task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("master_password_enable_to_secret task: {e}"),
+        )
+    })?
 }
 
 /// Verify the old password, then re-key under the new one. Returns
@@ -185,7 +196,12 @@ pub async fn master_password_change(
         .map(|z| z.to_vec())
     })
     .await
-    .map_err(|e| format!("master_password_change task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("master_password_change task: {e}"),
+        )
+    })?
 }
 
 /// SecretRef variant of [`master_password_change`]. Stages the
@@ -218,7 +234,12 @@ pub async fn master_password_change_to_secret(
         Ok::<_, String>(())
     })
     .await
-    .map_err(|e| format!("master_password_change_to_secret task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("master_password_change_to_secret task: {e}"),
+        )
+    })?
 }
 
 /// Full T1 → T0 transition. Drives every persistent artefact that
@@ -264,7 +285,7 @@ pub fn master_password_disable() -> Result<(), String> {
         Some(k) if !k.is_empty() => Some(
             k.as_slice()
                 .try_into()
-                .map_err(|_| "active db key wrong length".to_string())?,
+                .map_err(|_| frb_err::wire(frb_err::kind::CRYPTO, "active db key wrong length"))?,
         ),
         _ => None,
     };
@@ -385,7 +406,12 @@ pub async fn master_password_verify_and_derive(
             .map(|opt| opt.map(|z| z.to_vec()))
     })
     .await
-    .map_err(|e| format!("master_password_verify task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("master_password_verify task: {e}"),
+        )
+    })?
 }
 
 /// SecretRef variant of [`master_password_verify_and_derive`].
@@ -410,7 +436,12 @@ pub async fn master_password_verify_and_derive_to_secret(
         }
     })
     .await
-    .map_err(|e| format!("master_password_verify_and_derive_to_secret task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("master_password_verify_and_derive_to_secret task: {e}"),
+        )
+    })?
 }
 
 #[cfg(test)]

@@ -5,6 +5,8 @@
 //! file write moves Rust-side, which means the on-disk frame
 //! never crosses the FRB boundary back outwards.
 
+use crate::api::frb_err;
+
 /// Public mirror of `RecorderSnapshot`. Same shape — kept here
 /// rather than reused so FRB can derive its own marshalling.
 #[derive(Debug, Clone)]
@@ -43,7 +45,7 @@ pub async fn recorder_register(
         let arr: [u8; 32] = key
             .as_slice()
             .try_into()
-            .map_err(|_| "recorder key must be 32 bytes".to_string())?;
+            .map_err(|_| frb_err::wire(frb_err::kind::RECORDER, "recorder key must be 32 bytes"))?;
         Some(zeroize::Zeroizing::new(arr))
     };
     tokio::task::spawn_blocking(move || {
@@ -60,7 +62,12 @@ pub async fn recorder_register(
         .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder register task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder register task: {e}"),
+        )
+    })?
 }
 
 /// One playback event. `line` carries a decoded JSON-Lines record;
@@ -274,7 +281,7 @@ pub async fn recorder_seek(
         let db_arr: [u8; 32] = db_key
             .as_slice()
             .try_into()
-            .map_err(|_| "active db key wrong length".to_string())?;
+            .map_err(|_| frb_err::wire(frb_err::kind::CRYPTO, "active db key wrong length"))?;
         // Read the v1 header off the main file and unwrap the
         // per-file recording key under the DB key. The sidecar key
         // is HKDF-derived off that recording key (same chain the
@@ -307,17 +314,17 @@ pub async fn recorder_seek(
             lfs_core::recorder::index_sidecar::INDEX_HKDF_INFO,
             32,
         )
-        .map_err(|e| format!("recorder idx hkdf: {e}"))?;
+        .map_err(|e| frb_err::wire(frb_err::kind::RECORDER, &format!("recorder idx hkdf: {e}")))?;
         let index_arr: [u8; 32] = index_key
             .as_slice()
             .try_into()
-            .map_err(|_| "recorder index key wrong size".to_string())?;
+            .map_err(|_| frb_err::wire(frb_err::kind::RECORDER, "recorder index key wrong size"))?;
         lfs_core::recorder::index_sidecar::seek(&path, target_ms, true, Some(&index_arr))
             .map(|opt| opt.map(DbSeekHit::from))
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder seek task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("recorder seek task: {e}")))?
 }
 
 /// SecretRef variant of [`recorder_register`]. Reads the running
@@ -356,10 +363,9 @@ pub async fn recorder_register_from_active(
         let app = lfs_core::app::instance();
         let key_arr = match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
             Some(db_key) if !db_key.is_empty() => {
-                let arr: [u8; 32] = db_key
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| "active db key wrong length".to_string())?;
+                let arr: [u8; 32] = db_key.as_slice().try_into().map_err(|_| {
+                    frb_err::wire(frb_err::kind::CRYPTO, "active db key wrong length")
+                })?;
                 Some(zeroize::Zeroizing::new(arr))
             }
             _ => None,
@@ -378,7 +384,12 @@ pub async fn recorder_register_from_active(
         .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder register from active task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder register from active task: {e}"),
+        )
+    })?
 }
 
 /// Walk the recordings tree under `recordings_root` and rename any
@@ -502,7 +513,12 @@ pub async fn recorder_migrate_misnamed_files(recordings_root: String) -> Result<
         Ok(renamed)
     })
     .await
-    .map_err(|e| format!("recorder migrate task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder migrate task: {e}"),
+        )
+    })?
 }
 
 /// Read the first 4 bytes of [`path`] and compare against the
@@ -662,7 +678,12 @@ pub async fn recorder_record_header(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder header task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder header task: {e}"),
+        )
+    })?
 }
 
 /// Compose an asciinema v2 event line `[delta_secs, "o"|"i",
@@ -682,7 +703,7 @@ pub async fn recorder_record_event(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder event task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("recorder event task: {e}")))?
 }
 
 /// Atomically rotate a recording to a fresh file under the same
@@ -703,7 +724,12 @@ pub async fn recorder_rotate_to(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder rotate task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder rotate task: {e}"),
+        )
+    })?
 }
 
 /// Flush + close an open recording. Idempotent on a missing id.
@@ -715,7 +741,7 @@ pub async fn recorder_close(id: String) -> Result<(), String> {
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder close task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("recorder close task: {e}")))?
 }
 
 // =====================================================================
@@ -887,7 +913,7 @@ pub async fn recorder_list_recordings(
             .map_err(|e| crate::api::frb_err::wire(crate::api::frb_err::kind::IO, &e.to_string()))
     })
     .await
-    .map_err(|e| format!("recorder list task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("recorder list task: {e}")))?
 }
 
 /// Delete `<recordings_root>/<session_id>/<file_name>`. Both
@@ -921,7 +947,12 @@ pub async fn recorder_delete_recording(
         })
     })
     .await
-    .map_err(|e| format!("recorder delete task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder delete task: {e}"),
+        )
+    })?
 }
 
 // =====================================================================
@@ -969,7 +1000,12 @@ pub async fn recorder_storage_used(recordings_root: String) -> Result<u64, Strin
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder storage used task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder storage used task: {e}"),
+        )
+    })?
 }
 
 /// Update the persisted `recordings_storage_cap_bytes` field on
@@ -996,15 +1032,26 @@ pub async fn recorder_set_storage_cap(
         let store = lfs_core::config_store::instance();
         let current_json = store
             .get_json()
-            .ok_or_else(|| "config_store not initialised".to_string())?;
-        let mut value: serde_json::Value = serde_json::from_str(&current_json)
-            .map_err(|e| format!("config_store snapshot parse: {e}"))?;
-        let obj = value
-            .as_object_mut()
-            .ok_or_else(|| "config_store snapshot not a JSON object".to_string())?;
+            .ok_or_else(|| frb_err::wire(frb_err::kind::GENERIC, "config_store not initialised"))?;
+        let mut value: serde_json::Value = serde_json::from_str(&current_json).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("config_store snapshot parse: {e}"),
+            )
+        })?;
+        let obj = value.as_object_mut().ok_or_else(|| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                "config_store snapshot not a JSON object",
+            )
+        })?;
         obj.insert("recordings_storage_cap_bytes".into(), bytes.into());
-        let new_json =
-            serde_json::to_string(&value).map_err(|e| format!("config_store serialise: {e}"))?;
+        let new_json = serde_json::to_string(&value).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("config_store serialise: {e}"),
+            )
+        })?;
         store.set_json(&new_json)?;
 
         let root = std::path::PathBuf::from(recordings_root);
@@ -1016,7 +1063,12 @@ pub async fn recorder_set_storage_cap(
         Ok::<DbEvictionOutcome, String>(outcome.into())
     })
     .await
-    .map_err(|e| format!("recorder set cap task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder set cap task: {e}"),
+        )
+    })?
 }
 
 /// Delete every recording the user has on disk under
@@ -1033,7 +1085,12 @@ pub async fn recorder_clear_all_recordings(recordings_root: String) -> Result<u3
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("recorder clear all task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recorder clear all task: {e}"),
+        )
+    })?
 }
 
 /// Pull the current cap value out of the config_store snapshot.

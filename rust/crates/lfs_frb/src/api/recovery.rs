@@ -17,6 +17,7 @@
 //!   the first-launch wizard, which cannot move Rust-side without
 //!   breaking the "Flutter renders dialogs" invariant.
 
+use crate::api::frb_err;
 use lfs_core::security::recovery;
 use lfs_core::security::recovery_prompt;
 
@@ -104,7 +105,12 @@ pub async fn recovery_detect_legacy_state(
         DbLegacyStateDetection::from(det)
     })
     .await
-    .map_err(|e| format!("recovery_detect_legacy_state task: {e}"))
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("recovery_detect_legacy_state task: {e}"),
+        )
+    })
 }
 
 /// FRB mirror of [`recovery::RecoveryOutcome`]. The Dart caller

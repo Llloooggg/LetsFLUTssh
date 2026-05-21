@@ -14,6 +14,8 @@
 //! a misrouted call surfaces a clear error instead of a mystery
 //! linker symbol.
 
+use crate::api::frb_err;
+
 /// Mirror of `lfs_os_security::linux::tpm::TpmProbeResult` so
 /// the Dart UI can branch on a typed enum instead of a magic
 /// number.
@@ -96,13 +98,16 @@ pub async fn tpm_seal(
             lfs_os_security::linux::tpm::seal(&cfg, &secret, &auth_value)
         })
         .await
-        .map_err(|e| format!("tpm seal task: {e}"))?
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("tpm seal task: {e}")))?
         .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::CRYPTO, e))
     }
     #[cfg(not(target_os = "linux"))]
     {
         let _ = (secret, auth_value, binary, device, timeout_ms);
-        Err("tpm2 not available on this platform".to_string())
+        Err(frb_err::wire(
+            frb_err::kind::UNSUPPORTED,
+            "tpm2 not available on this platform",
+        ))
     }
 }
 
@@ -123,13 +128,16 @@ pub async fn tpm_unseal(
             lfs_os_security::linux::tpm::unseal(&cfg, &blob, &auth_value)
         })
         .await
-        .map_err(|e| format!("tpm unseal task: {e}"))?
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("tpm unseal task: {e}")))?
         .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::CRYPTO, e))
     }
     #[cfg(not(target_os = "linux"))]
     {
         let _ = (blob, auth_value, binary, device, timeout_ms);
-        Err("tpm2 not available on this platform".to_string())
+        Err(frb_err::wire(
+            frb_err::kind::UNSUPPORTED,
+            "tpm2 not available on this platform",
+        ))
     }
 }
 

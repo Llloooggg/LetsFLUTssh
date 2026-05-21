@@ -5,6 +5,8 @@
 //! Dart side is a thin observer over typed return values + bus
 //! progress events.
 
+use crate::api::frb_err;
+
 /// GET `url`, follow redirects bounded by the trusted-host
 /// allowlist, return the response body as a `String`. Used by
 /// the Dart `UpdateService.checkForUpdate` to read the GitHub
@@ -213,7 +215,12 @@ pub async fn update_cleanup_stale_downloads(asset_url: String) -> Result<u32, St
         .map_err(|e| crate::api::frb_err::from_core(&e))?;
     lfs_core::update::orchestrator::cleanup_stale_downloads(dir, &asset_url)
         .await
-        .map_err(|e| format!("cleanup stale downloads: {e}"))
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::UPDATE,
+                &format!("cleanup stale downloads: {e}"),
+            )
+        })
 }
 
 /// Best-effort delete of `path`. Idempotent on a missing target
@@ -225,7 +232,7 @@ pub async fn update_cleanup_file(path: String) -> Result<(), String> {
     let target = std::path::PathBuf::from(path);
     lfs_core::update::orchestrator::cleanup_file(&target)
         .await
-        .map_err(|e| format!("cleanup file: {e}"))
+        .map_err(|e| frb_err::wire(frb_err::kind::UPDATE, &format!("cleanup file: {e}")))
 }
 
 #[cfg(test)]

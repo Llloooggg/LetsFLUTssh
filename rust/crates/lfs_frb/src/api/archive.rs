@@ -10,6 +10,7 @@ use lfs_core::archive::{
 };
 
 use crate::api::db::require_db;
+use crate::api::frb_err;
 
 /// Resolve the empty-folder set that should ride along with an
 /// archive export for the current selection. The Dart export
@@ -91,15 +92,23 @@ pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Res
         let len = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
         let path = std::path::PathBuf::from(&output_path);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("create parent dir for archive: {e}"))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                frb_err::wire(
+                    frb_err::kind::ARCHIVE,
+                    &format!("create parent dir for archive: {e}"),
+                )
+            })?;
         }
-        lfs_core::path::write_bytes_atomic(&path, &bytes)
-            .map_err(|e| format!("write archive atomic: {e}"))?;
+        lfs_core::path::write_bytes_atomic(&path, &bytes).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::ARCHIVE,
+                &format!("write archive atomic: {e}"),
+            )
+        })?;
         Ok(len)
     })
     .await
-    .map_err(|e| format!("export task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("export task: {e}")))?
 }
 
 /// Size of the `.lfs` archive bytes for the current selection
@@ -237,7 +246,7 @@ pub async fn db_export_qr_payload_size(input: DbQrExportInput) -> Result<u32, St
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("qr export size task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("qr export size task: {e}")))?
 }
 
 /// Build the QR deeplink payload (`d=` value) entirely Rust-side.
@@ -269,7 +278,7 @@ pub async fn db_export_qr_payload(input: DbQrExportInput) -> Result<String, Stri
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("qr export task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("qr export task: {e}")))?
 }
 
 /// FRB mirror of `lfs_core::archive::ImportPreview`. Sanitised
@@ -415,7 +424,7 @@ pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, Strin
         })
     })
     .await
-    .map_err(|e| format!("qr import open task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("qr import open task: {e}")))?
 }
 
 /// Open and decrypt a `.lfs` archive (or a raw ZIP for the
@@ -513,7 +522,7 @@ pub async fn db_import_stage(input: DbStagedImport) -> Result<String, String> {
         Ok(handle_id)
     })
     .await
-    .map_err(|e| format!("import stage task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("import stage task: {e}")))?
 }
 
 /// Drop the staged archive without applying it. Idempotent on a
@@ -526,7 +535,7 @@ pub async fn db_import_drop(handle_id: String) -> Result<(), String> {
         lfs_core::app::instance().imports.drop_handle(&handle_id);
     })
     .await
-    .map_err(|e| format!("import drop task: {e}"))
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("import drop task: {e}")))
 }
 
 /// Mirror of `lfs_core::archive::ImportMode`.
@@ -680,7 +689,7 @@ pub async fn db_import_apply(
         Ok(frb_result)
     })
     .await
-    .map_err(|e| format!("import apply task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("import apply task: {e}")))?
 }
 
 #[cfg(test)]

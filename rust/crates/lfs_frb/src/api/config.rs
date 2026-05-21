@@ -18,6 +18,7 @@ use lfs_core::config::{
     UiConfig,
 };
 
+use crate::api::frb_err;
 use crate::api::security_capabilities::DbSecurityCapabilities;
 use crate::api::security_config::DbSecurityConfig;
 use crate::api::sync::DbSyncConfig;
@@ -249,8 +250,8 @@ impl From<DbAppConfigSnapshot> for AppConfig {
 /// one place.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_app_config_to_json(input_json: String) -> Result<String, String> {
-    let value: serde_json::Value =
-        serde_json::from_str(&input_json).map_err(|e| format!("AppConfig: parse: {e}"))?;
+    let value: serde_json::Value = serde_json::from_str(&input_json)
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("AppConfig: parse: {e}")))?;
     let cfg = AppConfig::from_json_value(&value);
     Ok(cfg.to_json_value().to_string())
 }
@@ -264,8 +265,12 @@ pub fn config_app_config_to_json(input_json: String) -> Result<String, String> {
 /// representation before the rest of the app reads it.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_app_config_sanitize_json(input_json: String) -> Result<String, String> {
-    let value: serde_json::Value =
-        serde_json::from_str(&input_json).map_err(|e| format!("AppConfig sanitize: parse: {e}"))?;
+    let value: serde_json::Value = serde_json::from_str(&input_json).map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("AppConfig sanitize: parse: {e}"),
+        )
+    })?;
     let cfg = AppConfig::from_json_value(&value);
     Ok(cfg.to_json_value().to_string())
 }
@@ -277,8 +282,12 @@ pub fn config_app_config_sanitize_json(input_json: String) -> Result<String, Str
 /// adopting the exporter's tier / probe-cache shape.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_app_config_strip_for_export(input_json: String) -> Result<String, String> {
-    let mut value: serde_json::Value =
-        serde_json::from_str(&input_json).map_err(|e| format!("AppConfig export: parse: {e}"))?;
+    let mut value: serde_json::Value = serde_json::from_str(&input_json).map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("AppConfig export: parse: {e}"),
+        )
+    })?;
     lfs_core::config::strip_for_export(&mut value);
     Ok(value.to_string())
 }
@@ -409,7 +418,12 @@ pub fn config_store_set_json(new_json: String) -> Result<(), String> {
 pub async fn config_store_flush() -> Result<Option<String>, String> {
     tokio::task::spawn_blocking(|| lfs_core::config_store::instance().flush())
         .await
-        .map_err(|e| format!("config_store_flush join: {e}"))?
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("config_store_flush join: {e}"),
+            )
+        })?
 }
 
 /// Drive the debounce loop one tick — caller checks if the

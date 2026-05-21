@@ -5,6 +5,7 @@
 //! private key + OpenSSH public-key string + algorithm tag).
 //! Consumed by `lib/core/security/key_store.dart`.
 
+use crate::api::frb_err;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -31,7 +32,7 @@ pub async fn keys_generate_ed25519(comment: String) -> Result<KeyMaterial, Strin
     // want to stall the FRB tokio worker thread for the duration.
     let km = tokio::task::spawn_blocking(move || lfs_core::keys::generate_ed25519(&comment))
         .await
-        .map_err(|e| format!("ed25519 keygen task: {e}"))?
+        .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("ed25519 keygen task: {e}")))?
         .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
@@ -42,7 +43,7 @@ pub async fn keys_generate_rsa(bits: u32, comment: String) -> Result<KeyMaterial
     let km =
         tokio::task::spawn_blocking(move || lfs_core::keys::generate_rsa(bits as usize, &comment))
             .await
-            .map_err(|e| format!("rsa keygen task: {e}"))?
+            .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("rsa keygen task: {e}")))?
             .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
@@ -59,7 +60,7 @@ pub async fn keys_import_openssh(
         lfs_core::keys::import_openssh(&pem, passphrase.as_deref(), &comment)
     })
     .await
-    .map_err(|e| format!("import task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("import task: {e}")))?
     .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
@@ -78,7 +79,7 @@ pub async fn keys_import_ppk(
         lfs_core::keys::import_ppk(&ppk_text, passphrase.as_deref(), &comment)
     })
     .await
-    .map_err(|e| format!("import-ppk task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("import-ppk task: {e}")))?
     .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
@@ -163,7 +164,7 @@ pub async fn keys_read_text_for_manual_import(path: String) -> Result<String, St
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("read text task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("read text task: {e}")))?
 }
 
 /// Read `path` as raw bytes for OpenSSH cert import, capped at
@@ -179,7 +180,7 @@ pub async fn keys_read_cert_bytes_for_import(path: String) -> Result<Vec<u8>, St
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("read cert task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("read cert task: {e}")))?
 }
 
 /// FRB mirror of [`lfs_core::keys::SkKeyMetadata`]. Returned by

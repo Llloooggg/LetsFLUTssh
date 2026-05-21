@@ -16,6 +16,7 @@ use flutter_rust_bridge::frb;
 use futures_util::StreamExt;
 use zeroize::Zeroizing;
 
+use crate::api::frb_err;
 use lfs_core::s3::{S3Client, S3Config};
 use lfs_core::storage::s3::S3Provider;
 use lfs_core::storage::{Entry, EntryKind, Metadata, Provider};
@@ -256,8 +257,8 @@ pub async fn s3_connect(req: S3ConnectRequest) -> Result<S3Connection, String> {
         .secrets
         .get(&secret_key_secret_id)
         .ok_or_else(|| format!("S3 secret not staged: {secret_key_secret_id}"))?;
-    let secret_str =
-        std::str::from_utf8(&secret_bytes).map_err(|e| format!("S3 secret not UTF-8: {e}"))?;
+    let secret_str = std::str::from_utf8(&secret_bytes)
+        .map_err(|e| frb_err::wire(frb_err::kind::S3, &format!("S3 secret not UTF-8: {e}")))?;
     let secret = Zeroizing::new(secret_str.to_owned());
     let cfg = S3Config {
         access_key_id,

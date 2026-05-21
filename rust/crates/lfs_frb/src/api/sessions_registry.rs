@@ -18,6 +18,7 @@
 //! reuses unchanged.
 
 use crate::api::db::{DbFolder, DbSession};
+use crate::api::frb_err;
 
 /// Snapshot of the Rust-side sessions / folders cache view.
 /// Mirrors `lfs_core::sessions::RegistryView` across the FRB
@@ -48,13 +49,20 @@ pub struct DbSessionRegistryView {
 pub async fn sessions_registry_reload() -> Result<(), String> {
     tokio::task::spawn_blocking(|| {
         let app = lfs_core::app::instance();
-        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        let db = app
+            .db()
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         app.sessions_registry
             .reload(&db)
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("registry reload task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("registry reload task: {e}"),
+        )
+    })?
 }
 
 /// Cheap sync read of the cached view. Returns the snapshot the

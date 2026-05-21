@@ -15,6 +15,8 @@
 //! port of the OpenSSH parser, the macOS resign orchestrator)
 //! that have no Android consumer.
 
+use crate::api::frb_err;
+
 /// Expand a leading `~` against the running process's home
 /// directory. See [`lfs_core::path::expand_tilde`] for the
 /// resolution rules.
@@ -52,7 +54,12 @@ pub async fn path_harden_file_perms(path: String) -> Result<(), String> {
         lfs_core::path::harden_file_perms(std::path::Path::new(&path))
     })
     .await
-    .map_err(|e| format!("path_harden_file_perms join: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("path_harden_file_perms join: {e}"),
+        )
+    })?
 }
 
 /// Extract the basename portion of [`path`], normalising Windows

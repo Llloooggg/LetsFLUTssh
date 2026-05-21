@@ -420,7 +420,7 @@ const TPM_BLOB_MAX_BYTES: u64 = 64 * 1024;
 pub async fn tpm_ssh_import_blob_from_path(path: String, label: String) -> Result<String, String> {
     let meta = tokio::fs::metadata(&path).await.map_err(map_io_error)?;
     if meta.len() > TPM_BLOB_MAX_BYTES {
-        return Err("file_too_large".to_string());
+        return Err(frb_err::wire(frb_err::kind::TPM, "file_too_large"));
     }
     let blob = tokio::fs::read(&path).await.map_err(map_io_error)?;
     tpm_ssh_import_blob(blob, label).await
@@ -752,7 +752,9 @@ mod tests {
                 "label".to_string(),
             ))
             .expect_err("oversize blob must be rejected");
-        assert_eq!(err, "file_too_large");
+        // Typed envelope: kind=tpm, detail carries the `file_too_large`
+        // discriminator the Dart wizard routes on.
+        assert_eq!(err, frb_err::wire(frb_err::kind::TPM, "file_too_large"));
     }
 
     #[test]

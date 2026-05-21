@@ -6,6 +6,7 @@
 //! actual rusqlite call inside `tokio::task::spawn_blocking` so
 //! the FRB worker thread isn't pinned by disk I/O.
 
+use crate::api::frb_err;
 use std::collections::HashMap;
 
 /// Resolve the running `Db` handle off `AppState`. Sibling FRB
@@ -14,7 +15,7 @@ use std::collections::HashMap;
 pub(crate) fn require_db() -> Result<std::sync::Arc<lfs_core::db::Db>, String> {
     lfs_core::app::instance()
         .db()
-        .ok_or_else(|| "db not initialized".to_string())
+        .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))
 }
 
 /// Run a sync DAO closure inside `spawn_blocking` against the
@@ -31,7 +32,7 @@ where
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("db task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("db task: {e}")))?
 }
 
 /// Same as [`run_db`] but for closures that need a `&mut Connection`
@@ -48,7 +49,7 @@ where
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("db task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("db task: {e}")))?
 }
 
 /// `run_db` + always-fire `SessionsChanged` on Ok. The compile-time
@@ -1366,13 +1367,20 @@ pub async fn db_known_hosts_import_from_string(
 ) -> Result<DbKnownHostsImportSummary, String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
-        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        let db = app
+            .db()
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         lfs_core::known_hosts::import_from_string(&db, &app.bus, &content, now_ms)
             .map(DbKnownHostsImportSummary::from)
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("known-hosts import task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("known-hosts import task: {e}"),
+        )
+    })?
 }
 
 /// Read `path` from disk (UTF-8) and dispatch to
@@ -1400,13 +1408,20 @@ pub async fn db_known_hosts_import_from_path(
             Err(e) => return Err(format!("read {path}: {e}")),
         };
         let app = lfs_core::app::instance();
-        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        let db = app
+            .db()
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         lfs_core::known_hosts::import_from_string(&db, &app.bus, &content, now_ms)
             .map(DbKnownHostsImportSummary::from)
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("known-hosts import task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("known-hosts import task: {e}"),
+        )
+    })?
 }
 
 /// Render every known-hosts row to the LetsFLUTssh wire format
@@ -1415,11 +1430,18 @@ pub async fn db_known_hosts_import_from_path(
 pub async fn db_known_hosts_export_to_string() -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
-        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        let db = app
+            .db()
+            .ok_or_else(|| frb_err::wire(frb_err::kind::DB, "db not initialized"))?;
         lfs_core::known_hosts::export_to_string(&db).map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("known-hosts export task: {e}"))?
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("known-hosts export task: {e}"),
+        )
+    })?
 }
 
 // ---- app_configs -------------------------------------------------------

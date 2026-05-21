@@ -9,6 +9,8 @@
 //! The runner itself + the artefact registry live entirely in
 //! `lfs_core::migration` — this adapter just marshals types over FRB.
 
+use crate::api::frb_err;
+
 /// FRB mirror of [`lfs_core::migration::Step`].
 pub struct DbMigrationStep {
     pub artefact_id: String,
@@ -73,7 +75,7 @@ pub async fn migration_config_version_on_disk() -> Result<i32, String> {
         ConfigArtefact.read_version(support_dir)
     })
     .await
-    .map_err(|e| format!("config-version task: {e}"))?
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("config-version task: {e}")))?
 }
 
 /// Run every registered artefact's migration chain against the

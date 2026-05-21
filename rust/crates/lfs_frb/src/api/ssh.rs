@@ -25,6 +25,7 @@ use flutter_rust_bridge::frb;
 // over `flutter_rust_bridge::for_generated::StreamSinkBase`. Importing
 // it here keeps the user-facing surface in this file readable and lets
 // codegen recognise the parameter as a Rust→Dart Stream channel.
+use crate::api::frb_err;
 use crate::frb_generated::StreamSink;
 
 // ---- Pure helpers -----------------------------------------------------
@@ -143,10 +144,9 @@ impl SshSession {
     /// boundary.
     async fn snapshot(&self) -> Result<Arc<lfs_core::ssh::Session>, String> {
         let guard = self.inner.lock().await;
-        guard
-            .as_ref()
-            .cloned()
-            .ok_or_else(|| "session disconnected".to_string())
+        guard.as_ref().cloned().ok_or_else(|| {
+            frb_err::wire(frb_err::kind::SESSION_UNAVAILABLE, "session disconnected")
+        })
     }
 
     /// Open a PTY-backed shell channel sized to `cols × rows`.
@@ -260,8 +260,8 @@ pub async fn ssh_connect_password(
     user: String,
     password: Vec<u8>,
 ) -> Result<SshSession, String> {
-    let pw =
-        std::str::from_utf8(&password).map_err(|_| "password is not valid UTF-8".to_string())?;
+    let pw = std::str::from_utf8(&password)
+        .map_err(|_| frb_err::wire(frb_err::kind::GENERIC, "password is not valid UTF-8"))?;
     let session = lfs_core::ssh::Session::connect_password(&host, port, &user, pw)
         .await
         .map_err(|e| crate::api::frb_err::from_core(&e))?;
@@ -301,7 +301,7 @@ pub async fn ssh_connect_agent(
             .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
-    .map_err(|e| format!("agent task: {e}"))??;
+    .map_err(|e| frb_err::wire(frb_err::kind::GENERIC, &format!("agent task: {e}")))??;
     Ok(SshSession::from_core(session))
 }
 
@@ -538,8 +538,8 @@ pub async fn ssh_connect_password_via_proxy(
     user: String,
     password: Vec<u8>,
 ) -> Result<SshSession, String> {
-    let pw =
-        std::str::from_utf8(&password).map_err(|_| "password is not valid UTF-8".to_string())?;
+    let pw = std::str::from_utf8(&password)
+        .map_err(|_| frb_err::wire(frb_err::kind::GENERIC, "password is not valid UTF-8"))?;
     // Drop the parent's mutex before awaiting the handshake — clone
     // the Arc out via `snapshot()` so concurrent `*_via_proxy` calls
     // against the same parent never serialise behind one mutex.
