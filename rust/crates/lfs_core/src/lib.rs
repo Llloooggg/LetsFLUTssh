@@ -102,10 +102,7 @@ pub mod sync;
 pub mod threat_eval;
 pub mod transfer;
 pub mod transfer_conflict;
-pub mod update_http;
-pub mod update_metadata;
-pub mod update_orchestrator;
-pub mod update_signing;
+pub mod update;
 // Raw WebDAV transport (PROPFIND / GET / PUT / DELETE / MKCOL /
 // MOVE + basic / digest / bearer auth + multistatus parser).
 // Consumed by both the sync orchestrator and the WebDAV

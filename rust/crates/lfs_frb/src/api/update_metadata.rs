@@ -13,7 +13,7 @@ pub enum DbVersionOrder {
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_compare_versions(a: String, b: String) -> DbVersionOrder {
-    match lfs_core::update_metadata::compare_versions(&a, &b) {
+    match lfs_core::update::metadata::compare_versions(&a, &b) {
         std::cmp::Ordering::Less => DbVersionOrder::Less,
         std::cmp::Ordering::Equal => DbVersionOrder::Equal,
         std::cmp::Ordering::Greater => DbVersionOrder::Greater,
@@ -22,17 +22,17 @@ pub fn update_compare_versions(a: String, b: String) -> DbVersionOrder {
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_is_trusted_release_asset_uri(uri: String) -> bool {
-    lfs_core::update_metadata::is_trusted_release_asset_uri(&uri)
+    lfs_core::update::metadata::is_trusted_release_asset_uri(&uri)
 }
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_asset_suffix(platform: String) -> Option<String> {
-    lfs_core::update_metadata::asset_suffix(&platform).map(|s| s.to_string())
+    lfs_core::update::metadata::asset_suffix(&platform).map(|s| s.to_string())
 }
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_parse_asset_version(asset_name: String) -> Option<String> {
-    lfs_core::update_metadata::parse_asset_version(&asset_name)
+    lfs_core::update::metadata::parse_asset_version(&asset_name)
 }
 
 /// Single GitHub release asset entry — `(name,
@@ -50,7 +50,7 @@ pub struct DbReleaseAsset {
 /// unknown platforms or when no asset matches. Standalone FRB
 /// surface kept around for tests; the production update-check
 /// path goes through `update_check_from_body`, which calls the
-/// underlying `lfs_core::update_metadata::asset_url_for_platform`
+/// underlying `lfs_core::update::metadata::asset_url_for_platform`
 /// directly.
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_asset_url_for_platform(
@@ -61,7 +61,7 @@ pub fn update_asset_url_for_platform(
         .iter()
         .map(|a| (a.name.as_str(), a.browser_download_url.as_str()))
         .collect();
-    lfs_core::update_metadata::asset_url_for_platform(pairs.into_iter(), &platform)
+    lfs_core::update::metadata::asset_url_for_platform(pairs.into_iter(), &platform)
 }
 
 /// Single `(name, hash)` pair from the manifest. Returned as a
@@ -75,7 +75,7 @@ pub struct DbSha256ManifestEntry {
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_parse_sha256_manifest(content: String) -> Vec<DbSha256ManifestEntry> {
-    lfs_core::update_metadata::parse_sha256_manifest(&content)
+    lfs_core::update::metadata::parse_sha256_manifest(&content)
         .into_iter()
         .map(|(name, hash)| DbSha256ManifestEntry { name, hash })
         .collect()
@@ -90,7 +90,7 @@ pub struct DbChangelogRelease {
     pub body: String,
 }
 
-impl From<DbChangelogRelease> for lfs_core::update_metadata::ChangelogRelease {
+impl From<DbChangelogRelease> for lfs_core::update::metadata::ChangelogRelease {
     fn from(c: DbChangelogRelease) -> Self {
         Self {
             tag: c.tag,
@@ -104,9 +104,9 @@ pub fn update_build_cumulative_changelog(
     releases: Vec<DbChangelogRelease>,
     current_version: String,
 ) -> Option<String> {
-    let core_releases: Vec<lfs_core::update_metadata::ChangelogRelease> =
+    let core_releases: Vec<lfs_core::update::metadata::ChangelogRelease> =
         releases.into_iter().map(Into::into).collect();
-    lfs_core::update_metadata::build_cumulative_changelog(&core_releases, &current_version)
+    lfs_core::update::metadata::build_cumulative_changelog(&core_releases, &current_version)
 }
 
 #[cfg(test)]

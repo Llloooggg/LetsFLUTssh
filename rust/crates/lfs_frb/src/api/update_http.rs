@@ -11,7 +11,7 @@
 /// Releases API JSON without staging an HTTP client on the
 /// Dart side.
 pub async fn update_fetch_text(url: String) -> Result<String, String> {
-    lfs_core::update_http::fetch_text(&url)
+    lfs_core::update::http::fetch_text(&url)
         .await
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
@@ -25,7 +25,7 @@ pub async fn update_fetch_text(url: String) -> Result<String, String> {
 pub async fn update_download_to_file(url: String, target_path: String) -> Result<String, String> {
     let path = std::path::PathBuf::from(target_path);
     let url_for_progress = url.clone();
-    lfs_core::update_http::download_to_file(&url, &path, move |written, total| {
+    lfs_core::update::http::download_to_file(&url, &path, move |written, total| {
         // `app::instance()` is a process-singleton getter — every
         // call returns the same `&'static AppState`, so the
         // closure's `'static` bound holds without a clone.
@@ -41,7 +41,7 @@ pub async fn update_download_to_file(url: String, target_path: String) -> Result
     .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
-/// FRB mirror of `lfs_core::update_orchestrator::UpdateInfo`. Same
+/// FRB mirror of `lfs_core::update::orchestrator::UpdateInfo`. Same
 /// field set + a derived `has_update` getter for the Dart caller.
 #[derive(Debug, Clone)]
 pub struct DbUpdateInfo {
@@ -53,8 +53,8 @@ pub struct DbUpdateInfo {
     pub changelog: Option<String>,
 }
 
-impl From<lfs_core::update_orchestrator::UpdateInfo> for DbUpdateInfo {
-    fn from(i: lfs_core::update_orchestrator::UpdateInfo) -> Self {
+impl From<lfs_core::update::orchestrator::UpdateInfo> for DbUpdateInfo {
+    fn from(i: lfs_core::update::orchestrator::UpdateInfo) -> Self {
         Self {
             latest_version: i.latest_version,
             current_version: i.current_version,
@@ -72,14 +72,14 @@ impl From<lfs_core::update_orchestrator::UpdateInfo> for DbUpdateInfo {
 /// `UpdateService.checkForUpdate` end-to-end.
 ///
 /// Pass an empty `repo` to use
-/// `lfs_core::update_orchestrator::DEFAULT_REPO`.
+/// `lfs_core::update::orchestrator::DEFAULT_REPO`.
 pub async fn update_check(current_version: String, repo: String) -> Result<DbUpdateInfo, String> {
     let target_repo = if repo.is_empty() {
-        lfs_core::update_orchestrator::DEFAULT_REPO
+        lfs_core::update::orchestrator::DEFAULT_REPO
     } else {
         repo.as_str()
     };
-    lfs_core::update_orchestrator::check_for_update(&current_version, target_repo)
+    lfs_core::update::orchestrator::check_for_update(&current_version, target_repo)
         .await
         .map(DbUpdateInfo::from)
         .map_err(|e| crate::api::frb_err::from_core(&e))
@@ -98,16 +98,16 @@ pub fn update_check_from_body(
     repo: String,
 ) -> Result<DbUpdateInfo, String> {
     let target_repo = if repo.is_empty() {
-        lfs_core::update_orchestrator::DEFAULT_REPO
+        lfs_core::update::orchestrator::DEFAULT_REPO
     } else {
         repo.as_str()
     };
-    lfs_core::update_orchestrator::check_for_update_from_body(&body, &current_version, target_repo)
+    lfs_core::update::orchestrator::check_for_update_from_body(&body, &current_version, target_repo)
         .map(DbUpdateInfo::from)
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
-/// FRB mirror of `lfs_core::update_orchestrator::DownloadedAsset`.
+/// FRB mirror of `lfs_core::update::orchestrator::DownloadedAsset`.
 #[derive(Debug, Clone)]
 pub struct DbDownloadedAsset {
     pub asset_path: String,
@@ -156,7 +156,7 @@ pub async fn update_download_with_verification(
     } else {
         Some(expected_digest.as_str())
     };
-    match lfs_core::update_orchestrator::download_with_verification(&url, &target_dir, digest_opt)
+    match lfs_core::update::orchestrator::download_with_verification(&url, &target_dir, digest_opt)
         .await
     {
         Ok(asset) => DbDownloadResult {
@@ -170,16 +170,16 @@ pub async fn update_download_with_verification(
         },
         Err(e) => {
             let (kind, detail) = match e {
-                lfs_core::update_orchestrator::DownloadError::Untrusted(s) => {
+                lfs_core::update::orchestrator::DownloadError::Untrusted(s) => {
                     (DbDownloadErrorKind::Untrusted, s)
                 }
-                lfs_core::update_orchestrator::DownloadError::Network(err) => {
+                lfs_core::update::orchestrator::DownloadError::Network(err) => {
                     (DbDownloadErrorKind::Network, err.to_string())
                 }
-                lfs_core::update_orchestrator::DownloadError::ManifestUnavailable(s) => {
+                lfs_core::update::orchestrator::DownloadError::ManifestUnavailable(s) => {
                     (DbDownloadErrorKind::ManifestUnavailable, s)
                 }
-                lfs_core::update_orchestrator::DownloadError::InvalidSignature(s) => {
+                lfs_core::update::orchestrator::DownloadError::InvalidSignature(s) => {
                     (DbDownloadErrorKind::InvalidSignature, s)
                 }
             };
@@ -195,7 +195,7 @@ pub async fn update_download_with_verification(
 /// Walk the pinned support dir and remove every previous-version
 /// installer whose filename shares a platform-suffix with the
 /// asset at `asset_url`. Wraps
-/// [`lfs_core::update_orchestrator::cleanup_stale_downloads`] —
+/// [`lfs_core::update::orchestrator::cleanup_stale_downloads`] —
 /// caller invokes it just before kicking off a fresh download so
 /// the new installer is the only file with that suffix on disk.
 /// Returns the count of files actually removed; both a missing
@@ -211,19 +211,19 @@ pub async fn update_cleanup_stale_downloads(asset_url: String) -> Result<u32, St
     let dir = lfs_core::app::instance()
         .support_dir()
         .map_err(|e| crate::api::frb_err::from_core(&e))?;
-    lfs_core::update_orchestrator::cleanup_stale_downloads(dir, &asset_url)
+    lfs_core::update::orchestrator::cleanup_stale_downloads(dir, &asset_url)
         .await
         .map_err(|e| format!("cleanup stale downloads: {e}"))
 }
 
 /// Best-effort delete of `path`. Idempotent on a missing target
 /// (the OS already finished the work for us). Wraps
-/// [`lfs_core::update_orchestrator::cleanup_file`] — used by the
+/// [`lfs_core::update::orchestrator::cleanup_file`] — used by the
 /// installer hand-off path to delete the downloaded artefact a
 /// few seconds after spawning the installer.
 pub async fn update_cleanup_file(path: String) -> Result<(), String> {
     let target = std::path::PathBuf::from(path);
-    lfs_core::update_orchestrator::cleanup_file(&target)
+    lfs_core::update::orchestrator::cleanup_file(&target)
         .await
         .map_err(|e| format!("cleanup file: {e}"))
 }
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn db_update_info_carries_every_field_through() {
-        let core = lfs_core::update_orchestrator::UpdateInfo {
+        let core = lfs_core::update::orchestrator::UpdateInfo {
             latest_version: "2.0.0".into(),
             current_version: "1.0.0".into(),
             release_url: "https://example.org/release/2.0".into(),

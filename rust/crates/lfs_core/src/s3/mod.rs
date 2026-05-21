@@ -42,7 +42,7 @@
 //!
 //! ## TLS posture
 //!
-//! Same posture as [`crate::webdav`] / [`crate::update_http`]:
+//! Same posture as [`crate::webdav`] / [`crate::update::http`]:
 //! `reqwest` with `rustls-tls` (pure-Rust, no openssl link),
 //! standard chain validation against the bundled webpki-roots.
 

@@ -2925,15 +2925,15 @@ Encrypted `IdentityFile` keys are detected by `KeyFileHelper.isEncryptedPem` (de
 
 ```dart
 class UpdateService {
-  // Checks GitHub Releases API via lfs_core::update_orchestrator
+  // Checks GitHub Releases API via lfs_core::update::orchestrator
   // (FRB) — version compare, skip-version persistence, signed-
   // manifest verify, atomic download + extract. Dart side is the
   // UI controller; the Rust orchestrator owns the pipeline.
   //
   // DI: HttpFetcher (test-time replacement for the Releases JSON
   // body fetch — production routes through
-  // lfs_core::update_http::fetch_text). Download + verify is a
-  // single Rust call (lfs_core::update_http::download_with_verification)
+  // lfs_core::update::http::fetch_text). Download + verify is a
+  // single Rust call (lfs_core::update::http::download_with_verification)
   // with a static @visibleForTesting `debugDownloadOverride` seam
   // that scripts a DbDownloadResult for the failure-shape tests.
   // Download: streams every chunk straight to disk while hashing —
@@ -2941,7 +2941,7 @@ class UpdateService {
   //   (max 10) bounded by the trusted-host allowlist, verifies
   //   every artefact twice before install —
   //   (a) SHA-256 from the Releases JSON, and
-  //   (b) Ed25519 signature via lfs_core::update_signing::verify_release_signature.
+  //   (b) Ed25519 signature via lfs_core::update::signing::verify_release_signature.
   //   The Dart wrapper maps DbDownloadErrorKind {untrusted, network,
   //   manifestUnavailable, invalidSignature} into the matching
   //   exception class so the UI can pick the right toast.
@@ -2957,8 +2957,8 @@ class UpdateService {
 
 Supporting Rust modules:
 
-- **`lfs_core::update_signing`** (`rust/crates/lfs_core/src/update_signing.rs`) — holds the single pinned Ed25519 public key (`PRIMARY_PUBLIC_KEY`) the verifier matches every release-artefact signature against. Single-pin layout by design: rotation is a manual-reinstall ceremony (generate a fresh keypair offline, swap the GitHub `RELEASE_SIGNING_KEY` secret + offline backup, edit the embedded pubkey, ship the new release, announce via README/website), not an in-app hot-swap. A backup `Option<[u8; 32]>` slot was scoped earlier but rejected as scaffolding-without-use — the slot reappears trivially in the same PR that generates the next keypair when a real rotation is planned. See [`SECURITY.md`](SECURITY.md) for the full recovery playbook.
-- **`lfs_core::update_http`** (`rust/crates/lfs_core/src/update_http.rs`) — the rusty HTTP client used to fetch the Releases JSON + the artefact / signature pair. Standard rustls TLS via reqwest's `rustls-tls` feature (system trust anchors via webpki-roots). The Ed25519 release signature is the load-bearing integrity check; SPKI pinning was scoped here earlier but rejected because the app ships without analytics or a remote-management channel — a stale pin (GitHub key rotation) would silently break auto-update for everyone on the prior release with no detection or rescue path. The Ed25519 sig already gates the same attacker class.
+- **`lfs_core::update::signing`** (`rust/crates/lfs_core/src/update/signing.rs`) — holds the single pinned Ed25519 public key (`PRIMARY_PUBLIC_KEY`) the verifier matches every release-artefact signature against. Single-pin layout by design: rotation is a manual-reinstall ceremony (generate a fresh keypair offline, swap the GitHub `RELEASE_SIGNING_KEY` secret + offline backup, edit the embedded pubkey, ship the new release, announce via README/website), not an in-app hot-swap. A backup `Option<[u8; 32]>` slot was scoped earlier but rejected as scaffolding-without-use — the slot reappears trivially in the same PR that generates the next keypair when a real rotation is planned. See [`SECURITY.md`](SECURITY.md) for the full recovery playbook.
+- **`lfs_core::update::http`** (`rust/crates/lfs_core/src/update/http.rs`) — the rusty HTTP client used to fetch the Releases JSON + the artefact / signature pair. Standard rustls TLS via reqwest's `rustls-tls` feature (system trust anchors via webpki-roots). The Ed25519 release signature is the load-bearing integrity check; SPKI pinning was scoped here earlier but rejected because the app ships without analytics or a remote-management channel — a stale pin (GitHub key rotation) would silently break auto-update for everyone on the prior release with no detection or rescue path. The Ed25519 sig already gates the same attacker class.
 - **`InvalidReleaseSignatureException`** — thrown from
   `UpdateService.downloadAsset` when the signature check fails. Distinct
   from network errors so the UI can surface a "security-coloured" toast
@@ -6022,7 +6022,7 @@ _mainBody (synchronous, pre-runApp):
 * **Pre-FRB fatal wipe** — [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart) is the bottom of the recovery ladder when `RustLib.init()` itself fails (the native blob is the broken artefact). Enumerates the immediate children of `<app_support>` (a per-bundle subdir resolved by `path_provider`) and deletes each. No hardcoded filename list — the sweep is drift-proof because any future artefact the Rust side writes under `<app_support>` is covered automatically. The canonical `WipeAllService.wipeAll()` runs Rust-side once FRB is healthy and also clears keychain / hardware-vault entries; this path is reached only when the Rust-side path is unreachable. OS-secure-storage orphans left behind resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for proper cleanup.
 * **Cold-start logger path resolution** — [`AppLogger.init()`](../lib/utils/logger.dart) calls `getApplicationSupportDirectory()` (a Flutter plugin, not FRB) to compose `<appSupport>/logs/letsflutssh.log` as a string; no `dart:io` File / Directory ops touch the path. The file create / append / chmod / rotate / read / clear surface lives Rust-side under `lfs_core::logger::file_sink` and routes through eight FRB entry points (`logger_open_sink`, …, `logger_close_sink`). `_mainBody` runs `_initRustCoreOrFatal` first, then calls `AppLogger.onFrbReady()` (registers the log path Rust-side, opens the sink if a threshold is already non-null, drains the pre-FRB `_preFrbCriticalBuffer` cap-64 ring through `logger_append_critical`), then `setThreshold(effectiveLevel)` against the live runtime. During the few-ms `RustLib.init()` window routine `log()` calls are no-ops (the sink has not opened yet); critical writes hit the buffer + stderr mirror on desktop so a crash inside that window still leaves a breadcrumb after boot.
 * **Single-instance lock** — `flock` (Linux/macOS) / `CreateMutexW` (Windows) live in the native shell, **not** Dart. The Dart side does not race for the lock at all; this entry is included so the mental map of "what touches OS state on cold-start" stays complete.
-* **`path_provider` resolution** — `getApplicationSupportDirectory()` is the only platform-channel call the Dart side keeps, because `lfs_core` is OS-FFI-free by design. Resolved paths cross FRB to Rust shims (`recorder_list_recordings`, `update_orchestrator::cleanup_stale_downloads`, archive read paths) so disk walks themselves stay Rust-side.
+* **`path_provider` resolution** — `getApplicationSupportDirectory()` is the only platform-channel call the Dart side keeps, because `lfs_core` is OS-FFI-free by design. Resolved paths cross FRB to Rust shims (`recorder_list_recordings`, `update::orchestrator::cleanup_stale_downloads`, archive read paths) so disk walks themselves stay Rust-side.
 
 **How to add a new pre-`_initRustCoreOrFatal` step.** That slice is the few statements between `WidgetsFlutterBinding.ensureInitialized` and the `await _initRustCoreOrFatal()` call. Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from code reachable here is a regression — fail loud at review.
 
@@ -6173,7 +6173,7 @@ signature over the manifest gives the same authentication with one
 file to verify.
 
 On the client, `UpdateService.downloadAsset` hands the full
-pipeline to `lfs_core::update_http::download_with_verification`
+pipeline to `lfs_core::update::http::download_with_verification`
 through a single FRB call. The Rust orchestrator:
 
 1. Streams the binary from the GitHub release URL into `<targetDir>/`,
@@ -6189,7 +6189,7 @@ through a single FRB call. The Rust orchestrator:
 3. Downloads the manifest pair (`letsflutssh-<version>.sha256sums`
    + `.sha256sums.sig`) alongside the binary.
 4. Verifies the manifest signature via
-   `lfs_core::update_signing::verify_release_signature` — Ed25519
+   `lfs_core::update::signing::verify_release_signature` — Ed25519
    verify against the single embedded `PRIMARY_PUBLIC_KEY`. On
    failure all three files are deleted and a
    `DbDownloadResult` with `errorKind = invalidSignature` returns;
@@ -6224,7 +6224,7 @@ from a private key held offline by the maintainer and verified by a
 public key compiled into the binary; the updater does not consult any
 online service at verify time.
 
-**Rotation:** single-pin layout — `lfs_core::update_signing::PRIMARY_PUBLIC_KEY` is the only trusted Ed25519 public key. Rotation is a manual-reinstall ceremony rather than an in-app hot-swap: generate a fresh keypair offline (`openssl genpkey -algorithm Ed25519 -out release-key-new.pem`), update the GitHub `RELEASE_SIGNING_KEY` secret + offline copy, edit the embedded pubkey bytes, ship the new release, announce via README + website. Existing installs whose auto-update breaks (because their embedded pubkey doesn't match the new signature) follow the manual-reinstall flow in [`SECURITY.md`](SECURITY.md). Why no hot-swap backup slot: an `Option<[u8; 32]>` placeholder pinned at `None` until a real rotation populates it costs API surface for zero today-value — the slot reappears trivially in the same PR that generates the next keypair when a rotation is actually planned.
+**Rotation:** single-pin layout — `lfs_core::update::signing::PRIMARY_PUBLIC_KEY` is the only trusted Ed25519 public key. Rotation is a manual-reinstall ceremony rather than an in-app hot-swap: generate a fresh keypair offline (`openssl genpkey -algorithm Ed25519 -out release-key-new.pem`), update the GitHub `RELEASE_SIGNING_KEY` secret + offline copy, edit the embedded pubkey bytes, ship the new release, announce via README + website. Existing installs whose auto-update breaks (because their embedded pubkey doesn't match the new signature) follow the manual-reinstall flow in [`SECURITY.md`](SECURITY.md). Why no hot-swap backup slot: an `Option<[u8; 32]>` placeholder pinned at `None` until a real rotation populates it costs API surface for zero today-value — the slot reappears trivially in the same PR that generates the next keypair when a rotation is actually planned.
 
 **SPKI pinning (rejected, not implemented):** an SPKI gate over `api.github.com` / `objects.githubusercontent.com` was scoped during the audit pass and rejected. The app ships without analytics, telemetry, or a remote-management channel — a stale pin (GitHub keypair rotation) would silently break auto-update for everyone on the prior release with no detection path and no rescue mechanism. The Ed25519 release-manifest signature is what gates the same attacker class (CA / DNS compromise alone yields no payload an installer will trust), so the second wall costs operational autonomy without adding meaningful security headroom. Standard rustls + system trust anchors only on the update HTTP path.
 

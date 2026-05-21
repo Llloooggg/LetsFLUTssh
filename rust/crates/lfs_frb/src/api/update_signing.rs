@@ -10,7 +10,7 @@
 /// negative path it has to handle.
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_verify_release_signature(message: Vec<u8>, signature: Vec<u8>) -> bool {
-    lfs_core::update_signing::verify_release_signature(&message, &signature)
+    lfs_core::update::signing::verify_release_signature(&message, &signature)
 }
 
 #[cfg(test)]

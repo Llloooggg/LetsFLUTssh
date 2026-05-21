@@ -22,7 +22,7 @@
 //! link). Standard chain validation against the bundled
 //! webpki-roots (same trust anchors any browser uses). The
 //! load-bearing integrity check is the **Ed25519 signature on
-//! the release manifest** ([`crate::update_signing`]) — that is
+//! the release manifest** ([`crate::update::signing`]) — that is
 //! what gates a forged-cert attacker, not the TLS layer. A CA
 //! compromise alone yields no payload an attacker can install
 //! because the signed-manifest check fails closed.
@@ -45,7 +45,7 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 use crate::error::Error;
-use crate::update_metadata::is_trusted_release_asset_uri;
+use crate::update::metadata::is_trusted_release_asset_uri;
 
 /// Hard cap on HTTP redirect depth. The auto-update channel only
 /// hops once or twice in practice (GitHub Releases → asset CDN);

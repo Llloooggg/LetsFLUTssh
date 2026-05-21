@@ -314,9 +314,14 @@ impl Store {
         write_to_disk(&path, &json)?;
         // Publish through the AppState singleton so subscribers
         // re-snapshot without a follow-up `get_json` round-trip.
-        crate::app::instance()
-            .bus
-            .publish(Event::ConfigChanged { json: json.clone() });
+        // `try_instance` (not `instance`) so a flush in the pre-init
+        // window — cold-start config writes before `app_init`, unit
+        // tests that don't prime the singleton — drops the no-audience
+        // notification instead of panicking; the disk write above is
+        // the durable part and already happened.
+        if let Some(app) = crate::app::try_instance() {
+            app.bus.publish(Event::ConfigChanged { json: json.clone() });
+        }
         Ok(Some(json))
     }
 

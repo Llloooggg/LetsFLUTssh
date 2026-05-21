@@ -25,9 +25,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::error::Error;
-use crate::update_http;
-use crate::update_metadata;
-use crate::update_signing;
+use crate::update::http as update_http;
+use crate::update::metadata as update_metadata;
+use crate::update::signing as update_signing;
 
 /// Identifier for the GitHub repository that hosts the releases.
 /// Hardcoded constant in the Dart facade today; kept as a parameter

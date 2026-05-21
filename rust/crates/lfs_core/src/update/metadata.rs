@@ -15,7 +15,7 @@
 //!     ([`build_cumulative_changelog`])
 //!
 //! HTTP fetch + Ed25519 verify plumbing live next door in
-//! [`crate::update_http`] / [`crate::update_orchestrator`];
+//! [`crate::update::http`] / [`crate::update::orchestrator`];
 //! this module is the small
 //! pure-function half — semver compare, asset-URI predicate,
 //! filename heuristics, manifest parsing, changelog walker.

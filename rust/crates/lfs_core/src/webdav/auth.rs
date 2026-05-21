@@ -41,7 +41,7 @@
 //! `Bearer <tok>` string only for the lifetime of the
 //! `reqwest::RequestBuilder` call; the request object itself
 //! holds the bytes inside `hyper`'s internal buffers, which we
-//! do not control. That's the same trade-off [`crate::update_http`]
+//! do not control. That's the same trade-off [`crate::update::http`]
 //! lives with — secrets cross into reqwest's hands once per
 //! request and we cannot zero its copies.
 

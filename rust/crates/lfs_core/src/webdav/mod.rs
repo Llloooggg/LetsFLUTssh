@@ -36,14 +36,14 @@
 //!
 //! ## TLS posture
 //!
-//! Same posture as [`crate::update_http`]: `reqwest` with
+//! Same posture as [`crate::update::http`]: `reqwest` with
 //! `rustls-tls` (pure-Rust, no openssl link), standard chain
 //! validation against the bundled webpki-roots. Self-signed-cert
 //! TOFU pinning lives outside this module — when it lands, the
 //! caller will hand the client a pre-configured `reqwest::Client`
 //! instead of letting `WebDavClient::new` build one. The current
 //! constructor takes the default client for the same reason
-//! [`crate::update_http`] does: the update channel and the sync
+//! [`crate::update::http`] does: the update channel and the sync
 //! channel both rely on standard CA validation today.
 
 pub mod auth;

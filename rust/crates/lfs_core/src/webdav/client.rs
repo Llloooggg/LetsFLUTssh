@@ -77,7 +77,7 @@ use crate::webdav::parser::{parse_propfind, MAX_RESPONSE_BYTES};
 use crate::webdav::PropfindEntry;
 
 /// Per-request timeout. Same default as
-/// [`crate::update_http::REQUEST_TIMEOUT`] — auto-update and
+/// [`crate::update::http::REQUEST_TIMEOUT`] — auto-update and
 /// sync both rate-limit to one outstanding call per resource,
 /// so a stuck connection that pins the worker is the failure
 /// shape we want a hard cap on.
