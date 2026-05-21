@@ -95,14 +95,12 @@ impl From<recovery::DestructiveResetReport> for DbDestructiveResetReport {
 /// filesystem (config version read + orphan-file existence walk);
 /// running on the FRB worker thread would block other calls.
 pub async fn recovery_detect_legacy_state(
-    support_dir: String,
     has_current_security_config: bool,
 ) -> Result<DbLegacyStateDetection, String> {
+    let support_dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     tokio::task::spawn_blocking(move || {
-        let det = recovery::detect_legacy_state(
-            std::path::Path::new(&support_dir),
-            has_current_security_config,
-        );
+        let det = recovery::detect_legacy_state(support_dir, has_current_security_config);
         DbLegacyStateDetection::from(det)
     })
     .await
@@ -166,12 +164,10 @@ pub fn recovery_prompt_cancel(prompt_id: String) {
 /// Dart subscriber's choice, runs the destructive cascade
 /// internally on `Reset`, and returns a typed outcome the Dart
 /// shell branches on. See [`recovery::recovery_handle_corrupt_db`].
-pub async fn recovery_handle_corrupt_db(
-    support_dir: String,
-    reason: String,
-) -> Result<DbRecoveryOutcome, String> {
-    let path = std::path::PathBuf::from(support_dir);
-    let outcome = recovery::recovery_handle_corrupt_db(&path, reason).await;
+pub async fn recovery_handle_corrupt_db(reason: String) -> Result<DbRecoveryOutcome, String> {
+    let path = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    let outcome = recovery::recovery_handle_corrupt_db(path, reason).await;
     Ok(DbRecoveryOutcome::from(outcome))
 }
 
@@ -180,11 +176,11 @@ pub async fn recovery_handle_corrupt_db(
 /// for the security-state loss scenario. See
 /// [`recovery::recovery_handle_vault_state_missing`].
 pub async fn recovery_handle_vault_state_missing(
-    support_dir: String,
     tier_label: String,
 ) -> Result<DbRecoveryOutcome, String> {
-    let path = std::path::PathBuf::from(support_dir);
-    let outcome = recovery::recovery_handle_vault_state_missing(&path, tier_label).await;
+    let path = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    let outcome = recovery::recovery_handle_vault_state_missing(path, tier_label).await;
     Ok(DbRecoveryOutcome::from(outcome))
 }
 
@@ -194,13 +190,13 @@ pub async fn recovery_handle_vault_state_missing(
 /// `UserExited`. See
 /// [`recovery::recovery_handle_legacy_state`].
 pub async fn recovery_handle_legacy_state(
-    support_dir: String,
     config_version_on_disk: i32,
     orphan_artefacts: bool,
 ) -> Result<DbRecoveryOutcome, String> {
-    let path = std::path::PathBuf::from(support_dir);
+    let path = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     let outcome =
-        recovery::recovery_handle_legacy_state(&path, config_version_on_disk, orphan_artefacts)
+        recovery::recovery_handle_legacy_state(path, config_version_on_disk, orphan_artefacts)
             .await;
     Ok(DbRecoveryOutcome::from(outcome))
 }
@@ -219,11 +215,10 @@ pub async fn recovery_handle_legacy_state(
 ///    step 2 leaves the install without a config; the next
 ///    `configStoreInit` re-seeds defaults — no explicit Riverpod
 ///    patch needed.
-pub async fn recovery_run_destructive_reset(
-    support_dir: String,
-) -> Result<DbDestructiveResetReport, String> {
-    let path = std::path::PathBuf::from(support_dir);
-    let report = recovery::run_destructive_reset(&path).await;
+pub async fn recovery_run_destructive_reset() -> Result<DbDestructiveResetReport, String> {
+    let path = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    let report = recovery::run_destructive_reset(path).await;
     Ok(DbDestructiveResetReport::from(report))
 }
 
@@ -255,37 +250,10 @@ mod tests {
         }
     }
 
-    /// Empty support-dir + no Dart-side security config — both probe
-    /// signals report false, `should_prompt_reset` aggregates to false.
-    #[tokio::test]
-    async fn recovery_detect_legacy_state_empty_support_dir() {
-        let tmp = tempfile::tempdir().expect("tmp");
-        let path = tmp.path().to_string_lossy().into_owned();
-        let det = recovery_detect_legacy_state(path, false).await.expect("ok");
-        assert!(!det.legacy_config);
-        assert!(!det.orphan_artefacts);
-        assert!(!det.should_prompt_reset);
-        assert_eq!(det.config_version_on_disk, -1);
-    }
-
-    /// Clean support-dir — destructive reset reports zero deletions
-    /// and zero failures; the cascade is idempotent on an already-
-    /// wiped install. Keychain purge result is plugin-dependent — on
-    /// hosts where the keyring backend is reachable the call
-    /// short-circuits with no managed aliases present; on hosts where
-    /// it is not, the loop still terminates without panicking.
-    #[tokio::test]
-    async fn recovery_run_destructive_reset_on_clean_dir() {
-        // The cascade touches `lfs_core::app::instance()` for the
-        // SecretStore clear + db_close — initialise the singleton
-        // before the call.
-        let _ = lfs_core::app::init();
-        let tmp = tempfile::tempdir().expect("tmp");
-        let path = tmp.path().to_string_lossy().into_owned();
-        let report = recovery_run_destructive_reset(path).await.expect("ok");
-        assert!(report.deleted_files.is_empty());
-        assert!(report.failed_files.is_empty());
-    }
+    // The empty-dir detection + clean-dir destructive-reset behaviours
+    // are covered against the explicit `&Path` API in
+    // `lfs_core::security::recovery`; these FRB wrappers only resolve
+    // the pinned support dir and delegate.
 
     #[test]
     fn recovery_prompt_resolve_unknown_id_returns_err() {

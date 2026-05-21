@@ -18086,14 +18086,12 @@ fn wire__crate__api__recovery__recovery_detect_legacy_state_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_has_current_security_config = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::recovery::recovery_detect_legacy_state(
-                            api_support_dir,
                             api_has_current_security_config,
                         )
                         .await?;
@@ -18127,17 +18125,13 @@ fn wire__crate__api__recovery__recovery_handle_corrupt_db_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_reason = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok = crate::api::recovery::recovery_handle_corrupt_db(
-                            api_support_dir,
-                            api_reason,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::recovery::recovery_handle_corrupt_db(api_reason).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -18168,7 +18162,6 @@ fn wire__crate__api__recovery__recovery_handle_legacy_state_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_config_version_on_disk = <i32>::sse_decode(&mut deserializer);
             let api_orphan_artefacts = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -18176,7 +18169,6 @@ fn wire__crate__api__recovery__recovery_handle_legacy_state_impl(
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::recovery::recovery_handle_legacy_state(
-                            api_support_dir,
                             api_config_version_on_disk,
                             api_orphan_artefacts,
                         )
@@ -18211,14 +18203,12 @@ fn wire__crate__api__recovery__recovery_handle_vault_state_missing_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_tier_label = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::recovery::recovery_handle_vault_state_missing(
-                            api_support_dir,
                             api_tier_label,
                         )
                         .await?;
@@ -18316,14 +18306,12 @@ fn wire__crate__api__recovery__recovery_run_destructive_reset_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::recovery::recovery_run_destructive_reset(api_support_dir)
-                                .await?;
+                            crate::api::recovery::recovery_run_destructive_reset().await?;
                         Ok(output_ok)
                     })()
                     .await,

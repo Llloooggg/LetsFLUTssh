@@ -1984,23 +1984,19 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<DbLegacyStateDetection> crateApiRecoveryRecoveryDetectLegacyState({
-    required String supportDir,
     required bool hasCurrentSecurityConfig,
   });
 
   Future<DbRecoveryOutcome> crateApiRecoveryRecoveryHandleCorruptDb({
-    required String supportDir,
     required String reason,
   });
 
   Future<DbRecoveryOutcome> crateApiRecoveryRecoveryHandleLegacyState({
-    required String supportDir,
     required int configVersionOnDisk,
     required bool orphanArtefacts,
   });
 
   Future<DbRecoveryOutcome> crateApiRecoveryRecoveryHandleVaultStateMissing({
-    required String supportDir,
     required String tierLabel,
   });
 
@@ -2011,9 +2007,8 @@ abstract class RustLibApi extends BaseApi {
     required String choiceWire,
   });
 
-  Future<DbDestructiveResetReport> crateApiRecoveryRecoveryRunDestructiveReset({
-    required String supportDir,
-  });
+  Future<DbDestructiveResetReport>
+  crateApiRecoveryRecoveryRunDestructiveReset();
 
   String crateApiLogSanitizeRedactSecrets({required String input});
 
@@ -18475,14 +18470,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<DbLegacyStateDetection> crateApiRecoveryRecoveryDetectLegacyState({
-    required String supportDir,
     required bool hasCurrentSecurityConfig,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_bool(hasCurrentSecurityConfig, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -18496,7 +18489,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiRecoveryRecoveryDetectLegacyStateConstMeta,
-        argValues: [supportDir, hasCurrentSecurityConfig],
+        argValues: [hasCurrentSecurityConfig],
         apiImpl: this,
       ),
     );
@@ -18505,19 +18498,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiRecoveryRecoveryDetectLegacyStateConstMeta =>
       const TaskConstMeta(
         debugName: "recovery_detect_legacy_state",
-        argNames: ["supportDir", "hasCurrentSecurityConfig"],
+        argNames: ["hasCurrentSecurityConfig"],
       );
 
   @override
   Future<DbRecoveryOutcome> crateApiRecoveryRecoveryHandleCorruptDb({
-    required String supportDir,
     required String reason,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(reason, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -18531,7 +18522,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiRecoveryRecoveryHandleCorruptDbConstMeta,
-        argValues: [supportDir, reason],
+        argValues: [reason],
         apiImpl: this,
       ),
     );
@@ -18540,12 +18531,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiRecoveryRecoveryHandleCorruptDbConstMeta =>
       const TaskConstMeta(
         debugName: "recovery_handle_corrupt_db",
-        argNames: ["supportDir", "reason"],
+        argNames: ["reason"],
       );
 
   @override
   Future<DbRecoveryOutcome> crateApiRecoveryRecoveryHandleLegacyState({
-    required String supportDir,
     required int configVersionOnDisk,
     required bool orphanArtefacts,
   }) {
@@ -18553,7 +18543,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_i_32(configVersionOnDisk, serializer);
           sse_encode_bool(orphanArtefacts, serializer);
           pdeCallFfi(
@@ -18568,7 +18557,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiRecoveryRecoveryHandleLegacyStateConstMeta,
-        argValues: [supportDir, configVersionOnDisk, orphanArtefacts],
+        argValues: [configVersionOnDisk, orphanArtefacts],
         apiImpl: this,
       ),
     );
@@ -18577,19 +18566,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiRecoveryRecoveryHandleLegacyStateConstMeta =>
       const TaskConstMeta(
         debugName: "recovery_handle_legacy_state",
-        argNames: ["supportDir", "configVersionOnDisk", "orphanArtefacts"],
+        argNames: ["configVersionOnDisk", "orphanArtefacts"],
       );
 
   @override
   Future<DbRecoveryOutcome> crateApiRecoveryRecoveryHandleVaultStateMissing({
-    required String supportDir,
     required String tierLabel,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(tierLabel, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -18603,7 +18590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiRecoveryRecoveryHandleVaultStateMissingConstMeta,
-        argValues: [supportDir, tierLabel],
+        argValues: [tierLabel],
         apiImpl: this,
       ),
     );
@@ -18612,7 +18599,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiRecoveryRecoveryHandleVaultStateMissingConstMeta =>
       const TaskConstMeta(
         debugName: "recovery_handle_vault_state_missing",
-        argNames: ["supportDir", "tierLabel"],
+        argNames: ["tierLabel"],
       );
 
   @override
@@ -18680,14 +18667,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<DbDestructiveResetReport> crateApiRecoveryRecoveryRunDestructiveReset({
-    required String supportDir,
-  }) {
+  Future<DbDestructiveResetReport>
+  crateApiRecoveryRecoveryRunDestructiveReset() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -18700,7 +18685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiRecoveryRecoveryRunDestructiveResetConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -18709,7 +18694,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiRecoveryRecoveryRunDestructiveResetConstMeta =>
       const TaskConstMeta(
         debugName: "recovery_run_destructive_reset",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override

@@ -61,7 +61,6 @@ void main() {
       }
       evictCalls = 0;
       service = WipeAllService(
-        supportDirFactory: () async => tmp,
         // Skip the keychain purge — would touch the host's libsecret
         // and leave state behind.
         purgeKeychain: false,
@@ -135,7 +134,6 @@ void main() {
       test('a thrown evict callback does not abort the sweep', () async {
         File('${tmp.path}/credentials.kdf').writeAsBytesSync(const [0]);
         final svc = WipeAllService(
-          supportDirFactory: () async => tmp,
           purgeKeychain: false,
           credentialCacheEvict: () async {
             throw StateError('cache flush blew up');
@@ -152,7 +150,6 @@ void main() {
 
       test('null evict hook is allowed (startup-resume path)', () async {
         final svc = WipeAllService(
-          supportDirFactory: () async => tmp,
           purgeKeychain: false,
           // credentialCacheEvict intentionally null.
         );

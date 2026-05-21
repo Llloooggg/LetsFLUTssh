@@ -20,10 +20,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// filesystem (config version read + orphan-file existence walk);
 /// running on the FRB worker thread would block other calls.
 Future<DbLegacyStateDetection> recoveryDetectLegacyState({
-  required String supportDir,
   required bool hasCurrentSecurityConfig,
 }) => RustLib.instance.api.crateApiRecoveryRecoveryDetectLegacyState(
-  supportDir: supportDir,
   hasCurrentSecurityConfig: hasCurrentSecurityConfig,
 );
 
@@ -54,23 +52,18 @@ void recoveryPromptCancel({required String promptId}) => RustLib.instance.api
 /// Dart subscriber's choice, runs the destructive cascade
 /// internally on `Reset`, and returns a typed outcome the Dart
 /// shell branches on. See [`recovery::recovery_handle_corrupt_db`].
-Future<DbRecoveryOutcome> recoveryHandleCorruptDb({
-  required String supportDir,
-  required String reason,
-}) => RustLib.instance.api.crateApiRecoveryRecoveryHandleCorruptDb(
-  supportDir: supportDir,
-  reason: reason,
-);
+Future<DbRecoveryOutcome> recoveryHandleCorruptDb({required String reason}) =>
+    RustLib.instance.api.crateApiRecoveryRecoveryHandleCorruptDb(
+      reason: reason,
+    );
 
 /// Orchestrate the "vault state missing — tier is unreachable"
 /// recovery dialog. Same cascade as the corrupt-DB path; framed
 /// for the security-state loss scenario. See
 /// [`recovery::recovery_handle_vault_state_missing`].
 Future<DbRecoveryOutcome> recoveryHandleVaultStateMissing({
-  required String supportDir,
   required String tierLabel,
 }) => RustLib.instance.api.crateApiRecoveryRecoveryHandleVaultStateMissing(
-  supportDir: supportDir,
   tierLabel: tierLabel,
 );
 
@@ -80,11 +73,9 @@ Future<DbRecoveryOutcome> recoveryHandleVaultStateMissing({
 /// `UserExited`. See
 /// [`recovery::recovery_handle_legacy_state`].
 Future<DbRecoveryOutcome> recoveryHandleLegacyState({
-  required String supportDir,
   required int configVersionOnDisk,
   required bool orphanArtefacts,
 }) => RustLib.instance.api.crateApiRecoveryRecoveryHandleLegacyState(
-  supportDir: supportDir,
   configVersionOnDisk: configVersionOnDisk,
   orphanArtefacts: orphanArtefacts,
 );
@@ -103,11 +94,8 @@ Future<DbRecoveryOutcome> recoveryHandleLegacyState({
 ///    step 2 leaves the install without a config; the next
 ///    `configStoreInit` re-seeds defaults — no explicit Riverpod
 ///    patch needed.
-Future<DbDestructiveResetReport> recoveryRunDestructiveReset({
-  required String supportDir,
-}) => RustLib.instance.api.crateApiRecoveryRecoveryRunDestructiveReset(
-  supportDir: supportDir,
-);
+Future<DbDestructiveResetReport> recoveryRunDestructiveReset() =>
+    RustLib.instance.api.crateApiRecoveryRecoveryRunDestructiveReset();
 
 /// FRB mirror of [`recovery::DestructiveResetReport`]. Mirrors the
 /// shape of `wipe::FileSweepReport` + the keychain purge outcome,

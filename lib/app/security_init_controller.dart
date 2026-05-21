@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/db/rust_db_init.dart';
@@ -316,11 +315,8 @@ class SecurityInitController {
       'Database readability probe failed — handing off to recovery orchestrator',
       name: 'App',
     );
-    final outcome = await _runRecoveryOrchestrator(
-      (supportDir) => rust_recovery.recoveryHandleCorruptDb(
-        supportDir: supportDir,
-        reason: 'integrity probe failed',
-      ),
+    final outcome = await rust_recovery.recoveryHandleCorruptDb(
+      reason: 'integrity probe failed',
     );
     await _dispatchRecoveryOutcome(outcome, source: 'handleCorruption');
   }
@@ -384,11 +380,8 @@ class SecurityInitController {
     // tier would re-run the same migration pipeline; once that has
     // surfaced a fatal report there is no other tier path left to
     // try.
-    final outcome = await _runRecoveryOrchestrator(
-      (supportDir) => rust_recovery.recoveryHandleCorruptDb(
-        supportDir: supportDir,
-        reason: 'migration runner failure',
-      ),
+    final outcome = await rust_recovery.recoveryHandleCorruptDb(
+      reason: 'migration runner failure',
     );
     if (outcome == DbRecoveryOutcome.continued) {
       AppLogger.instance.log(
@@ -442,11 +435,8 @@ class SecurityInitController {
       'missing. Handing off to recovery orchestrator.',
       name: 'App',
     );
-    final outcome = await _runRecoveryOrchestrator(
-      (supportDir) => rust_recovery.recoveryHandleVaultStateMissing(
-        supportDir: supportDir,
-        tierLabel: tierLabel,
-      ),
+    final outcome = await rust_recovery.recoveryHandleVaultStateMissing(
+      tierLabel: tierLabel,
     );
     await _dispatchRecoveryOutcome(outcome, source: '_handleVaultStateMissing');
   }
@@ -501,13 +491,11 @@ class SecurityInitController {
     WipeAllService wiper,
   ) async {
     final currentSecurity = ref.read(configProvider).security;
-    final supportDir = await getApplicationSupportDirectory();
     // Single FRB hop folds the prior three-call sequence
     // (`migration_config_target_version` + `migration_config_version_on_disk`
     // + `wipe_has_any_state`) into one Rust-side detection. Auxiliary
     // version fields stay on the return for diagnostic logging.
     final detection = await rust_recovery.recoveryDetectLegacyState(
-      supportDir: supportDir.path,
       hasCurrentSecurityConfig: currentSecurity != null,
     );
     if (!detection.shouldPromptReset) return false;
@@ -518,7 +506,6 @@ class SecurityInitController {
       name: 'App',
     );
     final outcome = await rust_recovery.recoveryHandleLegacyState(
-      supportDir: supportDir.path,
       configVersionOnDisk: detection.configVersionOnDisk,
       orphanArtefacts: detection.orphanArtefacts,
     );
@@ -815,11 +802,8 @@ class SecurityInitController {
         'reset through the recovery orchestrator',
         name: 'App',
       );
-      final outcome = await _runRecoveryOrchestrator(
-        (supportDir) => rust_recovery.recoveryHandleCorruptDb(
-          supportDir: supportDir,
-          reason: 'retry budget exhausted',
-        ),
+      final outcome = await rust_recovery.recoveryHandleCorruptDb(
+        reason: 'retry budget exhausted',
       );
       await _dispatchRecoveryOutcome(
         outcome,
@@ -828,17 +812,6 @@ class SecurityInitController {
       return;
     }
     await handleCorruption();
-  }
-
-  /// Resolve the support_dir + call the orchestrator entry point.
-  /// All three corrupt-DB / vault-state-missing / legacy-state
-  /// callers share this shape — they differ only in which Rust
-  /// entry point they invoke.
-  Future<DbRecoveryOutcome> _runRecoveryOrchestrator(
-    Future<DbRecoveryOutcome> Function(String supportDir) call,
-  ) async {
-    final supportDir = await getApplicationSupportDirectory();
-    return call(supportDir.path);
   }
 
   /// Post-orchestrator branch dispatcher. The Rust orchestrator

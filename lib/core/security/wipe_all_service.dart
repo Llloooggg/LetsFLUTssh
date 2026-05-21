@@ -1,7 +1,3 @@
-import 'dart:io';
-
-import 'package:path_provider/path_provider.dart';
-
 import '../../src/rust/api/recovery.dart' as rust_recovery;
 import '../../src/rust/api/wipe.dart' as rust_wipe;
 import '../../utils/logger.dart';
@@ -62,14 +58,11 @@ class WipeReport {
 /// aliases), so a stand-alone list keeps the cleanup total.
 class WipeAllService {
   WipeAllService({
-    Future<Directory> Function()? supportDirFactory,
     bool purgeKeychain = true,
     Future<void> Function()? credentialCacheEvict,
-  }) : _supportDir = supportDirFactory ?? getApplicationSupportDirectory,
-       _purgeKeychain = purgeKeychain,
+  }) : _purgeKeychain = purgeKeychain,
        _credentialCacheEvict = credentialCacheEvict;
 
-  final Future<Directory> Function() _supportDir;
   final bool _purgeKeychain;
 
   /// Optional hook that drops every cached per-session credential
@@ -128,9 +121,6 @@ class WipeAllService {
         name: 'WipeAllService',
       );
     }
-
-    final dir = await _supportDir();
-    mark('support_dir');
 
     // 0. Flush the per-session credential cache BEFORE any file
     //    deletion. The cache is process-RAM-only, so there is no
@@ -191,9 +181,7 @@ class WipeAllService {
     final bool nativeCleared;
     final bool overlayCleared;
     if (_purgeKeychain) {
-      final report = await rust_recovery.recoveryRunDestructiveReset(
-        supportDir: dir.path,
-      );
+      final report = await rust_recovery.recoveryRunDestructiveReset();
       deleted = List<String>.from(report.deletedFiles);
       failed = List<String>.from(report.failedFiles);
       purged = report.keychainPurgeSucceeded;
