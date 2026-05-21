@@ -3917,16 +3917,12 @@ fn wire__crate__api__biometric_key_vault__biometric_vault_linux_clear_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::biometric_key_vault::biometric_vault_linux_clear(
-                                api_support_dir,
-                            )
-                            .await?;
+                            crate::api::biometric_key_vault::biometric_vault_linux_clear().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3957,16 +3953,13 @@ fn wire__crate__api__biometric_key_vault__biometric_vault_linux_is_stored_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok(
-                            crate::api::biometric_key_vault::biometric_vault_linux_is_stored(
-                                api_support_dir,
-                            )
-                            .await,
+                            crate::api::biometric_key_vault::biometric_vault_linux_is_stored()
+                                .await,
                         )?;
                         Ok(output_ok)
                     })()
@@ -3998,7 +3991,6 @@ fn wire__crate__api__biometric_key_vault__biometric_vault_linux_read_to_secret_i
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_secret_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
@@ -4006,7 +3998,6 @@ fn wire__crate__api__biometric_key_vault__biometric_vault_linux_read_to_secret_i
                     (move || async move {
                         let output_ok =
                             crate::api::biometric_key_vault::biometric_vault_linux_read_to_secret(
-                                api_support_dir,
                                 api_secret_id,
                             )
                             .await?;
@@ -4027,10 +4018,9 @@ fn wire__crate__api__biometric_key_vault__biometric_vault_linux_store_from_secre
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "biometric_vault_linux_store_from_secret", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_secret_id = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_secret_id = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::biometric_key_vault::biometric_vault_linux_store_from_secret(api_support_dir, api_secret_id).await?;   Ok(output_ok)
+                         let output_ok = crate::api::biometric_key_vault::biometric_vault_linux_store_from_secret(api_secret_id).await?;   Ok(output_ok)
                     })().await)
                 } })
 }

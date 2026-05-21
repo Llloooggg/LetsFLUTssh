@@ -1,7 +1,5 @@
 import 'dart:io' show Platform;
 
-import 'package:path_provider/path_provider.dart';
-
 import '../../src/rust/api/biometric_key_vault.dart' as rust_bio_vault;
 import '../../src/rust/api/secure_key_storage.dart' as rust_storage;
 import '../../utils/logger.dart';
@@ -71,18 +69,9 @@ class BiometricKeyVault {
   static String get _keyName => rust_storage.secureStorageAliasBioDbKey();
 
   final LinuxKeychainMarker _marker;
-  final Future<String> Function() _supportDirPath;
 
-  BiometricKeyVault({
-    LinuxKeychainMarker? marker,
-    Future<String> Function()? supportDirPath,
-  }) : _marker = marker ?? LinuxKeychainMarker.defaultInstance,
-       _supportDirPath = supportDirPath ?? _defaultSupportDir;
-
-  static Future<String> _defaultSupportDir() async {
-    final dir = await getApplicationSupportDirectory();
-    return dir.path;
-  }
+  BiometricKeyVault({LinuxKeychainMarker? marker})
+    : _marker = marker ?? LinuxKeychainMarker.defaultInstance;
 
   /// True on Linux when a TPM2 device + `tpm2-tools` are both
   /// reachable. Callers use this to decide whether the backing-level
@@ -102,10 +91,7 @@ class BiometricKeyVault {
   Future<bool> isStored() async {
     if (Platform.isLinux) {
       try {
-        final dir = await _supportDirPath();
-        final tpmStored = await rust_bio_vault.biometricVaultLinuxIsStored(
-          supportDir: dir,
-        );
+        final tpmStored = await rust_bio_vault.biometricVaultLinuxIsStored();
         if (tpmStored) return true;
       } catch (e) {
         AppLogger.instance.log(
@@ -146,9 +132,7 @@ class BiometricKeyVault {
   Future<bool> storeFromSecret(String secretId) async {
     if (Platform.isLinux) {
       try {
-        final dir = await _supportDirPath();
         await rust_bio_vault.biometricVaultLinuxStoreFromSecret(
-          supportDir: dir,
           secretId: secretId,
         );
         return true;
@@ -187,9 +171,7 @@ class BiometricKeyVault {
   Future<bool> readToActive() async {
     if (Platform.isLinux) {
       try {
-        final dir = await _supportDirPath();
         final ok = await rust_bio_vault.biometricVaultLinuxReadToSecret(
-          supportDir: dir,
           secretId: kActiveDbKeySecretId,
         );
         if (ok) return true;
@@ -220,8 +202,7 @@ class BiometricKeyVault {
   Future<void> clear() async {
     if (Platform.isLinux) {
       try {
-        final dir = await _supportDirPath();
-        await rust_bio_vault.biometricVaultLinuxClear(supportDir: dir);
+        await rust_bio_vault.biometricVaultLinuxClear();
       } catch (e) {
         AppLogger.instance.log(
           'BiometricKeyVault.clear (Linux Rust): $e',

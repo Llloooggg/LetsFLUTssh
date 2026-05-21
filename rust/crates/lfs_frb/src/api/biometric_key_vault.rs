@@ -17,6 +17,10 @@
 //! backed via the `secret-service` crate inside
 //! `lfs_os_security::secure_key_storage`. The Dart wrapper picks
 //! the route via [`biometric_vault_linux_tpm_ready`].
+//!
+//! All ops operate on the app-support directory pinned at
+//! `config_store_init` (`master_password::try_pinned_support_dir`),
+//! so the Dart caller no longer threads a path in.
 
 #[cfg(target_os = "linux")]
 pub async fn biometric_vault_linux_tpm_ready() -> bool {
@@ -29,67 +33,66 @@ pub async fn biometric_vault_linux_tpm_ready() -> bool {
 }
 
 #[cfg(target_os = "linux")]
-pub async fn biometric_vault_linux_is_stored(support_dir: String) -> bool {
-    lfs_core::security::biometric_key_vault::linux::is_stored(&support_dir)
+pub async fn biometric_vault_linux_is_stored() -> bool {
+    let Ok(dir) = lfs_core::security::master_password::try_pinned_support_dir() else {
+        return false;
+    };
+    lfs_core::security::biometric_key_vault::linux::is_stored(&dir.to_string_lossy())
 }
 
 #[cfg(not(target_os = "linux"))]
-pub async fn biometric_vault_linux_is_stored(_support_dir: String) -> bool {
+pub async fn biometric_vault_linux_is_stored() -> bool {
     false
 }
 
 /// Seal the SecretStore entry under `secret_id` into
-/// `support_dir/biometric_vault.tpm` keyed by the current fprintd
-/// enrolment hash. Bytes never cross the FRB boundary.
+/// `biometric_vault.tpm` (under the pinned support dir) keyed by the
+/// current fprintd enrolment hash. Bytes never cross the FRB boundary.
 #[cfg(target_os = "linux")]
-pub async fn biometric_vault_linux_store_from_secret(
-    support_dir: String,
-    secret_id: String,
-) -> Result<(), String> {
-    lfs_core::security::biometric_key_vault::linux::store_from_secret(&support_dir, &secret_id)
+pub async fn biometric_vault_linux_store_from_secret(secret_id: String) -> Result<(), String> {
+    let dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    let dir_str = dir.to_string_lossy();
+    lfs_core::security::biometric_key_vault::linux::store_from_secret(&dir_str, &secret_id)
         .await
         .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 #[cfg(not(target_os = "linux"))]
-pub async fn biometric_vault_linux_store_from_secret(
-    _support_dir: String,
-    _secret_id: String,
-) -> Result<(), String> {
+pub async fn biometric_vault_linux_store_from_secret(_secret_id: String) -> Result<(), String> {
     Err("not supported on this platform".into())
 }
 
-/// Unseal `support_dir/biometric_vault.tpm` into the SecretStore
-/// under `secret_id`. Returns `true` when bytes were staged,
-/// `false` for "no vault on disk / fprintd unavailable / wrong
+/// Unseal `biometric_vault.tpm` (under the pinned support dir) into
+/// the SecretStore under `secret_id`. Returns `true` when bytes were
+/// staged, `false` for "no vault on disk / fprintd unavailable / wrong
 /// auth (re-enrolment)" — the caller routes those cases back to
 /// the master-password dialog.
 #[cfg(target_os = "linux")]
-pub async fn biometric_vault_linux_read_to_secret(
-    support_dir: String,
-    secret_id: String,
-) -> Result<bool, String> {
-    lfs_core::security::biometric_key_vault::linux::read_to_secret(&support_dir, &secret_id)
+pub async fn biometric_vault_linux_read_to_secret(secret_id: String) -> Result<bool, String> {
+    let dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    let dir_str = dir.to_string_lossy();
+    lfs_core::security::biometric_key_vault::linux::read_to_secret(&dir_str, &secret_id)
         .await
         .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 #[cfg(not(target_os = "linux"))]
-pub async fn biometric_vault_linux_read_to_secret(
-    _support_dir: String,
-    _secret_id: String,
-) -> Result<bool, String> {
+pub async fn biometric_vault_linux_read_to_secret(_secret_id: String) -> Result<bool, String> {
     Ok(false)
 }
 
 #[cfg(target_os = "linux")]
-pub async fn biometric_vault_linux_clear(support_dir: String) -> Result<(), String> {
-    lfs_core::security::biometric_key_vault::linux::clear(&support_dir)
+pub async fn biometric_vault_linux_clear() -> Result<(), String> {
+    let dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    lfs_core::security::biometric_key_vault::linux::clear(&dir.to_string_lossy())
         .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 #[cfg(not(target_os = "linux"))]
-pub async fn biometric_vault_linux_clear(_support_dir: String) -> Result<(), String> {
+pub async fn biometric_vault_linux_clear() -> Result<(), String> {
     Ok(())
 }
 
@@ -107,11 +110,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn is_stored_returns_false_for_missing_support_dir() {
-        // Empty / nonexistent dir must surface as `false` (the file
-        // can't exist there) rather than panic — the cold-start
-        // probe runs with a hand-rolled tempdir on every test.
-        assert!(!biometric_vault_linux_is_stored("/nonexistent/path".into()).await);
+    async fn is_stored_returns_false_without_a_vault() {
+        // No vault file under the (unpinned or empty) support dir must
+        // surface as `false` rather than panic — the cold-start probe
+        // runs before any vault has been sealed.
+        assert!(!biometric_vault_linux_is_stored().await);
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -120,7 +123,7 @@ mod tests {
         // Pin the cross-platform stub — Dart caller short-circuits
         // before reaching here, but the shim surfaces a clean error
         // for misrouted calls.
-        let res = biometric_vault_linux_store_from_secret("/tmp/x".into(), "ghost-id".into()).await;
+        let res = biometric_vault_linux_store_from_secret("ghost-id".into()).await;
         assert!(res.is_err());
     }
 
@@ -130,7 +133,7 @@ mod tests {
         // The non-Linux fallback returns `Ok(false)` (no vault on
         // this host) rather than `Err` — the Dart caller treats
         // `false` as "fall through to master-password".
-        let res = biometric_vault_linux_read_to_secret("/tmp/x".into(), "ghost-id".into()).await;
+        let res = biometric_vault_linux_read_to_secret("ghost-id".into()).await;
         assert!(matches!(res, Ok(false)));
     }
 
@@ -139,7 +142,7 @@ mod tests {
     async fn non_linux_clear_is_no_op_ok() {
         // Cross-platform clear collapses to `Ok(())` so wipe-all
         // routes that target this don't fail per platform.
-        let res = biometric_vault_linux_clear("/tmp/x".into()).await;
+        let res = biometric_vault_linux_clear().await;
         assert!(res.is_ok());
     }
 

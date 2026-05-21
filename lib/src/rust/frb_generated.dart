@@ -496,21 +496,15 @@ abstract class RustLibApi extends BaseApi {
 
   DbAuthType crateApiSessionsAuthTypeFromWire({required String value});
 
-  Future<void> crateApiBiometricKeyVaultBiometricVaultLinuxClear({
-    required String supportDir,
-  });
+  Future<void> crateApiBiometricKeyVaultBiometricVaultLinuxClear();
 
-  Future<bool> crateApiBiometricKeyVaultBiometricVaultLinuxIsStored({
-    required String supportDir,
-  });
+  Future<bool> crateApiBiometricKeyVaultBiometricVaultLinuxIsStored();
 
   Future<bool> crateApiBiometricKeyVaultBiometricVaultLinuxReadToSecret({
-    required String supportDir,
     required String secretId,
   });
 
   Future<void> crateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecret({
-    required String supportDir,
     required String secretId,
   });
 
@@ -5438,14 +5432,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiBiometricKeyVaultBiometricVaultLinuxClear({
-    required String supportDir,
-  }) {
+  Future<void> crateApiBiometricKeyVaultBiometricVaultLinuxClear() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -5458,7 +5449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiBiometricKeyVaultBiometricVaultLinuxClearConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -5468,18 +5459,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxClearConstMeta =>
       const TaskConstMeta(
         debugName: "biometric_vault_linux_clear",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  Future<bool> crateApiBiometricKeyVaultBiometricVaultLinuxIsStored({
-    required String supportDir,
-  }) {
+  Future<bool> crateApiBiometricKeyVaultBiometricVaultLinuxIsStored() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -5493,7 +5481,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiBiometricKeyVaultBiometricVaultLinuxIsStoredConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -5503,19 +5491,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxIsStoredConstMeta =>
       const TaskConstMeta(
         debugName: "biometric_vault_linux_is_stored",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   Future<bool> crateApiBiometricKeyVaultBiometricVaultLinuxReadToSecret({
-    required String supportDir,
     required String secretId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(secretId, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -5530,7 +5516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiBiometricKeyVaultBiometricVaultLinuxReadToSecretConstMeta,
-        argValues: [supportDir, secretId],
+        argValues: [secretId],
         apiImpl: this,
       ),
     );
@@ -5540,19 +5526,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxReadToSecretConstMeta =>
       const TaskConstMeta(
         debugName: "biometric_vault_linux_read_to_secret",
-        argNames: ["supportDir", "secretId"],
+        argNames: ["secretId"],
       );
 
   @override
   Future<void> crateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecret({
-    required String supportDir,
     required String secretId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(secretId, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -5567,7 +5551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecretConstMeta,
-        argValues: [supportDir, secretId],
+        argValues: [secretId],
         apiImpl: this,
       ),
     );
@@ -5577,7 +5561,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecretConstMeta =>
       const TaskConstMeta(
         debugName: "biometric_vault_linux_store_from_secret",
-        argNames: ["supportDir", "secretId"],
+        argNames: ["secretId"],
       );
 
   @override

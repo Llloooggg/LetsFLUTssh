@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/linux_keychain_marker.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -36,7 +37,19 @@ void main() {
   // Linux orchestrator routes through `lfs_core::security::biometric_key_vault::linux`
   // and `lfs_os_security::secure_key_storage` via FRB; bootstrap the
   // native lib so the dispatch + path-resolution contract gets exercised.
-  setUpAll(requireFrbLoaded);
+  late Directory tmp;
+  setUpAll(() async {
+    await requireFrbLoaded();
+    // The Linux vault ops resolve the support dir pinned Rust-side at
+    // configStoreInit; pin a fresh temp dir (no vault file) so the
+    // platform-dispatch assertions below see a clean install.
+    tmp = Directory.systemTemp.createTempSync('bio_vault_');
+    rust_config.configStoreInit(supportDir: tmp.path);
+  });
+
+  tearDownAll(() {
+    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+  });
 
   // Round-trip / seal-file / atomic-write coverage lives Rust-side
   // under `lfs_core::security::biometric_key_vault::linux::tests`.
@@ -47,39 +60,19 @@ void main() {
   group('BiometricKeyVault', () {
     test('linuxTpmReady is false on non-Linux hosts', () async {
       if (Platform.isLinux) return;
-      final vault = BiometricKeyVault(
-        marker: _InMemoryMarker(),
-        supportDirPath: () async =>
-            Directory.systemTemp.createTempSync('bio_vault_').path,
-      );
+      final vault = BiometricKeyVault(marker: _InMemoryMarker());
       expect(await vault.linuxTpmReady(), isFalse);
     });
 
     test('isStored is false for a fresh support dir', () async {
-      final tmp = Directory.systemTemp.createTempSync('bio_vault_isstored_');
-      try {
-        final vault = BiometricKeyVault(
-          marker: _InMemoryMarker(),
-          supportDirPath: () async => tmp.path,
-        );
-        expect(await vault.isStored(), isFalse);
-      } finally {
-        if (tmp.existsSync()) tmp.deleteSync(recursive: true);
-      }
+      final vault = BiometricKeyVault(marker: _InMemoryMarker());
+      expect(await vault.isStored(), isFalse);
     });
 
     test('clear is a no-op against a fresh support dir', () async {
-      final tmp = Directory.systemTemp.createTempSync('bio_vault_clear_');
-      try {
-        final vault = BiometricKeyVault(
-          marker: _InMemoryMarker(),
-          supportDirPath: () async => tmp.path,
-        );
-        await vault.clear();
-        expect(await vault.isStored(), isFalse);
-      } finally {
-        if (tmp.existsSync()) tmp.deleteSync(recursive: true);
-      }
+      final vault = BiometricKeyVault(marker: _InMemoryMarker());
+      await vault.clear();
+      expect(await vault.isStored(), isFalse);
     });
   });
 }

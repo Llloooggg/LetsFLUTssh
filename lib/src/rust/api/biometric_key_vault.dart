@@ -9,38 +9,28 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<bool> biometricVaultLinuxTpmReady() =>
     RustLib.instance.api.crateApiBiometricKeyVaultBiometricVaultLinuxTpmReady();
 
-Future<bool> biometricVaultLinuxIsStored({required String supportDir}) =>
-    RustLib.instance.api.crateApiBiometricKeyVaultBiometricVaultLinuxIsStored(
-      supportDir: supportDir,
-    );
+Future<bool> biometricVaultLinuxIsStored() =>
+    RustLib.instance.api.crateApiBiometricKeyVaultBiometricVaultLinuxIsStored();
 
 /// Seal the SecretStore entry under `secret_id` into
-/// `support_dir/biometric_vault.tpm` keyed by the current fprintd
-/// enrolment hash. Bytes never cross the FRB boundary.
-Future<void> biometricVaultLinuxStoreFromSecret({
-  required String supportDir,
-  required String secretId,
-}) => RustLib.instance.api
-    .crateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecret(
-      supportDir: supportDir,
-      secretId: secretId,
-    );
+/// `biometric_vault.tpm` (under the pinned support dir) keyed by the
+/// current fprintd enrolment hash. Bytes never cross the FRB boundary.
+Future<void> biometricVaultLinuxStoreFromSecret({required String secretId}) =>
+    RustLib.instance.api
+        .crateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecret(
+          secretId: secretId,
+        );
 
-/// Unseal `support_dir/biometric_vault.tpm` into the SecretStore
-/// under `secret_id`. Returns `true` when bytes were staged,
-/// `false` for "no vault on disk / fprintd unavailable / wrong
+/// Unseal `biometric_vault.tpm` (under the pinned support dir) into
+/// the SecretStore under `secret_id`. Returns `true` when bytes were
+/// staged, `false` for "no vault on disk / fprintd unavailable / wrong
 /// auth (re-enrolment)" — the caller routes those cases back to
 /// the master-password dialog.
-Future<bool> biometricVaultLinuxReadToSecret({
-  required String supportDir,
-  required String secretId,
-}) => RustLib.instance.api
-    .crateApiBiometricKeyVaultBiometricVaultLinuxReadToSecret(
-      supportDir: supportDir,
-      secretId: secretId,
-    );
+Future<bool> biometricVaultLinuxReadToSecret({required String secretId}) =>
+    RustLib.instance.api
+        .crateApiBiometricKeyVaultBiometricVaultLinuxReadToSecret(
+          secretId: secretId,
+        );
 
-Future<void> biometricVaultLinuxClear({required String supportDir}) => RustLib
-    .instance
-    .api
-    .crateApiBiometricKeyVaultBiometricVaultLinuxClear(supportDir: supportDir);
+Future<void> biometricVaultLinuxClear() =>
+    RustLib.instance.api.crateApiBiometricKeyVaultBiometricVaultLinuxClear();
