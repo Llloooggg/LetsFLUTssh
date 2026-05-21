@@ -160,6 +160,16 @@ Future<void> dbRekeyFromSecret({required String secretId}) =>
 bool dbFileExists({required String path}) =>
     RustLib.instance.api.crateApiAppDbFileExists(path: path);
 
+/// Canonical on-disk path of the SQLCipher database —
+/// `<app-support>/letsflutssh.db`, resolved from the directory pinned
+/// at `config_store_init`. The filename lives in
+/// [`lfs_core::db::DB_FILE_NAME`] (never renamed: existing installs
+/// open the same path across builds). Lets the Dart side open the DB
+/// without resolving the support dir via `path_provider`. Errs when no
+/// pin has been set — the cold-start ordering invariant guarantees
+/// `config_store_init` lands before any DB open.
+String dbDefaultPath() => RustLib.instance.api.crateApiAppDbDefaultPath();
+
 /// Smoke-test query — returns the count of rows in `sqlite_master`.
 /// Used by Dart at startup to assert the DB is reachable before
 /// the rest of the app uses it.

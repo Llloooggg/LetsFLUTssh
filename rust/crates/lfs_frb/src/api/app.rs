@@ -272,6 +272,24 @@ pub fn db_file_exists(path: String) -> bool {
     std::path::Path::new(&path).exists()
 }
 
+/// Canonical on-disk path of the SQLCipher database —
+/// `<app-support>/letsflutssh.db`, resolved from the directory pinned
+/// at `config_store_init`. The filename lives in
+/// [`lfs_core::db::DB_FILE_NAME`] (never renamed: existing installs
+/// open the same path across builds). Lets the Dart side open the DB
+/// without resolving the support dir via `path_provider`. Errs when no
+/// pin has been set — the cold-start ordering invariant guarantees
+/// `config_store_init` lands before any DB open.
+#[flutter_rust_bridge::frb(sync)]
+pub fn db_default_path() -> Result<String, String> {
+    let dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(dir
+        .join(lfs_core::db::DB_FILE_NAME)
+        .to_string_lossy()
+        .into_owned())
+}
+
 /// Smoke-test query — returns the count of rows in `sqlite_master`.
 /// Used by Dart at startup to assert the DB is reachable before
 /// the rest of the app uses it.

@@ -2,36 +2,45 @@
 /// [ensureRustDbOpen].
 ///
 /// These three helpers wire the Dart bootstrap path against the
-/// Rust-owned sqlite handle. They route through path_provider for
-/// the support directory and through FRB for the actual SQLCipher
-/// open / probe — both must be live for the assertions to mean
-/// anything. The path_provider channel is stubbed to a per-test
-/// temp directory; FRB is loaded from the workspace target.
+/// Rust-owned sqlite handle. The DB path + support directory are
+/// resolved Rust-side from the directory pinned at `configStoreInit`
+/// (via `dbDefaultPath`), and the SQLCipher open / probe runs through
+/// FRB — loaded from the workspace target. The test pins a temp dir.
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/db/rust_db_init.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 import 'package:path/path.dart' as p;
 
-import '../../helpers/fake_path_provider.dart';
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(requireFrbLoaded);
 
   late Directory tmp;
 
-  setUp(() {
-    tmp = installFakePathProvider();
+  setUpAll(() async {
+    await requireFrbLoaded();
+    tmp = Directory.systemTemp.createTempSync('rust_db_init_');
+    rust_config.configStoreInit(supportDir: tmp.path);
   });
 
-  tearDown(() {
-    uninstallFakePathProvider(tmp);
+  setUp(() {
+    // Shared pinned dir — drop the DB file + sidecars so each test
+    // starts from a known existence state.
+    for (final suffix in ['', '-wal', '-shm', '-journal']) {
+      final f = File(p.join(tmp.path, 'letsflutssh.db$suffix'));
+      if (f.existsSync()) f.deleteSync();
+    }
+  });
+
+  tearDownAll(() {
+    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
   group('lfsCoreDbExists', () {
@@ -43,18 +52,6 @@ void main() {
       final path = p.join(tmp.path, 'letsflutssh.db');
       File(path).writeAsBytesSync(const [0]);
       expect(await lfsCoreDbExists(), isTrue);
-    });
-
-    test('returns false when path_provider channel is unhandled', () async {
-      // Drop the channel handler so getApplicationSupportDirectory
-      // surfaces MissingPluginException — the helper must catch and
-      // degrade to false rather than propagate.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            null,
-          );
-      expect(await lfsCoreDbExists(), isFalse);
     });
   });
 
@@ -107,19 +104,5 @@ void main() {
         expect(await verifyRustDbReadable(), isTrue);
       },
     );
-
-    test('swallows path_provider failure rather than propagating', () async {
-      // Drop the channel so getApplicationSupportDirectory throws.
-      // The helper must log and return without rethrowing — the
-      // caller's downstream verifyRustDbReadable probe is what
-      // gates the recovery flow, not an unhandled future on the
-      // bootstrap rail.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            null,
-          );
-      await ensureRustDbOpen();
-    });
   });
 }

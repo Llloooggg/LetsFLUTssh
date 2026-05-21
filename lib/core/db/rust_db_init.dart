@@ -1,23 +1,7 @@
 import 'dart:typed_data' show Uint8List;
 
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../utils/logger.dart';
-
-/// On-disk filename of the SQLCipher-encrypted sqlite database.
-/// **Never bump or rename.** A fresh-install user expects this
-/// path, and an existing user upgrading from any other build that
-/// also wrote `letsflutssh.db` (under any cipher family) opens it
-/// here — a header-decrypt mismatch surfaces through
-/// `verifyRustDbReadable` → `DbCorruptDialog` so the user can
-/// reset and re-import from `.lfs` rather than silently losing
-/// the file. The upgrade path is intentionally the corrupt-DB
-/// dialog, not on-the-fly cipher conversion: a fork of cipher
-/// translation logic would be a permanent maintenance liability
-/// for one-time migration plumbing.
-const _rustDbFileName = 'letsflutssh.db';
 
 /// Open the Rust-owned sqlite handle behind the FRB boundary using
 /// the master key the unlock orchestrator just produced. Idempotent
@@ -35,8 +19,7 @@ const _rustDbFileName = 'letsflutssh.db';
 /// "existing install — unlock the previous key".
 Future<bool> lfsCoreDbExists() async {
   try {
-    final dir = await getApplicationSupportDirectory();
-    return rust_app.dbFileExists(path: p.join(dir.path, _rustDbFileName));
+    return rust_app.dbFileExists(path: rust_app.dbDefaultPath());
   } catch (e) {
     AppLogger.instance.log(
       'letsflutssh.db existence probe failed: $e',
@@ -95,9 +78,8 @@ Future<void> ensureRustDbOpen({Uint8List? key, String? secretId}) async {
   }
 
   try {
-    final dir = await getApplicationSupportDirectory();
-    mark('support_dir');
-    final path = p.join(dir.path, _rustDbFileName);
+    final path = rust_app.dbDefaultPath();
+    mark('db_path');
     // `dbInit` / `dbInitFromSecret` route through
     // `lfs_core::db::Connection::open` which mkdir's the parent
     // directory, lets SQLite create the file itself, AND runs
