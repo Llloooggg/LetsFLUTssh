@@ -151,10 +151,12 @@ lint-release-hardening: ## Guard against debuggable release builds + dSYM-embedd
 	fi
 	@echo "Release hardening OK"
 
-check: format-check lint lint-workflows lint-release-hardening rust-machete ## Full pre-commit gate (Dart + Rust): format, lint, workflow lint, release hardening, unused-deps, then tests
+check-static: format-check lint lint-workflows lint-release-hardening rust-machete ## Static gate (no tests): format, lint, workflow lint, release hardening, unused-deps
+
+check: check-static ## Full gate (Dart + Rust): static checks, then the test suite
 	@$(MAKE) test
 
-hooks: ## Install local git hooks (pre-commit runs make check)
+hooks: ## Install local git hooks (pre-commit: check-static; pre-push: test; commit-msg: lint + plan-id; post-commit: target GC)
 	@bash dev/scripts/install-hooks.sh
 
 gen: ## Code generation (freezed, json_serializable)

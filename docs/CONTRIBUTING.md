@@ -295,13 +295,14 @@ in scope.
 
 ```bash
 make setup          # One-time post-clone bootstrap: pub deps + git hooks + cargo plugins
-make hooks          # Install git pre-commit (runs make check)
+make hooks          # Install git hooks (pre-commit: check-static; pre-push: test; commit-msg: lint + plan-id; post-commit: target GC)
 make run            # Run in debug mode
 make test           # Run all tests (Dart + Rust)
 make lint           # Static analysis (Dart analyzer + Rust clippy)
 make format         # Auto-format Dart + Rust sources
 make format-check   # Verify formatting without rewriting files
-make check          # Full pre-commit gate (format-check + lint + workflow lint + release hardening + unused-deps + tests)
+make check-static   # Static gate without tests (format + lint + workflow/hardening lint + unused-deps)
+make check          # Full gate: check-static + the test suite
 make gen            # Code generation (l10n, FRB bridge)
 make clean          # Remove build artifacts
 make help           # Show all available targets
@@ -318,10 +319,35 @@ make dart-format-check   # Verify Dart formatting
 
 > **First clone:** run `make setup` once. It installs pub deps, git
 > hooks, and pinned cargo plugins (`cargo-machete`, `cargo-llvm-cov`)
-> used by `make check` / `make rust-coverage`. After that, every
-> `git commit` invokes `make check` (the same gate CI runs) before the
-> commit is recorded. To bypass for an emergency commit, prefix with
-> `SKIP_PRECOMMIT=1`.
+> used by `make check` / `make rust-coverage`.
+>
+> The hooks split the gate across the commit/push lifecycle so day-to-day
+> commits stay fast, while CI re-runs everything as the real enforcement
+> boundary (local hooks are opt-in and bypassable, so they never stand
+> alone for a load-bearing rule):
+>
+> - **pre-commit** runs `make check-static` — format, lint, workflow and
+>   release-hardening lint, unused-deps; no tests. Skipped for doc-only
+>   staged diffs. Bypass with `SKIP_PRECOMMIT=1`.
+> - **pre-push** runs `make test` (full Dart + Rust suite) so a broken
+>   push never reaches CI. Skipped when the pushed commits touch no
+>   `.dart` / `.rs` / `pubspec.yaml` / `Cargo.toml`. Bypass with
+>   `SKIP_PREPUSH=1`.
+> - **commit-msg** checks the conventional-commit subject format on every
+>   commit (the same `dev/scripts/conventional-commit-check.sh` that CI's
+>   `commit-lint` job runs, so the two can't drift) and runs the agent
+>   plan-ID gate on agent commits.
+>
+> A `post-commit` hook keeps the Rust build cache from growing
+> unbounded. cargo never garbage-collects `rust/target`, and
+> flutter_rust_bridge codegen and `cargo-mutants` each spawn many
+> distinct builds whose artifacts accumulate there. After each commit
+> it measures `rust/target` in the background and, if it exceeds
+> `CARGO_TARGET_MAX_GB` (default 10), runs `make rust-clean`. It never
+> blocks or fails the commit; output goes to `.git/target-gc.log`.
+> Raise the threshold with `export CARGO_TARGET_MAX_GB=40` (a full
+> clean forces a cold rebuild), or skip a single commit's check with
+> `SKIP_TARGET_GC=1`.
 
 **New contributors:** start with [ADDING_A_FEATURE.md](ADDING_A_FEATURE.md) — a hands-on walkthrough of the project's layers, conventions, and tooling using a small example feature.
 
