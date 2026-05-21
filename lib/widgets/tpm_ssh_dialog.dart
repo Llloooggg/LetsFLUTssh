@@ -1,18 +1,15 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../src/rust/api/tpm_ssh.dart' as rust_tpm;
 import '../theme/app_theme.dart';
-import '../utils/logger.dart';
 import 'app_dialog.dart';
-import 'app_icon_button.dart';
 import 'app_selection_area.dart';
-import 'toast.dart';
+import 'hardware_key_badge.dart';
+import 'hardware_key_wizard.dart';
 
 /// Bundled outcome of a successful TPM SSH wizard run. Returned via
 /// `Navigator.pop` so the caller can refresh its key listing without
@@ -92,18 +89,16 @@ class TpmFrbBackend extends TpmBackend {
   }) => rust_tpm.tpmSshImportBlobFromPath(path: path, label: label);
 }
 
-/// Linear wizard step ladder.
-enum TpmWizardStep { probing, configure, generating, complete }
-
-/// TPM 2.0 SSH key wizard.
+/// TPM 2.0 SSH key wizard. Walks the shared [HardwareKeyWizardMixin]
+/// ladder:
 ///
 /// 1. Probe — fires on open. If `/dev/tpmrm0` is missing, no PCP on
-///    Windows, or the user isn't in the `tss` group, the dialog
+///    Windows, or the user isn't in the `tss` group, the configure step
 ///    renders disabled with the matching localized reason.
-/// 2. Configure — algorithm radio (P-256 / RSA-2048), label,
-///    optional PIN, storage radio (Linux only).
-/// 3. Generate — fires the TPM round trip in `spawn_blocking`.
-///    On success surfaces the `authorized_keys` line for paste.
+/// 2. Configure — algorithm radio (P-256 / RSA-2048), label, optional
+///    PIN, storage radio (Linux only).
+/// 3. Generate — fires the TPM round trip in `spawn_blocking`; success
+///    surfaces the `authorized_keys` line for paste.
 class TpmSshDialog extends StatefulWidget {
   final TpmBackend backend;
 
@@ -135,60 +130,46 @@ class TpmSshDialog extends StatefulWidget {
   State<TpmSshDialog> createState() => _TpmSshDialogState();
 }
 
-class _TpmSshDialogState extends State<TpmSshDialog> {
-  TpmWizardStep _step = TpmWizardStep.probing;
+class _TpmSshDialogState extends State<TpmSshDialog>
+    with HardwareKeyWizardMixin {
   rust_tpm.DbTpmSshProbeResult? _probe;
   rust_tpm.DbTpmSshAlgorithm _algo = rust_tpm.DbTpmSshAlgorithm.ecdsaP256;
   rust_tpm.DbTpmSshStorageMode _storage = rust_tpm.DbTpmSshStorageMode.blob;
-  final TextEditingController _labelCtrl = TextEditingController();
   final TextEditingController _pinCtrl = TextEditingController();
   final TextEditingController _pinConfirmCtrl = TextEditingController();
   bool _protectWithPin = false;
-  String? _generateError;
   TpmSshResult? _result;
 
   bool get _isLinux => Platform.isLinux;
   bool get _isWindows => Platform.isWindows;
 
   @override
-  void initState() {
-    super.initState();
-    final seed = widget.initialLabel;
-    if (seed != null && seed.isNotEmpty) {
-      _labelCtrl.text = seed;
-    }
-    _kickProbe();
-  }
-
-  @override
   void dispose() {
-    _labelCtrl.dispose();
     _pinCtrl.dispose();
     _pinConfirmCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _kickProbe() async {
-    try {
-      final out = await widget.backend.probe();
-      if (!mounted) return;
-      setState(() {
-        _probe = out;
-        _step = TpmWizardStep.configure;
-      });
-    } catch (e, st) {
-      AppLogger.instance.log(
-        'tpm probe failed: $e',
-        name: 'TpmSsh',
-        error: e,
-        stackTrace: st,
-      );
-      if (!mounted) return;
-      setState(() {
-        _probe = rust_tpm.DbTpmSshProbeResult.probeFailed;
-        _step = TpmWizardStep.configure;
-      });
-    }
+  @override
+  String wizardTitle(S s) => s.tpmSshTitle;
+
+  @override
+  String get wizardLogName => 'TpmSsh';
+
+  @override
+  String? get wizardInitialLabel => widget.initialLabel;
+
+  @override
+  String generatingLabel(S s) => s.tpmSshGenerating;
+
+  @override
+  Future<void> runProbe() async {
+    _probe = await widget.backend.probe();
+  }
+
+  @override
+  void onProbeFailure(Object error) {
+    _probe = rust_tpm.DbTpmSshProbeResult.probeFailed;
   }
 
   bool get _isAvailable => _probe == rust_tpm.DbTpmSshProbeResult.available;
@@ -200,115 +181,47 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
     return a.isNotEmpty && a == b;
   }
 
-  bool get _canGenerate =>
-      _isAvailable && _labelCtrl.text.trim().isNotEmpty && _pinValid;
+  @override
+  bool get canGenerate =>
+      _isAvailable && labelCtrl.text.trim().isNotEmpty && _pinValid;
 
-  Future<void> _doGenerate() async {
-    if (!_canGenerate) return;
-    final label = _labelCtrl.text.trim();
+  @override
+  Future<String?> runGenerate() async {
     final pin = _protectWithPin ? _pinCtrl.text : null;
-    setState(() {
-      _step = TpmWizardStep.generating;
-      _generateError = null;
-    });
-    try {
-      final result = await widget.backend.generate(
-        label: label,
-        algo: _algo,
-        pin: pin,
-        storage: _storage,
-        persistentHandle: null,
-        // Windows always lands on the silent variant; Linux ignores
-        // the flag. Wired here so the FRB call shape stays uniform.
-        silentTpm: _isWindows,
-      );
-      if (!mounted) return;
-      setState(() {
-        _result = TpmSshResult(
-          keyId: result.keyId,
-          label: result.label,
-          authorizedKeysLine: result.authorizedKeysLine,
-          silentTpm: _isWindows,
-        );
-        _step = TpmWizardStep.complete;
-      });
-    } catch (e, st) {
-      AppLogger.instance.log(
-        'tpm generate failed: $e',
-        name: 'TpmSsh',
-        error: e,
-        stackTrace: st,
-      );
-      if (!mounted) return;
-      setState(() {
-        _generateError = e.toString();
-        _step = TpmWizardStep.configure;
-      });
-    }
+    final result = await widget.backend.generate(
+      label: labelCtrl.text.trim(),
+      algo: _algo,
+      pin: pin,
+      storage: _storage,
+      persistentHandle: null,
+      // Windows always lands on the silent variant; Linux ignores the
+      // flag. Wired here so the FRB call shape stays uniform.
+      silentTpm: _isWindows,
+    );
+    _result = TpmSshResult(
+      keyId: result.keyId,
+      label: result.label,
+      authorizedKeysLine: result.authorizedKeysLine,
+      silentTpm: _isWindows,
+    );
+    return result.authorizedKeysLine;
   }
 
   void _doDone() {
     final r = _result;
-    if (r != null) Navigator.of(context).pop(r);
-  }
-
-  void _doCancel() => Navigator.of(context).pop();
-
-  Future<void> _copyAuthorizedKeysLine() async {
-    final line = _result?.authorizedKeysLine ?? '';
-    if (line.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: line));
-    if (!mounted) return;
-    Toast.show(
-      context,
-      message: S.of(context).copiedToClipboard,
-      level: ToastLevel.success,
-    );
+    if (r != null) finishWith(r);
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
-    return AppDialog(
-      title: s.tpmSshTitle,
-      content: SizedBox(width: 520, child: _buildBody(s)),
-      actions: _buildActions(s),
-    );
+    return buildWizard(S.of(context), onDone: _doDone);
   }
 
-  Widget _buildBody(S s) {
-    switch (_step) {
-      case TpmWizardStep.probing:
-        return const SizedBox(
-          height: 96,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
-      case TpmWizardStep.configure:
-        return _buildConfigure(s);
-      case TpmWizardStep.generating:
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(strokeWidth: 2),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                s.tpmSshGenerating,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-            ],
-          ),
-        );
-      case TpmWizardStep.complete:
-        return _buildComplete(s);
-    }
-  }
+  @override
+  Widget buildComplete(S s) => authorizedKeysBox(s);
 
-  Widget _buildConfigure(S s) {
+  @override
+  Widget buildConfigure(S s) {
     final probe = _probe!;
     final disabled = !_isAvailable;
     final reason = _availabilityReason(s, probe);
@@ -342,9 +255,9 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
             ),
           ),
         ],
-        // Silent-warning banner on Windows — the silent variant
-        // signs without firing any Hello / PIN prompt. The user
-        // needs to know this before opting in.
+        // Silent-warning banner on Windows — the silent variant signs
+        // without firing any Hello / PIN prompt. The user needs to know
+        // this before opting in.
         if (!disabled && _isWindows) ...[
           const SizedBox(height: AppSpacing.md),
           Container(
@@ -367,7 +280,7 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
         ],
         const SizedBox(height: AppSpacing.lg),
         TextField(
-          controller: _labelCtrl,
+          controller: labelCtrl,
           enabled: !disabled,
           autofocus: !disabled,
           onChanged: (_) => setState(() {}),
@@ -404,9 +317,9 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
             ],
           ),
         ),
-        // PIN policy — Linux only. Windows silent variant has no
-        // PIN concept; the Hello-gated wizard handles the PIN-on-
-        // every-sign case via its own dialog.
+        // PIN policy — Linux only. Windows silent variant has no PIN
+        // concept; the Hello-gated wizard handles the PIN-on-every-sign
+        // case via its own dialog.
         if (_isLinux) ...[
           const SizedBox(height: AppSpacing.lg),
           CheckboxListTile(
@@ -457,8 +370,8 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
-          // Storage policy radio — Linux only. Windows CNG always
-          // uses the PCP persistent store.
+          // Storage policy radio — Linux only. Windows CNG always uses
+          // the PCP persistent store.
           RadioGroup<rust_tpm.DbTpmSshStorageMode>(
             groupValue: _storage,
             onChanged: (v) {
@@ -497,83 +410,17 @@ class _TpmSshDialogState extends State<TpmSshDialog> {
             ),
           ),
         ],
-        if (_generateError != null) ...[
+        if (generateError != null) ...[
           const SizedBox(height: AppSpacing.sm),
           AppSelectionArea(
             child: Text(
-              _generateError!,
+              generateError!,
               style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.red),
             ),
           ),
         ],
       ],
     );
-  }
-
-  Widget _buildComplete(S s) {
-    final line = _result?.authorizedKeysLine ?? '';
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSelectionArea(
-          child: Text(
-            s.sshKeyAuthorizedKeysHint,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppTheme.bg2,
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppSelectionArea(
-                  child: Text(
-                    line,
-                    style: AppFonts.mono(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fg,
-                    ),
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              AppIconButton(
-                icon: Icons.content_copy,
-                tooltip: s.sshKeyPublicCopy,
-                dense: true,
-                onTap: _copyAuthorizedKeysLine,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildActions(S s) {
-    switch (_step) {
-      case TpmWizardStep.probing:
-      case TpmWizardStep.generating:
-        return [AppButton.cancel(onTap: _doCancel)];
-      case TpmWizardStep.configure:
-        return [
-          AppButton.cancel(onTap: _doCancel),
-          AppButton.primary(
-            label: s.sshKeyGenerateCta,
-            onTap: _canGenerate ? _doGenerate : null,
-          ),
-        ];
-      case TpmWizardStep.complete:
-        return [AppButton.primary(label: s.close, onTap: _doDone)];
-    }
   }
 
   String _availabilityReason(S s, rust_tpm.DbTpmSshProbeResult probe) {
@@ -624,10 +471,10 @@ class TpmImportHelper {
   }
 }
 
-// ── TPM SSH row badge ──────────────────────────────────────────────
-
-/// Hardware badge variant for `backend = 'tpm'` rows in the key
-/// manager. Mirrors [HelloBadge] / [EnclaveBadge] / [Pkcs11Badge].
+/// TPM SSH row badge for `backend = 'tpm'` key-manager rows. A thin
+/// [HardwareKeyBadge] caller — the blue memory-chip pill with a tap
+/// popover surfacing the provider / persistent handle + silent / PIN
+/// caveats.
 class TpmBadge extends StatelessWidget {
   final String label;
   final String? provider;
@@ -643,98 +490,27 @@ class TpmBadge extends StatelessWidget {
     this.silent = false,
   });
 
-  void _showInfo(BuildContext context) {
-    final s = S.of(context);
-    final lines = <String>[
-      s.sshKeyHardwareBoundExplainer,
-      ?provider,
-      if (persistentHandle != null)
-        '0x${persistentHandle!.toRadixString(16).padLeft(8, '0')}',
-    ];
-    AppDialog.show<void>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: s.tpmSshBadge,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final line in lines) ...[
-              AppSelectionArea(
-                child: Text(
-                  line,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.sm,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
-            if (silent) ...[
-              const SizedBox(height: AppSpacing.sm),
-              AppSelectionArea(
-                child: Text(
-                  s.tpmSshSilentWarning,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.orange,
-                  ),
-                ),
-              ),
-            ],
-            if (pinRequired) ...[
-              const SizedBox(height: AppSpacing.sm),
-              AppSelectionArea(
-                child: Text(
-                  s.tpmSshPinLockoutWarning,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.orange,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: InkWell(
-        onTap: () => _showInfo(context),
-        borderRadius: AppTheme.radiusSm,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: 2,
-          ),
-          decoration: BoxDecoration(
-            color: AppTheme.blue.withValues(alpha: 0.16),
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: AppTheme.blue.withValues(alpha: 0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.memory, size: 12, color: AppTheme.blue),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xxs,
-                  color: AppTheme.blue,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+    final s = S.of(context);
+    final prov = provider;
+    final handle = persistentHandle;
+    return HardwareKeyBadge(
+      label: label,
+      color: AppTheme.blue,
+      icon: Icons.memory,
+      info: HardwareKeyBadgeInfo(
+        title: s.tpmSshBadge,
+        lines: [
+          HardwareKeyInfoLine(s.sshKeyHardwareBoundExplainer),
+          if (prov != null && prov.isNotEmpty) HardwareKeyInfoLine(prov),
+          if (handle != null)
+            HardwareKeyInfoLine(
+              '0x${handle.toRadixString(16).padLeft(8, '0')}',
+            ),
+          if (silent) HardwareKeyInfoLine.warn(s.tpmSshSilentWarning),
+          if (pinRequired) HardwareKeyInfoLine.warn(s.tpmSshPinLockoutWarning),
+        ],
       ),
     );
   }

@@ -1,16 +1,12 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../src/rust/api/enclave.dart' as rust_enclave;
 import '../theme/app_theme.dart';
-import '../utils/logger.dart';
 import 'app_dialog.dart';
-import 'app_icon_button.dart';
 import 'app_selection_area.dart';
-import 'toast.dart';
+import 'hardware_key_badge.dart';
+import 'hardware_key_wizard.dart';
 
 /// Bundled outcome of a successful Secure Enclave wizard run.
 /// Returned via `Navigator.pop` so the caller can refresh its key
@@ -64,27 +60,19 @@ class EnclaveFrbBackend extends EnclaveBackend {
   }
 }
 
-/// Linear wizard step ladder. The dialog walks these in order; the
-/// probe step short-circuits to the disabled-with-reason UI when the
-/// host cannot reach the chip (ad-hoc-signed bundle, no SE, no
-/// passcode, non-Apple build).
-enum EnclaveWizardStep { probing, configure, generating, complete }
-
-/// Apple Secure Enclave SSH key wizard. Renders a 3-stage flow:
+/// Apple Secure Enclave SSH key wizard. Walks the shared
+/// [HardwareKeyWizardMixin] ladder:
 ///
 /// 1. Probe — runs at open. If the host can't reach the chip
 ///    (`errSecMissingEntitlement`, no SE silicon, no passcode), the
-///    dialog renders disabled with the localized reason + "Cancel"
-///    affordance. Configuration surfaces follow CLAUDE.md's
-///    "disable, don't hide" rule: the user is exploring what the
-///    app can do, so the toolbar action stays visible with the
-///    reason in a tooltip.
+///    configure step renders disabled with the localized reason +
+///    "Cancel". Configuration surfaces follow CLAUDE.md's "disable,
+///    don't hide" rule: the user is exploring what the app can do.
 /// 2. Configure — label + auth-policy radio (Touch ID / Face ID
-///    required vs passcode fallback). The user clicks "Generate".
-/// 3. Complete — fires the OS biometric prompt at the
-///    `enclaveSshGenerate` boundary, displays the
-///    authorized_keys-shaped public-key line with a copy
-///    affordance, and offers "Done" to pop the dialog.
+///    required vs passcode fallback).
+/// 3. Generate — fires the OS biometric prompt at the
+///    `enclaveSshGenerate` boundary, then surfaces the
+///    `authorized_keys`-shaped public-key line with a copy affordance.
 class EnclaveSshDialog extends StatefulWidget {
   /// Backend injection. Defaults to the FRB-backed implementation.
   final EnclaveBackend backend;
@@ -119,159 +107,68 @@ class EnclaveSshDialog extends StatefulWidget {
   State<EnclaveSshDialog> createState() => _EnclaveSshDialogState();
 }
 
-class _EnclaveSshDialogState extends State<EnclaveSshDialog> {
-  EnclaveWizardStep _step = EnclaveWizardStep.probing;
+class _EnclaveSshDialogState extends State<EnclaveSshDialog>
+    with HardwareKeyWizardMixin {
   rust_enclave.DbEnclaveAvailability? _availability;
   rust_enclave.DbEnclaveAuthPolicy _policy =
       rust_enclave.DbEnclaveAuthPolicy.biometryCurrentSet;
-  final TextEditingController _labelCtrl = TextEditingController();
-  String? _generateError;
   EnclaveSshResult? _result;
 
   @override
-  void initState() {
-    super.initState();
-    final seed = widget.initialLabel;
-    if (seed != null && seed.isNotEmpty) {
-      _labelCtrl.text = seed;
-    }
-    _kickProbe();
+  String wizardTitle(S s) => s.sshKeyEnclaveWizardTitle;
+
+  @override
+  String get wizardLogName => 'Enclave';
+
+  @override
+  String? get wizardInitialLabel => widget.initialLabel;
+
+  @override
+  Future<void> runProbe() async {
+    _availability = await widget.backend.probe();
   }
 
   @override
-  void dispose() {
-    _labelCtrl.dispose();
-    super.dispose();
+  void onProbeFailure(Object error) {
+    _availability = rust_enclave.DbEnclaveAvailability.other(error.toString());
   }
 
-  Future<void> _kickProbe() async {
-    try {
-      final out = await widget.backend.probe();
-      if (!mounted) return;
-      setState(() {
-        _availability = out;
-        _step = EnclaveWizardStep.configure;
-      });
-    } catch (e, st) {
-      AppLogger.instance.log(
-        'enclave probe failed: $e',
-        name: 'Enclave',
-        error: e,
-        stackTrace: st,
-      );
-      if (!mounted) return;
-      setState(() {
-        _availability = rust_enclave.DbEnclaveAvailability.other(e.toString());
-        _step = EnclaveWizardStep.configure;
-      });
-    }
-  }
-
-  bool get _canGenerate {
+  @override
+  bool get canGenerate {
     final a = _availability;
-    if (a == null) return false;
     if (a is! rust_enclave.DbEnclaveAvailability_Available) return false;
-    return _labelCtrl.text.trim().isNotEmpty;
+    return labelCtrl.text.trim().isNotEmpty;
   }
 
-  Future<void> _doGenerate() async {
-    if (!_canGenerate) return;
-    final label = _labelCtrl.text.trim();
-    setState(() {
-      _step = EnclaveWizardStep.generating;
-      _generateError = null;
-    });
-    try {
-      final result = await widget.backend.generate(
-        label: label,
-        policy: _policy,
-      );
-      if (!mounted) return;
-      setState(() {
-        _result = EnclaveSshResult(
-          keyId: result.keyId,
-          label: result.label,
-          authorizedKeysLine: result.authorizedKeysLine,
-        );
-        _step = EnclaveWizardStep.complete;
-      });
-    } catch (e, st) {
-      AppLogger.instance.log(
-        'enclave generate failed: $e',
-        name: 'Enclave',
-        error: e,
-        stackTrace: st,
-      );
-      if (!mounted) return;
-      setState(() {
-        _generateError = e.toString();
-        _step = EnclaveWizardStep.configure;
-      });
-    }
+  @override
+  Future<String?> runGenerate() async {
+    final result = await widget.backend.generate(
+      label: labelCtrl.text.trim(),
+      policy: _policy,
+    );
+    _result = EnclaveSshResult(
+      keyId: result.keyId,
+      label: result.label,
+      authorizedKeysLine: result.authorizedKeysLine,
+    );
+    return result.authorizedKeysLine;
   }
 
   void _doDone() {
     final r = _result;
-    if (r != null) Navigator.of(context).pop(r);
-  }
-
-  void _doCancel() => Navigator.of(context).pop();
-
-  Future<void> _copyAuthorizedKeysLine() async {
-    final line = _result?.authorizedKeysLine ?? '';
-    if (line.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: line));
-    if (!mounted) return;
-    Toast.show(
-      context,
-      message: S.of(context).copiedToClipboard,
-      level: ToastLevel.success,
-    );
+    if (r != null) finishWith(r);
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
-    return AppDialog(
-      title: s.sshKeyEnclaveWizardTitle,
-      content: SizedBox(width: 520, child: _buildBody(s)),
-      actions: _buildActions(s),
-    );
+    return buildWizard(S.of(context), onDone: _doDone);
   }
 
-  Widget _buildBody(S s) {
-    switch (_step) {
-      case EnclaveWizardStep.probing:
-        return const SizedBox(
-          height: 96,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
-      case EnclaveWizardStep.configure:
-        return _buildConfigure(s);
-      case EnclaveWizardStep.generating:
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(strokeWidth: 2),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                s.sshKeyGenerateInProgress,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-            ],
-          ),
-        );
-      case EnclaveWizardStep.complete:
-        return _buildComplete(s);
-    }
-  }
+  @override
+  Widget buildComplete(S s) => authorizedKeysBox(s);
 
-  Widget _buildConfigure(S s) {
+  @override
+  Widget buildConfigure(S s) {
     final a = _availability!;
     final disabled = a is! rust_enclave.DbEnclaveAvailability_Available;
     final reason = _availabilityReason(s, a);
@@ -319,7 +216,7 @@ class _EnclaveSshDialogState extends State<EnclaveSshDialog> {
         ],
         const SizedBox(height: AppSpacing.lg),
         TextField(
-          controller: _labelCtrl,
+          controller: labelCtrl,
           enabled: !disabled,
           autofocus: !disabled,
           onChanged: (_) => setState(() {}),
@@ -334,10 +231,8 @@ class _EnclaveSshDialogState extends State<EnclaveSshDialog> {
         ),
         const SizedBox(height: AppSpacing.lg),
         // `RadioGroup` ancestor manages the selected value for the
-        // two child radios — replaces the per-tile `groupValue` /
-        // `onChanged` props deprecated in Flutter 3.32. Disabled
-        // state passes a `null` `onChanged` so the children render
-        // greyed-out and reject taps.
+        // two child radios. Disabled state passes a `null` `onChanged`
+        // so the children render greyed-out and reject taps.
         RadioGroup<rust_enclave.DbEnclaveAuthPolicy>(
           groupValue: _policy,
           onChanged: (rust_enclave.DbEnclaveAuthPolicy? v) {
@@ -368,83 +263,17 @@ class _EnclaveSshDialogState extends State<EnclaveSshDialog> {
             ],
           ),
         ),
-        if (_generateError != null) ...[
+        if (generateError != null) ...[
           const SizedBox(height: AppSpacing.sm),
           AppSelectionArea(
             child: Text(
-              _generateError!,
+              generateError!,
               style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.red),
             ),
           ),
         ],
       ],
     );
-  }
-
-  Widget _buildComplete(S s) {
-    final line = _result?.authorizedKeysLine ?? '';
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSelectionArea(
-          child: Text(
-            s.sshKeyAuthorizedKeysHint,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppTheme.bg2,
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppSelectionArea(
-                  child: Text(
-                    line,
-                    style: AppFonts.mono(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fg,
-                    ),
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              AppIconButton(
-                icon: Icons.content_copy,
-                tooltip: s.sshKeyPublicCopy,
-                dense: true,
-                onTap: _copyAuthorizedKeysLine,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildActions(S s) {
-    switch (_step) {
-      case EnclaveWizardStep.probing:
-      case EnclaveWizardStep.generating:
-        return [AppButton.cancel(onTap: _doCancel)];
-      case EnclaveWizardStep.configure:
-        return [
-          AppButton.cancel(onTap: _doCancel),
-          AppButton.primary(
-            label: s.sshKeyGenerateCta,
-            onTap: _canGenerate ? _doGenerate : null,
-          ),
-        ];
-      case EnclaveWizardStep.complete:
-        return [AppButton.primary(label: s.close, onTap: _doDone)];
-    }
   }
 
   String _availabilityReason(S s, rust_enclave.DbEnclaveAvailability a) {
@@ -463,102 +292,32 @@ class _EnclaveSshDialogState extends State<EnclaveSshDialog> {
   }
 }
 
-// ── Apple Secure Enclave row badge ───────────────────────────────────
-
-/// Hardware badge variant for `backend = 'enclave'` rows in the key
-/// manager. Renders the localized `sshKeyEnclaveBadge` pill with a
-/// tap affordance that surfaces the device-bound warning + the
-/// captured algorithm string.
-///
-/// Visual contract mirrors the PKCS#11 / FIDO2 badges so the row
-/// tail reads consistently when multiple hardware-backed rows
-/// co-exist on the key manager list.
+/// Apple Secure Enclave row badge for `backend = 'enclave'` key-manager
+/// rows. A thin [HardwareKeyBadge] caller — the green shield pill with a
+/// tap popover surfacing the device-bound warning + captured algorithm.
 class EnclaveBadge extends StatelessWidget {
   final String label;
   const EnclaveBadge({super.key, required this.label});
 
-  void _showInfo(BuildContext context) {
-    final s = S.of(context);
-    final iosCopy = Theme.of(context).platform == TargetPlatform.iOS;
-    AppDialog.show<void>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: s.sshKeyEnclaveBadge,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppSelectionArea(
-              child: Text(
-                s.sshKeyHardwareBoundExplainer,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppSelectionArea(
-              child: Text(
-                iosCopy
-                    ? s.sshKeyEnclaveDeviceBoundIos
-                    : s.sshKeyEnclaveDeviceBound,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.orange,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppSelectionArea(
-              child: Text(
-                s.sshKeyEnclaveAlgorithm,
-                style: AppFonts.mono(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: InkWell(
-        onTap: () => _showInfo(context),
-        borderRadius: AppTheme.radiusSm,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: 2,
+    final s = S.of(context);
+    final iosCopy = Theme.of(context).platform == TargetPlatform.iOS;
+    return HardwareKeyBadge(
+      label: label,
+      color: AppTheme.green,
+      icon: Icons.shield_outlined,
+      info: HardwareKeyBadgeInfo(
+        title: s.sshKeyEnclaveBadge,
+        lines: [
+          HardwareKeyInfoLine(s.sshKeyHardwareBoundExplainer),
+          HardwareKeyInfoLine.warn(
+            iosCopy
+                ? s.sshKeyEnclaveDeviceBoundIos
+                : s.sshKeyEnclaveDeviceBound,
           ),
-          decoration: BoxDecoration(
-            color: AppTheme.green.withValues(alpha: 0.16),
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: AppTheme.green.withValues(alpha: 0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.shield_outlined, size: 12, color: AppTheme.green),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xxs,
-                  color: AppTheme.green,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+          HardwareKeyInfoLine.mono(s.sshKeyEnclaveAlgorithm),
+        ],
       ),
     );
   }

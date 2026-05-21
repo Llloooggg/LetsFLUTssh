@@ -248,6 +248,8 @@ lib/
 │   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
 │   ├── first_launch_security_toast.dart # Post-auto-setup banner — shows chosen tier + hardware-upgrade path or its absence
 │   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
+│   ├── hardware_key_badge.dart      # Shared hardware-key row pill (colour + icon + optional tap popover) — FIDO2 / PKCS#11 / Enclave / Hello / TPM / Keystore badges all call it
+│   ├── hardware_key_wizard.dart     # `HardwareKeyWizardMixin` — shared probe→configure→generate→complete scaffold behind the Enclave / Hello / TPM / Keystore SSH wizards (see §3.6 area)
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── import_preview_dialog.dart   # Source-agnostic typedefs (ImportPreviewCounts/Selection) shared by archive + link preview
@@ -1623,6 +1625,8 @@ flowchart LR
 ```
 
 **Module layout.** Files live under `rust/crates/lfs_os_security/src/apple_se_ssh.rs` (single shared module, cfg-gated to `target_os = "macos" | "ios"`). The Signer adapter lives at `rust/crates/lfs_core/src/ssh/enclave_signer.rs` (mirrors the PKCS#11 / FIDO2 shape — `russh::Signer` impl wrapping the FFI surface). The FRB shim lives at `rust/crates/lfs_frb/src/api/enclave.rs`.
+
+**Shared Dart wizard scaffold.** The Dart UI of all four hardware-key wizards — Enclave, Windows Hello, TPM, Android Keystore — is one mixin, `lib/widgets/hardware_key_wizard.dart::HardwareKeyWizardMixin`. It owns the four-step `HardwareKeyStep` ladder (probe → configure → generate → complete), the label field, the probing / generating spinners, the `authorized_keys` completion panel + copy affordance, and the Cancel / Generate / Close action ladder — the half of each wizard that was identical four ways. Each concrete dialog (`EnclaveSshDialog`, `HelloSshDialog`, `TpmSshDialog`, `KeystoreSshDialog`) mixes it in and supplies only the backend-specific hooks: title, probe + its failure fallback, the configure-step body, the `canGenerate` gate, and the generate call. The row-tail pills likewise share one widget — `lib/widgets/hardware_key_badge.dart::HardwareKeyBadge` (colour + icon + optional tap-to-reveal popover) — with `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` / `Pkcs11Badge` as thin per-backend callers that fill in the colour, icon, and captured-metadata lines. The FIDO2 sk-* row reuses the same pill with no popover.
 
 **Access-control policy.** Two shapes selected per-key at creation, captured implicitly via the on-chip ACL — there is no DB column for the policy because the chip refuses to mutate the ACL after creation:
 

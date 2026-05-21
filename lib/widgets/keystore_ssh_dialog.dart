@@ -1,16 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../src/rust/api/keystore_ssh.dart' as rust_ks;
 import '../theme/app_theme.dart';
-import '../utils/logger.dart';
 import 'app_dialog.dart';
-import 'app_icon_button.dart';
 import 'app_selection_area.dart';
-import 'toast.dart';
+import 'hardware_key_badge.dart';
+import 'hardware_key_wizard.dart';
 
 /// Bundled outcome of a successful Android Keystore SSH wizard run.
 /// Returned via `Navigator.pop` so the caller can refresh its key
@@ -67,19 +65,16 @@ class KeystoreFrbBackend extends KeystoreBackend {
   }
 }
 
-/// Linear wizard step ladder.
-enum KeystoreWizardStep { probing, configure, generating, complete }
-
-/// Android Hardware Keystore / StrongBox SSH key wizard.
+/// Android Hardware Keystore / StrongBox SSH key wizard. Walks the
+/// shared [HardwareKeyWizardMixin] ladder:
 ///
 /// 1. Probe — fires on open. If StrongBox + biometric are both
-///    unreachable, renders disabled with the matching localized
-///    reason via tooltip + tap-toast.
-/// 2. Configure — algorithm radio (P-256 / Ed25519 / RSA-2048),
-///    label, StrongBox toggle.
+///    unreachable, the configure step renders disabled with the
+///    matching localized reason.
+/// 2. Configure — algorithm radio (P-256 / Ed25519 / RSA-2048), label,
+///    StrongBox toggle.
 /// 3. Generate — fires the AndroidKeyStore generate inside
-///    `spawn_blocking`. Success surfaces the `authorized_keys` line
-///    for paste.
+///    `spawn_blocking`; success surfaces the `authorized_keys` line.
 ///
 /// The BiometricPrompt fires only on subsequent sign calls — not at
 /// generate time — because `setUserAuthenticationParameters(0,
@@ -115,58 +110,36 @@ class KeystoreSshDialog extends StatefulWidget {
   State<KeystoreSshDialog> createState() => _KeystoreSshDialogState();
 }
 
-class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
-  KeystoreWizardStep _step = KeystoreWizardStep.probing;
+class _KeystoreSshDialogState extends State<KeystoreSshDialog>
+    with HardwareKeyWizardMixin {
   rust_ks.DbKeystoreProbeResult? _probe;
   rust_ks.DbKeystoreAlgo _algo = rust_ks.DbKeystoreAlgo.ecdsaP256;
   bool _wantStrongBox = true;
-  final TextEditingController _labelCtrl = TextEditingController();
-  String? _generateError;
   KeystoreSshResult? _result;
 
   @override
-  void initState() {
-    super.initState();
-    final seed = widget.initialLabel;
-    if (seed != null && seed.isNotEmpty) {
-      _labelCtrl.text = seed;
-    }
-    _kickProbe();
+  String wizardTitle(S s) => s.keystoreWizardTitle;
+
+  @override
+  String get wizardLogName => 'Keystore';
+
+  @override
+  String? get wizardInitialLabel => widget.initialLabel;
+
+  @override
+  String generatingLabel(S s) => s.keystoreKeyGenerating;
+
+  @override
+  Future<void> runProbe() async {
+    _probe = await widget.backend.probe();
   }
 
   @override
-  void dispose() {
-    _labelCtrl.dispose();
-    super.dispose();
+  void onProbeFailure(Object error) {
+    _probe = const rust_ks.DbKeystoreProbeResult.other('probe failed');
   }
 
-  Future<void> _kickProbe() async {
-    try {
-      final out = await widget.backend.probe();
-      if (!mounted) return;
-      setState(() {
-        _probe = out;
-        _step = KeystoreWizardStep.configure;
-      });
-    } catch (e, st) {
-      AppLogger.instance.log(
-        'keystore probe failed: $e',
-        name: 'Keystore',
-        error: e,
-        stackTrace: st,
-      );
-      if (!mounted) return;
-      setState(() {
-        _probe = const rust_ks.DbKeystoreProbeResult.other('probe failed');
-        _step = KeystoreWizardStep.configure;
-      });
-    }
-  }
-
-  bool get _isAvailable {
-    final p = _probe;
-    return p is rust_ks.DbKeystoreProbeResult_Available;
-  }
+  bool get _isAvailable => _probe is rust_ks.DbKeystoreProbeResult_Available;
 
   bool get _strongBoxFeature {
     final p = _probe;
@@ -186,64 +159,39 @@ class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
   bool get _strongBoxToggleEnabled =>
       _strongBoxFeature && _algoStrongBoxEligible;
 
-  bool get _canGenerate => _isAvailable && _labelCtrl.text.trim().isNotEmpty;
+  @override
+  bool get canGenerate => _isAvailable && labelCtrl.text.trim().isNotEmpty;
 
-  Future<void> _doGenerate() async {
-    if (!_canGenerate) return;
-    final label = _labelCtrl.text.trim();
+  @override
+  Future<String?> runGenerate() async {
     final wantStrongBox = _strongBoxToggleEnabled && _wantStrongBox;
-    await _runGenerate(label: label, strongbox: wantStrongBox);
-  }
-
-  Future<void> _runGenerate({
-    required String label,
-    required bool strongbox,
-  }) async {
-    setState(() {
-      _step = KeystoreWizardStep.generating;
-      _generateError = null;
-    });
-    try {
-      final outcome = await widget.backend.generate(
-        label: label,
-        algo: _algo,
-        strongbox: strongbox,
-      );
-      if (!mounted) return;
-      switch (outcome) {
-        case rust_ks.DbKeystoreGenerateOutcome_Generated(:final field0):
-          setState(() {
-            _result = KeystoreSshResult(
-              keyId: field0.keyId,
-              label: field0.label,
-              authorizedKeysLine: field0.authorizedKeysLine,
-              strongbox: field0.strongbox,
-              platform: field0.platform,
-            );
-            _step = KeystoreWizardStep.complete;
-          });
-        case rust_ks.DbKeystoreGenerateOutcome_StrongBoxUnavailable():
-          // No key landed in the AndroidKeyStore. Ask the user whether
-          // to accept a TEE-backed key before retrying.
-          setState(() => _step = KeystoreWizardStep.configure);
-          final confirmed = await _confirmStrongBoxFallback();
-          if (!mounted) return;
-          if (confirmed) {
-            await _runGenerate(label: label, strongbox: false);
-          }
-      }
-    } catch (e, st) {
-      AppLogger.instance.log(
-        'keystore generate failed: $e',
-        name: 'Keystore',
-        error: e,
-        stackTrace: st,
-      );
-      if (!mounted) return;
-      setState(() {
-        _generateError = e.toString();
-        _step = KeystoreWizardStep.configure;
-      });
+    final outcome = await widget.backend.generate(
+      label: labelCtrl.text.trim(),
+      algo: _algo,
+      strongbox: wantStrongBox,
+    );
+    if (!mounted) return null;
+    switch (outcome) {
+      case rust_ks.DbKeystoreGenerateOutcome_Generated(:final field0):
+        _result = KeystoreSshResult(
+          keyId: field0.keyId,
+          label: field0.label,
+          authorizedKeysLine: field0.authorizedKeysLine,
+          strongbox: field0.strongbox,
+          platform: field0.platform,
+        );
+        return field0.authorizedKeysLine;
+      case rust_ks.DbKeystoreGenerateOutcome_StrongBoxUnavailable():
+        // No key landed in the AndroidKeyStore. Drop back to configure
+        // and ask whether to accept a TEE-backed key before retrying.
+        backToConfigure();
+        final confirmed = await _confirmStrongBoxFallback();
+        if (!mounted) return null;
+        if (confirmed) {
+          _wantStrongBox = false;
+          unawaited(runGenerateFlow());
+        }
+        return null;
     }
   }
 
@@ -276,66 +224,41 @@ class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
 
   void _doDone() {
     final r = _result;
-    if (r != null) Navigator.of(context).pop(r);
-  }
-
-  void _doCancel() => Navigator.of(context).pop();
-
-  Future<void> _copyAuthorizedKeysLine() async {
-    final line = _result?.authorizedKeysLine ?? '';
-    if (line.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: line));
-    if (!mounted) return;
-    Toast.show(
-      context,
-      message: S.of(context).copiedToClipboard,
-      level: ToastLevel.success,
-    );
+    if (r != null) finishWith(r);
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = S.of(context);
-    return AppDialog(
-      title: s.keystoreWizardTitle,
-      content: SizedBox(width: 520, child: _buildBody(s)),
-      actions: _buildActions(s),
+    return buildWizard(S.of(context), onDone: _doDone);
+  }
+
+  @override
+  Widget buildComplete(S s) {
+    final r = _result;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppSelectionArea(
+          child: Text(
+            r != null && r.strongbox
+                ? s.keystoreKeyStrongBoxLabel
+                : s.keystoreKeyTeeLabel,
+            style: AppFonts.inter(
+              fontSize: AppFonts.sm,
+              color: AppTheme.fgDim,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        authorizedKeysBox(s),
+      ],
     );
   }
 
-  Widget _buildBody(S s) {
-    switch (_step) {
-      case KeystoreWizardStep.probing:
-        return const SizedBox(
-          height: 96,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
-      case KeystoreWizardStep.configure:
-        return _buildConfigure(s);
-      case KeystoreWizardStep.generating:
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(strokeWidth: 2),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                s.keystoreKeyGenerating,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-            ],
-          ),
-        );
-      case KeystoreWizardStep.complete:
-        return _buildComplete(s);
-    }
-  }
-
-  Widget _buildConfigure(S s) {
+  @override
+  Widget buildConfigure(S s) {
     final disabled = !_isAvailable;
     final reason = _availabilityReason(s);
     return Column(
@@ -370,7 +293,7 @@ class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
         ),
         const SizedBox(height: AppSpacing.lg),
         TextField(
-          controller: _labelCtrl,
+          controller: labelCtrl,
           enabled: !disabled,
           autofocus: !disabled,
           onChanged: (_) => setState(() {}),
@@ -448,97 +371,17 @@ class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
                 : (v) => setState(() => _wantStrongBox = v ?? false),
           ),
         ),
-        if (_generateError != null) ...[
+        if (generateError != null) ...[
           const SizedBox(height: AppSpacing.sm),
           AppSelectionArea(
             child: Text(
-              _generateError!,
+              generateError!,
               style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.red),
             ),
           ),
         ],
       ],
     );
-  }
-
-  Widget _buildComplete(S s) {
-    final r = _result;
-    final line = r?.authorizedKeysLine ?? '';
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSelectionArea(
-          child: Text(
-            r != null && r.strongbox
-                ? s.keystoreKeyStrongBoxLabel
-                : s.keystoreKeyTeeLabel,
-            style: AppFonts.inter(
-              fontSize: AppFonts.sm,
-              color: AppTheme.fgDim,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppSelectionArea(
-          child: Text(
-            s.sshKeyAuthorizedKeysHint,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppTheme.bg2,
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppSelectionArea(
-                  child: Text(
-                    line,
-                    style: AppFonts.mono(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fg,
-                    ),
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              AppIconButton(
-                icon: Icons.content_copy,
-                tooltip: s.sshKeyPublicCopy,
-                dense: true,
-                onTap: _copyAuthorizedKeysLine,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildActions(S s) {
-    switch (_step) {
-      case KeystoreWizardStep.probing:
-      case KeystoreWizardStep.generating:
-        return [AppButton.cancel(onTap: _doCancel)];
-      case KeystoreWizardStep.configure:
-        return [
-          AppButton.cancel(onTap: _doCancel),
-          AppButton.primary(
-            label: s.sshKeyGenerateCta,
-            onTap: _canGenerate ? _doGenerate : null,
-          ),
-        ];
-      case KeystoreWizardStep.complete:
-        return [AppButton.primary(label: s.close, onTap: _doDone)];
-    }
   }
 
   String _availabilityReason(S s) {
@@ -556,11 +399,9 @@ class _KeystoreSshDialogState extends State<KeystoreSshDialog> {
   }
 }
 
-// ── Android Keystore SSH row badge ────────────────────────────────
-
-/// Hardware badge variant for `backend = 'keystore'` rows in the key
-/// manager. Mirrors [HelloBadge] / [EnclaveBadge] / [Pkcs11Badge] /
-/// [TpmBadge].
+/// Android Keystore row badge for `backend = 'keystore'` key-manager
+/// rows. A thin [HardwareKeyBadge] caller — the green security pill with
+/// a tap popover surfacing the StrongBox / TEE tier + enrollment caveat.
 class KeystoreBadge extends StatelessWidget {
   final String label;
   final bool strongbox;
@@ -572,83 +413,24 @@ class KeystoreBadge extends StatelessWidget {
     this.platform,
   });
 
-  void _showInfo(BuildContext context) {
-    final s = S.of(context);
-    final lines = <String>[
-      strongbox ? s.keystoreKeyStrongBoxLabel : s.keystoreKeyTeeLabel,
-      ?platform,
-      s.keystoreKeyExportDisabled,
-    ];
-    AppDialog.show<void>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: s.keystoreBadge,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final line in lines) ...[
-              AppSelectionArea(
-                child: Text(
-                  line,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.sm,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
-            const SizedBox(height: AppSpacing.sm),
-            AppSelectionArea(
-              child: Text(
-                s.keystoreKeyInvalidatedByEnrollment,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.orange,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: InkWell(
-        onTap: () => _showInfo(context),
-        borderRadius: AppTheme.radiusSm,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: 2,
+    final s = S.of(context);
+    final plat = platform;
+    return HardwareKeyBadge(
+      label: label,
+      color: AppTheme.green,
+      icon: Icons.security,
+      info: HardwareKeyBadgeInfo(
+        title: s.keystoreBadge,
+        lines: [
+          HardwareKeyInfoLine(
+            strongbox ? s.keystoreKeyStrongBoxLabel : s.keystoreKeyTeeLabel,
           ),
-          decoration: BoxDecoration(
-            color: AppTheme.green.withValues(alpha: 0.16),
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: AppTheme.green.withValues(alpha: 0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.security, size: 12, color: AppTheme.green),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xxs,
-                  color: AppTheme.green,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+          if (plat != null && plat.isNotEmpty) HardwareKeyInfoLine(plat),
+          HardwareKeyInfoLine(s.keystoreKeyExportDisabled),
+          HardwareKeyInfoLine.warn(s.keystoreKeyInvalidatedByEnrollment),
+        ],
       ),
     );
   }

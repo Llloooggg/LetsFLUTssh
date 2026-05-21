@@ -10,6 +10,7 @@ import '../src/rust/api/pkcs11.dart' as rust_pkcs11;
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import 'app_dialog.dart';
+import 'hardware_key_badge.dart';
 import 'hardware_key_prompt_dialog.dart';
 import 'pkcs11_import_dialog_logic.dart';
 
@@ -907,16 +908,12 @@ class _KeyRow extends StatelessWidget {
   }
 }
 
-// ── PKCS#11 row badge + info popover ─────────────────────────────────
+// ── PKCS#11 row badge ────────────────────────────────────────────────
 
-/// Hardware badge variant for `backend = 'pkcs11'` rows in the key
-/// manager. Renders the localized `pkcs11Badge` pill, with a tap
-/// affordance that drops an [AppDialog] showing the module path,
-/// token serial, and object label captured at import.
-///
-/// Visual contract mirrors the `_HardwareBadge` pill in
-/// `key_manager_dialog.dart` so the row tail reads consistently when
-/// PKCS#11 + FIDO2 + certificate badges co-exist on a list dialog.
+/// PKCS#11 row badge for `backend = 'pkcs11'` key-manager rows. A thin
+/// [HardwareKeyBadge] caller — the accent memory-chip pill with a tap
+/// popover surfacing the module path, token serial, and object label
+/// captured at import.
 class Pkcs11Badge extends StatelessWidget {
   final String label;
   final String? modulePath;
@@ -931,86 +928,25 @@ class Pkcs11Badge extends StatelessWidget {
     this.objectLabel,
   });
 
-  void _showInfo(BuildContext context) {
-    final s = S.of(context);
-    AppDialog.show<void>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: s.pkcs11Badge,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (modulePath != null && modulePath!.isNotEmpty)
-              Text(
-                s.pkcs11InfoModulePath(modulePath!),
-                style: AppFonts.mono(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-            if (tokenSerial != null && tokenSerial!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
-                child: Text(
-                  s.pkcs11InfoTokenSerial(tokenSerial!),
-                  style: AppFonts.mono(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ),
-            if (objectLabel != null && objectLabel!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
-                child: Text(
-                  s.pkcs11InfoObjectLabel(objectLabel!),
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: InkWell(
-        onTap: () => _showInfo(context),
-        borderRadius: AppTheme.radiusSm,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: 2,
-          ),
-          decoration: BoxDecoration(
-            color: AppTheme.accent.withValues(alpha: 0.16),
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.memory, size: 12, color: AppTheme.accent),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xxs,
-                  color: AppTheme.accent,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+    final s = S.of(context);
+    final module = modulePath;
+    final serial = tokenSerial;
+    final object = objectLabel;
+    return HardwareKeyBadge(
+      label: label,
+      icon: Icons.memory,
+      info: HardwareKeyBadgeInfo(
+        title: s.pkcs11Badge,
+        lines: [
+          if (module != null && module.isNotEmpty)
+            HardwareKeyInfoLine.mono(s.pkcs11InfoModulePath(module)),
+          if (serial != null && serial.isNotEmpty)
+            HardwareKeyInfoLine.mono(s.pkcs11InfoTokenSerial(serial)),
+          if (object != null && object.isNotEmpty)
+            HardwareKeyInfoLine.mono(s.pkcs11InfoObjectLabel(object)),
+        ],
       ),
     );
   }
