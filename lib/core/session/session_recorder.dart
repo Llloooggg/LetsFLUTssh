@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
@@ -269,8 +268,8 @@ class SessionRecorder {
   /// directory chain inside `register_with_io` / `enqueue_rotate`
   /// before opening the file.
   static Future<String> _sessionDirPath(String sessionId) async {
-    final base = await getApplicationSupportDirectory();
-    return p.join(base.path, 'recordings', sessionId);
+    final root = rust_recorder.recorderRecordingsRoot();
+    return p.join(root, sessionId);
   }
 
   /// One-shot migration that fixes recordings written by builds
@@ -292,8 +291,7 @@ class SessionRecorder {
   /// the first list build.
   static Future<int> migrateMisnamedRecordings() async {
     try {
-      final base = await getApplicationSupportDirectory();
-      final root = p.join(base.path, 'recordings');
+      final root = rust_recorder.recorderRecordingsRoot();
       final renamed = await rust_recorder.recorderMigrateMisnamedFiles(
         recordingsRoot: root,
       );

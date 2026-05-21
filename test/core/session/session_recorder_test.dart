@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session_recorder.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 import 'package:path/path.dart' as p;
 
 import '../../helpers/frb_bootstrap.dart';
@@ -16,30 +16,26 @@ void main() {
   // to end. Encrypted-mode coverage stays in
   // `lfs_core::crypto::tests` (KAT round-trip + AES-GCM correctness).
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
 
-  setUp(() async {
+  setUpAll(() async {
+    await requireFrbLoaded();
     tempDir = await Directory.systemTemp.createTemp('session_recorder_test_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async {
-            if (call.method == 'getApplicationSupportDirectory') {
-              return tempDir.path;
-            }
-            return null;
-          },
-        );
+    // The recorder resolves <support>/recordings from the dir pinned at
+    // configStoreInit; pin this temp dir so the round-trip writes land
+    // where the assertions read.
+    rust_config.configStoreInit(supportDir: tempDir.path);
   });
 
-  tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        );
+  setUp(() {
+    // Shared pinned dir across the file — clear the recordings tree so
+    // each test starts fresh.
+    final rec = Directory(p.join(tempDir.path, 'recordings'));
+    if (rec.existsSync()) rec.deleteSync(recursive: true);
+  });
+
+  tearDownAll(() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
