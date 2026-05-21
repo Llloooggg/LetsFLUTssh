@@ -1375,32 +1375,22 @@ abstract class RustLibApi extends BaseApi {
   void crateApiKeychainMarkerKeychainMarkerSet();
 
   Future<String?>
-  crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter({
-    required String supportDir,
-  });
+  crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter();
 
-  Future<void> crateApiKeychainPasswordGateActorKeychainPasswordGateClear({
-    required String supportDir,
-  });
+  Future<void> crateApiKeychainPasswordGateActorKeychainPasswordGateClear();
 
   Future<bool>
-  crateApiKeychainPasswordGateActorKeychainPasswordGateIsConfigured({
-    required String supportDir,
-  });
+  crateApiKeychainPasswordGateActorKeychainPasswordGateIsConfigured();
 
   Future<DbKeychainGateBlob?>
-  crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded({
-    required String supportDir,
-  });
+  crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded();
 
   Future<void>
   crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword({
-    required String supportDir,
     required List<int> password,
   });
 
   Future<bool> crateApiKeychainPasswordGateActorKeychainPasswordGateVerify({
-    required String supportDir,
     required List<int> password,
   });
 
@@ -13220,14 +13210,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<String?>
-  crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter({
-    required String supportDir,
-  }) {
+  crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13241,7 +13228,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiterConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -13251,18 +13238,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiterConstMeta =>
       const TaskConstMeta(
         debugName: "keychain_password_gate_build_persisted_rate_limiter",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  Future<void> crateApiKeychainPasswordGateActorKeychainPasswordGateClear({
-    required String supportDir,
-  }) {
+  Future<void> crateApiKeychainPasswordGateActorKeychainPasswordGateClear() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13276,7 +13260,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiKeychainPasswordGateActorKeychainPasswordGateClearConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -13286,19 +13270,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateClearConstMeta =>
       const TaskConstMeta(
         debugName: "keychain_password_gate_clear",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   Future<bool>
-  crateApiKeychainPasswordGateActorKeychainPasswordGateIsConfigured({
-    required String supportDir,
-  }) {
+  crateApiKeychainPasswordGateActorKeychainPasswordGateIsConfigured() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13312,7 +13293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiKeychainPasswordGateActorKeychainPasswordGateIsConfiguredConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -13322,19 +13303,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateIsConfiguredConstMeta =>
       const TaskConstMeta(
         debugName: "keychain_password_gate_is_configured",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   Future<DbKeychainGateBlob?>
-  crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded({
-    required String supportDir,
-  }) {
+  crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13348,7 +13326,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiKeychainPasswordGateActorKeychainPasswordGateReadDecodedConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -13358,20 +13336,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateReadDecodedConstMeta =>
       const TaskConstMeta(
         debugName: "keychain_password_gate_read_decoded",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   Future<void>
   crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword({
-    required String supportDir,
     required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -13386,7 +13362,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiKeychainPasswordGateActorKeychainPasswordGateSetPasswordConstMeta,
-        argValues: [supportDir, password],
+        argValues: [password],
         apiImpl: this,
       ),
     );
@@ -13396,19 +13372,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateSetPasswordConstMeta =>
       const TaskConstMeta(
         debugName: "keychain_password_gate_set_password",
-        argNames: ["supportDir", "password"],
+        argNames: ["password"],
       );
 
   @override
   Future<bool> crateApiKeychainPasswordGateActorKeychainPasswordGateVerify({
-    required String supportDir,
     required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -13423,7 +13397,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiKeychainPasswordGateActorKeychainPasswordGateVerifyConstMeta,
-        argValues: [supportDir, password],
+        argValues: [password],
         apiImpl: this,
       ),
     );
@@ -13433,7 +13407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateVerifyConstMeta =>
       const TaskConstMeta(
         debugName: "keychain_password_gate_verify",
-        argNames: ["supportDir", "password"],
+        argNames: ["password"],
       );
 
   @override

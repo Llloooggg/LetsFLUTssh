@@ -1,8 +1,4 @@
-import 'dart:io';
 import 'dart:typed_data';
-
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/keychain_password_gate_actor.dart' as rust_actor;
 import '../../utils/logger.dart';
@@ -28,35 +24,21 @@ import 'password_rate_limiter.dart';
 ///
 /// Wire format + HMAC composition + salt/pepper generation +
 /// disk I/O all live in
-/// `lfs_core::security::keychain_password_gate_actor`. This Dart
+/// `lfs_core::security::keychain_password_gate_actor`, operating on
+/// the app-support directory pinned at `config_store_init`. This Dart
 /// class is a thin façade — the actor calls
 /// `lfs_os_security::secure_key_storage::*` directly for the
 /// keychain pepper round-trip, so no Dart-side bus listener is
 /// in the unlock path.
 class KeychainPasswordGate {
-  KeychainPasswordGate({Future<File> Function()? hashFileFactory})
-    : _hashFile = hashFileFactory ?? _defaultHashFile;
-
-  static const _hashFileName = 'security_pass_hash.bin';
-
-  final Future<File> Function() _hashFile;
-
-  static Future<File> _defaultHashFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _hashFileName));
-  }
+  KeychainPasswordGate();
 
   /// True when a gate is configured on this install via
   /// `lfs_core::security::keychain_password_gate_actor::is_configured`
   /// (FRB async) — disk presence check + the keychain
   /// `lfs_os_security::secure_key_storage::contains` probe live in
   /// Rust.
-  Future<bool> isConfigured() async {
-    final file = await _hashFile();
-    return rust_actor.keychainPasswordGateIsConfigured(
-      supportDir: file.parent.path,
-    );
-  }
+  Future<bool> isConfigured() => rust_actor.keychainPasswordGateIsConfigured();
 
   /// Configure the gate with [password]. Generates a fresh salt on
   /// disk and a fresh pepper in the OS keychain; the resulting HMAC
@@ -70,14 +52,8 @@ class KeychainPasswordGate {
   /// tamper branch and throw the user into the worst-case 60-second
   /// cooldown on first launch. Wiping the state here aligns the
   /// counter with the new password.
-  Future<void> setPassword(Uint8List password) async {
-    final file = await _hashFile();
-    await file.parent.create(recursive: true);
-    await rust_actor.keychainPasswordGateSetPassword(
-      supportDir: file.parent.path,
-      password: password,
-    );
-  }
+  Future<void> setPassword(Uint8List password) =>
+      rust_actor.keychainPasswordGateSetPassword(password: password);
 
   /// True when [password] matches the stored hash. False on any
   /// failure (missing state, tampered blob, keychain unreadable).
@@ -87,13 +63,8 @@ class KeychainPasswordGate {
   /// Routes through `lfs_core::security::keychain_password_gate_actor::
   /// verify_password` (FRB async) — the disk-blob read +
   /// Decision-1 prompt round-trip + HMAC compare live in Rust.
-  Future<bool> verify(Uint8List password) async {
-    final file = await _hashFile();
-    return rust_actor.keychainPasswordGateVerify(
-      supportDir: file.parent.path,
-      password: password,
-    );
-  }
+  Future<bool> verify(Uint8List password) =>
+      rust_actor.keychainPasswordGateVerify(password: password);
 
   /// Build a [PersistedRateLimiter] bound to the current stored HMAC.
   /// The HMAC is the secret: anyone who can forge a tampered
@@ -112,10 +83,8 @@ class KeychainPasswordGate {
   /// (there is nothing to guard).
   Future<PasswordRateLimiter?> rateLimiter() async {
     try {
-      final file = await _hashFile();
-      final id = await rust_actor.keychainPasswordGateBuildPersistedRateLimiter(
-        supportDir: file.parent.path,
-      );
+      final id = await rust_actor
+          .keychainPasswordGateBuildPersistedRateLimiter();
       if (id == null) return null;
       return PersistedRateLimiter.fromPrebuiltId(id);
     } catch (e) {
@@ -133,8 +102,5 @@ class KeychainPasswordGate {
   /// `lfs_os_security::secure_key_storage::delete` round-trip live in
   /// Rust. Called on tier switch away from T1+pw and on
   /// breaking-change reset.
-  Future<void> clear() async {
-    final file = await _hashFile();
-    await rust_actor.keychainPasswordGateClear(supportDir: file.parent.path);
-  }
+  Future<void> clear() => rust_actor.keychainPasswordGateClear();
 }

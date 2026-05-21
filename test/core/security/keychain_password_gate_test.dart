@@ -11,68 +11,66 @@
 /// dev / production hardware.
 ///
 /// What's portable: the Dart-side `rateLimiter()` fallback chain
-/// (missing file → null without an FRB call, AnyhowException → null,
-/// generic factory failure → null), and the default-constructor
-/// wiring path. Each branch survives without a working keychain
-/// because the early returns short-circuit before the FRB / OS-API
-/// edge.
+/// (missing file → null, malformed blob → null) and the default
+/// constructor wiring path. Each branch survives without a working
+/// keychain because the early returns short-circuit before the OS-API
+/// edge. The gate ops resolve the support dir pinned Rust-side at
+/// `configStoreInit`, so the test pins a temp dir up front.
 library;
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(requireFrbLoaded);
 
   late Directory tmp;
-  late KeychainPasswordGate gate;
+  final gate = KeychainPasswordGate();
 
-  setUp(() {
+  setUpAll(() async {
+    await requireFrbLoaded();
     tmp = Directory.systemTemp.createTempSync('lfs_keychain_gate_');
-    gate = KeychainPasswordGate(
-      hashFileFactory: () async => File('${tmp.path}/security_pass_hash.bin'),
-    );
+    rust_config.configStoreInit(supportDir: tmp.path);
   });
 
   tearDown(() {
+    // Clear the on-disk hash a test may have written so the pinned dir
+    // starts clean for the next one.
+    final hash = File('${tmp.path}/security_pass_hash.bin');
+    if (hash.existsSync()) hash.deleteSync();
+  });
+
+  tearDownAll(() {
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 
   group('rateLimiter — Dart-side fallback paths', () {
     test('returns null when the hash file does not exist', () async {
-      // No setPassword was called → no on-disk hash → the early
-      // `await file.exists()` short-circuits without an FRB decode.
+      // No setPassword was called → no on-disk hash → the Rust builder
+      // returns `None` and the Dart caller maps it to null.
       expect(await gate.rateLimiter(), isNull);
     });
 
-    test('returns null on a malformed hash file (AnyhowException)', () async {
-      // Drop garbage where the gate expects a JSON envelope. The
-      // Rust decoder raises AnyhowException; the Dart catch maps to
-      // null so the caller falls through to "no rate limiter
-      // available" instead of bubbling the throw.
+    test('returns null on a malformed hash file', () async {
+      // Drop garbage where the gate expects an envelope. The Rust
+      // decoder collapses every "no recoverable HMAC" outcome to the
+      // null branch (or raises, which the Dart catch also maps to null)
+      // so the caller falls through to "no rate limiter available".
       final file = File('${tmp.path}/security_pass_hash.bin');
       await file.writeAsString('not a valid keychain hash blob');
       expect(await gate.rateLimiter(), isNull);
-    });
-
-    test('factory failure surfaces null, not an exception', () async {
-      final broken = KeychainPasswordGate(
-        hashFileFactory: () async => throw StateError('factory boom'),
-      );
-      expect(await broken.rateLimiter(), isNull);
     });
   });
 
   group('default constructor', () {
     test('builds without arguments — production wiring path', () {
-      // Constructor must not throw — it captures the default support-dir
-      // factory but does not invoke it until the first call. Production
-      // bootstrap pins one of these for the entire process lifetime.
+      // Constructor must not throw — the gate ops resolve the pinned
+      // support dir lazily on first call.
       expect(KeychainPasswordGate.new, returnsNormally);
     });
   });

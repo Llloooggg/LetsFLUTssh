@@ -12555,9 +12555,9 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_build_
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "keychain_password_gate_build_persisted_rate_limiter", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_build_persisted_rate_limiter(api_support_dir).await?;   Ok(output_ok)
+                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_build_persisted_rate_limiter().await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -12583,14 +12583,12 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_clear_
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
                             crate::api::keychain_password_gate_actor::keychain_password_gate_clear(
-                                api_support_dir,
                             )
                             .await?;
                         Ok(output_ok)
@@ -12610,9 +12608,9 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_is_con
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "keychain_password_gate_is_configured", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_is_configured(api_support_dir).await?;   Ok(output_ok)
+                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_is_configured().await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -12625,9 +12623,9 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_read_d
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "keychain_password_gate_read_decoded", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_read_decoded(api_support_dir).await?;   Ok(output_ok)
+                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_read_decoded().await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -12640,10 +12638,9 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_set_pa
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "keychain_password_gate_set_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_set_password(api_support_dir, api_password).await?;   Ok(output_ok)
+                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_set_password(api_password).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -12656,10 +12653,9 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_verify
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "keychain_password_gate_verify", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_verify(api_support_dir, api_password).await?;   Ok(output_ok)
+                         let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_verify(api_password).await?;   Ok(output_ok)
                     })().await)
                 } })
 }

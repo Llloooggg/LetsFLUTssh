@@ -7,56 +7,45 @@ import '../frb_generated.dart';
 import 'keychain_password_gate.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `pinned_support_dir`
+
 /// True when the T1+pw gate is configured on this install — disk
 /// hash present AND keychain pepper present.
 ///
 /// Returns `Ok(false)` on any non-fatal miss (file absent, pepper
 /// absent, backend error). `Err` is reserved for unrecoverable
 /// infra failures the caller can't recover from.
-Future<bool> keychainPasswordGateIsConfigured({required String supportDir}) =>
-    RustLib.instance.api
-        .crateApiKeychainPasswordGateActorKeychainPasswordGateIsConfigured(
-          supportDir: supportDir,
-        );
+Future<bool> keychainPasswordGateIsConfigured() => RustLib.instance.api
+    .crateApiKeychainPasswordGateActorKeychainPasswordGateIsConfigured();
 
 /// Configure the gate with `password`. Generates fresh salt +
 /// pepper, writes the disk hash atomically, then writes the
 /// pepper directly to the OS keychain. On keychain-write failure
 /// rolls back the disk hash. Also clears the persisted
 /// rate-limit state file (best effort).
-Future<void> keychainPasswordGateSetPassword({
-  required String supportDir,
-  required List<int> password,
-}) => RustLib.instance.api
-    .crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword(
-      supportDir: supportDir,
-      password: password,
-    );
+Future<void> keychainPasswordGateSetPassword({required List<int> password}) =>
+    RustLib.instance.api
+        .crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword(
+          password: password,
+        );
 
 /// Drop every artifact the gate writes — disk hash + keychain
 /// pepper. Best-effort: a disk error or a keychain error
 /// surfaces as `Err` so the caller can log, but each side runs
 /// independently of the other.
-Future<void> keychainPasswordGateClear({required String supportDir}) => RustLib
-    .instance
-    .api
-    .crateApiKeychainPasswordGateActorKeychainPasswordGateClear(
-      supportDir: supportDir,
-    );
+Future<void> keychainPasswordGateClear() => RustLib.instance.api
+    .crateApiKeychainPasswordGateActorKeychainPasswordGateClear();
 
 /// Verify the T1+pw password against the on-disk hash + the keychain
 /// pepper. Returns `Ok(true)` on match, `Ok(false)` on every
 /// other outcome (file missing / corrupt blob / pepper missing /
 /// HMAC mismatch). `Err` is reserved for filesystem read errors
 /// the caller can't recover from.
-Future<bool> keychainPasswordGateVerify({
-  required String supportDir,
-  required List<int> password,
-}) => RustLib.instance.api
-    .crateApiKeychainPasswordGateActorKeychainPasswordGateVerify(
-      supportDir: supportDir,
-      password: password,
-    );
+Future<bool> keychainPasswordGateVerify({required List<int> password}) =>
+    RustLib.instance.api
+        .crateApiKeychainPasswordGateActorKeychainPasswordGateVerify(
+          password: password,
+        );
 
 /// Read the on-disk `{salt, hmac}` envelope from
 /// `support_dir/security_pass_hash.bin` and return the decoded
@@ -65,14 +54,12 @@ Future<bool> keychainPasswordGateVerify({
 /// branch the Dart rate-limiter setup path consumes as "no
 /// rate limiter for this install"; `Err` only for I/O failures
 /// distinct from `NotFound`.
-Future<DbKeychainGateBlob?> keychainPasswordGateReadDecoded({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded(
-      supportDir: supportDir,
-    );
+Future<DbKeychainGateBlob?> keychainPasswordGateReadDecoded() => RustLib
+    .instance
+    .api
+    .crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded();
 
-/// Read the gate envelope under `support_dir` and register a
+/// Read the gate envelope under the pinned support dir and register a
 /// `persisted_rate_limit_actor` slot under a freshly-minted handle
 /// id using the gate's HMAC as the rate-limit seed + the canonical
 /// `rate_limit_state.bin` path. Returns the id, or `Ok(None)` when
@@ -83,9 +70,7 @@ Future<DbKeychainGateBlob?> keychainPasswordGateReadDecoded({
 /// The HMAC bytes never cross the FRB boundary — read + register
 /// happen inside the same Rust process. Dart threads the returned
 /// id through the existing `persisted_rate_limit_actor_*` ops.
-Future<String?> keychainPasswordGateBuildPersistedRateLimiter({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter(
-      supportDir: supportDir,
-    );
+Future<String?> keychainPasswordGateBuildPersistedRateLimiter() => RustLib
+    .instance
+    .api
+    .crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter();
