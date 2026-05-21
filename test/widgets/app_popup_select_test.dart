@@ -88,6 +88,33 @@ void main() {
         expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'trigger label opts out of an enclosing SelectionArea — the button '
+      'text is not selectable',
+      (tester) async {
+        // Settings surfaces wrap their body in an `AppSelectionArea`; the
+        // trigger is a button, so its label must not be drag-selectable.
+        // The `SelectionContainer.disabled` around the trigger nulls the
+        // selection registrar at the label's context even though a
+        // `SelectionArea` encloses the whole control.
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SelectionArea(
+                child: AppPopupSelect<int>(
+                  value: 1,
+                  options: const [AppPopupSelectOption(value: 1, label: 'One')],
+                  onChanged: (_) {},
+                ),
+              ),
+            ),
+          ),
+        );
+        final labelContext = tester.element(find.text('One'));
+        expect(SelectionContainer.maybeOf(labelContext), isNull);
+      },
+    );
   });
 
   group('AppPopupSelectOption', () {

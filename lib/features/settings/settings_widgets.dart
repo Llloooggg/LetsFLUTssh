@@ -375,9 +375,15 @@ class _SegmentControl extends StatelessWidget {
       );
     }
 
-    return AppBorderedBox(
-      height: AppTheme.controlHeightXs,
-      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    // The Settings body is wrapped in an `AppSelectionArea`; each segment
+    // is a `GestureDetector` button (not a `HoverRegion`, which would
+    // auto-opt-out), so the labels would otherwise be selectable as text.
+    // Opt the whole control out — every child here is a button.
+    return SelectionContainer.disabled(
+      child: AppBorderedBox(
+        height: AppTheme.controlHeightXs,
+        child: Row(mainAxisSize: MainAxisSize.min, children: children),
+      ),
     );
   }
 }

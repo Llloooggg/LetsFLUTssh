@@ -643,24 +643,28 @@ class _AutoLockTile extends ConsumerWidget {
   }
 
   Widget _buildTrigger(S l10n, int current) {
-    return Container(
-      height: AppTheme.controlHeightSm,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.borderLight),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _label(l10n, current),
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
-        ],
+    // The trigger label is a button, not prose: opt it out of the
+    // Settings `AppSelectionArea` so it can't be drag-selected as text.
+    return SelectionContainer.disabled(
+      child: Container(
+        height: AppTheme.controlHeightSm,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.bg3,
+          borderRadius: AppTheme.radiusSm,
+          border: Border.all(color: AppTheme.borderLight),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _label(l10n, current),
+              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
+          ],
+        ),
       ),
     );
   }

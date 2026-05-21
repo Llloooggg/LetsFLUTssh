@@ -102,39 +102,43 @@ class AppPopupSelect<T> extends StatelessWidget {
             ),
           )
           .toList(growable: false),
-      child: Container(
-        height: AppTheme.controlHeightSm,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: AppTheme.bg3,
-          borderRadius: AppTheme.radiusSm,
-          border: Border.all(color: AppTheme.borderLight),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (leadingIcon != null) ...[
-              Icon(leadingIcon, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: AppSpacing.xxs),
-            ],
-            // Flexible + ellipsis so a long locale / level name shrinks
-            // instead of overflowing the parent row by fractional
-            // pixels (RenderFlex "overflowed by 5.2 px" on tight
-            // settings columns).
-            Flexible(
-              child: Text(
-                current.label,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fg,
+      // The trigger label is a button, not prose: opt it out of any
+      // enclosing `AppSelectionArea` so it can't be drag-selected as text.
+      child: SelectionContainer.disabled(
+        child: Container(
+          height: AppTheme.controlHeightSm,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.bg3,
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(color: AppTheme.borderLight),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leadingIcon != null) ...[
+                Icon(leadingIcon, size: 16, color: AppTheme.fgDim),
+                const SizedBox(width: AppSpacing.xxs),
+              ],
+              // Flexible + ellipsis so a long locale / level name shrinks
+              // instead of overflowing the parent row by fractional
+              // pixels (RenderFlex "overflowed by 5.2 px" on tight
+              // settings columns).
+              Flexible(
+                child: Text(
+                  current.label,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.sm,
+                    color: AppTheme.fg,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
-          ],
+              const SizedBox(width: AppSpacing.xs),
+              Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
+            ],
+          ),
         ),
       ),
     );
