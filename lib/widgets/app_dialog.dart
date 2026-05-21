@@ -248,7 +248,7 @@ class AppDialogFooter extends StatelessWidget {
 /// Modal progress bar with a phase label and percentage / step counter.
 ///
 /// The caller owns a [ProgressReporter] and pushes phase and step
-/// updates — the dialog subscribes via [ValueListenableBuilder] and
+/// updates — the dialog subscribes via a [StreamBuilder] and
 /// rebuilds only the progress panel.  Non-dismissible: the surrounding
 /// operation is responsible for popping the dialog in a `finally`.
 class AppProgressBarDialog extends StatelessWidget {
@@ -300,9 +300,11 @@ class AppProgressBarDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ValueListenableBuilder<ProgressState>(
-                  valueListenable: reporter.state,
-                  builder: (_, s, _) => _ProgressPanel(state: s),
+                StreamBuilder<ProgressState>(
+                  stream: reporter.stream,
+                  initialData: reporter.current,
+                  builder: (_, snap) =>
+                      _ProgressPanel(state: snap.data ?? reporter.current),
                 ),
                 if (onCancel != null) ...[
                   const SizedBox(height: AppSpacing.md),

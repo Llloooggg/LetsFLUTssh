@@ -7,10 +7,10 @@ void main() {
       final reporter = ProgressReporter('Loading');
       addTearDown(reporter.dispose);
 
-      expect(reporter.state.value.label, 'Loading');
-      expect(reporter.state.value.percent, isNull);
-      expect(reporter.state.value.current, isNull);
-      expect(reporter.state.value.total, isNull);
+      expect(reporter.current.label, 'Loading');
+      expect(reporter.current.percent, isNull);
+      expect(reporter.current.current, isNull);
+      expect(reporter.current.total, isNull);
     });
 
     test('phase() switches to a new indeterminate label', () {
@@ -18,8 +18,8 @@ void main() {
       addTearDown(reporter.dispose);
 
       reporter.phase('B');
-      expect(reporter.state.value.label, 'B');
-      expect(reporter.state.value.percent, isNull);
+      expect(reporter.current.label, 'B');
+      expect(reporter.current.percent, isNull);
     });
 
     test('step() computes percent from current/total', () {
@@ -27,10 +27,10 @@ void main() {
       addTearDown(reporter.dispose);
 
       reporter.step('Importing', 3, 10);
-      expect(reporter.state.value.label, 'Importing');
-      expect(reporter.state.value.current, 3);
-      expect(reporter.state.value.total, 10);
-      expect(reporter.state.value.percent, closeTo(0.3, 1e-6));
+      expect(reporter.current.label, 'Importing');
+      expect(reporter.current.current, 3);
+      expect(reporter.current.total, 10);
+      expect(reporter.current.percent, closeTo(0.3, 1e-6));
     });
 
     test('step() clamps the ratio into [0.0, 1.0]', () {
@@ -38,7 +38,7 @@ void main() {
       addTearDown(reporter.dispose);
 
       reporter.step('overflow', 12, 10);
-      expect(reporter.state.value.percent, 1.0);
+      expect(reporter.current.percent, 1.0);
     });
 
     test('step() with total <= 0 degrades to 0 % rather than NaN', () {
@@ -46,20 +46,22 @@ void main() {
       addTearDown(reporter.dispose);
 
       reporter.step('weird', 5, 0);
-      expect(reporter.state.value.percent, 0.0);
+      expect(reporter.current.percent, 0.0);
     });
 
-    test('ValueNotifier fires on every transition', () {
+    test('stream emits on every transition', () async {
       final reporter = ProgressReporter('A');
       addTearDown(reporter.dispose);
       final observed = <String>[];
-      reporter.state.addListener(() {
-        observed.add(reporter.state.value.label);
-      });
+      final sub = reporter.stream.listen((s) => observed.add(s.label));
 
       reporter.phase('B');
       reporter.step('C', 1, 2);
       reporter.phase('D');
+
+      // Broadcast delivery is async — let the microtask queue drain.
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
 
       expect(observed, ['B', 'C', 'D']);
     });
