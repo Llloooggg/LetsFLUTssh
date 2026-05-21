@@ -1,4 +1,3 @@
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
@@ -40,14 +39,11 @@ import '../../utils/logger.dart';
 /// (typical shape: `_injectDatabase(secretId: ...)` →
 /// `dbInitFromSecret` → `secrets_take`).
 class SecurityTierSwitcher {
-  final Future<String> Function() _supportDir;
   final Future<void> Function(String secretId) _rekeyFromSecret;
 
   SecurityTierSwitcher({
-    Future<String> Function()? supportDirFactory,
     Future<void> Function(String secretId)? rekeyFromSecret,
-  }) : _supportDir = supportDirFactory ?? _defaultSupportDir,
-       _rekeyFromSecret = rekeyFromSecret ?? _defaultRekeyFromSecret;
+  }) : _rekeyFromSecret = rekeyFromSecret ?? _defaultRekeyFromSecret;
 
   /// Default rekey hook — re-encrypts `letsflutssh.db` under the
   /// SecretStore-staged DB key via the FRB `db_rekey_from_secret`
@@ -56,19 +52,13 @@ class SecurityTierSwitcher {
   static Future<void> _defaultRekeyFromSecret(String secretId) =>
       rust_app.dbRekeyFromSecret(secretId: secretId);
 
-  static Future<String> _defaultSupportDir() async {
-    final dir = await getApplicationSupportDirectory();
-    return dir.path;
-  }
-
   /// Return the pending-marker payload if the last startup left one
   /// behind, else null. Caller consults this before inferring the
   /// unlock tier — a pending marker means the DB is probably
   /// encrypted under the target config's key, not the source's.
   Future<String?> readPendingMarker() async {
     try {
-      final dir = await _supportDir();
-      return rust_ttm.tierTransitionMarkerRead(supportDir: dir);
+      return rust_ttm.tierTransitionMarkerRead();
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch marker read failed: $e',
@@ -80,8 +70,7 @@ class SecurityTierSwitcher {
 
   Future<void> clearMarker() async {
     try {
-      final dir = await _supportDir();
-      rust_ttm.tierTransitionMarkerClear(supportDir: dir);
+      rust_ttm.tierTransitionMarkerClear();
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch marker clear failed: $e',
@@ -117,11 +106,7 @@ class SecurityTierSwitcher {
     required Future<void> Function() clearPrevious,
   }) async {
     // 1 + 2. Write marker.
-    final dir = await _supportDir();
-    rust_ttm.tierTransitionMarkerWrite(
-      supportDir: dir,
-      payload: targetMarkerPayload,
-    );
+    rust_ttm.tierTransitionMarkerWrite(payload: targetMarkerPayload);
 
     // 3. Atomic rekey via SecretRef. SecretStore entry survives —
     //    `db_rekey_from_secret` uses `secrets_get`, not `take`.

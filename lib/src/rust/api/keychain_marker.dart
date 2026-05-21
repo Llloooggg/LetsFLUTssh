@@ -6,19 +6,20 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// True when the marker file is on disk under [`support_dir`] —
+/// True when the marker file is on disk under the pinned support dir —
 /// at least one prior session wrote a secret into the keychain
-/// successfully. Callers gate libsecret probes on this on Linux.
-bool keychainMarkerExists({required String supportDir}) => RustLib.instance.api
-    .crateApiKeychainMarkerKeychainMarkerExists(supportDir: supportDir);
+/// successfully. Callers gate libsecret probes on this on Linux. A
+/// missing pin (misordered startup) collapses to `false`.
+bool keychainMarkerExists() =>
+    RustLib.instance.api.crateApiKeychainMarkerKeychainMarkerExists();
 
 /// Lay down the marker after a successful keychain write.
 /// Idempotent on a re-write. Hardens the file to owner-only perms
 /// so the whole `app-support` directory keeps a single 0600
 /// permission contract.
-void keychainMarkerSet({required String supportDir}) => RustLib.instance.api
-    .crateApiKeychainMarkerKeychainMarkerSet(supportDir: supportDir);
+void keychainMarkerSet() =>
+    RustLib.instance.api.crateApiKeychainMarkerKeychainMarkerSet();
 
 /// Drop the marker. Idempotent on a missing file.
-void keychainMarkerClear({required String supportDir}) => RustLib.instance.api
-    .crateApiKeychainMarkerKeychainMarkerClear(supportDir: supportDir);
+void keychainMarkerClear() =>
+    RustLib.instance.api.crateApiKeychainMarkerKeychainMarkerClear();

@@ -7,27 +7,18 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Read the marker payload, or `None` when the marker is absent.
-/// Any I/O failure short-circuits to `None` so a corrupt marker
-/// never blocks startup.
-String? tierTransitionMarkerRead({required String supportDir}) =>
-    RustLib.instance.api.crateApiTierTransitionMarkerTierTransitionMarkerRead(
-      supportDir: supportDir,
-    );
+/// Any I/O failure (or a missing pin) short-circuits to `None` so a
+/// corrupt marker never blocks startup.
+String? tierTransitionMarkerRead() =>
+    RustLib.instance.api.crateApiTierTransitionMarkerTierTransitionMarkerRead();
 
 /// Write the marker with [`payload`] as its body. Atomic via tmp +
-/// rename + 0600 hardening — same shape as the Dart switcher's
-/// previous `_writeMarker`.
-void tierTransitionMarkerWrite({
-  required String supportDir,
-  required String payload,
-}) =>
-    RustLib.instance.api.crateApiTierTransitionMarkerTierTransitionMarkerWrite(
-      supportDir: supportDir,
-      payload: payload,
-    );
+/// rename + 0600 hardening.
+void tierTransitionMarkerWrite({required String payload}) => RustLib
+    .instance
+    .api
+    .crateApiTierTransitionMarkerTierTransitionMarkerWrite(payload: payload);
 
 /// Drop the marker. Idempotent on a missing file.
-void tierTransitionMarkerClear({required String supportDir}) =>
-    RustLib.instance.api.crateApiTierTransitionMarkerTierTransitionMarkerClear(
-      supportDir: supportDir,
-    );
+void tierTransitionMarkerClear() => RustLib.instance.api
+    .crateApiTierTransitionMarkerTierTransitionMarkerClear();

@@ -8,18 +8,18 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
 
-bool wipeHasPending({required String supportDir}) =>
-    RustLib.instance.api.crateApiWipeWipeHasPending(supportDir: supportDir);
+bool wipeHasPending() => RustLib.instance.api.crateApiWipeWipeHasPending();
 
-bool wipeHasAnyState({required String supportDir}) =>
-    RustLib.instance.api.crateApiWipeWipeHasAnyState(supportDir: supportDir);
+bool wipeHasAnyState() => RustLib.instance.api.crateApiWipeWipeHasAnyState();
 
 /// Walk every managed file + the logs directory; clear the
 /// `.wipe-pending` marker last so a mid-sweep crash leaves a trace
 /// the next launch can detect. Async + on the blocking pool —
-/// worst-case touches the DB sidecars + the whole logs tree.
-Future<DbFileSweepReport> wipeSweepFiles({required String supportDir}) =>
-    RustLib.instance.api.crateApiWipeWipeSweepFiles(supportDir: supportDir);
+/// worst-case touches the DB sidecars + the whole logs tree. An
+/// empty report is returned when the support dir is unpinned or the
+/// runtime is shutting down rather than panicking the FRB worker.
+Future<DbFileSweepReport> wipeSweepFiles() =>
+    RustLib.instance.api.crateApiWipeWipeSweepFiles();
 
 /// Per-file outcome of a [`wipe_sweep_files`] run. The Dart caller
 /// merges this with the keychain / native-vault / overlay results

@@ -86,8 +86,7 @@ class WipeAllService {
   /// startup and re-run the service before `_initSecurity`.
   Future<bool> hasPendingWipe() async {
     try {
-      final dir = await _supportDir();
-      return rust_wipe.wipeHasPending(supportDir: dir.path);
+      return rust_wipe.wipeHasPending();
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService.hasPendingWipe probe failed (assuming no marker): $e',
@@ -108,8 +107,7 @@ class WipeAllService {
   /// `lfs_core::security::wipe::ORPHAN_PROBE_FILES`.
   Future<bool> hasAnyState() async {
     try {
-      final dir = await _supportDir();
-      return rust_wipe.wipeHasAnyState(supportDir: dir.path);
+      return rust_wipe.wipeHasAnyState();
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService.hasAnyState probe failed: $e',
@@ -207,7 +205,7 @@ class WipeAllService {
       // touching OS-keychain aliases or hardware-bound persistent
       // keys. The file sweep still removes the wrapped-key
       // envelope; the persistent hardware key stays.
-      final fileReport = await rust_wipe.wipeSweepFiles(supportDir: dir.path);
+      final fileReport = await rust_wipe.wipeSweepFiles();
       deleted = List<String>.from(fileReport.deletedFiles);
       failed = List<String>.from(fileReport.failedFiles);
       purged = false;

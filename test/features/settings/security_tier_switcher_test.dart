@@ -2,34 +2,39 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/settings/security_tier_switcher.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // The tier-transition marker read/write compat helpers route
-  // through `lfs_core::security::tier_transition_marker` for the
-  // 0600-hardened atomic write. Bootstrap FRB so the switcher
+  // The tier-transition marker read/write helpers route through
+  // `lfs_core::security::tier_transition_marker` for the 0600-hardened
+  // atomic write, operating on the support dir pinned at
+  // `configStoreInit`. Bootstrap FRB + pin a temp dir so the switcher
   // exercises the canonical Rust path.
-  setUpAll(requireFrbLoaded);
-
   late Directory tempDir;
-  late SecurityTierSwitcher switcher;
 
-  setUp(() {
+  setUpAll(() async {
+    await requireFrbLoaded();
     tempDir = Directory.systemTemp.createTempSync('tier_switcher_test_');
-    switcher = SecurityTierSwitcher(
-      supportDirFactory: () async => tempDir.path,
-      // Stub the rekey — the FRB-backed default would call into the
-      // native bridge, which the unit-test runner does not load. The
-      // switcher's contract (write marker → rekey → apply wrapper …)
-      // is the unit under test.
-      rekeyFromSecret: (_) async {},
-    );
+    rust_config.configStoreInit(supportDir: tempDir.path);
   });
 
-  tearDown(() {
+  tearDownAll(() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+  });
+
+  late SecurityTierSwitcher switcher;
+
+  setUp(() async {
+    // Stub the rekey — the FRB-backed default would call into the
+    // native bridge, which the unit-test runner does not load. The
+    // switcher's contract (write marker → rekey → apply wrapper …) is
+    // the unit under test. The pinned dir is shared across the file,
+    // so drop any marker a prior test left behind.
+    switcher = SecurityTierSwitcher(rekeyFromSecret: (_) async {});
+    await switcher.clearMarker();
   });
 
   group('SecurityTierSwitcher.switchTierFromSecret', () {
@@ -55,9 +60,8 @@ void main() {
         secretId: 'tier-switch.dbkey.test',
         targetMarkerPayload: '{"tier":"paranoid"}',
         applyWrapperFromSecret: (_) async {
-          // By the time the wrapper runs, the marker has been
-          // written and rekey has succeeded. Read it from disk to
-          // confirm.
+          // By the time the wrapper runs, the marker has been written
+          // and rekey has succeeded. Read it back to confirm.
           observedMarker = await switcher.readPendingMarker();
         },
         persistConfigFromSecret: (_) async {},
@@ -94,7 +98,6 @@ void main() {
     test('every switch runs rekey exactly once', () async {
       var rekeyCalls = 0;
       final invariantSwitcher = SecurityTierSwitcher(
-        supportDirFactory: () async => tempDir.path,
         rekeyFromSecret: (_) async => rekeyCalls++,
       );
       await invariantSwitcher.switchTierFromSecret(
@@ -108,12 +111,11 @@ void main() {
     });
 
     test('rekey failure leaves the marker behind for crash recovery', () async {
-      // Mirror of the "applyWrapper failure" test above, but with
-      // the failure injected in step 3 (the rekey itself). The
-      // marker policy is identical: it must survive so startup can
-      // see the pending transition and recover.
+      // Mirror of the "applyWrapper failure" test above, but with the
+      // failure injected in step 3 (the rekey itself). The marker
+      // policy is identical: it must survive so startup can see the
+      // pending transition and recover.
       final failSwitcher = SecurityTierSwitcher(
-        supportDirFactory: () async => '${tempDir.path}/rekey-fail',
         rekeyFromSecret: (_) async => throw StateError('PRAGMA rekey failed'),
       );
       var wrapCalls = 0;
@@ -136,45 +138,14 @@ void main() {
     });
 
     test(
-      'readPendingMarker returns null when the marker factory throws',
-      () async {
-        // The catch-and-log branch exists so a filesystem error on
-        // startup (permission denied, volume unmounted) does not
-        // crash before we even reach the UI. Simulating that requires
-        // a factory that raises — the expected contract is "null, no
-        // throw".
-        final raisingSwitcher = SecurityTierSwitcher(
-          supportDirFactory: () async => throw StateError('disk mount gone'),
-          rekeyFromSecret: (_) async {},
-        );
-        expect(await raisingSwitcher.readPendingMarker(), isNull);
-      },
-    );
-
-    test(
-      'clearMarker swallows factory errors instead of blowing up callers',
-      () async {
-        final raisingSwitcher = SecurityTierSwitcher(
-          supportDirFactory: () async => throw StateError('disk mount gone'),
-          rekeyFromSecret: (_) async {},
-        );
-        // Must not throw — the dangling-marker log write is
-        // best-effort; the boot path has to keep moving.
-        await raisingSwitcher.clearMarker();
-      },
-    );
-
-    test(
       'clearPrevious failure leaves the marker behind — startup recovers',
       () async {
-        // Pin the contract for step 6: if the old-tier teardown
-        // throws, the marker must survive so the next startup sees
-        // the pending transition and can finish or roll back. Step 7
-        // (clearMarker) is gated on step 6 completing, so a thrown
-        // clearPrevious naturally preserves the marker.
-        final dir = '${tempDir.path}/clear-prev-fail';
+        // Pin the contract for step 6: if the old-tier teardown throws,
+        // the marker must survive so the next startup sees the pending
+        // transition and can finish or roll back. Step 7 (clearMarker)
+        // is gated on step 6 completing, so a thrown clearPrevious
+        // naturally preserves the marker.
         final clearFailSwitcher = SecurityTierSwitcher(
-          supportDirFactory: () async => dir,
           rekeyFromSecret: (_) async {},
         );
         await expectLater(
@@ -203,9 +174,10 @@ void main() {
       () async {
         // Enumerate the tier-label cross product and exercise the
         // switcher for every pair. `src` is informational — the
-        // switcher does not branch on it; the invariant being
-        // asserted is "regardless of the starting tier, the same
-        // orchestration runs for the same target".
+        // switcher does not branch on it; the invariant being asserted
+        // is "regardless of the starting tier, the same orchestration
+        // runs for the same target". Each successful switch clears the
+        // marker, so iterations share the pinned dir cleanly.
         const tiers = ['plaintext', 'keychain', 'hardware', 'paranoid'];
         for (final src in tiers) {
           for (final dst in tiers) {
@@ -214,7 +186,6 @@ void main() {
             var persist = 0;
             var clear = 0;
             final pairSwitcher = SecurityTierSwitcher(
-              supportDirFactory: () async => '${tempDir.path}/pair-$src-$dst',
               rekeyFromSecret: (_) async => rekey++,
             );
             await pairSwitcher.switchTierFromSecret(
@@ -239,12 +210,11 @@ void main() {
     );
 
     test('rekeyFromSecret receives the caller-supplied secretId', () async {
-      // Pin the contract: the switcher does not mutate or replace
-      // the secret id between accept and forward — every consumer
-      // gets exactly the bytes the caller staged.
+      // Pin the contract: the switcher does not mutate or replace the
+      // secret id between accept and forward — every consumer gets
+      // exactly the bytes the caller staged.
       String? observedRekeyId;
       final pinSwitcher = SecurityTierSwitcher(
-        supportDirFactory: () async => tempDir.path,
         rekeyFromSecret: (id) async => observedRekeyId = id,
       );
       String? observedWrapId;

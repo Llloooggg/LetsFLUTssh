@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/security/wipe_all_service.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -37,8 +38,27 @@ void main() {
     late WipeAllService service;
     int evictCalls = 0;
 
-    setUp(() async {
+    setUpAll(() async {
       tmp = await Directory.systemTemp.createTemp('lfs_wipe_');
+      // The wipe probes + sweep read the support dir pinned Rust-side;
+      // pin this dir once so the FRB calls and the dart:io setup in the
+      // test bodies agree on the same directory. Pin is process-global
+      // + first-win, so it stays stable for the whole group.
+      rust_config.configStoreInit(supportDir: tmp.path);
+    });
+
+    tearDownAll(() {
+      if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    });
+
+    setUp(() {
+      // Stable pinned dir across the group — clear leftovers so each
+      // test starts from a clean support dir.
+      if (tmp.existsSync()) {
+        for (final entry in tmp.listSync()) {
+          entry.deleteSync(recursive: true);
+        }
+      }
       evictCalls = 0;
       service = WipeAllService(
         supportDirFactory: () async => tmp,
@@ -47,10 +67,6 @@ void main() {
         purgeKeychain: false,
         credentialCacheEvict: () async => evictCalls++,
       );
-    });
-
-    tearDown(() {
-      if (tmp.existsSync()) tmp.deleteSync(recursive: true);
     });
 
     group('hasPendingWipe', () {

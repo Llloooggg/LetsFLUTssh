@@ -1368,11 +1368,11 @@ abstract class RustLibApi extends BaseApi {
 
   DbKeychainGateSeed crateApiKeychainPasswordGateKeychainGateRandomSeed();
 
-  void crateApiKeychainMarkerKeychainMarkerClear({required String supportDir});
+  void crateApiKeychainMarkerKeychainMarkerClear();
 
-  bool crateApiKeychainMarkerKeychainMarkerExists({required String supportDir});
+  bool crateApiKeychainMarkerKeychainMarkerExists();
 
-  void crateApiKeychainMarkerKeychainMarkerSet({required String supportDir});
+  void crateApiKeychainMarkerKeychainMarkerSet();
 
   Future<String?>
   crateApiKeychainPasswordGateActorKeychainPasswordGateBuildPersistedRateLimiter({
@@ -2553,16 +2553,11 @@ abstract class RustLibApi extends BaseApi {
 
   DbTierState? crateApiTierMachineTierMachineTryAdvance();
 
-  void crateApiTierTransitionMarkerTierTransitionMarkerClear({
-    required String supportDir,
-  });
+  void crateApiTierTransitionMarkerTierTransitionMarkerClear();
 
-  String? crateApiTierTransitionMarkerTierTransitionMarkerRead({
-    required String supportDir,
-  });
+  String? crateApiTierTransitionMarkerTierTransitionMarkerRead();
 
   void crateApiTierTransitionMarkerTierTransitionMarkerWrite({
-    required String supportDir,
     required String payload,
   });
 
@@ -2767,17 +2762,15 @@ abstract class RustLibApi extends BaseApi {
 
   PlatformInt64 crateApiWinbioWinbioCountUnits();
 
-  bool crateApiWipeWipeHasAnyState({required String supportDir});
+  bool crateApiWipeWipeHasAnyState();
 
-  bool crateApiWipeWipeHasPending({required String supportDir});
+  bool crateApiWipeWipeHasPending();
 
   List<String> crateApiWipeKeychainWipeKeychainManagedKeys();
 
   Future<DbKeychainWipeReport> crateApiWipeKeychainWipeKeychainRun();
 
-  Future<DbFileSweepReport> crateApiWipeWipeSweepFiles({
-    required String supportDir,
-  });
+  Future<DbFileSweepReport> crateApiWipeWipeSweepFiles();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_S3Connection;
@@ -13153,12 +13146,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "keychain_gate_random_seed", argNames: []);
 
   @override
-  void crateApiKeychainMarkerKeychainMarkerClear({required String supportDir}) {
+  void crateApiKeychainMarkerKeychainMarkerClear() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13170,27 +13162,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiKeychainMarkerKeychainMarkerClearConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiKeychainMarkerKeychainMarkerClearConstMeta =>
-      const TaskConstMeta(
-        debugName: "keychain_marker_clear",
-        argNames: ["supportDir"],
-      );
+      const TaskConstMeta(debugName: "keychain_marker_clear", argNames: []);
 
   @override
-  bool crateApiKeychainMarkerKeychainMarkerExists({
-    required String supportDir,
-  }) {
+  bool crateApiKeychainMarkerKeychainMarkerExists() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13202,25 +13188,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiKeychainMarkerKeychainMarkerExistsConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiKeychainMarkerKeychainMarkerExistsConstMeta =>
-      const TaskConstMeta(
-        debugName: "keychain_marker_exists",
-        argNames: ["supportDir"],
-      );
+      const TaskConstMeta(debugName: "keychain_marker_exists", argNames: []);
 
   @override
-  void crateApiKeychainMarkerKeychainMarkerSet({required String supportDir}) {
+  void crateApiKeychainMarkerKeychainMarkerSet() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13232,17 +13214,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiKeychainMarkerKeychainMarkerSetConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiKeychainMarkerKeychainMarkerSetConstMeta =>
-      const TaskConstMeta(
-        debugName: "keychain_marker_set",
-        argNames: ["supportDir"],
-      );
+      const TaskConstMeta(debugName: "keychain_marker_set", argNames: []);
 
   @override
   Future<String?>
@@ -23179,14 +23158,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "tier_machine_try_advance", argNames: []);
 
   @override
-  void crateApiTierTransitionMarkerTierTransitionMarkerClear({
-    required String supportDir,
-  }) {
+  void crateApiTierTransitionMarkerTierTransitionMarkerClear() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -23199,7 +23175,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiTierTransitionMarkerTierTransitionMarkerClearConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -23209,18 +23185,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiTierTransitionMarkerTierTransitionMarkerClearConstMeta =>
       const TaskConstMeta(
         debugName: "tier_transition_marker_clear",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  String? crateApiTierTransitionMarkerTierTransitionMarkerRead({
-    required String supportDir,
-  }) {
+  String? crateApiTierTransitionMarkerTierTransitionMarkerRead() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -23233,7 +23206,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiTierTransitionMarkerTierTransitionMarkerReadConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -23243,19 +23216,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiTierTransitionMarkerTierTransitionMarkerReadConstMeta =>
       const TaskConstMeta(
         debugName: "tier_transition_marker_read",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   void crateApiTierTransitionMarkerTierTransitionMarkerWrite({
-    required String supportDir,
     required String payload,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(payload, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
@@ -23269,7 +23240,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiTierTransitionMarkerTierTransitionMarkerWriteConstMeta,
-        argValues: [supportDir, payload],
+        argValues: [payload],
         apiImpl: this,
       ),
     );
@@ -23279,7 +23250,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiTierTransitionMarkerTierTransitionMarkerWriteConstMeta =>
       const TaskConstMeta(
         debugName: "tier_transition_marker_write",
-        argNames: ["supportDir", "payload"],
+        argNames: ["payload"],
       );
 
   @override
@@ -24977,12 +24948,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "winbio_count_units", argNames: []);
 
   @override
-  bool crateApiWipeWipeHasAnyState({required String supportDir}) {
+  bool crateApiWipeWipeHasAnyState() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -24994,25 +24964,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiWipeWipeHasAnyStateConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiWipeWipeHasAnyStateConstMeta =>
-      const TaskConstMeta(
-        debugName: "wipe_has_any_state",
-        argNames: ["supportDir"],
-      );
+      const TaskConstMeta(debugName: "wipe_has_any_state", argNames: []);
 
   @override
-  bool crateApiWipeWipeHasPending({required String supportDir}) {
+  bool crateApiWipeWipeHasPending() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -25024,16 +24990,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiWipeWipeHasPendingConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWipeWipeHasPendingConstMeta => const TaskConstMeta(
-    debugName: "wipe_has_pending",
-    argNames: ["supportDir"],
-  );
+  TaskConstMeta get kCrateApiWipeWipeHasPendingConstMeta =>
+      const TaskConstMeta(debugName: "wipe_has_pending", argNames: []);
 
   @override
   List<String> crateApiWipeKeychainWipeKeychainManagedKeys() {
@@ -25092,14 +25056,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "wipe_keychain_run", argNames: []);
 
   @override
-  Future<DbFileSweepReport> crateApiWipeWipeSweepFiles({
-    required String supportDir,
-  }) {
+  Future<DbFileSweepReport> crateApiWipeWipeSweepFiles() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -25112,16 +25073,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiWipeWipeSweepFilesConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiWipeWipeSweepFilesConstMeta => const TaskConstMeta(
-    debugName: "wipe_sweep_files",
-    argNames: ["supportDir"],
-  );
+  TaskConstMeta get kCrateApiWipeWipeSweepFilesConstMeta =>
+      const TaskConstMeta(debugName: "wipe_sweep_files", argNames: []);
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_S3Connection => wire

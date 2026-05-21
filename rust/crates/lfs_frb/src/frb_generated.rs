@@ -12479,11 +12479,9 @@ fn wire__crate__api__keychain_marker__keychain_marker_clear_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, String>((move || {
-                let output_ok =
-                    crate::api::keychain_marker::keychain_marker_clear(api_support_dir)?;
+                let output_ok = crate::api::keychain_marker::keychain_marker_clear()?;
                 Ok(output_ok)
             })())
         },
@@ -12510,12 +12508,10 @@ fn wire__crate__api__keychain_marker__keychain_marker_exists_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(
-                    crate::api::keychain_marker::keychain_marker_exists(api_support_dir),
-                )?;
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::keychain_marker::keychain_marker_exists())?;
                 Ok(output_ok)
             })())
         },
@@ -12542,10 +12538,9 @@ fn wire__crate__api__keychain_marker__keychain_marker_set_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::keychain_marker::keychain_marker_set(api_support_dir)?;
+                let output_ok = crate::api::keychain_marker::keychain_marker_set()?;
                 Ok(output_ok)
             })())
         },
@@ -23133,12 +23128,9 @@ fn wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::tier_transition_marker::tier_transition_marker_clear(
-                    api_support_dir,
-                )?;
+                let output_ok = crate::api::tier_transition_marker::tier_transition_marker_clear()?;
                 Ok(output_ok)
             })())
         },
@@ -23165,13 +23157,10 @@ fn wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::tier_transition_marker::tier_transition_marker_read(
-                        api_support_dir,
-                    ),
+                    crate::api::tier_transition_marker::tier_transition_marker_read(),
                 )?;
                 Ok(output_ok)
             })())
@@ -23199,14 +23188,11 @@ fn wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_payload = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::tier_transition_marker::tier_transition_marker_write(
-                    api_support_dir,
-                    api_payload,
-                )?;
+                let output_ok =
+                    crate::api::tier_transition_marker::tier_transition_marker_write(api_payload)?;
                 Ok(output_ok)
             })())
         },
@@ -25085,11 +25071,9 @@ fn wire__crate__api__wipe__wipe_has_any_state_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok =
-                    Result::<_, ()>::Ok(crate::api::wipe::wipe_has_any_state(api_support_dir))?;
+                let output_ok = Result::<_, ()>::Ok(crate::api::wipe::wipe_has_any_state())?;
                 Ok(output_ok)
             })())
         },
@@ -25116,11 +25100,9 @@ fn wire__crate__api__wipe__wipe_has_pending_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok =
-                    Result::<_, ()>::Ok(crate::api::wipe::wipe_has_pending(api_support_dir))?;
+                let output_ok = Result::<_, ()>::Ok(crate::api::wipe::wipe_has_pending())?;
                 Ok(output_ok)
             })())
         },
@@ -25215,14 +25197,12 @@ fn wire__crate__api__wipe__wipe_sweep_files_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
                     (move || async move {
-                        let output_ok = Result::<_, ()>::Ok(
-                            crate::api::wipe::wipe_sweep_files(api_support_dir).await,
-                        )?;
+                        let output_ok =
+                            Result::<_, ()>::Ok(crate::api::wipe::wipe_sweep_files().await)?;
                         Ok(output_ok)
                     })()
                     .await,

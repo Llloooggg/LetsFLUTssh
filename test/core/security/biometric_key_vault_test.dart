@@ -18,7 +18,7 @@ import '../../helpers/frb_bootstrap.dart';
 /// `lfs_core::security::keychain_marker::tests`.
 class _InMemoryMarker extends LinuxKeychainMarker {
   bool _set = false;
-  _InMemoryMarker() : super(supportDirFactory: () async => '');
+  _InMemoryMarker() : super();
   @override
   Future<bool> exists({bool skipOnNonLinux = true}) async {
     if (skipOnNonLinux && !Platform.isLinux) return true;

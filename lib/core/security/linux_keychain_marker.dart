@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show AnyhowException;
-import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/keychain_marker.dart' as rust_marker;
 import '../../utils/logger.dart';
@@ -30,31 +29,17 @@ import '../../utils/logger.dart';
 /// to `credentials.*` in the app-support dir at 0600 so the whole
 /// directory keeps a single perm contract.
 ///
-/// File-format ownership lives Rust-side in
-/// `lfs_core::security::keychain_marker`; this Dart class is a thin
-/// façade that resolves the platform `getApplicationSupportDirectory()`
-/// path once and delegates each op across the FRB boundary.
-///
-/// Instance-based so tests can inject a temp [supportDirFactory]
-/// without binding `path_provider` channels. Production callers use
-/// [LinuxKeychainMarker.defaultInstance].
+/// File-format ownership and the app-support directory both live
+/// Rust-side: the marker ops resolve the directory pinned at
+/// `config_store_init` (`master_password::try_pinned_support_dir`),
+/// so this Dart class is a thin façade that delegates across the FRB
+/// boundary. Tests pin a temp dir via `configStoreInit`.
 class LinuxKeychainMarker {
-  /// Shared production instance — wraps the real
-  /// `getApplicationSupportDirectory()` path. Used by
-  /// [SecureKeyStorage] and the default [BiometricKeyVault]
-  /// construction path. Tests build their own instance against a
-  /// temp dir.
+  /// Shared production instance. Used by [SecureKeyStorage] and the
+  /// default [BiometricKeyVault] construction path.
   static final LinuxKeychainMarker defaultInstance = LinuxKeychainMarker();
 
-  final Future<String> Function() _supportDirFactory;
-
-  LinuxKeychainMarker({Future<String> Function()? supportDirFactory})
-    : _supportDirFactory = supportDirFactory ?? _defaultSupportDir;
-
-  static Future<String> _defaultSupportDir() async {
-    final dir = await getApplicationSupportDirectory();
-    return dir.path;
-  }
+  LinuxKeychainMarker();
 
   /// True when the marker file is on disk, meaning at least one
   /// prior session wrote a secret into the keychain successfully.
@@ -67,8 +52,7 @@ class LinuxKeychainMarker {
   Future<bool> exists({bool skipOnNonLinux = true}) async {
     if (skipOnNonLinux && !Platform.isLinux) return true;
     try {
-      final dir = await _supportDirFactory();
-      return rust_marker.keychainMarkerExists(supportDir: dir);
+      return rust_marker.keychainMarkerExists();
     } catch (_) {
       return false;
     }
@@ -79,8 +63,7 @@ class LinuxKeychainMarker {
   /// not a counter.
   Future<void> set() async {
     try {
-      final dir = await _supportDirFactory();
-      rust_marker.keychainMarkerSet(supportDir: dir);
+      rust_marker.keychainMarkerSet();
     } on AnyhowException catch (e) {
       AppLogger.instance.log(
         'Failed to write keychain marker: ${e.message}',
@@ -101,8 +84,7 @@ class LinuxKeychainMarker {
   /// disk.
   Future<void> clear() async {
     try {
-      final dir = await _supportDirFactory();
-      rust_marker.keychainMarkerClear(supportDir: dir);
+      rust_marker.keychainMarkerClear();
     } on AnyhowException catch (e) {
       AppLogger.instance.log(
         'Failed to clear keychain marker: ${e.message}',
