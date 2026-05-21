@@ -216,6 +216,10 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   /// vs. tearing down and re-streaming the whole filtered set.
   List<LogEntry>? _lastWrittenSnapshot;
 
+  /// Subscription to [LogStore.changes] — re-syncs the terminal on
+  /// every buffer mutation. Cancelled in [dispose].
+  StreamSubscription<void>? _changesSub;
+
   /// Which severity levels render in the viewer. All three start on;
   /// users can hide info noise to focus on warnings + errors during a
   /// support session.
@@ -239,7 +243,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
     // terminal emulators behave similarly — they don't reflow on
     // resize either, so this is the conventional trade-off.
     _terminal = Terminal(maxLines: 100000);
-    _store.addListener(_syncTerminal);
+    _changesSub = _store.changes.listen((_) => _syncTerminal());
     _syncTerminal();
     // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
     // already kicked the seed at boot. This just reads the
@@ -250,7 +254,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
 
   @override
   void dispose() {
-    _store.removeListener(_syncTerminal);
+    unawaited(_changesSub?.cancel());
     _searchController.dispose();
     super.dispose();
   }
@@ -605,10 +609,11 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
     // selection, right-click context menu, and Ctrl+C copy — none
     // of which go through Flutter's `SelectableRegion` machinery.
     // The "is the buffer empty?" overlay still rebuilds when the
-    // store notifies (via `ListenableBuilder`), so the
-    // localized empty-state stays in sync with `_store.allEntries`.
-    return ListenableBuilder(
-      listenable: _store,
+    // store signals a change (via `StreamBuilder` on `_store.changes`),
+    // so the localized empty-state stays in sync with
+    // `_store.allEntries`.
+    return StreamBuilder<void>(
+      stream: _store.changes,
       builder: (context, _) {
         if (_store.allEntries.isEmpty) {
           return Center(

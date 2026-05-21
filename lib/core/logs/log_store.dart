@@ -1,15 +1,15 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import 'settings_logging_parser.dart';
 import '../../utils/logger.dart';
 
 /// App-level log buffer. Holds every emitted [LogEntry] in memory and
 /// publishes the filtered subset that the Settings → Logs viewer
-/// renders. Backed by a plain [ChangeNotifier] so a `ListenableBuilder`
-/// inside the viewer rebuilds the `ListView.builder` when new entries
-/// arrive or the filter changes.
+/// renders. Emits a payload-free signal on the [changes] broadcast
+/// stream when new entries arrive or the filter changes, so the viewer
+/// rebuilds the `ListView.builder`.
 ///
 /// Lifecycle:
 /// - First touch (typically from `_LetsFLUTsshAppState._bootstrap`
@@ -18,16 +18,30 @@ import '../../utils/logger.dart';
 /// - From then on every routine [AppLogger.log] / [AppLogger.logCritical]
 ///   call emits a [LogEntry] on `AppLogger.liveEntries`; the
 ///   subscription below appends to `_allEntries` (and to
-///   `_filteredEntries` if it passes the active filter), then fires
-///   [notifyListeners] so the viewer scrolls in the new row.
+///   `_filteredEntries` if it passes the active filter), then signals
+///   [changes] so the viewer scrolls in the new row.
 /// - [applyFilter] recomputes `_filteredEntries` against the full
 ///   buffer on level-chip / search changes.
 /// - [clearAll] wipes the in-memory buffer; the on-disk wipe lives
 ///   one layer up in the Settings clear-log action so this class
 ///   stays uncoupled from file-system I/O.
-class LogStore extends ChangeNotifier {
+class LogStore {
   LogStore._() {
     _entriesSub = AppLogger.instance.liveEntries.listen(_onEntry);
+  }
+
+  /// Broadcast change signal — emitted on every buffer mutation so the
+  /// Settings viewer re-renders. A `dart:async` stream (not a Flutter
+  /// `ChangeNotifier`) keeps this store free of any Flutter dependency
+  /// in `core/`; consumers subscribe via [changes].
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  /// Fires (with no payload) after each mutation. Listeners re-read the
+  /// buffer via [allEntries] / [filteredEntries] in their handler.
+  Stream<void> get changes => _changes.stream;
+
+  void _emitChange() {
+    if (!_changes.isClosed) _changes.add(null);
   }
 
   static LogStore? _instance;
@@ -122,7 +136,7 @@ class LogStore extends ChangeNotifier {
   void _applySeed(String content) {
     if (content.isEmpty) {
       _recomputeFiltered();
-      notifyListeners();
+      _emitChange();
       return;
     }
     final seedEntries = parseLogEntries(content);
@@ -137,7 +151,7 @@ class LogStore extends ChangeNotifier {
       ..addAll(_collapseAdjacentBanners(merged));
     _trimIfNeeded();
     _recomputeFiltered();
-    notifyListeners();
+    _emitChange();
   }
 
   /// Walk a list and drop any banner that is immediately followed by
@@ -188,7 +202,7 @@ class LogStore extends ChangeNotifier {
         _isBannerHeader(_allEntries.last)) {
       _allEntries[_allEntries.length - 1] = e;
       _recomputeFiltered();
-      notifyListeners();
+      _emitChange();
       return;
     }
     _allEntries.add(e);
@@ -196,7 +210,7 @@ class LogStore extends ChangeNotifier {
     if (_passesFilter(e)) {
       _filteredEntries = [..._filteredEntries, e];
     }
-    notifyListeners();
+    _emitChange();
   }
 
   /// Test seam — feed an entry through the same path the live
@@ -248,7 +262,7 @@ class LogStore extends ChangeNotifier {
     _visibleLevels = Set.of(visibleLevels);
     _query = query;
     _recomputeFiltered();
-    notifyListeners();
+    _emitChange();
   }
 
   /// Wipe the in-memory buffer. File-side wipe (deleting
@@ -257,15 +271,15 @@ class LogStore extends ChangeNotifier {
   void clearAll() {
     _allEntries.clear();
     _filteredEntries = const [];
-    notifyListeners();
+    _emitChange();
   }
 
-  /// Cancel the live subscription. Intended for tests + a future
-  /// app-shutdown path; production never disposes the singleton.
-  @override
+  /// Cancel the live subscription + close the change stream. Intended
+  /// for tests + a future app-shutdown path; production never disposes
+  /// the singleton.
   Future<void> dispose() async {
     await _entriesSub?.cancel();
     _entriesSub = null;
-    super.dispose();
+    await _changes.close();
   }
 }

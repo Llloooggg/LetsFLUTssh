@@ -39,18 +39,24 @@ void main() {
       expect(s.visibleLevels, equals(Set.of(LogLevel.values)));
     });
 
-    test('appended entries land in both lists when filter is wide-open', () {
-      final s = LogStore.instance;
-      var notified = 0;
-      s.addListener(() => notified++);
+    test(
+      'appended entries land in both lists when filter is wide-open',
+      () async {
+        final s = LogStore.instance;
+        var notified = 0;
+        final sub = s.changes.listen((_) => notified++);
 
-      s.debugInject(routine('a'));
-      s.debugInject(routine('b'));
+        s.debugInject(routine('a'));
+        s.debugInject(routine('b'));
 
-      expect(s.allEntries.map((e) => e.message), ['a', 'b']);
-      expect(s.filteredEntries.map((e) => e.message), ['a', 'b']);
-      expect(notified, 2);
-    });
+        expect(s.allEntries.map((e) => e.message), ['a', 'b']);
+        expect(s.filteredEntries.map((e) => e.message), ['a', 'b']);
+        // Broadcast delivery is async — drain the microtask queue.
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+        expect(notified, 2);
+      },
+    );
 
     test('level filter excludes non-matching entries from filteredEntries', () {
       final s = LogStore.instance;
@@ -123,32 +129,39 @@ void main() {
       expect(s.filteredEntries.map((e) => e.message), ['a', 'b']);
     });
 
-    test('clearAll empties both lists and notifies', () {
+    test('clearAll empties both lists and notifies', () async {
       final s = LogStore.instance;
       s.debugInject(routine('a'));
       s.debugInject(routine('b'));
 
       var notified = false;
-      s.addListener(() => notified = true);
+      final sub = s.changes.listen((_) => notified = true);
 
       s.clearAll();
       expect(s.allEntries, isEmpty);
       expect(s.filteredEntries, isEmpty);
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
       expect(notified, isTrue);
     });
 
-    test('listener fires on every append + on filter change + on clear', () {
-      final s = LogStore.instance;
-      var n = 0;
-      s.addListener(() => n++);
+    test(
+      'listener fires on every append + on filter change + on clear',
+      () async {
+        final s = LogStore.instance;
+        var n = 0;
+        final sub = s.changes.listen((_) => n++);
 
-      s.debugInject(routine('a'));
-      s.debugInject(routine('b'));
-      s.applyFilter(visibleLevels: {LogLevel.info}, query: '');
-      s.clearAll();
+        s.debugInject(routine('a'));
+        s.debugInject(routine('b'));
+        s.applyFilter(visibleLevels: {LogLevel.info}, query: '');
+        s.clearAll();
 
-      expect(n, 4);
-    });
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+        expect(n, 4);
+      },
+    );
   });
 
   group('LogStore.ensureSeeded merge', () {
