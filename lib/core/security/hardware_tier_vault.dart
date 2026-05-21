@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/logger.dart';
@@ -86,19 +85,15 @@ class HardwareTierVault {
         // Linux orchestrator co-locates salt + sealed inside
         // `hardware_vault.bin` — single-file presence is the
         // whole contract.
-        final dir = await getApplicationSupportDirectory();
-        return await rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
+        return await rust_vault.hardwareTierVaultIsStored();
       }
       // Apple / Android / Windows keep the wrapped key inside the
       // platform vault; the salt rides next to it on disk under
       // `hardware_vault_salt.bin`. Both halves required —
       // half-wiped state is a reset, not an unlock.
-      final dir = await getApplicationSupportDirectory();
-      final salt = await rust_vault.hardwareTierVaultReadSalt(
-        supportDir: dir.path,
-      );
+      final salt = await rust_vault.hardwareTierVaultReadSalt();
       if (salt == null) return false;
-      return await rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
+      return await rust_vault.hardwareTierVaultIsStored();
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.isStored failed: $e',
@@ -121,7 +116,6 @@ class HardwareTierVault {
     try {
       if (!await isAvailable()) return false;
       try {
-        final dir = await getApplicationSupportDirectory();
         // Salt provision, HMAC, and platform-vault store all run
         // inside the same Rust task — the PIN crosses FRB once
         // into `hardwareTierVaultStoreWithPin` and the derived
@@ -132,7 +126,6 @@ class HardwareTierVault {
         // "not configured" and the next attempt re-provisions
         // cleanly.
         await rust_vault.hardwareTierVaultStoreWithPin(
-          supportDir: dir.path,
           dbKey: dbKey,
           pin: pin ?? '',
         );
@@ -162,7 +155,6 @@ class HardwareTierVault {
     try {
       if (!await isAvailable()) return false;
       try {
-        final dir = await getApplicationSupportDirectory();
         // Salt-then-vault ordering: same rationale as `store`.
         // Failing the salt provision before touching the vault
         // means the live state stays whatever it was before this
@@ -173,7 +165,6 @@ class HardwareTierVault {
         // a sibling file. The PIN crosses FRB once into the
         // combined call and the HMAC happens Rust-side.
         await rust_vault.hardwareTierVaultStoreFromSecretWithPin(
-          supportDir: dir.path,
           secretId: secretId,
           pin: pin ?? '',
         );
@@ -205,7 +196,6 @@ class HardwareTierVault {
     try {
       if (!await isAvailable()) return null;
       try {
-        final dir = await getApplicationSupportDirectory();
         // Combined read: salt resolution (Linux co-located inside
         // `hardware_vault.bin`, others sibling
         // `hardware_vault_salt.bin`), HMAC under that salt, and
@@ -213,10 +203,7 @@ class HardwareTierVault {
         // task. The PIN crosses FRB once into
         // `hardwareTierVaultReadWithPin` and the derived auth
         // value never leaves Rust.
-        return await rust_vault.hardwareTierVaultReadWithPin(
-          supportDir: dir.path,
-          pin: pin ?? '',
-        );
+        return await rust_vault.hardwareTierVaultReadWithPin(pin: pin ?? '');
       } catch (e) {
         AppLogger.instance.log(
           'HardwareTierVault.read (Rust): $e',
@@ -253,10 +240,7 @@ class HardwareTierVault {
   /// it up.
   Future<bool> isBiometricPasswordStored() async {
     try {
-      final dir = await getApplicationSupportDirectory();
-      return await rust_vault.hardwareTierVaultIsBiometricPasswordStored(
-        supportDir: dir.path,
-      );
+      return await rust_vault.hardwareTierVaultIsBiometricPasswordStored();
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.isBiometricPasswordStored failed: $e',
@@ -271,8 +255,7 @@ class HardwareTierVault {
   Future<void> clear() async {
     try {
       try {
-        final dir = await getApplicationSupportDirectory();
-        await rust_vault.hardwareTierVaultClear(supportDir: dir.path);
+        await rust_vault.hardwareTierVaultClear();
       } catch (e) {
         // Best-effort — the salt file is authoritative for "is
         // stored" on Apple / Android / Windows, so failing the
@@ -291,8 +274,7 @@ class HardwareTierVault {
       // file; drop it Rust-side now. Linux co-locates the salt
       // inside the envelope and is already cleared above.
       if (!Platform.isLinux) {
-        final dir = await getApplicationSupportDirectory();
-        await rust_vault.hardwareTierVaultDeleteSalt(supportDir: dir.path);
+        await rust_vault.hardwareTierVaultDeleteSalt();
       }
     } catch (e) {
       AppLogger.instance.log(

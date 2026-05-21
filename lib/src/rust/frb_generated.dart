@@ -1165,23 +1165,17 @@ abstract class RustLibApi extends BaseApi {
 
   DbFrbError crateApiFrbErrFrbErrorFromWire({required String wire});
 
-  Future<void> crateApiHardwareTierVaultHardwareTierVaultClear({
-    required String supportDir,
-  });
+  Future<void> crateApiHardwareTierVaultHardwareTierVaultClear();
 
   Future<void>
-  crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword({
-    required String supportDir,
-  });
+  crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword();
 
   DbHardwareTierLinuxBlob
   crateApiHardwareTierVaultHardwareTierVaultDecodeLinuxBlob({
     required String blob,
   });
 
-  Future<void> crateApiHardwareTierVaultHardwareTierVaultDeleteSalt({
-    required String supportDir,
-  });
+  Future<void> crateApiHardwareTierVaultHardwareTierVaultDeleteSalt();
 
   String crateApiHardwareTierVaultHardwareTierVaultEncodeLinuxBlob({
     required List<int> salt,
@@ -1191,46 +1185,31 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsAvailable();
 
   Future<bool>
-  crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
-    required String supportDir,
-  });
+  crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored();
 
-  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsStored({
-    required String supportDir,
-  });
+  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsStored();
 
   Future<String> crateApiHardwareTierVaultHardwareTierVaultProbeDetail();
 
-  Future<Uint8List> crateApiHardwareTierVaultHardwareTierVaultProvisionSalt({
-    required String supportDir,
-  });
+  Future<Uint8List> crateApiHardwareTierVaultHardwareTierVaultProvisionSalt();
 
   Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultRead({
-    required String supportDir,
     required List<int> pinHmac,
   });
 
   Future<Uint8List?>
-  crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword({
-    required String supportDir,
-  });
+  crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword();
 
-  Uint8List? crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt({
-    required String supportDir,
-  });
+  Uint8List? crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt();
 
-  Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultReadSalt({
-    required String supportDir,
-  });
+  Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultReadSalt();
 
   Future<bool> crateApiHardwareTierVaultHardwareTierVaultReadToSecret({
-    required String supportDir,
     required List<int> pinHmac,
     required String secretId,
   });
 
   Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultReadWithPin({
-    required String supportDir,
     required String pin,
   });
 
@@ -1243,7 +1222,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiHardwareTierVaultHardwareTierVaultStore({
-    required String supportDir,
     required List<int> dbKey,
     required List<int> salt,
     required List<int> pinHmac,
@@ -1251,12 +1229,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void>
   crateApiHardwareTierVaultHardwareTierVaultStoreBiometricPassword({
-    required String supportDir,
     required List<int> passwordBytes,
   });
 
   Future<void> crateApiHardwareTierVaultHardwareTierVaultStoreFromSecret({
-    required String supportDir,
     required String secretId,
     required List<int> salt,
     required List<int> pinHmac,
@@ -1264,13 +1240,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void>
   crateApiHardwareTierVaultHardwareTierVaultStoreFromSecretWithPin({
-    required String supportDir,
     required String secretId,
     required String pin,
   });
 
   Future<void> crateApiHardwareTierVaultHardwareTierVaultStoreWithPin({
-    required String supportDir,
     required List<int> dbKey,
     required String pin,
   });
@@ -11526,14 +11500,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "frb_error_from_wire", argNames: ["wire"]);
 
   @override
-  Future<void> crateApiHardwareTierVaultHardwareTierVaultClear({
-    required String supportDir,
-  }) {
+  Future<void> crateApiHardwareTierVaultHardwareTierVaultClear() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11546,28 +11517,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiHardwareTierVaultHardwareTierVaultClearConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultClearConstMeta =>
-      const TaskConstMeta(
-        debugName: "hardware_tier_vault_clear",
-        argNames: ["supportDir"],
-      );
+      const TaskConstMeta(debugName: "hardware_tier_vault_clear", argNames: []);
 
   @override
   Future<void>
-  crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword({
-    required String supportDir,
-  }) {
+  crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11581,7 +11546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultClearBiometricPasswordConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11591,7 +11556,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultClearBiometricPasswordConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_clear_biometric_password",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
@@ -11630,14 +11595,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiHardwareTierVaultHardwareTierVaultDeleteSalt({
-    required String supportDir,
-  }) {
+  Future<void> crateApiHardwareTierVaultHardwareTierVaultDeleteSalt() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11651,7 +11613,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultDeleteSaltConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11661,7 +11623,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultDeleteSaltConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_delete_salt",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
@@ -11734,14 +11696,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<bool>
-  crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
-    required String supportDir,
-  }) {
+  crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11755,7 +11714,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStoredConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11765,18 +11724,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStoredConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_is_biometric_password_stored",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsStored({
-    required String supportDir,
-  }) {
+  Future<bool> crateApiHardwareTierVaultHardwareTierVaultIsStored() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11789,7 +11745,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiHardwareTierVaultHardwareTierVaultIsStoredConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11799,7 +11755,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultIsStoredConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_is_stored",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
@@ -11835,14 +11791,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Uint8List> crateApiHardwareTierVaultHardwareTierVaultProvisionSalt({
-    required String supportDir,
-  }) {
+  Future<Uint8List> crateApiHardwareTierVaultHardwareTierVaultProvisionSalt() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11856,7 +11809,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultProvisionSaltConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11866,19 +11819,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultProvisionSaltConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_provision_salt",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultRead({
-    required String supportDir,
     required List<int> pinHmac,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(pinHmac, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -11892,7 +11843,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiHardwareTierVaultHardwareTierVaultReadConstMeta,
-        argValues: [supportDir, pinHmac],
+        argValues: [pinHmac],
         apiImpl: this,
       ),
     );
@@ -11901,19 +11852,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultReadConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_read",
-        argNames: ["supportDir", "pinHmac"],
+        argNames: ["pinHmac"],
       );
 
   @override
   Future<Uint8List?>
-  crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword({
-    required String supportDir,
-  }) {
+  crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11927,7 +11875,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultReadBiometricPasswordConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11937,18 +11885,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultReadBiometricPasswordConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_read_biometric_password",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  Uint8List? crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt({
-    required String supportDir,
-  }) {
+  Uint8List? crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11961,7 +11906,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultReadBlobSaltConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -11971,18 +11916,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultReadBlobSaltConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_read_blob_salt",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultReadSalt({
-    required String supportDir,
-  }) {
+  Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultReadSalt() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -11995,7 +11937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiHardwareTierVaultHardwareTierVaultReadSaltConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -12005,12 +11947,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultReadSaltConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_read_salt",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
   Future<bool> crateApiHardwareTierVaultHardwareTierVaultReadToSecret({
-    required String supportDir,
     required List<int> pinHmac,
     required String secretId,
   }) {
@@ -12018,7 +11959,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(pinHmac, serializer);
           sse_encode_String(secretId, serializer);
           pdeCallFfi(
@@ -12034,7 +11974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultReadToSecretConstMeta,
-        argValues: [supportDir, pinHmac, secretId],
+        argValues: [pinHmac, secretId],
         apiImpl: this,
       ),
     );
@@ -12044,19 +11984,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultReadToSecretConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_read_to_secret",
-        argNames: ["supportDir", "pinHmac", "secretId"],
+        argNames: ["pinHmac", "secretId"],
       );
 
   @override
   Future<Uint8List?> crateApiHardwareTierVaultHardwareTierVaultReadWithPin({
-    required String supportDir,
     required String pin,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(pin, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -12071,7 +12009,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultReadWithPinConstMeta,
-        argValues: [supportDir, pin],
+        argValues: [pin],
         apiImpl: this,
       ),
     );
@@ -12081,7 +12019,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultReadWithPinConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_read_with_pin",
-        argNames: ["supportDir", "pin"],
+        argNames: ["pin"],
       );
 
   @override
@@ -12134,7 +12072,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<void> crateApiHardwareTierVaultHardwareTierVaultStore({
-    required String supportDir,
     required List<int> dbKey,
     required List<int> salt,
     required List<int> pinHmac,
@@ -12143,7 +12080,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(dbKey, serializer);
           sse_encode_list_prim_u_8_loose(salt, serializer);
           sse_encode_list_prim_u_8_loose(pinHmac, serializer);
@@ -12159,7 +12095,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiHardwareTierVaultHardwareTierVaultStoreConstMeta,
-        argValues: [supportDir, dbKey, salt, pinHmac],
+        argValues: [dbKey, salt, pinHmac],
         apiImpl: this,
       ),
     );
@@ -12168,20 +12104,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultStoreConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_store",
-        argNames: ["supportDir", "dbKey", "salt", "pinHmac"],
+        argNames: ["dbKey", "salt", "pinHmac"],
       );
 
   @override
   Future<void>
   crateApiHardwareTierVaultHardwareTierVaultStoreBiometricPassword({
-    required String supportDir,
     required List<int> passwordBytes,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(passwordBytes, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -12196,7 +12130,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultStoreBiometricPasswordConstMeta,
-        argValues: [supportDir, passwordBytes],
+        argValues: [passwordBytes],
         apiImpl: this,
       ),
     );
@@ -12206,12 +12140,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultStoreBiometricPasswordConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_store_biometric_password",
-        argNames: ["supportDir", "passwordBytes"],
+        argNames: ["passwordBytes"],
       );
 
   @override
   Future<void> crateApiHardwareTierVaultHardwareTierVaultStoreFromSecret({
-    required String supportDir,
     required String secretId,
     required List<int> salt,
     required List<int> pinHmac,
@@ -12220,7 +12153,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(secretId, serializer);
           sse_encode_list_prim_u_8_loose(salt, serializer);
           sse_encode_list_prim_u_8_loose(pinHmac, serializer);
@@ -12237,7 +12169,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultStoreFromSecretConstMeta,
-        argValues: [supportDir, secretId, salt, pinHmac],
+        argValues: [secretId, salt, pinHmac],
         apiImpl: this,
       ),
     );
@@ -12247,13 +12179,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultStoreFromSecretConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_store_from_secret",
-        argNames: ["supportDir", "secretId", "salt", "pinHmac"],
+        argNames: ["secretId", "salt", "pinHmac"],
       );
 
   @override
   Future<void>
   crateApiHardwareTierVaultHardwareTierVaultStoreFromSecretWithPin({
-    required String supportDir,
     required String secretId,
     required String pin,
   }) {
@@ -12261,7 +12192,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_String(secretId, serializer);
           sse_encode_String(pin, serializer);
           pdeCallFfi(
@@ -12277,7 +12207,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultStoreFromSecretWithPinConstMeta,
-        argValues: [supportDir, secretId, pin],
+        argValues: [secretId, pin],
         apiImpl: this,
       ),
     );
@@ -12287,12 +12217,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultStoreFromSecretWithPinConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_store_from_secret_with_pin",
-        argNames: ["supportDir", "secretId", "pin"],
+        argNames: ["secretId", "pin"],
       );
 
   @override
   Future<void> crateApiHardwareTierVaultHardwareTierVaultStoreWithPin({
-    required String supportDir,
     required List<int> dbKey,
     required String pin,
   }) {
@@ -12300,7 +12229,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           sse_encode_list_prim_u_8_loose(dbKey, serializer);
           sse_encode_String(pin, serializer);
           pdeCallFfi(
@@ -12316,7 +12244,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultStoreWithPinConstMeta,
-        argValues: [supportDir, dbKey, pin],
+        argValues: [dbKey, pin],
         apiImpl: this,
       ),
     );
@@ -12326,7 +12254,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiHardwareTierVaultHardwareTierVaultStoreWithPinConstMeta =>
       const TaskConstMeta(
         debugName: "hardware_tier_vault_store_with_pin",
-        argNames: ["supportDir", "dbKey", "pin"],
+        argNames: ["dbKey", "pin"],
       );
 
   @override

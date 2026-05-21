@@ -14,6 +14,16 @@
 //! sees both `lfs_core` and `lfs_os_security`).
 
 use lfs_core::security::hardware_tier_vault as vault;
+use lfs_core::security::master_password;
+
+/// The app-support directory pinned at `config_store_init`, as an owned
+/// `String` for the `spawn_blocking` closures below. Errs (typed) when a
+/// vault op runs before the pin is set.
+fn pinned_support_dir() -> Result<String, String> {
+    master_password::try_pinned_support_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
+}
 #[cfg(not(target_os = "linux"))]
 use lfs_os_security::hardware_tier_vault::HardwareVaultError;
 
@@ -179,7 +189,10 @@ pub async fn hardware_tier_vault_probe_detail() -> String {
     .unwrap_or_else(|_| "unknown".to_string())
 }
 
-pub async fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
+pub async fn hardware_tier_vault_is_stored() -> bool {
+    let Ok(support_dir) = pinned_support_dir() else {
+        return false;
+    };
     tokio::task::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
@@ -194,7 +207,10 @@ pub async fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
     .unwrap_or(false)
 }
 
-pub async fn hardware_tier_vault_is_biometric_password_stored(support_dir: String) -> bool {
+pub async fn hardware_tier_vault_is_biometric_password_stored() -> bool {
+    let Ok(support_dir) = pinned_support_dir() else {
+        return false;
+    };
     tokio::task::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
@@ -217,11 +233,11 @@ pub async fn hardware_tier_vault_is_biometric_password_stored(support_dir: Strin
 /// ignore it and the caller persists it to a sibling
 /// `hardware_vault_salt.bin` separately.
 pub async fn hardware_tier_vault_store(
-    support_dir: String,
     db_key: Vec<u8>,
     salt: Vec<u8>,
     pin_hmac: Vec<u8>,
 ) -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || dispatch_store(&support_dir, &db_key, &salt, &pin_hmac))
         .await
         .map_err(|e| format!("hw_vault store join: {e}"))?
@@ -242,10 +258,10 @@ pub async fn hardware_tier_vault_store(
 /// theft is still mitigated); there is simply no user-typed gate
 /// on top.
 pub async fn hardware_tier_vault_store_with_pin(
-    support_dir: String,
     db_key: Vec<u8>,
     pin: String,
 ) -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         let dir = std::path::Path::new(&support_dir);
         let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir)
@@ -266,11 +282,11 @@ pub async fn hardware_tier_vault_store_with_pin(
 /// also feed the same id into `db_rekey_from_secret` (rusqlite/
 /// SQLCipher rekey) before dropping the ref.
 pub async fn hardware_tier_vault_store_from_secret(
-    support_dir: String,
     secret_id: String,
     salt: Vec<u8>,
     pin_hmac: Vec<u8>,
 ) -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         let bytes = lfs_core::app::instance()
             .secrets
@@ -288,10 +304,10 @@ pub async fn hardware_tier_vault_store_from_secret(
 /// salt — both the DB-key bytes and the auth value stay Rust-side.
 /// PIN crosses FRB once into this call and never returns.
 pub async fn hardware_tier_vault_store_from_secret_with_pin(
-    support_dir: String,
     secret_id: String,
     pin: String,
 ) -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         let dir = std::path::Path::new(&support_dir);
         let bytes = lfs_core::app::instance()
@@ -315,7 +331,8 @@ pub async fn hardware_tier_vault_store_from_secret_with_pin(
 /// caller's responsibility — a crash between this write and the
 /// vault store leaves the next launch with a sibling salt and no
 /// wrapped key, which `is_stored` surfaces as "not configured".
-pub async fn hardware_tier_vault_provision_salt(support_dir: String) -> Result<Vec<u8>, String> {
+pub async fn hardware_tier_vault_provision_salt() -> Result<Vec<u8>, String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         lfs_core::security::hardware_tier_vault::salt::provision(std::path::Path::new(&support_dir))
             .map_err(|e| format!("hw_vault salt provision: {e}"))
@@ -328,7 +345,8 @@ pub async fn hardware_tier_vault_provision_salt(support_dir: String) -> Result<V
 /// `None` for missing or wrong-length files (clean install /
 /// truncated / tampered) — caller treats every miss as
 /// "no usable salt" and routes the unlock-cancelled path.
-pub async fn hardware_tier_vault_read_salt(support_dir: String) -> Result<Option<Vec<u8>>, String> {
+pub async fn hardware_tier_vault_read_salt() -> Result<Option<Vec<u8>>, String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         lfs_core::security::hardware_tier_vault::salt::read(std::path::Path::new(&support_dir))
             .map_err(|e| format!("hw_vault salt read: {e}"))
@@ -341,7 +359,8 @@ pub async fn hardware_tier_vault_read_salt(support_dir: String) -> Result<Option
 /// tier-reset / tier-switch cascade alongside the platform
 /// vault clear so the sibling artefact does not survive into
 /// the next configure cycle.
-pub async fn hardware_tier_vault_delete_salt(support_dir: String) -> Result<(), String> {
+pub async fn hardware_tier_vault_delete_salt() -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         lfs_core::security::hardware_tier_vault::salt::delete(std::path::Path::new(&support_dir))
             .map_err(|e| format!("hw_vault salt delete: {e}"))
@@ -355,24 +374,22 @@ pub async fn hardware_tier_vault_delete_salt(support_dir: String) -> Result<(), 
 /// on non-Linux targets (Apple / Android keep the salt in a
 /// sibling `hardware_vault_salt.bin` file Dart-side).
 #[flutter_rust_bridge::frb(sync)]
-pub fn hardware_tier_vault_read_blob_salt(support_dir: String) -> Option<Vec<u8>> {
+pub fn hardware_tier_vault_read_blob_salt() -> Option<Vec<u8>> {
     #[cfg(target_os = "linux")]
     {
+        let support_dir = pinned_support_dir().ok()?;
         lfs_core::security::hardware_tier_vault::linux::read_blob_salt(&support_dir)
             .ok()
             .flatten()
     }
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = support_dir;
         None
     }
 }
 
-pub async fn hardware_tier_vault_read(
-    support_dir: String,
-    pin_hmac: Vec<u8>,
-) -> Result<Option<Vec<u8>>, String> {
+pub async fn hardware_tier_vault_read(pin_hmac: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || dispatch_read(&support_dir, &pin_hmac))
         .await
         .map_err(|e| format!("hw_vault read join: {e}"))?
@@ -390,10 +407,8 @@ pub async fn hardware_tier_vault_read(
 /// salt / vault, wrong PIN). Empty `pin` derives the empty
 /// auth value — a vault sealed under the passwordless arm unseals
 /// the same way.
-pub async fn hardware_tier_vault_read_with_pin(
-    support_dir: String,
-    pin: String,
-) -> Result<Option<Vec<u8>>, String> {
+pub async fn hardware_tier_vault_read_with_pin(pin: String) -> Result<Option<Vec<u8>>, String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         let Some(salt) = read_existing_salt(&support_dir)? else {
             return Ok(None);
@@ -435,10 +450,10 @@ fn derive_auth_for_pin(pin: &str, salt: &[u8]) -> Vec<u8> {
 /// successful unwrap, `Ok(false)` on missing vault file / wrong
 /// PIN, `Err(_)` on backend errors.
 pub async fn hardware_tier_vault_read_to_secret(
-    support_dir: String,
     pin_hmac: Vec<u8>,
     secret_id: String,
 ) -> Result<bool, String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || match dispatch_read(&support_dir, &pin_hmac)? {
         Some(bytes) if !bytes.is_empty() => {
             lfs_core::app::instance().secrets.put(&secret_id, &bytes);
@@ -450,7 +465,8 @@ pub async fn hardware_tier_vault_read_to_secret(
     .map_err(|e| format!("hw_vault read_to_secret join: {e}"))?
 }
 
-pub async fn hardware_tier_vault_clear(support_dir: String) -> Result<(), String> {
+pub async fn hardware_tier_vault_clear() -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || dispatch_clear(&support_dir))
         .await
         .map_err(|e| format!("hw_vault clear join: {e}"))?
@@ -516,9 +532,9 @@ fn dispatch_clear(support_dir: &str) -> Result<(), String> {
 }
 
 pub async fn hardware_tier_vault_store_biometric_password(
-    support_dir: String,
     password_bytes: Vec<u8>,
 ) -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     #[cfg(target_os = "linux")]
     {
         // Linux overlay is async — the fprintd D-Bus probe + TPM2
@@ -545,9 +561,8 @@ pub async fn hardware_tier_vault_store_biometric_password(
     }
 }
 
-pub async fn hardware_tier_vault_read_biometric_password(
-    support_dir: String,
-) -> Result<Option<Vec<u8>>, String> {
+pub async fn hardware_tier_vault_read_biometric_password() -> Result<Option<Vec<u8>>, String> {
+    let support_dir = pinned_support_dir()?;
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::read_biometric_password(&support_dir)
@@ -565,9 +580,8 @@ pub async fn hardware_tier_vault_read_biometric_password(
     }
 }
 
-pub async fn hardware_tier_vault_clear_biometric_password(
-    support_dir: String,
-) -> Result<(), String> {
+pub async fn hardware_tier_vault_clear_biometric_password() -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {

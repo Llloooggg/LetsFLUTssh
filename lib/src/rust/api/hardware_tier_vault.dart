@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `derive_auth_for_pin`, `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_linux_vault_error`, `read_existing_salt`
+// These functions are ignored because they are not marked as `pub`: `derive_auth_for_pin`, `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_linux_vault_error`, `pinned_support_dir`, `read_existing_salt`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Encode the salt + sealed-blob pair as the JSON envelope written
@@ -64,17 +64,13 @@ Future<bool> hardwareTierVaultIsAvailable() => RustLib.instance.api
 Future<String> hardwareTierVaultProbeDetail() => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultProbeDetail();
 
-Future<bool> hardwareTierVaultIsStored({required String supportDir}) => RustLib
+Future<bool> hardwareTierVaultIsStored() =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultIsStored();
+
+Future<bool> hardwareTierVaultIsBiometricPasswordStored() => RustLib
     .instance
     .api
-    .crateApiHardwareTierVaultHardwareTierVaultIsStored(supportDir: supportDir);
-
-Future<bool> hardwareTierVaultIsBiometricPasswordStored({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored(
-      supportDir: supportDir,
-    );
+    .crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored();
 
 /// Store the wrapped DB key under the platform's hardware-tier
 /// vault. `salt` is required for the Linux TPM2 path (gets
@@ -82,12 +78,10 @@ Future<bool> hardwareTierVaultIsBiometricPasswordStored({
 /// ignore it and the caller persists it to a sibling
 /// `hardware_vault_salt.bin` separately.
 Future<void> hardwareTierVaultStore({
-  required String supportDir,
   required List<int> dbKey,
   required List<int> salt,
   required List<int> pinHmac,
 }) => RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultStore(
-  supportDir: supportDir,
   dbKey: dbKey,
   salt: salt,
   pinHmac: pinHmac,
@@ -108,12 +102,10 @@ Future<void> hardwareTierVaultStore({
 /// theft is still mitigated); there is simply no user-typed gate
 /// on top.
 Future<void> hardwareTierVaultStoreWithPin({
-  required String supportDir,
   required List<int> dbKey,
   required String pin,
 }) =>
     RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultStoreWithPin(
-      supportDir: supportDir,
       dbKey: dbKey,
       pin: pin,
     );
@@ -127,13 +119,11 @@ Future<void> hardwareTierVaultStoreWithPin({
 /// also feed the same id into `db_rekey_from_secret` (rusqlite/
 /// SQLCipher rekey) before dropping the ref.
 Future<void> hardwareTierVaultStoreFromSecret({
-  required String supportDir,
   required String secretId,
   required List<int> salt,
   required List<int> pinHmac,
 }) => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultStoreFromSecret(
-      supportDir: supportDir,
       secretId: secretId,
       salt: salt,
       pinHmac: pinHmac,
@@ -145,12 +135,10 @@ Future<void> hardwareTierVaultStoreFromSecret({
 /// salt — both the DB-key bytes and the auth value stay Rust-side.
 /// PIN crosses FRB once into this call and never returns.
 Future<void> hardwareTierVaultStoreFromSecretWithPin({
-  required String supportDir,
   required String secretId,
   required String pin,
 }) => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultStoreFromSecretWithPin(
-      supportDir: supportDir,
       secretId: secretId,
       pin: pin,
     );
@@ -163,47 +151,34 @@ Future<void> hardwareTierVaultStoreFromSecretWithPin({
 /// caller's responsibility — a crash between this write and the
 /// vault store leaves the next launch with a sibling salt and no
 /// wrapped key, which `is_stored` surfaces as "not configured".
-Future<Uint8List> hardwareTierVaultProvisionSalt({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultProvisionSalt(
-      supportDir: supportDir,
-    );
+Future<Uint8List> hardwareTierVaultProvisionSalt() => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultProvisionSalt();
 
 /// Read the on-disk `hardware_vault_salt.bin` sibling file.
 /// `None` for missing or wrong-length files (clean install /
 /// truncated / tampered) — caller treats every miss as
 /// "no usable salt" and routes the unlock-cancelled path.
-Future<Uint8List?> hardwareTierVaultReadSalt({required String supportDir}) =>
-    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadSalt(
-      supportDir: supportDir,
-    );
+Future<Uint8List?> hardwareTierVaultReadSalt() =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadSalt();
 
 /// Idempotent delete of `hardware_vault_salt.bin`. Used by the
 /// tier-reset / tier-switch cascade alongside the platform
 /// vault clear so the sibling artefact does not survive into
 /// the next configure cycle.
-Future<void> hardwareTierVaultDeleteSalt({required String supportDir}) =>
-    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultDeleteSalt(
-      supportDir: supportDir,
-    );
+Future<void> hardwareTierVaultDeleteSalt() =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultDeleteSalt();
 
 /// Read the on-disk salt for the Linux hardware-vault envelope.
 /// Returns `None` for missing / malformed files. No-op `Ok(None)`
 /// on non-Linux targets (Apple / Android keep the salt in a
 /// sibling `hardware_vault_salt.bin` file Dart-side).
-Uint8List? hardwareTierVaultReadBlobSalt({required String supportDir}) =>
-    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt(
-      supportDir: supportDir,
-    );
+Uint8List? hardwareTierVaultReadBlobSalt() => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt();
 
-Future<Uint8List?> hardwareTierVaultRead({
-  required String supportDir,
-  required List<int> pinHmac,
-}) => RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultRead(
-  supportDir: supportDir,
-  pinHmac: pinHmac,
-);
+Future<Uint8List?> hardwareTierVaultRead({required List<int> pinHmac}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultRead(
+      pinHmac: pinHmac,
+    );
 
 /// Combined read-salt + derive-auth + unseal. Resolves the on-disk
 /// salt for the current target (Linux pulls it from inside
@@ -217,12 +192,8 @@ Future<Uint8List?> hardwareTierVaultRead({
 /// salt / vault, wrong PIN). Empty `pin` derives the empty
 /// auth value — a vault sealed under the passwordless arm unseals
 /// the same way.
-Future<Uint8List?> hardwareTierVaultReadWithPin({
-  required String supportDir,
-  required String pin,
-}) =>
+Future<Uint8List?> hardwareTierVaultReadWithPin({required String pin}) =>
     RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadWithPin(
-      supportDir: supportDir,
       pin: pin,
     );
 
@@ -233,43 +204,31 @@ Future<Uint8List?> hardwareTierVaultReadWithPin({
 /// successful unwrap, `Ok(false)` on missing vault file / wrong
 /// PIN, `Err(_)` on backend errors.
 Future<bool> hardwareTierVaultReadToSecret({
-  required String supportDir,
   required List<int> pinHmac,
   required String secretId,
 }) =>
     RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadToSecret(
-      supportDir: supportDir,
       pinHmac: pinHmac,
       secretId: secretId,
     );
 
-Future<void> hardwareTierVaultClear({required String supportDir}) => RustLib
-    .instance
-    .api
-    .crateApiHardwareTierVaultHardwareTierVaultClear(supportDir: supportDir);
+Future<void> hardwareTierVaultClear() =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultClear();
 
 Future<void> hardwareTierVaultStoreBiometricPassword({
-  required String supportDir,
   required List<int> passwordBytes,
 }) => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultStoreBiometricPassword(
-      supportDir: supportDir,
       passwordBytes: passwordBytes,
     );
 
-Future<Uint8List?> hardwareTierVaultReadBiometricPassword({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword(
-      supportDir: supportDir,
-    );
+Future<Uint8List?> hardwareTierVaultReadBiometricPassword() => RustLib
+    .instance
+    .api
+    .crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword();
 
-Future<void> hardwareTierVaultClearBiometricPassword({
-  required String supportDir,
-}) => RustLib.instance.api
-    .crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword(
-      supportDir: supportDir,
-    );
+Future<void> hardwareTierVaultClearBiometricPassword() => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword();
 
 /// FRB mirror of `lfs_core::security::hardware_tier_vault::LinuxBlob`.
 class DbHardwareTierLinuxBlob {

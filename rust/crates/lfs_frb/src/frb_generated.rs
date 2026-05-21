@@ -10913,15 +10913,12 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_clear_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_clear(
-                            api_support_dir,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::hardware_tier_vault::hardware_tier_vault_clear().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -10939,9 +10936,9 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_clear_biometric_pa
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_clear_biometric_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_clear_biometric_password(api_support_dir).await?;   Ok(output_ok)
+                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_clear_biometric_password().await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -11000,16 +10997,13 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_delete_salt_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::hardware_tier_vault::hardware_tier_vault_delete_salt(
-                                api_support_dir,
-                            )
-                            .await?;
+                            crate::api::hardware_tier_vault::hardware_tier_vault_delete_salt()
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -11100,9 +11094,9 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_biometric_passw
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_is_biometric_password_stored", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            deserializer.end(); move |context| async move {
                     transform_result_sse::<_, ()>((move || async move {
-                         let output_ok = Result::<_,()>::Ok(crate::api::hardware_tier_vault::hardware_tier_vault_is_biometric_password_stored(api_support_dir).await)?;   Ok(output_ok)
+                         let output_ok = Result::<_,()>::Ok(crate::api::hardware_tier_vault::hardware_tier_vault_is_biometric_password_stored().await)?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -11128,16 +11122,12 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_is_stored_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok(
-                            crate::api::hardware_tier_vault::hardware_tier_vault_is_stored(
-                                api_support_dir,
-                            )
-                            .await,
+                            crate::api::hardware_tier_vault::hardware_tier_vault_is_stored().await,
                         )?;
                         Ok(output_ok)
                     })()
@@ -11207,16 +11197,13 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_provision_salt_imp
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::hardware_tier_vault::hardware_tier_vault_provision_salt(
-                                api_support_dir,
-                            )
-                            .await?;
+                            crate::api::hardware_tier_vault::hardware_tier_vault_provision_salt()
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -11247,17 +11234,14 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_pin_hmac = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_read(
-                            api_support_dir,
-                            api_pin_hmac,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::hardware_tier_vault::hardware_tier_vault_read(api_pin_hmac)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -11275,9 +11259,9 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_biometric_pas
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_read_biometric_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_read_biometric_password(api_support_dir).await?;   Ok(output_ok)
+                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_read_biometric_password().await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -11302,13 +11286,10 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_blob_salt_imp
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::hardware_tier_vault::hardware_tier_vault_read_blob_salt(
-                        api_support_dir,
-                    ),
+                    crate::api::hardware_tier_vault::hardware_tier_vault_read_blob_salt(),
                 )?;
                 Ok(output_ok)
             })())
@@ -11337,16 +11318,13 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_salt_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::hardware_tier_vault::hardware_tier_vault_read_salt(
-                                api_support_dir,
-                            )
-                            .await?;
+                            crate::api::hardware_tier_vault::hardware_tier_vault_read_salt()
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -11377,7 +11355,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_to_secret_imp
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_pin_hmac = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_secret_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -11386,7 +11363,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_to_secret_imp
                     (move || async move {
                         let output_ok =
                             crate::api::hardware_tier_vault::hardware_tier_vault_read_to_secret(
-                                api_support_dir,
                                 api_pin_hmac,
                                 api_secret_id,
                             )
@@ -11421,7 +11397,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_with_pin_impl
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_pin = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
@@ -11429,7 +11404,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_read_with_pin_impl
                     (move || async move {
                         let output_ok =
                             crate::api::hardware_tier_vault::hardware_tier_vault_read_with_pin(
-                                api_support_dir,
                                 api_pin,
                             )
                             .await?;
@@ -11505,7 +11479,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_db_key = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_salt = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_pin_hmac = <Vec<u8>>::sse_decode(&mut deserializer);
@@ -11514,7 +11487,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_impl(
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_store(
-                            api_support_dir,
                             api_db_key,
                             api_salt,
                             api_pin_hmac,
@@ -11537,10 +11509,9 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_biometric_pa
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_store_biometric_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_password_bytes = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_password_bytes = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_store_biometric_password(api_support_dir, api_password_bytes).await?;   Ok(output_ok)
+                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_store_biometric_password(api_password_bytes).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -11566,7 +11537,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_from_secret_
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_secret_id = <String>::sse_decode(&mut deserializer);
             let api_salt = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_pin_hmac = <Vec<u8>>::sse_decode(&mut deserializer);
@@ -11576,7 +11546,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_from_secret_
                     (move || async move {
                         let output_ok =
                             crate::api::hardware_tier_vault::hardware_tier_vault_store_from_secret(
-                                api_support_dir,
                                 api_secret_id,
                                 api_salt,
                                 api_pin_hmac,
@@ -11599,11 +11568,10 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_from_secret_
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "hardware_tier_vault_store_from_secret_with_pin", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_secret_id = <String>::sse_decode(&mut deserializer);
+            let api_secret_id = <String>::sse_decode(&mut deserializer);
 let api_pin = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
-                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_store_from_secret_with_pin(api_support_dir, api_secret_id, api_pin).await?;   Ok(output_ok)
+                         let output_ok = crate::api::hardware_tier_vault::hardware_tier_vault_store_from_secret_with_pin(api_secret_id, api_pin).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -11629,7 +11597,6 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_with_pin_imp
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_support_dir = <String>::sse_decode(&mut deserializer);
             let api_db_key = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_pin = <String>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -11638,9 +11605,7 @@ fn wire__crate__api__hardware_tier_vault__hardware_tier_vault_store_with_pin_imp
                     (move || async move {
                         let output_ok =
                             crate::api::hardware_tier_vault::hardware_tier_vault_store_with_pin(
-                                api_support_dir,
-                                api_db_key,
-                                api_pin,
+                                api_db_key, api_pin,
                             )
                             .await?;
                         Ok(output_ok)
