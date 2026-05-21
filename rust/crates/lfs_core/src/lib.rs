@@ -61,7 +61,6 @@ pub mod platform;
 pub mod portforward;
 pub mod qr_codec_decode;
 pub mod qr_codec_encode;
-pub mod qr_compose;
 pub mod rate_limit;
 pub mod recorder;
 // S3-compatible transport (AWS REST + SigV4 signer + multipart
