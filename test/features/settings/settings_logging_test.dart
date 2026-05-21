@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
-import 'package:letsflutssh/features/settings/settings_logging_parser.dart';
+import 'package:letsflutssh/core/logs/settings_logging_parser.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';

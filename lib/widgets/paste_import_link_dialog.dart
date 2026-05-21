@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../core/qr/qr_scanner.dart';
+import '../platform/qr_scanner.dart';
 import '../core/session/qr_decoded_source.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';

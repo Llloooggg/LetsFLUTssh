@@ -11,7 +11,7 @@ import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/l10n/app_localizations_en.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/utils/format.dart';
 
 import '../helpers/frb_bootstrap.dart';

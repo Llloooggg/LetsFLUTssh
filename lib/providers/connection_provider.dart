@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
 import '../core/connection/connection.dart';
-import '../core/connection/connections_notifier.dart';
-import '../core/connection/foreground_service.dart';
+import 'connections_notifier.dart';
+import '../platform/foreground_service.dart';
 import '../l10n/app_localizations.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import 'locale_provider.dart';

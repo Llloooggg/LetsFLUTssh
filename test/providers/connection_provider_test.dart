@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/connection/connections_notifier.dart';
+import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 
 void main() {

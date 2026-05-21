@@ -17,7 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 
-import '../../helpers/frb_bootstrap.dart';
+import '../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

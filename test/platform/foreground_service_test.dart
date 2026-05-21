@@ -1,7 +1,7 @@
 import 'dart:ui' show Locale;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/connection/foreground_service.dart';
+import 'package:letsflutssh/platform/foreground_service.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
 /// Records all calls to the foreground service binding for verification.

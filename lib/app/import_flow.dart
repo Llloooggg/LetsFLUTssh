@@ -7,7 +7,7 @@ import '../core/import/import_service.dart';
 import '../core/progress/progress_reporter.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
 import '../core/session/qr_decoded_source.dart';
-import '../features/settings/export_import.dart';
+import '../core/import/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
 import '../providers/snippet_provider.dart';

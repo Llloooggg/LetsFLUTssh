@@ -5,7 +5,7 @@ import '../config/app_config.dart';
 import '../security/ssh_key.dart';
 import '../snippets/snippet.dart';
 import '../tags/tag.dart';
-import '../../features/settings/export_import.dart';
+import 'export_import.dart';
 import '../session/session.dart';
 
 /// Per-type row counts from a completed import. Feeds the success toast so

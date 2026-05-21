@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/session/qr_codec.dart';
-import '../features/settings/export_import.dart';
+import '../core/import/export_import.dart';
 import '../theme/app_theme.dart';
 import 'import_preview_dialog.dart';
 

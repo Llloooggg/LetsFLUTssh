@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/config/app_config.dart';
 import '../core/session/qr_codec.dart' show ExportOptions, qrMaxPayloadBytes;
 import '../core/session/session.dart';
-import '../features/settings/export_import.dart';
+import '../core/import/export_import.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
 import '../src/rust/api/config.dart' as rust_config;
 import '../src/rust/api/qr_compose.dart' as rust_compose;

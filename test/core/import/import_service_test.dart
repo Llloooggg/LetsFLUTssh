@@ -5,7 +5,7 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
 

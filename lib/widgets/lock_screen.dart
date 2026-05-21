@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/tier_unlocked_listener.dart';
-import '../core/security/lock_state.dart';
+import '../providers/lock_state.dart';
 import '../core/security/tier_unlock_attempt.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/master_password_provider.dart';

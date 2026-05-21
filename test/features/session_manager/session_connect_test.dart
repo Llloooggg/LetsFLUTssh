@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connections_notifier.dart';
+import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';

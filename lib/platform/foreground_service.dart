@@ -4,8 +4,8 @@ import 'dart:ui' show Locale;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
 
-import '../../l10n/app_localizations.dart';
-import '../../utils/logger.dart';
+import '../l10n/app_localizations.dart';
+import '../utils/logger.dart';
 
 /// Callback required by flutter_foreground_task — runs in isolate.
 /// We don't need periodic work (russh handles SSH-level keep-alive

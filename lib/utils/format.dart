@@ -8,7 +8,7 @@ import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../core/update/update_service.dart'
     show InvalidReleaseSignatureException, ReleaseManifestUnavailableException;
-import '../features/settings/export_import.dart'
+import '../core/import/export_import.dart'
     show
         LfsArchiveTooLargeException,
         LfsArchiveTruncatedException,

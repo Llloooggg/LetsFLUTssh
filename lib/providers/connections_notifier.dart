@@ -4,26 +4,26 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../providers/session_credential_cache_provider.dart';
-import '../../app/navigator_key.dart';
-import '../../l10n/app_localizations.dart';
-import '../../src/rust/api/app.dart' as rust_app;
-import '../../src/rust/api/auth_compose.dart' as rust_auth;
-import '../../src/rust/api/bus.dart' as rust_bus;
-import '../../src/rust/api/connection.dart' as rust_connection;
-import '../../src/rust/api/db.dart' as rust_db;
-import '../../src/rust/api/s3.dart' as rust_s3;
-import '../../src/rust/api/webdav.dart' as rust_webdav;
-import '../../utils/logger.dart';
-import '../../widgets/hardware_key_prompt_dialog.dart';
-import '../bus/app_bus.dart';
-import '../security/session_credential_cache.dart';
-import '../session/session.dart';
-import '../ssh/errors.dart';
-import '../ssh/ssh_config.dart';
-import '../ssh/transport/ssh_transport.dart';
-import 'connection.dart';
-import 'connection_step.dart';
+import 'session_credential_cache_provider.dart';
+import '../app/navigator_key.dart';
+import '../l10n/app_localizations.dart';
+import '../src/rust/api/app.dart' as rust_app;
+import '../src/rust/api/auth_compose.dart' as rust_auth;
+import '../src/rust/api/bus.dart' as rust_bus;
+import '../src/rust/api/connection.dart' as rust_connection;
+import '../src/rust/api/db.dart' as rust_db;
+import '../src/rust/api/s3.dart' as rust_s3;
+import '../src/rust/api/webdav.dart' as rust_webdav;
+import '../utils/logger.dart';
+import '../widgets/hardware_key_prompt_dialog.dart';
+import '../core/bus/app_bus.dart';
+import '../core/security/session_credential_cache.dart';
+import '../core/session/session.dart';
+import '../core/ssh/errors.dart';
+import '../core/ssh/ssh_config.dart';
+import '../core/ssh/transport/ssh_transport.dart';
+import '../core/connection/connection.dart';
+import '../core/connection/connection_step.dart';
 
 /// Active SSH connections — Riverpod-native [Notifier] that owns
 /// the in-memory `Connection` map + connect/reconnect/disconnect

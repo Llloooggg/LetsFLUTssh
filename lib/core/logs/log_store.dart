@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../features/settings/settings_logging_parser.dart';
+import 'settings_logging_parser.dart';
 import '../../utils/logger.dart';
 
 /// App-level log buffer. Holds every emitted [LogEntry] in memory and

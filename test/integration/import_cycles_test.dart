@@ -16,7 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// failure. The pre-runApp boot phase sees a silent process death;
 /// stdout / stderr / log file are all empty. The fault we caught
 /// landed because `lib/utils/logger.dart` imported
-/// `lib/features/settings/settings_logging_parser.dart` which
+/// `lib/core/logs/settings_logging_parser.dart` which
 /// imported `lib/utils/logger.dart` back — a non-late `final
 /// StreamController of LogEntry _entriesController = ...` field
 /// initializer in `AppLogger` could not resolve `LogEntry` and the

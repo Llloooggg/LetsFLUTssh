@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
-import '../core/security/lock_state.dart';
+import '../providers/lock_state.dart';
 import '../core/security/security_tier.dart';
 import '../core/security/session_lock_listener.dart';
 import '../core/security/terminal_scrubber.dart';

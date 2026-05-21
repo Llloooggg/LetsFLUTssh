@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/foreground_service.dart';
+import 'package:letsflutssh/platform/foreground_service.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';

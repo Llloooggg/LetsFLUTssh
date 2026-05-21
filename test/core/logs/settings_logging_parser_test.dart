@@ -15,7 +15,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/features/settings/settings_logging_parser.dart';
+import 'package:letsflutssh/core/logs/settings_logging_parser.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
 void main() {

@@ -5,7 +5,7 @@ import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
 import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/ssh_dir_import_dialog.dart';

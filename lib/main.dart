@@ -30,7 +30,7 @@ import 'core/bus/app_bus.dart';
 import 'core/security/backup_exclusion.dart';
 import 'core/security/kdf_params.dart';
 import 'core/session/session.dart';
-import 'core/security/lock_state.dart';
+import 'providers/lock_state.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/session_lock_listener.dart';
 import 'features/mobile/mobile_shell.dart';

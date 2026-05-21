@@ -1,4 +1,4 @@
-import '../../features/settings/export_import.dart' show LfsPreview;
+import '../import/export_import.dart' show LfsPreview;
 import '../../src/rust/api/archive.dart' as rust_archive;
 
 /// Outcome of decoding a `letsflutssh://import` deep-link or paste-link

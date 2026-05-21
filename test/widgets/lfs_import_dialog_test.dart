@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/widgets/lfs_import_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';

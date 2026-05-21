@@ -6,7 +6,7 @@ import 'package:meta/meta.dart' show isTest;
 import 'package:letsflutssh/app/import_flow.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/qr_decoded_source.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;

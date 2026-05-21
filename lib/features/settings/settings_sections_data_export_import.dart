@@ -338,7 +338,8 @@ class _ExportImportTile extends ConsumerWidget {
         selectedEmptyFolders: emptyFolders,
         config: exportResult.options.includeConfig ? config : null,
         progress: reporter,
-        l10n: l10n,
+        encryptingLabel: l10n.progressEncrypting,
+        writingArchiveLabel: l10n.progressWritingArchive,
       );
       if (context.mounted) {
         Navigator.of(context).pop();

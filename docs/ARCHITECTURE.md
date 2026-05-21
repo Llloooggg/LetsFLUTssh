@@ -71,6 +71,7 @@ flowchart TD
     providers["<b>providers/</b><br/>(Riverpod) global state"]
     widgets["<b>widgets/</b><br/>(reusable)"]
     core["<b>core/</b> (no UI)<br/>SSH, SFTP, sessions, security, config"]
+    platform["<b>platform/</b><br/>Flutter-plugin adapters"]
     themeUtils["<b>theme/</b> + <b>utils/</b>"]
 
     main --> features
@@ -78,11 +79,13 @@ flowchart TD
     main --> widgets
     providers --> features
     features --> core
+    features --> platform
     providers --> core
+    providers --> platform
     providers --> themeUtils
 ```
 
-**Layering principle:** `core/` does not import Flutter. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic.
+**Layering principle:** `core/` holds data + logic + I/O and renders nothing. Flutter-plugin adapters (foreground service, camera bridge) live in `platform/`, not `core/`, so a UI dependency never reaches into the domain layer. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic. (The remaining `path_provider` / `app_links` / xterm couplings inside `core/` are being lifted behind injected seams — tracked as the zero-Flutter-core work; `core/` is not yet fully Flutter-free.)
 
 <a id="self-contained-binary-principle"></a>
 **Self-contained-binary principle:** the released artefact must be **runnable by an end-user with zero manual setup beyond extracting / installing the bundle.** No "first install Python", no "first install JRE", no "first apt install …" as a hard requirement. External OS-level dependencies are allowed **only** when both conditions hold:
@@ -179,7 +182,7 @@ Plaintext password exists in Dart heap on the order of milliseconds between step
 lib/
 ├── main.dart                         # Entry point — `runZonedGuarded(_mainBody)`, RustLib init, single-instance, config preload, runApp. `LetsFLUTsshApp` + `_LetsFLUTsshAppState` (security controller wiring, lifecycle / lock-state listeners) live in `main_app.dart`; `MainScreen` + `_MainScreenState` (deep links, prompt listeners, first-launch banner, update dialog flow) live in `main_screen.dart` — both are `part of 'main.dart';`
 ├── app/                              # App-shell helpers pulled out of main.dart: global error dialog, already-running blocker, toolbar, deep-link wiring, import flow, navigator key, update dialog flow, `SecurityInitController` (migration → unlock → first-launch orchestrator) + `SecurityDialogPrompter` (seam around blocking dialogs — see §14 → Testing the controller), `security_dialogs.dart` (unmounted-fallback wrappers)
-├── core/                             # Business logic (no Flutter imports)
+├── core/                             # Domain logic + I/O, renders nothing (Flutter-plugin adapters live in `platform/`; residual path_provider/app_links/xterm couplings being lifted behind injected seams)
 │   ├── bus/                          # `AppBus` — Dart-side wrapper over the FRB bus subscription. Single global event hub the prompt listeners and notifiers subscribe to.
 │   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
 │   │   ├── rust_db_init.dart         # `lfsCoreDbExists` (existence probe) / `verifyRustDbReadable` (post-unlock SELECT probe) / `ensureRustDbOpen({key, secretId})` (Rust handle bring-up). `dbClose` is invoked directly through the FRB-bridged `lib/src/rust/api/app.dart` shim from auto-lock + the controller.
@@ -196,10 +199,10 @@ lib/
 │   ├── snippets/                     # Snippet model + template engine
 │   ├── tags/                         # Tag model
 │   ├── deeplink/                     # Deep link handling
-│   ├── import/                       # Data import (.lfs, key files)
+│   ├── import/                       # Data import/export orchestration (.lfs archive, key files)
 │   ├── progress/                     # ProgressReporter — phase/step stream consumed by AppProgressBarDialog and connection-progress widgets
-│   ├── qr/                           # QR scanner — native camera bridge (AVFoundation / CameraX) for import flow
 │   └── update/                       # Update checking
+├── platform/                         # Flutter-plugin platform adapters kept out of `core/`: `foreground_service.dart` (flutter_foreground_task), `qr_scanner.dart` (camera bridge via `flutter/services`)
 ├── features/                         # UI modules
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser

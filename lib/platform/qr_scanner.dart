@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-import '../../utils/logger.dart';
+import '../utils/logger.dart';
 
 /// The MethodChannel backing [scanQrCode]. Exposed so tests can mock the
 /// channel handler without the production code branching on `Platform`.

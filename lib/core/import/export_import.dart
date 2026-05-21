@@ -2,15 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/progress/progress_reporter.dart';
-import '../../core/security/kdf_params.dart';
-import '../../core/security/ssh_key.dart';
-import '../../core/session/qr_codec.dart';
-import '../../core/session/session.dart';
-import '../../core/snippets/snippet.dart';
-import '../../core/tags/tag.dart';
-import '../../l10n/app_localizations.dart';
+import '../config/app_config.dart';
+import '../progress/progress_reporter.dart';
+import '../security/kdf_params.dart';
+import '../security/ssh_key.dart';
+import '../session/qr_codec.dart';
+import '../session/session.dart';
+import '../snippets/snippet.dart';
+import '../tags/tag.dart';
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/config.dart' as rust_config;
 import '../../src/rust/api/migration.dart' as rust_migration;
@@ -117,11 +116,12 @@ class ExportImport {
     List<String> selectedEmptyFolders = const [],
     AppConfig? config,
     ProgressReporter? progress,
-    S? l10n,
+    String encryptingLabel = 'Encrypting…',
+    String writingArchiveLabel = 'Writing archive…',
     KdfParams? kdfParams,
     String? appVersion,
   }) async {
-    progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
+    progress?.phase(encryptingLabel);
     final params = kdfParams ?? defaultKdfParams;
     // Strip per-host security + sync slots Rust-side via the typed
     // FRB shim so the Dart code never re-implements the strip-list.
@@ -130,7 +130,7 @@ class ExportImport {
             value: config.toTyped(),
           )
         : '';
-    progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
+    progress?.phase(writingArchiveLabel);
     final byteCount = await rust_archive.dbExportArchive(
       input: rust_archive.DbExportInput(
         options: rust_archive.DbExportOptions(

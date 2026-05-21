@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/lock_state.dart';
+import 'package:letsflutssh/providers/lock_state.dart';
 
 void main() {
   group('LockStateNotifier', () {

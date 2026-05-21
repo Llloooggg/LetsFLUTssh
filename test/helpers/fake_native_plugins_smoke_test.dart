@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/qr/qr_scanner.dart';
+import 'package:letsflutssh/platform/qr_scanner.dart';
 
 import 'fake_native_plugins.dart';
 

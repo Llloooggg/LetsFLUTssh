@@ -4,7 +4,7 @@ import '../core/import/openssh_config_importer.dart';
 import '../core/import/ssh_dir_key_scanner.dart';
 import '../core/security/ssh_key.dart';
 import '../core/session/session.dart';
-import '../features/settings/export_import.dart';
+import '../core/import/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_divider.dart';

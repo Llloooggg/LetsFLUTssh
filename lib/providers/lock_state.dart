@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../src/rust/api/bus.dart' as rust_bus;
-import '../bus/app_bus.dart';
-import '../../utils/logger.dart';
+import '../src/rust/api/bus.dart' as rust_bus;
+import '../core/bus/app_bus.dart';
+import '../utils/logger.dart';
 
 /// Whether the app is currently auto-locked.
 ///

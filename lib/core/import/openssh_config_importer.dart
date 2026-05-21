@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import '../../features/settings/export_import.dart';
+import 'export_import.dart';
 import '../../src/rust/api/openssh_config_import.dart' as rust_import;
 import '../../src/rust/api/ssh_config.dart' as rust_ssh_config;
 import '../../utils/platform.dart';

@@ -43,7 +43,7 @@ enum LogLevel { info, warn, error }
 /// error + stack trace renders under a single tinted row instead
 /// of each indented line fighting for its own left-border.
 ///
-/// Defined here (not in `lib/features/settings/settings_logging_parser.dart`)
+/// Defined here (not in `lib/core/logs/settings_logging_parser.dart`)
 /// because [AppLogger] eagerly constructs a
 /// `StreamController<LogEntry>` field initializer; routing the
 /// type definition through a sibling that imports `logger.dart`

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/session/qr_codec.dart';
-import '../features/settings/export_import.dart';
+import '../core/import/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
