@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import 'export_import.dart';
 import '../../src/rust/api/openssh_config_import.dart' as rust_import;

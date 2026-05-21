@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show VoidCallback, visibleForTesting;
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
@@ -55,16 +55,16 @@ class SessionLockListener {
   }
 
   final Stream<void>? _injectedEvents;
-  final List<VoidCallback> _listeners = [];
+  final List<void Function()> _listeners = [];
 
   bool _installed = false;
   StreamSubscription<void>? _streamSub;
 
   /// Register a callback for OS session-lock events. Calling multiple
   /// times with different callbacks fans out to every listener.
-  /// Returns a `VoidCallback` that, when called, removes the
+  /// Returns a `void Function()` that, when called, removes the
   /// listener — use in `dispose`.
-  VoidCallback addListener(VoidCallback callback) {
+  void Function() addListener(void Function() callback) {
     _listeners.add(callback);
     _ensureInstalled();
     return () => _listeners.remove(callback);
@@ -134,7 +134,7 @@ class SessionLockListener {
   }
 
   void _fanOut() {
-    for (final cb in List<VoidCallback>.from(_listeners)) {
+    for (final cb in List<void Function()>.from(_listeners)) {
       try {
         cb();
       } catch (e) {

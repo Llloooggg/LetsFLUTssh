@@ -1,6 +1,7 @@
+import 'dart:typed_data';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../config/app_config.dart';
 import '../progress/progress_reporter.dart';

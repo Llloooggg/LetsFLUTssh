@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/os_security.dart' as rust_os;

@@ -1,6 +1,7 @@
+import 'dart:typed_data';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/logger.dart';

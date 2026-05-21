@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:meta/meta.dart' show visibleForTesting;
 
 /// Hardware-backed SSH-key backends the key manager can mint or
 /// import from. One variant per native driver exposed by

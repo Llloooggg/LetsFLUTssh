@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/deeplink.dart' as rust_deeplink;
