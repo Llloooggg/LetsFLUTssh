@@ -2,6 +2,7 @@ import '../../core/connection/connection.dart';
 import '../../core/s3/s3_fs.dart';
 import '../../core/session/session.dart';
 import '../../core/sftp/file_system.dart';
+import '../../platform/local_fs.dart';
 import '../../core/sftp/sftp_fs.dart';
 import '../../core/webdav/webdav_fs.dart';
 import '../../utils/logger.dart';

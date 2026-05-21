@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/sftp/file_system.dart';
+import 'package:letsflutssh/platform/local_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 
 import '../../helpers/frb_bootstrap.dart';
