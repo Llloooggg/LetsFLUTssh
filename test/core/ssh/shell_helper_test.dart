@@ -18,6 +18,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/widgets/xterm_shell_terminal.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/shell_helper.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -30,7 +31,10 @@ void main() {
       final conn = _connection(transport: null);
       final terminal = Terminal();
       expect(
-        () => ShellHelper.openShell(connection: conn, terminal: terminal),
+        () => ShellHelper.openShell(
+          connection: conn,
+          terminal: XtermShellTerminal(terminal),
+        ),
         throwsA(isA<StateError>()),
       );
     });
@@ -40,7 +44,10 @@ void main() {
       final conn = _connection(transport: transport);
       final terminal = Terminal();
       expect(
-        () => ShellHelper.openShell(connection: conn, terminal: terminal),
+        () => ShellHelper.openShell(
+          connection: conn,
+          terminal: XtermShellTerminal(terminal),
+        ),
         throwsA(isA<StateError>()),
       );
     });
@@ -53,7 +60,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
       );
 
       shell.sink.add(SshShellOutput(Uint8List.fromList([72, 105])));
@@ -73,7 +80,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
       );
 
       shell.sink.add(
@@ -93,7 +100,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
       );
 
       // 0xC3 0x28 — invalid two-byte UTF-8 (0xC3 starts a continuation
@@ -118,7 +125,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
         onDone: () => doneCalls++,
       );
       shell.sink.add(const SshShellEof());
@@ -137,7 +144,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
         onDone: () => doneCalls++,
       );
       shell.sink.add(const SshShellExitStatus(0));
@@ -156,7 +163,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
         onDone: () => doneCalls++,
       );
       shell.sink.add(const SshShellExitSignal('TERM'));
@@ -181,7 +188,7 @@ void main() {
 
         final result = await ShellHelper.openShell(
           connection: conn,
-          terminal: terminal,
+          terminal: XtermShellTerminal(terminal),
           onDone: () => doneCalls++,
         );
         shell.sink.add(const SshShellExitStatus(0));
@@ -202,7 +209,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
       );
       // Drive a keystroke through the terminal's onOutput sink.
       terminal.onOutput!('ls\n');
@@ -221,7 +228,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
       );
       terminal.onResize!(120, 40, 0, 0);
       await Future<void>.delayed(Duration.zero);
@@ -242,7 +249,7 @@ void main() {
 
         final result = await ShellHelper.openShell(
           connection: conn,
-          terminal: terminal,
+          terminal: XtermShellTerminal(terminal),
         );
         // Drive one event through to confirm the listener is wired,
         // close, and then assert the transport's `close()` ran. The
@@ -272,7 +279,7 @@ void main() {
 
       final result = await ShellHelper.openShell(
         connection: conn,
-        terminal: terminal,
+        terminal: XtermShellTerminal(terminal),
       );
       expect(terminal.onOutput, isNotNull);
       expect(terminal.onResize, isNotNull);

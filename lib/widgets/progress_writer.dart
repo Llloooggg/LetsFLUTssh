@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:xterm/xterm.dart';
 
-import '../../l10n/app_localizations.dart';
-import '../../utils/logger.dart';
-import '../ssh/ssh_config.dart';
-import 'connection_step.dart';
-import 'progress_tracker.dart';
+import '../l10n/app_localizations.dart';
+import '../utils/logger.dart';
+import '../core/ssh/ssh_config.dart';
+import '../core/connection/connection_step.dart';
+import '../core/connection/progress_tracker.dart';
 
 /// ANSI escape codes for terminal progress display.
 abstract final class _Ansi {

@@ -7,10 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
+import '../../widgets/xterm_shell_terminal.dart';
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
-import '../../core/connection/progress_writer.dart';
+import '../../widgets/progress_writer.dart';
 import '../../core/security/terminal_scrubber.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../l10n/app_localizations.dart';
@@ -227,7 +228,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       writer.clear();
       _shellConn = await ShellHelper.openShell(
         connection: conn,
-        terminal: _terminal,
+        terminal: XtermShellTerminal(_terminal),
         onDone: () {
           if (mounted) {
             setState(() => hasError = true);

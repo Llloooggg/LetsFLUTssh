@@ -1,20 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' show VoidCallback;
-
-import 'package:xterm/xterm.dart';
 
 import '../connection/connection.dart';
 import '../session/session_recorder.dart';
 import 'transport/ssh_transport.dart';
+
+/// Minimal terminal surface [ShellHelper] needs. Implemented in the
+/// UI layer by an xterm adapter so `core/` carries no dependency on
+/// the Flutter terminal package — the shell logic only writes output
+/// strings, reads the viewport size, and registers input/resize
+/// callbacks.
+abstract class ShellTerminal {
+  int get viewWidth;
+  int get viewHeight;
+  void write(String data);
+  set onOutput(void Function(String data)? handler);
+  set onResize(void Function(int cols, int rows)? handler);
+}
 
 /// Result of opening an SSH shell on a terminal.
 class ShellConnection {
   final SshShellChannel transportShell;
 
   final StreamSubscription? eventsSub;
-  final Terminal _terminal;
+  final ShellTerminal _terminal;
 
   /// Per-shell recorder. Mutable so the terminal toolbar's runtime
   /// record button can swap it in / out mid-stream — the shell's
@@ -27,7 +37,7 @@ class ShellConnection {
   ShellConnection({
     required this.transportShell,
     this.eventsSub,
-    required Terminal terminal,
+    required ShellTerminal terminal,
     this.recorder,
   }) : _terminal = terminal;
 
@@ -72,7 +82,7 @@ class ShellConnection {
   }
 }
 
-/// Shared logic for connecting an SSH shell to an xterm Terminal.
+/// Shared logic for connecting an SSH shell to a [ShellTerminal].
 ///
 /// Used by both desktop [TerminalPane] and mobile [MobileTerminalView].
 class ShellHelper {
@@ -89,8 +99,8 @@ class ShellHelper {
   /// its own file lifecycle; this helper only feeds bytes.
   static Future<ShellConnection> openShell({
     required Connection connection,
-    required Terminal terminal,
-    VoidCallback? onDone,
+    required ShellTerminal terminal,
+    void Function()? onDone,
     SessionRecorder? recorder,
   }) async {
     final transport = connection.transport;
@@ -137,7 +147,7 @@ class ShellHelper {
       shell.write(bytes);
       shellConn.recorder?.recordInput(bytes);
     };
-    terminal.onResize = (cols, rows, _, _) {
+    terminal.onResize = (cols, rows) {
       shell.resize(cols: cols, rows: rows);
     };
 

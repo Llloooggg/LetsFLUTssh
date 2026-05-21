@@ -6,7 +6,7 @@ import 'package:xterm/xterm.dart';
 import '../core/connection/connection.dart';
 import '../core/connection/connection_step.dart';
 import '../core/connection/progress_tracker.dart';
-import '../core/connection/progress_writer.dart';
+import 'progress_writer.dart';
 import '../l10n/app_localizations.dart';
 import 'readonly_terminal_view.dart';
 

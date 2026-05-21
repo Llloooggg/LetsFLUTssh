@@ -10,11 +10,12 @@ import 'package:xterm/xterm.dart';
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
-import '../../core/connection/progress_writer.dart';
+import '../../widgets/progress_writer.dart';
 import '../../widgets/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
 import '../../core/session/session_recorder.dart';
 import '../../core/ssh/shell_helper.dart';
+import '../../widgets/xterm_shell_terminal.dart';
 import '../../providers/session_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../providers/config_provider.dart';
@@ -44,7 +45,7 @@ import 'pane_recording_registry.dart';
 typedef ShellOpenFactory =
     Future<ShellConnection> Function({
       required Connection connection,
-      required Terminal terminal,
+      required ShellTerminal terminal,
       VoidCallback? onDone,
     });
 
@@ -361,14 +362,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (widget.shellFactory != null) {
       return widget.shellFactory!(
         connection: conn,
-        terminal: _terminal,
+        terminal: XtermShellTerminal(_terminal),
         onDone: onDone,
       );
     }
     final recorder = await _maybeOpenRecorder(conn);
     return ShellHelper.openShell(
       connection: conn,
-      terminal: _terminal,
+      terminal: XtermShellTerminal(_terminal),
       onDone: onDone,
       recorder: recorder,
     );
