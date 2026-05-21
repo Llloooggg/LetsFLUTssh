@@ -262,12 +262,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
                   ? const SizedBox.shrink()
                   : IndexedStack(
                       index: panel.activeTabIndex,
-                      children: panel.tabs.map((tab) {
+                      children: panel.tabs.indexed.map((entry) {
+                        final (idx, tab) = entry;
                         return switch (tab.kind) {
                           TabKind.terminal => TerminalTab(
                             key: _keyForTab(tab.id),
                             tabId: tab.id,
                             connection: tab.connection,
+                            isActive: isFocused && idx == panel.activeTabIndex,
                           ),
                           TabKind.sftp => FileBrowserTab(
                             key: _keyForFileBrowser(tab.id),

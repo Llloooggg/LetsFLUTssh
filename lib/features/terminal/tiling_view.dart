@@ -12,6 +12,11 @@ class TilingView extends StatefulWidget {
   final SplitNode root;
   final Map<String, Connection> paneConnections;
   final String? focusedPaneId;
+
+  /// Whether this tab is the foreground tab of the focused panel — passed
+  /// straight to each [TerminalPane] so the focused pane re-grabs keyboard
+  /// focus when the tab returns to the foreground.
+  final bool isActiveTab;
   final ValueChanged<String> onPaneFocused;
   final ValueChanged<String> onClosePane;
   final ValueChanged<SplitNode> onTreeChanged;
@@ -22,6 +27,7 @@ class TilingView extends StatefulWidget {
     required this.root,
     required this.paneConnections,
     required this.focusedPaneId,
+    required this.isActiveTab,
     required this.onPaneFocused,
     required this.onClosePane,
     required this.onTreeChanged,
@@ -66,6 +72,7 @@ class _TilingViewState extends State<TilingView> {
       tabId: widget.tabId,
       connection: connection,
       isFocused: widget.focusedPaneId == node.id,
+      isActiveTab: widget.isActiveTab,
       hasMultiplePanes: hasMultiplePanes,
       onFocused: () => widget.onPaneFocused(node.id),
       onClose: hasMultiplePanes ? () => widget.onClosePane(node.id) : null,

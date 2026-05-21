@@ -55,6 +55,13 @@ class TerminalPane extends ConsumerStatefulWidget {
   final Connection connection;
   final bool isFocused;
 
+  /// Whether this pane's tab is the foreground tab of the focused panel.
+  /// Distinct from [isFocused] (which pane within the tab): a backgrounded
+  /// tab keeps its panes mounted in the `IndexedStack` with `isFocused`
+  /// unchanged, so only this flag flips when tabs switch. Defaults to true
+  /// for single-pane / mobile callers that have no tab switching.
+  final bool isActiveTab;
+
   /// Whether there are multiple panes in the tiling layout.
   /// Focus border is only shown when this is true.
   final bool hasMultiplePanes;
@@ -78,6 +85,7 @@ class TerminalPane extends ConsumerStatefulWidget {
     super.key,
     required this.connection,
     this.isFocused = false,
+    this.isActiveTab = true,
     this.hasMultiplePanes = false,
     this.paneId,
     this.tabId,
@@ -198,7 +206,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       // with the surrounding workspace shell). Re-asserting it
       // post-frame, when the focus tree is fully assembled, makes
       // the new-session "ready to type immediately" path robust.
-      if (widget.isFocused) _terminalFocus.requestFocus();
+      if (widget.isActiveTab && widget.isFocused) _terminalFocus.requestFocus();
       _connectAndOpenShell();
     });
   }
@@ -465,15 +473,26 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   @override
   void didUpdateWidget(covariant TerminalPane oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isFocused && !widget.isFocused) {
+    // Keyboard ownership = the focused pane of the foreground tab. The tab
+    // can leave the foreground (`isActiveTab` flips) without the in-tab
+    // `isFocused` flag changing, since `IndexedStack` keeps backgrounded
+    // tabs mounted — switching tabs only flips `isActiveTab`.
+    final hadFocus = oldWidget.isActiveTab && oldWidget.isFocused;
+    final hasFocus = widget.isActiveTab && widget.isFocused;
+    if (hadFocus && !hasFocus) {
       _terminalController.clearSelection();
+      // Release keyboard focus when the tab leaves the foreground. The
+      // incoming tab usually steals it via requestFocus, but a tab with no
+      // terminal pane to grab focus (e.g. switching to an SFTP tab) would
+      // otherwise leave this hidden terminal owning the keyboard.
+      if (_terminalFocus.hasFocus) _terminalFocus.unfocus();
     }
-    if (!oldWidget.isFocused && widget.isFocused) {
-      // Tab just became the focused pane — grab focus so the user
-      // can start typing without an extra click. `autofocus` only
-      // fires on initial mount; the post-open "session ready" path
-      // sets `isFocused: true` on a previously-existing widget,
-      // which is exactly the case `autofocus` misses.
+    if (!hadFocus && hasFocus) {
+      // Grab focus so the user can type without an extra click.
+      // `autofocus` only fires on initial mount; both the tab-switch path
+      // (`isActiveTab` flip) and the post-open "session ready" path set the
+      // ownership condition true on a previously-existing widget, which is
+      // exactly what `autofocus` misses.
       _terminalFocus.requestFocus();
     }
   }
@@ -640,7 +659,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       controller: _terminalController,
       focusNode: _terminalFocus,
       fontSize: fontSize,
-      autofocus: widget.isFocused,
+      autofocus: widget.isActiveTab && widget.isFocused,
       hardwareKeyboardOnly: plat.isDesktopPlatform,
       onKeyEvent: _handleTerminalKey,
       onPointerSignal: _onPointerSignal,

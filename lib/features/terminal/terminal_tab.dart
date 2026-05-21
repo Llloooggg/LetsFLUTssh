@@ -20,6 +20,10 @@ typedef ReconnectFactory = Future<void> Function(Connection connection);
 class TerminalTab extends ConsumerStatefulWidget {
   final String tabId;
   final Connection connection;
+
+  /// Whether this tab is the foreground tab of the focused panel. Drives
+  /// keyboard-focus re-grab on tab switch — see [TerminalPane.isActiveTab].
+  final bool isActive;
   final VoidCallback? onDisconnected;
 
   /// Optional factory for testing — bypasses real SSH reconnect.
@@ -29,6 +33,7 @@ class TerminalTab extends ConsumerStatefulWidget {
     super.key,
     required this.tabId,
     required this.connection,
+    this.isActive = true,
     this.onDisconnected,
     this.reconnectFactory,
   });
@@ -151,6 +156,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       root: _root,
       paneConnections: _paneConnections,
       focusedPaneId: _focusedPaneId,
+      isActiveTab: widget.isActive,
       onPaneFocused: (id) {
         setState(() => _focusedPaneId = id);
         ref.read(focusedPaneProvider(widget.tabId).notifier).set(id);

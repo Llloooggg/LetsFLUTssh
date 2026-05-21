@@ -35,16 +35,32 @@ Connection _makeConnectingConnection() {
   );
 }
 
-Widget _host(Connection conn, ProviderContainer container) {
+Widget _host(
+  Connection conn,
+  ProviderContainer container, {
+  bool isActiveTab = true,
+  bool isFocused = false,
+}) {
   return UncontrolledProviderScope(
     container: container,
     child: MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
-      home: Scaffold(body: TerminalPane(connection: conn)),
+      home: Scaffold(
+        body: TerminalPane(
+          connection: conn,
+          isActiveTab: isActiveTab,
+          isFocused: isFocused,
+        ),
+      ),
     ),
   );
 }
+
+/// True when the pane's owned [FocusNode] (debugLabel `TerminalPane`)
+/// currently holds primary keyboard focus.
+bool _paneHasFocus(WidgetTester tester) =>
+    tester.binding.focusManager.primaryFocus?.debugLabel == 'TerminalPane';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -166,4 +182,90 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'a backgrounded tab does not hold keyboard focus, and bringing it to '
+    'the foreground re-grabs it — the tab-switch focus contract',
+    (tester) async {
+      // Switching tabs in the desktop `IndexedStack` keeps backgrounded
+      // panes mounted with their in-tab `isFocused` unchanged; only
+      // `isActiveTab` flips. Keyboard ownership must follow `isActiveTab`,
+      // otherwise the newly-shown terminal stays unfocused until an
+      // OS-level focus round-trip (clicking outside the app).
+      final conn = _makeConnectingConnection();
+      final container = ProviderContainer(
+        overrides: [
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager([conn]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Mounted as the focused pane of a *backgrounded* tab.
+      await tester.pumpWidget(
+        _host(conn, container, isActiveTab: false, isFocused: true),
+      );
+      await tester.pump(); // fire the post-frame focus check
+      expect(
+        _paneHasFocus(tester),
+        isFalse,
+        reason:
+            'A backgrounded tab must not autofocus on mount even when it '
+            'owns the focused pane within its own tab.',
+      );
+
+      // Tab brought to the foreground — only `isActiveTab` flips.
+      await tester.pumpWidget(
+        _host(conn, container, isActiveTab: true, isFocused: true),
+      );
+      await tester.pump();
+      expect(
+        _paneHasFocus(tester),
+        isTrue,
+        reason:
+            'didUpdateWidget must re-grab focus when (isActiveTab && '
+            'isFocused) flips false→true, so the foreground terminal is '
+            'ready to type without an extra click.',
+      );
+
+      conn.state = SSHConnectionState.disconnected;
+      conn.completeReady();
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets('sending a tab to the background drops its keyboard focus', (
+    tester,
+  ) async {
+    final conn = _makeConnectingConnection();
+    final container = ProviderContainer(
+      overrides: [
+        connectionsProvider.overrideWith(() => _StubConnectionManager([conn])),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      _host(conn, container, isActiveTab: true, isFocused: true),
+    );
+    await tester.pump();
+    expect(_paneHasFocus(tester), isTrue);
+
+    await tester.pumpWidget(
+      _host(conn, container, isActiveTab: false, isFocused: true),
+    );
+    await tester.pump();
+    expect(
+      _paneHasFocus(tester),
+      isFalse,
+      reason:
+          'When the tab leaves the foreground the pane must release focus '
+          'so input never routes to a hidden terminal.',
+    );
+
+    conn.state = SSHConnectionState.disconnected;
+    conn.completeReady();
+    await tester.pumpAndSettle();
+  });
 }
