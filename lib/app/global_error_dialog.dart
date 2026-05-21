@@ -6,8 +6,8 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/sanitize.dart';
-import '../widgets/app_dialog.dart';
-import '../widgets/toast.dart';
+import '../widgets/core/app_dialog.dart';
+import '../widgets/core/toast.dart';
 
 /// Shows a user-friendly error dialog for unhandled async errors.
 ///

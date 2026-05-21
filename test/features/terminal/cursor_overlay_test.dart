@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/terminal/cursor_overlay.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/terminal_cell_metrics.dart';
+import 'package:letsflutssh/widgets/terminal/terminal_cell_metrics.dart';
 import 'package:xterm/xterm.dart';
 
 /// Wraps [child] in a MaterialApp with theme and localization.

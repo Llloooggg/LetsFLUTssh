@@ -5,14 +5,14 @@ import 'package:uuid/uuid.dart';
 /// Stays Flutter-package-free — the [Tag] model is plain data so
 /// `core/tags/` can be consumed by tests / future headless tools
 /// without dragging in `package:flutter`. UI-side helpers (the
-/// [Color] resolver) live in `lib/widgets/tag_color.dart`.
+/// [Color] resolver) live in `lib/widgets/core/tag_color.dart`.
 class Tag {
   final String id;
   final String name;
 
   /// Hex color string (e.g. '#FF5722'), or null for default.
   /// The Flutter [Color] resolution lives in the
-  /// `lib/widgets/tag_color.dart` extension.
+  /// `lib/widgets/core/tag_color.dart` extension.
   final String? color;
   final DateTime createdAt;
 

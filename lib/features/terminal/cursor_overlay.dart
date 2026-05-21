@@ -5,8 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/app_terminal_view.dart';
-import '../../widgets/terminal_cell_metrics.dart';
+import '../../widgets/terminal/app_terminal_view.dart';
+import '../../widgets/terminal/terminal_cell_metrics.dart';
 
 /// Overlay that paints the character under the block cursor with an inverted
 /// color so it stays readable.  xterm-flutter draws the cursor as a solid
@@ -19,7 +19,7 @@ import '../../widgets/terminal_cell_metrics.dart';
 /// Cell sizing routes through the shared [measureMonoCell] helper so this
 /// overlay, the mobile copy overlay, and the recording playback host all
 /// land pixels on the same xterm-flutter cell grid — see
-/// `widgets/terminal_cell_metrics.dart` for the algorithm.
+/// `widgets/terminal/terminal_cell_metrics.dart` for the algorithm.
 
 class CursorTextOverlay extends StatefulWidget {
   const CursorTextOverlay({

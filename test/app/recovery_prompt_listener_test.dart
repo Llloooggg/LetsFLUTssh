@@ -17,8 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/recovery_prompt_listener.dart';
 import 'package:letsflutssh/src/rust/api/bus.dart' as rust_bus;
 import 'package:letsflutssh/src/rust/frb_generated.dart' show RustLib;
-import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
-import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
+import 'package:letsflutssh/widgets/security/db_corrupt_dialog.dart';
+import 'package:letsflutssh/widgets/security/tier_reset_dialog.dart';
 
 import '../helpers/frb_bootstrap.dart';
 

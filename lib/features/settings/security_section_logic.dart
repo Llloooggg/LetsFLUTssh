@@ -16,7 +16,7 @@ import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/macos_resign.dart' show MacosResignOutcome;
 import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
-import '../../widgets/expandable_tier_card.dart';
+import '../../widgets/security/expandable_tier_card.dart';
 
 /// Localised tooltip explaining why biometric is unreachable on this
 /// platform, or `null` when the device is biometric-capable. `probed`

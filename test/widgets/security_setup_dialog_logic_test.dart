@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart'
     show WizardTier;
-import 'package:letsflutssh/widgets/security_setup_dialog_logic.dart';
+import 'package:letsflutssh/widgets/security/security_setup_dialog_logic.dart';
 
 void main() {
   group('wizardBiometricToggleEnabled', () {

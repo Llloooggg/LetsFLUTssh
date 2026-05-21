@@ -14,10 +14,10 @@ import '../providers/snippet_provider.dart';
 import '../providers/tag_provider.dart';
 import '../utils/format.dart';
 import '../utils/logger.dart';
-import '../widgets/app_dialog.dart';
-import '../widgets/lfs_import_dialog.dart';
-import '../widgets/link_import_preview_dialog.dart';
-import '../widgets/toast.dart';
+import '../widgets/core/app_dialog.dart';
+import '../widgets/import_export/lfs_import_dialog.dart';
+import '../widgets/import_export/link_import_preview_dialog.dart';
+import '../widgets/core/toast.dart';
 import 'navigator_key.dart';
 
 /// Side-effect seams for the LFS / QR / paste-link import dispatchers

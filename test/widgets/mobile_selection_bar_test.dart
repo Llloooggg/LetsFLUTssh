@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/mobile_selection_bar.dart';
+import 'package:letsflutssh/widgets/core/mobile_selection_bar.dart';
 
 void main() {
   Widget wrap(Widget child) {

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
-import '../../widgets/hover_region.dart';
-import '../../widgets/sortable_header_cell.dart';
+import '../../widgets/core/hover_region.dart';
+import '../../widgets/core/sortable_header_cell.dart';
 
 /// File extensions grouped by type for icon/color mapping.
 const _imageExts = {

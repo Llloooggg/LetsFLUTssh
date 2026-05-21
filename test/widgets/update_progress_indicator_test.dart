@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
-import 'package:letsflutssh/widgets/update_progress_indicator.dart';
+import 'package:letsflutssh/widgets/terminal/update_progress_indicator.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,

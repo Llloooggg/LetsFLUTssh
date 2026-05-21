@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/app/security_dialogs.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
-import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
+import 'package:letsflutssh/widgets/security/db_corrupt_dialog.dart';
+import 'package:letsflutssh/widgets/security/tier_reset_dialog.dart';
 
 import '../helpers/fake_security.dart';
 

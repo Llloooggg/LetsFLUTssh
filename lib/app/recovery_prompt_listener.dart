@@ -6,8 +6,8 @@ import '../core/bus/app_bus.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/recovery.dart' as rust_recovery;
 import '../utils/logger.dart';
-import '../widgets/db_corrupt_dialog.dart';
-import '../widgets/tier_reset_dialog.dart';
+import '../widgets/security/db_corrupt_dialog.dart';
+import '../widgets/security/tier_reset_dialog.dart';
 import 'navigator_key.dart';
 
 /// Subscribes to the `SecurityPrompt` bus topic and dispatches

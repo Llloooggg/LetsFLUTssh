@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/threshold_draggable.dart';
+import 'package:letsflutssh/widgets/core/threshold_draggable.dart';
 
 void main() {
   Widget buildApp({

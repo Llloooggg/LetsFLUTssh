@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
+import 'package:letsflutssh/widgets/security/tier_secret_unlock_dialog.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,

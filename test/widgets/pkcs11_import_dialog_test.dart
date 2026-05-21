@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/pkcs11.dart' as rust_pkcs11;
-import 'package:letsflutssh/widgets/pkcs11_import_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/pkcs11_import_dialog.dart';
 
 /// In-memory fake backend. Each method returns the canned response
 /// the test seeded; the wizard never reaches the real FRB shim.

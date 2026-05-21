@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/dropdown_select_button.dart';
+import 'package:letsflutssh/widgets/core/dropdown_select_button.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(

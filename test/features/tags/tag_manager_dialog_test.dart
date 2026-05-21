@@ -6,7 +6,7 @@ import 'package:letsflutssh/features/tags/tag_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 /// In-memory fake for [TagsNotifier] — no database. Owns the
 /// session→tag and folder→tag links so the family-provider overrides

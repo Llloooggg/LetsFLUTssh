@@ -12,9 +12,9 @@ import 'package:letsflutssh/features/session_manager/session_edit_dialog.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
-import 'package:letsflutssh/widgets/dropdown_select_button.dart';
-import 'package:letsflutssh/widgets/hardware_key_badge.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/dropdown_select_button.dart';
+import 'package:letsflutssh/widgets/ssh_keys/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/frb_bootstrap.dart';

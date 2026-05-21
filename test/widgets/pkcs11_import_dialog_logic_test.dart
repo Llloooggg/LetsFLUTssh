@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/pkcs11_import_dialog_logic.dart';
+import 'package:letsflutssh/widgets/ssh_keys/pkcs11_import_dialog_logic.dart';
 
 void main() {
   group('pkcs11NextStep', () {

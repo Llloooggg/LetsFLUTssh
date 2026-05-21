@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/mode_button.dart';
+import 'package:letsflutssh/widgets/core/mode_button.dart';
 
 Widget _buildApp({required bool selected, VoidCallback? onTap}) {
   return MaterialApp(

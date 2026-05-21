@@ -5,10 +5,10 @@ import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform.dart' as plat;
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/hover_region.dart';
-import '../../widgets/session_kind_icon.dart';
-import '../../widgets/threshold_draggable.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/hover_region.dart';
+import '../../widgets/core/session_kind_icon.dart';
+import '../../widgets/core/threshold_draggable.dart';
 import '../tabs/tab_model.dart';
 
 /// Data carried during a tab drag operation.

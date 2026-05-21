@@ -11,7 +11,7 @@ import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/features/mobile/mobile_file_browser.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/connection_progress.dart';
+import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 

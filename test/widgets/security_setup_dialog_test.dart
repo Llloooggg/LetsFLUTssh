@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
-import 'package:letsflutssh/widgets/app_button.dart';
-import 'package:letsflutssh/widgets/security_setup_dialog.dart';
+import 'package:letsflutssh/widgets/core/app_button.dart';
+import 'package:letsflutssh/widgets/security/security_setup_dialog.dart';
 
 import '../helpers/frb_bootstrap.dart';
 

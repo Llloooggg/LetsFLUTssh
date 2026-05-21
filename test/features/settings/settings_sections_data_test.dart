@@ -15,7 +15,7 @@ import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import '../../helpers/fake_security.dart';
 import '../../helpers/frb_bootstrap.dart';

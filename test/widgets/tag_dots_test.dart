@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
-import 'package:letsflutssh/widgets/tag_dots.dart';
+import 'package:letsflutssh/widgets/core/tag_dots.dart';
 
 Widget _scope({required Widget child, required List<dynamic> overrides}) {
   return ProviderScope(

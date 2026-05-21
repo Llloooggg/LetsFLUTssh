@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../widgets/shortcut_registry.dart';
+import '../../widgets/core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 // Imported for the `SessionKindCapabilities` extension on
 // `SessionKind` (companion-button gate consults `kind.hasTerminal`).
@@ -9,9 +9,9 @@ import '../../core/session/session.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/focused_pane_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/clipped_row.dart';
-import '../../widgets/context_menu.dart';
-import '../../widgets/hover_region.dart';
+import '../../widgets/core/clipped_row.dart';
+import '../../widgets/core/context_menu.dart';
+import '../../widgets/core/hover_region.dart';
 import '../file_browser/file_browser_tab.dart';
 import '../tabs/tab_model.dart';
 import '../tabs/welcome_screen.dart';

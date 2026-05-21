@@ -8,10 +8,10 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_popup_select.dart';
-import '../../widgets/readonly_terminal_view.dart';
-import '../../widgets/terminal_cell_metrics.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_popup_select.dart';
+import '../../widgets/terminal/readonly_terminal_view.dart';
+import '../../widgets/terminal/terminal_cell_metrics.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only xterm widget at

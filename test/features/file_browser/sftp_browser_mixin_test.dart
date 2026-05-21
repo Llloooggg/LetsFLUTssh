@@ -6,7 +6,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/file_browser/sftp_browser_mixin.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/connection_progress.dart';
+import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 

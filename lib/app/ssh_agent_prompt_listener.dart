@@ -4,7 +4,7 @@ import '../core/bus/app_bus.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/ssh_agent.dart' as rust_ssh_agent;
 import '../utils/logger.dart';
-import '../widgets/agent_signature_request_dialog.dart';
+import '../widgets/ssh_keys/agent_signature_request_dialog.dart';
 import 'navigator_key.dart';
 
 /// Subscribes to the `SshAgent` bus topic and surfaces the per-key

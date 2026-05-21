@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/tpm_ssh.dart' as rust_tpm;
-import 'package:letsflutssh/widgets/tpm_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/tpm_ssh_dialog.dart';
 
 class _FakeTpmBackend extends TpmBackend {
   final rust_tpm.DbTpmSshProbeResult probeResult;

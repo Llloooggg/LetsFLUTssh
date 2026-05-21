@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/transfer/conflict_resolver.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/file_conflict_dialog.dart';
+import 'package:letsflutssh/widgets/import_export/file_conflict_dialog.dart';
 
 /// Opens [FileConflictDialog] behind an "Open" button, returns the
 /// decision captured when the dialog closes. Exercises the English

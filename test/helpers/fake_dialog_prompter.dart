@@ -3,10 +3,10 @@ import 'package:letsflutssh/app/security_dialog_prompter.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
-import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
-import 'package:letsflutssh/widgets/security_setup_dialog.dart';
-import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
-import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
+import 'package:letsflutssh/widgets/security/db_corrupt_dialog.dart';
+import 'package:letsflutssh/widgets/security/security_setup_dialog.dart';
+import 'package:letsflutssh/widgets/security/tier_reset_dialog.dart';
+import 'package:letsflutssh/widgets/security/tier_secret_unlock_dialog.dart';
 
 /// Scripted prompter for tests that need to drive the bootstrap /
 /// first-launch / corruption paths end-to-end.

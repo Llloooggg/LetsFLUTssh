@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/readonly_terminal_view.dart';
+import 'package:letsflutssh/widgets/terminal/readonly_terminal_view.dart';
 import 'package:xterm/xterm.dart';
 
 void main() {

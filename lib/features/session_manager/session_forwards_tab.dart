@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../core/ssh/port_forward_rule.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_data_row.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_picker_chip.dart';
-import '../../widgets/styled_form_field.dart';
+import '../../widgets/core/app_data_row.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/app_picker_chip.dart';
+import '../../widgets/core/styled_form_field.dart';
 import 'session_forwards_logic.dart';
 
 /// Editor surface for the per-session port-forward rule list.

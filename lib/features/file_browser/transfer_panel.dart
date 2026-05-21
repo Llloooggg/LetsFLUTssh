@@ -9,11 +9,11 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart'
     show formatDuration, formatSize, formatTimestamp, localizeError;
 import '../../utils/platform.dart' as plat;
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/clipped_row.dart';
-import '../../widgets/column_resize_handle.dart';
-import '../../widgets/sortable_header_cell.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/clipped_row.dart';
+import '../../widgets/core/column_resize_handle.dart';
+import '../../widgets/core/sortable_header_cell.dart';
 import 'transfer_panel_controller.dart';
 
 /// Collapsible bottom panel showing transfer progress and history.

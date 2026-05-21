@@ -17,8 +17,8 @@ import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/theme_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/platform.dart';
-import 'package:letsflutssh/widgets/status_indicator.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/status_indicator.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import '../../helpers/fake_session_notifier.dart';
 import '../../helpers/frb_bootstrap.dart';

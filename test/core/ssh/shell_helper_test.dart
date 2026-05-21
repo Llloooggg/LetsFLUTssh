@@ -18,7 +18,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/xterm_shell_terminal.dart';
+import 'package:letsflutssh/widgets/terminal/xterm_shell_terminal.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/shell_helper.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';

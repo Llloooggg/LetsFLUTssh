@@ -6,12 +6,12 @@ import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_divider.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/data_checkboxes.dart';
-import '../../widgets/tag_color.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/app_divider.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/data_checkboxes.dart';
+import '../../widgets/core/tag_color.dart';
 import 'tag_manager_dialog.dart';
 
 /// Dialog to assign/remove tags on a session or folder.

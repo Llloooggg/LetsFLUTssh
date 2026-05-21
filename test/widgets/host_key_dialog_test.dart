@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/host_key_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/host_key_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
 void main() {

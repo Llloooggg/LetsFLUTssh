@@ -11,9 +11,9 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
 import 'package:letsflutssh/app/navigator_key.dart';
-import 'package:letsflutssh/widgets/lfs_import_dialog.dart';
-import 'package:letsflutssh/widgets/link_import_preview_dialog.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/import_export/lfs_import_dialog.dart';
+import 'package:letsflutssh/widgets/import_export/link_import_preview_dialog.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import '../helpers/frb_bootstrap.dart';
 import '../helpers/test_notifiers.dart';

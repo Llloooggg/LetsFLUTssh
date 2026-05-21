@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/app_terminal_view.dart';
-import '../../widgets/terminal_cell_metrics.dart';
+import '../../widgets/terminal/app_terminal_view.dart';
+import '../../widgets/terminal/terminal_cell_metrics.dart';
 
 /// Trackpad-style copy mode for the mobile terminal.
 ///

@@ -12,12 +12,12 @@ import '../../providers/known_hosts_provider.dart'
         knownHostsMutatorProvider,
         knownHostsStreamProvider;
 import '../../theme/app_theme.dart';
-import '../../widgets/app_collection_toolbar.dart';
-import '../../widgets/app_data_search_bar.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_data_search_bar.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/toast.dart';
 import 'known_hosts_manager_logic.dart';
 
 /// Embeddable known hosts manager — search + list with CRUD.

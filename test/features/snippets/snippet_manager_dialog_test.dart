@@ -7,7 +7,7 @@ import 'package:letsflutssh/features/snippets/snippet_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/snippet_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 /// In-memory fake for [SnippetsNotifier] — no database. The dialog
 /// drives `add` / `save` / `delete` / `loadAll`; everything else

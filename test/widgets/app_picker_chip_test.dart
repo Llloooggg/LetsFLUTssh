@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/app_picker_chip.dart';
+import 'package:letsflutssh/widgets/core/app_picker_chip.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(

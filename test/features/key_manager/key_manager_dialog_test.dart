@@ -7,8 +7,8 @@ import 'package:letsflutssh/features/key_manager/key_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/hardware_key_badge.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/ssh_keys/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 

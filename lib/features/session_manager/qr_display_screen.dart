@@ -5,8 +5,8 @@ import '../../core/security/clipboard_secret.dart';
 import '../../core/security/secure_clipboard.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/toast.dart';
 
 /// Modal display of a QR code for scanning by another device.
 ///

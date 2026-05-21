@@ -7,14 +7,14 @@ import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_collection_toolbar.dart';
-import '../../widgets/app_data_row.dart';
-import '../../widgets/app_data_search_bar.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/hover_region.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_data_row.dart';
+import '../../widgets/core/app_data_search_bar.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/hover_region.dart';
+import '../../widgets/core/toast.dart';
 
 /// Embeddable snippet manager — toolbar + list with CRUD.
 ///

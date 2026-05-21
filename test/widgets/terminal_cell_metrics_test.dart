@@ -1,6 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/terminal_cell_metrics.dart';
+import 'package:letsflutssh/widgets/terminal/terminal_cell_metrics.dart';
 
 void main() {
   group('measureMonoCell', () {

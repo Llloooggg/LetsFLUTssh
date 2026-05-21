@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/app_collection_toolbar.dart';
+import 'package:letsflutssh/widgets/core/app_collection_toolbar.dart';
 
 Widget _host(Widget toolbar, {required double width}) => MaterialApp(
   home: Scaffold(

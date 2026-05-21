@@ -4,8 +4,8 @@ import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_picker_chip.dart';
-import 'package:letsflutssh/widgets/import_preview_dialog.dart';
+import 'package:letsflutssh/widgets/core/app_picker_chip.dart';
+import 'package:letsflutssh/widgets/import_export/import_preview_dialog.dart';
 
 void main() {
   // Default counts: every type present, non-zero sessions/keys/tags/snippets.

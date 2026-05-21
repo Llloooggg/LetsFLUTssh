@@ -6,8 +6,8 @@ import 'package:letsflutssh/features/snippets/snippet_picker.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/snippet_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_icon_button.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/app_icon_button.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 

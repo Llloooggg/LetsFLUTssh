@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/clipped_row.dart';
+import 'package:letsflutssh/widgets/core/clipped_row.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
 void main() {

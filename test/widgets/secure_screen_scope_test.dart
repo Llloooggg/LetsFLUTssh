@@ -13,7 +13,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/secure_screen_scope.dart';
+import 'package:letsflutssh/widgets/security/secure_screen_scope.dart';
 
 void main() {
   group('SecureScreenScope', () {

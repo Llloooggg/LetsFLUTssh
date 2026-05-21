@@ -13,7 +13,7 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/frb_pump.dart';

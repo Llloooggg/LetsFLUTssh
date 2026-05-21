@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_bordered_box.dart';
+import 'package:letsflutssh/widgets/core/app_bordered_box.dart';
 
 void main() {
   group('AppBorderedBox', () {

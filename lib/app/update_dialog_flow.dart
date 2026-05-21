@@ -10,9 +10,9 @@ import '../providers/update_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/platform.dart' as plat;
-import '../widgets/app_dialog.dart';
-import '../widgets/toast.dart';
-import '../widgets/update_progress_indicator.dart';
+import '../widgets/core/app_dialog.dart';
+import '../widgets/core/toast.dart';
+import '../widgets/terminal/update_progress_indicator.dart';
 
 /// Opens the "Update available" modal for [info].
 ///

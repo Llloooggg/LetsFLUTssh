@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../core/security/master_password.dart';
 import '../l10n/app_localizations.dart';
-import '../widgets/db_corrupt_dialog.dart';
-import '../widgets/tier_reset_dialog.dart';
-import '../widgets/unlock_dialog.dart';
+import '../widgets/security/db_corrupt_dialog.dart';
+import '../widgets/security/tier_reset_dialog.dart';
+import '../widgets/security/unlock_dialog.dart';
 import 'navigator_key.dart';
 
 /// Stateless security-dialog wrappers that all share the

@@ -4,13 +4,13 @@ import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/hover_region.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/hover_region.dart';
 import '../../utils/platform.dart';
-import '../../widgets/marquee_mixin.dart';
-import '../../widgets/session_kind_icon.dart';
-import '../../widgets/tag_dots.dart';
-import '../../widgets/threshold_draggable.dart';
+import '../../widgets/core/marquee_mixin.dart';
+import '../../widgets/core/session_kind_icon.dart';
+import '../../widgets/core/tag_dots.dart';
+import '../../widgets/core/threshold_draggable.dart';
 import 'session_via_badge.dart';
 
 // Drag-and-drop, pointer handlers, and the per-row build chain live

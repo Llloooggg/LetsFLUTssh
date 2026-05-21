@@ -11,7 +11,7 @@ import 'package:letsflutssh/providers/auto_lock_provider.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
-import 'package:letsflutssh/widgets/auto_lock_detector.dart';
+import 'package:letsflutssh/widgets/security/auto_lock_detector.dart';
 
 /// Notifier test doubles ----------------------------------------------------
 

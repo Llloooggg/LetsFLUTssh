@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/app_selection_area.dart';
+import 'package:letsflutssh/widgets/core/app_selection_area.dart';
 
 void main() {
   group('AppSelectionArea', () {

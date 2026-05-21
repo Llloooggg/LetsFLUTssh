@@ -6,14 +6,14 @@ import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_collection_toolbar.dart';
-import '../../widgets/app_data_row.dart';
-import '../../widgets/app_data_search_bar.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/tag_color.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_data_row.dart';
+import '../../widgets/core/app_data_search_bar.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/tag_color.dart';
+import '../../widgets/core/toast.dart';
 
 /// Embeddable tag manager — toolbar + list with CRUD.
 ///

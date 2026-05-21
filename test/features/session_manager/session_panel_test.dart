@@ -14,7 +14,7 @@ import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_dialog.dart';
+import 'package:letsflutssh/widgets/core/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/tier_unlocked_listener.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
-import 'package:letsflutssh/widgets/app_button.dart';
+import 'package:letsflutssh/widgets/core/app_button.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/providers/lock_state.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
@@ -14,7 +14,7 @@ import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
-import 'package:letsflutssh/widgets/lock_screen.dart';
+import 'package:letsflutssh/widgets/security/lock_screen.dart';
 
 /// Test-only listener that resolves `awaitNextUnlock` immediately
 /// with `unlocked`. The real listener + production

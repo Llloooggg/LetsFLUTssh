@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/progress/progress_reporter.dart';
-import 'package:letsflutssh/widgets/app_dialog.dart';
+import 'package:letsflutssh/widgets/core/app_dialog.dart';
 
 void main() {
   Widget wrap(Widget child) {

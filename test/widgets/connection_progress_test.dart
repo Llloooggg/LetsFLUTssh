@@ -4,8 +4,8 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/connection_progress.dart';
-import 'package:letsflutssh/widgets/readonly_terminal_view.dart';
+import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
+import 'package:letsflutssh/widgets/terminal/readonly_terminal_view.dart';
 
 void main() {
   Connection makeConnection({

@@ -25,7 +25,7 @@ import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
 import 'app/security_init_controller.dart';
 import 'app/update_dialog_flow.dart';
-import 'widgets/shortcut_registry.dart';
+import 'widgets/core/shortcut_registry.dart';
 import 'core/bus/app_bus.dart';
 import 'core/security/backup_exclusion.dart';
 import 'core/security/kdf_params.dart';
@@ -62,11 +62,11 @@ import 'src/rust/frb_generated.dart' show RustLib;
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
 import 'utils/sanitize.dart';
-import 'widgets/app_shell.dart';
-import 'widgets/auto_lock_detector.dart';
-import 'widgets/first_launch_security_toast.dart';
-import 'widgets/lock_screen.dart';
-import 'widgets/toast.dart';
+import 'widgets/core/app_shell.dart';
+import 'widgets/security/auto_lock_detector.dart';
+import 'widgets/security/first_launch_security_toast.dart';
+import 'widgets/security/lock_screen.dart';
+import 'widgets/core/toast.dart';
 
 // LetsFLUTsshApp + MainScreen live in part siblings so the entry-point
 // scaffolding (main, _mainBody, error handlers, config preload) stays

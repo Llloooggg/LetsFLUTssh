@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/enclave.dart' as rust_enclave;
-import 'package:letsflutssh/widgets/enclave_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/enclave_ssh_dialog.dart';
 
 /// In-memory fake backend. Returns the seeded responses without
 /// reaching the FRB shim. Captures the last generate call so tests

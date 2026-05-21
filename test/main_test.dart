@@ -18,7 +18,7 @@ import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
-import 'package:letsflutssh/widgets/app_icon_button.dart';
+import 'package:letsflutssh/widgets/core/app_icon_button.dart';
 
 import 'helpers/fake_session_notifier.dart';
 import 'helpers/frb_bootstrap.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
-import 'package:letsflutssh/widgets/expandable_tier_card_logic.dart';
+import 'package:letsflutssh/widgets/security/expandable_tier_card_logic.dart';
 
 void main() {
   const noMods = SecurityTierModifiers();

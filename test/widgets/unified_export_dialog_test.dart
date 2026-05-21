@@ -7,8 +7,8 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
-import 'package:letsflutssh/widgets/app_picker_chip.dart';
-import 'package:letsflutssh/widgets/unified_export_dialog.dart';
+import 'package:letsflutssh/widgets/core/app_picker_chip.dart';
+import 'package:letsflutssh/widgets/import_export/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
@@ -526,7 +526,7 @@ void main() {
   });
 
   // ===========================================================================
-  // Specs derived from lib/widgets/unified_export_dialog.dart:
+  // Specs derived from lib/widgets/import_export/unified_export_dialog.dart:
   //
   //  * "Full backup" preset chip flips every includeX to true and selects
   //    every session — the user's one-click "give me everything" path.

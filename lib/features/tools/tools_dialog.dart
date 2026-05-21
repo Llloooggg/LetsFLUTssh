@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../widgets/shortcut_registry.dart';
+import '../../widgets/core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_selection_area.dart';
-import '../../widgets/hover_region.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_selection_area.dart';
+import '../../widgets/core/hover_region.dart';
 import '../key_manager/key_manager_dialog.dart';
 import '../recordings/recordings_browser.dart';
 import '../settings/known_hosts_manager.dart';

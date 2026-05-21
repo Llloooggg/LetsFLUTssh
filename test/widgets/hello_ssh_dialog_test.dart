@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/hello.dart' as rust_hello;
-import 'package:letsflutssh/widgets/hello_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/hello_ssh_dialog.dart';
 
 /// In-memory fake backend. Returns the seeded probe result without
 /// reaching FRB; captures the last generate call so tests can pin

@@ -3,7 +3,7 @@ import 'dart:async';
 import '../core/bus/app_bus.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../utils/logger.dart';
-import '../widgets/host_key_dialog.dart';
+import '../widgets/ssh_keys/host_key_dialog.dart';
 import 'navigator_key.dart';
 
 /// Subscribes to the `KnownHosts` bus topic and surfaces the

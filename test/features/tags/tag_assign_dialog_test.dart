@@ -6,8 +6,8 @@ import 'package:letsflutssh/features/tags/tag_assign_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/data_checkboxes.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/data_checkboxes.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import 'tag_manager_dialog_test.dart';
 

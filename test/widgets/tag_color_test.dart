@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
-import 'package:letsflutssh/widgets/tag_color.dart';
+import 'package:letsflutssh/widgets/core/tag_color.dart';
 
 Tag _tag({String? color}) =>
     Tag(name: 'demo', color: color, createdAt: DateTime(2024, 1, 1));

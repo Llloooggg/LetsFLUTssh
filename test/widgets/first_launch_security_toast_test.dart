@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/first_launch_banner_provider.dart';
-import 'package:letsflutssh/widgets/first_launch_security_toast.dart';
+import 'package:letsflutssh/widgets/security/first_launch_security_toast.dart';
 
 Widget _host({
   required FirstLaunchBannerData data,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/security_comparison_table.dart';
+import 'package:letsflutssh/widgets/security/security_comparison_table.dart';
 
 import '../helpers/frb_bootstrap.dart';
 

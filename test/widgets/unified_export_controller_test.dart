@@ -7,8 +7,8 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/src/rust/api/db.dart' as rust_db;
-import 'package:letsflutssh/widgets/unified_export_controller.dart';
-import 'package:letsflutssh/widgets/unified_export_dialog.dart';
+import 'package:letsflutssh/widgets/import_export/unified_export_controller.dart';
+import 'package:letsflutssh/widgets/import_export/unified_export_dialog.dart';
 
 import '../helpers/frb_bootstrap.dart';
 

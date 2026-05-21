@@ -14,8 +14,8 @@ import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/transfer.dart' as rust_transfer;
 import '../../utils/format.dart' show localizeError;
 import '../../utils/logger.dart';
-import '../../widgets/connection_progress.dart';
-import '../../widgets/file_conflict_dialog.dart';
+import '../../widgets/terminal/connection_progress.dart';
+import '../../widgets/import_export/file_conflict_dialog.dart';
 import 'sftp_initializer.dart';
 import 'transfer_helpers.dart';
 

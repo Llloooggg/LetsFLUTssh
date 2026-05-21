@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
 import '../core/security/tier_unlock_attempt.dart';
-import '../widgets/db_corrupt_dialog.dart';
-import '../widgets/security_setup_dialog.dart';
-import '../widgets/tier_reset_dialog.dart';
-import '../widgets/tier_secret_unlock_dialog.dart';
+import '../widgets/security/db_corrupt_dialog.dart';
+import '../widgets/security/security_setup_dialog.dart';
+import '../widgets/security/tier_reset_dialog.dart';
+import '../widgets/security/tier_secret_unlock_dialog.dart';
 import 'security_dialogs.dart';
 
 /// Seam for every blocking security dialog `SecurityInitController`

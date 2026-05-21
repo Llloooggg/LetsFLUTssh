@@ -7,7 +7,7 @@ import '../features/workspace/workspace_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/connection_provider.dart';
 import '../utils/logger.dart';
-import '../widgets/toast.dart';
+import '../widgets/core/toast.dart';
 import 'import_flow.dart';
 import 'navigator_key.dart';
 

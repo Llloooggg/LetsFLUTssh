@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/keystore_ssh.dart' as rust_ks;
-import 'package:letsflutssh/widgets/keystore_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/keystore_ssh_dialog.dart';
 
 class _FakeKeystoreBackend extends KeystoreBackend {
   final rust_ks.DbKeystoreProbeResult probeResult;

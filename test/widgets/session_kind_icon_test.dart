@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/widgets/session_kind_icon.dart';
+import 'package:letsflutssh/widgets/core/session_kind_icon.dart';
 
 /// Pins the canonical SessionKind → IconData map so the sidebar
 /// (session_tree_view) and the tab strip (panel_tab_bar) stay

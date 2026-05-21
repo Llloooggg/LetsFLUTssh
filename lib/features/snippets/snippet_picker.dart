@@ -8,13 +8,13 @@ import '../../core/snippets/snippet_template.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_data_row.dart';
-import '../../widgets/app_data_search_bar.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/styled_form_field.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_data_row.dart';
+import '../../widgets/core/app_data_search_bar.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/styled_form_field.dart';
+import '../../widgets/core/toast.dart';
 
 /// Snippet picker dialog — select a snippet to execute in terminal.
 ///

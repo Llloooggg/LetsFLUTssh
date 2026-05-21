@@ -7,7 +7,7 @@ import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/utils/platform.dart';
-import 'package:letsflutssh/widgets/threshold_draggable.dart';
+import 'package:letsflutssh/widgets/core/threshold_draggable.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/frb_bootstrap.dart';

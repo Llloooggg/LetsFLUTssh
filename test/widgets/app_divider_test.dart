@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/app_divider.dart';
+import 'package:letsflutssh/widgets/core/app_divider.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));

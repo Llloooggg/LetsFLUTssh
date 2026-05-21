@@ -11,7 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/logger.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/toast.dart';
 import '../workspace/workspace_controller.dart';
 
 /// Shared connection logic used by both main.dart and mobile_shell.dart.

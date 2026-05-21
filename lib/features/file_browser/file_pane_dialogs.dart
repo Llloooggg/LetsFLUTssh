@@ -5,8 +5,8 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/toast.dart';
 import 'file_browser_controller.dart';
 
 /// Shared dialogs for file pane operations (New Folder, Rename, Delete).

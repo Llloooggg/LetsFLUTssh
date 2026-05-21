@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
 import 'package:letsflutssh/core/connection/progress_tracker.dart';
-import 'package:letsflutssh/widgets/progress_writer.dart';
+import 'package:letsflutssh/widgets/terminal/progress_writer.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:xterm/xterm.dart';

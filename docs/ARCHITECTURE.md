@@ -16,7 +16,7 @@
   - [3.8 Deep Links (`core/deeplink/`)](#38-deep-links-coredeeplink)
   - [3.9 Import (`core/import/`)](#39-import-coreimport)
   - [3.10 Update (`core/update/`)](#310-update-coreupdate)
-  - [3.11 Keyboard Shortcuts (`widgets/shortcut_registry.dart`)](#311-keyboard-shortcuts-widgetsshortcut_registrydart)
+  - [3.11 Keyboard Shortcuts (`widgets/core/shortcut_registry.dart`)](#311-keyboard-shortcuts-widgetscoreshortcut_registrydart)
   - [3.12 Snippets (`core/snippets/`)](#312-snippets-coresnippets)
   - [3.13 Session Recording (`core/session/session_recorder.dart`)](#313-session-recording-coresessionsession_recorderdart)
   - [3.14 Rust Security/Transport Core (`rust/`)](#314-rust-securitytransport-core-rust)
@@ -218,74 +218,51 @@ lib/
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── l10n/                             # Internationalization (15 languages: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh)
 ├── providers/                        # Riverpod providers (global state)
-├── widgets/                          # Reusable UI components (alphabetical)
-│   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
-│   ├── app_button.dart              # AppButton + named ctors (.cancel / .primary / .secondary / .destructive)
-│   ├── app_collection_toolbar.dart  # Shared header (search + add + secondary action) for list-style managers
-│   ├── app_data_row.dart            # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions
-│   ├── app_data_search_bar.dart     # Shared search input for list / table dialogs (known hosts, snippets, tags)
-│   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
-│   ├── app_divider.dart             # Standardized 1px divider
-│   ├── app_empty_state.dart         # Centered icon + heading + secondary line + optional action
-│   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
-│   ├── app_info_button.dart         # Inline (i) icon that opens AppInfoDialog with caller-supplied threat-model copy
-│   ├── app_info_dialog.dart         # Reusable threat-model explainer (what tier protects / does not protect against)
-│   ├── app_picker_chip.dart         # Pill-shaped selector (ProxyJump kind, port-forward kind, snippet token chips)
-│   ├── app_popup_select.dart        # Compact dropdown (PopupMenuButton wrapper with project chrome)
-│   ├── app_selection_area.dart      # Local-scope text-selection wrapper used inside dialogs / threat lists / help prose
-│   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
-│   ├── auto_lock_detector.dart      # Inactivity wrapper — locks app after autoLockMinutesProvider when security level is masterPassword
-│   ├── clipped_row.dart             # Overflow-clipping Row replacement
-│   ├── column_resize_handle.dart    # Draggable column-resize handle for table headers
-│   ├── confirm_dialog.dart          # Confirmation dialog (delete, destructive actions)
-│   ├── connection_progress.dart     # Terminal-styled progress for non-terminal tabs
-│   ├── context_menu.dart            # Custom context menu with keyboard nav
-│   ├── data_checkboxes.dart         # Shared collapsible checkbox grid used by export + import dialogs
-│   ├── db_corrupt_dialog.dart       # Outcome dialog for DB corruption (reset / try other tier / exit)
-│   ├── dropdown_select_button.dart  # Canonical shared dropdown trigger (replaces inline PopupMenuButton copies)
-│   ├── error_state.dart             # Error display with retry/secondary actions
-│   ├── expandable_tier_card.dart    # Settings Security ladder unit — tier header + modifiers + secret inputs inline (split into _header / _inputs / _logic / _threats part siblings)
-│   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
-│   ├── first_launch_security_toast.dart # Post-auto-setup banner — shows chosen tier + hardware-upgrade path or its absence
-│   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
-│   ├── hardware_key_badge.dart      # Shared hardware-key row pill (colour + icon + optional tap popover) — FIDO2 / PKCS#11 / Enclave / Hello / TPM / Keystore badges all call it
-│   ├── hardware_key_wizard.dart     # `HardwareKeyWizardMixin` — shared probe→configure→generate→complete scaffold behind the Enclave / Hello / TPM / Keystore SSH wizards (see §3.6 area)
-│   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
-│   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
-│   ├── import_preview_dialog.dart   # Source-agnostic typedefs (ImportPreviewCounts/Selection) shared by archive + link preview
-│   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
-│   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
-│   ├── link_import_preview_dialog.dart # letsflutssh:// link / QR payload preview (flags + merge/replace)
-│   ├── local_directory_picker.dart  # In-app dart:io directory browser — Android MANAGE_EXTERNAL_STORAGE path bypassing SAF
-│   ├── lock_screen.dart             # Full-screen lock overlay — biometric → master-password fallback, flips lockStateProvider
-│   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
-│   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
-│   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
-│   ├── password_strength_meter.dart # Live coloured strength bar under password input — informational, never blocks Save
-│   ├── paste_import_link_dialog.dart # Camera-less QR import — accepts letsflutssh:// link or raw base64url payload
-│   ├── readonly_terminal_view.dart  # Read-only terminal display widget
-│   ├── secure_password_field.dart   # TextField pre-configured for secret entry — IME spellcheck/autofill/history disabled
-│   ├── secure_screen_scope.dart     # Scope opting subtree into OS screen-capture protection (Android FLAG_SECURE)
-│   ├── security_comparison_table.dart # Threat × tier matrix — horizontally scrollable on desktop, transposed on mobile
-│   ├── security_setup_dialog.dart   # First-launch wizard — plain tier + modifier-shape choice (split into _logic / _widgets part siblings)
-│   ├── security_threat_list.dart    # Single-tier threat inventory with ✓ / ✗ / — / ! glyphs
-│   ├── shortcut_registry.dart       # `AppShortcut` enum + `AppShortcutRegistry`. See §3.11.
-│   ├── sortable_header_cell.dart    # Column header with sort indicator
-│   ├── split_view.dart              # Horizontal resizable split
-│   ├── ssh_dir_import_dialog.dart   # ~/.ssh unified picker — hosts (parsed from config) + keys (scanned)
-│   ├── status_indicator.dart        # Icon + count indicator with tooltip
-│   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
-│   ├── tag_color.dart               # Tag colour palette + `TagColor` helpers
-│   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
-│   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
-│   ├── tier_reset_dialog.dart       # Non-dismissible reset prompt when the resolved tier no longer matches on-disk artefacts
-│   ├── tier_secret_unlock_dialog.dart # Shared T1+pw short-password / T2 PIN unlock shell with retry + cooldown
-│   ├── toast.dart                   # Stacked notification toasts
-│   ├── unified_export_controller.dart # Headless selection / options / sizing
-│   ├── unified_export_dialog.dart   # Unified QR and .lfs export dialog
-│   ├── unified_export_dialog_tree.dart # Tree builders + size-indicator helpers split off from unified_export_dialog.dart
-│   ├── unlock_dialog.dart           # Master password unlock dialog (startup)
-│   └── update_progress_indicator.dart # Determinate + indeterminate progress UI for the in-app updater
+├── widgets/                          # Reusable UI components, grouped by role. Widgets import siblings via relative paths; cross-subfolder via `../<sub>/`.
+│   ├── core/                         # Generic design-system primitives — no feature knowledge
+│   │   ├── app_button.dart           # AppButton + named ctors (.cancel / .primary / .secondary / .destructive)
+│   │   ├── app_dialog.dart           # Unified dialog shell, header, footer, action buttons, progress dialog
+│   │   ├── app_data_row.dart         # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions
+│   │   ├── app_collection_toolbar.dart # Shared header (search + add + secondary action) for list-style managers
+│   │   ├── app_icon_button.dart      # Rectangular hover button (replaces Material IconButton)
+│   │   ├── app_selection_area.dart   # Local-scope text-selection wrapper used inside dialogs / threat lists / help prose
+│   │   ├── app_shell.dart            # Desktop layout shell (toolbar, sidebar, body, status bar)
+│   │   ├── hover_region.dart         # MouseRegion + GestureDetector replacement
+│   │   ├── context_menu.dart         # Custom context menu with keyboard nav
+│   │   ├── confirm_dialog.dart / typed_name_confirm_dialog.dart # Destructive-action confirmations
+│   │   ├── styled_form_field.dart    # Shared form field (StyledFormField, FieldLabel, StyledInput)
+│   │   ├── form_submit_chain.dart    # FocusNode + Enter-to-next/submit wiring for multi-field dialogs
+│   │   ├── shortcut_registry.dart    # `AppShortcut` enum + `AppShortcutRegistry`. See §3.11.
+│   │   ├── status_indicator.dart, error_state.dart, app_empty_state.dart, toast.dart, app_divider.dart, app_bordered_box.dart
+│   │   ├── app_info_button.dart, app_info_dialog.dart, app_picker_chip.dart, app_popup_select.dart, dropdown_select_button.dart, mode_button.dart
+│   │   ├── sortable_header_cell.dart, column_resize_handle.dart, clipped_row.dart, marquee_mixin.dart, threshold_draggable.dart, split_view.dart, data_checkboxes.dart
+│   │   └── tag_color.dart, tag_dots.dart, session_kind_icon.dart, mobile_selection_bar.dart
+│   ├── security/                     # Lock / unlock / tier ladder UI
+│   │   ├── lock_screen.dart          # Full-screen lock overlay — biometric → master-password fallback, flips lockStateProvider
+│   │   ├── unlock_dialog.dart        # Master password unlock dialog (startup)
+│   │   ├── secure_password_field.dart # TextField for secret entry — IME spellcheck/autofill/history disabled
+│   │   ├── secure_screen_scope.dart  # Scope opting subtree into OS screen-capture protection (Android FLAG_SECURE)
+│   │   ├── auto_lock_detector.dart   # Inactivity wrapper — locks after autoLockMinutesProvider when level is masterPassword
+│   │   ├── expandable_tier_card.dart # Settings Security ladder unit (split into _header / _inputs / _logic / _threats parts)
+│   │   ├── security_setup_dialog.dart # First-launch wizard — tier + modifier-shape choice (split into _logic / _widgets parts)
+│   │   ├── security_comparison_table.dart, security_threat_list.dart # Threat × tier matrix + per-tier inventory
+│   │   ├── tier_reset_dialog.dart, tier_secret_unlock_dialog.dart, db_corrupt_dialog.dart
+│   │   └── password_strength_meter.dart, first_launch_security_toast.dart
+│   ├── ssh_keys/                     # Hardware / SSH-key dialogs + badges (see §3.6 area)
+│   │   ├── hardware_key_wizard.dart  # `HardwareKeyWizardMixin` — shared probe→configure→generate→complete scaffold
+│   │   ├── hardware_key_badge.dart   # Shared hardware-key row pill (colour + icon + optional tap popover)
+│   │   ├── enclave_/hello_/keystore_/tpm_ssh_dialog.dart # Per-backend wizards on the shared mixin
+│   │   ├── pkcs11_import_dialog.dart (+ _logic part), hardware_key_prompt_dialog.dart, agent_signature_request_dialog.dart
+│   │   └── host_key_dialog.dart      # TOFU dialogs (new host / key changed)
+│   ├── import_export/                # .lfs / QR / link import + export surfaces
+│   │   ├── unified_export_dialog.dart (+ _tree, _models, controller) # Unified QR + .lfs export
+│   │   ├── lfs_import_dialog.dart, lfs_import_preview_dialog.dart, link_import_preview_dialog.dart, import_preview_dialog.dart
+│   │   ├── paste_import_link_dialog.dart, ssh_dir_import_dialog.dart, local_directory_picker.dart
+│   │   └── file_conflict_dialog.dart # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
+│   └── terminal/                     # Terminal rendering widgets (engine in features/terminal)
+│       ├── app_terminal_view.dart, readonly_terminal_view.dart, xterm_shell_terminal.dart
+│       ├── anchor_pinning_terminal_controller.dart, terminal_cell_metrics.dart
+│       └── connection_progress.dart, progress_writer.dart, update_progress_indicator.dart
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -1367,7 +1344,7 @@ Optional on **T1+password and T2+password only**. Paranoid is intentionally excl
 
 **Anti-debug gate — single funnel.** Every biometric attempt (startup `_unlockKeychainWithPassword` / `_unlockHardware`, the inline retry button inside `TierSecretUnlockDialog`, and the mid-session `LockScreen` re-unlock all funnel through `SecurityInitController._tryBiometricCommit`) consults [`ProcessHardening.isBeingDebugged()`](../lib/core/security/process_hardening.dart) before touching the vault. On a positive probe the funnel writes a `logCritical` breadcrumb (`ProcessHardening` tag, `tier=<wireName>`) and returns `false` — the dialog falls through to the typed-secret form, so a debugger watching the process cannot scoop the OS-stored password released by a successful biometric prompt. Probe is fail-safe-false: any FRB error / unreadable `/proc` returns `false` so a hardened-`/proc` host or sandboxed iOS build cannot brick legitimate unlock. Pairs with the static startup pass in [`ProcessHardening.applyOnStartup`](#process-hardening) (which BLOCKS new attaches via `prctl PR_SET_DUMPABLE` / `PT_DENY_ATTACH` / `SetErrorMode`) — the runtime probe READS the post-hardening state so callers can react to a debugger that landed despite the block (debug-signed macOS bundle, Linux host with `cap_sys_ptrace`, Xcode-attached dev build). Threat-model rationale lives in [`SECURITY.md → Anti-debug biometric gate`](SECURITY.md#orthogonal-mitigations); this section is the wiring reference.
 
- [`BiometricAuth`](../lib/core/security/biometric_auth.dart) routes the availability probe + prompt through `lfs_os_security::biometric_auth` (Apple LAContext via `objc2-local-authentication`, Windows `UserConsentVerifier`, Android JNI to `BiometricManager` + `BiometricPrompt`) plus the direct fprintd D-Bus walk on Linux. [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key — Apple / Android / Windows all route through `lfs_os_security::secure_key_storage::write_biometric` (Apple `SecAccessControl` + `kSecAccessControlBiometryCurrentSet` via `SecItemAdd`; Android `setUserAuthenticationRequired(true)` on the AndroidKeyStore wrap key via JNI; Windows Credential Manager via `CredWriteW` plus the `BiometricAuth` Hello prompt fired ahead of the read). Linux uses TPM2 seal first, then a libsecret-marker fallback (also via Rust `secure_key_storage`). At startup, `_unlockKeychainWithPassword` and `_unlockHardware` (both in [`security_init_controller_unlock.dart`](../lib/app/security_init_controller_unlock.dart) — extension on `SecurityInitController`) probe `biometricKeyVault.isStored() && biometricAuth.isAvailable()` and call `_tryBiometricCommit()` **first**, skipping the password dialog entirely on success. Only on biometric failure / cancel does [`TierSecretUnlockDialog`](../lib/widgets/tier_secret_unlock_dialog.dart) render; it opens with `autoTriggerBiometric: false` to avoid a double-prompt, but the fingerprint retry button inside the dialog stays available so the user can re-invoke the system prompt without relaunching. [`UnlockDialog`](../lib/widgets/unlock_dialog.dart) (Paranoid only) has no biometric surface at all — by design.
+ [`BiometricAuth`](../lib/core/security/biometric_auth.dart) routes the availability probe + prompt through `lfs_os_security::biometric_auth` (Apple LAContext via `objc2-local-authentication`, Windows `UserConsentVerifier`, Android JNI to `BiometricManager` + `BiometricPrompt`) plus the direct fprintd D-Bus walk on Linux. [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key — Apple / Android / Windows all route through `lfs_os_security::secure_key_storage::write_biometric` (Apple `SecAccessControl` + `kSecAccessControlBiometryCurrentSet` via `SecItemAdd`; Android `setUserAuthenticationRequired(true)` on the AndroidKeyStore wrap key via JNI; Windows Credential Manager via `CredWriteW` plus the `BiometricAuth` Hello prompt fired ahead of the read). Linux uses TPM2 seal first, then a libsecret-marker fallback (also via Rust `secure_key_storage`). At startup, `_unlockKeychainWithPassword` and `_unlockHardware` (both in [`security_init_controller_unlock.dart`](../lib/app/security_init_controller_unlock.dart) — extension on `SecurityInitController`) probe `biometricKeyVault.isStored() && biometricAuth.isAvailable()` and call `_tryBiometricCommit()` **first**, skipping the password dialog entirely on success. Only on biometric failure / cancel does [`TierSecretUnlockDialog`](../lib/widgets/security/tier_secret_unlock_dialog.dart) render; it opens with `autoTriggerBiometric: false` to avoid a double-prompt, but the fingerprint retry button inside the dialog stays available so the user can re-invoke the system prompt without relaunching. [`UnlockDialog`](../lib/widgets/security/unlock_dialog.dart) (Paranoid only) has no biometric surface at all — by design.
 
 **Apple platforms — Secure Enclave binding.** On iOS and macOS the vault stores the DB key with a `SecAccessControl` that stacks `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` with `SecAccessControlCreateFlags.biometryCurrentSet`, applied Rust-side via `lfs_os_security::secure_key_storage::write_biometric` (raw `SecItemAdd` against the `security-framework-sys` FFI). Two consequences follow: (a) the key material is held in the Secure Enclave, so even a device-level RAM compromise cannot exfiltrate it; and (b) any change to the biometric enrolment (added or removed fingerprint, re-enrolled Face ID) invalidates the stored key, forcing the user back through the master-password dialog on the next unlock. Android binds the wrap key in AndroidKeyStore via direct JNI (`lfs_os_security::android::keystore::write_biometric`) with `setUserAuthenticationRequired(true)` + `setUserAuthenticationValidityDurationSeconds(60)`; the `BiometricPrompt` invocation is fired by the Dart caller through `lfs_os_security::biometric_auth::authenticate` ahead of the read. When biometric fails (cancel, wrong finger) the fallback is `UnlockDialog` — which itself auto-triggers biometric on first frame as long as `autoTriggerBiometric` is true. The unlock flow passes `false` when it already attempted biometric to prevent a double-cancel loop; the retry button inside the dialog stays available either way, so the user can re-invoke biometrics without relaunching the app. `LockScreen` (mid-session re-lock overlay) follows the same auto-trigger + retry pattern.
 
@@ -1560,7 +1537,7 @@ Session lifecycle: one session per `(module, slot)` reused across signatures via
 
 PIN counter awareness: the `pkcs11_list_tokens` FRB shim surfaces `user_pin_count_low` and `user_pin_final_try` flags (mapped off `TokenInfo::user_pin_count_low()` / `user_pin_final_try()`); the UI raises the "stop trying" warning loudly before the user fires one more attempt. The token's PIN-attempt counter is hardware-wide — there is no per-app retry budget. `user_pin_locked` reports the terminal state; recovery requires the SO-PIN / PUK and is out of scope (vendor tooling owns the unblock flow).
 
-Import wizard (`lib/widgets/pkcs11_import_dialog.dart` + `pkcs11_import_dialog_logic.dart`) drives the five-step ladder the key-manager toolbar's "Add smart-card / token key" action surfaces. The wizard composes `AppDialog` + `AppDialogHeader` / `AppDialogFooter` + `AppButton` per the reuse rule and pops a `Pkcs11ImportResult` on success.
+Import wizard (`lib/widgets/ssh_keys/pkcs11_import_dialog.dart` + `pkcs11_import_dialog_logic.dart`) drives the five-step ladder the key-manager toolbar's "Add smart-card / token key" action surfaces. The wizard composes `AppDialog` + `AppDialogHeader` / `AppDialogFooter` + `AppButton` per the reuse rule and pops a `Pkcs11ImportResult` on success.
 
 ```mermaid
 stateDiagram-v2
@@ -1626,7 +1603,7 @@ flowchart LR
 
 **Module layout.** Files live under `rust/crates/lfs_os_security/src/apple_se_ssh.rs` (single shared module, cfg-gated to `target_os = "macos" | "ios"`). The Signer adapter lives at `rust/crates/lfs_core/src/ssh/enclave_signer.rs` (mirrors the PKCS#11 / FIDO2 shape — `russh::Signer` impl wrapping the FFI surface). The FRB shim lives at `rust/crates/lfs_frb/src/api/enclave.rs`.
 
-**Shared Dart wizard scaffold.** The Dart UI of all four hardware-key wizards — Enclave, Windows Hello, TPM, Android Keystore — is one mixin, `lib/widgets/hardware_key_wizard.dart::HardwareKeyWizardMixin`. It owns the four-step `HardwareKeyStep` ladder (probe → configure → generate → complete), the label field, the probing / generating spinners, the `authorized_keys` completion panel + copy affordance, and the Cancel / Generate / Close action ladder — the half of each wizard that was identical four ways. Each concrete dialog (`EnclaveSshDialog`, `HelloSshDialog`, `TpmSshDialog`, `KeystoreSshDialog`) mixes it in and supplies only the backend-specific hooks: title, probe + its failure fallback, the configure-step body, the `canGenerate` gate, and the generate call. The row-tail pills likewise share one widget — `lib/widgets/hardware_key_badge.dart::HardwareKeyBadge` (colour + icon + optional tap-to-reveal popover) — with `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` / `Pkcs11Badge` as thin per-backend callers that fill in the colour, icon, and captured-metadata lines. The FIDO2 sk-* row reuses the same pill with no popover.
+**Shared Dart wizard scaffold.** The Dart UI of all four hardware-key wizards — Enclave, Windows Hello, TPM, Android Keystore — is one mixin, `lib/widgets/ssh_keys/hardware_key_wizard.dart::HardwareKeyWizardMixin`. It owns the four-step `HardwareKeyStep` ladder (probe → configure → generate → complete), the label field, the probing / generating spinners, the `authorized_keys` completion panel + copy affordance, and the Cancel / Generate / Close action ladder — the half of each wizard that was identical four ways. Each concrete dialog (`EnclaveSshDialog`, `HelloSshDialog`, `TpmSshDialog`, `KeystoreSshDialog`) mixes it in and supplies only the backend-specific hooks: title, probe + its failure fallback, the configure-step body, the `canGenerate` gate, and the generate call. The row-tail pills likewise share one widget — `lib/widgets/ssh_keys/hardware_key_badge.dart::HardwareKeyBadge` (colour + icon + optional tap-to-reveal popover) — with `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` / `Pkcs11Badge` as thin per-backend callers that fill in the colour, icon, and captured-metadata lines. The FIDO2 sk-* row reuses the same pill with no popover.
 
 **Access-control policy.** Two shapes selected per-key at creation, captured implicitly via the on-chip ACL — there is no DB column for the policy because the chip refuses to mutate the ACL after creation:
 
@@ -1995,17 +1972,17 @@ The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked int
 
 #### Password strength meter
 
-Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (T1+pw / T2) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
+Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/security/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (T1+pw / T2) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
 
 #### Auto-lock
 
-Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) — storing it there rather than in plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
+Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/security/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) — storing it there rather than in plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/security/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
 
 **Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
 **Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which fires `dbClose()` over FRB. `dbClose` zeroes SQLCipher's C-layer page-cipher state inside Rust *and* drops the cached DB key from the SecretStore. Wipe is **unconditional** — **don't add an `activeSessions.isEmpty` guard "to preserve reconnect"**. A guard like that leaves the DB key warm whenever any session is connected, flattening T2+password against RAM-forensics-on-locked-machine and kernel-breach. Live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache) (per-session secrets in `mlock`-pinned native memory outside the encrypted store), so closing the store on lock costs the user nothing.
 
-**Unlock re-opens the DB.** Because `_triggerLock` closes the Rust DB handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual<bool>(lockStateProvider, …)` in [`_LetsFLUTsshAppState._wireLockStateListener`](../lib/main_app.dart) observes the locked → unlocked transition and calls `SecurityInitController.reopenAfterUnlock()`, which routes through the controller to `dbInit(key)` over FRB and invalidates every store's in-memory cache so the next read pulls fresh rows. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
+**Unlock re-opens the DB.** Because `_triggerLock` closes the Rust DB handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/security/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual<bool>(lockStateProvider, …)` in [`_LetsFLUTsshAppState._wireLockStateListener`](../lib/main_app.dart) observes the locked → unlocked transition and calls `SecurityInitController.reopenAfterUnlock()`, which routes through the controller to `dbInit(key)` over FRB and invalidates every store's in-memory cache so the next read pulls fresh rows. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
 
 **Shortcut gate while locked.** Keyboard shortcuts registered on `MainScreen.CallbackShortcuts` sit in a sibling focus scope to `LockScreen`, so `Ctrl+N` / `Ctrl+,` can otherwise bubble through the overlay and hit `_newSession` / `SettingsDialog.show` against a closed DB. `MainScreen._buildKeyBindings` short-circuits every shortcut callback when `lockStateProvider` is true. Pointer hit-testing is already blocked by the `Positioned.fill(LockScreen)` overlay on the root `Stack`, so the gate is specifically a keyboard-path defense.
 
@@ -2098,7 +2075,7 @@ Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security
 
 #### Password entry widget
 
-Every secret-entry field in the app (master password, SSH key passphrase, export/import password, rate-limited PIN) goes through [`SecurePasswordField`](../lib/widgets/secure_password_field.dart). The widget wraps a stock `TextField` with two behaviours the default does not have:
+Every secret-entry field in the app (master password, SSH key passphrase, export/import password, rate-limited PIN) goes through [`SecurePasswordField`](../lib/widgets/security/secure_password_field.dart). The widget wraps a stock `TextField` with two behaviours the default does not have:
 
 1. **IME hardening.** `autocorrect`, `enableSuggestions`, `enableIMEPersonalizedLearning`, `smartDashesType`, `smartQuotesType`, and `textCapitalization` are all forced off. Every one of those routes keystrokes through an OS service the app does not want to share a master password with — the autocorrect dictionary learns typed tokens, predictive text builds n-gram histories, `personalisedLearning` trains the IME model, smart-quote substitution hands the raw character stream to the text engine. `keyboardType: TextInputType.visiblePassword` picks the Android "password" IME that already disables dictionary learning at the OS level; `autofillHints: [AutofillHints.password]` keeps the field inside the platform password-autofill surface, which routinely suppresses the dictation / share / lookup context-menu items a plain text field would expose. An obscured field's context menu is stubbed out entirely (only select stays), matching the behaviour of native password fields.
 2. **Deterministic wipe point.** `State.dispose` calls [`SecretController.wipeAndClear`](../lib/utils/secret_controller.dart) on the caller's controller before the parent `State` drops its reference. The controller's `text` is overwritten with same-length null bytes, then cleared — the `ValueListenable` emits an opaque intermediate so any listener observing the change no longer sees the secret, and the final listenable state holds nothing. `wipeAndClear` is idempotent, so the caller's own dispose can call it again without surprise.
@@ -2964,7 +2941,7 @@ Supporting Rust modules:
   from network errors so the UI can surface a "security-coloured" toast
   instead of a retry prompt.
 
-### 3.11 Keyboard Shortcuts (`widgets/shortcut_registry.dart`)
+### 3.11 Keyboard Shortcuts (`widgets/core/shortcut_registry.dart`)
 
 Central registry for all app keyboard shortcuts. Every shortcut is an `AppShortcut` enum value with a default `SingleActivator` binding.
 
@@ -3898,7 +3875,7 @@ class FilePaneController extends ChangeNotifier {
 | `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Filename header, preset chips (Full / Selective), collapsible checkbox grid with per-type counts on the right, merge/replace mode selector. Every checkbox is always clickable so replace mode can express "wipe this type" via a checked row even when the archive carries zero entries |
 | `link_import_preview_dialog.dart` | `LinkImportPreviewDialog` | Mirror of `LfsImportPreviewDialog` for `letsflutssh://import?…` deep links and scanned QR payloads. Same preset chips / checkbox grid / merge+replace selector, counts come from the `LfsPreview` projected off the Rust-staged handle (`QrDecodedSource.rust`), so link/QR imports share the archive flow's opt-in/out UX |
 | `ssh_dir_import_dialog.dart` | `SshDirImportDialog` | Unified picker for `~/.ssh` contents. Two collapsible sections — "Hosts from config" (from `~/.ssh/config`) and "Keys in ~/.ssh" (scanner output). Each section has a tristate "select all" row, a divider, then the indented per-item list. A "Browse files…" button per section opens a `FilePicker` rooted at `~/.ssh` so the user can pull in an extra config file or key files from elsewhere. Parsed hosts whose `user@host:port` already exists as a session, and keys whose fingerprint matches an entry in the key store, are flagged with an "already in sessions" / "already in store" trailing tag and default to **unchecked** — the same dedup contract the .lfs / QR import flow applies to session IDs and key fingerprints. New picks are deduped by session id (hosts) or private-key fingerprint (keys). Returns one combined `ImportResult` routed through the same `_applyFilteredImport` path as the .lfs archive import |
-| (`lib/widgets/data_checkboxes.dart`) | `CollapsibleCheckboxesSection`, `DataCheckboxRow` | Shared visual primitives for checkbox grids — lives in `lib/widgets/` (not under `features/session_manager/` despite the export dialog being its main consumer). Used by [`UnifiedExportDialog`](#unifiedexportdialog), `LfsImportPreviewDialog`, and `SshDirImportDialog` so every checkbox list in the app has identical chevron/hover/label/trailing layout |
+| (`lib/widgets/core/data_checkboxes.dart`) | `CollapsibleCheckboxesSection`, `DataCheckboxRow` | Shared visual primitives for checkbox grids — lives in `lib/widgets/` (not under `features/session_manager/` despite the export dialog being its main consumer). Used by [`UnifiedExportDialog`](#unifiedexportdialog), `LfsImportPreviewDialog`, and `SshDirImportDialog` so every checkbox list in the app has identical chevron/hover/label/trailing layout |
 
 #### SessionConnect — flow
 
@@ -4121,7 +4098,7 @@ The full set of files lives under `lib/widgets/` (alphabetical). The detailed en
 | `tag_color.dart` | Colour-palette + `TagColor` helpers used by `TagManagerDialog` / `SessionTagDots` / `FolderTagDots`. |
 | `update_progress_indicator.dart` | Determinate + indeterminate progress UI shared by the in-app updater dialogs. |
 | `import_preview_dialog.dart` | Shared typedefs (`ImportPreviewCounts`, `ImportPreviewSelection`) consumed by [LfsImportPreviewDialog](#lfsimportpreviewdialog) + [LinkImportPreviewDialog](#linkimportpreviewdialog). |
-| `shortcut_registry.dart` | `AppShortcut` enum + `AppShortcutRegistry`. Documented in detail under [§3.11 Keyboard Shortcuts](#311-keyboard-shortcuts-widgetsshortcut_registrydart) — file lives under `widgets/` because shortcuts cross UI / non-UI concerns and the registry has no Flutter-free callers. |
+| `shortcut_registry.dart` | `AppShortcut` enum + `AppShortcutRegistry`. Documented in detail under [§3.11 Keyboard Shortcuts](#311-keyboard-shortcuts-widgetscoreshortcut_registrydart) — file lives under `widgets/` because shortcuts cross UI / non-UI concerns and the registry has no Flutter-free callers. |
 
 Widgets split across `part of` siblings (one entry, multiple files):
 
@@ -4251,7 +4228,7 @@ Unified dialog shell matching the app's dark visual language. Background `AppThe
 For complex dialogs (e.g. with tabs between header and content), compose from the building blocks directly:
 - `AppDialogHeader({title, onClose})` — header bar
 - `AppDialogFooter({actions})` — footer bar (uses `Wrap` layout — actions flow to the next line on narrow mobile screens)
-- `AppButton` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`); lives in `lib/widgets/app_button.dart` and is re-exported from `app_dialog.dart` so dialog callsites don't need a second import. Used outside dialogs too (settings rows, toasts, wizard steps).
+- `AppButton` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`); lives in `lib/widgets/core/app_button.dart` and is re-exported from `app_dialog.dart` so dialog callsites don't need a second import. Used outside dialogs too (settings rows, toasts, wizard steps).
 - `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
@@ -4436,7 +4413,7 @@ as a single enum value, along with its translated label (via `S.of`),
 Material icon, and optional accent colour (e.g. `delete` and `closeAll`
 carry `AppTheme.red`). Each call site only supplies the side-effect
 (`onTap`) and, when applicable, an `AppShortcut` — the shortcut hint is
-formatted from the **live** [`AppShortcutRegistry`](#311-keyboard-shortcuts-widgetsshortcut_registrydart)
+formatted from the **live** [`AppShortcutRegistry`](#311-keyboard-shortcuts-widgetscoreshortcut_registrydart)
 binding (see `formatShortcut` below), never hardcoded.
 
 Why enum, not ad-hoc strings per site: menus had drifted — for example
@@ -4455,7 +4432,7 @@ still be constructed as a hand-rolled `ContextMenuItem` without going
 through the enum.
 
 Cross-link: shortcut labels are produced by
-[`formatShortcut` in §3.11](#311-keyboard-shortcuts-widgetsshortcut_registrydart)
+[`formatShortcut` in §3.11](#311-keyboard-shortcuts-widgetscoreshortcut_registrydart)
 — the same helper `AppShortcutRegistry.shortcutLabel` uses.
 
 ### HostKeyDialog
@@ -4571,7 +4548,7 @@ StatusIndicator({
 
 Compact icon + number indicator with tooltip. Used in sidebar footer to display session/connection/tab counts. Connection indicator counts both `connecting` and `connected` states; icon is green when any connection is established, yellow when all are still connecting. Reusable for any status bar needing icon + count pairs.
 
-**File:** `lib/widgets/status_indicator.dart`
+**File:** `lib/widgets/core/status_indicator.dart`
 
 ### ReadOnlyTerminalView
 
@@ -4693,7 +4670,7 @@ LfsImportPreviewDialog.show(context, {
   required ImportMode initialMode,
 }) → Future<LfsImportPreviewResult?>
 ```
-Pre-import preview of a `.lfs` archive — shows per-type counts ([§3.9 Import](#39-import-coreimport)) and lets the user trim the import + pick merge/replace before commit. The shared `ImportPreviewCounts` / `ImportPreviewSelection` typedefs in `widgets/import_preview_dialog.dart` are reused by [LinkImportPreviewDialog](#linkimportpreviewdialog) so both sources speak the same shape.
+Pre-import preview of a `.lfs` archive — shows per-type counts ([§3.9 Import](#39-import-coreimport)) and lets the user trim the import + pick merge/replace before commit. The shared `ImportPreviewCounts` / `ImportPreviewSelection` typedefs in `widgets/import_export/import_preview_dialog.dart` are reused by [LinkImportPreviewDialog](#linkimportpreviewdialog) so both sources speak the same shape.
 
 ### LinkImportPreviewDialog
 
@@ -5931,7 +5908,7 @@ All desktop platforms enforce a minimum window size of **480 × 360** logical pi
 | macOS | `macos/Runner/MainFlutterWindow.swift` | `NSWindow.contentMinSize` |
 
 Additionally, internal resizable elements (sidebar, file browser columns, split panes) use overflow-safe patterns:
-- **`ClippedRow`** (`widgets/clipped_row.dart`): drop-in `Row` replacement with custom `_ClippedRenderFlex` that clips overflow and suppresses the debug overflow indicator entirely. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
+- **`ClippedRow`** (`widgets/core/clipped_row.dart`): drop-in `Row` replacement with custom `_ClippedRenderFlex` that clips overflow and suppresses the debug overflow indicator entirely. Used in file browser rows, column headers, breadcrumb paths, connection bar, and transfer panel
 - **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
 - **Welcome screen**: `SingleChildScrollView` prevents vertical overflow on small windows
 
@@ -6107,7 +6084,7 @@ Encryption is applied at the database level via SQLCipher 4.x (AES-256-CBC + HMA
 
 *Why auto-select on top of the existing wizard:* the wizard was jarring as a first-run experience. Five tiers × two modifiers = ten combinations staring at a user who just wanted an SSH client. T1 is a solid default — protects against cold-disk theft, unlocks silently, zero friction — and the upgrade path to T2 / Paranoid is one tap away in Settings. The banner is the honest middle ground: we picked for you, here is what we picked, here is the upgrade path or the reason it is not available.
 
-*Post-setup banner:* [`FirstLaunchSecurityToast`](../lib/widgets/first_launch_security_toast.dart) — top-right `Overlay`-based toast shown by `_MainScreenState` when the provider fires. Replaces an earlier blocking `FirstLaunchSecurityDialog`: the auto-selected T1 is a safe default the app already landed on, so a modal that pins the user to click Dismiss before touching anything else is heavier than the choice warrants. The toast carries the same copy (what we picked + whether a hardware upgrade is within reach), offers an **Open Settings** action when `caps.hardwareVaultAvailable == true && current tier != hardware`, auto-dismisses after 8 seconds, and never blocks input. `onDismiss` clears the provider so the toast never re-opens; same no-persistence property as the dialog it replaced.
+*Post-setup banner:* [`FirstLaunchSecurityToast`](../lib/widgets/security/first_launch_security_toast.dart) — top-right `Overlay`-based toast shown by `_MainScreenState` when the provider fires. Replaces an earlier blocking `FirstLaunchSecurityDialog`: the auto-selected T1 is a safe default the app already landed on, so a modal that pins the user to click Dismiss before touching anything else is heavier than the choice warrants. The toast carries the same copy (what we picked + whether a hardware upgrade is within reach), offers an **Open Settings** action when `caps.hardwareVaultAvailable == true && current tier != hardware`, auto-dismisses after 8 seconds, and never blocks input. `onDismiss` clears the provider so the toast never re-opens; same no-persistence property as the dialog it replaced.
 
 *Settings discoverability cards:* the Security section consumes the same capabilities snapshot via [`securityCapabilitiesProvider`](../lib/providers/security_provider.dart) (a session-scoped `FutureProvider` — TPM / Secure Enclave / libsecret don't appear or disappear mid-session, so one probe per container is correct). When the current tier is below `SecurityTier.hardware`, Settings renders one of two cards right under the active-tier info tile:
 

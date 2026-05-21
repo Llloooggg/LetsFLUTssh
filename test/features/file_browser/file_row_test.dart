@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/marquee_mixin.dart';
+import 'package:letsflutssh/widgets/core/marquee_mixin.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/frb_bootstrap.dart';

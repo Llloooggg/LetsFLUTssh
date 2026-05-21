@@ -15,7 +15,7 @@ import '../src/rust/api/db.dart' as rust_db;
 import '../src/rust/api/s3.dart' as rust_s3;
 import '../src/rust/api/webdav.dart' as rust_webdav;
 import '../utils/logger.dart';
-import '../widgets/hardware_key_prompt_dialog.dart';
+import '../widgets/ssh_keys/hardware_key_prompt_dialog.dart';
 import '../core/bus/app_bus.dart';
 import '../core/security/session_credential_cache.dart';
 import '../core/session/session.dart';
