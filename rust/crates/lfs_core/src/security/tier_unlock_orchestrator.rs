@@ -901,8 +901,7 @@ mod tests {
     /// async tests can hold the guard across `.await` without
     /// tripping the `await_holding_lock` clippy lint.
     fn serial_mutex() -> &'static tokio::sync::Mutex<()> {
-        static M: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
-        M.get_or_init(|| tokio::sync::Mutex::new(()))
+        crate::app::test_serial_lock()
     }
 
     #[test]

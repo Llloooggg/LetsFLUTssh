@@ -545,15 +545,6 @@ fn default_yields_a_usable_bus() {
 // emitted event isn't lost; the subscribe happens via
 // `app::instance().bus.subscribe()` to match the production path.
 
-/// Serializes every test that mutates the autolock state machine.
-/// `app::init()` is a `OnceLock` singleton, so the autolock guard
-/// is shared across `#[tokio::test]` runs. Without this lock,
-/// `request_lock` / `unlock` / `on_lifecycle_change` race each
-/// other into their idempotent no-op branches and the corresponding
-/// `Event::AutoLock*` never fires for the test that is waiting on
-/// it. Acquire at the top of every autolock-touching test.
-static AUTOLOCK_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
 /// Bounded wait so a missing-event regression fails the test fast
 /// instead of hanging the whole `cargo test` run. Two seconds is
 /// long enough for the busiest CI scheduling, short enough that a
@@ -599,7 +590,7 @@ async fn dispatch_noop_echo_publishes_echoed_event() {
 
 #[tokio::test]
 async fn dispatch_autolock_set_timeout_publishes_timeout_changed() {
-    let _g = AUTOLOCK_TEST_LOCK.lock().await;
+    let _g = crate::app::test_serial_lock().lock().await;
     let app = crate::app::init();
     let mut rx = app.bus.subscribe(EventTopic::AutoLock);
     dispatch(Command::AutoLockSetTimeout { minutes: 7 })
@@ -615,7 +606,7 @@ async fn dispatch_autolock_set_timeout_publishes_timeout_changed() {
 
 #[tokio::test]
 async fn dispatch_autolock_request_lock_publishes_locked() {
-    let _g = AUTOLOCK_TEST_LOCK.lock().await;
+    let _g = crate::app::test_serial_lock().lock().await;
     let app = crate::app::init();
     // Force the machine into Unlocked so `RequestLock` actually
     // transitions and fires `Locked` — `request_lock` is
@@ -633,7 +624,7 @@ async fn dispatch_autolock_request_lock_publishes_locked() {
 
 #[tokio::test]
 async fn dispatch_autolock_unlock_publishes_unlocked() {
-    let _g = AUTOLOCK_TEST_LOCK.lock().await;
+    let _g = crate::app::test_serial_lock().lock().await;
     let app = crate::app::init();
     // Force Locked so `Unlock` actually transitions — direct
     // call bypasses the bus so the subscription below only sees
@@ -647,7 +638,7 @@ async fn dispatch_autolock_unlock_publishes_unlocked() {
 
 #[tokio::test]
 async fn dispatch_autolock_pointer_activity_does_not_fail() {
-    let _g = AUTOLOCK_TEST_LOCK.lock().await;
+    let _g = crate::app::test_serial_lock().lock().await;
     let _ = crate::app::init();
     // No event published — this path just resets the idle timer.
     // Verify it returns Ok and doesn't panic.
@@ -658,7 +649,7 @@ async fn dispatch_autolock_pointer_activity_does_not_fail() {
 
 #[tokio::test]
 async fn dispatch_autolock_lifecycle_change_does_not_fail() {
-    let _g = AUTOLOCK_TEST_LOCK.lock().await;
+    let _g = crate::app::test_serial_lock().lock().await;
     let _ = crate::app::init();
     dispatch(Command::AutoLockOnLifecycleChange { background: true })
         .await

@@ -697,14 +697,6 @@ mod tests {
     use crate::bus::{Event, EventTopic};
     use crate::security::recovery_prompt::{self, RecoveryPromptResponse};
 
-    /// Serializes every test that drives the orchestrator end-to-
-    /// end. `recovery_prompt::instance()` + `app::init().bus` are
-    /// process-wide singletons across `#[tokio::test]` runs; without
-    /// the lock parallel tests' driver tasks race each other into
-    /// the wrong prompt id and the awaiting handler stalls
-    /// indefinitely. Mirror of `AUTOLOCK_TEST_LOCK` in `bus.rs`.
-    static RECOVERY_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
     /// Drive one orchestrator round-trip — subscribe to the bus,
     /// dispatch the chosen response back through the prompt
     /// registry the moment the event lands. Mirrors what the
@@ -730,7 +722,7 @@ mod tests {
 
     #[tokio::test]
     async fn recovery_handle_corrupt_db_reset_wipes_and_returns_wiped() {
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();
@@ -744,7 +736,7 @@ mod tests {
 
     #[tokio::test]
     async fn recovery_handle_corrupt_db_quit_returns_user_exited() {
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();
@@ -759,7 +751,7 @@ mod tests {
 
     #[tokio::test]
     async fn recovery_handle_corrupt_db_try_other_tier_returns_continued() {
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();
@@ -774,7 +766,7 @@ mod tests {
 
     #[tokio::test]
     async fn recovery_handle_vault_state_missing_reset_branch() {
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();
@@ -788,7 +780,7 @@ mod tests {
 
     #[tokio::test]
     async fn recovery_handle_legacy_state_reset_branch() {
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();
@@ -802,7 +794,7 @@ mod tests {
 
     #[tokio::test]
     async fn recovery_handle_legacy_state_quit_branch_preserves_disk() {
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();
@@ -823,7 +815,7 @@ mod tests {
         // subscription mid-flight; the receiver returns Err and the
         // orchestrator must fall through to Quit so the user's data
         // is preserved.
-        let _g = RECOVERY_TEST_LOCK.lock().await;
+        let _g = crate::app::test_serial_lock().lock().await;
         let _ = crate::app::init();
         let tmp = tempfile::tempdir().expect("tmp");
         let p = tmp.path();

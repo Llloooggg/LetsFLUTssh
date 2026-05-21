@@ -249,6 +249,18 @@ pub fn try_instance() -> Option<Arc<AppState>> {
     APP_STATE.get().cloned()
 }
 
+/// Process-global serial gate for tests that touch the shared security
+/// singletons — the `SecretStore`, the `AppState` bus, the config-store
+/// actor. Per-module locks only serialise within their own module, so
+/// a test in one module and a test in another can still race on the
+/// same global state (intermittent, order-dependent failures). Every
+/// such test across the crate locks this one mutex instead.
+#[cfg(test)]
+pub(crate) fn test_serial_lock() -> &'static tokio::sync::Mutex<()> {
+    static M: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    M.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

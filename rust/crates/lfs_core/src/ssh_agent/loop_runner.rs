@@ -344,7 +344,6 @@ mod tests {
     /// parallel by default; the singleton slot races otherwise — one
     /// test's prime gets replaced by another's before assertions run.
     /// Acquire at the top of any test touching the shared DB.
-    static DB_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
     #[tokio::test]
     async fn write_frame_emits_length_prefix() {
@@ -391,7 +390,7 @@ mod tests {
         use crate::db::{bootstrap_schema, ssh_key_certificates, ssh_keys, Connection, Db};
         use crate::ssh_agent::identities;
 
-        let _guard = DB_TEST_LOCK.lock().await;
+        let _guard = crate::app::test_serial_lock().lock().await;
         // Prime the process singleton + an in-memory DB shared with
         // `Endpoint::list_rows`.
         let app = crate::app::init();
@@ -619,7 +618,7 @@ mod tests {
     async fn cert_sign_routes_to_dispatch_then_returns_failure_without_device() {
         use crate::db::{bootstrap_schema, ssh_keys, Connection, Db};
 
-        let _guard = DB_TEST_LOCK.lock().await;
+        let _guard = crate::app::test_serial_lock().lock().await;
         let app = crate::app::init();
         let conn = Connection::open_in_memory().unwrap();
         conn.raw()
@@ -695,7 +694,7 @@ mod tests {
     async fn cert_sign_unknown_row_returns_failure() {
         use crate::db::{bootstrap_schema, Connection, Db};
 
-        let _guard = DB_TEST_LOCK.lock().await;
+        let _guard = crate::app::test_serial_lock().lock().await;
         let app = crate::app::init();
         let conn = Connection::open_in_memory().unwrap();
         conn.raw()
