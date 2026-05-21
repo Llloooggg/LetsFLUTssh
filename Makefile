@@ -288,6 +288,7 @@ setup: deps hooks setup-rust-tools ## One-shot post-clone bootstrap: pub deps + 
 # any comment that names it elsewhere.
 CARGO_MACHETE_VERSION := 0.7.0
 CARGO_LLVM_COV_VERSION := 0.6.20
+CARGO_SWEEP_VERSION := 0.8.0
 
 setup-rust-tools: ## Install pinned cargo plugins (cargo-machete, cargo-llvm-cov) used by `make check` / `make rust-coverage`
 	@if ! command -v cargo-machete >/dev/null 2>&1; then \
@@ -301,6 +302,12 @@ setup-rust-tools: ## Install pinned cargo plugins (cargo-machete, cargo-llvm-cov
 		cargo install --locked --version $(CARGO_LLVM_COV_VERSION) cargo-llvm-cov; \
 	else \
 		echo "cargo-llvm-cov already installed."; \
+	fi
+	@if ! command -v cargo-sweep >/dev/null 2>&1; then \
+		echo "Installing cargo-sweep $(CARGO_SWEEP_VERSION)..."; \
+		cargo install --locked --version $(CARGO_SWEEP_VERSION) cargo-sweep; \
+	else \
+		echo "cargo-sweep already installed."; \
 	fi
 
 deps: ## Install Flutter dependencies
@@ -437,8 +444,11 @@ rust-build: ## Build Rust workspace (release, host), --locked enforces Cargo.loc
 rust-codegen: ## Regenerate Dart bindings from Rust API surface
 	flutter_rust_bridge_codegen generate
 
-rust-clean: ## cargo clean
+rust-clean: ## cargo clean (wipes the whole target/ — cold rebuild after)
 	cd $(RUST_DIR) && cargo clean
+
+rust-sweep: ## Trim oldest target/ artifacts down to CARGO_TARGET_MAX_GB, keeping the hot cache (needs cargo-sweep)
+	cd $(RUST_DIR) && cargo sweep --maxsize $${CARGO_TARGET_MAX_GB:-35}GB
 
 rust-machete: ## Detect unused dependencies (`cargo install cargo-machete` via `make setup-rust-tools`)
 	cd $(RUST_DIR) && cargo machete --with-metadata

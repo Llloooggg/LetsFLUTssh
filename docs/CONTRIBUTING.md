@@ -343,11 +343,15 @@ make dart-format-check   # Verify Dart formatting
 > flutter_rust_bridge codegen and `cargo-mutants` each spawn many
 > distinct builds whose artifacts accumulate there. After each commit
 > it measures `rust/target` in the background and, if it exceeds
-> `CARGO_TARGET_MAX_GB` (default 10), runs `make rust-clean`. It never
-> blocks or fails the commit; output goes to `.git/target-gc.log`.
-> Raise the threshold with `export CARGO_TARGET_MAX_GB=40` (a full
-> clean forces a cold rebuild), or skip a single commit's check with
-> `SKIP_TARGET_GC=1`.
+> `CARGO_TARGET_MAX_GB` (default 35, room for ~2 builds), runs
+> `make rust-sweep` — `cargo sweep --maxsize` drops the **oldest**
+> artifacts until the directory is back under the cap, leaving the hot
+> cache intact (a single build is already ~16G, so a full `cargo clean`
+> would force a cold rebuild). It never blocks or fails the commit;
+> output goes to `.git/target-gc.log`. Needs `cargo-sweep` (installed by
+> `make setup-rust-tools`); if it is missing the hook logs and skips
+> rather than wiping. Tune with `export CARGO_TARGET_MAX_GB=50` or skip
+> a single commit's check with `SKIP_TARGET_GC=1`.
 
 **New contributors:** start with [ADDING_A_FEATURE.md](ADDING_A_FEATURE.md) — a hands-on walkthrough of the project's layers, conventions, and tooling using a small example feature.
 
