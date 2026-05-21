@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:app_links/app_links.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../src/rust/api/archive.dart' as rust_archive;
@@ -18,13 +17,13 @@ import '../ssh/ssh_config.dart';
 ///
 /// Routing, dedup, and QR-payload staging all live Rust-side in
 /// `lfs_core::deeplink::DeeplinkDispatcher`. The Dart side is the
-/// thin URI pump: subscribe to `app_links` (a Flutter plugin —
-/// stays Dart), forward every URI through `deeplinkDispatch`, then
-/// switch on the typed [rust_deeplink.DbDeeplinkOutcome] to fire
-/// the matching UI callback.
+/// thin URI pump: forward every URI through `deeplinkDispatch`, then
+/// switch on the typed [rust_deeplink.DbDeeplinkOutcome] to fire the
+/// matching UI callback. The platform URI source (`app_links`, a
+/// Flutter plugin) is injected via [attachUriStream] from the app
+/// layer, so this handler carries no plugin dependency.
 class DeepLinkHandler {
-  final AppLinks _appLinks = AppLinks();
-  StreamSubscription? _sub;
+  StreamSubscription<Uri>? _sub;
 
   /// Callback invoked when a valid SSH connect link is received.
   void Function(SSHConfig config)? onConnect;
@@ -46,20 +45,26 @@ class DeepLinkHandler {
   /// Callback invoked when a .lfs archive is opened.
   void Function(String filePath)? onLfsFileOpened;
 
-  /// Start listening for incoming deep links.
-  Future<void> init() async {
+  /// Start listening for incoming deep links against an injected URI
+  /// source. The app layer wires this to the `app_links` plugin
+  /// (`getInitialLink` + `uriLinkStream`); tests pass their own
+  /// streams. Keeps the plugin out of `core/`.
+  Future<void> attachUriStream({
+    required Future<Uri?> Function() initialUri,
+    required Stream<Uri> uriStream,
+  }) async {
     // Cold-start: app launched via deep link.
     try {
-      final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) {
-        await handleUri(initialUri);
+      final uri = await initialUri();
+      if (uri != null) {
+        await handleUri(uri);
       }
     } catch (e) {
       AppLogger.instance.log('No initial link ($e)', name: 'DeepLink');
     }
 
     // Warm-start: links arriving while the app is running.
-    _sub = _appLinks.uriLinkStream.listen(
+    _sub = uriStream.listen(
       (uri) => unawaited(handleUri(uri)),
       onError: (e) =>
           AppLogger.instance.log('Stream error: $e', name: 'DeepLink'),

@@ -1,3 +1,4 @@
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,7 +23,7 @@ final deepLinkHandlerProvider = Provider<DeepLinkHandler>((_) {
 });
 
 /// Bind every callback on [handler] to the app's post-frame
-/// plumbing. Pure-Dart wiring — does NOT call `handler.init()`,
+/// plumbing. Pure-Dart wiring — does NOT subscribe to the URI stream,
 /// which is deferred to [activateDeepLinks] post-FRB-init so a
 /// cold-start `letsflutssh://` URL or `.lfs` file does not race
 /// `_initRustCoreOrFatal` (the dispatch goes through Rust).
@@ -105,12 +106,19 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
   };
 }
 
-/// Fire the handler's `init()` — drains the cold-launch
+/// Wire the app_links plugin into the handler — drains the cold-launch
 /// `getInitialLink()` (which dispatches through Rust) and
 /// subscribes to the warm-start URI stream. Called from
 /// `_LetsFLUTsshAppState._bootstrap` AFTER `_initRustCoreOrFatal`
 /// so a cold-launch via `letsflutssh://` or a double-clicked
 /// `.lfs` file never races the FRB load.
 Future<void> activateDeepLinks(DeepLinkHandler handler) async {
-  await handler.init();
+  // `app_links` (the platform URI plugin) is wired here, in the app
+  // layer, and injected into the core handler so `core/` carries no
+  // plugin dependency.
+  final appLinks = AppLinks();
+  await handler.attachUriStream(
+    initialUri: appLinks.getInitialLink,
+    uriStream: appLinks.uriLinkStream,
+  );
 }
