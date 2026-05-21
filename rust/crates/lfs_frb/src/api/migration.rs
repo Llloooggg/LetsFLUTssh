@@ -64,11 +64,13 @@ pub fn migration_archive_target_version() -> i32 {
 /// happened to work because Dart only calls this once at startup,
 /// but a future test that drives the path from inside an event
 /// loop would block.
-pub async fn migration_config_version_on_disk(support_dir: String) -> Result<i32, String> {
+pub async fn migration_config_version_on_disk() -> Result<i32, String> {
+    let support_dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     tokio::task::spawn_blocking(move || {
         use lfs_core::migration::artefacts::ConfigArtefact;
         use lfs_core::migration::Artefact;
-        ConfigArtefact.read_version(std::path::Path::new(&support_dir))
+        ConfigArtefact.read_version(support_dir)
     })
     .await
     .map_err(|e| format!("config-version task: {e}"))?
@@ -89,11 +91,20 @@ pub async fn migration_config_version_on_disk(support_dir: String) -> Result<i32
 /// migration that touches several artefacts could run for tens
 /// of milliseconds and that is unbounded enough to deserve the
 /// spawn_blocking wrapper.
-pub async fn migration_run_on_startup(support_dir: String) -> DbMigrationReport {
+pub async fn migration_run_on_startup() -> DbMigrationReport {
+    let support_dir = match lfs_core::security::master_password::try_pinned_support_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            return DbMigrationReport {
+                steps: Vec::new(),
+                future_versions: Vec::new(),
+                fatal_error: Some(crate::api::frb_err::from_core(&e)),
+            };
+        }
+    };
     tokio::task::spawn_blocking(move || {
         let registry = lfs_core::migration::build_app_registry();
-        let report =
-            lfs_core::migration::run_on_startup(std::path::Path::new(&support_dir), &registry);
+        let report = lfs_core::migration::run_on_startup(support_dir, &registry);
         DbMigrationReport {
             steps: report
                 .steps
@@ -164,28 +175,9 @@ mod tests {
         assert!(migration_archive_target_version() >= 1);
     }
 
-    #[tokio::test]
-    async fn config_version_on_disk_returns_minus_one_for_missing_dir() {
-        // No `config.json` under `/nonexistent/...` — the probe
-        // must collapse to `-1` rather than `Err`. Same shape Dart
-        // expects for a fresh install.
-        let v = migration_config_version_on_disk("/nonexistent/scan/path-7c8f".into())
-            .await
-            .expect("missing path must collapse to -1, not Err");
-        assert_eq!(v, -1);
-    }
-
-    #[tokio::test]
-    async fn run_on_startup_against_empty_dir_yields_no_steps_no_fatal() {
-        // A fresh app-support directory has no artefacts to walk;
-        // the runner must return an empty report (no steps, no
-        // future-versions, no fatal-error) so the Dart caller's
-        // happy-path branch fires.
-        let tmp = tempfile::tempdir().expect("tmp dir");
-        let path = tmp.path().to_str().expect("utf-8 tmp path").to_string();
-        let report = migration_run_on_startup(path).await;
-        assert!(report.steps.is_empty());
-        assert!(report.future_versions.is_empty());
-        assert!(report.fatal_error.is_none());
-    }
+    // The path-specific behaviours (missing config -> -1, empty dir ->
+    // no-op report) are covered against the explicit `&Path` API in
+    // `lfs_core::migration` + `lfs_core::migration::artefacts`. These
+    // FRB wrappers only resolve the pinned support dir and delegate, so
+    // they carry no path-specific tests of their own.
 }

@@ -1,5 +1,3 @@
-import 'package:path_provider/path_provider.dart';
-
 import '../../src/rust/api/migration.dart' as rust_migration;
 
 export '../../src/rust/api/migration.dart'
@@ -27,12 +25,10 @@ extension DbMigrationReportHelpers on rust_migration.DbMigrationReport {
   int get migratedCount => steps.where((s) => s.succeeded).length;
 }
 
-/// Run the startup migration framework Rust-side. Resolves the
-/// platform's app-support directory through `path_provider` and hands
-/// the path off to `lfs_core::migration::run_on_startup`. Idempotent —
+/// Run the startup migration framework Rust-side against the pinned
+/// app-support directory (pinned at `config_store_init`). Idempotent —
 /// running twice in a row on a healthy install returns a no-op
 /// [rust_migration.DbMigrationReport].
 Future<rust_migration.DbMigrationReport> runStartupMigrations() async {
-  final dir = await getApplicationSupportDirectory();
-  return rust_migration.migrationRunOnStartup(supportDir: dir.path);
+  return rust_migration.migrationRunOnStartup();
 }

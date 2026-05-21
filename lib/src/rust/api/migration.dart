@@ -34,10 +34,8 @@ int migrationArchiveTargetVersion() =>
 /// happened to work because Dart only calls this once at startup,
 /// but a future test that drives the path from inside an event
 /// loop would block.
-Future<int> migrationConfigVersionOnDisk({required String supportDir}) =>
-    RustLib.instance.api.crateApiMigrationMigrationConfigVersionOnDisk(
-      supportDir: supportDir,
-    );
+Future<int> migrationConfigVersionOnDisk() =>
+    RustLib.instance.api.crateApiMigrationMigrationConfigVersionOnDisk();
 
 /// Run every registered artefact's migration chain against the
 /// app-support directory at `support_dir`. Idempotent — running
@@ -54,10 +52,8 @@ Future<int> migrationConfigVersionOnDisk({required String supportDir}) =>
 /// migration that touches several artefacts could run for tens
 /// of milliseconds and that is unbounded enough to deserve the
 /// spawn_blocking wrapper.
-Future<DbMigrationReport> migrationRunOnStartup({required String supportDir}) =>
-    RustLib.instance.api.crateApiMigrationMigrationRunOnStartup(
-      supportDir: supportDir,
-    );
+Future<DbMigrationReport> migrationRunOnStartup() =>
+    RustLib.instance.api.crateApiMigrationMigrationRunOnStartup();
 
 /// FRB mirror of [`lfs_core::migration::Report`].
 class DbMigrationReport {

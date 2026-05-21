@@ -1609,13 +1609,9 @@ abstract class RustLibApi extends BaseApi {
 
   int crateApiMigrationMigrationConfigTargetVersion();
 
-  Future<int> crateApiMigrationMigrationConfigVersionOnDisk({
-    required String supportDir,
-  });
+  Future<int> crateApiMigrationMigrationConfigVersionOnDisk();
 
-  Future<DbMigrationReport> crateApiMigrationMigrationRunOnStartup({
-    required String supportDir,
-  });
+  Future<DbMigrationReport> crateApiMigrationMigrationRunOnStartup();
 
   Future<InstallerLaunchOutcome> crateApiInstallerOpenInstallerFile({
     required String path,
@@ -15392,14 +15388,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<int> crateApiMigrationMigrationConfigVersionOnDisk({
-    required String supportDir,
-  }) {
+  Future<int> crateApiMigrationMigrationConfigVersionOnDisk() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -15412,7 +15405,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiMigrationMigrationConfigVersionOnDiskConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
@@ -15421,18 +15414,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiMigrationMigrationConfigVersionOnDiskConstMeta =>
       const TaskConstMeta(
         debugName: "migration_config_version_on_disk",
-        argNames: ["supportDir"],
+        argNames: [],
       );
 
   @override
-  Future<DbMigrationReport> crateApiMigrationMigrationRunOnStartup({
-    required String supportDir,
-  }) {
+  Future<DbMigrationReport> crateApiMigrationMigrationRunOnStartup() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -15445,17 +15435,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiMigrationMigrationRunOnStartupConstMeta,
-        argValues: [supportDir],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiMigrationMigrationRunOnStartupConstMeta =>
-      const TaskConstMeta(
-        debugName: "migration_run_on_startup",
-        argNames: ["supportDir"],
-      );
+      const TaskConstMeta(debugName: "migration_run_on_startup", argNames: []);
 
   @override
   Future<InstallerLaunchOutcome> crateApiInstallerOpenInstallerFile({
