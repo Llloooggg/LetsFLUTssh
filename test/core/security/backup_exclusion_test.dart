@@ -1,27 +1,26 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/backup_exclusion.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('invokes the exclude impl with the app-support path on Apple', () async {
-    String? seenPath;
+  test('invokes the exclude impl on Apple platforms', () async {
+    // The directory the exclusion targets is the one pinned Rust-side
+    // at config_store_init; this test verifies only the Apple-gate
+    // dispatch (the path resolution + native call live in Rust).
+    var called = false;
     await BackupExclusion(
       isApplePlatform: true,
-      supportDir: () async => Directory('/tmp/lfs-test-support'),
-      excludeImpl: (path) => seenPath = path,
+      excludeImpl: () => called = true,
     ).applyOnStartup();
-    expect(seenPath, '/tmp/lfs-test-support');
+    expect(called, isTrue);
   });
 
   test('is a no-op off Apple platforms', () async {
     var called = false;
     await BackupExclusion(
       isApplePlatform: false,
-      supportDir: () async => Directory('/tmp/lfs-test-support'),
-      excludeImpl: (_) => called = true,
+      excludeImpl: () => called = true,
     ).applyOnStartup();
     expect(called, isFalse);
   });
@@ -31,8 +30,7 @@ void main() {
     // — the user gets a usable app even when the OS rejected the call.
     await BackupExclusion(
       isApplePlatform: true,
-      supportDir: () async => Directory('/tmp/lfs-test-support'),
-      excludeImpl: (_) => throw StateError('exclude failed'),
+      excludeImpl: () => throw StateError('exclude failed'),
     ).applyOnStartup();
   });
 }

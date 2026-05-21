@@ -35,12 +35,13 @@ void osSecurityUnlockMemory({required BigInt addr, required BigInt len}) =>
       len: len,
     );
 
-/// Set `NSURLIsExcludedFromBackupKey = true` on the directory at
-/// `path` so iCloud Backup / iTunes / Time Machine skip it.
-/// No-op on Linux / Windows / Android. Returns the underlying
-/// Foundation error string when the call fails on Apple.
-void osSecurityExcludeFromBackup({required String path}) => RustLib.instance.api
-    .crateApiOsSecurityOsSecurityExcludeFromBackup(path: path);
+/// Set `NSURLIsExcludedFromBackupKey = true` on the app-support
+/// directory (pinned at `config_store_init`) so iCloud Backup /
+/// iTunes / Time Machine skip it. No-op on Linux / Windows / Android.
+/// Returns the underlying Foundation error string when the call fails
+/// on Apple.
+void osSecurityExcludeSupportDirFromBackup() => RustLib.instance.api
+    .crateApiOsSecurityOsSecurityExcludeSupportDirFromBackup();
 
 /// Write `text` to the system clipboard with the per-platform
 /// "do not sync / do not history" flags applied in the same write

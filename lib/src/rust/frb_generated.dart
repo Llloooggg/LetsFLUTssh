@@ -148,7 +148,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1757321575;
+  int get rustContentHash => 948631966;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1606,7 +1606,7 @@ abstract class RustLibApi extends BaseApi {
   Future<DbBiometricAvailability>
   crateApiOsSecurityOsSecurityBiometricAvailability();
 
-  void crateApiOsSecurityOsSecurityExcludeFromBackup({required String path});
+  void crateApiOsSecurityOsSecurityExcludeSupportDirFromBackup();
 
   bool crateApiOsSecurityOsSecurityIsBeingDebugged();
 
@@ -15580,12 +15580,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  void crateApiOsSecurityOsSecurityExcludeFromBackup({required String path}) {
+  void crateApiOsSecurityOsSecurityExcludeSupportDirFromBackup() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(path, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -15596,17 +15595,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiOsSecurityOsSecurityExcludeFromBackupConstMeta,
-        argValues: [path],
+        constMeta:
+            kCrateApiOsSecurityOsSecurityExcludeSupportDirFromBackupConstMeta,
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiOsSecurityOsSecurityExcludeFromBackupConstMeta =>
+  TaskConstMeta
+  get kCrateApiOsSecurityOsSecurityExcludeSupportDirFromBackupConstMeta =>
       const TaskConstMeta(
-        debugName: "os_security_exclude_from_backup",
-        argNames: ["path"],
+        debugName: "os_security_exclude_support_dir_from_backup",
+        argNames: [],
       );
 
   @override

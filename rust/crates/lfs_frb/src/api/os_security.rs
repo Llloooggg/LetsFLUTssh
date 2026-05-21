@@ -50,13 +50,16 @@ pub fn os_security_unlock_memory(addr: usize, len: usize) {
     lfs_os_security::unlock_memory(addr, len);
 }
 
-/// Set `NSURLIsExcludedFromBackupKey = true` on the directory at
-/// `path` so iCloud Backup / iTunes / Time Machine skip it.
-/// No-op on Linux / Windows / Android. Returns the underlying
-/// Foundation error string when the call fails on Apple.
+/// Set `NSURLIsExcludedFromBackupKey = true` on the app-support
+/// directory (pinned at `config_store_init`) so iCloud Backup /
+/// iTunes / Time Machine skip it. No-op on Linux / Windows / Android.
+/// Returns the underlying Foundation error string when the call fails
+/// on Apple.
 #[flutter_rust_bridge::frb(sync)]
-pub fn os_security_exclude_from_backup(path: String) -> Result<(), String> {
-    lfs_os_security::backup_exclusion::exclude_from_backup(&path)
+pub fn os_security_exclude_support_dir_from_backup() -> Result<(), String> {
+    let support_dir = lfs_core::security::master_password::try_pinned_support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    lfs_os_security::backup_exclusion::exclude_from_backup(&support_dir.to_string_lossy())
 }
 
 /// Write `text` to the system clipboard with the per-platform

@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1757321575;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 948631966;
 
 // Section: executor
 
@@ -15094,14 +15094,14 @@ fn wire__crate__api__os_security__os_security_biometric_availability_impl(
         },
     )
 }
-fn wire__crate__api__os_security__os_security_exclude_from_backup_impl(
+fn wire__crate__api__os_security__os_security_exclude_support_dir_from_backup_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "os_security_exclude_from_backup",
+            debug_name: "os_security_exclude_support_dir_from_backup",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -15115,10 +15115,10 @@ fn wire__crate__api__os_security__os_security_exclude_from_backup_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::os_security::os_security_exclude_from_backup(api_path)?;
+                let output_ok =
+                    crate::api::os_security::os_security_exclude_support_dir_from_backup()?;
                 Ok(output_ok)
             })())
         },
@@ -31847,7 +31847,7 @@ fn pde_ffi_dispatcher_sync_impl(
 388 => wire__crate__api__openssh_config_import__openssh_config_build_preview_impl(ptr, rust_vec_len, data_len),
 390 => wire__crate__api__openssh_config_import__openssh_config_expand_home_impl(ptr, rust_vec_len, data_len),
 391 => wire__crate__api__os_security__os_security_apply_startup_hardening_impl(ptr, rust_vec_len, data_len),
-394 => wire__crate__api__os_security__os_security_exclude_from_backup_impl(ptr, rust_vec_len, data_len),
+394 => wire__crate__api__os_security__os_security_exclude_support_dir_from_backup_impl(ptr, rust_vec_len, data_len),
 395 => wire__crate__api__os_security__os_security_is_being_debugged_impl(ptr, rust_vec_len, data_len),
 396 => wire__crate__api__os_security__os_security_lock_memory_impl(ptr, rust_vec_len, data_len),
 397 => wire__crate__api__os_security__os_security_secure_clipboard_compare_and_clear_impl(ptr, rust_vec_len, data_len),

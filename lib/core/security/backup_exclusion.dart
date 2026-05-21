@@ -1,6 +1,4 @@
-import 'dart:io' show Directory, Platform;
-
-import 'package:path_provider/path_provider.dart';
+import 'dart:io' show Platform;
 
 import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
@@ -38,26 +36,21 @@ import '../../utils/logger.dart';
 /// Dart [_isApplePlatform] gate is a startup-path short-circuit only,
 /// not a correctness guard.
 class BackupExclusion {
-  BackupExclusion({
-    bool? isApplePlatform,
-    Future<Directory> Function()? supportDir,
-    void Function(String path)? excludeImpl,
-  }) : _isApplePlatform =
-           isApplePlatform ?? (Platform.isIOS || Platform.isMacOS),
-       _supportDir = supportDir ?? getApplicationSupportDirectory,
-       _excludeImpl = excludeImpl ?? _defaultExcludeImpl;
+  BackupExclusion({bool? isApplePlatform, void Function()? excludeImpl})
+    : _isApplePlatform =
+          isApplePlatform ?? (Platform.isIOS || Platform.isMacOS),
+      _excludeImpl = excludeImpl ?? _defaultExcludeImpl;
 
   final bool _isApplePlatform;
-  final Future<Directory> Function() _supportDir;
-  final void Function(String path) _excludeImpl;
+  final void Function() _excludeImpl;
 
   /// Flag the app-support directory so Apple backup paths skip it.
-  /// Resolves to a no-op on non-Apple platforms.
+  /// Resolves to a no-op on non-Apple platforms. The directory is the
+  /// one pinned at `config_store_init`, resolved Rust-side.
   Future<void> applyOnStartup() async {
     if (!_isApplePlatform) return;
     try {
-      final dir = await _supportDir();
-      _excludeImpl(dir.path);
+      _excludeImpl();
     } catch (e) {
       AppLogger.instance.log(
         'BackupExclusion.applyOnStartup failed: $e',
@@ -66,7 +59,7 @@ class BackupExclusion {
     }
   }
 
-  static void _defaultExcludeImpl(String path) {
-    rust_os.osSecurityExcludeFromBackup(path: path);
+  static void _defaultExcludeImpl() {
+    rust_os.osSecurityExcludeSupportDirFromBackup();
   }
 }
