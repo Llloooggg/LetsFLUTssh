@@ -22,14 +22,12 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/platform.dart';
-import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_collection_panel.dart';
 import '../../widgets/core/app_data_row.dart';
-import '../../widgets/core/app_data_search_bar.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_icon_button.dart';
 import '../../widgets/core/app_picker_chip.dart';
 import '../../utils/secret_controller.dart';
-import '../../widgets/core/app_empty_state.dart';
 import '../../widgets/ssh_keys/enclave_ssh_dialog.dart';
 import '../../widgets/ssh_keys/hardware_key_badge.dart';
 import '../../widgets/ssh_keys/hello_ssh_dialog.dart';
@@ -53,13 +51,11 @@ class KeyManagerPanel extends ConsumerStatefulWidget {
 }
 
 class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
-  // Listing carries metadata only — id, label, publicKey, keyType,
-  // createdAt, fingerprints. The PEM bytes never enter the dialog;
-  // `Copy public key`, `Delete`, and the search filter all work
-  // off [SshKeyMetadata].
-  List<SshKeyMetadata> _keys = [];
-  bool _loading = true;
-  String _filter = '';
+  // The list / loading / filter state lives in [CollectionManagerPanel].
+  // This panel only contributes the key-specific add-menu, row rendering,
+  // and the import / generate / hardware mint flows. `_reload` is captured
+  // from the panel so those flows can refresh the list after a mutation.
+  Future<void> Function()? _reload;
 
   /// FIDO2 hardware-key direct-CTAP2 probe — captured once at build
   /// time. `false` in flutter_test contexts where FRB is not loaded
@@ -88,63 +84,38 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _loadKeys();
-  }
-
-  Future<void> _loadKeys() async {
-    final store = ref.read(sshKeysMutatorProvider);
-    try {
-      final keys = await store.loadAllMetadata();
-      if (mounted) {
-        setState(() {
-          _keys = keys.values.toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _keys = [];
-          _loading = false;
-        });
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return Column(
-      children: [
-        _buildToolbar(s),
-        const Divider(height: 1),
-        Expanded(child: _buildBody(s)),
-      ],
-    );
-  }
-
-  Widget _buildToolbar(S s) {
-    return AppCollectionToolbar(
-      hasItems: _keys.isNotEmpty,
-      // Search + count mirror the snippet / tag manager toolbars so
-      // every collection dialog reads the same way.
-      search: AppDataSearchBar(
-        onChanged: (v) => setState(() => _filter = v),
-        hintText: s.search,
-      ),
-      countLabel: s.keyCount(_keys.length),
+    return CollectionManagerPanel<SshKeyMetadata>(
+      // Listing carries metadata only — id, label, publicKey, keyType,
+      // createdAt, fingerprints. PEM bytes never enter the dialog. A
+      // store read failure shows an empty list rather than an error row.
+      load: (ref) async {
+        try {
+          final keys = await ref.read(sshKeysMutatorProvider).loadAllMetadata();
+          return keys.values.toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        } catch (_) {
+          return const <SshKeyMetadata>[];
+        }
+      },
+      filter: filterSshKeys,
+      countLabel: s.keyCount,
+      emptyMessage: s.noKeys,
+      noResultsMessage: s.noResults,
       // Single `+ Add ▾` trigger collapses the import / generate /
-      // hardware-tier / smart-card paths into one popup so the
-      // toolbar stays a flat decision surface (one button) instead
-      // of a horizontal stack of 4–9 icon+label rectangles. Items
-      // unavailable on the host platform (FIDO2 without HID access,
-      // PKCS#11 on mobile, unsupported hardware tiers) drop from
-      // the menu rather than render disabled — action menus hide,
-      // configuration surfaces disable (CLAUDE.md UI rule).
-      actions: [_buildAddMenuButton(s)],
+      // hardware-tier / smart-card paths into one popup so the toolbar
+      // stays a flat decision surface. Items unavailable on the host
+      // platform drop from the menu rather than render disabled — action
+      // menus hide, configuration surfaces disable (CLAUDE.md UI rule).
+      toolbarActions: (context, ref, reload) {
+        _reload = reload;
+        return [_buildAddMenuButton(s)];
+      },
+      itemBuilder: (context, ref, entry, reload) {
+        _reload = reload;
+        return _buildKeyEntry(s, entry);
+      },
     );
   }
 
@@ -308,26 +279,6 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     }
   }
 
-  List<SshKeyMetadata> _filtered() => filterSshKeys(_keys, _filter);
-
-  Widget _buildBody(S s) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_keys.isEmpty) {
-      return AppEmptyState(message: s.noKeys);
-    }
-    final visible = _filtered();
-    if (visible.isEmpty) {
-      return AppEmptyState(message: s.noResults);
-    }
-    return ListView.separated(
-      itemCount: visible.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildKeyEntry(s, visible[index]),
-    );
-  }
-
   Widget _buildKeyEntry(S s, SshKeyMetadata entry) {
     // Stub rows landed via `.lfs` import / WebDAV sync for a
     // device-bound backend — only the public half travelled. The
@@ -397,7 +348,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       await KeystoreSshDialog.show(context, initialLabel: label);
     }
     if (!mounted) return;
-    await _loadKeys();
+    await _reload?.call();
   }
 
   /// Compose the cert tertiary line via the pure helper in
@@ -449,7 +400,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     // `dbSshKeysDelete` Rust-side publishes `SessionsChanged` so
     // the workspace stream re-fetches and the tree picks up the
     // cleared keyId without a Dart-side reload.
-    await _loadKeys();
+    await _reload?.call();
     if (mounted) {
       Toast.show(context, message: s.keyDeleted(entry.label));
     }
@@ -600,7 +551,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
 
-    await _loadKeys();
+    await _reload?.call();
   }
 
   Future<void> _removeCertificate(SshKeyMetadata entry) async {
@@ -629,7 +580,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         error: e,
       );
     }
-    await _loadKeys();
+    await _reload?.call();
   }
 
   Future<void> _generateKey() async {
@@ -638,7 +589,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
 
     final store = ref.read(sshKeysMutatorProvider);
     await store.save(result);
-    await _loadKeys();
+    await _reload?.call();
     if (mounted) {
       Toast.show(
         context,
@@ -823,7 +774,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     try {
       final store = ref.read(sshKeysMutatorProvider);
       await store.save(entry);
-      await _loadKeys();
+      await _reload?.call();
       if (mounted) {
         Toast.show(
           context,
@@ -871,7 +822,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    await _loadKeys();
+    await _reload?.call();
     if (!mounted) return;
     Toast.show(
       context,
@@ -906,7 +857,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    await _loadKeys();
+    await _reload?.call();
     if (!mounted) return;
     Toast.show(
       context,
@@ -941,7 +892,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    await _loadKeys();
+    await _reload?.call();
     if (!mounted) return;
     Toast.show(
       context,
@@ -976,7 +927,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    await _loadKeys();
+    await _reload?.call();
     if (!mounted) return;
     Toast.show(
       context,
@@ -1009,7 +960,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
     if (result == null || !mounted) return;
-    await _loadKeys();
+    await _reload?.call();
     if (!mounted) return;
     Toast.show(
       context,
@@ -1025,7 +976,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     try {
       final id = await const TpmImportHelper().pickAndImport(context);
       if (id == null || !mounted) return;
-      await _loadKeys();
+      await _reload?.call();
       if (!mounted) return;
       Toast.show(
         context,
@@ -1052,7 +1003,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       final store = ref.read(sshKeysMutatorProvider);
       final entry = await store.importKey(pem, label);
       await store.save(entry);
-      await _loadKeys();
+      await _reload?.call();
       if (mounted) {
         Toast.show(
           context,

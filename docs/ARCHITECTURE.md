@@ -225,7 +225,7 @@ lib/
 │   │   ├── sidebar_nav_dialog.dart   # VS-Code-style nav-rail + lazy keep-alive content pane (Tools + Settings dialogs)
 │   │   ├── app_data_row.dart         # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions
 │   │   ├── app_collection_toolbar.dart # Shared header (search + add + secondary action) for list-style managers
-│   │   ├── app_collection_panel.dart  # Generic load→search→list manager shell (CollectionManagerPanel<T>) behind the Tags + Snippets managers
+│   │   ├── app_collection_panel.dart  # Generic load→search→list manager shell (CollectionManagerPanel<T>) behind the Keys, Tags + Snippets managers
 │   │   ├── app_icon_button.dart      # Rectangular hover button (replaces Material IconButton)
 │   │   ├── app_selection_area.dart   # Local-scope text-selection wrapper used inside dialogs / threat lists / help prose
 │   │   ├── app_shell.dart            # Desktop layout shell (toolbar, sidebar, body, status bar)
@@ -4006,7 +4006,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 | `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts, Recordings. Composes [`SidebarNavDialog`](#sidebarnavdialog), which owns the lazy keep-alive content pane |
 | `tools/tools_screen.dart` | `ToolsScreen` | Mobile Tools route — list of tool tiles (same entries as desktop dialog) |
-| `key_manager/key_manager_dialog.dart` | `KeyManagerPanel` / `KeyManagerDialog` | SSH key panel (embeddable) + dialog wrapper |
+| `key_manager/key_manager_dialog.dart` | `KeyManagerPanel` / `KeyManagerDialog` | SSH key panel (embeddable, built on `CollectionManagerPanel<SshKeyMetadata>`; keeps its `+ Add ▾` menu + import/generate/hardware flows) + dialog wrapper |
 | `snippets/snippet_manager_dialog.dart` | `SnippetManagerPanel` / `SnippetManagerDialog` | Snippet panel (embeddable, built on `CollectionManagerPanel<Snippet>`) + dialog wrapper |
 | `tags/tag_manager_dialog.dart` | `TagManagerPanel` / `TagManagerDialog` | Tag panel (embeddable, built on `CollectionManagerPanel<Tag>`) + dialog wrapper |
 
@@ -4095,7 +4095,7 @@ The full set of files lives under `lib/widgets/` (alphabetical). The detailed en
 |------|------|
 | `app_button.dart` | `AppButton` + named ctors (`.cancel` / `.primary` / `.secondary` / `.destructive`) — compact dialog/footer button. Re-exported from `app_dialog.dart` so dialog callsites only need one import. |
 | `app_collection_toolbar.dart` | `AppCollectionToolbar` — shared "search + add + secondary action" header used by every list-style manager (SSH keys, snippets, tags, known hosts) so they line up visually. |
-| `app_collection_panel.dart` | `CollectionManagerPanel<T>` — generic "load a list → search → act on rows" manager shell. Owns the load/loading/filter state and the `AppCollectionToolbar` + separated-list scaffold; callers pass `load` / `filter` / `countLabel` / messages / toolbar actions / `itemBuilder`. Backs the Tags + Snippets managers. Imperative load-then-`reload` model only — reactive collections (known hosts) watch their stream directly. |
+| `app_collection_panel.dart` | `CollectionManagerPanel<T>` — generic "load a list → search → act on rows" manager shell. Owns the load/loading/filter state and the `AppCollectionToolbar` + separated-list scaffold; callers pass `load` / `filter` / `countLabel` / messages / toolbar actions / `itemBuilder`. Backs the Keys, Tags + Snippets managers. Imperative load-then-`reload` model only — reactive collections (known hosts) watch their stream directly. |
 | `app_empty_state.dart` | `AppEmptyState` — centered icon + heading + secondary line + optional action. Replaces ad-hoc `Column` empty placeholders. |
 | `app_picker_chip.dart` | `AppPickerChip` — shared pill-shaped selector used by ProxyJump kind picker, port-forward kind picker, snippet token chips. |
 | `app_selection_area.dart` | `AppSelectionArea` — local-scope text-selection wrapper used inside dialogs / threat lists / help prose. The desktop shell never wraps the workspace in `SelectionArea` (gesture-arena race with `ThresholdDraggable`). See [Selection scoping](#selection-scoping). |
