@@ -156,7 +156,7 @@ check-static: format-check lint lint-workflows lint-release-hardening rust-mache
 check: check-static ## Full gate (Dart + Rust): static checks, then the test suite
 	@$(MAKE) test
 
-hooks: ## Install local git hooks (pre-commit: check-static; pre-push: test; commit-msg: lint + plan-id; post-commit: target GC)
+hooks: ## Install local git hooks (pre-commit: check-static; pre-push: check-static; commit-msg: lint + plan-id; post-commit: target GC)
 	@bash dev/scripts/install-hooks.sh
 
 gen: ## Code generation (freezed, json_serializable)

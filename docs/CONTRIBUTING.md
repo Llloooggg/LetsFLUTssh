@@ -295,7 +295,7 @@ in scope.
 
 ```bash
 make setup          # One-time post-clone bootstrap: pub deps + git hooks + cargo plugins
-make hooks          # Install git hooks (pre-commit: check-static; pre-push: test; commit-msg: lint + plan-id; post-commit: target GC)
+make hooks          # Install git hooks (pre-commit: check-static; pre-push: check-static; commit-msg: lint + plan-id; post-commit: target GC)
 make run            # Run in debug mode
 make test           # Run all tests (Dart + Rust)
 make lint           # Static analysis (Dart analyzer + Rust clippy)
@@ -329,10 +329,12 @@ make dart-format-check   # Verify Dart formatting
 > - **pre-commit** runs `make check-static` — format, lint, workflow and
 >   release-hardening lint, unused-deps; no tests. Skipped for doc-only
 >   staged diffs. Bypass with `SKIP_PRECOMMIT=1`.
-> - **pre-push** runs `make test` (full Dart + Rust suite) so a broken
->   push never reaches CI. Skipped when the pushed commits touch no
->   `.dart` / `.rs` / `pubspec.yaml` / `Cargo.toml`. Bypass with
->   `SKIP_PREPUSH=1`.
+> - **pre-push** runs `make check-static` as a local backstop — it
+>   catches a format / lint slip from an amend or a `SKIP_PRECOMMIT`
+>   commit before it burns a CI round. The test suite is **not** run
+>   locally: it is slow and redundant with CI, which runs the full
+>   suite on every PR to `main` / `dev` (the real gate before a
+>   release-bearing merge). Bypass with `SKIP_PREPUSH=1`.
 > - **commit-msg** checks the conventional-commit subject format on every
 >   commit (the same `dev/scripts/conventional-commit-check.sh` that CI's
 >   `commit-lint` job runs, so the two can't drift) and runs the agent

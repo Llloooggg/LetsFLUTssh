@@ -3,12 +3,14 @@
 #
 # Hooks are intentionally not tracked, so each clone runs this once
 # (CLAUDE.md / docs/CONTRIBUTING.md point contributors here). Layout —
-# cheap checks fire early for fast feedback, the heavy test suite waits
-# until push, and CI re-runs everything as the real enforcement gate:
+# fast static checks fire locally on commit and again on push as a
+# backstop; the slow test suite runs only in CI, the real gate:
 #   pre-commit   make check-static (format + lint + workflow/hardening
 #                lint + unused-deps; no tests) — skipped for doc-only diffs
-#   pre-push     make test (full Dart + Rust suite) — skipped when the
-#                pushed commits touch no .dart/.rs/pubspec/Cargo.toml
+#   pre-push     make check-static — local backstop catching a format /
+#                lint slip from an amend or SKIP_PRECOMMIT commit before
+#                it burns a CI round. Tests are NOT run locally; CI runs
+#                the full suite on every PR to main/dev (the real gate).
 #   commit-msg   conventional-commit format (all commits) + agent
 #                plan-ID gate (agent commits only)
 #   post-commit  cap rust/target size (local housekeeping)
@@ -52,8 +54,8 @@ if ! printf '%s\n' "$staged" | grep -qE '\.(dart|rs)$|(^|/)pubspec\.yaml$|(^|/)C
 fi
 
 # Static slice of CI's gate: format-check + lint + workflow lint +
-# release hardening + unused-deps, for both Dart and Rust. The full
-# test suite runs in the pre-push hook, not on every commit.
+# release hardening + unused-deps, for both Dart and Rust. The test
+# suite is not run locally — CI runs it on every PR to main/dev.
 exec make check-static
 HOOK
 chmod +x "$hook_dir/pre-commit"
@@ -63,43 +65,23 @@ cat > "$hook_dir/pre-push" <<'HOOK'
 # Auto-installed by dev/scripts/install-hooks.sh — do not edit by hand.
 # Edit dev/scripts/install-hooks.sh and re-run it instead.
 #
-# Heavy gate before sharing: runs the full `make test` suite so a
-# broken push never reaches CI. Kept out of pre-commit so day-to-day
-# commits stay fast — static checks fire on commit, tests fire here.
+# Local backstop before sharing: runs `make check-static` (format +
+# lint + workflow/hardening lint + unused-deps). Catches a format / lint
+# slip from an amend or a SKIP_PRECOMMIT commit before it burns a CI
+# round. The full test suite is NOT run here — it is slow and redundant
+# with CI, which runs it on every PR to main/dev (the real gate before a
+# release-bearing merge). Unconditional: check-static is seconds and its
+# workflow / release-hardening slices cover non-.dart/.rs pushes too.
 #
 #   SKIP_PREPUSH=1   bypass for an emergency push
 set -euo pipefail
 
 if [[ "${SKIP_PREPUSH:-0}" == "1" ]]; then
-  echo "pre-push: SKIP_PREPUSH=1 set, skipping make test" >&2
+  echo "pre-push: SKIP_PREPUSH=1 set, skipping make check-static" >&2
   exit 0
 fi
 
-zero='0000000000000000000000000000000000000000'
-run=0          # 1 => force the suite (range we cannot cheaply diff)
-code_touched=0 # 1 => a pushed range touched testable code
-saw_range=0
-
-# git feeds "<local_ref> <local_sha> <remote_ref> <remote_sha>" per ref.
-while read -r _local_ref local_sha _remote_ref remote_sha; do
-  [[ "$local_sha" == "$zero" ]] && continue   # branch deletion: nothing to test
-  saw_range=1
-  if [[ "$remote_sha" == "$zero" ]]; then
-    run=1; break                              # new branch: no base to diff, test it
-  fi
-  files=$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null) || { run=1; break; }
-  if printf '%s\n' "$files" | grep -qE '\.(dart|rs)$|(^|/)pubspec\.yaml$|(^|/)Cargo\.toml$'; then
-    code_touched=1
-  fi
-done
-
-[[ "$saw_range" == 1 ]] || exit 0             # nothing to push
-if [[ "$run" != 1 && "$code_touched" != 1 ]]; then
-  echo "pre-push: pushed commits touch no .dart/.rs/pubspec/Cargo.toml, skipping make test" >&2
-  exit 0
-fi
-
-exec make test
+exec make check-static
 HOOK
 chmod +x "$hook_dir/pre-push"
 
@@ -170,7 +152,7 @@ chmod +x "$repo_root/dev/scripts/commit-msg-gate.sh" \
 
 echo "install-hooks: wrote $hook_dir/{pre-commit,pre-push,post-commit}"
 echo "install-hooks: linked $hook_dir/commit-msg -> dev/scripts/commit-msg-gate.sh"
-echo "install-hooks: pre-commit runs \`make check-static\` (skipped for doc-only staged diffs); pre-push runs \`make test\`."
+echo "install-hooks: pre-commit runs \`make check-static\` (skipped for doc-only staged diffs); pre-push runs \`make check-static\` (tests run in CI on PRs, not locally)."
 echo "install-hooks: commit-msg checks conventional-commit format (all commits) + plan-ID gate (agent commits only)."
 echo "install-hooks: post-commit runs \`make rust-sweep\` in the background when rust/target exceeds CARGO_TARGET_MAX_GB (default 35), trimming the oldest artifacts only; log at .git/target-gc.log."
 echo "install-hooks: bypass flags — SKIP_PRECOMMIT=1, SKIP_PREPUSH=1, SKIP_TARGET_GC=1."
