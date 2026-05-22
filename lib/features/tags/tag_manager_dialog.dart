@@ -6,99 +6,48 @@ import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_collection_panel.dart';
 import '../../widgets/core/app_data_row.dart';
-import '../../widgets/core/app_data_search_bar.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_icon_button.dart';
-import '../../widgets/core/app_empty_state.dart';
 import '../../widgets/core/tag_color.dart';
 import '../../widgets/core/toast.dart';
 
-/// Embeddable tag manager — toolbar + list with CRUD.
+/// Embeddable tag manager — toolbar + list with CRUD over
+/// [CollectionManagerPanel].
 ///
 /// Used standalone inside [TagManagerDialog] (mobile) and embedded in
 /// the desktop Tools dialog.
-class TagManagerPanel extends ConsumerStatefulWidget {
+class TagManagerPanel extends StatelessWidget {
   const TagManagerPanel({super.key});
-
-  @override
-  ConsumerState<TagManagerPanel> createState() => _TagManagerPanelState();
-}
-
-class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
-  List<Tag> _tags = [];
-  bool _loading = true;
-  String _filter = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final tags = await ref.read(tagsProvider.notifier).loadAll();
-    if (mounted) {
-      setState(() {
-        _tags = tags;
-        _loading = false;
-      });
-    }
-  }
-
-  List<Tag> _filtered() => filterTagsByName(_tags, _filter);
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return Column(
-      children: [
-        _buildToolbar(s),
-        const Divider(height: 1),
-        Expanded(child: _buildBody(s)),
-      ],
-    );
-  }
-
-  Widget _buildToolbar(S s) {
-    return AppCollectionToolbar(
-      hasItems: _tags.isNotEmpty,
-      search: AppDataSearchBar(
-        onChanged: (v) => setState(() => _filter = v),
-        hintText: s.search,
-      ),
-      countLabel: s.tagCount(_tags.length),
-      actions: [
+    return CollectionManagerPanel<Tag>(
+      load: (ref) => ref.read(tagsProvider.notifier).loadAll(),
+      filter: filterTagsByName,
+      countLabel: s.tagCount,
+      emptyMessage: s.noTags,
+      noResultsMessage: s.noResults,
+      toolbarActions: (context, ref, reload) => [
         AppButton.secondary(
           label: s.addTag,
           icon: Icons.add,
-          onTap: _addTag,
           dense: true,
+          onTap: () => _addTag(context, ref, reload),
         ),
       ],
+      itemBuilder: _buildEntry,
     );
   }
 
-  Widget _buildBody(S s) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_tags.isEmpty) {
-      return AppEmptyState(message: s.noTags);
-    }
-    final visible = _filtered();
-    if (visible.isEmpty) {
-      return AppEmptyState(message: s.noResults);
-    }
-    return ListView.separated(
-      itemCount: visible.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(visible[index]),
-    );
-  }
-
-  Widget _buildEntry(Tag tag) {
+  Widget _buildEntry(
+    BuildContext context,
+    WidgetRef ref,
+    Tag tag,
+    Future<void> Function() reload,
+  ) {
     final s = S.of(context);
     final color = tag.colorValue ?? AppTheme.fgDim;
     return AppDataRow(
@@ -114,18 +63,22 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
           tooltip: s.deleteTag,
           dense: true,
           color: AppTheme.red,
-          onTap: () => _deleteTag(tag),
+          onTap: () => _deleteTag(context, ref, tag, reload),
         ),
       ],
     );
   }
 
-  Future<void> _addTag() async {
+  Future<void> _addTag(
+    BuildContext context,
+    WidgetRef ref,
+    Future<void> Function() reload,
+  ) async {
     final result = await _AddTagDialog.show(context);
-    if (result == null || !mounted) return;
+    if (result == null || !context.mounted) return;
     await ref.read(tagsProvider.notifier).add(result);
-    await _load();
-    if (mounted) {
+    await reload();
+    if (context.mounted) {
       Toast.show(
         context,
         message: S.of(context).tagCreated,
@@ -134,7 +87,12 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
     }
   }
 
-  Future<void> _deleteTag(Tag tag) async {
+  Future<void> _deleteTag(
+    BuildContext context,
+    WidgetRef ref,
+    Tag tag,
+    Future<void> Function() reload,
+  ) async {
     final s = S.of(context);
     final confirmed = await AppDialog.show<bool>(
       context,
@@ -150,14 +108,14 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
     await ref.read(tagsProvider.notifier).delete(tag.id);
     // SessionTags / FolderTags cascade on FK; `dbTagsDelete`
     // Rust-side publishes `SessionsChanged` so the workspace
     // stream re-fetches and any per-session-tag derived UI drops
     // the dead link without a Dart-side reload.
-    await _load();
-    if (mounted) {
+    await reload();
+    if (context.mounted) {
       Toast.show(context, message: s.tagDeleted(tag.name));
     }
   }

@@ -7,100 +7,49 @@ import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_collection_panel.dart';
 import '../../widgets/core/app_data_row.dart';
-import '../../widgets/core/app_data_search_bar.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_icon_button.dart';
-import '../../widgets/core/app_empty_state.dart';
 import '../../widgets/core/hover_region.dart';
 import '../../widgets/core/toast.dart';
 
-/// Embeddable snippet manager — toolbar + list with CRUD.
+/// Embeddable snippet manager — toolbar + list with CRUD over
+/// [CollectionManagerPanel].
 ///
 /// Used standalone inside [SnippetManagerDialog] (mobile) and embedded in
 /// the desktop Tools dialog.
-class SnippetManagerPanel extends ConsumerStatefulWidget {
+class SnippetManagerPanel extends StatelessWidget {
   const SnippetManagerPanel({super.key});
-
-  @override
-  ConsumerState<SnippetManagerPanel> createState() =>
-      _SnippetManagerPanelState();
-}
-
-class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
-  List<Snippet> _snippets = [];
-  bool _loading = true;
-  String _filter = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final snippets = await ref.read(snippetsProvider.notifier).loadAll();
-    if (mounted) {
-      setState(() {
-        _snippets = snippets;
-        _loading = false;
-      });
-    }
-  }
-
-  List<Snippet> _filtered() => filterSnippets(_snippets, _filter);
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return Column(
-      children: [
-        _buildToolbar(s),
-        const Divider(height: 1),
-        Expanded(child: _buildBody(s)),
-      ],
-    );
-  }
-
-  Widget _buildToolbar(S s) {
-    return AppCollectionToolbar(
-      hasItems: _snippets.isNotEmpty,
-      search: AppDataSearchBar(
-        onChanged: (v) => setState(() => _filter = v),
-        hintText: s.search,
-      ),
-      countLabel: s.snippetCount(_snippets.length),
-      actions: [
+    return CollectionManagerPanel<Snippet>(
+      load: (ref) => ref.read(snippetsProvider.notifier).loadAll(),
+      filter: filterSnippets,
+      countLabel: s.snippetCount,
+      emptyMessage: s.noSnippets,
+      noResultsMessage: s.noResults,
+      toolbarActions: (context, ref, reload) => [
         AppButton.secondary(
           label: s.addSnippet,
           icon: Icons.add,
-          onTap: _addSnippet,
           dense: true,
+          onTap: () => _addSnippet(context, ref, reload),
         ),
       ],
+      itemBuilder: _buildEntry,
     );
   }
 
-  Widget _buildBody(S s) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_snippets.isEmpty) {
-      return AppEmptyState(message: s.noSnippets);
-    }
-    final visible = _filtered();
-    if (visible.isEmpty) {
-      return AppEmptyState(message: s.noResults);
-    }
-    return ListView.separated(
-      itemCount: visible.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(s, visible[index]),
-    );
-  }
-
-  Widget _buildEntry(S s, Snippet snippet) {
+  Widget _buildEntry(
+    BuildContext context,
+    WidgetRef ref,
+    Snippet snippet,
+    Future<void> Function() reload,
+  ) {
+    final s = S.of(context);
     return AppDataRow(
       icon: Icons.code,
       title: snippet.title,
@@ -112,26 +61,26 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
           icon: Icons.content_copy,
           tooltip: s.copy,
           dense: true,
-          onTap: () => _copyCommand(snippet),
+          onTap: () => _copyCommand(context, snippet),
         ),
         AppIconButton(
           icon: Icons.edit_outlined,
           tooltip: s.editSnippet,
           dense: true,
-          onTap: () => _editSnippet(snippet),
+          onTap: () => _editSnippet(context, ref, snippet, reload),
         ),
         AppIconButton(
           icon: Icons.delete_outline,
           tooltip: s.deleteSnippet,
           dense: true,
           color: AppTheme.red,
-          onTap: () => _deleteSnippet(snippet),
+          onTap: () => _deleteSnippet(context, ref, snippet, reload),
         ),
       ],
     );
   }
 
-  Future<void> _copyCommand(Snippet snippet) async {
+  Future<void> _copyCommand(BuildContext context, Snippet snippet) async {
     // Snippets can carry credentials; SecureClipboard pins the
     // per-platform "no-cloud" flag so bytes don't reach Windows
     // clipboard history, macOS Universal Clipboard, iOS Handoff
@@ -147,7 +96,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       // signal rather than a silent no-op.
       ok = false;
     }
-    if (!mounted) return;
+    if (!context.mounted) return;
     Toast.show(
       context,
       message: ok
@@ -157,12 +106,16 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     );
   }
 
-  Future<void> _addSnippet() async {
+  Future<void> _addSnippet(
+    BuildContext context,
+    WidgetRef ref,
+    Future<void> Function() reload,
+  ) async {
     final result = await _SnippetEditDialog.show(context);
-    if (result == null || !mounted) return;
+    if (result == null || !context.mounted) return;
     await ref.read(snippetsProvider.notifier).add(result);
-    await _load();
-    if (mounted) {
+    await reload();
+    if (context.mounted) {
       Toast.show(
         context,
         message: S.of(context).snippetSaved,
@@ -171,12 +124,17 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     }
   }
 
-  Future<void> _editSnippet(Snippet snippet) async {
+  Future<void> _editSnippet(
+    BuildContext context,
+    WidgetRef ref,
+    Snippet snippet,
+    Future<void> Function() reload,
+  ) async {
     final result = await _SnippetEditDialog.show(context, snippet: snippet);
-    if (result == null || !mounted) return;
+    if (result == null || !context.mounted) return;
     await ref.read(snippetsProvider.notifier).save(result);
-    await _load();
-    if (mounted) {
+    await reload();
+    if (context.mounted) {
       Toast.show(
         context,
         message: S.of(context).snippetSaved,
@@ -185,7 +143,12 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     }
   }
 
-  Future<void> _deleteSnippet(Snippet snippet) async {
+  Future<void> _deleteSnippet(
+    BuildContext context,
+    WidgetRef ref,
+    Snippet snippet,
+    Future<void> Function() reload,
+  ) async {
     final s = S.of(context);
     final confirmed = await AppDialog.show<bool>(
       context,
@@ -201,13 +164,13 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
     await ref.read(snippetsProvider.notifier).delete(snippet.id);
     // SessionSnippets cascades on FK; `dbSnippetsDelete` Rust-side
     // publishes `SessionsChanged` so the workspace stream re-fetches
     // and the derived UI drops the dead snippet link.
-    await _load();
-    if (mounted) {
+    await reload();
+    if (context.mounted) {
       Toast.show(context, message: s.snippetDeleted(snippet.title));
     }
   }
