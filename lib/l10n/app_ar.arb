@@ -113,8 +113,6 @@
   "forwardRulesSummary": "{count, plural, =0{لا توجد قواعد توجيه منافذ} one{قاعدة توجيه منفذ واحدة} two{قاعدتا توجيه منفذ} few{{count} قواعد توجيه منافذ} many{{count} قاعدة توجيه منافذ} other{{count} قاعدة توجيه منافذ}}",
   "manageRules": "إدارة…",
   "authMethodAgent": "استخدم ssh-agent النظام",
-  "authMethodAgentSubtitle": "المصادقة عبر $SSH_AUTH_SOCK (Linux/macOS) أو OpenSSH named pipe (Windows). مفيد إذا كانت مفاتيحك في gpg-agent أو Pageant أو ssh-agent نظامي.",
-  "authMethodAgentMobileUnsupported": "غير متاح على الموبايل — endpoint الخاص بـ ssh-agent النظام للأجهزة المكتبية فقط.",
   "options": "الخيارات",
   "sessionName": "اسم الجلسة",
   "sessionNameAutoFromHost": "تلقائي من المضيف",

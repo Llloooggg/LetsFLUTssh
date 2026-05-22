@@ -117,7 +117,7 @@ The Auth section in the session edit dialog supports five modes; you fill in the
 - "Use system ssh-agent" toggle at the top of the Auth section. Defers every signature to a running ssh-agent on this machine — `$SSH_AUTH_SOCK` on Linux / macOS, the OpenSSH named pipe `\\.\pipe\openssh-ssh-agent` (or Pageant) on Windows.
 - No key / passphrase / password slot has to be filled — the agent owns the credential. Selecting the toggle collapses the rest of the Auth section.
 - Useful if you already keep your keys in `gpg-agent`, Pageant, KeePassXC's SSH-agent integration, or a system ssh-agent, and you don't want a second copy living inside the app.
-- Desktop-only — Android / iOS have no system ssh-agent equivalent to dial, so the toggle renders disabled with a tooltip explaining why. This is distinct from the **outgoing** agent endpoint the app exposes for other tools (see [§10b](#10b-using-hardware-bound-keys-outside-the-app)) — this toggle makes the app a **client** of the existing agent, not a server.
+- Desktop-only — Android / iOS have no system ssh-agent equivalent to dial, so the toggle is hidden there and the password / key fields take its place. This is distinct from the **outgoing** agent endpoint the app exposes for other tools (see [§10b](#10b-using-hardware-bound-keys-outside-the-app)) — this toggle makes the app a **client** of the existing agent, not a server.
 
 ### Passphrase
 

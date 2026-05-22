@@ -430,14 +430,6 @@ class SAr extends S {
   String get authMethodAgent => 'استخدم ssh-agent النظام';
 
   @override
-  String get authMethodAgentSubtitle =>
-      'المصادقة عبر \$SSH_AUTH_SOCK (Linux/macOS) أو OpenSSH named pipe (Windows). مفيد إذا كانت مفاتيحك في gpg-agent أو Pageant أو ssh-agent نظامي.';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      'غير متاح على الموبايل — endpoint الخاص بـ ssh-agent النظام للأجهزة المكتبية فقط.';
-
-  @override
   String get options => 'الخيارات';
 
   @override

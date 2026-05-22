@@ -447,14 +447,6 @@ class SEn extends S {
   String get authMethodAgent => 'Use system ssh-agent';
 
   @override
-  String get authMethodAgentSubtitle =>
-      'Authenticate via \$SSH_AUTH_SOCK (Linux/macOS) or the OpenSSH named pipe (Windows). Useful if you keep your keys in gpg-agent, Pageant, or a system ssh-agent.';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      'Not available on mobile — the system ssh-agent endpoint is desktop-only.';
-
-  @override
   String get options => 'Options';
 
   @override

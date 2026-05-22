@@ -113,8 +113,6 @@
   "forwardRulesSummary": "{count, plural, =0{Không có quy tắc port forwarding} other{{count} quy tắc port forwarding}}",
   "manageRules": "Quản lý…",
   "authMethodAgent": "Dùng ssh-agent hệ thống",
-  "authMethodAgentSubtitle": "Xác thực qua $SSH_AUTH_SOCK (Linux/macOS) hoặc OpenSSH named pipe (Windows). Tiện nếu key của bạn nằm trong gpg-agent, Pageant hoặc ssh-agent hệ thống.",
-  "authMethodAgentMobileUnsupported": "Không khả dụng trên mobile — endpoint ssh-agent hệ thống chỉ chạy trên desktop.",
   "options": "Tùy chọn",
   "sessionName": "Tên phiên",
   "sessionNameAutoFromHost": "Tự động từ host",

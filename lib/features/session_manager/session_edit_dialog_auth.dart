@@ -49,10 +49,18 @@ extension _AuthSection on _SessionEditDialogState {
   }
 
   List<Widget> _buildSshAuthSection() {
+    // The agent toggle only exists on desktop — Android / iOS have no
+    // system ssh-agent to dial, so it is hidden, not disabled. On
+    // mobile the password / key fields are always shown: an imported
+    // agent session keeps its type while they stay blank (so a desktop
+    // round-trip is lossless), and converts to a usable password / key
+    // session once the user fills them. See `_derivedAuthType`.
+    final showAgentToggle = isDesktopPlatform;
+    final showCredentialFields = !showAgentToggle || !_useAgent;
     return [
-      _buildAgentOption(),
-      if (!_useAgent) ...[
-        const SizedBox(height: AppSpacing.lg),
+      if (showAgentToggle) _buildAgentOption(),
+      if (showCredentialFields) ...[
+        if (showAgentToggle) const SizedBox(height: AppSpacing.lg),
         _buildPasswordField(),
         const SizedBox(height: AppSpacing.lg),
         _buildOrDivider(),
@@ -178,77 +186,46 @@ extension _AuthSection on _SessionEditDialogState {
   /// Auth tab. Selecting it collapses every other auth field — the
   /// running agent (`$SSH_AUTH_SOCK` on Unix, OpenSSH named pipe /
   /// Pageant on Windows) owns every signature for the session.
-  ///
-  /// Mobile builds keep the toggle visible but disabled — the agent
-  /// endpoint is desktop-only because Android / iOS have no system
-  /// ssh-agent equivalent to dial. Disabling instead of hiding keeps
-  /// configuration parity with the desktop UI so a session edited on
-  /// mobile preserves the toggle state instead of silently dropping
-  /// it.
+  /// Desktop-only: `_buildSshAuthSection` omits it on mobile.
   Widget _buildAgentOption() {
     final s = S.of(context);
-    final disabled = !isDesktopPlatform;
-    // The disabled tile still binds a no-op `onTap` so taps stop
-    // here instead of bubbling through to the modal barrier. Without
-    // this the dialog's `barrierDismissible` default dismisses the
-    // entire form when the user taps the greyed-out toggle on mobile.
-    final tile = Opacity(
-      opacity: disabled ? 0.5 : 1.0,
-      child: HoverRegion(
-        onTap: disabled ? () {} : () => rebuild(() => _useAgent = !_useAgent),
-        builder: (hovered) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
+    return HoverRegion(
+      onTap: () => rebuild(() => _useAgent = !_useAgent),
+      builder: (hovered) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _useAgent
+              ? AppTheme.accent.withValues(alpha: 0.1)
+              : (hovered ? AppTheme.hover : AppTheme.bg2),
+          borderRadius: AppTheme.radiusSm,
+          border: Border.all(
             color: _useAgent
-                ? AppTheme.accent.withValues(alpha: 0.1)
-                : (hovered ? AppTheme.hover : AppTheme.bg2),
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(
-              color: _useAgent
-                  ? AppTheme.accent.withValues(alpha: 0.4)
-                  : AppTheme.borderLight,
-            ),
+                ? AppTheme.accent.withValues(alpha: 0.4)
+                : AppTheme.borderLight,
           ),
-          child: Row(
-            children: [
-              Icon(
-                _useAgent ? Icons.check_box : Icons.check_box_outline_blank,
-                size: 18,
-                color: _useAgent ? AppTheme.accent : AppTheme.fgFaint,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      s.authMethodAgent,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.sm,
-                        color: AppTheme.fg,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      s.authMethodAgentSubtitle,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgFaint,
-                      ),
-                    ),
-                  ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              _useAgent ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 18,
+              color: _useAgent ? AppTheme.accent : AppTheme.fgFaint,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                s.authMethodAgent,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fg,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-    if (disabled) {
-      return Tooltip(message: s.authMethodAgentMobileUnsupported, child: tile);
-    }
-    return tile;
   }
 
   Widget _buildOrDivider() {

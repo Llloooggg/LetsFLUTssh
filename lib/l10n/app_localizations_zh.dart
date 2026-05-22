@@ -414,14 +414,6 @@ class SZh extends S {
   String get authMethodAgent => '使用系统 ssh-agent';
 
   @override
-  String get authMethodAgentSubtitle =>
-      '通过 \$SSH_AUTH_SOCK (Linux/macOS) 或 OpenSSH named pipe (Windows) 进行认证。如果你的 key 放在 gpg-agent、Pageant 或系统 ssh-agent 里，这个比较方便。';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      '移动端不可用 — 系统 ssh-agent endpoint 仅限桌面。';
-
-  @override
   String get options => '选项';
 
   @override

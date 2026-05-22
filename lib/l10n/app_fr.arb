@@ -113,8 +113,6 @@
   "forwardRulesSummary": "{count, plural, =0{Aucune règle de redirection de port} one{1 règle de redirection} other{{count} règles de redirection}}",
   "manageRules": "Gérer…",
   "authMethodAgent": "Utiliser le ssh-agent du système",
-  "authMethodAgentSubtitle": "Authentification via $SSH_AUTH_SOCK (Linux/macOS) ou le OpenSSH named pipe (Windows). Pratique si tes keys vivent dans gpg-agent, Pageant ou un ssh-agent système.",
-  "authMethodAgentMobileUnsupported": "Indisponible sur mobile — l'endpoint du ssh-agent système est réservé au desktop.",
   "options": "Options",
   "sessionName": "Nom de la session",
   "sessionNameAutoFromHost": "Auto depuis l'hôte",

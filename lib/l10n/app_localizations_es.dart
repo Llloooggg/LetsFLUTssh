@@ -455,14 +455,6 @@ class SEs extends S {
   String get authMethodAgent => 'Usar el ssh-agent del sistema';
 
   @override
-  String get authMethodAgentSubtitle =>
-      'Autentica a través de \$SSH_AUTH_SOCK (Linux/macOS) o el OpenSSH named pipe (Windows). Útil si tienes tus keys en gpg-agent, Pageant o un ssh-agent del sistema.';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      'No disponible en móvil — el endpoint del ssh-agent del sistema es solo de escritorio.';
-
-  @override
   String get options => 'Opciones';
 
   @override

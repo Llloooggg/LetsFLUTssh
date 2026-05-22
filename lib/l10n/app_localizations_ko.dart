@@ -415,14 +415,6 @@ class SKo extends S {
   String get authMethodAgent => '시스템 ssh-agent 사용';
 
   @override
-  String get authMethodAgentSubtitle =>
-      '\$SSH_AUTH_SOCK (Linux/macOS) 또는 OpenSSH named pipe (Windows)를 통해 인증합니다. gpg-agent, Pageant, 시스템 ssh-agent에 key를 두고 쓰는 경우 유용합니다.';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      '모바일에서 사용할 수 없습니다 — 시스템 ssh-agent endpoint는 데스크톱 전용입니다.';
-
-  @override
   String get options => '옵션';
 
   @override

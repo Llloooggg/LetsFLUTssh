@@ -2529,43 +2529,114 @@ void main() {
         debugMobilePlatformOverride = null;
       });
 
+      // Captures the dialog result so the save-path assertions can read
+      // the persisted authType. Mirrors `buildAgentApp` but threads the
+      // future back through `onResult`.
+      Widget buildAgentResultApp({
+        required Session session,
+        required void Function(SessionDialogResult?) onResult,
+      }) {
+        return ProviderScope(
+          overrides: [
+            ..._stubKeysOverrides(_StubKeysMutator(const [])),
+            sessionTagsProvider(
+              session.id,
+            ).overrideWith((_) async => const <Tag>[]),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () async {
+                    onResult(
+                      await SessionEditDialog.show(context, session: session),
+                    );
+                  },
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      Session agentSession() => Session(
+        id: 's1',
+        label: 'agent session',
+        server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+        auth: const SessionAuth(authType: AuthType.agent),
+      );
+
       testWidgets(
-        'option is disabled with tooltip — agent endpoint is desktop-only',
-        // Spec: the system ssh-agent endpoint is desktop-only —
-        // Android / iOS have no analogue. The UI keeps the option
-        // visible so the session configuration surface looks the
-        // same on every platform, but the row is disabled and
-        // surfaces the reason in a tooltip so the user does not
-        // have to guess.
+        'option is hidden — agent endpoint is desktop-only',
+        // Spec: Android / iOS have no system ssh-agent to dial, so the
+        // capability is fundamentally impossible on mobile, not merely
+        // unavailable right now. A permanently-disabled control the
+        // user can never enable is noise — the toggle is hidden and the
+        // password / key fields take its place.
         (tester) async {
           await tester.pumpWidget(buildAgentApp());
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-          // Single-form: Auth fields are visible on the same scrollable
-          // page as Connection fields — no tab switch needed.
-          await tester.pumpAndSettle();
 
-          // Tooltip is rendered.
-          expect(
-            find.byTooltip(
-              'Not available on mobile — the system ssh-agent endpoint is desktop-only.',
-            ),
-            findsOneWidget,
-          );
-
-          // Tap-through is suppressed — the password field stays
-          // visible (toggle should not flip). Scroll the disabled
-          // toggle into view first so the gesture actually lands on
-          // it; otherwise the tap target falls outside the dialog
-          // body and the modal barrier dismisses the form.
-          await tester.ensureVisible(find.text('Use system ssh-agent'));
-          await tester.pumpAndSettle();
-          await tester.tap(
-            find.text('Use system ssh-agent'),
-            warnIfMissed: false,
-          );
-          await tester.pumpAndSettle();
+          expect(find.text('Use system ssh-agent'), findsNothing);
+          // The auth fields the toggle would otherwise gate are shown.
           expect(find.text('PASSWORD'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'saving an imported agent session untouched keeps AuthType.agent',
+        // Spec: a session imported from desktop carries agent auth; the
+        // mobile editor hides the toggle but must not silently rewrite
+        // the stored type. Saving without filling the credential fields
+        // round-trips the agent type back to desktop intact.
+        (tester) async {
+          SessionDialogResult? result;
+          await tester.pumpWidget(
+            buildAgentResultApp(
+              session: agentSession(),
+              onResult: (r) => result = r,
+            ),
+          );
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          await tapSaveOnly(tester);
+
+          expect(result, isA<SaveResult>());
+          expect((result! as SaveResult).session.authType, AuthType.agent);
+        },
+      );
+
+      testWidgets(
+        'filling a password on an imported agent session converts it',
+        // Spec: agent is unusable on mobile, so when the user gives the
+        // session a real credential here it must become a usable
+        // password session — the agent type is only preserved while the
+        // fields stay blank.
+        (tester) async {
+          SessionDialogResult? result;
+          await tester.pumpWidget(
+            buildAgentResultApp(
+              session: agentSession(),
+              onResult: (r) => result = r,
+            ),
+          );
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+
+          // Host / user are already populated from the imported session;
+          // giving it a password is what converts it off the agent type.
+          await tester.enterText(fieldByHint('••••••••'), 's3cret');
+          await tester.pumpAndSettle();
+          await tapSaveOnly(tester);
+
+          expect(result, isA<SaveResult>());
+          final save = result! as SaveResult;
+          expect(save.session.authType, AuthType.password);
+          expect(save.session.password, 's3cret');
         },
       );
     });

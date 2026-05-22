@@ -819,18 +819,6 @@ abstract class S {
   /// **'Use system ssh-agent'**
   String get authMethodAgent;
 
-  /// No description provided for @authMethodAgentSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Authenticate via \$SSH_AUTH_SOCK (Linux/macOS) or the OpenSSH named pipe (Windows). Useful if you keep your keys in gpg-agent, Pageant, or a system ssh-agent.'**
-  String get authMethodAgentSubtitle;
-
-  /// No description provided for @authMethodAgentMobileUnsupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Not available on mobile — the system ssh-agent endpoint is desktop-only.'**
-  String get authMethodAgentMobileUnsupported;
-
   /// No description provided for @options.
   ///
   /// In en, this message translates to:

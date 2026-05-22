@@ -113,8 +113,6 @@
   "forwardRulesSummary": "{count, plural, =0{Tidak ada aturan port forwarding} other{{count} aturan port forwarding}}",
   "manageRules": "Kelola…",
   "authMethodAgent": "Pakai ssh-agent sistem",
-  "authMethodAgentSubtitle": "Autentikasi via $SSH_AUTH_SOCK (Linux/macOS) atau OpenSSH named pipe (Windows). Berguna kalau key kamu disimpan di gpg-agent, Pageant, atau ssh-agent sistem.",
-  "authMethodAgentMobileUnsupported": "Tidak tersedia di mobile — endpoint ssh-agent sistem khusus desktop.",
   "options": "Opsi",
   "sessionName": "Nama Sesi",
   "sessionNameAutoFromHost": "Auto dari host",

@@ -455,14 +455,6 @@ class SPt extends S {
   String get authMethodAgent => 'Usar o ssh-agent do sistema';
 
   @override
-  String get authMethodAgentSubtitle =>
-      'Autentica via \$SSH_AUTH_SOCK (Linux/macOS) ou OpenSSH named pipe (Windows). Útil se suas keys estão no gpg-agent, Pageant ou num ssh-agent do sistema.';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      'Indisponível no mobile — o endpoint do ssh-agent do sistema é só para desktop.';
-
-  @override
   String get options => 'Opções';
 
   @override

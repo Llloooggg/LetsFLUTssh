@@ -421,14 +421,6 @@ class SHi extends S {
   String get authMethodAgent => 'सिस्टम ssh-agent इस्तेमाल करें';
 
   @override
-  String get authMethodAgentSubtitle =>
-      '\$SSH_AUTH_SOCK (Linux/macOS) या OpenSSH named pipe (Windows) के through authenticate करें। काम का है अगर keys gpg-agent, Pageant या system ssh-agent में हैं।';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      'मोबाइल पर उपलब्ध नहीं — system ssh-agent endpoint सिर्फ desktop के लिए है।';
-
-  @override
   String get options => 'विकल्प';
 
   @override

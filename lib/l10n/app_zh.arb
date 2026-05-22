@@ -113,8 +113,6 @@
   "forwardRulesSummary": "{count, plural, =0{无端口转发规则} other{{count} 条端口转发规则}}",
   "manageRules": "管理…",
   "authMethodAgent": "使用系统 ssh-agent",
-  "authMethodAgentSubtitle": "通过 $SSH_AUTH_SOCK (Linux/macOS) 或 OpenSSH named pipe (Windows) 进行认证。如果你的 key 放在 gpg-agent、Pageant 或系统 ssh-agent 里，这个比较方便。",
-  "authMethodAgentMobileUnsupported": "移动端不可用 — 系统 ssh-agent endpoint 仅限桌面。",
   "options": "选项",
   "sessionName": "会话名称",
   "sessionNameAutoFromHost": "自动取自 host",

@@ -252,11 +252,6 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// older callers (and tests) still pass populated `password` /
   /// `keyData` directly.
   AuthType get _derivedAuthType {
-    // ssh-agent selection wins over every other slot — the connect
-    // path defers to the agent and ignores the (unset) key / password
-    // columns, so the persisted authType has to match what the
-    // dispatch arm will read on the next dial.
-    if (_useAgent) return AuthType.agent;
     final saved = widget.session?.auth;
     final hasPassword =
         _passwordCtrl.text.isNotEmpty ||
@@ -268,10 +263,27 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         _keyDataCtrl.text.trim().isNotEmpty ||
         (saved?.hasStoredKeyData ?? false) ||
         (saved?.keyData.isNotEmpty ?? false);
+    // ssh-agent selection wins over every other slot — the connect
+    // path defers to the agent and ignores the key / password columns,
+    // so the persisted authType has to match what the dispatch arm
+    // reads on the next dial. On mobile the toggle is hidden (no system
+    // agent to dial), so an imported agent session keeps its type only
+    // while the credential fields stay blank; filling them converts it
+    // to a usable password / key session for this device.
+    if (_useAgent && (isDesktopPlatform || !(hasPassword || hasKey))) {
+      return AuthType.agent;
+    }
     if (hasPassword && hasKey) return AuthType.keyWithPassword;
     if (hasKey) return AuthType.key;
     return AuthType.password;
   }
+
+  /// True when the saved auth type resolves to ssh-agent: the agent
+  /// owns every signature, so the per-row credential slots stay empty
+  /// and auth validation is skipped. Tracks `_derivedAuthType` so the
+  /// mobile "blank fields keep agent, filled fields convert" rule
+  /// drives the save path too.
+  bool get _resolvesToAgent => _derivedAuthType == AuthType.agent;
 
   @override
   void initState() {
@@ -602,11 +614,12 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     // save. Without this the `_derivedAuthType == agent` flip would
     // leak a stale `_selectedKeyId` / typed password into the row,
     // hiding behind the agent flag without anyone seeing it.
-    final String resolvedKeyId = _useAgent ? '' : _selectedKeyId;
-    final String resolvedPassword = _useAgent ? '' : _passwordCtrl.text;
-    final String resolvedKeyPath = _useAgent ? '' : keyPath;
-    final String resolvedKeyData = _useAgent ? '' : _keyDataCtrl.text.trim();
-    final String resolvedPassphrase = _useAgent ? '' : _passphraseCtrl.text;
+    final bool agent = _resolvesToAgent;
+    final String resolvedKeyId = agent ? '' : _selectedKeyId;
+    final String resolvedPassword = agent ? '' : _passwordCtrl.text;
+    final String resolvedKeyPath = agent ? '' : keyPath;
+    final String resolvedKeyData = agent ? '' : _keyDataCtrl.text.trim();
+    final String resolvedPassphrase = agent ? '' : _passphraseCtrl.text;
     final resolvedLabel = _resolveLabel(server);
     Session built;
     if (_isEditing) {
@@ -708,7 +721,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     if (_kind == SessionKind.s3) return _validateS3Auth();
     // ssh-agent path needs no password / key — the running agent
     // owns the credential, so the predicate short-circuits.
-    if (_useAgent) {
+    if (_resolvesToAgent) {
       setState(() => _authError = null);
       return true;
     }

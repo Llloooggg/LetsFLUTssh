@@ -419,14 +419,6 @@ class STr extends S {
   String get authMethodAgent => 'Sistem ssh-agent kullan';
 
   @override
-  String get authMethodAgentSubtitle =>
-      '\$SSH_AUTH_SOCK (Linux/macOS) veya OpenSSH named pipe (Windows) üzerinden doğrulama yapar. Key\'lerini gpg-agent, Pageant veya sistem ssh-agent içinde tutuyorsan işine yarar.';
-
-  @override
-  String get authMethodAgentMobileUnsupported =>
-      'Mobilde kullanılamaz — sistem ssh-agent endpoint\'i sadece desktop için.';
-
-  @override
   String get options => 'Seçenekler';
 
   @override
