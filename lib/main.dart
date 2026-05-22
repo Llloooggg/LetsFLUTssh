@@ -373,19 +373,19 @@ Future<void> _mainBody() async {
   AppLogger.instance.log('App starting', name: 'App');
 
   // Single-instance enforcement happens in the native shell BEFORE
-  // the Flutter engine boots — `windows/runner/main.cpp` acquires a
-  // `Local\LetsFLUTssh-SingleInstance` named mutex + focuses the
-  // existing window on `ERROR_ALREADY_EXISTS`, `linux/runner/
-  // my_application.cc` relies on GtkApplication's default D-Bus-
-  // backed uniqueness (no `G_APPLICATION_NON_UNIQUE` flag) +
-  // `gtk_window_present` of the existing window in `activate`,
-  // and macOS's `Info.plist` carries `LSMultipleInstancesProhibited`
-  // (NSApplication enforces it natively). All three reject the
-  // duplicate launch before paying the cost of engine init + Dart
-  // bootstrap, and the standard "focus existing window" UX is what
-  // OS file managers expect. **Don't move the gate Dart-side** —
-  // a Dart-level check fires after the engine has already paid its
-  // boot cost.
+  // the Flutter engine boots, so a duplicate launch is rejected
+  // without paying for engine init + Dart bootstrap:
+  //   - Windows (`windows/runner/main.cpp`): a `Local\…` named mutex;
+  //     the second launch sees `ERROR_ALREADY_EXISTS`, shows a native
+  //     `MessageBoxW`, and exits.
+  //   - Linux (`linux/runner/my_application.cc`): GtkApplication D-Bus
+  //     uniqueness (no `G_APPLICATION_NON_UNIQUE`); the remote launch
+  //     shows a `GtkMessageDialog` and exits.
+  //   - macOS (`Info.plist` `LSMultipleInstancesProhibited`):
+  //     NSApplication activates the running instance natively.
+  // Only macOS focuses the existing window today; Win/Linux just
+  // inform-and-exit. **Don't move the gate Dart-side** — a Dart
+  // check fires only after the engine has already paid its boot cost.
   // Mobile (iOS / Android) doesn't need any of this — both OSes
   // manage single instance natively as part of the activity / scene
   // lifecycle.
