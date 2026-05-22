@@ -108,6 +108,33 @@ void main() {
     expect(find.text('No tags yet'), findsOneWidget);
   });
 
+  testWidgets('switching back and forth re-shows the correct panel', (
+    tester,
+  ) async {
+    // Panels are kept mounted in an IndexedStack once visited; selecting a
+    // nav item must always surface that item's panel and hide the others,
+    // including on a return visit to an already-built panel.
+    useDesktopViewport(tester);
+    await tester.pumpWidget(buildApp());
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Snippets'));
+    await tester.pumpAndSettle();
+    expect(find.text('No snippets yet'), findsOneWidget);
+    expect(find.text('No SSH keys. Import or generate one.'), findsNothing);
+
+    await tester.tap(find.text('SSH Keys'));
+    await tester.pumpAndSettle();
+    expect(find.text('No SSH keys. Import or generate one.'), findsOneWidget);
+    expect(find.text('No snippets yet'), findsNothing);
+
+    await tester.tap(find.text('Snippets'));
+    await tester.pumpAndSettle();
+    expect(find.text('No snippets yet'), findsOneWidget);
+    expect(find.text('No SSH keys. Import or generate one.'), findsNothing);
+  });
+
   testWidgets('close button dismisses dialog', (tester) async {
     useDesktopViewport(tester);
     await tester.pumpWidget(buildApp());

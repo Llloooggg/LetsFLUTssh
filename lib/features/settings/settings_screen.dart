@@ -19,7 +19,6 @@ import '../../core/import/key_file_helper.dart';
 import '../../core/import/openssh_config_importer.dart';
 import '../../core/import/ssh_dir_key_scanner.dart';
 import 'security_tier_switcher.dart';
-import '../../widgets/core/shortcut_registry.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/fido2.dart' as rust_fido2;
@@ -67,6 +66,7 @@ import '../../widgets/core/app_bordered_box.dart';
 import '../../widgets/core/app_popup_select.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_selection_area.dart';
+import '../../widgets/core/sidebar_nav_dialog.dart';
 import '../../widgets/terminal/readonly_terminal_view.dart';
 import '../../widgets/core/app_icon_button.dart';
 import '../../widgets/core/confirm_dialog.dart';
@@ -122,42 +122,28 @@ Future<String?> _defaultDirectory() async {
 }
 
 /// Section descriptor for navigation and content rendering.
-class _Section {
-  final String title;
-  final IconData icon;
-  final Widget Function() builder;
-
-  const _Section({
-    required this.title,
-    required this.icon,
-    required this.builder,
-  });
-}
-
 /// Single source of truth for the settings section list. The mobile
 /// collapsible-list and the desktop two-pane modal both read this —
 /// every section appears on every platform with one ordering, one
-/// icon set, one set of titles. SSH Keys / Snippets / Tags used to
-/// have separate desktop entries here but they live in the Tools
-/// dialog instead now (the historical "desktop excludes them" carve-
-/// out is gone — there is nothing for the carve-out to exclude).
-List<_Section> _buildSections(BuildContext context) => [
-  _Section(
+/// icon set, one set of titles. SSH Keys / Snippets / Tags live in the
+/// Tools dialog instead, so they are absent here.
+List<SidebarNavEntry> _buildSections(BuildContext context) => [
+  SidebarNavEntry(
     title: S.of(context).appearance,
     icon: Icons.palette,
     builder: _AppearanceSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).connectionSection,
     icon: Icons.lan,
     builder: _ConnectionSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).transfers,
     icon: Icons.swap_horiz,
     builder: _TransferSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).security,
     icon: Icons.security,
     builder: _SecuritySection.new,
@@ -167,32 +153,32 @@ List<_Section> _buildSections(BuildContext context) => [
   // separate top-level sections with one control each; merged into
   // a single section with sub-headers inside so the settings list
   // does not surface a collapsible-card-per-toggle.
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).sshIntegrationSection,
     icon: Icons.vpn_key_outlined,
     builder: _SshIntegrationSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).data,
     icon: Icons.storage,
     builder: _DataSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).syncSection,
     icon: Icons.sync,
     builder: _SyncSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).logging,
     icon: Icons.description,
     builder: _LoggingSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).updates,
     icon: Icons.system_update,
     builder: _UpdateSection.new,
   ),
-  _Section(
+  SidebarNavEntry(
     title: S.of(context).about,
     icon: Icons.info_outline,
     builder: _AboutSection.new,
@@ -338,7 +324,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
 ///
 /// Shows all settings sections except SSH Keys/Snippets/Tags (those
 /// are in the Tools dialog). Sidebar nav on the left, content on the right.
-class SettingsDialog extends ConsumerStatefulWidget {
+class SettingsDialog extends ConsumerWidget {
   const SettingsDialog({super.key});
 
   static Future<void> show(BuildContext context) {
@@ -350,212 +336,45 @@ class SettingsDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SettingsDialog> createState() => _SettingsDialogState();
-}
-
-class _SettingsDialogState extends ConsumerState<SettingsDialog> {
-  int _selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final sections = _buildSections(context);
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    // Keep Settings, Tools, and every other full-screen desktop modal
-    // at the same symmetric inset so they feel like siblings — the
-    // fraction and floor are owned by AppTheme.desktopModalInsetPadding.
-    final viewportWidth = MediaQuery.sizeOf(context).width;
-
-    return Dialog(
-      insetPadding: AppTheme.desktopModalInsetPadding(viewportWidth),
-      backgroundColor: AppTheme.bg1,
-      // Dialogs open in the root Overlay, above the Navigator's
-      // MainScreen where the app-wide `SelectionArea` lives — so
-      // plain Text widgets inside the dialog lose the ambient
-      // drag-to-select behaviour. Wrap the modal content in its
-      // own `SelectionArea` so every Text in the settings form
-      // (subtitles, values, backing-level labels, probe hints)
-      // is selectable again. The root `SelectionArea` cannot be
-      // moved up to MaterialApp.builder because widget tests
-      // without a MaterialApp crash looking for an Overlay.
-      child: AppSelectionArea(
-        child: CallbackShortcuts(
-          bindings: AppShortcutRegistry.instance.buildCallbackMap({
-            AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
-          }),
-          child: Focus(
-            autofocus: true,
-            child: Column(
-              children: [
-                AppDialogHeader(
-                  title: S.of(context).settings,
-                  onClose: () => Navigator.pop(context),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      // Sidebar — opts out of the ambient `AppDialog`
-                      // selection scope so nav labels + Reset button
-                      // are treated as clickable chrome, not copyable
-                      // body text (no I-beam cursor, no `Ctrl+C`
-                      // hijack of the selected label).
-                      SizedBox(
-                        width: 200,
-                        child: SelectionContainer.disabled(
-                          child: Container(
-                            color: scheme.surfaceContainerLow,
-                            child: Column(
-                              children: [
-                                Expanded(
-                                  child: ListView.builder(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    itemCount: sections.length,
-                                    itemBuilder: (context, index) {
-                                      final section = sections[index];
-                                      return _NavItem(
-                                        icon: section.icon,
-                                        label: section.title,
-                                        selected: index == _selectedIndex,
-                                        onTap: () => setState(
-                                          () => _selectedIndex = index,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                _ResetButton(
-                                  onTap: () => ref
-                                      .read(configProvider.notifier)
-                                      .update((_) => AppConfig.defaults),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      VerticalDivider(width: 1, color: theme.dividerColor),
-                      // Content
-                      Expanded(
-                        child: ListTileTheme(
-                          data: ListTileThemeData(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            titleTextStyle: AppFonts.inter(
-                              fontSize: AppFonts.sm,
-                              color: scheme.onSurface,
-                            ),
-                            subtitleTextStyle: AppFonts.inter(
-                              fontSize: AppFonts.xs,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            leadingAndTrailingTextStyle: AppFonts.inter(
-                              fontSize: AppFonts.xs,
-                              color: scheme.onSurface.withValues(alpha: 0.45),
-                            ),
-                          ),
-                          child: DefaultTextStyle(
-                            style: AppFonts.inter(
-                              fontSize: AppFonts.sm,
-                              color: scheme.onSurface,
-                            ),
-                            child: ListView(
-                              key: ValueKey(_selectedIndex),
-                              padding: const EdgeInsets.all(24),
-                              // Build every section eagerly. Settings
-                              // sections are small in count (under 10);
-                              // the lazy-sliver default materialises
-                              // only visible slivers, which lets test
-                              // finders miss rows below the fold when
-                              // Security grew taller. Eager-build keeps
-                              // every row in the tree regardless of
-                              // scroll position.
-                              //
-                              // No content-pane title — the nav rail on
-                              // the left already shows which section is
-                              // selected. Repeating the section name as
-                              // a `_SectionHeader` at the top of the
-                              // pane was visual duplication with no
-                              // information value.
-                              cacheExtent: 10000,
-                              children: [sections[_selectedIndex].builder()],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    return SidebarNavDialog(
+      title: S.of(context).settings,
+      entries: _buildSections(context),
+      sidebarFooter: _ResetButton(
+        onTap: () =>
+            ref.read(configProvider.notifier).update((_) => AppConfig.defaults),
+      ),
+      // Each section scrolls in its own pane under the dense ListTile +
+      // form text styles. Eager `ListView` children (not lazy slivers)
+      // keep every row in the tree regardless of scroll position, so
+      // find-by-text in tests never misses a row below the fold.
+      panelBuilder: (panel) => ListTileTheme(
+        data: ListTileThemeData(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          titleTextStyle: AppFonts.inter(
+            fontSize: AppFonts.sm,
+            color: scheme.onSurface,
+          ),
+          subtitleTextStyle: AppFonts.inter(
+            fontSize: AppFonts.xs,
+            color: scheme.onSurfaceVariant,
+          ),
+          leadingAndTrailingTextStyle: AppFonts.inter(
+            fontSize: AppFonts.xs,
+            color: scheme.onSurface.withValues(alpha: 0.45),
+          ),
+        ),
+        child: DefaultTextStyle(
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: scheme.onSurface),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            cacheExtent: 10000,
+            children: [panel],
           ),
         ),
       ),
-    );
-  }
-}
-
-/// A single item in the desktop navigation rail.
-class _NavItem extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  State<_NavItem> createState() => _NavItemState();
-}
-
-class _NavItemState extends State<_NavItem> {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return HoverRegion(
-      onTap: widget.onTap,
-      builder: (hovered) {
-        final Color bg;
-        if (widget.selected) {
-          bg = theme.colorScheme.primary.withValues(alpha: 0.15);
-        } else if (hovered) {
-          bg = AppTheme.hover;
-        } else {
-          bg = Colors.transparent;
-        }
-        return Container(
-          height: AppTheme.controlHeightMd,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          color: bg,
-          child: Row(
-            children: [
-              Icon(
-                widget.icon,
-                size: 13,
-                color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Text(
-                  widget.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.sm,
-                    color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

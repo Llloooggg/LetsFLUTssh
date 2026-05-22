@@ -222,6 +222,7 @@ lib/
 │   ├── core/                         # Generic design-system primitives — no feature knowledge
 │   │   ├── app_button.dart           # AppButton + named ctors (.cancel / .primary / .secondary / .destructive)
 │   │   ├── app_dialog.dart           # Unified dialog shell, header, footer, action buttons, progress dialog
+│   │   ├── sidebar_nav_dialog.dart   # VS-Code-style nav-rail + lazy keep-alive content pane (Tools + Settings dialogs)
 │   │   ├── app_data_row.dart         # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions
 │   │   ├── app_collection_toolbar.dart # Shared header (search + add + secondary action) for list-style managers
 │   │   ├── app_icon_button.dart      # Rectangular hover button (replaces Material IconButton)
@@ -3988,7 +3989,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | File | Class | Purpose |
 |------|-------|---------|
 | `settings_screen.dart` | `SettingsScreen` | Mobile-only route (collapsible sections in a scrollable list) |
-| `settings_screen.dart` | `SettingsDialog` | Desktop full-screen modal (VS Code style) — sidebar nav + content pane |
+| `settings_screen.dart` | `SettingsDialog` | Desktop full-screen modal (VS Code style) — composes [`SidebarNavDialog`](#sidebarnavdialog) with the settings sections, a Reset-button footer, and a per-section `ListView` wrapper |
 | `settings_dialogs.dart` | — | Dialog helpers (part of `settings_screen.dart`) |
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
@@ -4002,7 +4003,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_sections_updates.dart` | `_UpdateSection` | Auto-update preferences + manual check (part of `settings_screen.dart`) |
 | `known_hosts_manager.dart` | `KnownHostsManagerPanel`, `KnownHostsManagerDialog` | Known hosts management surface (search, delete, import, export, clear). Embeddable panel + thin dialog wrapper, same shape as the SSH-keys / snippets / tags managers. |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
-| `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts |
+| `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts, Recordings. Composes [`SidebarNavDialog`](#sidebarnavdialog), which owns the lazy keep-alive content pane |
 | `tools/tools_screen.dart` | `ToolsScreen` | Mobile Tools route — list of tool tiles (same entries as desktop dialog) |
 | `key_manager/key_manager_dialog.dart` | `KeyManagerPanel` / `KeyManagerDialog` | SSH key panel (embeddable) + dialog wrapper |
 | `snippets/snippet_manager_dialog.dart` | `SnippetManagerPanel` / `SnippetManagerDialog` | Snippet panel (embeddable) + dialog wrapper |
@@ -4010,7 +4011,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Sections:** Appearance (language picker, theme, UI scale, font size), Terminal, Connection, Transfers, Security (known hosts manager), Data (export/import, QR, path), Logging, Updates, About. Language picker uses `PopupMenuButton` with native language names + English secondary labels. Theme selector labels (Dark/Light/System) are localized via `S.of(context)`.
 
-**Desktop:** Toolbar has two buttons — **Tools** (wrench icon, opens `ToolsDialog` with SSH Keys / Snippets / Tags) and **Settings** (gear icon, opens `SettingsDialog`). Both are full-screen modal dialogs with sidebar navigation and content pane (VS Code style). Sessions and terminals remain visible behind the dialog overlay.
+**Desktop:** Toolbar has two buttons — **Tools** (wrench icon, opens `ToolsDialog` with SSH Keys / Snippets / Tags / Known Hosts / Recordings) and **Settings** (gear icon, opens `SettingsDialog`). Both are full-screen modal dialogs that share the [`SidebarNavDialog`](#sidebarnavdialog) shell — sidebar navigation + content pane (VS Code style). Sessions and terminals remain visible behind the dialog overlay.
 
 **Mobile:** Two separate routes — `SettingsScreen` (gear icon) for settings, `ToolsScreen` (wrench icon) for SSH Keys / Snippets / Tags / Known Hosts. Both pushed as routes from the mobile shell top bar.
 
@@ -4187,7 +4188,7 @@ Apply `AppSelectionArea` only to surfaces carrying prose the user may want to co
 
 Mobile keeps a single `AppSelectionArea(child: MobileShell())` because the touch-drag recognisers arbitrate differently and mobile lacks the hover-I-beam path.
 
-Inside a scoped `AppSelectionArea`, a parent may still need to block selection on a specific subtree that is not a `HoverRegion` (e.g. a dialog's sidebar nav list). Wrap that subtree in `SelectionContainer.disabled` explicitly — `settings_screen.dart` does this around its nav list so the sidebar labels stop showing the I-beam without yanking selection off the dialog body.
+Inside a scoped `AppSelectionArea`, a parent may still need to block selection on a specific subtree that is not a `HoverRegion` (e.g. a dialog's sidebar nav list). Wrap that subtree in `SelectionContainer.disabled` explicitly — [`SidebarNavDialog`](#sidebarnavdialog) does this around the nav rail it renders for the Tools + Settings dialogs, so the sidebar labels stop showing the I-beam without yanking selection off the dialog body.
 
 #### Role matrix — when a row is clickable vs prose
 
@@ -4234,6 +4235,21 @@ For complex dialogs (e.g. with tabs between header and content), compose from th
 - `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
+
+### SidebarNavDialog
+
+```dart
+SidebarNavDialog({
+  required String title,
+  required List<SidebarNavEntry> entries,   // {icon, title, builder}
+  Widget? sidebarFooter,                     // pinned below the rail
+  Widget Function(Widget panel)? panelBuilder, // wraps each built panel
+})
+```
+
+Full-screen desktop modal with a fixed 200 px navigation rail on the left and a content pane on the right (VS Code style). Single definition of the chrome shared by the Tools and Settings dialogs: inset (`AppTheme.desktopModalInsetPadding`), the dialog's own `AppSelectionArea`, the `dismissDialog` shortcut, `AppDialogHeader`, and the rail styling. Each dialog supplies only its title + entries; Settings additionally passes a Reset-button `sidebarFooter` and a `panelBuilder` that scrolls each section in a `ListView` under the dense `ListTileTheme`.
+
+The content pane is a **lazy `IndexedStack`**: each entry's panel builds on first selection and then stays mounted, so re-selecting a panel is a cheap index flip rather than a teardown + re-run of its `initState` load (key fetch, filesystem scan, stream subscribe). Without keep-alive the selected-row highlight repaints in the same frame as that rebuild, so rapid nav clicks feel dropped until the load finishes. The rail itself is wrapped in `SelectionContainer.disabled` — see [Selection scoping](#selection-scoping). Tradeoff: a revisited panel keeps its already-loaded state instead of reloading; provider-backed panels still refresh via `ref.watch`, and in-panel mutations update their own state.
 
 ### FormSubmitChain
 
