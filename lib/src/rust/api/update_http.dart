@@ -36,7 +36,7 @@ Future<String> updateDownloadToFile({
 /// `UpdateService.checkForUpdate` end-to-end.
 ///
 /// Pass an empty `repo` to use
-/// `lfs_core::update_orchestrator::DEFAULT_REPO`.
+/// `lfs_core::update::orchestrator::DEFAULT_REPO`.
 Future<DbUpdateInfo> updateCheck({
   required String currentVersion,
   required String repo,
@@ -87,7 +87,7 @@ Future<DbDownloadResult> updateDownloadWithVerification({
 /// Walk the pinned support dir and remove every previous-version
 /// installer whose filename shares a platform-suffix with the
 /// asset at `asset_url`. Wraps
-/// [`lfs_core::update_orchestrator::cleanup_stale_downloads`] —
+/// [`lfs_core::update::orchestrator::cleanup_stale_downloads`] —
 /// caller invokes it just before kicking off a fresh download so
 /// the new installer is the only file with that suffix on disk.
 /// Returns the count of files actually removed; both a missing
@@ -106,7 +106,7 @@ Future<int> updateCleanupStaleDownloads({required String assetUrl}) => RustLib
 
 /// Best-effort delete of `path`. Idempotent on a missing target
 /// (the OS already finished the work for us). Wraps
-/// [`lfs_core::update_orchestrator::cleanup_file`] — used by the
+/// [`lfs_core::update::orchestrator::cleanup_file`] — used by the
 /// installer hand-off path to delete the downloaded artefact a
 /// few seconds after spawning the installer.
 Future<void> updateCleanupFile({required String path}) =>
@@ -144,7 +144,7 @@ class DbDownloadResult {
           errorDetail == other.errorDetail;
 }
 
-/// FRB mirror of `lfs_core::update_orchestrator::DownloadedAsset`.
+/// FRB mirror of `lfs_core::update::orchestrator::DownloadedAsset`.
 class DbDownloadedAsset {
   final String assetPath;
   final String manifestPath;
@@ -170,7 +170,7 @@ class DbDownloadedAsset {
           manifestSigPath == other.manifestSigPath;
 }
 
-/// FRB mirror of `lfs_core::update_orchestrator::UpdateInfo`. Same
+/// FRB mirror of `lfs_core::update::orchestrator::UpdateInfo`. Same
 /// field set + a derived `has_update` getter for the Dart caller.
 class DbUpdateInfo {
   final String latestVersion;

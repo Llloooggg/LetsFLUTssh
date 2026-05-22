@@ -1,12 +1,12 @@
 //! Filesystem helpers that need OS-API or subprocess invocation.
 //! Lives in `lfs_os_security` (not `lfs_core::path` /
 //! `lfs_core::fs::local`) because the crate is the single audit
-//! perimeter for OS-API FFI and subprocess spawning; the icacls
-//! shell-out that hardens files on Windows and the `cmd /c
-//! attrib *` shell-out that enumerates H/S-attributed names
-//! would otherwise leak `std::process::Command` /
-//! `tokio::process::Command` calls into `lfs_core`, which we keep
-//! free of subprocess invocations.
+//! perimeter for OS-API FFI and subprocess spawning; the Win32
+//! ACL hardening that locks files to owner-only on Windows and the
+//! `cmd /c attrib *` shell-out that enumerates H/S-attributed names
+//! would otherwise leak `windows`-crate security calls /
+//! `tokio::process::Command` into `lfs_core`, which we keep free of
+//! both OS-API FFI and subprocess invocations.
 //!
 //! The Unix arm of file-perm hardening (`std::fs::set_permissions`
 //! with `Permissions::from_mode(0o600)`) stays in `lfs_core::path`
@@ -18,41 +18,110 @@
 #[cfg(target_os = "windows")]
 use std::path::Path;
 
-/// Tighten [`path`]'s on-disk ACL to owner-only via
-/// `icacls <path> /inheritance:r /grant:r <USER>:(F)`. Removes
-/// inherited ACLs and grants the current user full control. No-op
-/// when the `USERNAME` env var is empty (CI / service-account
-/// contexts that do not carry the variable).
+/// Tighten [`path`]'s on-disk ACL to owner-only: a single explicit
+/// ACE granting the current process's token user full control, with
+/// inheritance disabled so the inherited `%LOCALAPPDATA%` ACEs
+/// (SYSTEM / Administrators) are dropped. Net effect equals
+/// `icacls <path> /inheritance:r /grant:r <user>:(F)`.
 ///
-/// Same syscalls icacls itself wraps, no extra crate surface to
-/// audit. Best-effort hardening — failure is reported but never
-/// aborts the surrounding write.
+/// Implemented with the Win32 security APIs (`OpenProcessToken` →
+/// `GetTokenInformation(TokenUser)` → `SetEntriesInAclW` →
+/// `SetNamedSecurityInfoW`) rather than shelling out to `icacls`.
+/// The shell-out spawned a console process per call, which on a
+/// Windows 11 host whose default terminal is Windows Terminal
+/// flashed a transparent terminal window; the startup write paths
+/// (logger, recorder, archive apply, sidecar) call this several
+/// times, so the user saw a cascade of them on launch. The native
+/// API has no subprocess, no console, and no dependency on
+/// `icacls.exe` being on `PATH`.
 ///
-/// Sync because the lfs_core callers (`write_bytes_atomic`,
-/// DB / recorder / logger / sidecar file-flush paths) are sync
-/// today; routing through an async helper would force `.await`
-/// up through every artefact-writing call site without a runtime
-/// benefit (the icacls child exits in milliseconds and the
-/// callers are already off the Dart event loop on `spawn_blocking`).
+/// The SID comes from the process token, not the `USERNAME` env var,
+/// so it works in service-account / env-stripped contexts the old
+/// shell-out treated as a no-op.
+///
+/// Best-effort hardening — failure is reported but never aborts the
+/// surrounding write. Sync because every lfs_core caller
+/// (`write_bytes_atomic`, DB / recorder / logger / sidecar flush)
+/// is sync and these calls are pure userspace + a few syscalls.
 #[cfg(target_os = "windows")]
 pub fn harden_file_perms_windows(path: &Path) -> Result<(), String> {
-    let user = std::env::var("USERNAME").unwrap_or_default();
-    if user.is_empty() {
-        return Ok(());
-    }
-    let status = std::process::Command::new("icacls")
-        .arg(path)
-        .arg("/inheritance:r")
-        .arg("/grant:r")
-        .arg(format!("{user}:(F)"))
-        .status()
-        .map_err(|e| format!("spawn icacls: {e}"))?;
-    if !status.success() {
-        return Err(format!(
-            "icacls {} exited with {:?}",
-            path.display(),
-            status.code()
-        ));
+    use std::os::windows::ffi::OsStrExt as _;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{
+        CloseHandle, LocalFree, ERROR_SUCCESS, GENERIC_ALL, HANDLE, HLOCAL,
+    };
+    use windows::Win32::Security::Authorization::{
+        BuildTrusteeWithSidW, SetEntriesInAclW, SetNamedSecurityInfoW, EXPLICIT_ACCESS_W,
+        SET_ACCESS, SE_FILE_OBJECT, TRUSTEE_W,
+    };
+    use windows::Win32::Security::{
+        GetTokenInformation, TokenUser, ACL, DACL_SECURITY_INFORMATION, NO_INHERITANCE,
+        PROTECTED_DACL_SECURITY_INFORMATION, TOKEN_QUERY, TOKEN_USER,
+    };
+    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    let wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    // SAFETY: every Win32 call's result is checked; `buf` stays alive
+    // until after `SetEntriesInAclW` copies the SID into its own ACL;
+    // the ACL that call allocates is released with `LocalFree` on both
+    // exit paths. The DACL grants only the running process's own token
+    // user, so the caller never locks itself out of its own file.
+    unsafe {
+        let mut token = HANDLE::default();
+        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token)
+            .map_err(|e| format!("OpenProcessToken: {e}"))?;
+
+        // Size probe (returns ERROR_INSUFFICIENT_BUFFER), then fetch.
+        let mut len = 0u32;
+        let _ = GetTokenInformation(token, TokenUser, None, 0, &mut len);
+        let mut buf = vec![0u8; len as usize];
+        let info = GetTokenInformation(
+            token,
+            TokenUser,
+            Some(buf.as_mut_ptr().cast()),
+            len,
+            &mut len,
+        );
+        let _ = CloseHandle(token);
+        info.map_err(|e| format!("GetTokenInformation: {e}"))?;
+        // `buf` is `Vec<u8>` (1-byte align); read the SID pointer out
+        // of the TOKEN_USER without forming an unaligned reference.
+        let sid =
+            std::ptr::addr_of!((*buf.as_ptr().cast::<TOKEN_USER>()).User.Sid).read_unaligned();
+
+        let mut trustee = TRUSTEE_W::default();
+        BuildTrusteeWithSidW(&mut trustee, Some(sid));
+        let ea = EXPLICIT_ACCESS_W {
+            grfAccessPermissions: GENERIC_ALL.0,
+            grfAccessMode: SET_ACCESS,
+            grfInheritance: NO_INHERITANCE,
+            Trustee: trustee,
+        };
+
+        let mut acl: *mut ACL = std::ptr::null_mut();
+        let err = SetEntriesInAclW(Some(&[ea]), None, &mut acl);
+        if err != ERROR_SUCCESS {
+            return Err(format!("SetEntriesInAclW: {err:?}"));
+        }
+
+        let err = SetNamedSecurityInfoW(
+            PCWSTR(wide.as_ptr()),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+            None,
+            None,
+            Some(acl as *const ACL),
+            None,
+        );
+        let _ = LocalFree(Some(HLOCAL(acl.cast())));
+        if err != ERROR_SUCCESS {
+            return Err(format!("SetNamedSecurityInfoW: {err:?}"));
+        }
     }
     Ok(())
 }
@@ -108,24 +177,15 @@ pub async fn windows_hidden_names_raw(dir: String) -> String {
 
 #[cfg(test)]
 mod tests {
-    // The Windows arm spawns `icacls` / `cmd /c attrib *`, which
-    // would (a) only run on a real Windows host and (b) actually
-    // mutate (icacls) the on-disk ACL of the test file. We do NOT
-    // want either in CI — a unit test that touches `icacls` on a
-    // WSL host with Windows interop enabled would alter the host
-    // filesystem; a unit test that runs `cmd /c attrib *` would
-    // depend on whatever happens to live in the test working dir.
-    // The clippy-cross CI matrix is the regression guard for the
-    // cfg arm compiling; the runtime path is exercised end-to-end
-    // on real Windows hosts in manual / release-build smoke tests.
-    //
-    // The only branch testable without spawning is the
-    // `harden_file_perms_windows` early return when `USERNAME` is
-    // empty, but pinning that branch requires mutating
-    // process-global env state (racy across parallel tests) for
-    // one assertion of a no-op return — not worth the
-    // test-isolation cost. Left intentionally without a no-spawn
-    // pin.
+    // The Windows arm mutates the on-disk ACL (`harden_file_perms_
+    // windows`) or runs `cmd /c attrib *` (`windows_hidden_names_raw`),
+    // which would (a) only run on a real Windows host and (b) touch
+    // host state: a unit test for the hardening would re-ACL the test
+    // file (and on a WSL host with Windows interop enabled, the real
+    // filesystem); the attrib test would depend on the test working
+    // dir. We want neither in CI. The clippy-cross matrix guards the
+    // cfg arm compiling; the runtime path is exercised end-to-end on
+    // real Windows hosts in manual / release-build smoke tests.
     #[cfg(target_os = "windows")]
     #[test]
     fn windows_arm_compiles() {

@@ -128,9 +128,9 @@ pub fn open_sink(app_support_dir: &str) -> Result<String, String> {
     guard.log_path = Some(target_path.clone());
     guard.sink = Some(writer);
     drop(guard);
-    // chmod 0600 on Unix; icacls on Windows. Errors are surfaced
-    // for the caller to log but never propagate up — a hardening
-    // miss must not block logging itself.
+    // chmod 0600 on Unix; owner-only ACL on Windows. Errors are
+    // surfaced for the caller to log but never propagate up — a
+    // hardening miss must not block logging itself.
     let _ = crate::path::harden_file_perms(&target_path);
     Ok(target_path.to_string_lossy().into_owned())
 }

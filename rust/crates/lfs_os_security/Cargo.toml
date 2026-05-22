@@ -93,6 +93,12 @@ windows = { version = "0.62", features = [
     "Win32_System_LibraryLoader",
     "Win32_System_Memory",
     "Win32_System_RemoteDesktop",
+    "Win32_System_Threading",
+    # ACL hardening of owner-only files (`path::harden_file_perms_windows`):
+    # token SID lookup + DACL build + apply, the native replacement for the
+    # `icacls` shell-out.
+    "Win32_Security",
+    "Win32_Security_Authorization",
     "Win32_Security_Credentials",
     "Win32_Security_Cryptography",
     "Win32_UI_WindowsAndMessaging",

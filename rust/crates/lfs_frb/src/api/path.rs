@@ -39,16 +39,17 @@ pub fn path_write_bytes_atomic(path: String, bytes: Vec<u8>) -> Result<(), Strin
     lfs_core::path::write_bytes_atomic(std::path::Path::new(&path), &bytes)
 }
 
-/// Tighten [`path`] to owner-only perms — `chmod 600` on Unix,
-/// `icacls /inheritance:r /grant:r` on Windows, no-op on iOS /
-/// Android (sandboxed app storage). Best-effort: returns the OS
-/// error as `Err(String)` for the caller to log, never panics.
+/// Tighten [`path`] to owner-only perms — `chmod 600` on Unix
+/// (incl. Android / iOS, where it is redundant under the OS app
+/// sandbox but harmless), an owner-only DACL via the Win32 security
+/// APIs on Windows. Best-effort: returns the OS error as
+/// `Err(String)` for the caller to log, never panics.
 ///
-/// Async + `spawn_blocking` because the Windows path spawns a
-/// subprocess (`icacls`) and a sync FRB shim would block the
-/// Dart event loop until the child returns. Unix `chmod` is a
-/// single syscall and could be sync, but a uniform async
-/// signature is simpler than splitting per-OS API surfaces.
+/// Async + `spawn_blocking` keeps the perm-tighten off the FRB
+/// worker's event loop. The underlying ops are fast filesystem-
+/// metadata syscalls (no subprocess on any platform), so a sync
+/// shim would also work; the uniform async signature is kept to
+/// avoid splitting per-OS API surfaces.
 pub async fn path_harden_file_perms(path: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::path::harden_file_perms(std::path::Path::new(&path))

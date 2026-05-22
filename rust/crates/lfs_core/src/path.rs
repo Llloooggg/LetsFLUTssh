@@ -185,18 +185,16 @@ pub fn expand_tilde(path: &str) -> String {
 /// Lock down [`path`]'s permissions to owner-only.
 ///
 /// * Unix (Linux / macOS / Android / iOS) — `chmod 0600`. Matches
-///   the OpenSSH expectation for every file under `~/.ssh/`.
+///   the OpenSSH expectation for every file under `~/.ssh/`. Redundant
+///   on Android / iOS — per-app storage is already UID-sandboxed by the
+///   OS — but harmless and keeps the path uniform.
 /// * Windows — delegates to
-///   [`lfs_os_security::path::harden_file_perms_windows`], which
-///   shells out to `icacls /inheritance:r /grant:r <user>:(F)`.
-///   Removes inherited ACLs and grants the current user full
-///   control. No-op when `USERNAME` is empty (CI / service-account
-///   contexts that do not carry the env var). The subprocess
-///   invocation lives in `lfs_os_security` because that crate is
-///   the single audit perimeter for OS-API FFI + subprocess
-///   spawning.
-/// * Other targets — no-op (iOS / Android already sandbox per-app
-///   storage tighter than `chmod 600`).
+///   [`lfs_os_security::path::harden_file_perms_windows`], which sets
+///   an owner-only DACL via the Win32 security APIs (equivalent to
+///   `icacls /inheritance:r /grant:r <user>:(F)`, no subprocess). The
+///   OS-API FFI lives in `lfs_os_security` because that crate is the
+///   single audit perimeter for OS-API FFI + subprocess spawning.
+/// * Other targets (wasm / unknown) — no-op.
 ///
 /// Best-effort: any failure is swallowed and reported as `Err` for
 /// the caller to log; the caller never aborts the surrounding write
@@ -237,9 +235,9 @@ pub fn harden_file_perms(_path: &std::path::Path) -> Result<(), String> {
 ///
 /// Windows is a no-op — `%APPDATA%\<app>` inherits the user's
 /// profile ACL which is already restricted to the running user.
-/// Tightening further via `icacls` on a directory affects file
-/// inheritance and risks breaking subsequent in-place writes; the
-/// inherited ACL is the established Windows convention.
+/// Tightening a directory's ACL further affects file inheritance
+/// and risks breaking subsequent in-place writes; the inherited
+/// ACL is the established Windows convention.
 #[cfg(unix)]
 pub fn harden_dir_perms(path: &std::path::Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
