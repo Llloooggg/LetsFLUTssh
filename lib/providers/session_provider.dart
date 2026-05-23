@@ -469,11 +469,22 @@ class SessionMutator {
       );
       rethrow;
     }
-    // Re-read the freshly-inserted row from the registry. The Rust
-    // side publishes `SessionsChanged` synchronously inside the
-    // duplicate call, so the snapshot at this point already carries
-    // the new row.
-    final copy = get(newId);
+    // Re-fetch straight from the Rust registry, NOT the Riverpod
+    // snapshot. Rust publishes `SessionsChanged` inside the duplicate
+    // call, but the Dart `sessionsWorkspaceStreamProvider` consumes that
+    // event off a broadcast stream and re-loads on a later event-loop
+    // turn — so `get(newId)` (which reads the cached snapshot) is still
+    // pre-insert when this await returns, and would spuriously throw even
+    // though the row is already in the DB. A direct `_loadSnapshot()`
+    // reload reads the source of truth now.
+    final snapshot = await _loadSnapshot();
+    Session? copy;
+    for (final s in snapshot.sessions) {
+      if (s.id == newId) {
+        copy = s;
+        break;
+      }
+    }
     if (copy == null) {
       throw StateError('Duplicate session $newId missing after insert');
     }
