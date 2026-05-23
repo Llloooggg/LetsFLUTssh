@@ -8,7 +8,6 @@
 
 use super::*;
 use crate::error::Error;
-use russh::client::AuthResult;
 use russh::keys::{ssh_key, HashAlg};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -31,9 +30,7 @@ impl Session {
             .await
             .map_err(|e| Error::Auth(e.to_string()))?;
 
-        if !matches!(auth_result, AuthResult::Success) {
-            return Err(Error::AuthFailed);
-        }
+        check_auth_result(auth_result)?;
 
         Ok(Session::from_handle(handle, forward_rx))
     }
@@ -221,9 +218,7 @@ impl Session {
             .await
             .map_err(|e| Error::Auth(e.to_string()))?;
 
-        if !matches!(auth_result, AuthResult::Success) {
-            return Err(Error::AuthFailed);
-        }
+        check_auth_result(auth_result)?;
 
         Ok(Session::from_handle(handle, forward_rx))
     }
@@ -232,8 +227,8 @@ impl Session {
     /// SSH agent ($SSH_AUTH_SOCK on Unix, OpenSSH-style named pipe
     /// on Windows, Pageant on Windows fallback). Iterates over the
     /// agent's identities in order; first one the server accepts
-    /// wins. Returns `Error::AuthFailed` only if every identity is
-    /// rejected.
+    /// wins. Returns a descriptive `Error::Auth` (identity count, none
+    /// accepted) only if every identity is rejected.
     pub async fn connect_agent(host: &str, port: u16, user: &str) -> Result<Self, Error> {
         connect_via_agent(host.to_owned(), port, user.to_owned()).await
     }
@@ -262,9 +257,7 @@ impl Session {
             .await
             .map_err(|e| Error::Auth(e.to_string()))?;
 
-        if !matches!(auth_result, AuthResult::Success) {
-            return Err(Error::AuthFailed);
-        }
+        check_auth_result(auth_result)?;
 
         Ok(Session::from_handle(handle, forward_rx))
     }
@@ -308,9 +301,7 @@ impl Session {
             .await
             .map_err(|e| Error::Auth(e.to_string()))?;
 
-        if !matches!(auth_result, AuthResult::Success) {
-            return Err(Error::AuthFailed);
-        }
+        check_auth_result(auth_result)?;
 
         Ok(Session::from_handle(handle, forward_rx))
     }
@@ -573,9 +564,7 @@ impl Session {
             .authenticate_publickey_with(args.user, parsed_pub, hash_alg, &mut signer)
             .await
             .map_err(|e| Error::Auth(format!("{e}")))?;
-        if !matches!(auth_result, AuthResult::Success) {
-            return Err(Error::AuthFailed);
-        }
+        check_auth_result(auth_result)?;
         Ok(Session::from_handle(handle, forward_rx))
     }
 
@@ -662,9 +651,7 @@ impl Session {
                 .authenticate_publickey_with(&args.user, parsed_pub, None, &mut signer)
                 .await
                 .map_err(|e| Error::Auth(format!("{e}")))?;
-            if !matches!(auth_result, AuthResult::Success) {
-                return Err(Error::AuthFailed);
-            }
+            check_auth_result(auth_result)?;
             Ok(Session::from_handle(handle, forward_rx))
         })
     }
@@ -718,9 +705,7 @@ impl Session {
                 .authenticate_publickey_with(&args.user, parsed_pub, hash_alg, &mut signer)
                 .await
                 .map_err(|e| Error::Auth(format!("{e}")))?;
-            if !matches!(auth_result, AuthResult::Success) {
-                return Err(Error::AuthFailed);
-            }
+            check_auth_result(auth_result)?;
             Ok(Session::from_handle(handle, forward_rx))
         })
     }
@@ -800,9 +785,7 @@ impl Session {
                 .authenticate_publickey_with(&args.user, parsed_pub, hash_alg, &mut signer)
                 .await
                 .map_err(|e| Error::Auth(format!("{e}")))?;
-            if !matches!(auth_result, AuthResult::Success) {
-                return Err(Error::AuthFailed);
-            }
+            check_auth_result(auth_result)?;
             Ok(Session::from_handle(handle, forward_rx))
         })
     }
@@ -857,9 +840,7 @@ impl Session {
                 .authenticate_publickey_with(&args.user, parsed_pub, hash_alg, &mut signer)
                 .await
                 .map_err(|e| Error::Auth(format!("{e}")))?;
-            if !matches!(auth_result, AuthResult::Success) {
-                return Err(Error::AuthFailed);
-            }
+            check_auth_result(auth_result)?;
             Ok(Session::from_handle(handle, forward_rx))
         })
     }

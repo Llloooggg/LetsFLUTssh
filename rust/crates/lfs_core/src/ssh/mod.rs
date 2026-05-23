@@ -546,9 +546,7 @@ pub async fn try_connect_password(
         .await
         .map_err(|e| Error::Auth(e.to_string()))?;
 
-    if !matches!(auth_result, AuthResult::Success) {
-        return Err(Error::AuthFailed);
-    }
+    check_auth_result(auth_result)?;
 
     finish_probe(session).await;
     Ok(())
@@ -1276,6 +1274,7 @@ async fn connect_via_agent(host: String, port: u16, user: String) -> Result<Sess
             "ssh-agent reachable but exposes no identities".into(),
         ));
     }
+    let identity_count = identities.len();
 
     let (mut handle, forward_rx) = open_handle_for_session(&host, port).await?;
 
@@ -1310,7 +1309,10 @@ async fn connect_via_agent(host: String, port: u16, user: String) -> Result<Sess
         }
     }
 
-    Err(Error::AuthFailed)
+    Err(Error::Auth(format!(
+        "ssh-agent offered {identity_count} identit{} but the server accepted none",
+        if identity_count == 1 { "y" } else { "ies" }
+    )))
 }
 
 /// ProxyJump-tunnelled twin of `connect_via_agent`. Mirrors the
@@ -1336,6 +1338,7 @@ async fn connect_via_agent_proxy(
             "ssh-agent reachable but exposes no identities".into(),
         ));
     }
+    let identity_count = identities.len();
 
     let (mut handle, forward_rx) = open_handle_via_proxy(parent, &host, port).await?;
 
@@ -1361,7 +1364,10 @@ async fn connect_via_agent_proxy(
         }
     }
 
-    Err(Error::AuthFailed)
+    Err(Error::Auth(format!(
+        "ssh-agent offered {identity_count} identit{} but the server accepted none",
+        if identity_count == 1 { "y" } else { "ies" }
+    )))
 }
 
 /// Authenticate against `session` with a FIDO2 hardware-bound key.
@@ -1402,9 +1408,7 @@ async fn finish_authenticate_pubkey_sk(
         .await
         .map_err(Error::from)?;
 
-    if !matches!(auth_result, AuthResult::Success) {
-        return Err(Error::AuthFailed);
-    }
+    check_auth_result(auth_result)?;
     Ok(())
 }
 
@@ -1448,10 +1452,42 @@ async fn finish_authenticate_pubkey_sk_cert(
         .await
         .map_err(Error::from)?;
 
-    if !matches!(auth_result, AuthResult::Success) {
-        return Err(Error::AuthFailed);
-    }
+    check_auth_result(auth_result)?;
     Ok(())
+}
+
+/// Convert russh's [`AuthResult`] into our `Result`, capturing the
+/// server's failure detail so the connection log shows *why* auth was
+/// rejected instead of a bare "authentication failed". russh hands us
+/// the methods the server still offers plus a partial-success flag; the
+/// SSH protocol exposes nothing more granular — a server never reports
+/// which key was wrong (anti-enumeration) — so this is the honest
+/// ceiling for a non-verbose connect. The detail rides `Error::Auth`,
+/// which the connect driver surfaces verbatim into the progress step,
+/// the `ConnectionError` event, and the `CoreConnect` warn log.
+fn check_auth_result(result: AuthResult) -> Result<(), Error> {
+    match result {
+        AuthResult::Success => Ok(()),
+        AuthResult::Failure {
+            remaining_methods,
+            partial_success,
+        } => {
+            let methods: Vec<String> = remaining_methods.iter().map(String::from).collect();
+            let methods = if methods.is_empty() {
+                "none".to_string()
+            } else {
+                methods.join(", ")
+            };
+            let partial = if partial_success {
+                " (partial success: the server accepted this step but requires further authentication)"
+            } else {
+                ""
+            };
+            Err(Error::Auth(format!(
+                "server rejected the credential — methods the server still offers: {methods}{partial}"
+            )))
+        }
+    }
 }
 
 async fn finish_authenticate_pubkey(
@@ -1476,9 +1512,7 @@ async fn finish_authenticate_pubkey(
         .await
         .map_err(|e| Error::Auth(e.to_string()))?;
 
-    if !matches!(auth_result, AuthResult::Success) {
-        return Err(Error::AuthFailed);
-    }
+    check_auth_result(auth_result)?;
     Ok(())
 }
 
@@ -1556,6 +1590,39 @@ fn map_key_decrypt_err(e: ssh_key::Error) -> Error {
 mod tests {
     use super::*;
     use russh::keys::{ssh_key::LineEnding, Algorithm, PrivateKey};
+
+    #[test]
+    fn check_auth_result_success_is_ok() {
+        assert!(check_auth_result(AuthResult::Success).is_ok());
+    }
+
+    #[test]
+    fn check_auth_result_failure_lists_remaining_methods() {
+        // Spec: a rejection must carry the methods the server still
+        // offers so the connection log explains *why* — not a bare
+        // "authentication failed".
+        let err = check_auth_result(AuthResult::Failure {
+            remaining_methods: russh::MethodSet::all(),
+            partial_success: false,
+        })
+        .unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("password"), "got: {msg}");
+        assert!(msg.contains("publickey"), "got: {msg}");
+        assert!(!msg.contains("partial success"), "got: {msg}");
+    }
+
+    #[test]
+    fn check_auth_result_failure_flags_partial_success() {
+        let err = check_auth_result(AuthResult::Failure {
+            remaining_methods: russh::MethodSet::empty(),
+            partial_success: true,
+        })
+        .unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("partial success"), "got: {msg}");
+        assert!(msg.contains("none"), "got: {msg}");
+    }
 
     fn random_ed25519_pem() -> Vec<u8> {
         let key = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("ed25519 keygen");

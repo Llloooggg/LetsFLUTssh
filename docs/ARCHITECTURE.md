@@ -351,6 +351,8 @@ The transport receives **one** auth method per connect attempt. `ConnectionsNoti
 
 If the user has an encrypted key and no stored / passed passphrase, `RustTransport.connect` raises `SshAuthFailed` with detail `passphrase required`; `ConnectionsNotifier` catches it, runs the interactive `PassphrasePromptCallback` (up to `maxPassphraseAttempts = 3`), and retries with the new passphrase staged into the SecretStore.
 
+**Auth-failure detail.** Every pubkey/cert/agent auth site funnels its russh `AuthResult` through `check_auth_result()` (`ssh/mod.rs`). On rejection it emits `Error::Auth("server rejected the credential — methods the server still offers: <list>[; partial success]")` instead of a bare `AuthFailed`, so the connection-log step `detail`, the `ConnectionError` event, and the `CoreConnect` warn line all explain *why* the attempt failed. The agent loop reports the identity count when every key is rejected. The SSH protocol exposes nothing more granular — a server never reports *which* key was wrong (anti-enumeration), so per-attempt this is the honest ceiling; transport-level visibility (negotiated algorithms / `server-sig-algs`) needs the verbose connection log.
+
 #### KnownHostsNotifier
 
 ```dart
