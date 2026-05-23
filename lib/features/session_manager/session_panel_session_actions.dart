@@ -70,15 +70,15 @@ extension _SessionActions on SessionPanelState {
           shortcut: AppShortcut.sessionCut,
           onTap: () => _ctrl.cutSessionId(session.id),
         ),
-        // Paste is always visible — matches Finder / Explorer / Nautilus,
-        // where the entry stays present and silently no-ops when the
-        // clipboard is empty. Hiding it would make the menu layout jitter
-        // between copy-then-paste actions.
-        StandardMenuAction.paste.item(
-          context,
-          shortcut: AppShortcut.sessionPaste,
-          onTap: () => pasteCopiedSession(explicitTarget: session.folder),
-        ),
+        // Paste appears only with a copy/cut entry in the clipboard —
+        // on an action surface an item that can do nothing right now is
+        // hidden, not shown disabled (CLAUDE.md disable-vs-hide).
+        if (_ctrl.hasClipboardEntry)
+          StandardMenuAction.paste.item(
+            context,
+            shortcut: AppShortcut.sessionPaste,
+            onTap: () => pasteCopiedSession(explicitTarget: session.folder),
+          ),
         const ContextMenuItem.divider(),
         StandardMenuAction.editConnection.item(
           context,

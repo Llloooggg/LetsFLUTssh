@@ -32,6 +32,12 @@ class SessionPanelController extends ChangeNotifier {
   String? get copiedSessionId => _copiedSessionId;
   String? get copiedFolderPath => _copiedFolderPath;
 
+  /// True when copy/cut has stashed a session or folder waiting to be
+  /// pasted. Gates the Paste context-menu item — an empty clipboard
+  /// makes Paste a no-op, so the item is hidden rather than shown.
+  bool get hasClipboardEntry =>
+      _copiedSessionId != null || _copiedFolderPath != null;
+
   bool get marqueeInProgress => _marqueeInProgress;
 
   bool get hasSelection =>

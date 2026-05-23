@@ -31,12 +31,15 @@ extension _FolderActions on SessionPanelState {
         ),
         // Paste lands directly inside the right-clicked folder — the
         // explicit target overrides the focus-derived default, so the
-        // user does not have to pre-focus the folder.
-        StandardMenuAction.paste.item(
-          context,
-          shortcut: AppShortcut.sessionPaste,
-          onTap: () => pasteCopiedSession(explicitTarget: folderPath),
-        ),
+        // user does not have to pre-focus the folder. Shown only with a
+        // clipboard entry; an empty clipboard hides it (action surface,
+        // CLAUDE.md disable-vs-hide).
+        if (_ctrl.hasClipboardEntry)
+          StandardMenuAction.paste.item(
+            context,
+            shortcut: AppShortcut.sessionPaste,
+            onTap: () => pasteCopiedSession(explicitTarget: folderPath),
+          ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
           StandardMenuAction.copy.item(

@@ -3915,6 +3915,7 @@ The sidebar owns its own keyboard/focus/pointer contract. Four invariants hold a
 - `copyFocused()` and `cutFocused()` both set `_copiedSessionId = _focusedSessionId` and flip `_cutPending` accordingly. Cut is one-shot: the next paste consumes the flag and clears the clipboard, so a subsequent Ctrl+V defaults back to duplicate semantics.
 - `clearClipboard()` runs on every successful cut paste, on panel `dispose`, and (via the wipe / reset flow) whenever the sidebar is torn down. There is **no wall-clock TTL** — an earlier 30-second auto-wipe caused a "works every other time" UX where the user's paste after a pause silently no-op'd. Since the clipboard is just a pointer, the stale-id window is bounded by panel lifetime, not by a timer.
 - Paste of a stale id (session deleted before paste) is a silent no-op — `sessionProvider.duplicate` throws `ArgumentError('Session not found')` and the transactional `_run` wrapper swallows it under the "duplicate session" label in the activity log.
+- **The Paste context-menu item is gated on `hasClipboardEntry`** (a copy/cut has stashed a session or folder). With an empty clipboard the entry would no-op, so the session and folder menus omit it entirely rather than show it disabled — context menus are action surfaces, where a control that can do nothing right now is hidden (the disable-with-tooltip treatment is reserved for configuration surfaces). The keyboard `Ctrl+V` path stays bound regardless and no-ops on an empty clipboard.
 
 ---
 

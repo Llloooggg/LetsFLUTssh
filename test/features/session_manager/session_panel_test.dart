@@ -333,6 +333,37 @@ void main() {
       // has, the menu has" expectation.
       expect(find.text('Copy'), findsOneWidget);
       expect(find.text('Cut'), findsOneWidget);
+      // Paste is hidden while the clipboard is empty — a context menu is
+      // an action surface, so an item that could only no-op is omitted
+      // rather than shown disabled.
+      expect(find.text('Paste'), findsNothing);
+    });
+
+    testWidgets('Paste appears in the session menu after a Copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      Future<void> rightClickStaging() async {
+        final center = tester.getCenter(find.text('staging'));
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryMouseButton,
+        );
+        await gesture.addPointer(location: center);
+        await gesture.down(center);
+        await gesture.up();
+        await gesture.removePointer();
+        await tester.pumpAndSettle();
+      }
+
+      // Copy the row, then reopen the menu — now the clipboard holds an
+      // entry, so Paste becomes a real, visible action.
+      await rightClickStaging();
+      await tester.tap(find.text('Copy'));
+      await tester.pumpAndSettle();
+      await rightClickStaging();
       expect(find.text('Paste'), findsOneWidget);
     });
 
@@ -483,12 +514,10 @@ void main() {
       expect(find.text('New Folder'), findsOneWidget);
       expect(find.text('Rename Folder'), findsOneWidget);
       expect(find.text('Delete Folder'), findsOneWidget);
-      // Paste pastes directly into the right-clicked folder — it is
-      // always present so the layout does not jitter between the
-      // copy-then-paste sequence and so "paste into this folder"
-      // stays a discoverable menu action even without the keyboard
-      // shortcut scope.
-      expect(find.text('Paste'), findsOneWidget);
+      // Paste is hidden while the clipboard is empty — the folder menu is
+      // an action surface, same rule as the session menu. It reappears
+      // once a copy/cut has stashed something to paste in.
+      expect(find.text('Paste'), findsNothing);
     });
 
     testWidgets('folder expand/collapse toggles on tap', (tester) async {
