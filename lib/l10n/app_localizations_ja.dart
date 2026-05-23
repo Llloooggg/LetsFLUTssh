@@ -242,11 +242,6 @@ class SJa extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH鍵を受信しました: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count 件のセッションをインポートしました';
   }

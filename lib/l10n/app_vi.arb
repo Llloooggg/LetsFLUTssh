@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Không thể khởi chạy trình cài đặt; đã mở trang phát hành trong trình duyệt",
   "versionAvailable": "Phiên bản {version} có sẵn",
   "currentVersion": "Hiện tại: v{version}",
-  "sshKeyReceived": "Đã nhận khóa SSH: {filename}",
   "importedSessions": "Đã nhập {count} phiên",
   "importFailed": "Nhập thất bại: {error}",
   "importSkippedLinks": "{count, plural, other{Đã bỏ qua {count} liên kết (mục tiêu không tồn tại)}}",

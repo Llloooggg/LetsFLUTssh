@@ -245,11 +245,6 @@ class SFa extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'کلید SSH دریافت شد: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count جلسه وارد شد';
   }

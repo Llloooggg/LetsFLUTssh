@@ -121,14 +121,6 @@
       }
     }
   },
-  "sshKeyReceived": "SSH key received: {filename}",
-  "@sshKeyReceived": {
-    "placeholders": {
-      "filename": {
-        "type": "String"
-      }
-    }
-  },
   "importedSessions": "{count, plural, =0{No sessions imported} =1{Imported 1 session} other{Imported {count} sessions}}",
   "@importedSessions": {
     "placeholders": {

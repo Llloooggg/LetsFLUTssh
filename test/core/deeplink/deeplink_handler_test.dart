@@ -245,19 +245,16 @@ void main() {
     test('callbacks are initially null', () {
       final h = DeepLinkHandler();
       expect(h.onConnect, isNull);
-      expect(h.onKeyFileOpened, isNull);
-      expect(h.onLfsFileOpened, isNull);
+      expect(h.onQrImport, isNull);
       h.dispose();
     });
 
     test('callbacks can be set', () {
       final h = DeepLinkHandler();
       h.onConnect = (_) {};
-      h.onKeyFileOpened = (_) {};
-      h.onLfsFileOpened = (_) {};
+      h.onQrImport = (_) {};
       expect(h.onConnect, isNotNull);
-      expect(h.onKeyFileOpened, isNotNull);
-      expect(h.onLfsFileOpened, isNotNull);
+      expect(h.onQrImport, isNotNull);
       h.dispose();
     });
 
@@ -380,30 +377,10 @@ void main() {
       expect(capturedSupported, 1);
     });
 
-    test('OpenLfs → onLfsFileOpened fires with the path', () {
-      String? captured;
-      handler.onLfsFileOpened = (p) => captured = p;
-      handler.routeOutcomeForTest(
-        const rust_deeplink.DbDeeplinkOutcome.openLfs(path: '/tmp/data.lfs'),
-      );
-      expect(captured, '/tmp/data.lfs');
-    });
-
-    test('OpenKeyFile → onKeyFileOpened fires with the path', () {
-      String? captured;
-      handler.onKeyFileOpened = (p) => captured = p;
-      handler.routeOutcomeForTest(
-        const rust_deeplink.DbDeeplinkOutcome.openKeyFile(path: '/tmp/id_rsa'),
-      );
-      expect(captured, '/tmp/id_rsa');
-    });
-
     test('Unknown → no callback fires', () {
       var fired = false;
       handler.onConnect = (_) => fired = true;
       handler.onQrImport = (_) => fired = true;
-      handler.onLfsFileOpened = (_) => fired = true;
-      handler.onKeyFileOpened = (_) => fired = true;
       handler.routeOutcomeForTest(
         const rust_deeplink.DbDeeplinkOutcome.unknown(),
       );
@@ -414,8 +391,6 @@ void main() {
       var fired = false;
       handler.onConnect = (_) => fired = true;
       handler.onQrImport = (_) => fired = true;
-      handler.onLfsFileOpened = (_) => fired = true;
-      handler.onKeyFileOpened = (_) => fired = true;
       handler.routeOutcomeForTest(
         const rust_deeplink.DbDeeplinkOutcome.duplicate(),
       );

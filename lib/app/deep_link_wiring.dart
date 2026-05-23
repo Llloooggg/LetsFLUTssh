@@ -25,7 +25,7 @@ final deepLinkHandlerProvider = Provider<DeepLinkHandler>((_) {
 /// Bind every callback on [handler] to the app's post-frame
 /// plumbing. Pure-Dart wiring — does NOT subscribe to the URI stream,
 /// which is deferred to [activateDeepLinks] post-FRB-init so a
-/// cold-start `letsflutssh://` URL or `.lfs` file does not race
+/// cold-start `letsflutssh://` URL does not race
 /// `_initRustCoreOrFatal` (the dispatch goes through Rust).
 ///
 /// Each callback defers to `addPostFrameCallback` before reading
@@ -38,8 +38,7 @@ final deepLinkHandlerProvider = Provider<DeepLinkHandler>((_) {
 ///
 /// Moved out of `_MainScreenState` so the state class keeps its
 /// focus on shell lifecycle; this module owns only the deep-link
-/// surface area (connect, LFS open, key-file open, QR import,
-/// version-too-new).
+/// surface area (connect, QR import, version-too-new).
 void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
   handler.onConnect = (config) {
     AppLogger.instance.log(
@@ -52,34 +51,6 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
       final manager = ref.read(connectionsProvider.notifier);
       final conn = manager.connectAsync(config, label: config.displayName);
       ref.read(workspaceProvider.notifier).addTerminalTab(conn);
-    });
-  };
-  handler.onLfsFileOpened = (filePath) {
-    AppLogger.instance.log(
-      'Deep link: LFS file opened — <path>',
-      name: 'DeepLink',
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        showLfsImportDialog(ctx, ref, filePath);
-      }
-    });
-  };
-  handler.onKeyFileOpened = (filePath) {
-    AppLogger.instance.log(
-      'Deep link: SSH key file received — <path>',
-      name: 'DeepLink',
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        Toast.show(
-          ctx,
-          message: S.of(ctx).sshKeyReceived(filePath.split('/').last),
-          level: ToastLevel.info,
-        );
-      }
     });
   };
   handler.onQrImport = (source) {
@@ -110,8 +81,8 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
 /// `getInitialLink()` (which dispatches through Rust) and
 /// subscribes to the warm-start URI stream. Called from
 /// `_LetsFLUTsshAppState._bootstrap` AFTER `_initRustCoreOrFatal`
-/// so a cold-launch via `letsflutssh://` or a double-clicked
-/// `.lfs` file never races the FRB load.
+/// so a cold-launch via a `letsflutssh://` link never races the
+/// FRB load.
 Future<void> activateDeepLinks(DeepLinkHandler handler) async {
   // `app_links` (the platform URI plugin) is wired here, in the app
   // layer, and injected into the core handler so `core/` carries no

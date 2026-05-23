@@ -244,11 +244,6 @@ class SEn extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH key received: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

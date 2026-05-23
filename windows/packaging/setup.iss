@@ -82,15 +82,11 @@ Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\letsflutssh\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
-; File class for the LetsFLUTssh archive bundle.
-Root: HKCU; Subkey: "Software\Classes\LetsFLUTssh.Archive"; ValueType: string; ValueName: ""; ValueData: "LetsFLUTssh Archive"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\LetsFLUTssh.Archive\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-
-; Per-extension associations: .lfs (archive), .pem / .key / .pub (SSH keys).
-Root: HKCU; Subkey: "Software\Classes\.lfs"; ValueType: string; ValueName: ""; ValueData: "LetsFLUTssh.Archive"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\.pem\OpenWithProgids"; ValueType: string; ValueName: "LetsFLUTssh.Archive"; ValueData: ""; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\.key\OpenWithProgids"; ValueType: string; ValueName: "LetsFLUTssh.Archive"; ValueData: ""; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Classes\.pub\OpenWithProgids"; ValueType: string; ValueName: "LetsFLUTssh.Archive"; ValueData: ""; Flags: uninsdeletevalue
+; No file-extension associations. The app does not claim .lfs / .pem /
+; .key / .pub — generic SSH formats belong to the user's editor, and
+; .lfs archives import via drag-drop or the in-app picker, not an OS
+; double-click hand-off. Only the letsflutssh:// URL scheme above is
+; registered.
 
 ; ─────────────────────────────────────────────────────────────────
 ; Uninstaller: optional removal of user data

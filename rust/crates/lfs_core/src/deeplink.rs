@@ -224,9 +224,12 @@ fn percent_decode(s: &str) -> Option<String> {
 // =====================================================================
 
 /// Typed outcome of a [`DeeplinkDispatcher::dispatch`] call. One
-/// variant per Dart-side callback (`Connect`, `LfsFileOpened`,
-/// `KeyFileOpened`, `QrImport`, `QrImportVersionTooNew`) plus
-/// `Duplicate` / `Unknown` branches the dispatcher logs and drops.
+/// variant per Dart-side callback (`Connect`, `QrImport`,
+/// `QrImportRejected`) plus `Duplicate` / `Unknown` branches the
+/// dispatcher logs and drops. The app handles only the
+/// `letsflutssh://` URL scheme — it registers no file-extension
+/// associations, so `file://` / `content://` URIs route to
+/// `Unknown`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeeplinkOutcome {
     /// `letsflutssh://connect?host=…&user=…[&port=…]` — open a
@@ -247,15 +250,10 @@ pub enum DeeplinkOutcome {
     /// `letsflutssh://import?d=…` carries a wire version newer than
     /// this build understands. Surface as "update the app" toast.
     QrImportRejected { found: i64, supported: i64 },
-    /// `file://…/*.lfs` or `content://…/*.lfs` — hand path to the
-    /// `.lfs` import dialog.
-    OpenLfs { path: String },
-    /// `file://…/*.{pem,key,pub}` or `content://…/*.{pem,key,pub}`
-    /// — hand path to the SSH-key receiver.
-    OpenKeyFile { path: String },
     /// Recognised URI but no actionable mapping (unknown
-    /// `letsflutssh://` action, unsupported file extension,
-    /// unknown scheme). Logged Rust-side; Dart UI does nothing.
+    /// `letsflutssh://` action, a `file://` / `content://` URI we
+    /// no longer claim, or an unknown scheme). Logged Rust-side;
+    /// Dart UI does nothing.
     Unknown,
     /// URI matched the dispatcher's last-seen entry inside the
     /// dedup window. Cold-start `getInitialLink` +
@@ -336,7 +334,9 @@ fn route(uri: &str) -> DeeplinkOutcome {
     };
     match parsed.scheme {
         "letsflutssh" => route_custom_scheme(&parsed, uri),
-        "file" | "content" => route_file_uri(uri),
+        // `file://` / `content://` are intentionally unhandled — the app
+        // registers no file-extension associations, so the OS never hands
+        // us a file URI and any that arrives is not ours to open.
         _ => DeeplinkOutcome::Unknown,
     }
 }
@@ -377,44 +377,6 @@ fn stage_qr_import(uri: &str) -> DeeplinkOutcome {
             DeeplinkOutcome::QrImportRejected { found, supported }
         }
         crate::qr_codec_decode::QrDecodeResult::Err(_) => DeeplinkOutcome::Unknown,
-    }
-}
-
-/// Map a `file://…` / `content://…` URI to the right open-action
-/// outcome by file extension. Mirrors the Dart-era `handleFileUri`
-/// (`.lfs` → archive, `.pem` / `.key` / `.pub` → SSH key).
-fn route_file_uri(uri: &str) -> DeeplinkOutcome {
-    // Strip query / fragment + scheme so the extension match runs
-    // on a clean path. Lowercased so case differences in
-    // user-typed extensions don't miss the match.
-    let path_section = uri
-        .split('?')
-        .next()
-        .unwrap_or(uri)
-        .split('#')
-        .next()
-        .unwrap_or(uri);
-    let lower = path_section.to_ascii_lowercase();
-    let raw_path = strip_file_scheme(uri);
-    if lower.ends_with(".lfs") {
-        return DeeplinkOutcome::OpenLfs { path: raw_path };
-    }
-    if lower.ends_with(".pem") || lower.ends_with(".key") || lower.ends_with(".pub") {
-        return DeeplinkOutcome::OpenKeyFile { path: raw_path };
-    }
-    DeeplinkOutcome::Unknown
-}
-
-fn strip_file_scheme(uri: &str) -> String {
-    if let Some(rest) = uri.strip_prefix("file://") {
-        rest.to_string()
-    } else if let Some(rest) = uri.strip_prefix("content://") {
-        // content URIs stay opaque — Android resolves them via
-        // ContentResolver. The Dart side hands the original URI
-        // back to the OS; we just preserve the full string.
-        format!("content://{rest}")
-    } else {
-        uri.to_string()
     }
 }
 
@@ -568,46 +530,19 @@ mod tests {
     }
 
     #[test]
-    fn route_lfs_file() {
-        match route("file:///tmp/backup.lfs") {
-            DeeplinkOutcome::OpenLfs { path } => assert_eq!(path, "/tmp/backup.lfs"),
-            other => panic!("expected OpenLfs, got {other:?}"),
+    fn route_file_uris_are_unhandled() {
+        // No file-extension associations: a file URI for what used to be
+        // an "open" target (.lfs / .pem / .key / .pub) now routes to
+        // Unknown, same as any other unclaimed scheme.
+        for uri in [
+            "file:///tmp/backup.lfs",
+            "file:///home/u/.ssh/id_ed25519.pem",
+            "file:///tmp/a.key",
+            "file:///tmp/a.pub",
+            "content://com.android.providers/x.lfs",
+        ] {
+            assert_eq!(route(uri), DeeplinkOutcome::Unknown, "uri: {uri}");
         }
-    }
-
-    #[test]
-    fn route_lfs_file_case_insensitive() {
-        match route("file:///tmp/Backup.LFS") {
-            DeeplinkOutcome::OpenLfs { .. } => {}
-            other => panic!("expected OpenLfs, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn route_pem_key_file() {
-        match route("file:///home/u/.ssh/id_ed25519.pem") {
-            DeeplinkOutcome::OpenKeyFile { path } => {
-                assert_eq!(path, "/home/u/.ssh/id_ed25519.pem")
-            }
-            other => panic!("expected OpenKeyFile, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn route_key_extension_variants() {
-        assert!(matches!(
-            route("file:///tmp/a.key"),
-            DeeplinkOutcome::OpenKeyFile { .. }
-        ));
-        assert!(matches!(
-            route("file:///tmp/a.pub"),
-            DeeplinkOutcome::OpenKeyFile { .. }
-        ));
-    }
-
-    #[test]
-    fn route_unknown_file_extension() {
-        assert_eq!(route("file:///tmp/note.txt"), DeeplinkOutcome::Unknown);
     }
 
     #[test]

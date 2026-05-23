@@ -246,11 +246,6 @@ class SPt extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'Chave SSH recebida: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

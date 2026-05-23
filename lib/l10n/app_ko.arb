@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "설치 프로그램 실행 실패; 브라우저에서 릴리스 페이지 열림",
   "versionAvailable": "버전 {version} 사용 가능",
   "currentVersion": "현재: v{version}",
-  "sshKeyReceived": "SSH 키 수신: {filename}",
   "importedSessions": "{count}개 세션 가져옴",
   "importFailed": "가져오기 실패: {error}",
   "importSkippedLinks": "{count, plural, other{연결 {count}개를 삭제했습니다(대상 없음)}}",

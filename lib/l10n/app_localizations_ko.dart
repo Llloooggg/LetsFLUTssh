@@ -242,11 +242,6 @@ class SKo extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH 키 수신: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count개 세션 가져옴';
   }

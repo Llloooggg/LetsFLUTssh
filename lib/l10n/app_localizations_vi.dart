@@ -244,11 +244,6 @@ class SVi extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'Đã nhận khóa SSH: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'Đã nhập $count phiên';
   }

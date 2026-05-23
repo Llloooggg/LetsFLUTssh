@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Не удалось запустить установщик; открыта страница релиза в браузере",
   "versionAvailable": "Доступна версия {version}",
   "currentVersion": "Текущая: v{version}",
-  "sshKeyReceived": "SSH-ключ получен: {filename}",
   "importedSessions": "Импортировано сессий: {count}",
   "importFailed": "Ошибка импорта: {error}",
   "importSkippedLinks": "{count, plural, =1{отброшена {count} связь (цель отсутствует)} few{отброшено {count} связи (цели отсутствуют)} many{отброшено {count} связей (цели отсутствуют)} other{отброшено {count} связей (цели отсутствуют)}}",

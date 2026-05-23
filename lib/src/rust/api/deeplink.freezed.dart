@@ -55,15 +55,13 @@ extension DbDeeplinkOutcomePatterns on DbDeeplinkOutcome {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DbDeeplinkOutcome_Connect value)?  connect,TResult Function( DbDeeplinkOutcome_QrImport value)?  qrImport,TResult Function( DbDeeplinkOutcome_QrImportRejected value)?  qrImportRejected,TResult Function( DbDeeplinkOutcome_OpenLfs value)?  openLfs,TResult Function( DbDeeplinkOutcome_OpenKeyFile value)?  openKeyFile,TResult Function( DbDeeplinkOutcome_Unknown value)?  unknown,TResult Function( DbDeeplinkOutcome_Duplicate value)?  duplicate,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DbDeeplinkOutcome_Connect value)?  connect,TResult Function( DbDeeplinkOutcome_QrImport value)?  qrImport,TResult Function( DbDeeplinkOutcome_QrImportRejected value)?  qrImportRejected,TResult Function( DbDeeplinkOutcome_Unknown value)?  unknown,TResult Function( DbDeeplinkOutcome_Duplicate value)?  duplicate,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case DbDeeplinkOutcome_Connect() when connect != null:
 return connect(_that);case DbDeeplinkOutcome_QrImport() when qrImport != null:
 return qrImport(_that);case DbDeeplinkOutcome_QrImportRejected() when qrImportRejected != null:
-return qrImportRejected(_that);case DbDeeplinkOutcome_OpenLfs() when openLfs != null:
-return openLfs(_that);case DbDeeplinkOutcome_OpenKeyFile() when openKeyFile != null:
-return openKeyFile(_that);case DbDeeplinkOutcome_Unknown() when unknown != null:
+return qrImportRejected(_that);case DbDeeplinkOutcome_Unknown() when unknown != null:
 return unknown(_that);case DbDeeplinkOutcome_Duplicate() when duplicate != null:
 return duplicate(_that);case _:
   return orElse();
@@ -83,15 +81,13 @@ return duplicate(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DbDeeplinkOutcome_Connect value)  connect,required TResult Function( DbDeeplinkOutcome_QrImport value)  qrImport,required TResult Function( DbDeeplinkOutcome_QrImportRejected value)  qrImportRejected,required TResult Function( DbDeeplinkOutcome_OpenLfs value)  openLfs,required TResult Function( DbDeeplinkOutcome_OpenKeyFile value)  openKeyFile,required TResult Function( DbDeeplinkOutcome_Unknown value)  unknown,required TResult Function( DbDeeplinkOutcome_Duplicate value)  duplicate,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DbDeeplinkOutcome_Connect value)  connect,required TResult Function( DbDeeplinkOutcome_QrImport value)  qrImport,required TResult Function( DbDeeplinkOutcome_QrImportRejected value)  qrImportRejected,required TResult Function( DbDeeplinkOutcome_Unknown value)  unknown,required TResult Function( DbDeeplinkOutcome_Duplicate value)  duplicate,}){
 final _that = this;
 switch (_that) {
 case DbDeeplinkOutcome_Connect():
 return connect(_that);case DbDeeplinkOutcome_QrImport():
 return qrImport(_that);case DbDeeplinkOutcome_QrImportRejected():
-return qrImportRejected(_that);case DbDeeplinkOutcome_OpenLfs():
-return openLfs(_that);case DbDeeplinkOutcome_OpenKeyFile():
-return openKeyFile(_that);case DbDeeplinkOutcome_Unknown():
+return qrImportRejected(_that);case DbDeeplinkOutcome_Unknown():
 return unknown(_that);case DbDeeplinkOutcome_Duplicate():
 return duplicate(_that);}
 }
@@ -107,15 +103,13 @@ return duplicate(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DbDeeplinkOutcome_Connect value)?  connect,TResult? Function( DbDeeplinkOutcome_QrImport value)?  qrImport,TResult? Function( DbDeeplinkOutcome_QrImportRejected value)?  qrImportRejected,TResult? Function( DbDeeplinkOutcome_OpenLfs value)?  openLfs,TResult? Function( DbDeeplinkOutcome_OpenKeyFile value)?  openKeyFile,TResult? Function( DbDeeplinkOutcome_Unknown value)?  unknown,TResult? Function( DbDeeplinkOutcome_Duplicate value)?  duplicate,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DbDeeplinkOutcome_Connect value)?  connect,TResult? Function( DbDeeplinkOutcome_QrImport value)?  qrImport,TResult? Function( DbDeeplinkOutcome_QrImportRejected value)?  qrImportRejected,TResult? Function( DbDeeplinkOutcome_Unknown value)?  unknown,TResult? Function( DbDeeplinkOutcome_Duplicate value)?  duplicate,}){
 final _that = this;
 switch (_that) {
 case DbDeeplinkOutcome_Connect() when connect != null:
 return connect(_that);case DbDeeplinkOutcome_QrImport() when qrImport != null:
 return qrImport(_that);case DbDeeplinkOutcome_QrImportRejected() when qrImportRejected != null:
-return qrImportRejected(_that);case DbDeeplinkOutcome_OpenLfs() when openLfs != null:
-return openLfs(_that);case DbDeeplinkOutcome_OpenKeyFile() when openKeyFile != null:
-return openKeyFile(_that);case DbDeeplinkOutcome_Unknown() when unknown != null:
+return qrImportRejected(_that);case DbDeeplinkOutcome_Unknown() when unknown != null:
 return unknown(_that);case DbDeeplinkOutcome_Duplicate() when duplicate != null:
 return duplicate(_that);case _:
   return null;
@@ -134,14 +128,12 @@ return duplicate(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String host,  int port,  String user)?  connect,TResult Function( String handleId,  DbImportPreview preview)?  qrImport,TResult Function( PlatformInt64 found,  PlatformInt64 supported)?  qrImportRejected,TResult Function( String path)?  openLfs,TResult Function( String path)?  openKeyFile,TResult Function()?  unknown,TResult Function()?  duplicate,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String host,  int port,  String user)?  connect,TResult Function( String handleId,  DbImportPreview preview)?  qrImport,TResult Function( PlatformInt64 found,  PlatformInt64 supported)?  qrImportRejected,TResult Function()?  unknown,TResult Function()?  duplicate,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case DbDeeplinkOutcome_Connect() when connect != null:
 return connect(_that.host,_that.port,_that.user);case DbDeeplinkOutcome_QrImport() when qrImport != null:
 return qrImport(_that.handleId,_that.preview);case DbDeeplinkOutcome_QrImportRejected() when qrImportRejected != null:
-return qrImportRejected(_that.found,_that.supported);case DbDeeplinkOutcome_OpenLfs() when openLfs != null:
-return openLfs(_that.path);case DbDeeplinkOutcome_OpenKeyFile() when openKeyFile != null:
-return openKeyFile(_that.path);case DbDeeplinkOutcome_Unknown() when unknown != null:
+return qrImportRejected(_that.found,_that.supported);case DbDeeplinkOutcome_Unknown() when unknown != null:
 return unknown();case DbDeeplinkOutcome_Duplicate() when duplicate != null:
 return duplicate();case _:
   return orElse();
@@ -161,14 +153,12 @@ return duplicate();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String host,  int port,  String user)  connect,required TResult Function( String handleId,  DbImportPreview preview)  qrImport,required TResult Function( PlatformInt64 found,  PlatformInt64 supported)  qrImportRejected,required TResult Function( String path)  openLfs,required TResult Function( String path)  openKeyFile,required TResult Function()  unknown,required TResult Function()  duplicate,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String host,  int port,  String user)  connect,required TResult Function( String handleId,  DbImportPreview preview)  qrImport,required TResult Function( PlatformInt64 found,  PlatformInt64 supported)  qrImportRejected,required TResult Function()  unknown,required TResult Function()  duplicate,}) {final _that = this;
 switch (_that) {
 case DbDeeplinkOutcome_Connect():
 return connect(_that.host,_that.port,_that.user);case DbDeeplinkOutcome_QrImport():
 return qrImport(_that.handleId,_that.preview);case DbDeeplinkOutcome_QrImportRejected():
-return qrImportRejected(_that.found,_that.supported);case DbDeeplinkOutcome_OpenLfs():
-return openLfs(_that.path);case DbDeeplinkOutcome_OpenKeyFile():
-return openKeyFile(_that.path);case DbDeeplinkOutcome_Unknown():
+return qrImportRejected(_that.found,_that.supported);case DbDeeplinkOutcome_Unknown():
 return unknown();case DbDeeplinkOutcome_Duplicate():
 return duplicate();}
 }
@@ -184,14 +174,12 @@ return duplicate();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String host,  int port,  String user)?  connect,TResult? Function( String handleId,  DbImportPreview preview)?  qrImport,TResult? Function( PlatformInt64 found,  PlatformInt64 supported)?  qrImportRejected,TResult? Function( String path)?  openLfs,TResult? Function( String path)?  openKeyFile,TResult? Function()?  unknown,TResult? Function()?  duplicate,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String host,  int port,  String user)?  connect,TResult? Function( String handleId,  DbImportPreview preview)?  qrImport,TResult? Function( PlatformInt64 found,  PlatformInt64 supported)?  qrImportRejected,TResult? Function()?  unknown,TResult? Function()?  duplicate,}) {final _that = this;
 switch (_that) {
 case DbDeeplinkOutcome_Connect() when connect != null:
 return connect(_that.host,_that.port,_that.user);case DbDeeplinkOutcome_QrImport() when qrImport != null:
 return qrImport(_that.handleId,_that.preview);case DbDeeplinkOutcome_QrImportRejected() when qrImportRejected != null:
-return qrImportRejected(_that.found,_that.supported);case DbDeeplinkOutcome_OpenLfs() when openLfs != null:
-return openLfs(_that.path);case DbDeeplinkOutcome_OpenKeyFile() when openKeyFile != null:
-return openKeyFile(_that.path);case DbDeeplinkOutcome_Unknown() when unknown != null:
+return qrImportRejected(_that.found,_that.supported);case DbDeeplinkOutcome_Unknown() when unknown != null:
 return unknown();case DbDeeplinkOutcome_Duplicate() when duplicate != null:
 return duplicate();case _:
   return null;
@@ -401,138 +389,6 @@ class _$DbDeeplinkOutcome_QrImportRejectedCopyWithImpl<$Res>
 found: null == found ? _self.found : found // ignore: cast_nullable_to_non_nullable
 as PlatformInt64,supported: null == supported ? _self.supported : supported // ignore: cast_nullable_to_non_nullable
 as PlatformInt64,
-  ));
-}
-
-
-}
-
-/// @nodoc
-
-
-class DbDeeplinkOutcome_OpenLfs extends DbDeeplinkOutcome {
-  const DbDeeplinkOutcome_OpenLfs({required this.path}): super._();
-  
-
- final  String path;
-
-/// Create a copy of DbDeeplinkOutcome
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$DbDeeplinkOutcome_OpenLfsCopyWith<DbDeeplinkOutcome_OpenLfs> get copyWith => _$DbDeeplinkOutcome_OpenLfsCopyWithImpl<DbDeeplinkOutcome_OpenLfs>(this, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbDeeplinkOutcome_OpenLfs&&(identical(other.path, path) || other.path == path));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,path);
-
-@override
-String toString() {
-  return 'DbDeeplinkOutcome.openLfs(path: $path)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class $DbDeeplinkOutcome_OpenLfsCopyWith<$Res> implements $DbDeeplinkOutcomeCopyWith<$Res> {
-  factory $DbDeeplinkOutcome_OpenLfsCopyWith(DbDeeplinkOutcome_OpenLfs value, $Res Function(DbDeeplinkOutcome_OpenLfs) _then) = _$DbDeeplinkOutcome_OpenLfsCopyWithImpl;
-@useResult
-$Res call({
- String path
-});
-
-
-
-
-}
-/// @nodoc
-class _$DbDeeplinkOutcome_OpenLfsCopyWithImpl<$Res>
-    implements $DbDeeplinkOutcome_OpenLfsCopyWith<$Res> {
-  _$DbDeeplinkOutcome_OpenLfsCopyWithImpl(this._self, this._then);
-
-  final DbDeeplinkOutcome_OpenLfs _self;
-  final $Res Function(DbDeeplinkOutcome_OpenLfs) _then;
-
-/// Create a copy of DbDeeplinkOutcome
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? path = null,}) {
-  return _then(DbDeeplinkOutcome_OpenLfs(
-path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
-
-}
-
-/// @nodoc
-
-
-class DbDeeplinkOutcome_OpenKeyFile extends DbDeeplinkOutcome {
-  const DbDeeplinkOutcome_OpenKeyFile({required this.path}): super._();
-  
-
- final  String path;
-
-/// Create a copy of DbDeeplinkOutcome
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$DbDeeplinkOutcome_OpenKeyFileCopyWith<DbDeeplinkOutcome_OpenKeyFile> get copyWith => _$DbDeeplinkOutcome_OpenKeyFileCopyWithImpl<DbDeeplinkOutcome_OpenKeyFile>(this, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbDeeplinkOutcome_OpenKeyFile&&(identical(other.path, path) || other.path == path));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,path);
-
-@override
-String toString() {
-  return 'DbDeeplinkOutcome.openKeyFile(path: $path)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class $DbDeeplinkOutcome_OpenKeyFileCopyWith<$Res> implements $DbDeeplinkOutcomeCopyWith<$Res> {
-  factory $DbDeeplinkOutcome_OpenKeyFileCopyWith(DbDeeplinkOutcome_OpenKeyFile value, $Res Function(DbDeeplinkOutcome_OpenKeyFile) _then) = _$DbDeeplinkOutcome_OpenKeyFileCopyWithImpl;
-@useResult
-$Res call({
- String path
-});
-
-
-
-
-}
-/// @nodoc
-class _$DbDeeplinkOutcome_OpenKeyFileCopyWithImpl<$Res>
-    implements $DbDeeplinkOutcome_OpenKeyFileCopyWith<$Res> {
-  _$DbDeeplinkOutcome_OpenKeyFileCopyWithImpl(this._self, this._then);
-
-  final DbDeeplinkOutcome_OpenKeyFile _self;
-  final $Res Function(DbDeeplinkOutcome_OpenKeyFile) _then;
-
-/// Create a copy of DbDeeplinkOutcome
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? path = null,}) {
-  return _then(DbDeeplinkOutcome_OpenKeyFile(
-path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
-as String,
   ));
 }
 

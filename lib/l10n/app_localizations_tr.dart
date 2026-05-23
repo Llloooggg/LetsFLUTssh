@@ -246,11 +246,6 @@ class STr extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH anahtarı alındı: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count oturum içe aktarıldı';
   }

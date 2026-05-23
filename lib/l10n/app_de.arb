@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Installationsprogramm konnte nicht gestartet werden; Release-Seite im Browser geöffnet",
   "versionAvailable": "Version {version} verfügbar",
   "currentVersion": "Aktuell: v{version}",
-  "sshKeyReceived": "SSH-Schlüssel empfangen: {filename}",
   "importedSessions": "{count, plural, =0{Keine Sitzungen importiert} =1{1 Sitzung importiert} other{{count} Sitzungen importiert}}",
   "importFailed": "Import fehlgeschlagen: {error}",
   "importSkippedLinks": "{count, plural, one{{count} Verknüpfung verworfen (Ziel fehlt)} other{{count} Verknüpfungen verworfen (Ziele fehlen)}}",

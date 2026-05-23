@@ -246,11 +246,6 @@ class SRu extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH-ключ получен: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'Импортировано сессий: $count';
   }

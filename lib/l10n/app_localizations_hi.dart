@@ -245,11 +245,6 @@ class SHi extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH कुंजी प्राप्त: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count सत्र आयात किए गए';
   }

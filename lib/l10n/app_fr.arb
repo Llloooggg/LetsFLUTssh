@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Échec du lancement de l'installateur; page de release ouverte dans le navigateur",
   "versionAvailable": "Version {version} disponible",
   "currentVersion": "Actuelle : v{version}",
-  "sshKeyReceived": "Clé SSH reçue : {filename}",
   "importedSessions": "{count, plural, =0{Aucune session importée} =1{1 session importée} other{{count} sessions importées}}",
   "importFailed": "Échec de l'import : {error}",
   "importSkippedLinks": "{count, plural, one{{count} association ignorée (cible manquante)} other{{count} associations ignorées (cibles manquantes)}}",

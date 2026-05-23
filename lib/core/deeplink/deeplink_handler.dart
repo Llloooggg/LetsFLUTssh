@@ -39,12 +39,6 @@ class DeepLinkHandler {
   /// "update the app" prompt instead of silently dropping the import.
   void Function(int found, int supported)? onQrImportVersionTooNew;
 
-  /// Callback invoked when an SSH key file is opened (.pem, .key, .pub).
-  void Function(String filePath)? onKeyFileOpened;
-
-  /// Callback invoked when a .lfs archive is opened.
-  void Function(String filePath)? onLfsFileOpened;
-
   /// Start listening for incoming deep links against an injected URI
   /// source. The app layer wires this to the `app_links` plugin
   /// (`getInitialLink` + `uriLinkStream`); tests pass their own
@@ -148,10 +142,6 @@ class DeepLinkHandler {
           name: 'DeepLink',
         );
         onQrImportVersionTooNew?.call(found, supported);
-      case rust_deeplink.DbDeeplinkOutcome_OpenLfs(:final path):
-        onLfsFileOpened?.call(path);
-      case rust_deeplink.DbDeeplinkOutcome_OpenKeyFile(:final path):
-        onKeyFileOpened?.call(path);
       case rust_deeplink.DbDeeplinkOutcome_Unknown():
         AppLogger.instance.log(
           'No actionable mapping',
@@ -185,7 +175,5 @@ class DeepLinkHandler {
     _sub?.cancel();
     onConnect = null;
     onQrImport = null;
-    onKeyFileOpened = null;
-    onLfsFileOpened = null;
   }
 }

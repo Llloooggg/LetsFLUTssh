@@ -26429,17 +26429,9 @@ impl SseDecode for crate::api::deeplink::DbDeeplinkOutcome {
                 };
             }
             3 => {
-                let mut var_path = <String>::sse_decode(deserializer);
-                return crate::api::deeplink::DbDeeplinkOutcome::OpenLfs { path: var_path };
-            }
-            4 => {
-                let mut var_path = <String>::sse_decode(deserializer);
-                return crate::api::deeplink::DbDeeplinkOutcome::OpenKeyFile { path: var_path };
-            }
-            5 => {
                 return crate::api::deeplink::DbDeeplinkOutcome::Unknown;
             }
-            6 => {
+            4 => {
                 return crate::api::deeplink::DbDeeplinkOutcome::Duplicate;
             }
             _ => {
@@ -33232,14 +33224,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::deeplink::DbDeeplinkOutcome {
                 supported.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::deeplink::DbDeeplinkOutcome::OpenLfs { path } => {
-                [3.into_dart(), path.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::deeplink::DbDeeplinkOutcome::OpenKeyFile { path } => {
-                [4.into_dart(), path.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::deeplink::DbDeeplinkOutcome::Unknown => [5.into_dart()].into_dart(),
-            crate::api::deeplink::DbDeeplinkOutcome::Duplicate => [6.into_dart()].into_dart(),
+            crate::api::deeplink::DbDeeplinkOutcome::Unknown => [3.into_dart()].into_dart(),
+            crate::api::deeplink::DbDeeplinkOutcome::Duplicate => [4.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -38741,19 +38727,11 @@ impl SseEncode for crate::api::deeplink::DbDeeplinkOutcome {
                 <i64>::sse_encode(found, serializer);
                 <i64>::sse_encode(supported, serializer);
             }
-            crate::api::deeplink::DbDeeplinkOutcome::OpenLfs { path } => {
-                <i32>::sse_encode(3, serializer);
-                <String>::sse_encode(path, serializer);
-            }
-            crate::api::deeplink::DbDeeplinkOutcome::OpenKeyFile { path } => {
-                <i32>::sse_encode(4, serializer);
-                <String>::sse_encode(path, serializer);
-            }
             crate::api::deeplink::DbDeeplinkOutcome::Unknown => {
-                <i32>::sse_encode(5, serializer);
+                <i32>::sse_encode(3, serializer);
             }
             crate::api::deeplink::DbDeeplinkOutcome::Duplicate => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(4, serializer);
             }
             _ => {
                 unimplemented!("");

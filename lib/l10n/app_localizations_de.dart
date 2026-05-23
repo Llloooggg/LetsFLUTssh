@@ -247,11 +247,6 @@ class SDe extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH-Schlüssel empfangen: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

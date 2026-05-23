@@ -241,11 +241,6 @@ class SZh extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return '已接收 SSH 密钥：$filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '已导入 $count 个会话';
   }

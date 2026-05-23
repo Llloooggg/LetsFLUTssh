@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "اجرای نصب‌کننده ناموفق بود؛ صفحه انتشار در مرورگر باز شد",
   "versionAvailable": "نسخه {version} موجود است",
   "currentVersion": "فعلی: v{version}",
-  "sshKeyReceived": "کلید SSH دریافت شد: {filename}",
   "importedSessions": "{count} جلسه وارد شد",
   "importFailed": "وارد کردن ناموفق بود: {error}",
   "importSkippedLinks": "{count, plural, other{{count} پیوند کنار گذاشته شد (هدف وجود ندارد)}}",

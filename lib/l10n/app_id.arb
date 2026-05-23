@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Peluncuran penginstal gagal; halaman rilis dibuka di browser",
   "versionAvailable": "Versi {version} tersedia",
   "currentVersion": "Saat ini: v{version}",
-  "sshKeyReceived": "Kunci SSH diterima: {filename}",
   "importedSessions": "{count} sesi diimpor",
   "importFailed": "Impor gagal: {error}",
   "importSkippedLinks": "{count, plural, other{{count} asosiasi dilewati (target hilang)}}",

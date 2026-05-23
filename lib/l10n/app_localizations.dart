@@ -567,12 +567,6 @@ abstract class S {
   /// **'Current: v{version}'**
   String currentVersion(String version);
 
-  /// No description provided for @sshKeyReceived.
-  ///
-  /// In en, this message translates to:
-  /// **'SSH key received: {filename}'**
-  String sshKeyReceived(String filename);
-
   /// No description provided for @importedSessions.
   ///
   /// In en, this message translates to:

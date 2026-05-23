@@ -81,16 +81,9 @@ sealed class DbDeeplinkOutcome with _$DbDeeplinkOutcome {
     required PlatformInt64 supported,
   }) = DbDeeplinkOutcome_QrImportRejected;
 
-  /// `file://…/*.lfs` or `content://…/*.lfs`.
-  const factory DbDeeplinkOutcome.openLfs({required String path}) =
-      DbDeeplinkOutcome_OpenLfs;
-
-  /// `file://…/*.{pem,key,pub}` or `content://…/*.{pem,key,pub}`.
-  const factory DbDeeplinkOutcome.openKeyFile({required String path}) =
-      DbDeeplinkOutcome_OpenKeyFile;
-
   /// Recognised URI but no actionable mapping (unknown action,
-  /// unsupported extension, unknown scheme).
+  /// a `file://` / `content://` URI the app no longer claims, or
+  /// an unknown scheme).
   const factory DbDeeplinkOutcome.unknown() = DbDeeplinkOutcome_Unknown;
 
   /// URI matched the dispatcher's last-seen entry inside the

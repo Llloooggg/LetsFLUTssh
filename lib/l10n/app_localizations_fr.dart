@@ -246,11 +246,6 @@ class SFr extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'Clé SSH reçue : $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

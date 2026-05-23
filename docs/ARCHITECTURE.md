@@ -2623,20 +2623,21 @@ The next bump follows the framework's [§3.6 → Bumping an existing artefact's 
 ### 3.8 Deep Links (`core/deeplink/`)
 
 `DeepLinkHandler` is a thin URI pump: it owns the `app_links`
-subscription (the Flutter plugin that drives custom-scheme + file-open
-intents — stays Dart) and routes every URI through the Rust
+subscription (the Flutter plugin that drives the custom-scheme intent —
+stays Dart) and routes every URI through the Rust
 [`DeeplinkDispatcher`](#deeplinkdispatcher--lfs_coredeeplink) via
-`deeplinkDispatch`. Routing, dedup, scheme dispatch, file-extension
-classification, and QR-payload staging all live in
-`lfs_core::deeplink`.
+`deeplinkDispatch`. Routing, dedup, scheme dispatch, and QR-payload
+staging all live in `lfs_core::deeplink`. The app registers **no
+file-extension associations** (see §12) — `.lfs` archives import via
+drag-drop / the in-app picker, never an OS file hand-off — so a
+`file://` / `content://` URI is not ours to open and routes to
+`Unknown`.
 
 ```dart
 class DeepLinkHandler {
-  // Schemes recognised by the Rust dispatcher:
+  // The only scheme recognised by the Rust dispatcher:
   //   letsflutssh://connect?host=X&user=Y[&port=Z]
   //   letsflutssh://import?d=BASE64URL (deflate + base64url JSON)
-  //   file://.../*.lfs / content://.../*.lfs
-  //   file://.../*.{pem,key,pub} / content://.../*.{pem,key,pub}
 
   // Each URI from `app_links` (cold-start `getInitialLink` + warm
   // `uriLinkStream`) is dispatched to `lfs_core` via FRB; the
@@ -2647,8 +2648,6 @@ class DeepLinkHandler {
   void Function(SSHConfig)? onConnect;
   void Function(QrDecodedSource)? onQrImport;
   void Function(int found, int supported)? onQrImportVersionTooNew;
-  void Function(String path)? onLfsFileOpened;
-  void Function(String path)? onKeyFileOpened;
 
   // Static helper for the deeplink fuzz suite + flutter_test
   // surface — routes through `lfs_core::deeplink::parse_connect_uri`
@@ -2665,11 +2664,10 @@ class DeepLinkHandler {
 | Concern | Owner |
 |---|---|
 | Dedup state (last URI + timestamp) | `DeeplinkDispatcher::inner` (mutex-guarded). Window: 2 s — covers the cold-start `getInitialLink` + `uriLinkStream` double-fire without blocking a deliberate re-tap of the same QR after the user comes back from background. |
-| Scheme dispatch (`letsflutssh` / `file` / `content`) | `route()` pure function. |
+| Scheme dispatch (`letsflutssh` only) | `route()` pure function. `file://` / `content://` (and any other scheme) fall to `Unknown` — the app claims no file extensions. |
 | Custom-scheme action (`connect` / `import`) | `route_custom_scheme()` matches on the URI authority and delegates to `parse_connect_uri` (connect) or `stage_qr_import` (import). |
-| File-extension routing (`.lfs` / `.pem` / `.key` / `.pub`) | `route_file_uri()` — case-insensitive suffix match on the path section before `?` / `#`. |
 | QR payload decode + staging | `stage_qr_import()` calls `qr_codec_decode::try_decode_payload()` → `ImportRegistry::insert(handle_id, pending)`. The `try_decode_payload` enum splits version-too-new from generic decode errors so the dispatcher can emit `QrImportRejected { found, supported }` as a typed outcome. |
-| Outcome shape | `DeeplinkOutcome` enum: `Connect{host,port,user}` / `QrImport{handle_id,schema_version}` / `QrImportRejected{found,supported}` / `OpenLfs{path}` / `OpenKeyFile{path}` / `Unknown` / `Duplicate`. The FRB adapter mirrors this as `DbDeeplinkOutcome` and hydrates the QR variant with a full `DbImportPreview` (looked up off the staged handle) so the Dart caller doesn't round-trip back. |
+| Outcome shape | `DeeplinkOutcome` enum: `Connect{host,port,user}` / `QrImport{handle_id,schema_version}` / `QrImportRejected{found,supported}` / `Unknown` / `Duplicate`. The FRB adapter mirrors this as `DbDeeplinkOutcome` and hydrates the QR variant with a full `DbImportPreview` (looked up off the staged handle) so the Dart caller doesn't round-trip back. |
 
 ---
 

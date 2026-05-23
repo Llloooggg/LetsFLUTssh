@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "تعذر تشغيل المثبّت؛ تم فتح صفحة الإصدار في المتصفح",
   "versionAvailable": "الإصدار {version} متاح",
   "currentVersion": "الحالي: v{version}",
-  "sshKeyReceived": "تم استلام مفتاح SSH: {filename}",
   "importedSessions": "تم استيراد {count} جلسة",
   "importFailed": "فشل الاستيراد: {error}",
   "importSkippedLinks": "{count, plural, zero{لا توجد ارتباطات مفقودة} one{تم إسقاط ارتباط واحد (الهدف مفقود)} two{تم إسقاط ارتباطين (الأهداف مفقودة)} few{تم إسقاط {count} ارتباطات (الأهداف مفقودة)} many{تم إسقاط {count} ارتباطًا (الأهداف مفقودة)} other{تم إسقاط {count} ارتباط (الأهداف مفقودة)}}",

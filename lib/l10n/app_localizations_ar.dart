@@ -243,11 +243,6 @@ class SAr extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'تم استلام مفتاح SSH: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'تم استيراد $count جلسة';
   }

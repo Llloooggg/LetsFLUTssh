@@ -245,11 +245,6 @@ class SId extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'Kunci SSH diterima: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count sesi diimpor';
   }

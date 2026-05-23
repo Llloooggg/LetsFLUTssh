@@ -26423,12 +26423,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           supported: dco_decode_i_64(raw[2]),
         );
       case 3:
-        return DbDeeplinkOutcome_OpenLfs(path: dco_decode_String(raw[1]));
-      case 4:
-        return DbDeeplinkOutcome_OpenKeyFile(path: dco_decode_String(raw[1]));
-      case 5:
         return DbDeeplinkOutcome_Unknown();
-      case 6:
+      case 4:
         return DbDeeplinkOutcome_Duplicate();
       default:
         throw Exception("unreachable");
@@ -31528,14 +31524,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           supported: var_supported,
         );
       case 3:
-        var var_path = sse_decode_String(deserializer);
-        return DbDeeplinkOutcome_OpenLfs(path: var_path);
-      case 4:
-        var var_path = sse_decode_String(deserializer);
-        return DbDeeplinkOutcome_OpenKeyFile(path: var_path);
-      case 5:
         return DbDeeplinkOutcome_Unknown();
-      case 6:
+      case 4:
         return DbDeeplinkOutcome_Duplicate();
       default:
         throw UnimplementedError('');
@@ -37935,16 +37925,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(2, serializer);
         sse_encode_i_64(found, serializer);
         sse_encode_i_64(supported, serializer);
-      case DbDeeplinkOutcome_OpenLfs(path: final path):
-        sse_encode_i_32(3, serializer);
-        sse_encode_String(path, serializer);
-      case DbDeeplinkOutcome_OpenKeyFile(path: final path):
-        sse_encode_i_32(4, serializer);
-        sse_encode_String(path, serializer);
       case DbDeeplinkOutcome_Unknown():
-        sse_encode_i_32(5, serializer);
+        sse_encode_i_32(3, serializer);
       case DbDeeplinkOutcome_Duplicate():
-        sse_encode_i_32(6, serializer);
+        sse_encode_i_32(4, serializer);
     }
   }
 

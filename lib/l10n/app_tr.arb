@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Yükleyici başlatılamadı; tarayıcıda yayın sayfası açıldı",
   "versionAvailable": "Sürüm {version} mevcut",
   "currentVersion": "Güncel: v{version}",
-  "sshKeyReceived": "SSH anahtarı alındı: {filename}",
   "importedSessions": "{count} oturum içe aktarıldı",
   "importFailed": "İçe aktarma başarısız: {error}",
   "importSkippedLinks": "{count, plural, other{{count} ilişki düşürüldü (hedef eksik)}}",

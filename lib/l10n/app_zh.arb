@@ -72,7 +72,6 @@
   "installerFailedOpenedReleasePage": "启动安装程序失败；已在浏览器中打开发布页面",
   "versionAvailable": "版本 {version} 可用",
   "currentVersion": "当前：v{version}",
-  "sshKeyReceived": "已接收 SSH 密钥：{filename}",
   "importedSessions": "已导入 {count} 个会话",
   "importFailed": "导入失败：{error}",
   "importSkippedLinks": "{count, plural, other{已丢弃 {count} 个关联（目标缺失）}}",

@@ -63,12 +63,9 @@ pub enum DbDeeplinkOutcome {
     /// QR payload carries a wire version newer than this build
     /// understands.
     QrImportRejected { found: i64, supported: i64 },
-    /// `file://…/*.lfs` or `content://…/*.lfs`.
-    OpenLfs { path: String },
-    /// `file://…/*.{pem,key,pub}` or `content://…/*.{pem,key,pub}`.
-    OpenKeyFile { path: String },
     /// Recognised URI but no actionable mapping (unknown action,
-    /// unsupported extension, unknown scheme).
+    /// a `file://` / `content://` URI the app no longer claims, or
+    /// an unknown scheme).
     Unknown,
     /// URI matched the dispatcher's last-seen entry inside the
     /// dedup window — Dart UI does nothing.
@@ -112,8 +109,6 @@ fn from_core(o: lfs_core::deeplink::DeeplinkOutcome) -> DbDeeplinkOutcome {
         Core::QrImportRejected { found, supported } => {
             DbDeeplinkOutcome::QrImportRejected { found, supported }
         }
-        Core::OpenLfs { path } => DbDeeplinkOutcome::OpenLfs { path },
-        Core::OpenKeyFile { path } => DbDeeplinkOutcome::OpenKeyFile { path },
         Core::Unknown => DbDeeplinkOutcome::Unknown,
         Core::Duplicate => DbDeeplinkOutcome::Duplicate,
     }
