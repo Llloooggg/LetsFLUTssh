@@ -745,6 +745,13 @@ class SId extends S {
   String get calculateFolderSizes => 'Hitung Ukuran Folder';
 
   @override
+  String get verboseConnectionLog => 'Log koneksi verbose';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Catat seluruh trace handshake SSH dan autentikasi ke file log (untuk mendiagnosis kegagalan koneksi)';
+
+  @override
   String get exportData => 'Ekspor Data';
 
   @override

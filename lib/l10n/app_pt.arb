@@ -214,6 +214,8 @@
   "parallelWorkers": "Workers paralelos",
   "maxHistory": "Histórico Máximo",
   "calculateFolderSizes": "Calcular Tamanho das Pastas",
+  "verboseConnectionLog": "Log de conexão detalhado",
+  "verboseConnectionLogSubtitle": "Registrar o trace completo do handshake SSH e da autenticação no arquivo de log (para diagnosticar falhas de conexão)",
   "exportData": "Exportar Dados",
   "exportRecordings": "Gravações de sessão",
   "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts encontrados} =1{1 host encontrado} other{{count} hosts encontrados}}",

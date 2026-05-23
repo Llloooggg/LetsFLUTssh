@@ -1431,6 +1431,18 @@ abstract class S {
   /// **'Calculate Folder Sizes'**
   String get calculateFolderSizes;
 
+  /// No description provided for @verboseConnectionLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Verbose connection log'**
+  String get verboseConnectionLog;
+
+  /// No description provided for @verboseConnectionLogSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record the full SSH handshake and authentication trace to the log file (for diagnosing connection failures)'**
+  String get verboseConnectionLogSubtitle;
+
   /// No description provided for @exportData.
   ///
   /// In en, this message translates to:

@@ -78,10 +78,15 @@ class SshDefaults {
   final int defaultPort;
   final int sshTimeoutSec;
 
+  /// Capture russh's verbose handshake / auth trace into the opt-in
+  /// file log (ssh -vvv-style). Off by default — noisy, diagnostic-only.
+  final bool verboseConnectionLog;
+
   const SshDefaults({
     this.keepAliveSec = 30,
     this.defaultPort = 22,
     this.sshTimeoutSec = 10,
+    this.verboseConnectionLog = false,
   });
 
   static const defaults = SshDefaults();
@@ -90,10 +95,12 @@ class SshDefaults {
     int? keepAliveSec,
     int? defaultPort,
     int? sshTimeoutSec,
+    bool? verboseConnectionLog,
   }) => SshDefaults(
     keepAliveSec: keepAliveSec ?? this.keepAliveSec,
     defaultPort: defaultPort ?? this.defaultPort,
     sshTimeoutSec: sshTimeoutSec ?? this.sshTimeoutSec,
+    verboseConnectionLog: verboseConnectionLog ?? this.verboseConnectionLog,
   );
 
   @override
@@ -102,21 +109,29 @@ class SshDefaults {
       other is SshDefaults &&
           keepAliveSec == other.keepAliveSec &&
           defaultPort == other.defaultPort &&
-          sshTimeoutSec == other.sshTimeoutSec;
+          sshTimeoutSec == other.sshTimeoutSec &&
+          verboseConnectionLog == other.verboseConnectionLog;
 
   @override
-  int get hashCode => Object.hash(keepAliveSec, defaultPort, sshTimeoutSec);
+  int get hashCode => Object.hash(
+    keepAliveSec,
+    defaultPort,
+    sshTimeoutSec,
+    verboseConnectionLog,
+  );
 
   factory SshDefaults.fromTyped(DbSshDefaults db) => SshDefaults(
     keepAliveSec: db.keepaliveSec.toInt(),
     defaultPort: db.defaultPort.toInt(),
     sshTimeoutSec: db.sshTimeoutSec.toInt(),
+    verboseConnectionLog: db.verboseConnectionLog,
   );
 
   DbSshDefaults toTyped() => DbSshDefaults(
     keepaliveSec: keepAliveSec,
     defaultPort: defaultPort,
     sshTimeoutSec: sshTimeoutSec,
+    verboseConnectionLog: verboseConnectionLog,
   );
 }
 
@@ -372,6 +387,7 @@ class AppConfig {
   int get keepAliveSec => ssh.keepAliveSec;
   int get defaultPort => ssh.defaultPort;
   int get sshTimeoutSec => ssh.sshTimeoutSec;
+  bool get verboseConnectionLog => ssh.verboseConnectionLog;
   int get toastDurationMs => ui.toastDurationMs;
   double get windowWidth => ui.windowWidth;
   double get windowHeight => ui.windowHeight;

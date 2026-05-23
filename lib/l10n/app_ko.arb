@@ -214,6 +214,8 @@
   "parallelWorkers": "병렬 워커 수",
   "maxHistory": "최대 기록 수",
   "calculateFolderSizes": "폴더 크기 계산",
+  "verboseConnectionLog": "상세 연결 로그",
+  "verboseConnectionLogSubtitle": "SSH 핸드셰이크와 인증 전체 트레이스를 로그 파일에 기록 (연결 실패 진단용)",
   "exportData": "데이터 내보내기",
   "exportRecordings": "세션 녹화",
   "sshConfigPreviewHostsFound": "호스트 {count}개를 찾았습니다",

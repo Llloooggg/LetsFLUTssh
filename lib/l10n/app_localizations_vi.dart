@@ -741,6 +741,13 @@ class SVi extends S {
   String get calculateFolderSizes => 'Tính kích thước thư mục';
 
   @override
+  String get verboseConnectionLog => 'Nhật ký kết nối chi tiết';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Ghi toàn bộ trace handshake SSH và xác thực vào tệp log (để chẩn đoán lỗi kết nối)';
+
+  @override
   String get exportData => 'Xuất dữ liệu';
 
   @override

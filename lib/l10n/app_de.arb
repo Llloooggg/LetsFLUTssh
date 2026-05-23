@@ -214,6 +214,8 @@
   "parallelWorkers": "Parallele Worker",
   "maxHistory": "Maximaler Verlauf",
   "calculateFolderSizes": "Ordnergrößen berechnen",
+  "verboseConnectionLog": "Ausführliches Verbindungsprotokoll",
+  "verboseConnectionLogSubtitle": "Den vollständigen SSH-Handshake- und Authentifizierungs-Trace in die Logdatei schreiben (zur Diagnose von Verbindungsfehlern)",
   "exportData": "Daten exportieren",
   "exportRecordings": "Sitzungsaufzeichnungen",
   "sshConfigPreviewHostsFound": "{count, plural, =0{Keine Hosts gefunden} =1{1 Host gefunden} other{{count} Hosts gefunden}}",

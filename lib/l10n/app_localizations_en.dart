@@ -771,6 +771,13 @@ class SEn extends S {
   String get calculateFolderSizes => 'Calculate Folder Sizes';
 
   @override
+  String get verboseConnectionLog => 'Verbose connection log';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Record the full SSH handshake and authentication trace to the log file (for diagnosing connection failures)';
+
+  @override
   String get exportData => 'Export Data';
 
   @override

@@ -214,6 +214,8 @@
   "parallelWorkers": "Workerهای موازی",
   "maxHistory": "حداکثر تاریخچه",
   "calculateFolderSizes": "محاسبه اندازه پوشه‌ها",
+  "verboseConnectionLog": "گزارش اتصال مفصل",
+  "verboseConnectionLogSubtitle": "ثبت کامل ردِ هندشیک SSH و احراز هویت در فایل لاگ (برای عیب‌یابی خطاهای اتصال)",
   "exportData": "خروجی گرفتن از داده",
   "exportRecordings": "ضبط‌های نشست",
   "sshConfigPreviewHostsFound": "{count} میزبان یافت شد",

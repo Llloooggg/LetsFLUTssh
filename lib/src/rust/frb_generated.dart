@@ -28123,12 +28123,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbSshDefaults dco_decode_db_ssh_defaults(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return DbSshDefaults(
       keepaliveSec: dco_decode_i_64(arr[0]),
       defaultPort: dco_decode_i_64(arr[1]),
       sshTimeoutSec: dco_decode_i_64(arr[2]),
+      verboseConnectionLog: dco_decode_bool(arr[3]),
     );
   }
 
@@ -33618,10 +33619,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_keepaliveSec = sse_decode_i_64(deserializer);
     var var_defaultPort = sse_decode_i_64(deserializer);
     var var_sshTimeoutSec = sse_decode_i_64(deserializer);
+    var var_verboseConnectionLog = sse_decode_bool(deserializer);
     return DbSshDefaults(
       keepaliveSec: var_keepaliveSec,
       defaultPort: var_defaultPort,
       sshTimeoutSec: var_sshTimeoutSec,
+      verboseConnectionLog: var_verboseConnectionLog,
     );
   }
 
@@ -39538,6 +39541,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.keepaliveSec, serializer);
     sse_encode_i_64(self.defaultPort, serializer);
     sse_encode_i_64(self.sshTimeoutSec, serializer);
+    sse_encode_bool(self.verboseConnectionLog, serializer);
   }
 
   @protected

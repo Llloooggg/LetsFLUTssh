@@ -684,10 +684,14 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     // wall-clock spent waiting on the user's accept/reject is
     // not network time. See `run_with_pause_aware_timeout`.
     let app_for_pause = app.clone();
+    // Bind the connection id around the auth future so any russh `log`
+    // records emitted during the handshake / userauth land in the
+    // verbose file log attributed to this session (no-op unless the
+    // user enabled the verbose connection log).
     let result = match run_with_pause_aware_timeout(
         std::time::Duration::from_secs(timeout_secs),
         move || app_for_pause.known_hosts_prompts.pending_count() > 0,
-        run_auth(args),
+        crate::ssh::verbose_log::scoped(id.clone(), run_auth(args)),
     )
     .await
     {

@@ -735,6 +735,13 @@ class SKo extends S {
   String get calculateFolderSizes => '폴더 크기 계산';
 
   @override
+  String get verboseConnectionLog => '상세 연결 로그';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'SSH 핸드셰이크와 인증 전체 트레이스를 로그 파일에 기록 (연결 실패 진단용)';
+
+  @override
   String get exportData => '데이터 내보내기';
 
   @override

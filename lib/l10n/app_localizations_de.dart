@@ -777,6 +777,13 @@ class SDe extends S {
   String get calculateFolderSizes => 'Ordnergrößen berechnen';
 
   @override
+  String get verboseConnectionLog => 'Ausführliches Verbindungsprotokoll';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Den vollständigen SSH-Handshake- und Authentifizierungs-Trace in die Logdatei schreiben (zur Diagnose von Verbindungsfehlern)';
+
+  @override
   String get exportData => 'Daten exportieren';
 
   @override

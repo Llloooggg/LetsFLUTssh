@@ -214,6 +214,8 @@
   "parallelWorkers": "并行工作线程",
   "maxHistory": "最大历史记录",
   "calculateFolderSizes": "计算文件夹大小",
+  "verboseConnectionLog": "详细连接日志",
+  "verboseConnectionLogSubtitle": "将完整的 SSH 握手和认证跟踪记录到日志文件（用于诊断连接失败）",
   "exportData": "导出数据",
   "exportRecordings": "会话录制",
   "sshConfigPreviewHostsFound": "找到 {count} 个主机",

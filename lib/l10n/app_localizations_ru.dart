@@ -753,6 +753,13 @@ class SRu extends S {
   String get calculateFolderSizes => 'Вычислять размеры папок';
 
   @override
+  String get verboseConnectionLog => 'Подробный лог подключения';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Записывать полный трейс SSH-хендшейка и аутентификации в файл лога (для диагностики ошибок подключения)';
+
+  @override
   String get exportData => 'Экспорт данных';
 
   @override

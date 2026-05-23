@@ -214,6 +214,8 @@
   "parallelWorkers": "並列ワーカー数",
   "maxHistory": "最大履歴数",
   "calculateFolderSizes": "フォルダーサイズを計算",
+  "verboseConnectionLog": "詳細な接続ログ",
+  "verboseConnectionLogSubtitle": "SSH ハンドシェイクと認証の完全なトレースをログファイルに記録します（接続失敗の診断用）",
   "exportData": "データをエクスポート",
   "exportRecordings": "セッション録画",
   "sshConfigPreviewHostsFound": "{count} 件のホストが見つかりました",

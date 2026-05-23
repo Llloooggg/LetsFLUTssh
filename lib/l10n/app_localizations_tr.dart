@@ -745,6 +745,13 @@ class STr extends S {
   String get calculateFolderSizes => 'Klasör Boyutlarını Hesapla';
 
   @override
+  String get verboseConnectionLog => 'Ayrıntılı bağlantı günlüğü';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'SSH handshake ve kimlik doğrulama izinin tamamını log dosyasına kaydet (bağlantı hatalarını teşhis etmek için)';
+
+  @override
   String get exportData => 'Veriyi Dışa Aktar';
 
   @override

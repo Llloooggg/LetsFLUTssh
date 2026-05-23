@@ -214,6 +214,8 @@
   "parallelWorkers": "Worker Paralel",
   "maxHistory": "Riwayat Maksimal",
   "calculateFolderSizes": "Hitung Ukuran Folder",
+  "verboseConnectionLog": "Log koneksi verbose",
+  "verboseConnectionLogSubtitle": "Catat seluruh trace handshake SSH dan autentikasi ke file log (untuk mendiagnosis kegagalan koneksi)",
   "exportData": "Ekspor Data",
   "exportRecordings": "Rekaman Sesi",
   "sshConfigPreviewHostsFound": "{count} host ditemukan",

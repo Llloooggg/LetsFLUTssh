@@ -736,6 +736,13 @@ class SJa extends S {
   String get calculateFolderSizes => 'フォルダーサイズを計算';
 
   @override
+  String get verboseConnectionLog => '詳細な接続ログ';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'SSH ハンドシェイクと認証の完全なトレースをログファイルに記録します（接続失敗の診断用）';
+
+  @override
   String get exportData => 'データをエクスポート';
 
   @override

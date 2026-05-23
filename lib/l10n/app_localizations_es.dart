@@ -782,6 +782,13 @@ class SEs extends S {
   String get calculateFolderSizes => 'Calcular tamaños de carpetas';
 
   @override
+  String get verboseConnectionLog => 'Registro de conexión detallado';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Registrar el trazado completo del handshake SSH y la autenticación en el archivo de log (para diagnosticar fallos de conexión)';
+
+  @override
   String get exportData => 'Exportar datos';
 
   @override

@@ -100,11 +100,29 @@ fn terminal_round_trip_preserves_fields() {
 }
 
 #[test]
+fn ssh_defaults_verbose_log_round_trips() {
+    // Defaults off; an explicit `true` survives the JSON round-trip
+    // (the bool is the only non-numeric SSH field, so a parse miss
+    // must fall back to off, not panic).
+    assert!(!SshDefaults::default().verbose_connection_log);
+    let on = SshDefaults {
+        verbose_connection_log: true,
+        ..SshDefaults::default()
+    };
+    let back = SshDefaults::from_json_object(&on.to_json_object());
+    assert!(back.verbose_connection_log);
+    // Missing key → off.
+    let empty = SshDefaults::from_json_object(&serde_json::Map::new());
+    assert!(!empty.verbose_connection_log);
+}
+
+#[test]
 fn ssh_defaults_clamp_invalid_port() {
     let s = SshDefaults {
         keepalive_sec: 30,
         default_port: 999_999,
         ssh_timeout_sec: 10,
+        verbose_connection_log: false,
     }
     .sanitized();
     assert_eq!(s.default_port, 22);

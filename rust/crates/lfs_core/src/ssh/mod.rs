@@ -65,6 +65,7 @@ pub mod keystore_signer;
 /// `impl Session` connect/auth matrix, split out to keep this file
 /// focused on the handler, types, and post-connect operations.
 mod session_connect;
+pub mod verbose_log;
 
 use sk_signer::FidoSigner;
 
@@ -215,6 +216,13 @@ pub struct ForwardedConnection {
 
 fn default_client_config() -> Arc<client::Config> {
     use russh::client::Config;
+
+    // Sync the verbose-log bridge with the live config flag before the
+    // handshake starts, so a Settings toggle takes effect on the next
+    // connect (no dedicated change listener — same lazy-read pattern as
+    // keepalive below).
+    apply_verbose_log_from_config_store();
+
     use russh::keys::ssh_key::{Algorithm, EcdsaCurve, HashAlg};
     use russh::{mac, Preferred};
     use std::borrow::Cow;
@@ -283,6 +291,22 @@ fn default_client_config() -> Arc<client::Config> {
         },
         ..Config::default()
     })
+}
+
+/// Apply the `verbose_connection_log` config flag to the russh
+/// verbose-log bridge. Read off the running config store the same
+/// lazy way `read_keepalive_sec_from_config_store` reads keepalive,
+/// so a Settings toggle takes effect on the next connect without a
+/// dedicated change listener. Defaults to off pre-init / on a parse
+/// miss.
+fn apply_verbose_log_from_config_store() {
+    use crate::config::AppConfig;
+    let on = crate::config_store::instance()
+        .get_json()
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+        .map(|v| AppConfig::from_json_value(&v).ssh.verbose_connection_log)
+        .unwrap_or(false);
+    crate::ssh::verbose_log::set_verbose(on);
 }
 
 /// Read `keepalive_sec` off the running config store. Returns

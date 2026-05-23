@@ -149,9 +149,11 @@ void main() {
           keepAliveSec: 60,
           defaultPort: 2222,
           sshTimeoutSec: 15,
+          verboseConnectionLog: true,
         );
         final restored = SshDefaults.fromTyped(config.toTyped());
         expect(restored, config);
+        expect(restored.verboseConnectionLog, isTrue);
       });
     });
   });

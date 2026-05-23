@@ -781,6 +781,13 @@ class SPt extends S {
   String get calculateFolderSizes => 'Calcular Tamanho das Pastas';
 
   @override
+  String get verboseConnectionLog => 'Log de conexão detalhado';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Registrar o trace completo do handshake SSH e da autenticação no arquivo de log (para diagnosticar falhas de conexão)';
+
+  @override
   String get exportData => 'Exportar Dados';
 
   @override

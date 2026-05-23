@@ -33,6 +33,12 @@ rust-version = "1.85"
 [workspace.dependencies]
 anyhow = "1"
 flutter_rust_bridge = "=2.12.0"
+# `log` facade — already in the tree transitively via russh (which
+# emits its handshake / auth diagnostics through it). Promoted to a
+# direct dep so we can install a logger that captures russh's verbose
+# output into the opt-in file log (ssh -vvv-style connection trace).
+# `std` feature gates `set_boxed_logger`, which the bridge installs.
+log = { version = "0.4", features = ["std"] }
 # russh defaults to `aws-lc-rs` for crypto, which transitively
 # pulls `aws-lc-sys` — a vendored AWS-LC C codebase. Two problems
 # with the default for our matrix:

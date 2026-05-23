@@ -85,6 +85,9 @@ class _ConnectionSection extends ConsumerWidget {
     final keepAlive = ref.watch(configProvider.select((c) => c.keepAliveSec));
     final timeout = ref.watch(configProvider.select((c) => c.sshTimeoutSec));
     final port = ref.watch(configProvider.select((c) => c.defaultPort));
+    final verboseLog = ref.watch(
+      configProvider.select((c) => c.verboseConnectionLog),
+    );
     return Column(
       children: [
         _IntTile(
@@ -119,6 +122,17 @@ class _ConnectionSection extends ConsumerWidget {
           onChanged: (v) => ref
               .read(configProvider.notifier)
               .update((c) => c.copyWith(ssh: c.ssh.copyWith(defaultPort: v))),
+        ),
+        _Toggle(
+          label: S.of(context).verboseConnectionLog,
+          subtitle: S.of(context).verboseConnectionLogSubtitle,
+          icon: Icons.bug_report_outlined,
+          value: verboseLog,
+          onChanged: (v) => ref
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWith(ssh: c.ssh.copyWith(verboseConnectionLog: v)),
+              ),
         ),
       ],
     );

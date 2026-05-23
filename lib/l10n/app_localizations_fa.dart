@@ -742,6 +742,13 @@ class SFa extends S {
   String get calculateFolderSizes => 'محاسبه اندازه پوشه‌ها';
 
   @override
+  String get verboseConnectionLog => 'گزارش اتصال مفصل';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'ثبت کامل ردِ هندشیک SSH و احراز هویت در فایل لاگ (برای عیب‌یابی خطاهای اتصال)';
+
+  @override
   String get exportData => 'خروجی گرفتن از داده';
 
   @override

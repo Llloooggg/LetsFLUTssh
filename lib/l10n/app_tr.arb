@@ -214,6 +214,8 @@
   "parallelWorkers": "Paralel Worker Sayısı",
   "maxHistory": "Maks Geçmiş",
   "calculateFolderSizes": "Klasör Boyutlarını Hesapla",
+  "verboseConnectionLog": "Ayrıntılı bağlantı günlüğü",
+  "verboseConnectionLogSubtitle": "SSH handshake ve kimlik doğrulama izinin tamamını log dosyasına kaydet (bağlantı hatalarını teşhis etmek için)",
   "exportData": "Veriyi Dışa Aktar",
   "exportRecordings": "Oturum Kayıtları",
   "sshConfigPreviewHostsFound": "{count} host bulundu",

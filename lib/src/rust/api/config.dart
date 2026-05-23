@@ -336,16 +336,21 @@ class DbSshDefaults {
   final PlatformInt64 keepaliveSec;
   final PlatformInt64 defaultPort;
   final PlatformInt64 sshTimeoutSec;
+  final bool verboseConnectionLog;
 
   const DbSshDefaults({
     required this.keepaliveSec,
     required this.defaultPort,
     required this.sshTimeoutSec,
+    required this.verboseConnectionLog,
   });
 
   @override
   int get hashCode =>
-      keepaliveSec.hashCode ^ defaultPort.hashCode ^ sshTimeoutSec.hashCode;
+      keepaliveSec.hashCode ^
+      defaultPort.hashCode ^
+      sshTimeoutSec.hashCode ^
+      verboseConnectionLog.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -354,7 +359,8 @@ class DbSshDefaults {
           runtimeType == other.runtimeType &&
           keepaliveSec == other.keepaliveSec &&
           defaultPort == other.defaultPort &&
-          sshTimeoutSec == other.sshTimeoutSec;
+          sshTimeoutSec == other.sshTimeoutSec &&
+          verboseConnectionLog == other.verboseConnectionLog;
 }
 
 /// Terminal display mirror. Field-for-field copy of

@@ -744,6 +744,13 @@ class SHi extends S {
   String get calculateFolderSizes => 'फ़ोल्डर आकार गणना करें';
 
   @override
+  String get verboseConnectionLog => 'विस्तृत कनेक्शन लॉग';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'पूरा SSH हैंडशेक और ऑथेंटिकेशन ट्रेस लॉग फ़ाइल में रिकॉर्ड करें (कनेक्शन विफलताओं के निदान के लिए)';
+
+  @override
   String get exportData => 'डेटा निर्यात करें';
 
   @override

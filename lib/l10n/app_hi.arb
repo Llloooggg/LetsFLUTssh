@@ -214,6 +214,8 @@
   "parallelWorkers": "Parallel workers",
   "maxHistory": "अधिकतम इतिहास",
   "calculateFolderSizes": "फ़ोल्डर आकार गणना करें",
+  "verboseConnectionLog": "विस्तृत कनेक्शन लॉग",
+  "verboseConnectionLogSubtitle": "पूरा SSH हैंडशेक और ऑथेंटिकेशन ट्रेस लॉग फ़ाइल में रिकॉर्ड करें (कनेक्शन विफलताओं के निदान के लिए)",
   "exportData": "डेटा निर्यात करें",
   "exportRecordings": "सेशन रिकॉर्डिंग",
   "sshConfigPreviewHostsFound": "{count} होस्ट मिले",

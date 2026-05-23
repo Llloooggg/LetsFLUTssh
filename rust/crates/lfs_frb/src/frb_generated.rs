@@ -28715,10 +28715,12 @@ impl SseDecode for crate::api::config::DbSshDefaults {
         let mut var_keepaliveSec = <i64>::sse_decode(deserializer);
         let mut var_defaultPort = <i64>::sse_decode(deserializer);
         let mut var_sshTimeoutSec = <i64>::sse_decode(deserializer);
+        let mut var_verboseConnectionLog = <bool>::sse_decode(deserializer);
         return crate::api::config::DbSshDefaults {
             keepalive_sec: var_keepaliveSec,
             default_port: var_defaultPort,
             ssh_timeout_sec: var_sshTimeoutSec,
+            verbose_connection_log: var_verboseConnectionLog,
         };
     }
 }
@@ -36196,6 +36198,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::config::DbSshDefaults {
             self.keepalive_sec.into_into_dart().into_dart(),
             self.default_port.into_into_dart().into_dart(),
             self.ssh_timeout_sec.into_into_dart().into_dart(),
+            self.verbose_connection_log.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -40429,6 +40432,7 @@ impl SseEncode for crate::api::config::DbSshDefaults {
         <i64>::sse_encode(self.keepalive_sec, serializer);
         <i64>::sse_encode(self.default_port, serializer);
         <i64>::sse_encode(self.ssh_timeout_sec, serializer);
+        <bool>::sse_encode(self.verbose_connection_log, serializer);
     }
 }
 

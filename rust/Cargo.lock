@@ -2270,6 +2270,7 @@ dependencies = [
  "internal-russh-forked-ssh-key",
  "lfs_os_security",
  "libc",
+ "log",
  "md-5",
  "quick-xml",
  "rand 0.10.1",

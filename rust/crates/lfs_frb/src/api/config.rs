@@ -61,6 +61,7 @@ pub struct DbSshDefaults {
     pub keepalive_sec: i64,
     pub default_port: i64,
     pub ssh_timeout_sec: i64,
+    pub verbose_connection_log: bool,
 }
 
 impl From<SshDefaults> for DbSshDefaults {
@@ -69,6 +70,7 @@ impl From<SshDefaults> for DbSshDefaults {
             keepalive_sec: c.keepalive_sec,
             default_port: c.default_port,
             ssh_timeout_sec: c.ssh_timeout_sec,
+            verbose_connection_log: c.verbose_connection_log,
         }
     }
 }
@@ -79,6 +81,7 @@ impl From<DbSshDefaults> for SshDefaults {
             keepalive_sec: c.keepalive_sec,
             default_port: c.default_port,
             ssh_timeout_sec: c.ssh_timeout_sec,
+            verbose_connection_log: c.verbose_connection_log,
         }
     }
 }

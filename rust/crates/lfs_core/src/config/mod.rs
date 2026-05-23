@@ -130,6 +130,9 @@ pub struct SshDefaults {
     pub keepalive_sec: i64,
     pub default_port: i64,
     pub ssh_timeout_sec: i64,
+    /// Capture russh's `-vvv`-style handshake / auth trace into the
+    /// opt-in file log. Off by default (noisy + diagnostic-only).
+    pub verbose_connection_log: bool,
 }
 
 impl Default for SshDefaults {
@@ -138,6 +141,7 @@ impl Default for SshDefaults {
             keepalive_sec: 30,
             default_port: 22,
             ssh_timeout_sec: 10,
+            verbose_connection_log: false,
         }
     }
 }
@@ -176,6 +180,7 @@ impl SshDefaults {
             } else {
                 self.ssh_timeout_sec
             },
+            verbose_connection_log: self.verbose_connection_log,
         }
     }
 
@@ -184,6 +189,10 @@ impl SshDefaults {
         m.insert("keepalive_sec".into(), json!(self.keepalive_sec));
         m.insert("default_port".into(), json!(self.default_port));
         m.insert("ssh_timeout_sec".into(), json!(self.ssh_timeout_sec));
+        m.insert(
+            "verbose_connection_log".into(),
+            json!(self.verbose_connection_log),
+        );
         m
     }
 
@@ -202,6 +211,10 @@ impl SshDefaults {
                 .get("ssh_timeout_sec")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(d.ssh_timeout_sec),
+            verbose_connection_log: json
+                .get("verbose_connection_log")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(d.verbose_connection_log),
         }
         .sanitized()
     }

@@ -782,6 +782,13 @@ class SFr extends S {
   String get calculateFolderSizes => 'Calculer la taille des dossiers';
 
   @override
+  String get verboseConnectionLog => 'Journal de connexion détaillé';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Enregistrer la trace complète du handshake SSH et de l\'authentification dans le fichier de log (pour diagnostiquer les échecs de connexion)';
+
+  @override
   String get exportData => 'Exporter les données';
 
   @override

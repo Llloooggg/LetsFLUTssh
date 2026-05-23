@@ -214,6 +214,8 @@
   "parallelWorkers": "Workers المتوازية",
   "maxHistory": "الحد الأقصى للسجل",
   "calculateFolderSizes": "حساب أحجام المجلدات",
+  "verboseConnectionLog": "سجل اتصال مفصّل",
+  "verboseConnectionLogSubtitle": "تسجيل تتبّع مصافحة SSH والمصادقة الكامل في ملف السجل (لتشخيص فشل الاتصال)",
   "exportData": "تصدير البيانات",
   "exportRecordings": "تسجيلات الجلسات",
   "sshConfigPreviewHostsFound": "تم العثور على {count} مضيف",

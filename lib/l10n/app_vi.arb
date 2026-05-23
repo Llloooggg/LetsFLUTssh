@@ -214,6 +214,8 @@
   "parallelWorkers": "Luồng song song",
   "maxHistory": "Lịch sử tối đa",
   "calculateFolderSizes": "Tính kích thước thư mục",
+  "verboseConnectionLog": "Nhật ký kết nối chi tiết",
+  "verboseConnectionLogSubtitle": "Ghi toàn bộ trace handshake SSH và xác thực vào tệp log (để chẩn đoán lỗi kết nối)",
   "exportData": "Xuất dữ liệu",
   "exportRecordings": "Bản ghi phiên",
   "sshConfigPreviewHostsFound": "Đã tìm thấy {count} host",

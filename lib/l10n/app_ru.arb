@@ -214,6 +214,8 @@
   "parallelWorkers": "Параллельные потоки",
   "maxHistory": "Макс. история",
   "calculateFolderSizes": "Вычислять размеры папок",
+  "verboseConnectionLog": "Подробный лог подключения",
+  "verboseConnectionLogSubtitle": "Записывать полный трейс SSH-хендшейка и аутентификации в файл лога (для диагностики ошибок подключения)",
   "exportData": "Экспорт данных",
   "exportRecordings": "Записи сессий",
   "sshConfigPreviewHostsFound": "Найдено хостов: {count}",

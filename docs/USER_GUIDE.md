@@ -1362,6 +1362,11 @@ You don't — Reset is destructive on purpose. The recovery path is **before** y
 - Settings → Logging → enable + set threshold (`info` / `warn` / `error`).
 - Sanitised: PEM bodies, IPs, `user@host`, paths get redacted before the line hits disk.
 
+### Diagnosing a connection that won't authenticate
+
+- A failed connect now states *why* in the connection log / terminal — e.g. `server rejected the credential — methods the server still offers: publickey, password`. The server never says *which* key was wrong (SSH hides that on purpose), so this tells you the key was offered and refused, and what else you can try.
+- For the algorithm-level detail (which key types and signature algorithms were negotiated — useful when one key type works and another doesn't), turn on **Settings → Preferences → Verbose connection log**, enable Logging, reproduce the connect, then read `letsflutssh.log`: it records the full SSH handshake and authentication trace (`ssh -vvv`-style). Leave it off for normal use — it is noisy.
+
 ### Reporting bugs
 
 - GitHub Issues. Include the build version (Settings → About) + the relevant log slice (sanitised; double-check no remaining secrets before pasting).

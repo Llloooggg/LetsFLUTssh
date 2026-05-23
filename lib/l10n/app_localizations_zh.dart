@@ -733,6 +733,13 @@ class SZh extends S {
   String get calculateFolderSizes => '计算文件夹大小';
 
   @override
+  String get verboseConnectionLog => '详细连接日志';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      '将完整的 SSH 握手和认证跟踪记录到日志文件（用于诊断连接失败）';
+
+  @override
   String get exportData => '导出数据';
 
   @override

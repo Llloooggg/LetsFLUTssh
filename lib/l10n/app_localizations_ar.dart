@@ -754,6 +754,13 @@ class SAr extends S {
   String get calculateFolderSizes => 'حساب أحجام المجلدات';
 
   @override
+  String get verboseConnectionLog => 'سجل اتصال مفصّل';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'تسجيل تتبّع مصافحة SSH والمصادقة الكامل في ملف السجل (لتشخيص فشل الاتصال)';
+
+  @override
   String get exportData => 'تصدير البيانات';
 
   @override
