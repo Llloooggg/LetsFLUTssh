@@ -85,9 +85,16 @@ impl SchemaVersions {
     pub const ARCHIVE: i32 = 1;
 
     /// QR / paste-link payload schema (the `v` field inside the
-    /// deflated JSON envelope). Same future-version-rejection shape
-    /// as [`Self::ARCHIVE`] — older builds reject newer payloads
-    /// rather than upgrading them.
+    /// JSON envelope). `1` is the current — and only — version. The
+    /// transport (`deflate` vs raw base64url) is detected structurally
+    /// by the decoder (it attempts inflate first, falling back to raw
+    /// JSON), so the `v` field carries the schema version only, not the
+    /// encoding. This is the single source of truth for the version
+    /// both the composer (`archive::qr_compose`) stamps and the decoder
+    /// (`qr_codec_decode`) accepts — they must read it, never hardcode,
+    /// so the produced and accepted versions cannot drift. Same
+    /// future-version-rejection shape as [`Self::ARCHIVE`] — older
+    /// builds reject newer payloads rather than upgrading them.
     pub const QR_PAYLOAD: i32 = 1;
 }
 

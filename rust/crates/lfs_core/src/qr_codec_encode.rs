@@ -9,7 +9,7 @@
 //!
 //! * `lfs_core::archive::qr_export_payload` — production encoder
 //!   that pulls session data from the DB and serialises it into the
-//!   v4 QR JSON shape, then routes through [`compress_to_payload`]
+//!   QR JSON shape, then routes through [`compress_to_payload`]
 //!   for the deflate + base64url step so the wire format lives one
 //!   place.
 //! * Dart `unified_export_controller` size-estimation gauge — builds
@@ -58,7 +58,7 @@ pub fn compress_to_payload_size(json: &str) -> u32 {
     compress_to_payload(json).len() as u32
 }
 
-/// Build the v4 QR per-session compact map. Single source of truth
+/// Build the QR per-session compact map. Single source of truth
 /// for the field-name grammar that both production paths share:
 ///
 /// * `lfs_core::archive::qr_export_payload` — DB-side encoder, calls

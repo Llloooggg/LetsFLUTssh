@@ -142,9 +142,11 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
                 borderSide: BorderSide(color: AppTheme.accent),
               ),
             ),
-            onChanged: (_) {
-              if (_error != null) setState(() => _error = null);
-            },
+            // Rebuild on every edit so the Import button's enabled
+            // state tracks whether the field has any payload to decode;
+            // also clear a stale error the moment the user starts
+            // retyping.
+            onChanged: (_) => setState(() => _error = null),
             onSubmitted: (_) => unawaited(_submit()),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -172,6 +174,13 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
         AppButton.cancel(onTap: () => Navigator.of(context).pop()),
         AppButton.primary(
           label: s.importAction,
+          // Disabled when there is nothing to decode, and again after a
+          // failed decode leaves the inline error showing — the payload
+          // can only be validated asynchronously Rust-side, so an empty
+          // box and a just-rejected value are the two states we gate up
+          // front. Editing the field clears `_error` (see `onChanged`),
+          // which re-enables the button for the retry.
+          enabled: _controller.text.trim().isNotEmpty && _error == null,
           onTap: () => unawaited(_submit()),
         ),
       ],

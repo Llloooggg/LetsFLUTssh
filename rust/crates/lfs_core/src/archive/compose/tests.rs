@@ -768,3 +768,41 @@ fn entries_use_stored_compression() {
     let method = u16::from_le_bytes([bytes[8], bytes[9]]);
     assert_eq!(method, 0, "manifest entry must be stored, not deflated");
 }
+
+// ── Export → read roundtrip (writer/reader version parity) ──
+
+#[test]
+fn export_at_current_version_reads_back() {
+    // End-to-end guard for the writer/reader version contract: an
+    // archive stamped with `SchemaVersions::ARCHIVE` (what the Dart
+    // export path passes) must read back through the canonical
+    // `read_archive_to_pending` reader. Every other compose test
+    // stamps an arbitrary version (7 / 9) and only inspects the ZIP
+    // bytes, so none of them would catch the writer drifting away
+    // from the version the reader's `1..=ARCHIVE` range accepts —
+    // the same isolation gap that left QR import rejecting every
+    // export. Raw ZIP (no master password) keeps the test off the
+    // Argon2id path.
+    let conn = fresh_db();
+    insert_session(&conn, make_session("s1", "prod"));
+    let mut input = baseline_input();
+    input.schema_version = i64::from(crate::migration::SchemaVersions::ARCHIVE);
+    input.options.include_sessions = true;
+    input.selected_session_ids = vec!["s1".into()];
+
+    let bytes = export_archive(&conn, &input).unwrap();
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("roundtrip.lfs");
+    std::fs::write(&path, &bytes).unwrap();
+
+    let (pending, preview) = crate::archive::read_archive_to_pending(path.to_str().unwrap(), "")
+        .expect("an archive at the current version must read back");
+    assert_eq!(
+        preview.schema_version,
+        i64::from(crate::migration::SchemaVersions::ARCHIVE),
+    );
+    let sessions: Value = serde_json::from_str(pending.sessions_json.as_deref().unwrap()).unwrap();
+    assert!(serde_json::to_string(&sessions)
+        .unwrap()
+        .contains("s1.example.com"));
+}

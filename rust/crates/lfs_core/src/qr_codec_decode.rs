@@ -3,20 +3,21 @@
 //! driver. Mirrors `lib/core/session/qr_codec.dart` decode side
 //! field-for-field.
 //!
-//! # Wire format (v4)
+//! # Wire format
 //!
 //! Outer: `base64url-no-pad(deflate(JSON))`. Inflated payload caps
 //! at 4 MiB to defuse zip-bomb-shaped input — deflate's ~1000×
 //! ratio means a small QR could otherwise expand into the multi-
 //! hundred-MB range.
 //!
-//! Legacy (v1): `base64url-no-pad(JSON)` — no deflate. Tried as
-//! a fallback when the v4 path fails on inflate.
+//! `v: 1` is the floor — there is no version below it, so the format
+//! is always deflate-compressed. A payload that fails to inflate is
+//! rejected, not read raw.
 //!
 //! # Field map
 //!
 //! Top-level JSON:
-//!   - `v`        — wire version (`1` legacy, `4` current)
+//!   - `v`        — schema version (`1`; see `SchemaVersions::QR_PAYLOAD`)
 //!   - `s`        — sessions array, compact shape (see below)
 //!   - `eg`       — empty folder paths (string array)
 //!   - `km`       — `{shortId: PEM}` dedup map
@@ -140,34 +141,24 @@ pub fn extract_payload_from_uri(uri: &str) -> Option<String> {
 }
 
 fn decode_to_json_text(payload: &str) -> Result<String, Error> {
-    // v4: base64url + deflate. Try first.
+    // v1 is strictly `base64url-no-pad(deflate(JSON))`. There is no
+    // version below v1, so a non-deflate payload is rejected outright
+    // rather than read raw — `SchemaVersions::QR_PAYLOAD` is the floor.
     let raw = URL_SAFE_NO_PAD
         .decode(payload.as_bytes())
         .map_err(|e| Error::Crypto(format!("payload base64 decode: {e}")))?;
-    match inflate_capped(&raw) {
-        Ok(bytes) => {
-            let s = String::from_utf8(bytes)
-                .map_err(|e| Error::Crypto(format!("payload utf-8: {e}")))?;
-            return Ok(s);
-        }
+    let bytes = match inflate_capped(&raw) {
+        Ok(bytes) => bytes,
         Err(InflateError::TooLarge { size, limit }) => {
             return Err(Error::Crypto(format!(
                 "payload too large: {size} bytes > limit {limit}"
             )));
         }
         Err(InflateError::Inflate) => {
-            // Fall through to v1 legacy path.
+            return Err(Error::Crypto("payload inflate failed".into()));
         }
-    }
-
-    // v1: raw base64url(JSON), no deflate.
-    if raw.len() > MAX_INFLATED_PAYLOAD_BYTES {
-        return Err(Error::Crypto(format!(
-            "payload too large: {} bytes > limit {MAX_INFLATED_PAYLOAD_BYTES}",
-            raw.len()
-        )));
-    }
-    String::from_utf8(raw).map_err(|e| Error::Crypto(format!("payload utf-8 (legacy): {e}")))
+    };
+    String::from_utf8(bytes).map_err(|e| Error::Crypto(format!("payload utf-8: {e}")))
 }
 
 enum InflateError {
@@ -177,10 +168,9 @@ enum InflateError {
 
 impl From<std::io::Error> for InflateError {
     fn from(_: std::io::Error) -> Self {
-        // Stream parse failures all collapse to the same signal —
-        // the caller falls through to the v1 legacy path on any
-        // inflate failure. Capturing the underlying io::Error
-        // would never be inspected.
+        // Stream parse failures all collapse to the same signal — the
+        // caller rejects the payload on any inflate failure. Capturing
+        // the underlying io::Error would never be inspected.
         InflateError::Inflate
     }
 }
@@ -536,6 +526,24 @@ mod tests {
     }
 
     #[test]
+    fn current_wire_version_is_accepted() {
+        // The composer stamps `SchemaVersions::QR_PAYLOAD` as `v`; the
+        // decoder's ceiling derives from the same constant. A payload at
+        // exactly that version must decode — a regression where the two
+        // drifted (composer at 4, ceiling at 1) rejected every export as
+        // "version too new". Build the version literal from the registry
+        // so this stays a same-source check, not a copy of `4`.
+        let v = CURRENT_FORMAT_VERSION;
+        let payload = encode_payload_test(&format!(
+            r#"{{"v": {v}, "s": [{{"l": "x", "h": "h", "u": "u"}}]}}"#
+        ));
+        assert!(
+            decode_payload(&payload).is_ok(),
+            "payload at the current wire version v{v} must decode"
+        );
+    }
+
+    #[test]
     fn decodes_session_array_with_minted_ids() {
         let json_str = r#"{
             "v": 1,
@@ -656,22 +664,13 @@ mod tests {
     }
 
     #[test]
-    fn legacy_v1_no_deflate_decodes() {
-        // v1: raw JSON inside base64url, no deflate envelope.
-        let json_str = r#"{"v": 1, "s": [{"l": "legacy", "h": "h", "u": "u"}]}"#;
+    fn non_deflate_payload_is_rejected() {
+        // v1 is strictly deflate — raw base64url(JSON) with no deflate
+        // envelope is below the floor and must not decode.
+        let json_str = r#"{"v": 1, "s": [{"l": "x", "h": "h", "u": "u"}]}"#;
         let payload = URL_SAFE_NO_PAD.encode(json_str.as_bytes());
-        let result = decode_payload(&payload).unwrap();
-        let sessions: Vec<Value> =
-            serde_json::from_str(result.pending.sessions_json.as_deref().unwrap()).unwrap();
-        assert_eq!(
-            sessions[0]
-                .as_object()
-                .unwrap()
-                .get("label")
-                .unwrap()
-                .as_str(),
-            Some("legacy")
-        );
+        let err = decode_payload(&payload).unwrap_err();
+        assert!(err.to_string().contains("inflate"));
     }
 
     #[test]

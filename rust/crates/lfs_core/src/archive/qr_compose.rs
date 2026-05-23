@@ -26,11 +26,12 @@ use crate::error::Error;
 use super::{build_folder_paths, build_known_hosts};
 
 /// Wire-format version stamped into the QR payload's `v` field.
-/// Mirrors `_currentFormatVersion` in `lib/core/session/qr_codec.dart`
-/// — bump there and here in lockstep. Lives next to the only call
-/// site (`build_qr_export_json`) since the constant is QR-specific
-/// and bumping it does not touch the `.lfs` archive format.
-const QR_FORMAT_VERSION: i64 = 4;
+/// Read straight from [`crate::migration::SchemaVersions::QR_PAYLOAD`]
+/// so the composer and the decoder (`qr_codec_decode`, which derives
+/// its accepted ceiling from the same constant) cannot drift — a
+/// hardcoded literal here once diverged from the registry value and
+/// the decoder rejected every export as "version too new".
+const QR_FORMAT_VERSION: i64 = crate::migration::SchemaVersions::QR_PAYLOAD as i64;
 
 #[derive(Debug, Clone, Default)]
 pub struct QrExportOptions {
@@ -457,10 +458,13 @@ mod tests {
     }
 
     #[test]
-    fn payload_carries_format_version_4() {
+    fn payload_carries_current_format_version() {
+        // The composer stamps `SchemaVersions::QR_PAYLOAD` verbatim;
+        // assert against the constant rather than a literal so a future
+        // bump can't leave this test pinning a stale number.
         let conn = fresh_db();
         let v = payload_value(&conn, &baseline_input());
-        assert_eq!(v["v"], 4);
+        assert_eq!(v["v"], crate::migration::SchemaVersions::QR_PAYLOAD);
     }
 
     #[test]
@@ -806,6 +810,71 @@ mod tests {
         let p = qr_export_payload(&conn, &baseline_input()).unwrap();
         let n = qr_export_payload_size(&conn, &baseline_input()).unwrap();
         assert_eq!(n as usize, p.len());
+    }
+
+    #[test]
+    fn export_payload_round_trips_through_canonical_decoder() {
+        // End-to-end guard: the real composer output (DB → JSON →
+        // deflate → base64url) must decode cleanly through the
+        // production `qr_codec_decode::decode_payload`. The existing
+        // codec tests feed hand-written JSON; this is the only path
+        // that proves the composer's emitted shape and the decoder's
+        // accepted shape actually agree on live data.
+        let conn = fresh_db();
+        let mut s = make_session("s1", "prod");
+        s.password = "hunter2".into();
+        crate::db::sessions::upsert(&conn, &s).unwrap();
+        crate::db::known_hosts::upsert_by_host_port(
+            &conn,
+            "s1.example.com",
+            22,
+            "ssh-ed25519",
+            "AAAAB3NzaC1lZDI1NTE5AAAAINexample",
+            1_700_000_000_000,
+        )
+        .unwrap();
+
+        let mut input = baseline_input();
+        input.options.include_sessions = true;
+        input.options.include_passwords = true;
+        input.options.include_config = true;
+        input.options.include_known_hosts = true;
+        input.selected_session_ids = vec!["s1".into()];
+        input.config_json = Some(r#"{"theme":"dark","fontSize":14}"#.into());
+
+        let payload = qr_export_payload(&conn, &input).unwrap();
+        let decoded = crate::qr_codec_decode::decode_payload(&payload)
+            .expect("real composer output must decode through the canonical decoder");
+
+        let sessions: Vec<Value> =
+            serde_json::from_str(decoded.pending.sessions_json.as_deref().unwrap()).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0]["host"], "s1.example.com");
+        assert_eq!(sessions[0]["password"], "hunter2");
+        assert!(decoded.pending.config_json.is_some());
+        assert!(decoded.pending.known_hosts_text.is_some());
+    }
+
+    #[test]
+    fn export_payload_round_trips_with_deeplink_wrapper() {
+        // The QR canvas encodes the `letsflutssh://import?d=<payload>`
+        // deeplink, and the in-app scan/paste importer feeds that whole
+        // string back to `qr_import_open`, which strips the wrapper via
+        // `extract_payload_from_uri` before decoding. Exercise that exact
+        // hop so a scheme/param-name drift between the Dart wrapper and
+        // the Rust stripper can't slip through unit-tested in isolation.
+        let conn = fresh_db();
+        crate::db::sessions::upsert(&conn, &make_session("s1", "prod")).unwrap();
+        let mut input = baseline_input();
+        input.options.include_sessions = true;
+        input.selected_session_ids = vec!["s1".into()];
+
+        let payload = qr_export_payload(&conn, &input).unwrap();
+        let deeplink = format!("letsflutssh://import?d={payload}");
+        let stripped = crate::qr_codec_decode::extract_payload_from_uri(&deeplink)
+            .expect("canonical deeplink must strip to its d= payload");
+        assert_eq!(stripped, payload);
+        assert!(crate::qr_codec_decode::decode_payload(&stripped).is_ok());
     }
 
     #[test]
