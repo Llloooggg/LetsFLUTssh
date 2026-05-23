@@ -453,7 +453,9 @@ class AppLogger {
       // logging keeps working. Sanitise the error before stderr
       // write — `e` may carry an FRB envelope or path fragments
       // that the same redaction chain `log()` runs would catch.
-      stderr.writeln(
+      // `_safeStderrWriteln` gates on `hasTerminal` so a packaged GUI
+      // app does not crash on the async flush of a dead stderr handle.
+      _safeStderrWriteln(
         'AppLogger: CoreLog pipe skipped: ${sanitize(e.toString())}',
       );
     }
@@ -780,14 +782,30 @@ class AppLogger {
     if (!(Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       return;
     }
+    _safeStderrWriteln(header);
+    for (final c in continuations) {
+      _safeStderrWriteln(c);
+    }
+  }
+
+  /// Write one line to stderr only when a terminal is attached.
+  ///
+  /// A packaged GUI app (Windows / macOS double-click launch) has no
+  /// console: `stderr` is a buffered `IOSink` whose handle is invalid,
+  /// and `writeln` defers the actual write to an *async* flush. That
+  /// flush throws `FileSystemException: writeFrom failed, path = ''`
+  /// outside any synchronous `try/catch`, so the error escapes into the
+  /// zone handler and surfaces as a spurious "unexpected error" dialog —
+  /// the crash-handler mirror amplifying into a second crash. Gating on
+  /// `hasTerminal` skips the write entirely off-terminal; the file sink
+  /// stays the always-on channel. The `try` covers residual synchronous
+  /// failure modes when a terminal *is* present.
+  static void _safeStderrWriteln(String line) {
+    if (!stderr.hasTerminal) return;
     try {
-      stderr.writeln(header);
-      for (final c in continuations) {
-        stderr.writeln(c);
-      }
+      stderr.writeln(line);
     } catch (_) {
-      // Best-effort. Stderr write must never amplify into a second
-      // crash inside the crash handler.
+      // Best-effort — never amplify into a second crash.
     }
   }
 
