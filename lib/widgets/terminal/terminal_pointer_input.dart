@@ -126,9 +126,10 @@ enum PointerRouting {
 
 /// Decide how to route a press / drag gesture. When the program enabled
 /// mouse tracking the gesture is a [PointerRouting.report] — UNLESS Shift
-/// is held, the xterm override that always forces local text selection so
-/// the user can still copy out of a full-screen mouse-tracking program
-/// (vim, htop). With no tracking the gesture is always local selection.
+/// is held, the standard terminal override that always forces local text
+/// selection so the user can still copy out of a full-screen
+/// mouse-tracking program (vim, htop). With no tracking the gesture is
+/// always local selection.
 PointerRouting routePointerGesture({
   required TerminalMouseTracking tracking,
   required bool shiftPressed,
@@ -140,7 +141,7 @@ PointerRouting routePointerGesture({
 
 /// Decide how to route a wheel gesture. Click-only tracking
 /// ([TerminalMouseTracking.click]) does NOT report motion/wheel under the
-/// alt-screen-less case, but xterm still forwards the wheel as buttons
+/// alt-screen-less case, but a terminal still forwards the wheel as buttons
 /// 64/65 whenever any tracking is on — so a wheel reports under every
 /// tracking level. Shift forces local scrollback scroll (the same
 /// selection-override convention, applied to the wheel). With no tracking

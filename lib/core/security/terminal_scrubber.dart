@@ -5,8 +5,8 @@ import '../../utils/logger.dart';
 /// Registry of scrub callbacks the auto-lock + wipe paths invoke
 /// when the user's DB key is about to be cleared.
 ///
-/// Motivation: terminal widgets buffer the last N lines of output
-/// in memory per pane (xterm's scrollback). If the remote shell
+/// Motivation: the terminal engine buffers the last N lines of output
+/// in memory per pane (the scrollback). If the remote shell
 /// echoed a password, printed a secret env var, or ran a command
 /// that spelled out credentials, that text sits in the scrollback
 /// for the rest of the session. On lock the Dart-side DB key is
@@ -17,11 +17,11 @@ import '../../utils/logger.dart';
 /// terminal.
 ///
 /// Each terminal pane registers a [VoidCallback] on `initState`
-/// that wipes its own scrollback and deregisters on `dispose`.
-/// `scrubAll()` walks every live callback. Decoupled from xterm so
-/// `core/` stays UI-package-free; the Flutter-bound buffer reset
-/// lives in the calling widget where the xterm import is already
-/// honest about UI ownership.
+/// that clears its own scrollback (over FRB to the Rust engine) and
+/// deregisters on `dispose`. `scrubAll()` walks every live callback.
+/// Decoupled from the terminal widget so `core/` stays
+/// UI-package-free; the buffer reset lives in the calling widget that
+/// owns the session handle.
 typedef TerminalScrubFn = void Function();
 
 class TerminalScrubber {

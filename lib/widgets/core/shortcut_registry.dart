@@ -95,7 +95,7 @@ enum AppShortcut {
 /// reachable on macOS today.
 ///
 /// Consumers use [buildCallbackMap] for `CallbackShortcuts` widgets and
-/// [matches] for raw `onKeyEvent` handlers (e.g. inside xterm).
+/// [matches] for raw `onKeyEvent` handlers (e.g. inside the terminal grid).
 class AppShortcutRegistry {
   AppShortcutRegistry._();
 
@@ -178,7 +178,7 @@ class AppShortcutRegistry {
   /// Returns `true` when [event] matches the current binding for [shortcut].
   ///
   /// Use this in `onKeyEvent` handlers where `CallbackShortcuts` cannot
-  /// intercept events (e.g. inside xterm's `TerminalView`).
+  /// intercept events (e.g. inside the terminal grid's key handler).
   ///
   /// Unlike [SingleActivator.accepts], only the required modifiers are
   /// checked — extra modifiers (alt / meta) are tolerated. This matches the

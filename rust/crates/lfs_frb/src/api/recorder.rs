@@ -574,7 +574,7 @@ pub fn recorder_decode_event_line(line: String) -> Option<DbRecordingEvent> {
 
 /// FRB mirror of [`lfs_core::recorder::reader::DecodedHeader`]:
 /// asciinema-v2 header carrying width/height (so playback can
-/// resize xterm to match), the wall-clock origin timestamp, and
+/// resize the terminal to match), the wall-clock origin timestamp, and
 /// the optional `$SHELL` label captured at start time.
 #[derive(Debug, Clone)]
 pub struct DbRecordingHeader {

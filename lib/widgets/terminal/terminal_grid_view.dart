@@ -361,7 +361,8 @@ class _TerminalGridViewState extends State<TerminalGridView> {
 
   /// Pointer-down: decide between forwarding a mouse report to the program
   /// and starting a local text selection. Mouse-tracking mode reports the
-  /// press unless Shift forces local selection (xterm override); otherwise
+  /// press unless Shift forces local selection (standard terminal override);
+  /// otherwise
   /// the down clears any prior selection and anchors a new drag.
   void _onPointerDown(PointerDownEvent event) {
     final cell = _cellFor(event);
@@ -533,7 +534,7 @@ class _TerminalGridViewState extends State<TerminalGridView> {
 
   /// Forward a wheel notch to the program as a wheel-up / wheel-down mouse
   /// report at the pointer's cell. One report per notch direction; a wheel
-  /// has no release in the xterm protocol.
+  /// has no release in the mouse-reporting protocol.
   void _reportWheel(PointerScrollEvent event, bool shift) {
     final onMouse = widget.onMouse;
     if (onMouse == null || event.scrollDelta.dy == 0) return;

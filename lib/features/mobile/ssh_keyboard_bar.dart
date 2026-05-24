@@ -17,8 +17,8 @@ import 'ssh_keyboard_keys.dart';
 /// Copy + Cancel), keeping the outer `Container(height: itemHeightLg)`
 /// constant. Swapping the *contents* — not the widget — is the load-
 /// bearing invariant: any widget-tree height change would propagate
-/// into the enclosing `MobileTerminalView` Column and force an
-/// xterm `buffer.resize`, which reshuffles scrollback lines and was
+/// into the enclosing `MobileTerminalView` Column and force a
+/// terminal resize, which reshuffles scrollback lines and was
 /// the root cause of the recurring "mid-buffer gaps on copy toggle"
 /// reports. The bar is also the single surface for the hint — no
 /// separate banner over the terminal rows, so none of the terminal's
@@ -357,13 +357,11 @@ class _KeyButton extends StatelessWidget {
               : theme.colorScheme.surfaceContainerHigh,
           borderRadius: AppTheme.radiusLg,
           // `canRequestFocus: false` so tapping an `Esc`/`Tab`/`Ctrl`
-          // key does not steal focus from the `TerminalView`, which
-          // would dismiss the system keyboard mid-type. The xterm
-          // input connection is tied to its internal `FocusNode`;
-          // every InkWell tap would otherwise trip
-          // `CustomTextEdit._onFocusChange → _closeInputConnection`
-          // and the Gboard surface would slide away on every
-          // modifier keypress.
+          // key does not steal focus from the hidden `EditableText`
+          // that owns the system keyboard (`MobileTerminalView`'s
+          // `_imeFocus`). A focus steal closes that input connection
+          // and the Gboard surface would slide away on every modifier
+          // keypress.
           child: InkWell(
             canRequestFocus: false,
             onTap: () {

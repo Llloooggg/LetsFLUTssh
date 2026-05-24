@@ -142,7 +142,7 @@ class WipeAllService {
     }
     mark('credential_evict');
 
-    // 0.5. Scrub every active xterm scrollback. A reset that wipes
+    // 0.5. Scrub every active terminal scrollback. A reset that wipes
     //      the on-disk session record while leaving the user's
     //      recently-typed commands visible in an open terminal
     //      defeats the point — the buffer outlives the deletion

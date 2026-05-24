@@ -334,7 +334,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     }
     // Scrub terminal scrollbacks BEFORE the user sees the lock
     // overlay. A password the user pasted into a terminal, or a
-    // secret the remote shell echoed back, sits in xterm's
+    // secret the remote shell echoed back, sits in the terminal's
     // scrollback buffer long after the viewport scrolls past it —
     // a second person who taps the lock screen can scroll up and
     // read it. Clearing the scrollback is cheap even when no

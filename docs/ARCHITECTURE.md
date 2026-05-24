@@ -86,7 +86,7 @@ flowchart TD
     providers --> themeUtils
 ```
 
-**Layering principle:** `core/` holds data + logic + I/O and renders nothing. It imports **zero `package:flutter`** — no UI (`material` / `widgets` / `services` / `foundation`), no plugins (`path_provider`, `app_links`, `flutter_foreground_task`), no Riverpod, no l10n, no xterm. The one permitted framework edge is `flutter_rust_bridge`, the Rust bridge runtime that core wraps; everything else in core is pure Dart (`meta` for annotations, `uuid`, `path`). This is enforced by a fitness test ([`test/core/no_flutter_in_core_test.dart`](../test/core/no_flutter_in_core_test.dart)) that fails CI on a stray import. Consequences for placement: app-wide UI state → `providers/` (Riverpod); Flutter-plugin adapters (foreground service, camera bridge, local-FS sandbox dirs) → `platform/`; observable state core needs → a `dart:async` broadcast `Stream`, not `ChangeNotifier` / `ValueNotifier`; a sandbox/support path → resolved at the boundary and pinned Rust-side (`config_store_init`) so core reads it back from Rust, never `path_provider`. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic.
+**Layering principle:** `core/` holds data + logic + I/O and renders nothing. It imports **zero `package:flutter`** — no UI (`material` / `widgets` / `services` / `foundation`), no plugins (`path_provider`, `app_links`, `flutter_foreground_task`), no Riverpod, no l10n, no terminal-rendering widgets. The one permitted framework edge is `flutter_rust_bridge`, the Rust bridge runtime that core wraps; everything else in core is pure Dart (`meta` for annotations, `uuid`, `path`). This is enforced by a fitness test ([`test/core/no_flutter_in_core_test.dart`](../test/core/no_flutter_in_core_test.dart)) that fails CI on a stray import. Consequences for placement: app-wide UI state → `providers/` (Riverpod); Flutter-plugin adapters (foreground service, camera bridge, local-FS sandbox dirs) → `platform/`; observable state core needs → a `dart:async` broadcast `Stream`, not `ChangeNotifier` / `ValueNotifier`; a sandbox/support path → resolved at the boundary and pinned Rust-side (`config_store_init`) so core reads it back from Rust, never `path_provider`. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic.
 
 <a id="self-contained-binary-principle"></a>
 **Self-contained-binary principle:** the released artefact must be **runnable by an end-user with zero manual setup beyond extracting / installing the bundle.** No "first install Python", no "first install JRE", no "first apt install …" as a hard requirement. External OS-level dependencies are allowed **only** when both conditions hold:
@@ -113,7 +113,7 @@ The repo splits across three languages (Dart, Rust, native Kotlin / Swift / C++)
 ```mermaid
 flowchart TD
     subgraph Dart["<b>Dart / Flutter</b> (lib/)"]
-        widgets2["Widgets, dialogs, screens<br/>xterm.dart terminal renderer<br/>Localization (15 ARB files)<br/>Theme, navigation"]
+        widgets2["Widgets, dialogs, screens<br/>CustomPaint terminal renderer<br/>Localization (15 ARB files)<br/>Theme, navigation"]
         riverpod2["Riverpod state<br/>(UI-bound only:<br/>selection, loading, errors —<br/>NEVER plaintext secrets)"]
         listeners2["Bus prompt listeners<br/>(subscriptions to Rust Streams)"]
         password2["SecurePasswordField<br/>(zeroize on dispose)"]
@@ -183,7 +183,7 @@ Plaintext password exists in Dart heap on the order of milliseconds between step
 lib/
 ├── main.dart                         # Entry point — `runZonedGuarded(_mainBody)`, RustLib init, single-instance, config preload, runApp. `LetsFLUTsshApp` + `_LetsFLUTsshAppState` (security controller wiring, lifecycle / lock-state listeners) live in `main_app.dart`; `MainScreen` + `_MainScreenState` (deep links, prompt listeners, first-launch banner, update dialog flow) live in `main_screen.dart` — both are `part of 'main.dart';`
 ├── app/                              # App-shell helpers pulled out of main.dart: global error dialog, already-running blocker, toolbar, deep-link wiring, import flow, navigator key, update dialog flow, `SecurityInitController` (migration → unlock → first-launch orchestrator) + `SecurityDialogPrompter` (seam around blocking dialogs — see §14 → Testing the controller), `security_dialogs.dart` (unmounted-fallback wrappers)
-├── core/                             # Domain logic + I/O, renders nothing. Zero package:flutter (UI / plugins / Riverpod / l10n / xterm); only flutter_rust_bridge + pure Dart. Enforced by test/core/no_flutter_in_core_test.dart
+├── core/                             # Domain logic + I/O, renders nothing. Zero package:flutter (UI / plugins / Riverpod / l10n / terminal widgets); only flutter_rust_bridge + pure Dart. Enforced by test/core/no_flutter_in_core_test.dart
 │   ├── bus/                          # `AppBus` — Dart-side wrapper over the FRB bus subscription. Single global event hub the prompt listeners and notifiers subscribe to.
 │   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
 │   │   ├── rust_db_init.dart         # `lfsCoreDbExists` (existence probe) / `verifyRustDbReadable` (post-unlock SELECT probe) / `ensureRustDbOpen({key, secretId})` (Rust handle bring-up). `dbClose` is invoked directly through the FRB-bridged `lib/src/rust/api/app.dart` shim from auto-lock + the controller.
@@ -215,7 +215,7 @@ lib/
 │   ├── tabs/                         # Tab model (TabEntry, TabKind)
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
-│   ├── recordings/                   # Recordings browser + xterm playback dialog (engine in `core/session/session_recorder.dart`)
+│   ├── recordings/                   # Recordings browser + terminal playback dialog (engine in `core/session/session_recorder.dart`)
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── l10n/                             # Internationalization (15 languages: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh)
 ├── providers/                        # Riverpod providers (global state)
@@ -921,7 +921,7 @@ flag the sidebar mutates as the user clicks chevrons).
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
 | `connection_step_mappers.dart` | Bus → `ConnectionStep` mappers | Translates `BusEvent::ConnectionProgress` payloads into the Dart `ConnectionStep` shape the progress tracker consumes. |
 | `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
-| `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to an xterm `Terminal` (shared by desktop and mobile terminal views) |
+| `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to a `ReadOnlyTerminalController` (Rust engine, shared by desktop and mobile terminal views) |
 | `connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, bus subscription |
 | `connection_extension.dart` | `ConnectionExtension` interface | Lifecycle hook contract (`onConnected` / `onDisconnecting` / `onReconnecting`) used by port forwards, recorder, etc. — see [ConnectionExtension](#connectionextension--lifecycle-add-ons) below. |
 | `foreground_service.dart` | `ForegroundServiceManager` | Android: foreground service for SSH keep-alive on screen lock |
@@ -2007,7 +2007,7 @@ Lifetime:
 1. **Populate** — `ConnectionsNotifier._cachePostAuthCredentials` writes the envelope into the SecretStore immediately after a successful SSH auth, but only when the `Connection` has a stable `sessionId`. Quick-connect sessions have no key to namespace under and are skipped.
 2. **Read on (re)connect** — `ConnectionsNotifier._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `transport.connect`. Today the read accessors return null by design — the connect path resolves saved-session credentials through `db_sessions_stage_secrets` directly, so the overlay is a no-op for stored sessions; the layering point stays for future reconnect paths that need it.
 3. **Evict on explicit close** — `ConnectionsNotifier.disconnect(id)` and `disconnectAll` evict the matching ids. Transient drops (network blip, app suspend/resume) flip the Connection's state without calling `disconnect`, so the SecretStore entries are preserved across reconnect.
-4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes `secrets_clear` over FRB before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads it through. The same path also calls [`TerminalScrubber.scrubAll`](../lib/core/security/terminal_scrubber.dart) ahead of file delete so live terminal panes flush their xterm scrollback (a session that recently echoed a password would otherwise leave the bytes in the per-pane `Terminal.buffer.lines` for the rest of the process). The destructive cascade is then bundled Rust-side by [`lfs_core::security::recovery::run_destructive_reset`](../rust/crates/lfs_core/src/security/recovery.rs): one FRB hop composes `db_close` → `wipe::sweep_files` → `wipe_keychain::run` → per-platform hardware-vault primary clear → per-platform hardware-vault biometric overlay clear. The hw-vault arms dispatch through `lfs_os_security::hardware_tier_vault::clear*` for Apple / Android / Windows and through the in-crate `hardware_tier_vault::linux::clear*` orchestrator for Linux — `lfs_core` already depends on `lfs_os_security`, so the recovery module reaches both without a callback hook. `sweep_files` itself additionally calls `app::instance().secrets.clear()` before deleting the on-disk artefacts so cached SecretStore entries clear in lockstep with the files. Hardware-vault arms are best-effort: a `PlatformUnsupported` outcome (no hardware tier on this build) counts as success, and a backend error logs + continues without aborting the cascade. **Coverage tripwire:** `lfs_core::security::wipe::tests::every_known_artefact_is_in_managed_files` references every canonical filename const (config, KDF, hardware-vault blobs across Apple / Android / pre-port platforms) and fails the build when a new artefact is added without updating `MANAGED_FILES` — directly addresses the Android-port rename gap (`hardware_vault_password_overlay_android.bin` → `hardware_vault_android_bio.bin`) that left an orphan file untouched by an earlier sweep.
+4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes `secrets_clear` over FRB before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads it through. The same path also calls [`TerminalScrubber.scrubAll`](../lib/core/security/terminal_scrubber.dart) ahead of file delete so live terminal panes clear their scrollback (a session that recently echoed a password would otherwise leave the bytes in the per-pane Rust-engine buffer for the rest of the process; each pane's scrub callback fires `TerminalSession.clear` over FRB). The destructive cascade is then bundled Rust-side by [`lfs_core::security::recovery::run_destructive_reset`](../rust/crates/lfs_core/src/security/recovery.rs): one FRB hop composes `db_close` → `wipe::sweep_files` → `wipe_keychain::run` → per-platform hardware-vault primary clear → per-platform hardware-vault biometric overlay clear. The hw-vault arms dispatch through `lfs_os_security::hardware_tier_vault::clear*` for Apple / Android / Windows and through the in-crate `hardware_tier_vault::linux::clear*` orchestrator for Linux — `lfs_core` already depends on `lfs_os_security`, so the recovery module reaches both without a callback hook. `sweep_files` itself additionally calls `app::instance().secrets.clear()` before deleting the on-disk artefacts so cached SecretStore entries clear in lockstep with the files. Hardware-vault arms are best-effort: a `PlatformUnsupported` outcome (no hardware tier on this build) counts as success, and a backend error logs + continues without aborting the cascade. **Coverage tripwire:** `lfs_core::security::wipe::tests::every_known_artefact_is_in_managed_files` references every canonical filename const (config, KDF, hardware-vault blobs across Apple / Android / pre-port platforms) and fails the build when a new artefact is added without updating `MANAGED_FILES` — directly addresses the Android-port rename gap (`hardware_vault_password_overlay_android.bin` → `hardware_vault_android_bio.bin`) that left an orphan file untouched by an earlier sweep.
 5. **App shutdown** — the provider's `ref.onDispose` calls `secrets_clear`, dropping every cached secret as the Riverpod container tears down.
 
 Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, decrypts nothing at rest, and only helps the user's own reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock would flatten the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.
@@ -2973,7 +2973,7 @@ class AppShortcutRegistry {
   // For CallbackShortcuts widgets:
   Map<ShortcutActivator, VoidCallback> buildCallbackMap(Map<AppShortcut, VoidCallback> actions);
 
-  // For onKeyEvent handlers (e.g. inside xterm where CallbackShortcuts can't intercept):
+  // For onKeyEvent handlers (e.g. inside the terminal grid where CallbackShortcuts can't intercept):
   bool matches(AppShortcut shortcut, KeyEvent event);
 
   // Render the current binding for [shortcut] as a display string
@@ -2991,7 +2991,7 @@ String formatShortcut(SingleActivator a);
 
 **Usage patterns:**
 - `CallbackShortcuts` widgets → `AppShortcutRegistry.instance.buildCallbackMap({...})`
-- `onKeyEvent` handlers (xterm, file browser, session panel) → `reg.matches(AppShortcut.x, event)`
+- `onKeyEvent` handlers (terminal grid, file browser, session panel) → `reg.matches(AppShortcut.x, event)`
 - Dialogs → `buildCallbackMap({AppShortcut.dismissDialog: ...})`
 - Context-menu hints → `StandardMenuAction.x.item(ctx, shortcut: AppShortcut.y, …)`
   (factory calls `shortcutLabel` internally; see [ContextMenu →
@@ -3066,7 +3066,7 @@ TerminalPane
 
 #### Why per-shell, not per-connection
 
-Multi-pane connections run independent shell channels — each pane has its own xterm buffer, scrollback, and dimensions. A connection-level recorder would interleave bytes from N shells into a single timeline that no playback tool could un-mix. Per-shell keeps each recording straight-line.
+Multi-pane connections run independent shell channels — each pane has its own terminal buffer, scrollback, and dimensions. A connection-level recorder would interleave bytes from N shells into a single timeline that no playback tool could un-mix. Per-shell keeps each recording straight-line.
 
 #### Coalesced worker wake-ups
 
@@ -3493,16 +3493,14 @@ renderer are separate layers that consume the types described here.
 
 Two reasons, both load-bearing:
 
-1. **The `xterm` Dart package corrupts its buffer on scroll-region
-   operations.** Deleting a line inside a scroll region (what vim does
-   constantly — `ESC[M` / `ESC[S` after `ESC[1;Nr`) left stale or
-   duplicated rows below the cut, painting as stray horizontal stripes
-   (upstream issue #222). The package is unmaintained, so the fix had to
-   come from replacing the engine.
+1. **Correct scroll-region handling.** Deleting a line inside a scroll
+   region (what vim does constantly — `ESC[M` / `ESC[S` after `ESC[1;Nr`)
+   must shift the rows below up without leaving stale or duplicated rows
+   (which paint as stray horizontal stripes). A maintained, reference-grade
+   engine is the way to get this right across the full VT surface.
 2. **The data-ownership pillar.** A terminal grid is persistent state and
    parsing is logic; both belong in Rust per "Rust owns data AND logic;
-   Flutter renders". Holding the whole model in Dart was a standing
-   violation.
+   Flutter renders".
 
 The engine wraps [`alacritty_terminal`](https://crates.io/crates/alacritty_terminal)
 — the battle-tested model behind the Alacritty terminal — whose grid and
@@ -3682,9 +3680,7 @@ When a recorder is attached:
 The tee is best-effort: an `enqueue_event_chunk` failure (worker gone,
 recording already closing) is logged through the core bus and dropped — a
 recording fault must never stall input or the pump. The `.cast` / `.lfsr`
-framing and the recorder API are unchanged; this is a re-wiring of where the
-fork lives (it was a Dart `shell_helper.dart` tee around the xterm sink
-before the engine migration).
+framing and the recorder API carry the byte fork at the engine layer.
 
 #### Broadcast — input mirroring, not output
 
@@ -3801,7 +3797,7 @@ discipline as `send_key` (read mode under the lock, release, then
 `shell.write`).
 
 **Shift forces local selection.** Even under mouse tracking, a Shift-held
-drag is handled as local text selection (the xterm copy-out convention) so
+drag is handled as local text selection (the standard terminal copy-out convention) so
 the user can copy out of a full-screen mouse program; the renderer applies
 that override before calling `send_mouse` ([§5.1](#51-terminal-with-tiling-featuresterminal)).
 
@@ -3859,10 +3855,9 @@ input back through `send_key` / `paste`, pointer drags through
 `set_selection` / `send_mouse`, and the search bar through `search`. The
 read-only surfaces (recording playback, connection-progress output, the log
 viewer) render through the same painter over a shell-less `TerminalReplay`
-(above). The **mobile pane** is the last remaining `xterm` consumer and
-migrates in its own task, after which the `xterm` dependency is removed.
-§3.16 is the Rust engine + FRB bridge + key encoder; §5.1 is the Dart
-rendering + input path.
+(above). The **mobile pane** renders the same engine through the same
+painter, with a touch-tuned input layer. §3.16 is the Rust engine + FRB
+bridge + key encoder; §5.1 is the Dart rendering + input path.
 
 ## 4. State Management — Riverpod
 
@@ -4050,10 +4045,9 @@ class _FooDialogState extends State<FooDialog> {
 > **Recording playback**, the **connection-progress output**, and the
 > **read-only log viewer** render through the Rust engine too, over a
 > shell-less `TerminalReplay` (see [Read-only rendering](#read-only-rendering--terminalreplay)
-> below). The **mobile pane** now renders the same engine through the shared
-> `TerminalGridView` (see [Mobile pane](#mobile-pane--rust-engine) below) —
-> no Dart code creates an `xterm` `Terminal` / `TerminalView` any more; the
-> `xterm` dependency itself is dropped in its own task. **Keyboard input**
+> below). The **mobile pane** renders the same engine through the shared
+> `TerminalGridView` (see [Mobile pane](#mobile-pane--rust-engine) below).
+> **Keyboard input**
 > is encoded Rust-side via `TerminalSession.sendKey` / `paste` (see
 > [Keyboard input](#keyboard-input--rust-encoded) below). **Selection +
 > copy**, **in-terminal search**, and **mouse reporting** are wired on the
@@ -4514,22 +4508,20 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Gesture routing.** `MobileTerminalView` wraps the terminal area in a bare [`Listener`](https://api.flutter.dev/flutter/widgets/Listener-class.html) and tracks every active pointer in a `Map<int, Offset>`. Outside copy mode a tap (via a `GestureDetector`) focuses the hidden IME field to summon the soft keyboard, and the grid's own pointer handling drives scroll; in copy mode the grid is wrapped in an `AbsorbPointer` and single-finger drags route through `_copyOverlayKey` to pan the virtual cursor. Multi-touch is intentionally unused. **Don't add pinch-to-zoom over `_fontSize`** — a per-frame font mutation drives a per-frame `session.resize`, which reflows the grid dozens of times per gesture and produces visible churn. Font size is driven **only** by the Settings slider — one commit per release, one reflow, manageable.
 
-**Touch selection is opt-in.** xterm's built-in `TerminalGestureHandler` routes every touch long-press into `renderTerminal.selectWord` and every single-finger drag into `renderTerminal.selectCharacters`. On mobile that free-for-all collided with the dedicated copy-mode overlay — users could stamp a stray word selection by holding a finger anywhere and had no way to disable it. There is no public xterm flag to turn that path off, and winning the gesture arena at a parent level would also steal the scroll gesture. The workaround lives on the **controller** instead: `MobileTerminalView` attaches a listener to its `TerminalController` that calls `clearSelection()` whenever a new selection appears while the copy-mode overlay is *not* active. The guard no-ops when selection is already null, so the follow-up `notifyListeners` call does not recurse. The overlay itself remains the only sanctioned selection surface on mobile; desktop is untouched because long-press-to-word-select is a first-class desktop flow.
+**Selection is overlay-driven, not gesture-driven.** Outside copy mode the mobile terminal has no touch selection — a single-finger drag scrolls the scrollback through `TerminalGridView`, and the only sanctioned selection surface is the copy-mode overlay. Selection state lives in the Rust engine (`setSelection` / `selectionText`); the overlay is the sole writer of it on mobile, so a stray finger cannot stamp a word selection the way a free-for-all long-press handler would. Desktop is untouched because long-press-to-word-select is a first-class desktop flow there.
 
-**Copy mode — xterm is isolated while active.** xterm's `TerminalGestureHandler` owns a `PanGestureRecognizer` that fires `renderTerminal.selectCharacters` on every single-finger drag; the companion `TerminalScrollGestureHandler` owns the scrollback scroll recognizer. `setSuspendPointerInput(true)` gates only mouse-reporting to the remote shell — it does not mute either of those local recognizers. Left unchecked they used to race `TerminalCopyOverlay.onCursorPan` frame-by-frame, with both paths writing to `TerminalController.setSelection`; the competing calls painted duplicate rows + selection gaps across the scrollback. The fix wraps `TerminalView` in `AbsorbPointer(absorbing: _copyMode, …)`. The outer `Listener` is an ancestor — it still observes the same pointer events via the ancestor hit-test path — so `onCursorPan` keeps flowing while xterm's own recognizers see nothing. Regression gate: the "AbsorbPointer gates the terminal while copy mode is active" widget test in `mobile_terminal_view_test.dart`.
+**Copy mode — the grid's own pointer handling is gated while active.** `TerminalGridView` owns the scroll/selection pointer handling for normal use. In copy mode that must not race the overlay's virtual cursor, so `MobileTerminalView` wraps the grid in `AbsorbPointer(absorbing: _copyMode, …)`. The outer `Listener` is an ancestor — it still observes the same pointer events via the ancestor hit-test path — so the overlay's cursor-pan keeps flowing while the grid sees nothing. Regression gate: the "AbsorbPointer gates the terminal while copy mode is active" widget test in `mobile_terminal_view_test.dart`.
 
 **Copy mode — aim, then extend, with an explicit commit.** The overlay has a two-phase selection model. Entering copy mode shows the virtual cursor at the current shell cursor (or viewport centre if the cursor is off-screen); the selection anchor is **not** stamped. In the aim phase, *every* single-finger gesture moves the cursor freely — lifts and re-grips are free, no pointer event commits the anchor. The user commits the anchor by tapping the "Set anchor" action (`Icons.adjust`) in the copy-mode bar row; `onAnchorDown()` fires then, stamps the anchor at the current cell, and the bar swaps the Set-Anchor button for the Copy action. Subsequent drags extend the selection from the anchor to the new cursor position. **Don't auto-commit the anchor on the first pointer-up** — on a phone viewport the target cell is often under the user's thumb and the aim needs more than one drag, so an auto-commit reads as "I can't lift without losing my aim". Pinned by the "pointer events alone never drop the selection anchor (aim phase)" widget test in `mobile_terminal_view_test.dart`.
 
-**Copy mode layout — reflow on keyboard, stable on copy-mode toggle.** Two events could resize the terminal widget at runtime: soft-keyboard open/close and copy-mode toggle. Each propagates into `Terminal.buffer.resize`, which has visible side effects — `buffer.resize` on a column change runs a full reflow, and even rows-only shrink can lose trailing empty lines. The balance this layout strikes:
+**Copy mode layout — reflow on keyboard, stable on copy-mode toggle.** Two events could resize the terminal widget at runtime: soft-keyboard open/close and copy-mode toggle. Each propagates into a `TerminalSession.resize`, which reflows the engine grid. The balance this layout strikes:
 
-1. **Keyboard reflow is allowed — but debounced.** `MobileShell` sets `resizeToAvoidBottomInset: false` on the terminal page so this widget owns the keyboard layout. The SSH bar's `bottom` offset clamps to `navBarHeight` (sits above the mobile-shell nav when no keyboard) and follows the **settled** keyboard inset once the slide animation has finished. The raw `viewInsets.bottom` ticks once per animation frame while the soft keyboard slides in or out; feeding that straight into the layout drove a `Terminal.buffer.resize` per frame, which visibly ripped the scrollback — especially when the user scrolled the terminal during the animation. `MobileTerminalView` now runs the raw value through a 200 ms debounce (`_scheduleKeyboardInsetSettle` in `didChangeDependencies`) so layout freezes at the previous stable inset until the raw value has held still; then we apply one reflow for the whole animation. xterm's rows-only resize path pops empty trailing lines when the cursor is already at bottom, otherwise decrements the cursor — earlier content moves into scrollback where the user reaches it with xterm's own scroll gesture. A prior stable-height / translate-up attempt parked the top rows under the mobile-shell AppBar off-screen with no reachable scroll (scrolling xterm moves the whole render, not the clip), which was strictly worse than a clean reflow.
-2. **Copy-mode toggle is stable.** The `SshKeyboardBar` swaps its single row's *contents* between the normal-keys variant and a copy-mode variant (hint text + Set-Anchor / Copy + Cancel) inside the same `Container(height: itemHeightLg)`. No widget in the stack changes height on toggle, so `buffer.resize` never fires when the user enters or leaves copy mode — that was the scrollback-corruption path the old "banner above + toolbar below" rendering hit. The hint and the action button both flip off the overlay's `anchorSet` flag: before commit the button is `Icons.adjust` ("Set anchor"), after commit it becomes `Icons.copy`. Parent rebuilds on `onAnchorDown()` so the bar re-reads the flag on the next frame.
-3. **Scrollback rip is an upstream bug.** Users see chunks of text "disappear from the middle" when scrolling back through rapidly-streaming output. Tracked as [xterm.dart issue #222](https://github.com/TerminalStudio/xterm.dart/issues/222) — `Buffer.scrollUp` / `scrollDown` in v4.0.0 rewrite the circular buffer in place, leaving detached `BufferLine` objects at intermediate slots; in release builds the asserts are off and the indices silently mis-point. Triggered by scroll-region escape sequences (vim redraw, tmux status, htop, plus whatever shell output happens to include `\e[S` / `\e[T`), not by raw output rate, which is why bumping `maxLines` does not help. Client-side mitigations (a `CellAnchor`-based eviction watchdog + `ScrollPosition.correctBy` compensation; a `ClampingScrollPhysics` fling-velocity cap) were tried and reverted — they masked a narrow slice of the symptom without fixing the underlying corruption, and xterm's own `_scrollToBottom` bypasses the shared `ScrollController` ([issue #218](https://github.com/TerminalStudio/xterm.dart/issues/218)) so any offset we set gets clobbered on the next input anyway. Waiting on upstream; when the patch ships, re-enable: (a) `scrollOnInput: false` via [PR #219](https://github.com/TerminalStudio/xterm.dart/pull/219) and (b) a `scrollPhysics:` param via [PR #220](https://github.com/TerminalStudio/xterm.dart/pull/220) so we don't need the `ScrollConfiguration` hack.
+1. **Keyboard reflow is allowed — but debounced.** `MobileShell` sets `resizeToAvoidBottomInset: false` on the terminal page so this widget owns the keyboard layout. The SSH bar's `bottom` offset clamps to `navBarHeight` (sits above the mobile-shell nav when no keyboard) and follows the **settled** keyboard inset once the slide animation has finished. The raw `viewInsets.bottom` ticks once per animation frame while the soft keyboard slides in or out; feeding that straight into the layout would drive a `TerminalSession.resize` per frame, reflowing the grid dozens of times during one animation. `MobileTerminalView` runs the raw value through a 200 ms debounce (`_scheduleKeyboardInsetSettle`, read in `build` off `MediaQuery.viewInsetsOf`) so layout freezes at the previous stable inset until the raw value has held still; then it applies one reflow for the whole animation.
+2. **Copy-mode toggle is stable.** The `SshKeyboardBar` swaps its single row's *contents* between the normal-keys variant and a copy-mode variant (hint text + Set-Anchor / Copy + Cancel) inside the same `Container(height: itemHeightLg)`. No widget in the stack changes height on toggle, so `resize` never fires when the user enters or leaves copy mode. The hint and the action button both flip off the overlay's `anchorSet` flag: before commit the button is `Icons.adjust` ("Set anchor"), after commit it becomes `Icons.copy`. Parent rebuilds on `onAnchorDown()` so the bar re-reads the flag on the next frame.
+3. **Overlay is visual-only.** `TerminalCopyOverlay` renders the virtual cursor marker; the grid below is gated by `AbsorbPointer` while copy mode is active (the outer `Listener` still sees cursor-pan deltas via the ancestor hit-test path). One-finger drags route through `TerminalCopyOverlayState.onCursorPan(delta)`, which accumulates sub-cell pixel deltas against the measured cell size and advances the cursor one cell at a time. The grid is linearised as `y * viewWidth + x` so horizontal overflow rolls onto the next row — a long line that soft-wraps across several rows can be selected in one continuous drag without the user manually crossing the wrap. Selection start/extent are written into the Rust engine through `setSelection`, in absolute grid coordinates, so anchors stay buffer-absolute while the buffer scrolls.
+4. **Copy / Cancel.** The bar's copy-mode row exposes the Copy action (reads `selectionText` from the engine, copies it, then `SshKeyboardBarState.exitCopyMode()`) and Cancel (`Icons.close` → `exitCopyMode()` without copying). Paste stays on the normal-row keyboard bar so the user doesn't have to enter copy mode just to paste a password — the two directions are orthogonal.
 
-4. **Overlay is visual-only.** `TerminalCopyOverlay` renders the virtual cursor marker wrapped in `IgnorePointer` (the outer `Listener` still sees cursor-pan deltas via the ancestor hit-test path); on enter it calls `TerminalController.setSuspendPointerInput(true)`. One-finger drags route through `TerminalCopyOverlayState.onCursorPan(delta)`, which accumulates sub-cell pixel deltas against the measured cell size and advances the cursor one cell at a time. The grid is linearised as `y * viewWidth + x` so horizontal overflow rolls onto the next row — a long pasted line that soft-wraps across several buffer rows can be selected in one continuous drag without the user manually crossing the wrap. When the cursor would step past the top / bottom viewport edge, `MobileTerminalView`'s shared `ScrollController` (passed to both `TerminalView(scrollController: ...)` and `TerminalCopyOverlay`) is nudged by the overflow cells' worth of pixels instead — so a single drag can extend the selection through the entire scrollback. The overlay derives the viewport-start line from `scrollController.offset ~/ cellHeight` so selection anchors stay buffer-absolute and accurate while the buffer scrolls.
-5. **Copy / Cancel.** The bar's copy-mode row exposes the Copy action (fires `onCopyPressed` → `TerminalClipboard.copy` → `SshKeyboardBarState.exitCopyMode()`) and Cancel (`Icons.close` → `exitCopyMode()` without copying). Paste stays on the normal-row keyboard bar so the user doesn't have to enter copy mode just to paste a password — the two directions are orthogonal.
-
-**Why trackpad-style instead of drag-select.** An earlier mobile build used the Select button to toggle drag-select on the terminal itself: the finger touched the terminal, the selection tracked the finger. Problems: (a) the thumb covered the target cells, so precision required lifting to check alignment, (b) selection started on the first touch with no way to "just cancel" mid-drag, (c) the scale recognizer collision killed long-press-to-word even outside select mode. The trackpad pattern (lifted from Termux) decouples finger position from cursor position — the cursor stays where you left it, the finger drags to advance it relatively — and the explicit Copy/Cancel toolbar gives an escape hatch. Two-finger pan-scroll is deferred until xterm exposes a main-buffer scroll hook.
+**Why trackpad-style instead of drag-select.** The trackpad pattern (lifted from Termux) decouples finger position from cursor position — the cursor stays where you left it, the finger drags to advance it relatively — and the explicit Copy/Cancel toolbar gives an escape hatch. Direct drag-select on the terminal has the thumb covering the target cells (precision needs a lift to check alignment) and no clean way to cancel mid-drag.
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 
@@ -4560,7 +4552,7 @@ User-facing browser + replay surface for the per-session recordings the [`Sessio
 | File | Class | Purpose |
 |------|-------|---------|
 | `recordings_browser.dart` | `RecordingsPanel`, `RecordingsBrowserDialog` | Embeddable list panel + dialog wrapper. Calls `recorder_list_recordings` (walk + stat) and `recorder_delete_recording` Rust-side; joins the resulting entries to the live session list to resolve labels and exposes per-row delete + Play action. Reachable via Tools → Recordings on desktop and the mobile Tools tile. |
-| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded xterm playback with speed control (`0.5×` / `1×` / `2×` / `4×`) via the shared no-animation [`AppPopupSelect`] picker. Subscribes to `recorder_open_for_playback`; the Rust side dispatches on extension (`.cast` plaintext / `.lfsr` encrypted) so the Dart consumer hands the path in once and never branches. Truncated tails surface as a clean stop instead of a decode error. Pause / play, the speed dropdown, the scrub slider, and the position read-out share **one controls row** so the freed vertical space goes to the terminal. The recording's full `cols × rows` grid renders at its natural pixel size with **no surrounding scroll view** — `playbackFitFontSize` auto-picks the largest font (preferred = `configProvider.fontSize × 1.25`, larger than the live terminal since recordings are reviewed, not typed into) at which the whole grid fits the dialog and shrinks below it only when an oversized capture (tall htop on a short screen) or odd aspect ratio would overflow, picking the tighter of the width / height axes. xterm's auto-resize then lands exactly on the recorded dimensions, so curses recordings (htop / vim) keep their fixed header + footer rows aligned. The `SizedBox` math measures cells through `measureMonoCell` **with `MediaQuery.textScalerOf`** so the grid matches the OS-text-scaled cell xterm paints — measuring unscaled clips the bottom row when the system text scale is above 1.0. A scroll view would install a drag recogniser that beats xterm's selection pan in the gesture arena, so omitting it also makes drag-to-select match the log terminal. |
+| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded playback over a `ReadOnlyTerminalController` (Rust engine) rendered through `ReadOnlyTerminalGridView`, with speed control (`0.5×` / `1×` / `2×` / `4×`) via the shared no-animation [`AppPopupSelect`] picker. Subscribes to `recorder_open_for_playback`; the Rust side dispatches on extension (`.cast` plaintext / `.lfsr` encrypted) so the Dart consumer hands the path in once and never branches. Truncated tails surface as a clean stop instead of a decode error. Pause / play, the speed dropdown, the scrub slider, and the position read-out share **one controls row** so the freed vertical space goes to the terminal. The recording's full `cols × rows` grid renders at its natural pixel size with **no surrounding scroll view** — `playbackFitFontSize` auto-picks the largest font (preferred = `configProvider.fontSize × 1.25`, larger than the live terminal since recordings are reviewed, not typed into) at which the whole grid fits the dialog and shrinks below it only when an oversized capture (tall htop on a short screen) or odd aspect ratio would overflow, picking the tighter of the width / height axes. The controller is resized to the header's recorded `cols × rows`, so curses recordings (htop / vim) keep their fixed header + footer rows aligned. The `SizedBox` math measures cells through `measureMonoCell` **with `MediaQuery.textScalerOf`** so the grid matches the OS-text-scaled cell the painter draws — measuring unscaled clips the bottom row when the system text scale is above 1.0. A scroll view would install a drag recogniser that beats the grid's own selection pan in the gesture arena, so omitting it also makes drag-to-select match the log terminal. |
 | `recording_reader.dart` | `RecordingReader` | Thin Dart wrapper over the FRB playback stream. Holds the `RecordingHeader` / `RecordingMeta` / `RecordingFrame` shapes the UI consumes; the actual decoder (per-frame AES-GCM, `.cast` line-iter, length-cap rejection) lives in `lfs_core::recorder::reader`. |
 | `recordings_logic.dart` | Listing + lifecycle helpers | Pure session-id → display-label fallback shared by panel / dialog. Disk walk + delete moved Rust-side; this file only carries `BuildContext`-free label resolution. |
 
@@ -5564,19 +5556,15 @@ results.
 ### TerminalClipboard
 
 ```dart
-static void copy(Terminal terminal, TerminalController controller);
 static void copyText(String text);
-static Future<void> paste(Terminal terminal);
 ```
 
-`copy()` reads the controller's current selection, runs the
-sensitive-content heuristic on the resulting text, writes it through
-either `SecureClipboard` (PEM private key / ≥ 200-char base64 run) or
-`Clipboard.setData`, then clears the selection as a side-effect.
-`copyText()` is the same routing without the controller dependency —
-used by the desktop pane's Ctrl+Shift+C, which reads
-`session.selectionText()` (the Rust-side selection) and routes the result
-through `copyText` (see [§5.1 Pointer input](#pointer-input-selection-copy--mouse-reporting)).
+`copyText()` runs the sensitive-content heuristic on the text, writes
+it through either `SecureClipboard` (PEM private key / ≥ 200-char
+base64 run) or `Clipboard.setData`. Callers read the selection from the
+Rust engine first: the desktop pane's Ctrl+Shift+C and the mobile copy
+overlay both read `session.selectionText()` (the Rust-side selection)
+and route the result through `copyText` (see [§5.1 Pointer input](#pointer-input-selection-copy--mouse-reporting)).
 
 ### Format
 
@@ -5725,7 +5713,7 @@ abstract final class AppTheme {
     String? labelText, String? hintText, TextStyle? hintStyle,
     EdgeInsetsGeometry contentPadding,
   });
-  static TerminalTheme get terminalTheme; // xterm color theme from current brightness
+  static Color get termBlack; // ...termRed/Green/... — terminal swatches by brightness, fed into the Rust engine's TerminalPalette
 
   // Theme factory — both delegate to shared _buildTheme()
   static ThemeData dark();
@@ -5860,7 +5848,7 @@ flowchart TD
     dc --> r{outcome}
     r -->|success| ok["state = connected + completeReady()"]
     r -->|failure| err["connectionError, state = disconnected<br/>+ completeReady()"]
-    ok --> okui["TerminalPane: clear terminal → openShell() → xterm pipe"]
+    ok --> okui["TerminalPane: clear terminal → openShell() → engine feed"]
     err --> errui["TerminalPane: progress log stays visible with error"]
     tab -.->|via progressStream| okui
     tab -.->|via progressStream| errui
@@ -6054,9 +6042,9 @@ AppConfig {
     theme: String         // 'dark'|'light'|'system'
     scrollback: int       // 100..200_000 (TerminalConfig.maxScrollback),
                           // default 5000. Upper cap is the OOM brake —
-                          // xterm allocates per-line buffers eagerly,
-                          // and an unclamped `cat /dev/urandom` would
-                          // pin the renderer's heap.
+                          // the engine retains a per-line cell buffer for
+                          // every scrollback row, so an unclamped
+                          // `cat /dev/urandom` would pin the heap.
   }
   ssh: SshDefaults {
     keepAliveSec: int     // default 30
@@ -6557,7 +6545,6 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 ### Windows specifics
 
-- `hardwareKeyboardOnly: true` — xterm TextInputClient bug
 - Inno Setup for EXE installer
 - `USERPROFILE` for home directory
 
@@ -7240,7 +7227,6 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | russh-sftp file mode lookup | `metadata.permissions` (`russh-sftp` shape), not POSIX `mode_t` |
 | russh `check_server_key` callback runs on the IO thread | Bus-event prompt protocol with a `tokio::oneshot` resolution; never block the callback on Dart |
 | FRB `#[frb(sync)]` reserved for sub-microsecond reads | Anything touching the filesystem or cipher stays async + `spawn_blocking` |
-| xterm TextInputClient broken on Windows | `hardwareKeyboardOnly: true` on desktop |
 
 ### 16.3 Security Decisions
 
@@ -7284,7 +7270,6 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | `lfs_frb` (path dep on `rust_builder/`) | Loads the Rust core native blob; see [§3.14](#314-rust-securitytransport-core-rust) for the workspace it's built from. |
 | `flutter_rust_bridge` | FFI bridge to the Rust core. Pin must match the codegen CLI version exactly (`cargo install flutter_rust_bridge_codegen --version 2.12.0`) — drift produces incompatible bindings. |
 | `freezed_annotation` | Annotations the generated `*.freezed.dart` files (FRB-side enums) import; runtime dep because the generated code ships in release. |
-| `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
 | `crypto` | SHA-256 only (keychain fingerprints, known_hosts, update-feed checksum). AES-GCM / HKDF / Ed25519 / Argon2id all live Rust-side under `lfs_core::crypto`. |
 | `path_provider` | App data directories |

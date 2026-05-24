@@ -72,7 +72,7 @@ class AppDialog extends StatelessWidget {
     // routes overflow to a vertical scroll view; the non-
     // scrollable branch leaves layout to the caller — which can
     // place its own `Flexible` / `Expanded` inside [content] to
-    // let oversized children (e.g. the playback dialog's xterm
+    // let oversized children (e.g. the playback dialog's terminal
     // panel) shrink under pressure instead of overflowing the
     // dialog with the classic yellow / black stripe pattern.
     if (scrollable) {

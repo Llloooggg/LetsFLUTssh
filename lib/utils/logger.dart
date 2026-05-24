@@ -278,11 +278,11 @@ class AppLogger {
 
   // Live broadcast of every LogEntry that survives the threshold
   // gate inside [log] / [logCritical]. The Settings → Logs viewer
-  // (xterm-backed) listens here and appends to a persistent
-  // Terminal buffer, so opening the tab is instant — the whole
-  // log surface lives in memory, no on-tab-mount file read. Cap
+  // (Rust terminal engine + grid view) listens here and appends to a
+  // persistent terminal buffer, so opening the tab is instant — the
+  // whole log surface lives in memory, no on-tab-mount file read. Cap
   // is conceptual only (StreamController doesn't buffer) — the
-  // Terminal viewer's own scrollback bounds the long-term retain.
+  // terminal viewer's own scrollback bounds the long-term retain.
   final StreamController<LogEntry> _entriesController =
       StreamController<LogEntry>.broadcast();
 

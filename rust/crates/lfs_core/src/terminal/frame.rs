@@ -96,7 +96,7 @@ pub struct Frame {
     /// Mouse-tracking level the running program enabled. The renderer
     /// routes pointer events to the program (mouse report) vs locally
     /// (selection / scroll) off this — a Shift modifier always forces
-    /// local selection regardless, matching the xterm override convention.
+    /// local selection regardless, the standard terminal override convention.
     pub mouse_tracking: MouseTracking,
     /// Non-blank cells in the current viewport. Blank default cells are
     /// omitted so the renderer paints the background once and overlays only

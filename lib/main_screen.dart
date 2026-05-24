@@ -152,9 +152,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // **Don't wrap the entire MobileShell in `AppSelectionArea`** —
     // the SelectionArea's own gesture recognizers
     // (TapAndDragGestureRecognizer, LongPressGestureRecognizer)
-    // win the arena across the xterm subtree on the Terminal
+    // win the arena across the terminal subtree on the Terminal
     // page, surfacing Android's system Paste / Select-All toolbar
-    // over the terminal even though xterm has no selectable text
+    // over the terminal even though it has no selectable text
     // there. `SelectionContainer.disabled` inside MobileTerminalView
     // does not save it — the recognizers fire above the disabled
     // whole subtree. Terminal taps must not trigger a system

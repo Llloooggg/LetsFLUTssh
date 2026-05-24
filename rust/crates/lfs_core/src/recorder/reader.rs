@@ -143,7 +143,7 @@ pub fn decode_event_line(line: &str) -> Option<DecodedEvent> {
 }
 
 /// Decoded asciinema-v2 header — carries the dimensions the
-/// recorded shell ran at so playback can resize xterm to match,
+/// recorded shell ran at so playback can resize the terminal to match,
 /// plus the wall-clock origin and the optional `$SHELL` label the
 /// recorder captured at start time. Mirror of the Dart-side
 /// `RecordingHeader` value class.

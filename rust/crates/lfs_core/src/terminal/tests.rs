@@ -1,9 +1,9 @@
 //! Behavioral tests for the terminal engine.
 //!
 //! Each test states the intended VT semantics it asserts — never the raw
-//! observed output of a prior run. The vim-repro test is the regression
-//! guard for the `xterm` scroll-region corruption that motivated this
-//! engine.
+//! observed output of a prior run. The vim-repro test guards the
+//! scroll-region delete-line path: a corrupt buffer leaves stale or
+//! duplicated rows below the cursor.
 
 use super::*;
 
@@ -51,9 +51,9 @@ fn carriage_return_and_newline_move_cursor() {
 
 #[test]
 fn vim_scroll_region_delete_line_shifts_without_stale_rows() {
-    // The regression guard for upstream xterm #222: vim deleting a line
-    // inside a scroll region left stale/duplicated rows below it (stray
-    // horizontal stripes).
+    // Spec: vim deleting a line inside a scroll region shifts the rows
+    // below up by one and leaves no stale/duplicated rows (which would
+    // paint as stray horizontal stripes).
     //
     // VT sequence vim emits to delete the line under the cursor inside a
     // scroll region:

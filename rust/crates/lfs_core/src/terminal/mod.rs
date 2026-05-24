@@ -5,13 +5,13 @@
 //! AND logic; Flutter renders". The engine wraps
 //! [`alacritty_terminal`] (the battle-tested model behind Alacritty) and
 //! exposes only owned snapshots ([`Frame`]) and a drained event queue.
-//! No `flutter_rust_bridge`, no FRB types: the bridge is a later task.
+//! No `flutter_rust_bridge`, no FRB types — the bridge wraps this crate.
 //!
-//! Why this exists: the previous renderer used the unmaintained `xterm`
-//! Dart package, whose buffer corrupts on scroll-region operations
-//! (vim line-delete leaves stray horizontal stripes — upstream issue
-//! #222). Moving the model into a maintained Rust engine fixes that class
-//! of bug and satisfies the data-ownership pillar in one step.
+//! Why a Rust engine: the data-ownership pillar puts the terminal
+//! grammar (parser, grid, scrollback, scroll-region) here, and
+//! [`alacritty_terminal`] is a maintained model that handles
+//! scroll-region operations correctly (e.g. vim line-delete without
+//! stray stripes). Flutter holds only the rendering surface.
 //!
 //! Architecture: see ARCHITECTURE.md → "Rust terminal engine".
 

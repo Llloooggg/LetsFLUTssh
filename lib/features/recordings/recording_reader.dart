@@ -18,7 +18,7 @@ class RecordingFrame {
 }
 
 /// Decoded asciinema-v2 header — carries the dimensions the
-/// recorded shell ran at so playback can resize xterm to match.
+/// recorded shell ran at so playback can resize the terminal to match.
 ///
 /// Parsed Rust-side via `lfs_core::recorder::reader::decode_header_line`
 /// over the FRB sync shim `recorder_decode_header_line`. The Dart

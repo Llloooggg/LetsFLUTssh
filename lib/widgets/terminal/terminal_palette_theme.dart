@@ -7,7 +7,7 @@ import '../../theme/app_theme.dart';
 /// [TerminalPalette] DTO. The engine resolves every cell's abstract
 /// color (ANSI index, 256-cube, default fg/bg) against this palette and
 /// hands the renderer concrete RGB, so the colors a user sees come from
-/// here — the same OneDark swatches that fed xterm's `TerminalTheme`.
+/// here — the OneDark swatches in [AppTheme].
 ///
 /// Reads the live `AppTheme.term*` accessors, which already switch on
 /// the active light/dark mode, so calling this after a theme toggle and

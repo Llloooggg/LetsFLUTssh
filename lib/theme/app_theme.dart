@@ -876,14 +876,14 @@ abstract final class AppFonts {
   static const _mono = 'JetBrains Mono';
 
   /// UI sans-serif family ('Inter') exposed for callers that hand a
-  /// raw [TextStyle] to a Flutter widget (xterm, custom painters,
+  /// raw [TextStyle] to a Flutter widget (custom painters,
   /// third-party badges) instead of one of the [inter] /
   /// [interMono] helpers below. Use this constant rather than the
   /// raw string literal so a future font swap lands one place.
   static const interFamily = _inter;
 
   /// Monospace family used by the terminal views and cursor overlay. Exposed
-  /// so xterm's `TerminalStyle` and the custom cursor painter can share a
+  /// so the terminal grid painter and the custom cursor painter can share a
   /// single source of truth with [mono].
   static const monoFamily = _mono;
 

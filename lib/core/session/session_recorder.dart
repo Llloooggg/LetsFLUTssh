@@ -25,7 +25,7 @@ enum RecordDirection { output, input }
 /// `<appSupport>/recordings/<sessionId>/<isoTimestamp>.lfsr`.
 ///
 /// **Why per-shell, not per-connection.** Multi-pane connections
-/// run independent shell channels — each pane has its own xterm
+/// run independent shell channels — each pane has its own terminal
 /// buffer, scrollback, and dimensions. A connection-level recorder
 /// would interleave bytes from N shells into a single timeline that
 /// no playback tool could un-mix. Per-shell keeps each recording
@@ -204,8 +204,8 @@ class SessionRecorder {
   void recordOutput(List<int> bytes) =>
       _enqueueEvent(bytes, RecordDirection.output);
 
-  /// Record a chunk of bytes the user typed (after xterm has
-  /// processed them into the wire-format the shell sees — same
+  /// Record a chunk of bytes the user typed (after the terminal engine
+  /// has encoded them into the wire-format the shell sees — same
   /// layer the broadcast wrapper uses).
   void recordInput(List<int> bytes) =>
       _enqueueEvent(bytes, RecordDirection.input);

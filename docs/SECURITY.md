@@ -69,9 +69,9 @@ or above its own privilege level:
   enforce with a non-actionable warning.
 - **Upstream dependency vulnerabilities** — `russh` + `russh-sftp` +
   the broader RustCrypto stack vendored at `rust/`, the bundled
-  SQLCipher 4.x + OpenSSL `rusqlite` vendors, `xterm`, Flutter
-  itself. Report those to the respective maintainers. Scope for
-  this repository is strictly the code we wrote.
+  SQLCipher 4.x + OpenSSL `rusqlite` vendors, `alacritty_terminal`,
+  Flutter itself. Report those to the respective maintainers. Scope
+  for this repository is strictly the code we wrote.
 
 ## Threat boundary
 
@@ -867,8 +867,8 @@ for the current version.
 
 - Vulnerabilities in upstream dependencies (`russh` + `russh-sftp` +
   the RustCrypto stack vendored under `rust/`, bundled SQLCipher /
-  OpenSSL via `rusqlite`, `xterm`) — please report those to their
-  maintainers directly.
+  OpenSSL via `rusqlite`, `alacritty_terminal`) — please report those
+  to their maintainers directly.
 - Denial of service via local access.
 - Issues requiring physical device access (cold-RAM attacks, chip
   probes, boot-media swaps).

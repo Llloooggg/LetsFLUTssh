@@ -64,8 +64,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       onPopInvokedWithResult: (didPop, _) => _handlePopScope(didPop, context),
       child: Scaffold(
         // Disable body resize on the terminal page — when the soft keyboard
-        // opens the viewport must NOT shrink, otherwise xterm reflows its
-        // buffer and the SSH server receives a smaller terminal size, which
+        // opens the viewport must NOT shrink, otherwise the terminal reflows
+        // its buffer and the SSH server receives a smaller terminal size, which
         // produces duplicate/garbled lines at the top of the scrollback.
         resizeToAvoidBottomInset: _navIndex != 1,
         // Extend the body under the bottom nav bar on the terminal page. The
