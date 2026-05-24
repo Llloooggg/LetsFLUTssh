@@ -622,6 +622,15 @@ pub struct SshShell {
 }
 
 impl SshShell {
+    /// Hand the shared `Arc<Shell>` to a sibling adapter. Used by
+    /// `api::terminal::TerminalSession::open` so the terminal pump
+    /// becomes the single consumer of this shell's events. `#[frb(ignore)]`
+    /// — not a Dart-facing method; the Arc never crosses the boundary.
+    #[frb(ignore)]
+    pub(crate) fn into_arc(self) -> Arc<lfs_core::ssh::Shell> {
+        self.inner
+    }
+
     /// Send stdin bytes to the remote shell.
     pub async fn write(&self, data: Vec<u8>) -> Result<(), String> {
         self.inner

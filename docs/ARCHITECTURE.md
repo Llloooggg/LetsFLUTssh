@@ -3575,14 +3575,94 @@ substring matches and returns `MatchRange`s in absolute line coordinates
 (negative line = scrollback) — this replaces the Dart buffer-walk search
 the old renderer did.
 
+#### FRB bridge and the Rust-owned pump (`lfs_frb::api::terminal`)
+
+The bridge (`rust/crates/lfs_frb/src/api/terminal.rs`) exposes the engine
+to Dart as an opaque `TerminalSession` and drives the terminal loop
+entirely Rust-side off the existing SSH shell channel
+([§3.16 engine](#316-rust-terminal-engine-rustcrateslfs_coresrcterminal)
+above; SSH `Shell` in [§3.1 SSH](#31-ssh-coressh)). The session owns
+the engine behind a `tokio::sync::Mutex` (the async pump and the sync
+`snapshot` call both touch it) and a clone of the core `Shell`.
+
+```mermaid
+flowchart LR
+    SHELL["Shell.next_event()"] --> PUMP[Rust pump task]
+    PUMP -->|feed bytes| ENG["engine.feed + drain_events (under lock)"]
+    ENG -->|PtyWrite bytes| WBACK["shell.write (Rust to Rust)"]
+    ENG -->|Bell / Title / Wakeup| SINK["StreamSink&lt;TerminalUiEvent&gt;"]
+    SINK --> DART[Dart renderer]
+    DART -->|"snapshot() sync"| ENG
+    DART -->|"write_input() key bytes"| SHELL
+```
+
+**Open / subscribe is two calls.** `terminal_session_open(session, cols,
+rows, scrollback, palette)` opens the PTY shell, builds the engine, and
+returns the handle; `TerminalSession::events(sink)` then starts the pump
+and streams `TerminalUiEvent`s. They are split because FRB collapses any
+function carrying a `StreamSink` parameter into a stream-returning
+function and drops its `Result` value — a single open could not both
+return the handle and take the sink. The split also mirrors the
+`SshShell::events_stream` idiom (open the resource, then subscribe).
+
+**Single shell-event consumer.** The pump owns `shell.next_event()`; the
+shell read-half is a single-reader mutex, so a given shell is consumed by
+exactly one of `TerminalSession::events` or the non-terminal
+`SshShell::events_stream` — never both, or the two readers deadlock.
+
+**Why the loop is Rust-side.** The pump forwards every
+[`PtyWrite`](#events-and-the-ptywrite-contract) back to the shell
+Rust→Rust — the cursor-position reports / DSR replies / bracketed-paste
+framing never round-trip through Dart, so interactive programs keep
+working even when the Dart isolate is busy painting. Rust owns the whole
+terminal loop per the data-ownership pillar; Dart only pulls owned
+`TerminalFrame` snapshots and reacts to a coalesced wakeup / bell / title
+/ clipboard / close event stream.
+
+**Lock discipline.** The pump locks the engine, feeds the chunk, drains
+the event queue, then releases the lock *before* any `await` — `PtyWrite`
+bytes are collected into a local `Vec` under the lock and written to the
+shell only after the lock is dropped. Holding the engine lock across the
+`shell.write` await would deadlock the sync `snapshot` calls against the
+pump. `snapshot()` is `#[frb(sync)]` (the renderer pulls a frame without
+an await per paint) and uses `blocking_lock`: the only writer is the pump,
+which holds the lock for one non-awaiting feed/drain, so contention is
+bounded and never crosses an await.
+
+**DTOs.** The bridge mirrors every core type into an FRB-friendly form so
+the boundary never leaks `Rgb` / `char` / `alacritty_terminal` types:
+`TerminalFrame` (flat `Vec<TerminalCell>` with `ch` as a `u32` Unicode
+scalar, `fg`/`bg` as `TerminalColor` RGB triples, `flags` widened to
+`u32`), `TerminalCursor`, `TerminalFrameSelection`, `TerminalMatch`, and
+`TerminalPalette` (16 ANSI + default swatches, converts into the core
+`TermPalette`; `terminal_palette_default()` exposes the OneDark default
+for the Dart theme layer to start from). `TerminalUiEvent` is the
+Dart-facing event enum — `PtyWrite` is deliberately absent (forwarded
+Rust-side), `Wakeup` is the coalesced "grid changed, pull a snapshot"
+signal emitted once per fed chunk, and `Closed` fires on channel `Eof`.
+
+**Input never feeds the engine.** `write_input(bytes)` forwards Dart key
+bytes straight to the shell's stdin; the engine processes only server
+*output* (the server echoes input back, and that echo is what renders).
+`resize(cols, rows)` resizes both the engine grid and the remote PTY
+(`window_change`). Key-byte encoding is a later renderer-side task.
+
+**Recorder / broadcast fork — follow-up.** Today Dart forks shell output
+bytes to the session recorder and broadcast controller inside its events
+loop (`lib/core/ssh/shell_helper.dart`). When the live pane switches to
+`TerminalSession`, that fork moves into the pump body — right after the
+output bytes are read and before they are fed into the engine. The pump
+is shaped so the hook slots in without reshaping the lock/await ordering;
+it is not wired yet.
+
 #### Relation to the Dart terminal feature
 
 The Flutter terminal feature (`features/terminal/`, [§5.1](#51-terminal-with-tiling-featuresterminal))
-still describes the `xterm`-based panes today; the FRB bridge and the
-`CustomPaint` renderer that consume `Frame` land in later steps, after
-which the `xterm` dependency is removed. Until then both descriptions
-coexist: §3.16 is the Rust engine, §5.1 is the current Dart rendering
-path.
+still describes the `xterm`-based panes today; the FRB bridge above is
+landed, but the `CustomPaint` renderer that consumes `TerminalFrame` lands
+in a later step, after which the `xterm` dependency is removed. Until then
+both descriptions coexist: §3.16 is the Rust engine + FRB bridge, §5.1 is
+the current Dart rendering path.
 
 ## 4. State Management — Riverpod
 

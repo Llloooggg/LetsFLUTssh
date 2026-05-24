@@ -69,6 +69,7 @@ import 'api/ssh_agent.dart';
 import 'api/ssh_config.dart';
 import 'api/ssh_dir_scan.dart';
 import 'api/sync.dart';
+import 'api/terminal.dart';
 import 'api/test_hooks.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_machine.dart';
@@ -129,6 +130,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShellPtr;
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_TerminalSessionPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSessionPtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_WebDavConnectionPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnectionPtr;
 
@@ -174,6 +179,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SshShell
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
+    dynamic raw,
+  );
+
+  @protected
+  TerminalSession
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
     dynamic raw,
   );
 
@@ -232,6 +243,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalSession
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    dynamic raw,
+  );
+
+  @protected
   WebDavConnection
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     dynamic raw,
@@ -283,6 +300,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalSession
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    dynamic raw,
+  );
+
+  @protected
   WebDavConnection
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     dynamic raw,
@@ -306,6 +329,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<SshShellEvent> dco_decode_StreamSink_ssh_shell_event_Sse(
+    dynamic raw,
+  );
+
+  @protected
+  RustStreamSink<TerminalUiEvent> dco_decode_StreamSink_terminal_ui_event_Sse(
     dynamic raw,
   );
 
@@ -560,6 +588,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent dco_decode_box_autoadd_ssh_shell_event(dynamic raw);
+
+  @protected
+  TerminalFrameSelection dco_decode_box_autoadd_terminal_frame_selection(
+    dynamic raw,
+  );
+
+  @protected
+  TerminalPalette dco_decode_box_autoadd_terminal_palette(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_16(dynamic raw);
@@ -1369,6 +1405,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SftpDirEntry> dco_decode_list_sftp_dir_entry(dynamic raw);
 
   @protected
+  List<TerminalCell> dco_decode_list_terminal_cell(dynamic raw);
+
+  @protected
+  List<TerminalColor> dco_decode_list_terminal_color(dynamic raw);
+
+  @protected
+  List<TerminalMatch> dco_decode_list_terminal_match(dynamic raw);
+
+  @protected
   List<WebDavDirEntry> dco_decode_list_web_dav_dir_entry(dynamic raw);
 
   @protected
@@ -1519,6 +1564,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshShellEvent? dco_decode_opt_box_autoadd_ssh_shell_event(dynamic raw);
 
   @protected
+  TerminalFrameSelection? dco_decode_opt_box_autoadd_terminal_frame_selection(
+    dynamic raw,
+  );
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
 
   @protected
@@ -1570,6 +1620,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent dco_decode_ssh_shell_event(dynamic raw);
+
+  @protected
+  TerminalCell dco_decode_terminal_cell(dynamic raw);
+
+  @protected
+  TerminalColor dco_decode_terminal_color(dynamic raw);
+
+  @protected
+  TerminalCursor dco_decode_terminal_cursor(dynamic raw);
+
+  @protected
+  TerminalCursorShape dco_decode_terminal_cursor_shape(dynamic raw);
+
+  @protected
+  TerminalFrame dco_decode_terminal_frame(dynamic raw);
+
+  @protected
+  TerminalFrameSelection dco_decode_terminal_frame_selection(dynamic raw);
+
+  @protected
+  TerminalMatch dco_decode_terminal_match(dynamic raw);
+
+  @protected
+  TerminalPalette dco_decode_terminal_palette(dynamic raw);
+
+  @protected
+  TerminalSelectionKind dco_decode_terminal_selection_kind(dynamic raw);
+
+  @protected
+  TerminalUiEvent dco_decode_terminal_ui_event(dynamic raw);
 
   @protected
   TestSshServerInfo dco_decode_test_ssh_server_info(dynamic raw);
@@ -1644,6 +1724,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalSession
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WebDavConnection
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     SseDeserializer deserializer,
@@ -1694,6 +1780,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SshShell
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalSession
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
     SseDeserializer deserializer,
   );
 
@@ -1751,6 +1843,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalSession
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WebDavConnection
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     SseDeserializer deserializer,
@@ -1778,6 +1876,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<SshShellEvent> sse_decode_StreamSink_ssh_shell_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<TerminalUiEvent> sse_decode_StreamSink_terminal_ui_event_Sse(
     SseDeserializer deserializer,
   );
 
@@ -2108,6 +2211,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent sse_decode_box_autoadd_ssh_shell_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalFrameSelection sse_decode_box_autoadd_terminal_frame_selection(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalPalette sse_decode_box_autoadd_terminal_palette(
     SseDeserializer deserializer,
   );
 
@@ -3199,6 +3312,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<TerminalCell> sse_decode_list_terminal_cell(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<TerminalColor> sse_decode_list_terminal_color(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<TerminalMatch> sse_decode_list_terminal_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WebDavDirEntry> sse_decode_list_web_dav_dir_entry(
     SseDeserializer deserializer,
   );
@@ -3389,6 +3517,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalFrameSelection? sse_decode_opt_box_autoadd_terminal_frame_selection(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
 
   @protected
@@ -3448,6 +3581,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent sse_decode_ssh_shell_event(SseDeserializer deserializer);
+
+  @protected
+  TerminalCell sse_decode_terminal_cell(SseDeserializer deserializer);
+
+  @protected
+  TerminalColor sse_decode_terminal_color(SseDeserializer deserializer);
+
+  @protected
+  TerminalCursor sse_decode_terminal_cursor(SseDeserializer deserializer);
+
+  @protected
+  TerminalCursorShape sse_decode_terminal_cursor_shape(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalFrame sse_decode_terminal_frame(SseDeserializer deserializer);
+
+  @protected
+  TerminalFrameSelection sse_decode_terminal_frame_selection(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalMatch sse_decode_terminal_match(SseDeserializer deserializer);
+
+  @protected
+  TerminalPalette sse_decode_terminal_palette(SseDeserializer deserializer);
+
+  @protected
+  TerminalSelectionKind sse_decode_terminal_selection_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalUiEvent sse_decode_terminal_ui_event(SseDeserializer deserializer);
 
   @protected
   TestSshServerInfo sse_decode_test_ssh_server_info(
@@ -3537,6 +3706,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    TerminalSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     WebDavConnection self,
     SseSerializer serializer,
@@ -3595,6 +3771,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
     SshShell self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    TerminalSession self,
     SseSerializer serializer,
   );
 
@@ -3662,6 +3845,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    TerminalSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     WebDavConnection self,
     SseSerializer serializer,
@@ -3694,6 +3884,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_ssh_shell_event_Sse(
     RustStreamSink<SshShellEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_terminal_ui_event_Sse(
+    RustStreamSink<TerminalUiEvent> self,
     SseSerializer serializer,
   );
 
@@ -4101,6 +4297,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_ssh_shell_event(
     SshShellEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_terminal_frame_selection(
+    TerminalFrameSelection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_terminal_palette(
+    TerminalPalette self,
     SseSerializer serializer,
   );
 
@@ -5500,6 +5708,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_terminal_cell(
+    List<TerminalCell> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_terminal_color(
+    List<TerminalColor> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_terminal_match(
+    List<TerminalMatch> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_web_dav_dir_entry(
     List<WebDavDirEntry> self,
     SseSerializer serializer,
@@ -5727,6 +5953,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_terminal_frame_selection(
+    TerminalFrameSelection? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer);
 
   @protected
@@ -5803,6 +6035,54 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_ssh_shell_event(SshShellEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_cell(TerminalCell self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_color(TerminalColor self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_cursor(
+    TerminalCursor self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_cursor_shape(
+    TerminalCursorShape self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_frame(TerminalFrame self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_frame_selection(
+    TerminalFrameSelection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_match(TerminalMatch self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_palette(
+    TerminalPalette self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_selection_kind(
+    TerminalSelectionKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_ui_event(
+    TerminalUiEvent self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_test_ssh_server_info(
@@ -6091,6 +6371,40 @@ class RustLibWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShellPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSessionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_letsflutssh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSessionPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSessionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_letsflutssh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSession =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTerminalSessionPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
