@@ -55,6 +55,15 @@ String pathBasename({required String path}) =>
 bool pathIsSuspicious({required String path}) =>
     RustLib.instance.api.crateApiPathPathIsSuspicious(path: path);
 
+/// True when [`name`] is a single safe directory-entry name to join
+/// onto a download destination. SFTP servers supply entry names as
+/// untrusted bytes; the directory-walk download path rejects any
+/// name that could escape the user-chosen folder (path separator,
+/// `.`/`..` traversal, NUL, whitespace-only). Interior spaces are
+/// allowed. See [`lfs_core::path::is_safe_transfer_entry_name`].
+bool pathIsSafeEntryName({required String name}) =>
+    RustLib.instance.api.crateApiPathPathIsSafeEntryName(name: name);
+
 /// Shorten a path to its last two non-empty segments, prefixed
 /// with `.../`. Used by the transfer panel + history rows to
 /// keep long paths readable in narrow row widths without losing

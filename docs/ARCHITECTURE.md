@@ -5437,6 +5437,8 @@ flowchart TD
     err --> ui
 ```
 
+**Directory-escape guard (download walk).** When a directory download recurses over SFTP, each entry name comes back from the remote as untrusted bytes and is joined onto the user-chosen destination with `path.join`, which does not normalise. A hostile server returning `name: "../../../etc/cron.d/x"`, a name carrying a `\` separator, or an embedded NUL could otherwise land a file outside the download folder. Before joining, the walk validates each name through `lfs_core::path::is_safe_transfer_entry_name` (surfaced to Dart as `path_is_safe_entry_name`): it rejects empty, `.`/`..`, whitespace-only, and any name containing `/`, `\`, or `\0`. Interior spaces are legitimate filename content and stay allowed — the NUL is the rejected byte, not the space. Rejected entries are skipped with a sanitized `<name>` log marker (the raw name never reaches the log). The predicate lives in Rust because validating untrusted server bytes belongs on the memory-safety perimeter, not in the Dart render layer.
+
 ---
 
 ## 10. Data Models

@@ -52,6 +52,40 @@ pub fn is_suspicious_path(path: &str) -> bool {
     normalized.split('/').any(|seg| seg == "..")
 }
 
+/// True when [`name`] is safe to join onto a download directory.
+///
+/// SFTP servers supply directory-entry names as untrusted bytes;
+/// the directory-walk download path joins each onto the user-chosen
+/// destination, and `p.join` does not normalise. A name carrying a
+/// path separator, a `.`/`..` traversal segment, or a NUL would land
+/// the file outside the destination (or silently truncate the path
+/// at the NUL on most filesystems). Reject those; interior spaces
+/// are legitimate filename content and stay allowed.
+#[must_use]
+pub fn is_safe_transfer_entry_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    if name == "." || name == ".." {
+        return false;
+    }
+    // Both separator families: a Windows-shaped server name must not
+    // drift through a POSIX-only check.
+    if name.contains('/') || name.contains('\\') {
+        return false;
+    }
+    if name.contains('\0') {
+        return false;
+    }
+    // Whitespace-only names round-trip differently across platform
+    // canonicalisation; reject them outright. Interior whitespace in
+    // an otherwise-real name is fine.
+    if name.trim().is_empty() {
+        return false;
+    }
+    true
+}
+
 /// Parse Windows `attrib` command output and return the lowercase
 /// basename of every file flagged Hidden (H) or System (S). Used
 /// by `LocalFS.list` on Windows to filter the directory view to
@@ -463,6 +497,113 @@ mod tests {
     fn is_suspicious_path_passes_dotdotextension() {
         // ".." is the trigger; "..foo" is not a traversal segment.
         assert!(!is_suspicious_path("/home/user/..foo"));
+    }
+
+    #[test]
+    fn safe_entry_name_accepts_plain_names() {
+        assert!(is_safe_transfer_entry_name("readme.txt"));
+        assert!(is_safe_transfer_entry_name("img-2024_05.png"));
+    }
+
+    #[test]
+    fn safe_entry_name_accepts_interior_spaces() {
+        // Spaces inside a real filename are legitimate content.
+        assert!(is_safe_transfer_entry_name("my file.txt"));
+        assert!(is_safe_transfer_entry_name("a b c"));
+    }
+
+    #[test]
+    fn safe_entry_name_accepts_dotfile() {
+        assert!(is_safe_transfer_entry_name(".bashrc"));
+    }
+
+    #[test]
+    fn safe_entry_name_accepts_dotdot_prefix() {
+        // "..foo" is not the `..` traversal segment.
+        assert!(is_safe_transfer_entry_name("..foo"));
+    }
+
+    #[test]
+    fn safe_entry_name_rejects_empty() {
+        assert!(!is_safe_transfer_entry_name(""));
+    }
+
+    #[test]
+    fn safe_entry_name_rejects_self_and_parent_refs() {
+        assert!(!is_safe_transfer_entry_name("."));
+        assert!(!is_safe_transfer_entry_name(".."));
+    }
+
+    #[test]
+    fn safe_entry_name_rejects_separators() {
+        assert!(!is_safe_transfer_entry_name("a/b"));
+        assert!(!is_safe_transfer_entry_name("a\\b"));
+        assert!(!is_safe_transfer_entry_name("../../etc/cron.d/x"));
+        assert!(!is_safe_transfer_entry_name("/etc/passwd"));
+    }
+
+    #[test]
+    fn safe_entry_name_rejects_embedded_nul() {
+        assert!(!is_safe_transfer_entry_name("foo\0bar"));
+        assert!(!is_safe_transfer_entry_name("trailing\0"));
+    }
+
+    #[test]
+    fn safe_entry_name_rejects_whitespace_only() {
+        assert!(!is_safe_transfer_entry_name("   "));
+        assert!(!is_safe_transfer_entry_name("\t\n"));
+    }
+
+    #[test]
+    fn safe_entry_name_invariant_holds_over_adversarial_inputs() {
+        // Property-style sweep: any name containing a separator, a
+        // NUL, or equal to ""/"."/".."/whitespace-only is rejected;
+        // the predicate never panics. Built from hostile fragments
+        // mixed with benign ones the way a malicious SFTP server
+        // would shape directory entries.
+        let fragments = [
+            "",
+            ".",
+            "..",
+            "/",
+            "\\",
+            "\0",
+            " ",
+            "\t",
+            "a",
+            "file.txt",
+            "..foo",
+            "中文",
+            "💥",
+            "\u{202E}rcs.exe",
+            "a\0b",
+            "../x",
+            "x/../y",
+            "C:\\Windows",
+        ];
+        for a in &fragments {
+            for b in &fragments {
+                let name = format!("{a}{b}");
+                let unsafe_shape = name.is_empty()
+                    || name == "."
+                    || name == ".."
+                    || name.contains('/')
+                    || name.contains('\\')
+                    || name.contains('\0')
+                    || name.trim().is_empty();
+                assert_eq!(
+                    is_safe_transfer_entry_name(&name),
+                    !unsafe_shape,
+                    "name {name:?} classified wrong"
+                );
+            }
+        }
+        // A huge name with no banned char is still safe; with one is
+        // not — length alone is not a rejection axis.
+        let huge = "x".repeat(100_000);
+        assert!(is_safe_transfer_entry_name(&huge));
+        let huge_sep = format!("{huge}/y");
+        assert!(!is_safe_transfer_entry_name(&huge_sep));
     }
 
     #[test]

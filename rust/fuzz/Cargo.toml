@@ -5,13 +5,14 @@ publish = false
 edition = "2021"
 license = "GPL-3.0-only"
 
-# Coverage-guided libFuzzer harnesses for the four untrusted-bytes
-# parsers that moved to lfs_core in the port: deeplink URI,
-# known_hosts entries, QR codec payload, and the OpenSSH config
-# grammar. Each
-# target is a thin `fuzz_target!` shim that drives bytes from the
-# fuzzer at the parser's pure-fn entrypoint and asserts no panic
-# / no UB / fail-closed on malformed input.
+# Coverage-guided libFuzzer harnesses for the untrusted-input
+# consumers in lfs_core / lfs_os_security: deeplink URI, known_hosts
+# entries, QR codec payload, the OpenSSH config grammar, the PKCS#11
+# URI parser, PEM certificate parsing, the SSH target parser, and the
+# SFTP transfer-entry-name safety predicate. Each target is a thin
+# `fuzz_target!` shim that drives bytes from the fuzzer at the pure-fn
+# entrypoint and asserts no panic / no UB / fail-closed on malformed
+# input.
 #
 # Run with `cargo +nightly fuzz run <target>` from this directory
 # (cargo-fuzz needs nightly for the `-Z` flags it threads through
@@ -76,6 +77,13 @@ bench = false
 [[bin]]
 name = "pem_certs"
 path = "fuzz_targets/pem_certs.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transfer_entry_name"
+path = "fuzz_targets/transfer_entry_name.rs"
 test = false
 doc = false
 bench = false

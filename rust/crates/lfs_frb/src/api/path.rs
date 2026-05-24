@@ -81,6 +81,17 @@ pub fn path_is_suspicious(path: String) -> bool {
     lfs_core::path::is_suspicious_path(&path)
 }
 
+/// True when [`name`] is a single safe directory-entry name to join
+/// onto a download destination. SFTP servers supply entry names as
+/// untrusted bytes; the directory-walk download path rejects any
+/// name that could escape the user-chosen folder (path separator,
+/// `.`/`..` traversal, NUL, whitespace-only). Interior spaces are
+/// allowed. See [`lfs_core::path::is_safe_transfer_entry_name`].
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_is_safe_entry_name(name: String) -> bool {
+    lfs_core::path::is_safe_transfer_entry_name(&name)
+}
+
 /// Shorten a path to its last two non-empty segments, prefixed
 /// with `.../`. Used by the transfer panel + history rows to
 /// keep long paths readable in narrow row widths without losing
@@ -145,6 +156,25 @@ mod tests {
     fn is_suspicious_passes_clean_paths() {
         assert!(!path_is_suspicious("/home/alice/.ssh/config".into()));
         assert!(!path_is_suspicious("notes.txt".into()));
+    }
+
+    #[test]
+    fn is_safe_entry_name_accepts_plain_and_spaced_names() {
+        assert!(path_is_safe_entry_name("readme.txt".into()));
+        assert!(path_is_safe_entry_name("my file.txt".into()));
+        assert!(path_is_safe_entry_name(".bashrc".into()));
+        assert!(path_is_safe_entry_name("..foo".into()));
+    }
+
+    #[test]
+    fn is_safe_entry_name_rejects_escaping_shapes() {
+        assert!(!path_is_safe_entry_name("".into()));
+        assert!(!path_is_safe_entry_name(".".into()));
+        assert!(!path_is_safe_entry_name("..".into()));
+        assert!(!path_is_safe_entry_name("a/b".into()));
+        assert!(!path_is_safe_entry_name("a\\b".into()));
+        assert!(!path_is_safe_entry_name("foo\0bar".into()));
+        assert!(!path_is_safe_entry_name("   ".into()));
     }
 
     #[test]
