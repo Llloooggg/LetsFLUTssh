@@ -21,6 +21,7 @@
   - [3.13 Session Recording (`core/session/session_recorder.dart`)](#313-session-recording-coresessionsession_recorderdart)
   - [3.14 Rust Security/Transport Core (`rust/`)](#314-rust-securitytransport-core-rust)
   - [3.15 Sync via WebDAV (`rust/crates/lfs_core/src/sync/`)](#315-sync-via-webdav-rustcrateslfs_coresrcsync)
+  - [3.16 Rust Terminal Engine (`rust/crates/lfs_core/src/terminal/`)](#316-rust-terminal-engine-rustcrateslfs_coresrcterminal)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -3474,6 +3475,115 @@ step.
 v1 is manual-only — the user clicks "Push now" / "Pull now". An
 auto-interval timer is deferred; no background sync task runs.
 
+### 3.16 Rust Terminal Engine (`rust/crates/lfs_core/src/terminal/`)
+
+Headless terminal-emulation core: the ANSI parser, screen grid,
+scrollback, scroll-region, and selection all live Rust-side. This is
+the data-and-logic half of the terminal — the Flutter side renders a
+snapshot and forwards input. It sits in `lfs_core::terminal` with no
+`flutter_rust_bridge` dependency; the FRB bridge and the Flutter
+renderer are separate layers that consume the types described here.
+
+#### Why Rust owns the terminal
+
+Two reasons, both load-bearing:
+
+1. **The `xterm` Dart package corrupts its buffer on scroll-region
+   operations.** Deleting a line inside a scroll region (what vim does
+   constantly — `ESC[M` / `ESC[S` after `ESC[1;Nr`) left stale or
+   duplicated rows below the cut, painting as stray horizontal stripes
+   (upstream issue #222). The package is unmaintained, so the fix had to
+   come from replacing the engine.
+2. **The data-ownership pillar.** A terminal grid is persistent state and
+   parsing is logic; both belong in Rust per "Rust owns data AND logic;
+   Flutter renders". Holding the whole model in Dart was a standing
+   violation.
+
+The engine wraps [`alacritty_terminal`](https://crates.io/crates/alacritty_terminal)
+— the battle-tested model behind the Alacritty terminal — whose grid and
+scroll-region handling are the reference implementation. Its ANSI parser
+is re-exported from `vte` (`alacritty_terminal::vte::ansi`).
+
+#### Module layout
+
+| File | Surface | Purpose |
+|---|---|---|
+| `mod.rs` | `TerminalEngine`, `TerminalEvent`, `SelectionKind`, `MatchRange` | The engine: feed bytes, snapshot, resize, scroll, select, search, drain events |
+| `frame.rs` | `Frame`, `Cell`, `FrameCursor`, `FrameSelection`, `CursorShape` | Owned render snapshot DTOs — no borrows, no `alacritty_terminal`/FRB types |
+| `palette.rs` | `TermPalette`, `Rgb` | 16 ANSI colors + default fg/bg/cursor/selection + the derived 256-color cube; resolves every cell color to concrete RGB |
+
+#### Data flow
+
+```mermaid
+flowchart LR
+    SSH[SSH channel bytes] --> FEED["TerminalEngine.feed(bytes)"]
+    FEED --> PARSE["vte Processor.advance -> alacritty Term grid"]
+    PARSE --> SNAP["snapshot() -> Frame (owned)"]
+    SNAP --> RENDER[Flutter renderer]
+    PARSE --> EVQ[event queue]
+    EVQ --> DRAIN["drain_events() -> Vec&lt;TerminalEvent&gt;"]
+    DRAIN -->|PtyWrite| SSH
+    DRAIN -->|Bell / Title / Repaint / ClipboardStore| UI[UI surface]
+```
+
+`feed` parses remote output into the grid. `snapshot` produces an owned
+`Frame` for one paint — it borrows `Term` only inside the call and copies
+out, so the caller can hold the frame across `await`/FFI. Side effects the
+parser raises (cursor-position replies, bell, title, clipboard, repaint
+hints) queue up and are collected by `drain_events`.
+
+#### The `Frame` DTO and color resolution
+
+`Frame` is the complete render state for one paint: `cols`/`rows`, the
+`FrameCursor` (row/col/shape/visible), `display_offset` +`history_size`
+(scrollback position), an optional `FrameSelection`, and a **sparse**
+`Vec<Cell>` — blank default cells are omitted so the renderer clears to
+the background once and overlays only what differs.
+
+Each `Cell` carries a resolved 24-bit `fg`/`bg` (`Rgb`) and the raw
+`alacritty_terminal` attribute bits (`flags: u16` — BOLD/ITALIC/UNDERLINE/
+etc.). Color resolution happens entirely in the engine: `alacritty_terminal`
+stores abstract colors (`Named`/`Indexed`/`Spec`), so `palette.rs` maps
+the 16 ANSI names, runs the standard xterm 6×6×6 cube + grayscale ramp for
+indices 16..256, applies SGR `DIM` (halves channels) and swaps fg/bg under
+`INVERSE`. The renderer therefore never sees an abstract color — only RGB.
+Wide-character spacer cells (the trailing half of a CJK glyph) are skipped;
+the renderer paints the wide char across two columns from the leading cell.
+
+`Rgb` is a local type, deliberately not the re-exported `vte::ansi::Rgb`,
+so the future FRB boundary does not leak an upstream type.
+
+#### Events and the PtyWrite contract
+
+`TerminalEvent` maps the `alacritty_terminal` events the engine cares
+about: `PtyWrite(Vec<u8>)`, `Bell`, `Title`, `ResetTitle`, `Repaint`,
+`ClipboardStore`. **`PtyWrite` is a hard contract** — these are bytes the
+terminal generated in reply to the remote (cursor-position reports from
+`ESC[6n`, device-status replies, bracketed-paste framing) and the caller
+**must** forward them back to the SSH channel, or interactive programs
+(vim's focus/mouse probes, `tput`) misbehave. Events the engine cannot
+answer headlessly (clipboard-load and color-request carry reply closures)
+are dropped here; the live SSH layer owns those once the PTY is wired.
+
+#### Selection and search
+
+Selection is set with absolute grid coordinates (`set_selection`,
+`clear_selection`), and `selection_text` reads back the covered text via
+alacritty's own line-reconstruction (which handles wide chars and tab
+runs). `search` scans every grid line including scrollback for literal
+substring matches and returns `MatchRange`s in absolute line coordinates
+(negative line = scrollback) — this replaces the Dart buffer-walk search
+the old renderer did.
+
+#### Relation to the Dart terminal feature
+
+The Flutter terminal feature (`features/terminal/`, [§5.1](#51-terminal-with-tiling-featuresterminal))
+still describes the `xterm`-based panes today; the FRB bridge and the
+`CustomPaint` renderer that consume `Frame` land in later steps, after
+which the `xterm` dependency is removed. Until then both descriptions
+coexist: §3.16 is the Rust engine, §5.1 is the current Dart rendering
+path.
+
 ## 4. State Management — Riverpod
 
 ### 4.1 Provider Dependency Graph
@@ -3650,6 +3760,13 @@ class _FooDialogState extends State<FooDialog> {
 ## 5. Feature Modules
 
 ### 5.1 Terminal with Tiling (`features/terminal/`)
+
+> The terminal model is migrating into Rust. The headless engine (ANSI
+> parser + grid + scrollback + scroll-region + selection) now lives in
+> `lfs_core::terminal` — see [§3.16 Rust Terminal Engine](#316-rust-terminal-engine-rustcrateslfs_coresrcterminal).
+> The `xterm`-based rendering described below is the current path until
+> the FRB bridge and the `CustomPaint` renderer that consume the Rust
+> `Frame` snapshot land.
 
 #### Files
 

@@ -51,6 +51,14 @@ ed25519-dalek = { workspace = true }
 aes-gcm = { workspace = true }
 argon2 = { workspace = true }
 rusqlite = { workspace = true }
+# Headless terminal-emulation engine for `lfs_core::terminal`. The
+# battle-tested grammar + grid + scrollback + scroll-region engine
+# behind Alacritty. Replaces the unmaintained `xterm` Dart package
+# whose buffer corrupts on scroll-region ops (upstream #222). A plain
+# crate (not flutter_rust_bridge / tauri / a frontend) so it stays
+# inside the lfs_core dependency ban. The ANSI parser is re-exported
+# from `vte` (`alacritty_terminal::vte::ansi`).
+alacritty_terminal = "0.26"
 serde_json = { workspace = true }
 zip = { workspace = true }
 flate2 = { workspace = true }

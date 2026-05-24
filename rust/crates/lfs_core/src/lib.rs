@@ -98,6 +98,12 @@ pub mod storage;
 // `lfs_frb::api::sync`; the Settings UI's "Push now" / "Pull now"
 // buttons land here through that adapter.
 pub mod sync;
+// Headless terminal-emulation core: ANSI parser + grid + scrollback +
+// scroll-region + selection, owned Rust-side (the "Rust owns data AND
+// logic" pillar). Wraps `alacritty_terminal` and resolves every cell's
+// color to concrete RGB so the future FRB/Flutter renderer never sees
+// Named/Indexed colors. No FRB types here — the bridge lands later.
+pub mod terminal;
 pub mod threat_eval;
 pub mod transfer;
 pub mod transfer_conflict;
