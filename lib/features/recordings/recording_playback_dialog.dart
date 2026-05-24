@@ -10,8 +10,9 @@ import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_popup_select.dart';
-import '../../widgets/terminal/readonly_terminal_grid_view.dart';
 import '../../widgets/terminal/terminal_cell_metrics.dart';
+import '../../widgets/terminal/terminal_controller.dart';
+import '../../widgets/terminal/terminal_view.dart';
 import 'recording_reader.dart';
 
 /// Modal that replays a recording into a read-only terminal at
@@ -121,7 +122,7 @@ class _RecordingPlaybackDialogState
   /// Drives the shell-less Rust terminal engine the playback feeds into.
   /// A scrub re-feeds from `t=0` after a [_ris] reset rather than rebuilding
   /// the engine.
-  late final ReadOnlyTerminalController _controller;
+  late final ReplayTerminalController _controller;
   int _terminalCols = 80;
   int _terminalRows = 24;
 
@@ -182,7 +183,7 @@ class _RecordingPlaybackDialogState
     super.initState();
     _terminalCols = widget.meta?.header.width ?? 80;
     _terminalRows = widget.meta?.header.height ?? 24;
-    _controller = ReadOnlyTerminalController(
+    _controller = ReplayTerminalController(
       cols: _terminalCols,
       rows: _terminalRows,
     );
@@ -573,10 +574,10 @@ class _RecordingPlaybackDialogState
             child: SizedBox(
               width: terminalWidth,
               height: terminalHeight,
-              child: ReadOnlyTerminalGridView(
+              child: TerminalView(
                 controller: _controller,
+                config: const TerminalViewConfig.readOnly(),
                 fontSize: fontSize,
-                selectable: true,
               ),
             ),
           ),

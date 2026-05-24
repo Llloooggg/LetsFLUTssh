@@ -22,8 +22,9 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/terminal/connection_progress.dart';
-import '../../widgets/terminal/terminal_grid_view.dart';
+import '../../widgets/terminal/terminal_controller.dart';
 import '../../widgets/terminal/terminal_key_input.dart';
+import '../../widgets/terminal/terminal_view.dart';
 import '../../widgets/terminal/terminal_palette_theme.dart';
 import '../../widgets/terminal/terminal_pointer_input.dart';
 import '../../widgets/terminal/terminal_search_bar.dart';
@@ -33,8 +34,8 @@ import 'broadcast_controller.dart';
 import 'pane_recording_registry.dart';
 
 /// A single terminal pane — a Rust-engine-backed [rust_terminal.TerminalSession]
-/// rendered through the [TerminalGridView] cell-grid painter, connected to one
-/// SSH shell.
+/// rendered through the unified [TerminalView] (a [LiveTerminalController] over
+/// the session), connected to one SSH shell.
 ///
 /// Multiple panes can share the same [Connection] (each opens its own shell).
 /// During the connect cascade the pane shows [ConnectionProgress]; once the
@@ -94,6 +95,11 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   rust_terminal.TerminalSession? _session;
 
+  /// Controller bridging the live session's `events()`/`snapshot()` to the
+  /// [TerminalView]. Recreated on each fresh session open (the prior one is
+  /// disposed first); subscribes to `events()` exactly once, never per rebuild.
+  LiveTerminalController? _controller;
+
   /// Per-tab broadcast controller this pane is registered with, or null
   /// when the pane is not part of a tab (single-pane / test callers). Held
   /// so `dispose` can unregister this pane's sink from the same controller
@@ -111,9 +117,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   /// forks the session bytes into it while it is attached.
   SessionRecorder? _recorder;
 
-  /// Bumped each time a fresh session opens so the [TerminalGridView] (keyed
-  /// on this) tears down its old event subscription and resubscribes to the
-  /// new session's stream rather than reusing the stale one.
+  /// Bumped each time a fresh session opens so the [TerminalView] (keyed on
+  /// this) rebinds to the new [LiveTerminalController] rather than reusing the
+  /// stale one.
   int _sessionEpoch = 0;
 
   StreamSubscription<ConnectionStep>? _progressSub;
@@ -270,7 +276,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         return;
       }
       setState(() {
+        _controller?.dispose();
         _session = session;
+        _controller = LiveTerminalController(session);
         _sessionEpoch++;
         _paletteIsDark = isDark;
       });
@@ -448,6 +456,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // land before the shell closes. Best-effort, fire-and-forget.
     final recorder = _recorder;
     if (recorder != null) unawaited(recorder.close());
+    _controller?.dispose();
     _session?.dispose();
     _terminalFocus.dispose();
     _isRecording.dispose();
@@ -503,8 +512,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       );
     }
 
-    final session = _session;
-    if (session == null) {
+    final controller = _controller;
+    if (controller == null) {
       // Pre-session connect phase — reuse the shared progress surface.
       return ConnectionProgress(
         connection: widget.connection,
@@ -512,18 +521,18 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       );
     }
 
-    final grid = TerminalGridView(
-      // Re-key on the session epoch so a reconnect rebinds the event stream.
+    final grid = TerminalView(
+      // Re-key on the session epoch so a reconnect rebinds the controller.
       key: ValueKey<int>(_sessionEpoch),
-      session: session,
+      controller: controller,
+      config: const TerminalViewConfig.interactive(),
       fontSize: fontSize,
       onResize: _onResize,
       onScroll: _onScroll,
       onPointerSignal: _onPointerSignal,
       onClosed: _onSessionClosed,
-      onSetSelection: _onSetSelection,
-      onClearSelection: _onClearSelection,
-      onMouse: _onMouse,
+      onCopy: _copySelection,
+      onPaste: _pasteClipboard,
       searchMatches: _searchOpen ? _matches : const [],
       activeMatchIndex: _searchOpen ? _currentMatch : -1,
     );
@@ -577,43 +586,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (!mounted) return;
     setState(() => _error = S.of(context).errSessionClosed);
     ref.read(connectionsProvider.notifier).notifyStateChanged();
-  }
-
-  /// Apply a selection to the engine. The grid view chooses the geometry —
-  /// drag = simple, double-click = semantic (word), triple-click = lines.
-  /// Returns the FRB future so the grid view can await it and pull a fresh
-  /// snapshot — the engine raises no Wakeup for a host-driven selection.
-  Future<void> _onSetSelection(
-    int startRow,
-    int startCol,
-    int endRow,
-    int endCol,
-    rust_terminal.TerminalSelectionKind kind,
-  ) {
-    final session = _session;
-    if (session == null) return Future<void>.value();
-    return session.setSelection(
-      startRow: startRow,
-      startCol: startCol,
-      endRow: endRow,
-      endCol: endCol,
-      kind: kind,
-    );
-  }
-
-  void _onClearSelection() {
-    final session = _session;
-    if (session == null) return;
-    unawaited(session.clearSelection());
-  }
-
-  /// Forward a mouse report to the running program. The engine re-reads its
-  /// mode and drops the report when the program does not track that event,
-  /// so the pane forwards unconditionally.
-  void _onMouse(rust_terminal.TerminalMouseInput event) {
-    final session = _session;
-    if (session == null) return;
-    unawaited(session.sendMouse(event: event));
   }
 
   void _maybeRepushPalette() {

@@ -7,7 +7,8 @@ import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
 import 'progress_writer.dart';
-import 'readonly_terminal_grid_view.dart';
+import 'terminal_controller.dart';
+import 'terminal_view.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Displays structured connection progress through the Rust terminal engine —
@@ -34,7 +35,7 @@ class ConnectionProgress extends StatefulWidget {
 }
 
 class ConnectionProgressState extends State<ConnectionProgress> {
-  late final ReadOnlyTerminalController _controller;
+  late final ReplayTerminalController _controller;
   ProgressTracker? _tracker;
   late ProgressWriter _writer;
   StreamSubscription<ConnectionStep>? _sub;
@@ -42,11 +43,7 @@ class ConnectionProgressState extends State<ConnectionProgress> {
   @override
   void initState() {
     super.initState();
-    _controller = ReadOnlyTerminalController(
-      cols: 80,
-      rows: 24,
-      scrollback: 50,
-    );
+    _controller = ReplayTerminalController(cols: 80, rows: 24, scrollback: 50);
     _tracker = ProgressTracker(widget.connection);
   }
 
@@ -84,11 +81,11 @@ class ConnectionProgressState extends State<ConnectionProgress> {
 
   @override
   Widget build(BuildContext context) {
-    return ReadOnlyTerminalGridView(
+    return TerminalView(
       controller: _controller,
+      config: const TerminalViewConfig.readOnly(),
       fontSize: widget.fontSize,
       reportResize: true,
-      selectable: true,
     );
   }
 }

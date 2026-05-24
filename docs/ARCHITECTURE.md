@@ -263,7 +263,7 @@ lib/
 │   │   ├── paste_import_link_dialog.dart, ssh_dir_import_dialog.dart, local_directory_picker.dart
 │   │   └── file_conflict_dialog.dart # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
 │   └── terminal/                     # Terminal rendering widgets (engine in features/terminal)
-│       ├── terminal_grid_view.dart, terminal_grid_painter.dart, readonly_terminal_grid_view.dart
+│       ├── terminal_view.dart, terminal_controller.dart, terminal_grid_painter.dart
 │       ├── terminal_cell_metrics.dart, terminal_cell_flags.dart, terminal_palette_theme.dart
 │       └── connection_progress.dart, progress_writer.dart, update_progress_indicator.dart
 ├── theme/                            # OneDark / One Light palettes
@@ -330,7 +330,7 @@ abstract class SshTransport {
 }
 ```
 
-`openTerminalSession` returns the FRB `TerminalSession` rather than the raw `SshSession`, so the connection actor's session never leaves the transport — the renderer (`TerminalGridView`, [§5.1](#desktop-rendering--custompaint-cell-grid)) only ever sees the terminal handle. The Rust core opens the PTY shell and builds the engine + pump inside `terminalSessionOpen`; the session is the single consumer of the shell's read-half, so this path does not coexist with `openShell` on the same logical terminal.
+`openTerminalSession` returns the FRB `TerminalSession` rather than the raw `SshSession`, so the connection actor's session never leaves the transport — the renderer (`TerminalView`, [§5.1](#desktop-rendering--custompaint-cell-grid)) only ever sees the terminal handle. The Rust core opens the PTY shell and builds the engine + pump inside `terminalSessionOpen`; the session is the single consumer of the shell's read-half, so this path does not coexist with `openShell` on the same logical terminal.
 
 The Rust connection actor owns the connect handshake itself — `connectAsync` in `ConnectionsNotifier` enqueues an `lfs_core::connection::ConnectCommand` over FRB; the actor authenticates via russh, publishes `BusEvent::ConnectionStateChanged(Connected)`, and the Dart `Connection` hands the resulting handle to `RustTransport.adopt(session)` (see `_adoptSession` in [§3.5](#35-connection-lifecycle-coreconnection)).
 
@@ -923,7 +923,7 @@ flag the sidebar mutates as the user clicks chevrons).
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
 | `connection_step_mappers.dart` | Bus → `ConnectionStep` mappers | Translates `BusEvent::ConnectionProgress` payloads into the Dart `ConnectionStep` shape the progress tracker consumes. |
 | `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
-| `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to a `ReadOnlyTerminalController` (Rust engine, shared by desktop and mobile terminal views) |
+| `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to a `ReplayTerminalController` (Rust engine, shared by desktop and mobile terminal views) |
 | `connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, bus subscription |
 | `connection_extension.dart` | `ConnectionExtension` interface | Lifecycle hook contract (`onConnected` / `onDisconnecting` / `onReconnecting`) used by port forwards, recorder, etc. — see [ConnectionExtension](#connectionextension--lifecycle-add-ons) below. |
 | `foreground_service.dart` | `ForegroundServiceManager` | Android: foreground service for SSH keep-alive on screen lock |
@@ -2085,7 +2085,7 @@ Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security
 
 *Fallback:* the failure posture is platform-aware. Linux has no cloud-clipboard default — a Rust-path failure there falls through to Flutter's stock `Clipboard.setData` and the wipe timer still runs. Windows / macOS / iOS / Android **refuse** the write on failure and `setText` returns `false` — landing a secret on a cloud-syncing pasteboard without the per-platform opt-out flags would expose it to history rings the 30-second timer cannot retract. Callers (`ClipboardSecret.copySecret`, `qr_display_screen`) propagate the `false` to the UI so the user sees a "copy failed" toast instead of silently leaking material into Win+V / Universal Clipboard / iCloud-synced clipboard / the Android 13+ history preview.
 
-*Terminal-copy integration.* [`TerminalClipboard.copyText`](../lib/utils/terminal_clipboard.dart) runs the sensitivity heuristic on the selected text and routes through `SecureClipboard` when the selection matches (PEM private-key markers or a ≥ 200-char base64-alphabet run); non-sensitive selections take the stock `Clipboard.setData` path so routine copies (filenames, command fragments) still benefit from Win+V / Handoff. Without this branch, a terminal user running `cat ~/.ssh/id_ed25519` or `vault kv get secret/api-token` would land the secret in Windows clipboard-history / iCloud-synced pasteboard / Android 13+ preview toast — the 30-second auto-wipe protects the live slot but cannot retract what the sync layers already ingested. Regression guards: `test/utils/terminal_clipboard_test.dart` "sensitive text routes through SecureClipboard (no stock fallback)" and `test/widgets/terminal/readonly_terminal_grid_view_test.dart` "Ctrl+C routes a sensitive selection through SecureClipboard". Both exercise the routing through the `SecureClipboard.debugRustWriterOverride` / `TerminalClipboard.debugHashOverride` / `debugRustCompareAndClearOverride` seams so a sensitive copy is testable without an FRB runtime (no real `osSecuritySetSecureClipboard` / `cryptoSha256Hex` call to wedge the headless test isolate).
+*Terminal-copy integration.* [`TerminalClipboard.copyText`](../lib/utils/terminal_clipboard.dart) runs the sensitivity heuristic on the selected text and routes through `SecureClipboard` when the selection matches (PEM private-key markers or a ≥ 200-char base64-alphabet run); non-sensitive selections take the stock `Clipboard.setData` path so routine copies (filenames, command fragments) still benefit from Win+V / Handoff. Without this branch, a terminal user running `cat ~/.ssh/id_ed25519` or `vault kv get secret/api-token` would land the secret in Windows clipboard-history / iCloud-synced pasteboard / Android 13+ preview toast — the 30-second auto-wipe protects the live slot but cannot retract what the sync layers already ingested. Regression guards: `test/utils/terminal_clipboard_test.dart` "sensitive text routes through SecureClipboard (no stock fallback)" and `test/widgets/terminal/terminal_view_test.dart` "Ctrl+C routes a sensitive selection through SecureClipboard". Both exercise the routing through the `SecureClipboard.debugRustWriterOverride` / `TerminalClipboard.debugHashOverride` / `debugRustCompareAndClearOverride` seams so a sensitive copy is testable without an FRB runtime (no real `osSecuritySetSecureClipboard` / `cryptoSha256Hex` call to wedge the headless test isolate).
 
 #### Password entry widget
 
@@ -3713,8 +3713,8 @@ after each feed and **discards** it: a replay has no shell to forward a
 query like `ESC[6n` produces one), and no host wired to bell / title on these
 surfaces — but it still drains so the queue cannot grow unbounded across a
 long replay. There is no event stream: the feeder triggers its own repaint
-after each feed (the Dart `ReadOnlyTerminalController` bumps a `ChangeNotifier`
-the `ReadOnlyTerminalGridView` listens to — see
+after each feed (the Dart `ReplayTerminalController` bumps a `ChangeNotifier`
+the `TerminalView` listens to — see
 [§5.1 read-only rendering](#read-only-rendering--terminalreplay)).
 
 #### Key encoding — Rust-owned, mode-driven (`lfs_core::terminal::input`)
@@ -4041,14 +4041,21 @@ class _FooDialogState extends State<FooDialog> {
 > The terminal model is migrating into Rust. The headless engine (ANSI
 > parser + grid + scrollback + scroll-region + selection) lives in
 > `lfs_core::terminal` — see [§3.16 Rust Terminal Engine](#316-rust-terminal-engine-rustcrateslfs_coresrcterminal).
-> The **desktop pane** now renders that engine through a `CustomPaint`
-> cell grid (`TerminalGridView` / `TerminalGridPainter`) fed by the FRB
-> `TerminalSession` — see [Desktop rendering](#desktop-rendering--custompaint-cell-grid) below.
+> **Every** terminal surface renders through one widget, `TerminalView`
+> (over the shared `TerminalGridPainter`), backed by a `TerminalController`
+> abstraction — a `LiveTerminalController` wrapping the FRB `TerminalSession`
+> for the interactive pane, or a `ReplayTerminalController` wrapping a
+> shell-less `TerminalReplay` for the read-only surfaces. A
+> `TerminalViewConfig` selects which features the surface exposes (input,
+> select+copy, paste, mouse reporting, search, cursor) — see
+> [The unified TerminalView](#the-unified-terminalview) below. The **desktop
+> pane** uses `TerminalViewConfig.interactive()` (see
+> [Desktop rendering](#desktop-rendering--custompaint-cell-grid)).
 > **Recording playback**, the **connection-progress output**, and the
-> **read-only log viewer** render through the Rust engine too, over a
+> **read-only log viewer** use `TerminalViewConfig.readOnly()` over a
 > shell-less `TerminalReplay` (see [Read-only rendering](#read-only-rendering--terminalreplay)
-> below). The **mobile pane** renders the same engine through the shared
-> `TerminalGridView` (see [Mobile pane](#mobile-pane--rust-engine) below).
+> below). The **mobile pane** uses the same `TerminalView` with a
+> render-only config (see [Mobile pane](#mobile-pane--rust-engine) below).
 > **Keyboard input**
 > is encoded Rust-side via `TerminalSession.sendKey` / `paste` (see
 > [Keyboard input](#keyboard-input--rust-encoded) below). **Selection +
@@ -4066,20 +4073,20 @@ class _FooDialogState extends State<FooDialog> {
 | File | Class | Purpose |
 |------|-------|---------|
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
-| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport and renders it via `TerminalGridView`. Owns the keyboard `Focus`; `handleKey` dispatches zoom / copy / paste / search combos then forwards keystrokes through `session.sendKey`. Orchestrates selection (`setSelection`/`clearSelection`), copy (via `TerminalClipboard`), mouse reports (`sendMouse`), and the search bar (`search` + next/prev + scroll-to-match). Registers a `PaneRecordingHandle` and drives the recorder via `session.setRecorder`; fans driver input into the per-tab `BroadcastController`. Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
+| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport, wraps it in a `LiveTerminalController`, and renders it via `TerminalView` (`TerminalViewConfig.interactive()`). Owns the keyboard `Focus`; `handleKey` dispatches zoom / copy / paste / search combos then forwards keystrokes through `session.sendKey`. The view itself drives selection / mouse reporting / wheel through the controller; the pane wires the context-menu Copy/Paste to its own `_copySelection`/`_pasteClipboard` (sensitive-copy routing) and runs the search bar (`search` + next/prev + scroll-to-match). Registers a `PaneRecordingHandle` and drives the recorder via `session.setRecorder`; fans driver input into the per-tab `BroadcastController`. Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
 | `widgets/terminal/terminal_key_input.dart` | `terminalKeyFromEvent` | Pure `KeyEvent` + held-modifiers → `TerminalKey` descriptor mapping (logical key + modifier bools). The VT byte encoding itself lives Rust-side; this only normalises the platform event. |
 | `widgets/terminal/terminal_pointer_input.dart` | `pointerToCell`, `routePointerGesture`, `routeWheelGesture`, `highlightRectsForMatches`, `scrollDeltaToRevealLine` | Pure pointer-input math: pixel→cell mapping (viewport + absolute row), the report-vs-select / report-vs-scroll routing decision given mouse-tracking level + Shift, search-match → viewport-rect projection, and the scroll delta to reveal a match. Free of any live session so it is unit-testable without FFI. |
-| `widgets/terminal/terminal_grid_view.dart` | `TerminalGridView`, `MouseActionKind` | `StatefulWidget` that subscribes to `TerminalSession.events()`, pulls a fresh `snapshot()` on each coalesced `Wakeup`, repaints once per frame, computes cols/rows from `measureMonoCell` and reports resize. Owns pointer input: a primary drag drives a local character selection, a double-click a word and a triple-click a whole line (or a mouse report under tracking), a wheel scrolls scrollback (or reports under tracking), and Shift forces local handling. Projects `searchMatches` onto the viewport for the painter. Live-session + `.fromSource` DI constructor (snapshot fn + event stream) for tests. |
+| `widgets/terminal/terminal_view.dart` | `TerminalView`, `TerminalViewConfig`, `MouseActionKind` | The single terminal renderer. `StatefulWidget` over a `TerminalController`: listens to the controller's `repaint` `Listenable`, pulls a fresh `snapshot()` on each notify (coalesced one pull per frame + `scheduleFrame` so streamed output repaints while idle), forwards the controller's `uiEvents` (title/bell/clipboard/closed) to host callbacks, computes cols/rows from `measureMonoCell` and reports resize. Per `TerminalViewConfig`: pointer drag → local character/word/line selection (or a mouse report under tracking, Shift forcing local), wheel → scrollback (or report under tracking), right-click → Copy/Paste/Select-All context menu built from the enabled capabilities. Projects `searchMatches` onto the viewport for the painter. |
+| `widgets/terminal/terminal_controller.dart` | `TerminalController`, `LiveTerminalController`, `ReplayTerminalController` | The abstraction the view renders. `LiveTerminalController` wraps a `TerminalSession`: subscribes `events()` **once**, bridges `Wakeup` into the `repaint` signal and the rest onto a `uiEvents` stream; full capabilities (input, paste, mouse, search). `ReplayTerminalController` wraps a shell-less `TerminalReplay`: `feed`/`clear`/`resize`/`setSelection`/`selectionText`, `repaint` is itself (a `ChangeNotifier`), `uiEvents` null, live-only capabilities inert no-ops. |
 | `widgets/terminal/terminal_search_bar.dart` | `TerminalSearchBar` | In-terminal search input: owns its text buffer, focus, and a 200 ms debounce; reports query changes / next / prev / close to the pane, which runs the Rust `search` and feeds back the `current/total` label. Reuses the known-hosts search-field shape. |
 | `widgets/terminal/terminal_grid_painter.dart` | `TerminalGridPainter`, `TerminalSelectionRect`, `selectionRects`, `TerminalHighlightRect` | `CustomPainter` that paints one sparse `TerminalFrame`: per-cell background rects, search-match highlights (active match in a stronger color), glyph runs, cursor (with inverted glyph under a block), and the selection highlight. `selectionRects` is the pure linear/block geometry helper. |
 | `widgets/terminal/terminal_cell_flags.dart` | `TerminalCellFlags` | Single decode point for the raw `alacritty_terminal` attribute bitfield (bold / italic / underline / strikeout / hidden / wide). Constants mirror `alacritty_terminal-0.26.0/src/term/cell.rs`. |
 | `widgets/terminal/terminal_palette_theme.dart` | `TerminalPaletteFromTheme` | Maps the live `AppTheme.term*` swatches (dark + light) into the FRB `TerminalPalette` DTO pushed at open and re-pushed via `setPalette` on a brightness change. |
-| `widgets/terminal/readonly_terminal_grid_view.dart` | `ReadOnlyTerminalController`, `ReadOnlyTerminalGridView` | Read-only rendering over a shell-less `TerminalReplay`: the controller (widget-local `ChangeNotifier`) feeds bytes + bumps a repaint signal; the view re-pulls a `snapshot()` and paints it through `TerminalGridPainter` with no input / selection / mouse. Backs recording playback, connection-progress output, and the log viewer — see [Read-only rendering](#read-only-rendering--terminalreplay). |
 | `tiling_view.dart` | `TilingView` | Recursive split-tree renderer. Drives terminal-pane tiling: `BranchNode`s are created by the divider drag handler + the Ctrl+\\ / Ctrl+Shift+\\ duplicate-shortcut path; `LeafNode`s materialise per pane. |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
 | `pane_recording_registry.dart` | `PaneRecordingRegistry`, `PaneRecordingHandle` | Global pane-id → recording-handle lookup so the workspace connection-bar record button (a different subtree) can read `isRecording` / `canRecord` and `toggle` the focused pane's recorder. |
 | `broadcast_controller.dart` | `BroadcastController`, `BroadcastInput` (`BroadcastKey` / `BroadcastBytes`) | Per-tab fan-out for terminal broadcast input — see [Broadcast](#broadcast--input-mirroring). Wired to terminal panes via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`; driver + receiver roles set through the pane context menu. Fans a high-level `BroadcastInput` (a `TerminalKey` or pre-encoded bytes) so each receiver re-encodes against its own mode. |
-| `mobile/mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen mobile pane on the Rust engine: opens a `TerminalSession`, renders it through `TerminalGridView`, captures soft-keyboard text via a hidden `EditableText` (each char → `sendKey`), drives the `SshKeyboardBar` and the trackpad copy overlay. |
+| `mobile/mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen mobile pane on the Rust engine: opens a `TerminalSession`, wraps it in a `LiveTerminalController`, renders it through `TerminalView` with a render-only config (`readOnly(selectable: false, showCursor: true)` — input comes from the IME field, selection from the copy overlay), captures soft-keyboard text via a hidden `EditableText` (each char → `sendKey`), drives the `SshKeyboardBar` and the trackpad copy overlay. |
 | `mobile/ssh_keyboard_bar.dart` | `SshKeyboardBar` | Virtual SSH key bar: emits logical `TerminalKey`s (Esc / Tab / arrows / Fn / chars) with sticky Ctrl / Alt folded into the modifier flags, via `onKey`. |
 | `mobile/ssh_keyboard_keys.dart` | `charKey`, `namedKey`, `SshBarKeys` | Pure on-bar-key → `TerminalKey` mapping (modifiers folded in); unit-tested without a live session. |
 | `mobile/terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style copy mode driving the engine selection: a virtual cursor pans in cell units, "Set anchor" drops the start, and pans extend via `onSetSelection` (absolute coords) → `session.setSelection`; copy reads `session.selectionText`. |
@@ -4116,24 +4123,115 @@ BranchNode(horizontal, 0.5)
 - `removeNode(id)` — remove a pane (branch → remaining child)
 - `collectLeafIds()` — all pane IDs (for iteration)
 
+#### The unified TerminalView
+
+Every terminal surface — interactive SSH pane, mobile pane, recording
+playback, connection progress, log viewer — renders through **one** widget,
+`TerminalView`, parameterised by a `TerminalController` (the engine adapter)
+and a `TerminalViewConfig` (the feature flags). The two were unified because
+they had drifted: a forked read-only view had grown a right-click Copy /
+Select-All menu the interactive grid never got, so the live SSH terminal had
+no context menu at all. Folding them into one widget means every feature lives
+once and is toggled by config, not duplicated per surface.
+
+```mermaid
+classDiagram
+  class TerminalController {
+    <<abstract>>
+    +snapshot() TerminalFrame
+    +repaint Listenable
+    +uiEvents Stream?
+    +resize(cols, rows)
+    +setSelection(...)
+    +clearSelection()
+    +selectionText() Future
+    +isLive bool
+    +scroll(delta)
+    +sendKey(key)
+    +paste(text)
+    +writeInput(bytes)
+    +sendMouse(event)
+    +search(query) Future
+  }
+  class LiveTerminalController {
+    wraps TerminalSession
+    events() subscribed once
+    Wakeup -> repaint
+    other events -> uiEvents
+  }
+  class ReplayTerminalController {
+    wraps TerminalReplay
+    is a ChangeNotifier
+    feed / clear / setPalette
+    uiEvents == null
+    live-only caps are no-ops
+  }
+  TerminalController <|-- LiveTerminalController
+  TerminalController <|-- ReplayTerminalController
+  TerminalView --> TerminalController : renders
+  TerminalView --> TerminalViewConfig : gated by
+```
+
+**`TerminalController`.** The union of operations the view needs. The FRB
+opaque handles (`TerminalSession`, `TerminalReplay`) cannot implement a Dart
+interface directly, so each is wrapped: `LiveTerminalController` exposes full
+capabilities and subscribes `events()` **exactly once** (calling `events()`
+per rebuild would mint a fresh FRB stream each time and drop pump wakeups while
+posting to torn-down sinks — the "Fail to post message to Dart" spam), bridging
+each `Wakeup` into a public `repaint` `Listenable` and every other event onto a
+`uiEvents` stream. `ReplayTerminalController` is a `ChangeNotifier` over a
+shell-less `TerminalReplay` whose `repaint` is itself, `uiEvents` is null, and whose
+live-only methods (`sendKey`/`paste`/`writeInput`/`sendMouse`/`scroll`/`search`)
+inherit inert base no-ops — the read-only config never enables the features that
+would call them. The host disposes the controller; the live adapter does **not**
+dispose its wrapped session (the pane owns that lifecycle, recorder and all).
+
+**`TerminalViewConfig`.** Independent flags — `interactive` (route keys to the
+host's `onKey`), `selectable` (drag-select + copy + select-all), `pasteable`
+(paste shortcut + menu item), `mouseReportable` (route pointers to `sendMouse`
+under tracking; Shift forces local selection), `searchable`, `showCursor` —
+with two factories: `interactive()` turns everything on, `readOnly()` defaults
+to select+copy with the cursor hidden and the rest off. A debug `assert` in the
+view rejects a config that enables live-only flags on a non-live controller, so
+a misconfigured surface fails loud rather than rendering an inert "interactive"
+terminal.
+
+**Context menu (capability-built).** On a right-click (when not
+mouse-reporting) the view opens an `AppContextMenu` whose items are assembled
+from the live capabilities: **Copy** (only when `selectionText` is non-empty),
+**Paste** (when `pasteable` and an `onPaste` hook is wired), **Select All**
+(when `selectable`). Copy prefers the host's `onCopy` (the live pane routes
+through its `TerminalClipboard` sensitive-copy path); a read-only surface with
+no host copy hook falls back to the view's built-in copy (read `selectionText`,
+write `TerminalClipboard`, clear). This is the bug fix — the interactive pane
+now has the same right-click menu the read-only surfaces always had.
+
+**Key handling.** An `interactive` surface routes keys through the **host's**
+`Focus` (`TerminalPane.handleKey`), so the view installs no key handler. A
+`selectable`-but-not-`interactive` surface (the read-only copy targets) installs
+its **own** `Focus` + copy shortcuts (`Ctrl+C` / `Cmd+C` / `Ctrl+Shift+C`),
+since those surfaces have no host key path and plain `Ctrl+C` is free to copy
+(no SIGINT to reserve it for).
+
 #### Desktop rendering — `CustomPaint` cell grid
 
 ```mermaid
 flowchart TD
   conn["Connection (transport adopted)"] -->|openTerminalSession cols,rows,scrollback,palette| sess["Rust TerminalSession"]
-  sess -->|events Stream| view["TerminalGridView"]
-  view -->|on Wakeup: snapshot| frame["TerminalFrame (sparse)"]
+  sess -->|LiveTerminalController: events() once| ctrl["TerminalController.repaint / uiEvents"]
+  ctrl -->|repaint notify: snapshot| frame["TerminalFrame (sparse)"]
   frame --> painter["TerminalGridPainter.paint"]
+  view["TerminalView (interactive config)"] --> ctrl
   view -->|layout → measureMonoCell| resize["onResize → session.resize"]
   view -->|wheel| scroll["onScroll → session.scroll"]
   theme["AppTheme brightness flip"] -->|setPalette| sess
 ```
 
-**Open + render path.** Once the connection's transport is adopted, `TerminalPane` calls `SshTransport.openTerminalSession(cols, rows, scrollback, palette)`. The Rust core opens the PTY shell, builds the engine + pump, and returns a `TerminalSession` handle — the raw `SshSession` never crosses back to the pane (the transport keeps it; the pane only ever holds the terminal handle). `TerminalGridView` subscribes to `session.events()`; on each coalesced `Wakeup` it pulls a fresh sync `session.snapshot()` and schedules one repaint per vsync via a post-frame gate, so a busy output burst still repaints once per frame.
+**Open + render path.** Once the connection's transport is adopted, `TerminalPane` calls `SshTransport.openTerminalSession(cols, rows, scrollback, palette)`. The Rust core opens the PTY shell, builds the engine + pump, and returns a `TerminalSession` handle — the raw `SshSession` never crosses back to the pane (the transport keeps it; the pane only ever holds the terminal handle). The pane wraps the handle in a `LiveTerminalController`, which subscribes `session.events()` once; on each coalesced `Wakeup` (bridged into the controller's `repaint`) `TerminalView` pulls a fresh sync `session.snapshot()` and schedules one repaint per vsync via a post-frame gate plus `scheduleFrame`, so a busy output burst still repaints once per frame and streamed output repaints even while the app is otherwise idle.
 
 **Sparse frame + flags decode.** A `TerminalFrame` carries only non-blank cells (the engine omits blank default-background cells). `TerminalGridPainter` clears to the default background once via the host `ColoredBox`, then for each cell paints its background rect (skipped when it equals the default bg), and overlays the glyph at the cell's `row`/`col` × cell-metric origin (`ch` → `String.fromCharCode`). `INVERSE` and `DIM` are already folded into the cell's concrete `fg`/`bg` Rust-side, so the painter never resolves color; the remaining attribute bits are decoded in exactly one place — `TerminalCellFlags.fromBits` — whose constants mirror `alacritty_terminal`'s `term::cell::Flags` (`BOLD`→weight, `ITALIC`→italic, `UNDERLINE`/`STRIKEOUT`→decoration, `HIDDEN`→skip glyph, `WIDE_CHAR`→two-column span). The block cursor re-draws the covered glyph in the background color for the classic inverted-cursor look. `shouldRepaint` keys off a monotonic frame revision the view bumps per pull (cheaper than a deep `cells` compare and never misses a frame that value-equals a prior one).
 
-**Cell metrics + resize.** `TerminalGridView` measures one cell with the shared `measureMonoCell` (1.2 line-height, scaled by `MediaQuery.textScalerOf`) so glyph baselines land on the grid, floors the laid-out size to whole cells, and reports `(cols, rows)` to the pane, which forwards to `session.resize`. Flooring stops the remote PTY from wrapping into a column the grid can't show.
+**Cell metrics + resize.** `TerminalView` measures one cell with the shared `measureMonoCell` (1.2 line-height, scaled by `MediaQuery.textScalerOf`) so glyph baselines land on the grid, floors the laid-out size to whole cells, and reports `(cols, rows)` to the pane, which forwards to `session.resize`. Flooring stops the remote PTY from wrapping into a column the grid can't show.
 
 **Palette push.** `TerminalPaletteFromTheme.fromAppTheme()` maps the live `AppTheme.term*` swatches into the FRB `TerminalPalette` (16 ANSI + default fg/bg/cursor/selection); it is passed at open and re-pushed via `session.setPalette` when `AppTheme` brightness flips, so a theme toggle re-themes the terminal (the engine re-resolves abstract cell colors against the new palette on the next snapshot).
 
@@ -4164,22 +4262,22 @@ flowchart TD
   seltext --> clip["TerminalClipboard.copyText (SecureClipboard + 30s auto-wipe)"]
 ```
 
-`TerminalGridView` owns pointer input. On a pointer-down it reads the current frame's `mouseTracking` level and the live Shift state and calls `routePointerGesture`:
+`TerminalView` owns pointer input (under a `selectable` / `mouseReportable` config). On a pointer-down it reads the current frame's `mouseTracking` level and the live Shift state and calls `routePointerGesture`:
 
-- **No tracking, or Shift held** → **local text selection**. The down clears any prior selection and anchors a drag; each move maps the pixel offset to a cell via `pointerToCell` (subtracting the frame's `displayOffset` to recover the absolute grid line) and calls `onSetSelection(start, end, kind)`, which the pane forwards to `session.setSelection(...)`. The **geometry** is chosen from a multi-tap count the view folds forward on each down (`nextTapCount` / `selectionKindForTapCount` in `terminal_pointer_input.dart`, both pure + unit-tested): a plain drag is `Simple`, a **double-click** is `Semantic` (whole word), a **triple-click** is `Lines` (whole line). A press extends the run only when it lands on the same cell within `kTerminalMultiTapWindow` (400 ms, matching the app's other manual double-tap windows — `GestureDetector.onDoubleTap` is avoided because its tap-delay conflicts with drags); the run caps at 3, so a fourth fast click stays a triple. For `Semantic`/`Lines` the start and end collapse onto one cell and the engine expands the span at read-back. Because the engine raises **no `Wakeup`** for a host-driven selection, the view awaits the FRB future and pulls a fresh snapshot itself so the highlight paints. A single click that does not move clears the collapsed 1-cell selection so a stray click leaves nothing to copy — a double / triple click is kept (it is a real word / line selection).
-- **Tracking on, no Shift** → **mouse report**. The press/move/release (and wheel, as buttons 64/65) become a `TerminalMouseInput` (1-based cell coords) forwarded to `session.sendMouse`, which re-reads the live mode and runs `encode_mouse` Rust-side (see [§3.16 Mouse reporting](#mouse-reporting--rust-owned-mode-gated)). The drag latches its mode at down-time so it stays in report (or select) for the whole gesture.
+- **No tracking, or Shift held** → **local text selection**. The down clears any prior selection and anchors a drag; each move maps the pixel offset to a cell via `pointerToCell` (subtracting the frame's `displayOffset` to recover the absolute grid line) and calls the controller's `setSelection(start, end, kind)` (the live adapter forwards to `session.setSelection(...)`). The **geometry** is chosen from a multi-tap count the view folds forward on each down (`nextTapCount` / `selectionKindForTapCount` in `terminal_pointer_input.dart`, both pure + unit-tested): a plain drag is `Simple`, a **double-click** is `Semantic` (whole word), a **triple-click** is `Lines` (whole line). A press extends the run only when it lands on the same cell within `kTerminalMultiTapWindow` (400 ms, matching the app's other manual double-tap windows — `GestureDetector.onDoubleTap` is avoided because its tap-delay conflicts with drags); the run caps at 3, so a fourth fast click stays a triple. For `Semantic`/`Lines` the start and end collapse onto one cell and the engine expands the span at read-back. Because the engine raises **no `Wakeup`** for a host-driven selection, the view awaits the FRB future and pulls a fresh snapshot itself so the highlight paints. A single click that does not move clears the collapsed 1-cell selection so a stray click leaves nothing to copy — a double / triple click is kept (it is a real word / line selection).
+- **Tracking on, no Shift** → **mouse report**. The press/move/release (and wheel, as buttons 64/65) become a `TerminalMouseInput` (1-based cell coords) forwarded to the controller's `sendMouse` → `session.sendMouse`, which re-reads the live mode and runs `encode_mouse` Rust-side (see [§3.16 Mouse reporting](#mouse-reporting--rust-owned-mode-gated)). The drag latches its mode at down-time so it stays in report (or select) for the whole gesture.
 
-**Copy.** Ctrl+Shift+C reads `session.selectionText()` and, when non-empty, routes through `TerminalClipboard.copyText` — the same `SecureClipboard` + 30 s sensitive-copy auto-wipe path the old renderer used (see [TerminalClipboard](#terminalclipboard)) — then clears the selection. It works for any geometry: drag (character), double-click (word), and triple-click (line) all leave their text in the Rust-side selection for copy to read.
+**Copy.** Ctrl+Shift+C (the pane's `onCopy`) reads `session.selectionText()` and, when non-empty, routes through `TerminalClipboard.copyText` — the same `SecureClipboard` + 30 s sensitive-copy auto-wipe path (see [TerminalClipboard](#terminalclipboard)) — then clears the selection. It works for any geometry: drag (character), double-click (word), and triple-click (line) all leave their text in the Rust-side selection for copy to read. The same Copy item is reachable from the right-click [context menu](#the-unified-terminalview).
 
 #### In-terminal search
 
-Ctrl+Shift+F opens `TerminalSearchBar` above the grid (Esc / the close button hide it; Esc only closes while the bar is open so it still reaches the shell otherwise). The bar owns only its text buffer + a 200 ms debounce; on each query change the pane runs `session.search(query)` (Rust-side per-line substring scan over grid + scrollback) and holds the `List<TerminalMatch>` in absolute grid-line coordinates plus the current-match index. `TerminalGridView` projects those matches onto the live viewport each build via `highlightRectsForMatches` (so highlights track scrolling) and paints them under the glyphs, the focused match in a stronger color. Next / prev (buttons or Enter / Shift+Enter) advance the index and call `scrollDeltaToRevealLine` → `session.scroll` so the focused match is always on screen; the `current/total` count comes from the Rust-computed list, not a Dart re-count.
+Ctrl+Shift+F opens `TerminalSearchBar` above the grid (Esc / the close button hide it; Esc only closes while the bar is open so it still reaches the shell otherwise). The bar owns only its text buffer + a 200 ms debounce; on each query change the pane runs `session.search(query)` (Rust-side per-line substring scan over grid + scrollback) and holds the `List<TerminalMatch>` in absolute grid-line coordinates plus the current-match index. `TerminalView` projects those matches onto the live viewport each build via `highlightRectsForMatches` (so highlights track scrolling) and paints them under the glyphs, the focused match in a stronger color. Next / prev (buttons or Enter / Shift+Enter) advance the index and call `scrollDeltaToRevealLine` → `session.scroll` so the focused match is always on screen; the `current/total` count comes from the Rust-computed list, not a Dart re-count.
 
 #### Mobile pane — Rust engine
 
-`MobileTerminalView` renders the same Rust `TerminalSession` as the desktop pane, through the shared `TerminalGridView` — no fork of the paint or input logic. It opens the session once the transport is adopted (after a post-frame delay so the grid reports the real viewport size before the shell opens), pushes the palette, and re-pushes it on a brightness flip. Single-pane, full screen — no tiling, no broadcast (there is no second pane in a mobile tab to mirror to).
+`MobileTerminalView` renders the same Rust `TerminalSession` as the desktop pane, through the shared `TerminalView` (a `LiveTerminalController` + a render-only config — `selectable: false`, `showCursor: true`, no key/mouse routing, since input comes from the IME field and selection from the copy overlay) — no fork of the paint or input logic. It opens the session once the transport is adopted (after a post-frame delay so the grid reports the real viewport size before the shell opens), pushes the palette, and re-pushes it on a brightness flip. Single-pane, full screen — no tiling, no broadcast (there is no second pane in a mobile tab to mirror to).
 
-**Soft-keyboard capture.** The grid view owns hardware-key input via its `Focus`; the soft keyboard needs a text client. A zero-size offstage `EditableText` (`_buildImeCapture`) owns the IME — a tap on the terminal area focuses it (industry-standard: one explicit tap rather than auto-opening the keyboard). Each `onChanged` diff is the freshly-typed text (the field is cleared after every change — the terminal owns the real buffer), sent one `TerminalKey` per character through `session.sendKey` so the bar's sticky Ctrl / Alt fold in.
+**Soft-keyboard capture.** The render-only `TerminalView` installs no key handler on mobile; the soft keyboard needs a text client. A zero-size offstage `EditableText` (`_buildImeCapture`) owns the IME — a tap on the terminal area focuses it (industry-standard: one explicit tap rather than auto-opening the keyboard). Each `onChanged` diff is the freshly-typed text (the field is cleared after every change — the terminal owns the real buffer), sent one `TerminalKey` per character through `session.sendKey` so the bar's sticky Ctrl / Alt fold in.
 
 **On-bar keys.** `SshKeyboardBar` emits logical `TerminalKey`s (Esc / Tab / arrows / Fn / `|` `~` `/` `-`) via `onKey`, with the sticky Ctrl / Alt modifiers folded into the key flags — `TerminalSession.sendKey` then encodes the VT bytes against the live mode (so an arrow flips to SS3 under DECCKM exactly as on desktop). The pure mapping lives in `ssh_keyboard_keys.dart`. Snippets go through `session.writeInput`; paste through `session.paste`.
 
@@ -4198,7 +4296,7 @@ bytes and paint:
 - **Connection-progress output** (`widgets/terminal/connection_progress.dart` + `progress_writer.dart`) — the ANSI step lines (`[*]` / `[✓]` / `[✗]` with cursor-up rewrites) the connect cascade emits.
 - **Log viewer** (`features/settings/settings_logging.dart`) — the ANSI-formatted log stream (per-level stripe glyph + bold-tinted tag); the replay engine is chosen over a plain monospace list precisely because log lines carry SGR color.
 
-All three drive a `ReadOnlyTerminalController` (a widget-local `ChangeNotifier` wrapping a `TerminalReplay`) and render it through `ReadOnlyTerminalGridView`, which reuses the live pane's `TerminalGridPainter` + `measureMonoCell`. The view has no keyboard / selection / mouse wiring — read-only means no input. After each `feed` / `clear` / `resize` the controller bumps the notifier; the view re-pulls a `snapshot()` and repaints (no `Wakeup` event stream exists for a replay — see [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle)). When `reportResize` is set (progress + log surfaces) the laid-out whole-cell count is reported back so the engine grid tracks the viewport; recording playback leaves it off and renders the fixed recorded `w × h`. `ProgressWriter` writes through `ProgressWriter.controller` (the single production sink, feeding the `ReadOnlyTerminalController`); a `@visibleForTesting` `ProgressWriter.sink` constructor takes a raw `void Function(String)` so the step-formatting logic is unit-testable without the Rust engine.
+All three drive a `ReplayTerminalController` (a widget-local `ChangeNotifier` wrapping a `TerminalReplay`) and render it through the unified `TerminalView` with `TerminalViewConfig.readOnly()` — select + copy + right-click Copy/Select-All menu on, cursor hidden, no keyboard input / mouse reporting / paste / search. After each `feed` / `clear` / `resize` the controller bumps the notifier; the view re-pulls a `snapshot()` and repaints (no `Wakeup` event stream exists for a replay — see [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle)). When `reportResize` is set (progress + log surfaces) the laid-out whole-cell count is reported back through the controller's `resize` so the engine grid tracks the viewport; recording playback leaves it off and renders the fixed recorded `w × h`. `ProgressWriter` writes through `ProgressWriter.controller` (the single production sink, feeding the `ReplayTerminalController`); a `@visibleForTesting` `ProgressWriter.sink` constructor takes a raw `void Function(String)` so the step-formatting logic is unit-testable without the Rust engine.
 
 #### Keyboard Shortcuts
 
@@ -4502,7 +4600,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | File | Class | Purpose |
 |------|-------|---------|
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
-| `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal on the Rust engine (`TerminalGridView`) + keyboard bar + copy-mode overlay. Soft-keyboard text via a hidden `EditableText` → `sendKey`. See [§5.1 Mobile pane](#mobile-pane--rust-engine). |
+| `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal on the Rust engine (`TerminalView` + `LiveTerminalController`) + keyboard bar + copy-mode overlay. Soft-keyboard text via a hidden `EditableText` → `sendKey`. See [§5.1 Mobile pane](#mobile-pane--rust-engine). |
 | `terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style virtual cursor driving the engine selection (`onSetSelection` → `session.setSelection`) + Copy/Cancel in the bar row |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
 | `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Copy. Main row is horizontally scrollable (`ListView`); Paste + Copy + Fn buttons are fixed at right edge. Emits logical `TerminalKey`s via `onKey` with sticky Ctrl / Alt folded into the key flags — the Rust encoder produces the VT bytes (so Alt+Ctrl+X lands as the standard `ESC + Ctrl-X` meta-control sequence against the live mode) |
@@ -4510,9 +4608,9 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Gesture routing.** `MobileTerminalView` wraps the terminal area in a bare [`Listener`](https://api.flutter.dev/flutter/widgets/Listener-class.html) and tracks every active pointer in a `Map<int, Offset>`. Outside copy mode a tap (via a `GestureDetector`) focuses the hidden IME field to summon the soft keyboard, and the grid's own pointer handling drives scroll; in copy mode the grid is wrapped in an `AbsorbPointer` and single-finger drags route through `_copyOverlayKey` to pan the virtual cursor. Multi-touch is intentionally unused. **Don't add pinch-to-zoom over `_fontSize`** — a per-frame font mutation drives a per-frame `session.resize`, which reflows the grid dozens of times per gesture and produces visible churn. Font size is driven **only** by the Settings slider — one commit per release, one reflow, manageable.
 
-**Selection is overlay-driven, not gesture-driven.** Outside copy mode the mobile terminal has no touch selection — a single-finger drag scrolls the scrollback through `TerminalGridView`, and the only sanctioned selection surface is the copy-mode overlay. Selection state lives in the Rust engine (`setSelection` / `selectionText`); the overlay is the sole writer of it on mobile, so a stray finger cannot stamp a word selection the way a free-for-all long-press handler would. Desktop is untouched because long-press-to-word-select is a first-class desktop flow there.
+**Selection is overlay-driven, not gesture-driven.** Outside copy mode the mobile terminal has no touch selection — a single-finger drag scrolls the scrollback through `TerminalView`, and the only sanctioned selection surface is the copy-mode overlay. Selection state lives in the Rust engine (`setSelection` / `selectionText`); the overlay is the sole writer of it on mobile, so a stray finger cannot stamp a word selection the way a free-for-all long-press handler would. Desktop is untouched because long-press-to-word-select is a first-class desktop flow there.
 
-**Copy mode — the grid's own pointer handling is gated while active.** `TerminalGridView` owns the scroll/selection pointer handling for normal use. In copy mode that must not race the overlay's virtual cursor, so `MobileTerminalView` wraps the grid in `AbsorbPointer(absorbing: _copyMode, …)`. The outer `Listener` is an ancestor — it still observes the same pointer events via the ancestor hit-test path — so the overlay's cursor-pan keeps flowing while the grid sees nothing. Regression gate: the "AbsorbPointer gates the terminal while copy mode is active" widget test in `mobile_terminal_view_test.dart`.
+**Copy mode — the grid's own pointer handling is gated while active.** `TerminalView` owns the scroll/selection pointer handling for normal use. In copy mode that must not race the overlay's virtual cursor, so `MobileTerminalView` wraps the grid in `AbsorbPointer(absorbing: _copyMode, …)`. The outer `Listener` is an ancestor — it still observes the same pointer events via the ancestor hit-test path — so the overlay's cursor-pan keeps flowing while the grid sees nothing. Regression gate: the "AbsorbPointer gates the terminal while copy mode is active" widget test in `mobile_terminal_view_test.dart`.
 
 **Copy mode — aim, then extend, with an explicit commit.** The overlay has a two-phase selection model. Entering copy mode shows the virtual cursor at the current shell cursor (or viewport centre if the cursor is off-screen); the selection anchor is **not** stamped. In the aim phase, *every* single-finger gesture moves the cursor freely — lifts and re-grips are free, no pointer event commits the anchor. The user commits the anchor by tapping the "Set anchor" action (`Icons.adjust`) in the copy-mode bar row; `onAnchorDown()` fires then, stamps the anchor at the current cell, and the bar swaps the Set-Anchor button for the Copy action. Subsequent drags extend the selection from the anchor to the new cursor position. **Don't auto-commit the anchor on the first pointer-up** — on a phone viewport the target cell is often under the user's thumb and the aim needs more than one drag, so an auto-commit reads as "I can't lift without losing my aim". Pinned by the "pointer events alone never drop the selection anchor (aim phase)" widget test in `mobile_terminal_view_test.dart`.
 
@@ -4554,7 +4652,7 @@ User-facing browser + replay surface for the per-session recordings the [`Sessio
 | File | Class | Purpose |
 |------|-------|---------|
 | `recordings_browser.dart` | `RecordingsPanel`, `RecordingsBrowserDialog` | Embeddable list panel + dialog wrapper. Calls `recorder_list_recordings` (walk + stat) and `recorder_delete_recording` Rust-side; joins the resulting entries to the live session list to resolve labels and exposes per-row delete + Play action. Reachable via Tools → Recordings on desktop and the mobile Tools tile. |
-| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded playback over a `ReadOnlyTerminalController` (Rust engine) rendered through `ReadOnlyTerminalGridView`, with speed control (`0.5×` / `1×` / `2×` / `4×`) via the shared no-animation [`AppPopupSelect`] picker. Subscribes to `recorder_open_for_playback`; the Rust side dispatches on extension (`.cast` plaintext / `.lfsr` encrypted) so the Dart consumer hands the path in once and never branches. Truncated tails surface as a clean stop instead of a decode error. Pause / play, the speed dropdown, the scrub slider, and the position read-out share **one controls row** so the freed vertical space goes to the terminal. The recording's full `cols × rows` grid renders at its natural pixel size with **no surrounding scroll view** — `playbackFitFontSize` auto-picks the largest font (preferred = `configProvider.fontSize × 1.25`, larger than the live terminal since recordings are reviewed, not typed into) at which the whole grid fits the dialog and shrinks below it only when an oversized capture (tall htop on a short screen) or odd aspect ratio would overflow, picking the tighter of the width / height axes. The controller is resized to the header's recorded `cols × rows`, so curses recordings (htop / vim) keep their fixed header + footer rows aligned. The `SizedBox` math measures cells through `measureMonoCell` **with `MediaQuery.textScalerOf`** so the grid matches the OS-text-scaled cell the painter draws — measuring unscaled clips the bottom row when the system text scale is above 1.0. A scroll view would install a drag recogniser that beats the grid's own selection pan in the gesture arena, so omitting it also makes drag-to-select match the log terminal. |
+| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded playback over a `ReplayTerminalController` (Rust engine) rendered through `TerminalView` (`TerminalViewConfig.readOnly()`), with speed control (`0.5×` / `1×` / `2×` / `4×`) via the shared no-animation [`AppPopupSelect`] picker. Subscribes to `recorder_open_for_playback`; the Rust side dispatches on extension (`.cast` plaintext / `.lfsr` encrypted) so the Dart consumer hands the path in once and never branches. Truncated tails surface as a clean stop instead of a decode error. Pause / play, the speed dropdown, the scrub slider, and the position read-out share **one controls row** so the freed vertical space goes to the terminal. The recording's full `cols × rows` grid renders at its natural pixel size with **no surrounding scroll view** — `playbackFitFontSize` auto-picks the largest font (preferred = `configProvider.fontSize × 1.25`, larger than the live terminal since recordings are reviewed, not typed into) at which the whole grid fits the dialog and shrinks below it only when an oversized capture (tall htop on a short screen) or odd aspect ratio would overflow, picking the tighter of the width / height axes. The controller is resized to the header's recorded `cols × rows`, so curses recordings (htop / vim) keep their fixed header + footer rows aligned. The `SizedBox` math measures cells through `measureMonoCell` **with `MediaQuery.textScalerOf`** so the grid matches the OS-text-scaled cell the painter draws — measuring unscaled clips the bottom row when the system text scale is above 1.0. A scroll view would install a drag recogniser that beats the grid's own selection pan in the gesture arena, so omitting it also makes drag-to-select match the log terminal. |
 | `recording_reader.dart` | `RecordingReader` | Thin Dart wrapper over the FRB playback stream. Holds the `RecordingHeader` / `RecordingMeta` / `RecordingFrame` shapes the UI consumes; the actual decoder (per-frame AES-GCM, `.cast` line-iter, length-cap rejection) lives in `lfs_core::recorder::reader`. |
 | `recordings_logic.dart` | Listing + lifecycle helpers | Pure session-id → display-label fallback shared by panel / dialog. Disk walk + delete moved Rust-side; this file only carries `BuildContext`-free label resolution. |
 
@@ -5047,21 +5145,34 @@ Compact icon + number indicator with tooltip. Used in sidebar footer to display 
 
 **File:** `lib/widgets/core/status_indicator.dart`
 
-### ReadOnlyTerminalGridView
+### TerminalView
 
 ```dart
-ReadOnlyTerminalGridView({
-  required ReadOnlyTerminalController controller,
+TerminalView({
+  required TerminalController controller,
+  required TerminalViewConfig config,
   double fontSize = 14.0,
   bool reportResize = false,
-})
-ReadOnlyTerminalGridView.fromSource({           // DI seam for tests
-  required TerminalSnapshotProvider snapshotProvider,
-  required Listenable repaint,
+  // host callbacks (all optional):
+  void Function(String title)? onTitle,
+  VoidCallback? onResetTitle, onClosed, onBell,
+  void Function(String text)? onClipboardStore,
   void Function(int cols, int rows)? onResize,
+  void Function(int lineDelta)? onScroll,
+  void Function(PointerSignalEvent)? onPointerSignal,
+  KeyEventResult Function(KeyEvent)? onKey,
+  VoidCallback? onCopy, onPaste,
+  List<TerminalMatch> searchMatches = const [],
+  int activeMatchIndex = -1,
 })
+
+// config factories
+TerminalViewConfig.interactive()   // all features on, cursor shown
+TerminalViewConfig.readOnly({ selectable = true, showCursor = false,
+  pasteable = false, interactive = false, mouseReportable = false })
 ```
-Read-only rendering over a shell-less `TerminalReplay`, reusing the live pane's `TerminalGridPainter`. No keyboard / selection / mouse — read-only means no input. The `ReadOnlyTerminalController` (a widget-local `ChangeNotifier` wrapping the replay) exposes `feed` / `clear` / `resize` / `setPalette` / `snapshot` and bumps the notifier after each mutation; the view re-pulls a snapshot and repaints on every notify (there is no `Wakeup` stream — the feeder triggers its own repaint). With `reportResize` the laid-out whole-cell count is reported back so the engine grid tracks the viewport. Used by recording playback, `ConnectionProgress`, and the log viewer — see [§5.1 Read-only rendering](#read-only-rendering--terminalreplay) and [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle).
+
+The single terminal renderer over a `TerminalController` (`LiveTerminalController` for the SSH pane, `ReplayTerminalController` for read-only surfaces), parameterised by a `TerminalViewConfig`. Listens to the controller's `repaint` `Listenable`, pulls a fresh `snapshot()` per notify (one pull per frame + `scheduleFrame` so streamed output repaints while idle), forwards `uiEvents` to the host callbacks, paints through `TerminalGridPainter`. Per config: drag-select (char/word/line) + copy + right-click Copy/Paste/Select-All menu, mouse reporting under tracking (Shift forces local), wheel scrollback, keyboard via the host's `onKey` (interactive) or the view's own copy shortcuts (read-only selectable). With `reportResize` (and no explicit `onResize`) the laid-out whole-cell count is reported back through the controller's `resize`. See [§5.1 The unified TerminalView](#the-unified-terminalview), [Read-only rendering](#read-only-rendering--terminalreplay), and [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle).
 
 ### ThresholdDraggable
 

@@ -66,7 +66,7 @@ bool _paneHasFocus(WidgetTester tester) =>
 
 void main() {
   // The pane renders `ConnectionProgress` while connecting, which opens a
-  // real `ReadOnlyTerminalController` (Rust `terminalReplayOpen` over FRB) in
+  // real `ReplayTerminalController` (Rust `terminalReplayOpen` over FRB) in
   // `initState` — so the native library must be loaded for the pane to build.
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(requireFrbLoaded);

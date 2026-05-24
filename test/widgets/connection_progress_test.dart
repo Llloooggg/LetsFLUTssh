@@ -5,7 +5,7 @@ import 'package:letsflutssh/core/connection/connection_step.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
-import 'package:letsflutssh/widgets/terminal/readonly_terminal_grid_view.dart';
+import 'package:letsflutssh/widgets/terminal/terminal_view.dart';
 
 import '../helpers/frb_bootstrap.dart';
 
@@ -44,9 +44,9 @@ void main() {
       );
 
   group('ConnectionProgress', () {
-    testWidgets('renders the read-only grid view', (tester) async {
+    testWidgets('renders the terminal view', (tester) async {
       await tester.pumpWidget(host(makeConnection()));
-      expect(find.byType(ReadOnlyTerminalGridView), findsOneWidget);
+      expect(find.byType(TerminalView), findsOneWidget);
     });
 
     testWidgets('defaults fontSize to 14', (tester) async {
@@ -57,11 +57,9 @@ void main() {
       expect(widget.fontSize, 14.0);
     });
 
-    testWidgets('passes custom fontSize to the grid view', (tester) async {
+    testWidgets('passes custom fontSize to the terminal view', (tester) async {
       await tester.pumpWidget(host(makeConnection(), fontSize: 18));
-      final view = tester.widget<ReadOnlyTerminalGridView>(
-        find.byType(ReadOnlyTerminalGridView),
-      );
+      final view = tester.widget<TerminalView>(find.byType(TerminalView));
       expect(view.fontSize, 18.0);
     });
 

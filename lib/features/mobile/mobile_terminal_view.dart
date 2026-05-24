@@ -17,16 +17,17 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/terminal/connection_progress.dart';
-import '../../widgets/terminal/terminal_grid_view.dart';
+import '../../widgets/terminal/terminal_controller.dart';
 import '../../widgets/terminal/terminal_palette_theme.dart';
+import '../../widgets/terminal/terminal_view.dart';
 import '../snippets/snippet_picker.dart';
 import 'ssh_keyboard_bar.dart';
 import 'terminal_copy_overlay.dart';
 
 /// Full-screen mobile terminal: a Rust-engine-backed
-/// [rust_terminal.TerminalSession] rendered through the shared
-/// [TerminalGridView] cell-grid painter, with an SSH keyboard bar above the
-/// soft keyboard.
+/// [rust_terminal.TerminalSession] rendered through the unified [TerminalView]
+/// (a [LiveTerminalController] over the session), with an SSH keyboard bar
+/// above the soft keyboard.
 ///
 /// No tiling/splitting — single pane, full screen.
 ///
@@ -70,8 +71,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   rust_terminal.TerminalSession? _session;
 
-  /// Bumped on each fresh session open so the [TerminalGridView] (keyed on
-  /// this) resubscribes to the new event stream rather than the stale one.
+  /// Controller bridging the live session into the [TerminalView]. Recreated
+  /// on each fresh session open (the prior one disposed first).
+  LiveTerminalController? _controller;
+
+  /// Bumped on each fresh session open so the [TerminalView] (keyed on this)
+  /// rebinds to the new controller rather than the stale one.
   int _sessionEpoch = 0;
 
   /// Last viewport size reported by the grid view — re-pushed to the session
@@ -181,7 +186,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         return;
       }
       setState(() {
+        _controller?.dispose();
         _session = session;
+        _controller = LiveTerminalController(session);
         _sessionEpoch++;
         _paletteIsDark = isDark;
       });
@@ -203,6 +210,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _insetSettleTimer?.cancel();
     _imeController.dispose();
     _imeFocus.dispose();
+    _controller?.dispose();
     _session?.dispose();
     super.dispose();
   }
@@ -472,19 +480,30 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       );
     }
     final session = _session;
-    if (session == null) {
+    final controller = _controller;
+    if (session == null || controller == null) {
       return ConnectionProgress(
         connection: widget.connection,
         fontSize: _fontSize,
       );
     }
-    return _buildLiveTerminal(session);
+    return _buildLiveTerminal(session, controller);
   }
 
-  Widget _buildLiveTerminal(rust_terminal.TerminalSession session) {
-    final grid = TerminalGridView(
+  Widget _buildLiveTerminal(
+    rust_terminal.TerminalSession session,
+    LiveTerminalController controller,
+  ) {
+    // Mobile drives input through the IME field and selection through the
+    // copy overlay, not the desktop drag-select / mouse-report path — so the
+    // view only renders + scrolls + reports resize, with the live cursor on.
+    final grid = TerminalView(
       key: ValueKey<int>(_sessionEpoch),
-      session: session,
+      controller: controller,
+      config: const TerminalViewConfig.readOnly(
+        selectable: false,
+        showCursor: true,
+      ),
       fontSize: _fontSize,
       onResize: _onResize,
       onScroll: _onScroll,

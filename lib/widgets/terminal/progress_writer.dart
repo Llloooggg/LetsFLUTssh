@@ -7,7 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
-import 'readonly_terminal_grid_view.dart';
+import 'terminal_controller.dart';
 
 /// ANSI escape codes for terminal progress display.
 abstract final class _Ansi {
@@ -25,14 +25,14 @@ abstract final class _Ansi {
 ///
 /// The connection-progress surfaces (desktop pane, mobile pane, SFTP
 /// connect) all drive the Rust terminal engine through a
-/// [ReadOnlyTerminalController] — [ProgressWriter.controller] encodes each
+/// [ReplayTerminalController] — [ProgressWriter.controller] encodes each
 /// ANSI string to UTF-8 and feeds the controller, which repaints the
 /// read-only grid. The step formatting + phase labels are shared.
 class ProgressWriter {
   /// Rust-engine-backed writer. Encodes each ANSI string to UTF-8 and feeds
-  /// the [ReadOnlyTerminalController], which repaints the read-only grid.
+  /// the [ReplayTerminalController], which repaints the read-only grid.
   ProgressWriter.controller({
-    required ReadOnlyTerminalController controller,
+    required ReplayTerminalController controller,
     required this.l10n,
     required this.config,
     this.channelLabel,
@@ -40,7 +40,7 @@ class ProgressWriter {
 
   /// Test seam — writes each formatted ANSI string straight to [sink] so the
   /// step formatting + phase labels are unit-testable without a live
-  /// [ReadOnlyTerminalController] (whose `feed` reaches into the Rust
+  /// [ReplayTerminalController] (whose `feed` reaches into the Rust
   /// engine). Production always uses [ProgressWriter.controller].
   @visibleForTesting
   ProgressWriter.sink({

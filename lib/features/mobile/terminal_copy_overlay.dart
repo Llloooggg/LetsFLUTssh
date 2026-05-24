@@ -7,8 +7,8 @@ import '../../widgets/terminal/terminal_cell_metrics.dart';
 /// Trackpad-style copy mode for the mobile terminal, driving the
 /// Rust-engine selection.
 ///
-/// Renders a virtual cursor on top of the [rust_terminal.TerminalGridView]
-/// content and exposes relative pan gestures that move the cursor in cell
+/// Renders a virtual cursor on top of the terminal content (the unified
+/// `TerminalView`) and exposes relative pan gestures that move the cursor in cell
 /// units — the finger never jumps the cursor to its local position
 /// (absolute placement would mean covering the target with the thumb). The
 /// user drops a selection anchor with the "Set anchor" bar button; from

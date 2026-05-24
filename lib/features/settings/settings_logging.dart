@@ -160,7 +160,7 @@ class _LogViewerHost extends StatelessWidget {
 }
 
 /// Inline live log viewer. Renders an ANSI-formatted log stream through the
-/// Rust terminal engine ([ReadOnlyTerminalController] + grid view): each entry
+/// Rust terminal engine ([ReplayTerminalController] + grid view): each entry
 /// is formatted with a level-tinted vertical stripe + bold tag chip, the
 /// engine owns scrollback, and the grid view paints it. Data flows through the
 /// app-level [LogStore] singleton which is seeded at boot and updated live by
@@ -196,9 +196,9 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   late final LogStore _store;
 
   /// Backing Rust terminal engine. Holds the ANSI-formatted stream that
-  /// renders into [ReadOnlyTerminalGridView]. Scrollback sized for the
+  /// renders into [TerminalView]. Scrollback sized for the
   /// LogStore's entry cap × ~2 visual lines per entry (with continuations).
-  late final ReadOnlyTerminalController _controller;
+  late final ReplayTerminalController _controller;
 
   /// Wrap width (columns) the entries were last formatted against. The grid
   /// view reports the laid-out cell count back through the controller's
@@ -232,7 +232,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
     // `reportResize`, so the engine's `cols` tracks the actual viewport
     // width and `_syncTerminal` wraps entries to fit. A width change forces
     // one full rewrite (the wrap points moved); steady-state appends do not.
-    _controller = ReadOnlyTerminalController(cols: 80, rows: 200);
+    _controller = ReplayTerminalController(cols: 80, rows: 200);
     _lastFormatCols = _controller.cols;
     _controller.addListener(_onControllerChanged);
     _changesSub = _store.changes.listen((_) => _syncTerminal());
@@ -615,7 +615,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
 
   Widget _buildLogBody() {
     // The log viewer renders the ANSI-formatted stream through the Rust
-    // terminal engine ([ReadOnlyTerminalGridView]); the engine owns
+    // terminal engine ([TerminalView]); the engine owns
     // scrollback. The "is the buffer empty?" overlay rebuilds when the store
     // signals a change (via `StreamBuilder` on `_store.changes`), so the
     // localized empty-state stays in sync with `_store.allEntries`.
@@ -638,11 +638,11 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
         // height isn't an integer multiple of the row height) is clipped at
         // the bottom border instead of bleeding past it.
         return ClipRect(
-          child: ReadOnlyTerminalGridView(
+          child: TerminalView(
             controller: _controller,
+            config: const TerminalViewConfig.readOnly(),
             fontSize: AppFonts.sm,
             reportResize: true,
-            selectable: true,
           ),
         );
       },
