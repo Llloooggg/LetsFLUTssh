@@ -212,6 +212,22 @@ impl TerminalEngine {
         self.term.scroll_display(Scroll::Bottom);
     }
 
+    /// Wipe the terminal: blank the visible grid, purge the entire
+    /// scrollback history, and home the cursor. Unlike [`Self::scroll`] /
+    /// [`Self::scroll_to_bottom`] (which only move the viewport over
+    /// retained content), this drops the buffered output so nothing
+    /// survives in memory — the auto-lock / wipe scrub path calls it when
+    /// the DB key is cleared so sensitive command output cannot be read
+    /// back from scrollback.
+    ///
+    /// `Grid::reset` does all three in one pass: `clear_history` shrinks
+    /// the history rows to zero (so `history_size() == 0`), the cursor and
+    /// display offset reset to the origin, and every visible line is reset
+    /// to a blank template cell.
+    pub fn clear(&mut self) {
+        self.term.grid_mut().reset();
+    }
+
     /// Replace the color palette (e.g. on theme change). Affects the next
     /// snapshot; already-parsed cells keep their abstract colors and
     /// re-resolve against the new palette.

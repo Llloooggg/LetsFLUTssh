@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'ssh.dart';
 part 'terminal.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `partition_drained`
+// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The OneDark default palette as a DTO. The Dart theme layer uses this
@@ -54,6 +54,20 @@ Future<TerminalSession> terminalSessionOpen({
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TerminalSession>>
 abstract class TerminalSession implements RustOpaqueInterface {
+  /// Wipe the terminal: blank the visible grid AND purge the scrollback
+  /// history, homing the cursor. The auto-lock / wipe scrub path calls
+  /// this when the DB key is cleared so buffered command output cannot be
+  /// read back from scrollback — `scroll_to_bottom` only moves the
+  /// viewport and would leave the sensitive content in memory.
+  ///
+  /// Locks the engine, clears, releases, then pushes one `Wakeup` onto the
+  /// pump's UI-event stream so the renderer pulls a fresh (now-blank)
+  /// snapshot. The sink clone and the `add` run after the engine lock is
+  /// dropped — neither lock is held across an `await`. If the pump has not
+  /// started (no sink stashed yet) the grid is still cleared; the next
+  /// pump output drives the repaint.
+  Future<void> clear();
+
   /// Clear any active selection.
   Future<void> clearSelection();
 

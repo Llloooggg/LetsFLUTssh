@@ -316,6 +316,15 @@ pub enum TerminalUiEvent {
 pub struct TerminalSession {
     engine: Arc<Mutex<TerminalEngine>>,
     shell: Arc<lfs_core::ssh::Shell>,
+    /// A clone of the pump's UI-event sink, stashed when [`Self::events`]
+    /// starts so out-of-band methods (the scrub `clear`) can push a
+    /// `Wakeup` onto the same stream the renderer already listens to,
+    /// rather than opening a second stream. `None` until the pump runs;
+    /// `StreamSink` is `Clone` (it wraps an `Arc`), so both the pump and a
+    /// `clear` caller share one sink. Behind a `std::sync::Mutex` because
+    /// it is touched from sync and async contexts and never held across an
+    /// `await`.
+    ui_sink: Arc<std::sync::Mutex<Option<StreamSink<TerminalUiEvent>>>>,
 }
 
 /// Open a PTY-backed shell on `session`, build the engine, and return a
@@ -354,7 +363,11 @@ pub async fn terminal_session_open(
         scrollback as usize,
         palette.into_core(),
     )));
-    Ok(TerminalSession { engine, shell })
+    Ok(TerminalSession {
+        engine,
+        shell,
+        ui_sink: Arc::new(std::sync::Mutex::new(None)),
+    })
 }
 
 impl TerminalSession {
@@ -379,6 +392,14 @@ impl TerminalSession {
     pub async fn events(&self, sink: StreamSink<TerminalUiEvent>) -> Result<(), String> {
         let engine = self.engine.clone();
         let shell = self.shell.clone();
+        // Stash a clone of the sink so the out-of-band `clear` scrub can push
+        // a Wakeup onto this same stream (the renderer subscribes here, not to
+        // a second stream). Lock is held only for the swap, never across an
+        // await.
+        {
+            let mut slot = self.ui_sink.lock().expect("terminal ui_sink poisoned");
+            *slot = Some(sink.clone());
+        }
         while let Some(event) = shell.next_event().await {
             let bytes = match event {
                 lfs_core::ssh::ShellEvent::Output(b)
@@ -473,6 +494,33 @@ impl TerminalSession {
     pub async fn scroll_to_bottom(&self) {
         let mut guard = self.engine.lock().await;
         guard.scroll_to_bottom();
+    }
+
+    /// Wipe the terminal: blank the visible grid AND purge the scrollback
+    /// history, homing the cursor. The auto-lock / wipe scrub path calls
+    /// this when the DB key is cleared so buffered command output cannot be
+    /// read back from scrollback — `scroll_to_bottom` only moves the
+    /// viewport and would leave the sensitive content in memory.
+    ///
+    /// Locks the engine, clears, releases, then pushes one `Wakeup` onto the
+    /// pump's UI-event stream so the renderer pulls a fresh (now-blank)
+    /// snapshot. The sink clone and the `add` run after the engine lock is
+    /// dropped — neither lock is held across an `await`. If the pump has not
+    /// started (no sink stashed yet) the grid is still cleared; the next
+    /// pump output drives the repaint.
+    pub async fn clear(&self) {
+        {
+            let mut guard = self.engine.lock().await;
+            guard.clear();
+        }
+        let sink = self
+            .ui_sink
+            .lock()
+            .expect("terminal ui_sink poisoned")
+            .clone();
+        if let Some(sink) = sink {
+            let _ = sink.add(TerminalUiEvent::Wakeup);
+        }
     }
 
     /// Forward Dart key bytes straight to the remote shell's stdin. The

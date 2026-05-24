@@ -1,56 +1,37 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
-import '../../core/connection/progress_tracker.dart';
-import '../../widgets/terminal/progress_writer.dart';
 import '../../widgets/core/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
-import '../../core/session/session_recorder.dart';
-import '../../core/ssh/shell_helper.dart';
-import '../../widgets/terminal/xterm_shell_terminal.dart';
-import '../../providers/session_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
+import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
-import '../../widgets/core/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
-import '../../widgets/terminal/anchor_pinning_terminal_controller.dart';
-import '../../widgets/terminal/app_terminal_view.dart';
-import '../../widgets/terminal/terminal_cell_metrics.dart';
-import 'cursor_overlay.dart';
-import '../../utils/terminal_clipboard.dart';
-import '../../widgets/core/context_menu.dart';
+import '../../widgets/terminal/connection_progress.dart';
+import '../../widgets/terminal/terminal_grid_view.dart';
+import '../../widgets/terminal/terminal_palette_theme.dart';
 import '../../l10n/app_localizations.dart';
-import '../../utils/platform.dart' as plat;
 import '../snippets/snippet_picker.dart';
-import '../../providers/broadcast_provider.dart';
-import '../../widgets/core/app_dialog.dart';
-import 'broadcast_controller.dart';
-import 'pane_recording_registry.dart';
 
-part 'terminal_pane_search.dart';
-
-/// A single terminal pane — xterm TerminalView connected to one SSH shell.
+/// A single terminal pane — a Rust-engine-backed [rust_terminal.TerminalSession]
+/// rendered through the [TerminalGridView] cell-grid painter, connected to one
+/// SSH shell.
 ///
 /// Multiple panes can share the same [Connection] (each opens its own shell).
-/// Factory for opening SSH shell — injectable for testing.
-typedef ShellOpenFactory =
-    Future<ShellConnection> Function({
-      required Connection connection,
-      required ShellTerminal terminal,
-      VoidCallback? onDone,
-    });
-
+/// During the connect cascade the pane shows [ConnectionProgress]; once the
+/// session opens it swaps to the live grid view. The grid view is currently
+/// **display-only** — keyboard input encoding and selection/copy/search land in
+/// later tasks (input forwarding, selection-via-Rust). Scroll-wheel scrollback
+/// and font zoom work today.
 class TerminalPane extends ConsumerStatefulWidget {
   final Connection connection;
   final bool isFocused;
@@ -66,20 +47,15 @@ class TerminalPane extends ConsumerStatefulWidget {
   /// Focus border is only shown when this is true.
   final bool hasMultiplePanes;
 
-  /// Tiling-tree leaf id — stable across rebuilds, used for the
-  /// broadcast registry. Optional so tests / single-pane callers
-  /// (mobile shell, quick-connect) can omit it.
+  /// Tiling-tree leaf id — stable across rebuilds. Optional so tests /
+  /// single-pane callers (mobile shell, quick-connect) can omit it.
   final String? paneId;
 
-  /// Owning tab's stable id. Required together with [paneId] for the
-  /// broadcast feature; both nullable so non-tabbed callers compile.
+  /// Owning tab's stable id. Optional so non-tabbed callers compile.
   final String? tabId;
 
   final VoidCallback? onFocused;
   final VoidCallback? onClose;
-
-  /// Optional factory for testing — bypasses real SSH shell.
-  final ShellOpenFactory? shellFactory;
 
   const TerminalPane({
     super.key,
@@ -91,76 +67,47 @@ class TerminalPane extends ConsumerStatefulWidget {
     this.tabId,
     this.onFocused,
     this.onClose,
-    this.shellFactory,
   });
-
-  /// True when both ids are present — guards every broadcast-related
-  /// code path so the feature stays inert in single-pane / mobile
-  /// surfaces that never plumb an id through.
-  bool get supportsBroadcast => paneId != null && tabId != null;
 
   @override
   ConsumerState<TerminalPane> createState() => TerminalPaneState();
 }
 
 class TerminalPaneState extends ConsumerState<TerminalPane> {
-  late final Terminal _terminal;
-  late final AnchorPinningTerminalController _terminalController;
-
-  /// Owned focus node so the pane can `requestFocus()` on its own
-  /// schedule: `TerminalView`'s built-in `autofocus` fires only on
-  /// initial mount, and xterm's `_onTapDown` requests focus only
-  /// when there is no active selection — neither path covers the
-  /// "tab becomes the focused pane while the user already had a
-  /// selection running" or the post-connect "the pane just opened,
-  /// the user wants to start typing immediately" cases. Owning the
-  /// node lets [didUpdateWidget] grab focus on `isFocused` flips.
+  /// Owned focus node so the pane can `requestFocus()` on its own schedule
+  /// across `isFocused` / `isActiveTab` flips — the grid view's own focus
+  /// surface only autofocuses on initial mount.
   final FocusNode _terminalFocus = FocusNode(debugLabel: 'TerminalPane');
   late final void Function() _scrubFn;
-  ShellConnection? _shellConn;
+
+  rust_terminal.TerminalSession? _session;
+
+  /// Bumped each time a fresh session opens so the [TerminalGridView] (keyed
+  /// on this) tears down its old event subscription and resubscribes to the
+  /// new session's stream rather than reusing the stale one.
+  int _sessionEpoch = 0;
+
   StreamSubscription<ConnectionStep>? _progressSub;
   Map<AppShortcut, VoidCallback>? _shortcuts;
-  BroadcastController? _broadcast;
-
-  /// Live recording state for this pane. Drives the connection-bar
-  /// record button's icon + red indicator. The button reads it
-  /// through [PaneRecordingRegistry] — the registry handle re-exports
-  /// the notifier as a `ValueListenable<bool>` so the bar only
-  /// rebuilds the icon when recording starts / stops.
-  final ValueNotifier<bool> _isRecording = ValueNotifier<bool>(false);
 
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
 
   String? _error;
 
-  // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
-  final _showSearch = ValueNotifier<bool>(false);
+  /// Last viewport size reported by the grid view. Held so a font-zoom or
+  /// theme change that rebuilds the view re-pushes the size to the session.
+  int _cols = 80;
+  int _rows = 24;
 
-  /// Cached terminal theme — rebuilt only when app brightness changes.
-  TerminalTheme? _cachedTheme;
-  bool? _cachedIsDark;
+  /// Brightness the live session's palette was last pushed for. A theme
+  /// toggle re-pushes the palette via [rust_terminal.TerminalSession.setPalette].
+  bool? _paletteIsDark;
 
-  TerminalTheme get _terminalTheme {
-    final dark = AppTheme.isDark;
-    if (_cachedTheme == null || _cachedIsDark != dark) {
-      _cachedIsDark = dark;
-      _cachedTheme = AppTheme.terminalTheme;
-    }
-    return _cachedTheme!;
-  }
-
-  /// Exposed for testing — toggle search bar visibility.
+  /// Exposed for testing — the active Rust terminal session, or null before
+  /// the shell opens / after an error.
   @visibleForTesting
-  ValueNotifier<bool> get showSearchNotifier => _showSearch;
-
-  /// Exposed for testing — access the xterm Terminal instance.
-  @visibleForTesting
-  Terminal get terminal => _terminal;
-
-  /// Exposed for testing — access the TerminalController.
-  @visibleForTesting
-  TerminalController get terminalController => _terminalController;
+  rust_terminal.TerminalSession? get session => _session;
 
   /// Exposed for testing — zoom in / out / reset.
   @visibleForTesting
@@ -170,329 +117,144 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   @visibleForTesting
   void zoomReset() => _zoomReset();
 
-  /// Send a command string to the SSH shell.
-  ///
-  /// Appends a newline if not already present. No-op if shell is not open.
+  /// Send a command string to the SSH shell. Appends a newline if not already
+  /// present. No-op if the session is not open.
   void sendCommand(String command) {
-    if (_shellConn == null) return;
+    final session = _session;
+    if (session == null) return;
     final cmd = command.endsWith('\n') ? command : '$command\n';
-    _terminal.textInput(cmd);
+    unawaited(session.writeInput(bytes: cmd.codeUnits));
   }
 
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
-    _terminalController = AnchorPinningTerminalController();
-    // Register a scrub callback with the scrubber so auto-lock /
-    // wipe paths reset this terminal's scrollback alongside the
-    // DB key. Holding a closure (not the Terminal) keeps the
-    // scrubber UI-package-free. Dispose removes the same closure
-    // so stale pointers do not linger.
+    // Register a scrub callback so the auto-lock / wipe paths can wipe this
+    // pane's scrollback alongside the DB key. The scrollback lives Rust-side;
+    // `clear()` blanks the visible grid AND purges the scrollback history so
+    // sensitive command output cannot be read back after the key is cleared
+    // (a viewport scroll would leave that content in memory). See
+    // ARCHITECTURE.md §5.1.
     _scrubFn = () {
-      _terminal.buffer.clear();
-      _terminal.setCursor(0, 0);
+      final session = _session;
+      if (session != null) unawaited(session.clear());
     };
     TerminalScrubber.instance.register(_scrubFn);
-    HardwareKeyboard.instance.addHandler(_onShiftToggle);
-    _registerRecordingHandle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Grab focus explicitly after the first frame. `TerminalView`'s
-      // built-in `autofocus` flag occasionally misses when an
-      // external `focusNode` is supplied (the Focus widget receives
-      // the node + autofocus together but the auto-claim runs once
-      // during initial mount and can be lost to focus contention
-      // with the surrounding workspace shell). Re-asserting it
-      // post-frame, when the focus tree is fully assembled, makes
-      // the new-session "ready to type immediately" path robust.
       if (widget.isActiveTab && widget.isFocused) _terminalFocus.requestFocus();
       _connectAndOpenShell();
     });
   }
 
-  /// Tear down the per-connect progress plumbing. Idempotent — both
-  /// the success path and every `!mounted` early-return route through
-  /// this so the subscription + tracker never leak.
-  void _disposeProgress(ProgressTracker tracker) {
+  /// Tear down the per-connect progress plumbing. Idempotent — every
+  /// `!mounted` early-return and the success path route through this so the
+  /// subscription never leaks.
+  void _disposeProgress() {
     _progressSub?.cancel();
     _progressSub = null;
-    tracker.dispose();
   }
 
   Future<void> _connectAndOpenShell() async {
     final conn = widget.connection;
-    final tracker = ProgressTracker(conn);
-    // `S.of(context)` is read inline pre-await so the `BuildContext`
-    // is never carried across an async gap. `ProgressWriter` holds
-    // a snapshot of `S` (a static lookup table, not a live context),
-    // which is safe to use after the pane disposes — the writer is
-    // discarded with this method's stack frame.
-    final writer = ProgressWriter(
-      terminal: _terminal,
-      l10n: S.of(context),
-      config: conn.sshConfig,
-    );
 
-    // Subscribe to progress stream and write steps to terminal
-    _progressSub = writer.subscribe(tracker);
-
-    // Wait for connection if still connecting
+    // Wait for connection if still connecting.
     await conn.waitUntilReady();
     if (!mounted) {
-      _disposeProgress(tracker);
+      _disposeProgress();
       return;
     }
-    // `state == connected` flips when the Rust actor publishes
-    // ConnectionStateChanged Connected, but the russh handle is
-    // adopted asynchronously inside Connection._adoptSession. If
-    // we open the shell now, `conn.transport` may still be null
-    // and `_openShell` raises "Bad state: Not connected". Wait
-    // for the adopt to settle (succeed / fail) before checking.
+    // `state == connected` flips when the Rust actor publishes Connected, but
+    // the russh handle is adopted asynchronously. Wait for the adopt to settle
+    // before reading `conn.transport`.
     if (conn.isConnecting || conn.isConnected) {
       await conn.transportReady;
       if (!mounted) {
-        _disposeProgress(tracker);
+        _disposeProgress();
         return;
       }
     }
-    _disposeProgress(tracker);
+    _disposeProgress();
 
     if (!conn.isConnected) {
       _onConnectFailed(conn);
       return;
     }
 
-    await _openShellAndAttach(conn, writer);
+    await _openSessionAndAttach(conn);
   }
 
-  /// Disconnected branch — surface the failure to the terminal and
-  /// notify the workspace so status dots / connection bar update.
-  /// Only reachable while `mounted` is true (callers gate on it).
+  /// Disconnected branch — surface the failure and notify the workspace so
+  /// status dots / connection bar update.
   void _onConnectFailed(Connection conn) {
     conn.state = SSHConnectionState.disconnected;
     final l10n = S.of(context);
     final error = conn.connectionError != null
         ? localizeError(l10n, conn.connectionError!)
         : l10n.errConnectionFailed;
-    _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
     setState(() => _error = error);
     ref.read(connectionsProvider.notifier).notifyStateChanged();
   }
 
-  /// Success branch — open the shell, adopt it, and wire broadcast.
-  /// Every async hop checks `mounted` so a mid-open dispose closes
-  /// the freshly-adopted shell instead of leaking it.
-  Future<void> _openShellAndAttach(
-    Connection conn,
-    ProgressWriter writer,
-  ) async {
+  /// Success branch — open the Rust terminal session on the adopted transport.
+  /// Every async hop checks `mounted` so a mid-open dispose closes the freshly
+  /// opened session instead of leaking it.
+  Future<void> _openSessionAndAttach(Connection conn) async {
     try {
       AppLogger.instance.log(
-        'Shell open: starting openShell for connection ${conn.id}',
+        'Terminal session open: starting for connection ${conn.id}',
         name: 'TerminalPane',
       );
-      // Clear progress log before opening shell — openShell wires stdout
-      // to terminal.write(), so any server output must not be erased.
-      writer.clear();
-      final shellConn = await _openShell(conn);
+      final transport = conn.transport;
+      if (transport == null || !transport.isConnected) {
+        throw StateError('Not connected');
+      }
+      final isDark = AppTheme.isDark;
+      final session = await transport.openTerminalSession(
+        cols: _cols,
+        rows: _rows,
+        scrollback: ref.read(configProvider).scrollback,
+        palette: TerminalPaletteFromTheme.fromAppTheme(),
+      );
       if (!mounted) {
-        // Pane was disposed mid-open. Close the shell we just adopted
-        // so the russh channel + recorder don't leak past dispose.
-        shellConn.close();
+        // Pane disposed mid-open — drop the session so the Rust pump + shell
+        // channel do not leak past dispose.
+        session.dispose();
         return;
       }
-      _shellConn = shellConn;
-      // Reflect the initial recorder state (set when the session has
-      // opted in via extras['record']) so the connection-bar record
-      // button starts in the right state.
-      _isRecording.value = shellConn.recorder != null;
+      setState(() {
+        _session = session;
+        _sessionEpoch++;
+        _paletteIsDark = isDark;
+      });
       AppLogger.instance.log(
-        'Shell open: success for ${conn.id}',
+        'Terminal session open: success for ${conn.id}',
         name: 'TerminalPane',
       );
-      _attachBroadcast();
       ref.read(connectionsProvider.notifier).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
-        'Shell open failed: $e',
+        'Terminal session open failed: $e',
         name: 'TerminalPane',
         error: e,
       );
       if (!mounted) return;
-      final localized = localizeError(S.of(context), e);
-      _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
-      setState(() => _error = localized);
+      setState(() => _error = localizeError(S.of(context), e));
     }
-  }
-
-  /// Wire this pane into the per-tab broadcast controller. Must run
-  /// after [_openShell] so the shell sink is non-null. Idempotent —
-  /// re-runs after a reconnect drop the previous registration first.
-  void _attachBroadcast() {
-    if (!widget.supportsBroadcast) return;
-    final shellConn = _shellConn;
-    if (shellConn == null) return;
-    final controller = ref.read(broadcastControllerProvider(widget.tabId!));
-    final paneId = widget.paneId!;
-    _broadcast = controller;
-    controller.registerSink(paneId, (bytes) {
-      try {
-        shellConn.write(bytes);
-      } catch (_) {
-        // Receiver shell torn down between dispatch and write — drop
-        // the byte rather than fault the driver loop.
-      }
-    });
-    // Wrap the existing onOutput hook so the driver path also fans out
-    // to receivers. We capture the original hook installed by
-    // ShellHelper so a future swap (e.g. local echo) keeps composing.
-    final original = _terminal.onOutput;
-    _terminal.onOutput = (data) {
-      original?.call(data);
-      if (controller.isDriver(paneId)) {
-        controller.broadcastFrom(paneId, Uint8List.fromList(utf8.encode(data)));
-      }
-    };
-    // Driver/receiver flags drive only the bordered Container in build();
-    // the rebuild is scoped via `ListenableBuilder(listenable: controller, …)`
-    // so a flag flip never re-walks the xterm subtree. The previous
-    // `addListener(setState(() {}))` rebuilt the entire pane on every
-    // notify, which churned the xterm view, font metrics, and search bar
-    // for no visual reason.
-  }
-
-  Future<ShellConnection> _openShell(Connection conn) async {
-    void onDone() {
-      if (mounted) {
-        setState(() => _error = S.of(context).errSessionClosed);
-      }
-    }
-
-    if (widget.shellFactory != null) {
-      return widget.shellFactory!(
-        connection: conn,
-        terminal: XtermShellTerminal(_terminal),
-        onDone: onDone,
-      );
-    }
-    final recorder = await _maybeOpenRecorder(conn);
-    return ShellHelper.openShell(
-      connection: conn,
-      terminal: XtermShellTerminal(_terminal),
-      onDone: onDone,
-      recorder: recorder,
-    );
-  }
-
-  /// Open a recorder when the session has opted in via
-  /// `Session.extras['record'] == true`. Returns null if recording
-  /// is off, the session is unsaved (quick-connect), or the
-  /// recorder failed to open — all three are equivalent from the
-  /// shell's perspective: no tee, no file. Recorder failure is
-  /// best-effort; a refusal here never blocks the connect.
-  Future<SessionRecorder?> _maybeOpenRecorder(Connection conn) async {
-    final sessionId = conn.sessionId;
-    if (sessionId == null) return null;
-    final session = ref.read(sessionMutatorProvider).get(sessionId);
-    if (session == null) return null;
-    if (session.extrasBool('record') != true) return null;
-    return _openRecorder(conn);
-  }
-
-  /// Build a [SessionRecorder] for the active session — no opt-in
-  /// check. Used by the connection-bar record button to start /
-  /// resume recording mid-session regardless of the session's
-  /// `extras['record']` flag. Returns null when the session is
-  /// unsaved (quick-connect) — recordings need a stable `sessionId`
-  /// folder to land in. Caller is responsible for swapping the
-  /// returned recorder onto `_shellConn` via `setRecorder`.
-  Future<SessionRecorder?> _openRecorder(Connection conn) async {
-    final sessionId = conn.sessionId;
-    if (sessionId == null) return null;
-    final session = ref.read(sessionMutatorProvider).get(sessionId);
-    if (session == null) return null;
-    // The recorder reads the active DB key Rust-side via
-    // `secretsHas` + `recorderRegisterFromActive` — the bytes never
-    // touch the Dart heap.
-    return SessionRecorder.open(
-      sessionId: sessionId,
-      shellLabel: session.label,
-      width: _terminal.viewWidth,
-      height: _terminal.viewHeight,
-    );
-  }
-
-  /// Register this pane's recording handle so the workspace
-  /// connection bar's record button can find it by paneId. Runs
-  /// once at mount; the registry holds a stable [ValueListenable]
-  /// pointer that survives shell reconnects. `canRecord` is false
-  /// for unsaved quick-connect panes — recordings need a session
-  /// folder to land in, and the button hides itself when this is
-  /// false.
-  void _registerRecordingHandle() {
-    final paneId = widget.paneId;
-    if (paneId == null) return;
-    final sessionId = widget.connection.sessionId;
-    PaneRecordingRegistry.instance.register(
-      paneId,
-      PaneRecordingHandle(
-        isRecording: _isRecording,
-        canRecord: sessionId != null,
-        toggle: _toggleRecording,
-      ),
-    );
-  }
-
-  /// Start or stop recording for the currently-open shell. No-op
-  /// when the shell has not yet opened (e.g. the user mashed the
-  /// button during the connect spinner) — the pane will not record
-  /// pre-shell progress bytes either way.
-  Future<void> _toggleRecording() async {
-    final shellConn = _shellConn;
-    if (shellConn == null) return;
-    if (_isRecording.value) {
-      // Stop: dropping the recorder seals the file. setRecorder
-      // closes the previous one for us.
-      shellConn.setRecorder(null);
-      _isRecording.value = false;
-      return;
-    }
-    final recorder = await _openRecorder(widget.connection);
-    if (recorder == null) return;
-    if (!mounted) {
-      // Pane disposed mid-open. Close the recorder so the half-
-      // initialised file doesn't sit around with a broken header.
-      await recorder.close();
-      return;
-    }
-    shellConn.setRecorder(recorder);
-    _isRecording.value = true;
   }
 
   @override
   void didUpdateWidget(covariant TerminalPane oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Keyboard ownership = the focused pane of the foreground tab. The tab
-    // can leave the foreground (`isActiveTab` flips) without the in-tab
-    // `isFocused` flag changing, since `IndexedStack` keeps backgrounded
-    // tabs mounted — switching tabs only flips `isActiveTab`.
+    // Keyboard ownership = the focused pane of the foreground tab. The tab can
+    // leave the foreground (`isActiveTab` flips) without the in-tab `isFocused`
+    // flag changing, since `IndexedStack` keeps backgrounded tabs mounted.
     final hadFocus = oldWidget.isActiveTab && oldWidget.isFocused;
     final hasFocus = widget.isActiveTab && widget.isFocused;
     if (hadFocus && !hasFocus) {
-      _terminalController.clearSelection();
-      // Release keyboard focus when the tab leaves the foreground. The
-      // incoming tab usually steals it via requestFocus, but a tab with no
-      // terminal pane to grab focus (e.g. switching to an SFTP tab) would
-      // otherwise leave this hidden terminal owning the keyboard.
       if (_terminalFocus.hasFocus) _terminalFocus.unfocus();
     }
     if (!hadFocus && hasFocus) {
-      // Grab focus so the user can type without an extra click.
-      // `autofocus` only fires on initial mount; both the tab-switch path
-      // (`isActiveTab` flip) and the post-open "session ready" path set the
-      // ownership condition true on a previously-existing widget, which is
-      // exactly what `autofocus` misses.
       _terminalFocus.requestFocus();
     }
   }
@@ -501,251 +263,128 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   void dispose() {
     TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
-    HardwareKeyboard.instance.removeHandler(_onShiftToggle);
-    if (widget.paneId != null) {
-      _broadcast?.unregisterSink(widget.paneId!);
-      PaneRecordingRegistry.instance.unregister(widget.paneId!);
-    }
-    _shellConn?.close();
-    _terminalController.dispose();
+    _session?.dispose();
     _terminalFocus.dispose();
-    _showSearch.dispose();
-    _isRecording.dispose();
     super.dispose();
-  }
-
-  /// When the terminal app has enabled mouse mode (e.g. htop, vim), holding
-  /// Shift bypasses mouse forwarding so the user can select text locally.
-  /// Standard terminal-emulator behaviour (xterm, GNOME Terminal, etc.).
-  bool _onShiftToggle(KeyEvent event) {
-    final shouldSuspend =
-        HardwareKeyboard.instance.isShiftPressed &&
-        _terminal.mouseMode != MouseMode.none;
-    if (_terminalController.suspendedPointerInputs != shouldSuspend) {
-      _terminalController.setSuspendPointerInput(shouldSuspend);
-    }
-    return false; // never consume the key event
-  }
-
-  /// Toggle search bar visibility. Exposed for testing — in production
-  /// triggered by Ctrl+Shift+F shortcut.
-  @visibleForTesting
-  void toggleSearch() {
-    _showSearch.value = !_showSearch.value;
-  }
-
-  void _closeSearch() {
-    _showSearch.value = false;
   }
 
   @override
   Widget build(BuildContext context) {
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
-    // No border on panes — the 4px divider in TilingView separates them.
-    //
-    // Route onFocused through a raw Listener.onPointerDown rather than
-    // GestureDetector.onTap: onTap only fires when the gesture arena
-    // resolves as a clean tap, and any drift during the click (or the
-    // xterm TerminalView's own pan/select gesture claiming the arena)
-    // swallows the event, so the focused pane would stop switching
-    // "every other click" when jumping between split panes.
-    final paneId = widget.paneId;
-    final tabId = widget.tabId;
-    BroadcastController? broadcast;
-    if (paneId != null && tabId != null) {
-      broadcast = ref.watch(broadcastControllerProvider(tabId));
-    }
+    // Re-push the palette to the live session on a brightness change so a
+    // theme toggle re-themes the terminal (the engine re-resolves abstract
+    // cell colors against the new palette on the next snapshot).
+    _maybeRepushPalette();
 
-    // Resolve the bordered Container's decoration through the
-    // broadcast controller so only the border rebuilds when the
-    // driver/receiver flags flip — the xterm subtree underneath
-    // never re-walks. `paneInner` captures everything below the
-    // decoration so we hand the same widget to either branch.
-    final paneInner = CallbackShortcuts(
-      bindings: AppShortcutRegistry.instance.buildCallbackMap({
-        AppShortcut.terminalSearch: toggleSearch,
-        AppShortcut.terminalCloseSearch: _closeSearch,
-      }),
-      child: Column(
-        children: [
-          ValueListenableBuilder<bool>(
-            valueListenable: _showSearch,
-            builder: (context, show, _) {
-              if (!show) return const SizedBox.shrink();
-              return TerminalSearchBar(
-                terminal: _terminal,
-                terminalController: _terminalController,
-                onClose: _closeSearch,
-              );
-            },
-          ),
-          // Snap the terminal widget's height to an integer number of
-          // cells so xterm's viewport doesn't leave a dead strip at
-          // the bottom — the same trick MobileTerminalView applies.
-          // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
-          // painter uses internally; mirroring it here gives us a
-          // pre-layout estimate that matches the real measurement
-          // closely enough that xterm settles on `rows * cellHeight`
-          // rendered text with zero trailing gap. The remainder pixels
-          // become a `ColoredBox` painted in the terminal background
-          // so the boundary between the last row and the pane's next
-          // widget (split divider / status) reads as a clean edge.
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const verticalPadding = AppTerminalView.verticalPadding;
-                final cellHeight = fontSize * kTerminalLineHeight;
-                final usable = constraints.maxHeight - verticalPadding;
-                final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
-                final snappedHeight = rows > 0
-                    ? rows * cellHeight + verticalPadding
-                    : constraints.maxHeight;
-                return Column(
-                  children: [
-                    SizedBox(
-                      height: snappedHeight,
-                      child: _buildTerminalStack(fontSize),
-                    ),
-                    if (snappedHeight < constraints.maxHeight)
-                      Expanded(
-                        child: ColoredBox(color: _terminalTheme.background),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+    // Focus surface owns keyboard focus across the connect → live phases so
+    // the tab-switch focus contract holds and zoom shortcuts dispatch. It
+    // wraps the whole body (not just the live grid) so `_terminalFocus` stays
+    // attached during the pre-session progress phase, when `requestFocus()`
+    // fires from initState / didUpdateWidget. Full key-input encoding lands in
+    // the input task; `handleKey` only consumes the local zoom combos today.
+    final body = Focus(
+      focusNode: _terminalFocus,
+      autofocus: widget.isActiveTab && widget.isFocused,
+      onKeyEvent: (_, event) => handleKey(event),
+      child: _buildBody(fontSize),
     );
 
+    // No border on panes — the 4px divider in TilingView separates them.
+    // Route onFocused through a raw Listener.onPointerDown rather than
+    // GestureDetector.onTap: onTap only fires on a clean tap, and any drift
+    // during the click swallows the event, so the focused pane would stop
+    // switching "every other click" when jumping between split panes.
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => widget.onFocused?.call(),
-      child: broadcast == null || paneId == null
-          ? paneInner
-          : ListenableBuilder(
-              listenable: broadcast,
-              builder: (context, _) {
-                final ctl = broadcast!;
-                final isDriver = ctl.isDriver(paneId);
-                final isReceiver = ctl.isReceiver(paneId);
-                final borderColor = isDriver || isReceiver
-                    ? AppTheme.yellow
-                    : null;
-                final borderWidth = isDriver ? 2.5 : 1.5;
-                if (borderColor == null) return paneInner;
-                return Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: borderColor, width: borderWidth),
-                  ),
-                  child: paneInner,
-                );
-              },
-            ),
+      child: body,
     );
   }
 
-  /// Inner Listener + Stack(TerminalView, CursorTextOverlay).
-  /// Delegated to [AppTerminalView] — the shared widget centralises
-  /// secondary-tap dispatch, primary-mouse `beginDrag` / `endDrag`,
-  /// padding, theme and font. The cursor overlay rides as an
-  /// `overlayBuilder` (only the live PTY pane shows it; the
-  /// read-only log viewer leaves it off).
-  Widget _buildTerminalStack(double fontSize) {
-    return AppTerminalView(
-      terminal: _terminal,
-      controller: _terminalController,
-      focusNode: _terminalFocus,
-      fontSize: fontSize,
-      autofocus: widget.isActiveTab && widget.isFocused,
-      hardwareKeyboardOnly: plat.isDesktopPlatform,
-      onKeyEvent: _handleTerminalKey,
-      onPointerSignal: _onPointerSignal,
-      secondaryTapBuilder: _showContextMenu,
-      overlayBuilder: (_) =>
-          CursorTextOverlay(terminal: _terminal, fontSize: fontSize),
-    );
-  }
-
-  void _showContextMenu(BuildContext context, Offset position) {
-    final hasSelection = _terminalController.selection != null;
-    final l10n = S.of(context);
-
-    showAppContextMenu(
-      context: context,
-      position: position,
-      items: [
-        if (hasSelection)
-          StandardMenuAction.copy.item(
-            context,
-            shortcut: AppShortcut.terminalCopy,
-            onTap: _copySelection,
+  Widget _buildBody(double fontSize) {
+    final error = _error;
+    if (error != null) {
+      return ColoredBox(
+        color: AppTheme.bg2,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            error,
+            style: AppFonts.mono(fontSize: fontSize, color: AppTheme.red),
           ),
-        StandardMenuAction.paste.item(
-          context,
-          shortcut: AppShortcut.terminalPaste,
-          onTap: _pasteClipboard,
         ),
-        StandardMenuAction.snippets.item(
-          context,
-          onTap: () => _showSnippetPicker(context),
-        ),
-        ..._buildBroadcastMenuItems(l10n),
-      ],
+      );
+    }
+
+    final session = _session;
+    if (session == null) {
+      // Pre-session connect phase — reuse the shared progress surface.
+      return ConnectionProgress(
+        connection: widget.connection,
+        fontSize: fontSize,
+      );
+    }
+
+    return TerminalGridView(
+      // Re-key on the session epoch so a reconnect rebinds the event stream.
+      key: ValueKey<int>(_sessionEpoch),
+      session: session,
+      fontSize: fontSize,
+      onResize: _onResize,
+      onScroll: _onScroll,
+      onPointerSignal: _onPointerSignal,
+      onClosed: _onSessionClosed,
     );
   }
 
-  /// Broadcast actions are only meaningful when the pane is part of a
-  /// multi-pane tab and we have ids to address it by — guard on both
-  /// before adding any entry, otherwise the menu grows misleading
-  /// "Broadcast from this pane" rows on solo panes / mobile.
-  List<ContextMenuItem> _buildBroadcastMenuItems(S l10n) {
-    if (!widget.supportsBroadcast || !widget.hasMultiplePanes) {
-      return const [];
-    }
-    final controller = ref.read(broadcastControllerProvider(widget.tabId!));
-    final paneId = widget.paneId!;
-    final isDriver = controller.isDriver(paneId);
-    final isReceiver = controller.isReceiver(paneId);
-
-    return [
-      const ContextMenuItem.divider(),
-      ContextMenuItem(
-        label: isDriver ? l10n.broadcastClearDriver : l10n.broadcastSetDriver,
-        icon: isDriver ? Icons.podcasts : Icons.podcasts_outlined,
-        color: isDriver ? AppTheme.yellow : null,
-        onTap: () => controller.setDriver(isDriver ? null : paneId),
-      ),
-      if (!isDriver)
-        ContextMenuItem(
-          label: isReceiver
-              ? l10n.broadcastRemoveReceiver
-              : l10n.broadcastAddReceiver,
-          icon: isReceiver ? Icons.input : Icons.input_outlined,
-          color: isReceiver ? AppTheme.yellow : null,
-          onTap: () => controller.toggleReceiver(paneId),
-        ),
-      if (controller.driverId != null || controller.receiverIds.isNotEmpty)
-        ContextMenuItem(
-          label: l10n.broadcastClearAll,
-          icon: Icons.stop_circle_outlined,
-          onTap: controller.clearAll,
-        ),
-    ];
+  void _onScroll(int lineDelta) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.scroll(delta: lineDelta));
   }
 
-  /// Intercept keyboard shortcuts before xterm's built-in handler consumes
-  /// them — xterm sends most key combos to the terminal as raw data, so
-  /// ancestor CallbackShortcuts never see them.
-  KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent &&
+        HardwareKeyboard.instance.isControlPressed) {
+      _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
+    }
+  }
+
+  /// Forward a viewport-size change to the Rust session and remember it so a
+  /// later session-open / re-layout starts at the right grid size.
+  void _onResize(int cols, int rows) {
+    _cols = cols;
+    _rows = rows;
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.resize(cols: cols, rows: rows));
+  }
+
+  void _onSessionClosed() {
+    if (!mounted) return;
+    setState(() => _error = S.of(context).errSessionClosed);
+    ref.read(connectionsProvider.notifier).notifyStateChanged();
+  }
+
+  void _maybeRepushPalette() {
+    final session = _session;
+    if (session == null) return;
+    final isDark = AppTheme.isDark;
+    if (_paletteIsDark == isDark) return;
+    _paletteIsDark = isDark;
+    unawaited(
+      session.setPalette(palette: TerminalPaletteFromTheme.fromAppTheme()),
+    );
+  }
+
+  /// Intercept keyboard zoom shortcuts. Full key-input encoding lands in the
+  /// input task; for now only the local zoom combos are handled.
+  KeyEventResult handleKey(KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
     _shortcuts ??= <AppShortcut, VoidCallback>{
-      AppShortcut.terminalCopy: _copySelection,
-      AppShortcut.terminalPaste: _pasteClipboard,
       AppShortcut.zoomIn: _zoomIn,
       AppShortcut.zoomOut: _zoomOut,
       AppShortcut.zoomReset: _zoomReset,
@@ -760,65 +399,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     return KeyEventResult.ignored;
   }
 
-  void _copySelection() =>
-      TerminalClipboard.copy(_terminal, _terminalController);
-
-  Future<void> _pasteClipboard() async {
-    final controller = widget.supportsBroadcast
-        ? ref.read(broadcastControllerProvider(widget.tabId!))
-        : null;
-    final isDriver = controller != null && controller.isDriver(widget.paneId!);
-    if (isDriver && controller.isActive) {
-      final clip = await Clipboard.getData(Clipboard.kTextPlain);
-      final text = clip?.text;
-      if (text == null || text.isEmpty) return;
-      if (!mounted) return;
-      final ok = await _confirmBroadcastPaste(text, controller);
-      if (!ok) return;
-      if (!mounted) return;
-      // Same wire format as TerminalClipboard.paste — feed the bytes
-      // directly so onOutput's broadcast wrapper fires and the receivers
-      // see the same paste in lockstep.
-      _terminal.paste(text);
-      return;
-    }
-    return TerminalClipboard.paste(_terminal);
-  }
-
-  Future<bool> _confirmBroadcastPaste(
-    String text,
-    BroadcastController controller,
-  ) async {
-    final l10n = S.of(context);
-    final receiverCount = controller.receiverIds
-        .where((id) => id != widget.paneId)
-        .length;
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => AppDialog(
-        title: l10n.broadcastPasteTitle,
-        maxWidth: 420,
-        content: Text(
-          l10n.broadcastPasteBody(text.length, receiverCount),
-          style: TextStyle(
-            color: AppTheme.fg,
-            fontSize: AppFonts.sm,
-            fontFamily: AppFonts.interFamily,
-          ),
-        ),
-        actions: [
-          AppButton.cancel(onTap: () => Navigator.pop(context, false)),
-          AppButton.primary(
-            label: l10n.broadcastPasteSend,
-            onTap: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
-  Future<void> _showSnippetPicker(BuildContext context) async {
+  Future<void> showSnippetPicker(BuildContext context) async {
     final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
       context,
@@ -861,12 +442,5 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         .update(
           (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: updated)),
         );
-  }
-
-  void _onPointerSignal(PointerSignalEvent event) {
-    if (event is PointerScrollEvent &&
-        HardwareKeyboard.instance.isControlPressed) {
-      _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
-    }
   }
 }

@@ -175,6 +175,51 @@ fn scroll_to_bottom_returns_to_live_screen() {
 }
 
 #[test]
+fn clear_wipes_grid_scrollback_and_homes_cursor() {
+    // Spec: clear() is the auto-lock / wipe scrub. It must remove the
+    // buffered output entirely — not merely scroll the viewport — so
+    // sensitive command output cannot be read back. After clear(): the
+    // visible grid is blank, the cursor is homed at (0,0), and the
+    // scrollback history is gone (history_size == 0). Scrolling back must
+    // reveal nothing, since there is no history to reveal.
+    let mut eng = engine(10, 3);
+    // Write more than `rows` lines so the oldest spill into scrollback.
+    for i in 0..10 {
+        eng.feed(format!("line{i}\r\n").as_bytes());
+    }
+    let before = eng.snapshot();
+    assert!(
+        before.history_size > 0,
+        "precondition: lines pushed off-screen built scrollback"
+    );
+    assert!(
+        !before.cells.is_empty(),
+        "precondition: the visible grid has content"
+    );
+
+    eng.clear();
+
+    let frame = eng.snapshot();
+    assert!(
+        frame.cells.is_empty(),
+        "every visible cell is blanked after clear"
+    );
+    assert_eq!(frame.cursor.row, 0, "cursor homed to row 0");
+    assert_eq!(frame.cursor.col, 0, "cursor homed to col 0");
+    assert_eq!(frame.history_size, 0, "scrollback history is purged");
+    assert_eq!(frame.display_offset, 0, "viewport back on the live screen");
+
+    // No retained content to scroll back into.
+    eng.scroll(5);
+    let scrolled = eng.snapshot();
+    assert_eq!(
+        scrolled.display_offset, 0,
+        "no history remains, so scrolling up is a no-op"
+    );
+    assert!(scrolled.cells.is_empty(), "still nothing buffered to show");
+}
+
+#[test]
 fn sgr_foreground_color_resolves_to_palette_rgb() {
     // Spec: SGR 31 selects ANSI red; the snapshot cell must carry the
     // palette's resolved red RGB, never an abstract Named color.

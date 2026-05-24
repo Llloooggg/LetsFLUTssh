@@ -22,6 +22,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../../src/rust/api/terminal.dart' as rust_terminal;
+
 /// A bidirectional, engine-agnostic SSH connection.
 ///
 /// Lifecycle: the Rust connection actor produces an authenticated
@@ -34,6 +36,23 @@ abstract class SshTransport {
   /// can coexist on one transport; each one gets its own
   /// [SshShellChannel] handle.
   Future<SshShellChannel> openShell({required int cols, required int rows});
+
+  /// Open a Rust-engine-backed terminal session: the Rust core opens the
+  /// PTY shell, builds the engine + pump, and returns a [TerminalSession]
+  /// handle the renderer drives directly (snapshot / events / resize).
+  ///
+  /// Returns the FRB [rust_terminal.TerminalSession] rather than the raw
+  /// `SshSession` so the data-ownership boundary holds: the connection
+  /// actor's `SshSession` never leaves the transport; the renderer only
+  /// ever sees the terminal handle. The session is the **single** consumer
+  /// of the shell's read-half, so this path does not coexist with
+  /// [openShell] on the same logical terminal.
+  Future<rust_terminal.TerminalSession> openTerminalSession({
+    required int cols,
+    required int rows,
+    required int scrollback,
+    required rust_terminal.TerminalPalette palette,
+  });
 
   /// Open an SFTP subsystem on a fresh channel. Returns the engine
   /// SFTP client (today: `rust_sftp.SshSftp` from the Rust core).

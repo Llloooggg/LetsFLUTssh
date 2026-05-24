@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import '../../../src/rust/api/forward.dart' as rust_forward;
 import '../../../src/rust/api/sftp.dart' as rust_sftp;
 import '../../../src/rust/api/ssh.dart' as rust_ssh;
+import '../../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../../utils/logger.dart';
 import 'ssh_transport.dart';
 
@@ -50,6 +51,34 @@ class RustTransport implements SshTransport {
       name: 'RustTransport',
     );
     return _RustShell(shell);
+  }
+
+  @override
+  Future<rust_terminal.TerminalSession> openTerminalSession({
+    required int cols,
+    required int rows,
+    required int scrollback,
+    required rust_terminal.TerminalPalette palette,
+  }) async {
+    final session = _requireSession();
+    final t0 = DateTime.now();
+    AppLogger.instance.log(
+      'RustTransport.openTerminalSession: requesting (${cols}x$rows)',
+      name: 'RustTransport',
+    );
+    final term = await rust_terminal.terminalSessionOpen(
+      session: session,
+      cols: cols,
+      rows: rows,
+      scrollback: scrollback,
+      palette: palette,
+    );
+    final ms = DateTime.now().difference(t0).inMilliseconds;
+    AppLogger.instance.log(
+      'RustTransport.openTerminalSession: got TerminalSession in ${ms}ms',
+      name: 'RustTransport',
+    );
+    return term;
   }
 
   @override

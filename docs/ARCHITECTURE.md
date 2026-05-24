@@ -291,7 +291,7 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 
 | File | Class/Function | Purpose |
 |------|---------------|---------|
-| `transport/ssh_transport.dart` | `SshTransport` interface, `SshAuthMethod` family (`SshAuthPassword`, `SshAuthPubkey`, `SshAuthPubkeyCert`, `SshAuthAgent` + `*Ref` variants), `SshShellChannel`, `SshDirectTcpipChannel`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`) | Engine-agnostic transport surface — `connect` / `openShell` / `openSftp` / `openDirectTcpip` / `requestRemoteForward`. `RustTransport` is the only impl; the interface stays so tests can swap in fakes through the constructor seam on `ConnectionsNotifier`. |
+| `transport/ssh_transport.dart` | `SshTransport` interface, `SshAuthMethod` family (`SshAuthPassword`, `SshAuthPubkey`, `SshAuthPubkeyCert`, `SshAuthAgent` + `*Ref` variants), `SshShellChannel`, `SshDirectTcpipChannel`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`) | Engine-agnostic transport surface — `connect` / `openShell` / `openTerminalSession` / `openSftp` / `openDirectTcpip` / `requestRemoteForward`. `openTerminalSession` returns a Rust-engine `TerminalSession` (the desktop terminal path); the raw `SshSession` stays encapsulated. `RustTransport` is the only impl; the interface stays so tests can swap in fakes through the constructor seam on `ConnectionsNotifier`. |
 | `transport/rust_transport.dart` | `RustTransport` | Routes channel-ops calls into FRB (`lfs_core::ssh`). The Rust connection actor builds the authenticated session; this wrapper bridges the channel-ops surface and materialises shell + direct-tcpip channels as Dart streams. ProxyJump dialled child sessions adopt the parent's session via `RustTransport.adopt(session)` rather than re-connecting on the bridge. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`, plus the `useAgent` flag (`Session.toSSHConfig` sets it from `authType == AuthType.agent`); the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). When `useAgent` is set, `ConnectionsNotifier._authFromConfig` short-circuits to `SshAuthAgent` before the auth composer runs — the system ssh-agent owns the credential and no SecretStore staging is required. |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
@@ -318,6 +318,10 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 abstract class SshTransport {
   void adopt(rust_ssh.SshSession session);
   Future<SshShellChannel> openShell({required int cols, required int rows});
+  Future<TerminalSession> openTerminalSession({
+    required int cols, required int rows,
+    required int scrollback, required TerminalPalette palette,
+  });
   Future<dynamic> openSftp();
   Future<SshDirectTcpipChannel> openDirectTcpip({...});
   Future<int>  requestRemoteForward(String address, int port);
@@ -326,6 +330,8 @@ abstract class SshTransport {
   bool get isConnected;
 }
 ```
+
+`openTerminalSession` returns the FRB `TerminalSession` rather than the raw `SshSession`, so the connection actor's session never leaves the transport — the renderer (`TerminalGridView`, [§5.1](#desktop-rendering--custompaint-cell-grid)) only ever sees the terminal handle. The Rust core opens the PTY shell and builds the engine + pump inside `terminalSessionOpen`; the session is the single consumer of the shell's read-half, so this path does not coexist with `openShell` on the same logical terminal.
 
 The Rust connection actor owns the connect handshake itself — `connectAsync` in `ConnectionsNotifier` enqueues an `lfs_core::connection::ConnectCommand` over FRB; the actor authenticates via russh, publishes `BusEvent::ConnectionStateChanged(Connected)`, and the Dart `Connection` hands the resulting handle to `RustTransport.adopt(session)` (see `_adoptSession` in [§3.5](#35-connection-lifecycle-coreconnection)).
 
@@ -3647,6 +3653,23 @@ bytes straight to the shell's stdin; the engine processes only server
 `resize(cols, rows)` resizes both the engine grid and the remote PTY
 (`window_change`). Key-byte encoding is a later renderer-side task.
 
+**Scrub clears scrollback, not just the viewport.** `clear()` is the
+auto-lock / wipe scrub entry point (`TerminalScrubber` registers it per
+pane, [§5.1](#51-terminal-with-tiling-featuresterminal)). It calls the
+engine's `clear()`, which runs `Grid::reset` to blank the visible grid,
+purge the entire scrollback history (so `history_size() == 0`), and home
+the cursor. The distinction is security-load-bearing: `scroll`/
+`scroll_to_bottom` only move the viewport over retained content, so a
+session that echoed a password would leave those bytes readable in
+scrollback after the DB key is cleared — `clear()` drops them from
+memory. To repaint the now-blank grid, `clear()` pushes one `Wakeup` onto
+the **same** UI-event stream the renderer already listens to: the pump
+stashes a `Clone` of its `StreamSink` on the session when `events()`
+starts, and `clear()` reads that stashed sink rather than opening a
+second stream (a `StreamSink` parameter would make FRB collapse `clear`
+into a stream-returning function). If the pump has not started yet the
+grid is still wiped; the next output drives the repaint.
+
 **Recorder / broadcast fork — follow-up.** Today Dart forks shell output
 bytes to the session recorder and broadcast controller inside its events
 loop (`lib/core/ssh/shell_helper.dart`). When the live pane switches to
@@ -3842,19 +3865,29 @@ class _FooDialogState extends State<FooDialog> {
 ### 5.1 Terminal with Tiling (`features/terminal/`)
 
 > The terminal model is migrating into Rust. The headless engine (ANSI
-> parser + grid + scrollback + scroll-region + selection) now lives in
+> parser + grid + scrollback + scroll-region + selection) lives in
 > `lfs_core::terminal` — see [§3.16 Rust Terminal Engine](#316-rust-terminal-engine-rustcrateslfs_coresrcterminal).
-> The `xterm`-based rendering described below is the current path until
-> the FRB bridge and the `CustomPaint` renderer that consume the Rust
-> `Frame` snapshot land.
+> The **desktop pane** now renders that engine through a `CustomPaint`
+> cell grid (`TerminalGridView` / `TerminalGridPainter`) fed by the FRB
+> `TerminalSession` — see [Desktop rendering](#desktop-rendering--custompaint-cell-grid) below.
+> The **mobile pane**, **recording playback**, and the **read-only log
+> viewer** still render through `xterm`'s `TerminalView`; they migrate in
+> their own tasks. Desktop input encoding (keyboard) and
+> selection/copy/search-via-Rust are not yet wired on the new path — the
+> desktop grid is display-only with working scroll-wheel scrollback and
+> font zoom.
 
 #### Files
 
 | File | Class | Purpose |
 |------|-------|---------|
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
-| `terminal_pane.dart` | `TerminalPane` | Single terminal: xterm widget + SSH shell pipe |
-| `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay). Exports the canonical 1.2 line-height multiplier used by every custom painter that sits on top of `TerminalView`. |
+| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport and renders it via `TerminalGridView`. Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
+| `widgets/terminal/terminal_grid_view.dart` | `TerminalGridView` | `StatefulWidget` that subscribes to `TerminalSession.events()`, pulls a fresh `snapshot()` on each coalesced `Wakeup`, repaints once per frame, computes cols/rows from `measureMonoCell` and reports resize, and forwards wheel scroll. Has a live-session constructor and a `.fromSource` DI constructor (snapshot fn + event stream) for tests. |
+| `widgets/terminal/terminal_grid_painter.dart` | `TerminalGridPainter`, `selectionRects` | `CustomPainter` that paints one sparse `TerminalFrame`: per-cell background rects, glyph runs, cursor (with inverted glyph under a block), and the selection highlight. `selectionRects` is the pure linear/block geometry helper. |
+| `widgets/terminal/terminal_cell_flags.dart` | `TerminalCellFlags` | Single decode point for the raw `alacritty_terminal` attribute bitfield (bold / italic / underline / strikeout / hidden / wide). Constants mirror `alacritty_terminal-0.26.0/src/term/cell.rs`. |
+| `widgets/terminal/terminal_palette_theme.dart` | `TerminalPaletteFromTheme` | Maps the live `AppTheme.term*` swatches (dark + light) into the FRB `TerminalPalette` DTO pushed at open and re-pushed via `setPalette` on a brightness change. |
+| `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay) for the surfaces still on `xterm`. Exports the canonical 1.2 line-height multiplier every custom painter — including `TerminalGridPainter` — sizes glyphs with. |
 | `tiling_view.dart` | `TilingView` | Recursive split-tree renderer. Drives terminal-pane tiling: `BranchNode`s are created by the divider drag handler + the Ctrl+\\ / Ctrl+Shift+\\ duplicate-shortcut path; `LeafNode`s materialise per pane. |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
 | `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out). Wired to terminal panes via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`; driver + receiver roles set through the pane context menu. |
@@ -3891,32 +3924,36 @@ BranchNode(horizontal, 0.5)
 - `removeNode(id)` — remove a pane (branch → remaining child)
 - `collectLeafIds()` — all pane IDs (for iteration)
 
-#### TerminalPane — internals
+#### Desktop rendering — `CustomPaint` cell grid
 
-```
-TerminalPane(connection, paneId)
-  ├── ProgressWriter subscribes to connection.progressStream
-  │   └── writes ANSI-styled steps to terminal: [*] → [✓] / [✗]
-  ├── await connection.waitUntilReady()
-  ├── on success: clear terminal → ShellHelper.openShell()
-  │   ├── xterm Terminal() ← pipe ← shell.stdout
-  │   │                    → pipe → shell.stdin
-  │   └── resize → connection.resizeTerminal(cols, rows)
-  ├── on error: progress log stays visible with error text
-  └── hardwareKeyboardOnly: true (on desktop)
+```mermaid
+flowchart TD
+  conn["Connection (transport adopted)"] -->|openTerminalSession cols,rows,scrollback,palette| sess["Rust TerminalSession"]
+  sess -->|events Stream| view["TerminalGridView"]
+  view -->|on Wakeup: snapshot| frame["TerminalFrame (sparse)"]
+  frame --> painter["TerminalGridPainter.paint"]
+  view -->|layout → measureMonoCell| resize["onResize → session.resize"]
+  view -->|wheel| scroll["onScroll → session.scroll"]
+  theme["AppTheme brightness flip"] -->|setPalette| sess
 ```
 
-**Connection progress:** Instead of a spinner, TerminalPane writes structured progress steps directly into the xterm buffer using ANSI color codes (yellow `[*]` for in-progress, green `[✓]` for success, red `[✗]` for failure). On successful connection the terminal clears and the shell appears; on failure the log stays visible. Cursor is hidden during progress display via `\x1B[?25l` and restored on clear/error.
+**Open + render path.** Once the connection's transport is adopted, `TerminalPane` calls `SshTransport.openTerminalSession(cols, rows, scrollback, palette)`. The Rust core opens the PTY shell, builds the engine + pump, and returns a `TerminalSession` handle — the raw `SshSession` never crosses back to the pane (the transport keeps it; the pane only ever holds the terminal handle). `TerminalGridView` subscribes to `session.events()`; on each coalesced `Wakeup` it pulls a fresh sync `session.snapshot()` and schedules one repaint per vsync via a post-frame gate (the same coalescing shape as `CursorTextOverlay._repaintScheduled`), so a busy output burst still repaints once per frame.
 
-**Why `hardwareKeyboardOnly: true` on desktop:** xterm TextInputClient is broken on Windows — causes input duplication.
+**Sparse frame + flags decode.** A `TerminalFrame` carries only non-blank cells (the engine omits blank default-background cells). `TerminalGridPainter` clears to the default background once via the host `ColoredBox`, then for each cell paints its background rect (skipped when it equals the default bg), and overlays the glyph at the cell's `row`/`col` × cell-metric origin (`ch` → `String.fromCharCode`). `INVERSE` and `DIM` are already folded into the cell's concrete `fg`/`bg` Rust-side, so the painter never resolves color; the remaining attribute bits are decoded in exactly one place — `TerminalCellFlags.fromBits` — whose constants mirror `alacritty_terminal`'s `term::cell::Flags` (`BOLD`→weight, `ITALIC`→italic, `UNDERLINE`/`STRIKEOUT`→decoration, `HIDDEN`→skip glyph, `WIDE_CHAR`→two-column span). The block cursor re-draws the covered glyph in the background color for the classic inverted-cursor look. `shouldRepaint` keys off a monotonic frame revision the view bumps per pull (cheaper than a deep `cells` compare and never misses a frame that value-equals a prior one).
+
+**Cell metrics + resize.** `TerminalGridView` measures one cell with the shared `measureMonoCell` (1.2 line-height, scaled by `MediaQuery.textScalerOf`) so glyph baselines land on the grid, floors the laid-out size to whole cells, and reports `(cols, rows)` to the pane, which forwards to `session.resize`. Flooring stops the remote PTY from wrapping into a column the grid can't show.
+
+**Palette push.** `TerminalPaletteFromTheme.fromAppTheme()` maps the live `AppTheme.term*` swatches into the FRB `TerminalPalette` (16 ANSI + default fg/bg/cursor/selection); it is passed at open and re-pushed via `session.setPalette` when `AppTheme` brightness flips, so a theme toggle re-themes the terminal (the engine re-resolves abstract cell colors against the new palette on the next snapshot).
+
+**Scrollback + zoom.** A plain mouse wheel over the grid converts pixel delta to whole lines and calls `session.scroll` (positive = up into scrollback); Ctrl+wheel is routed to font zoom instead. Font size lives in `configProvider` and drives the cell metrics, so a zoom re-measures and re-resizes the session.
+
+**Connection progress:** During the connect cascade the pane shows the shared `ConnectionProgress` widget (still `xterm`-backed — it migrates with the other secondary surfaces), swapping to the live grid once the session opens. On failure the pane shows the localized error text in the terminal background.
+
+**Focus surface (input deferred):** The grid is display-only. `TerminalPane` wraps the body in a `Focus` node so the tab-switch keyboard-ownership contract holds (ownership follows `isActiveTab && isFocused`, re-grabbed in `didUpdateWidget`) and the local zoom shortcuts dispatch; key-byte encoding to `session.writeInput` lands in the input task. `sendCommand` (snippet picker) already forwards through `session.writeInput`.
 
 **Focus indicator:** No border is drawn on panes — the 4 px divider in `TilingView` already separates them visually. The focused pane is identifiable by the active cursor and toolbar highlight.
 
-**Context menu:** Right-click is handled by a `Listener(onPointerDown:)` wrapping `TerminalView`, not by xterm's `onSecondaryTapUp`. This ensures the context menu works even when the terminal is in mouse mode (htop, vim, etc.), because `Listener` operates at the raw pointer level before xterm's gesture detector can consume the event.
-
-**Shift-bypass for mouse mode (desktop):** When a TUI app enables mouse mode (htop, vim, mc, etc.), all mouse events are forwarded to the app. Holding **Shift** temporarily suspends pointer-input forwarding via `TerminalController.setSuspendPointerInput(true)`, letting the user drag-select text locally — standard behaviour matching xterm, GNOME Terminal, and other emulators. State is updated via a `HardwareKeyboard` handler registered in `TerminalPaneState`; the handler fires on every key event and recalculates based on current Shift state + `Terminal.mouseMode`.
-
-**Drag-selection anchor pinning (`AnchorPinningTerminalController`):** xterm 4.0.0's `TerminalGestureHandler` stores the drag-start position as a raw widget pixel and recomputes both selection endpoints via `RenderTerminal.getCellOffset(localPx)` on every drag update. `getCellOffset` adds the *current* `_scrollOffset` to the pixel y, so a wheel scroll between drag-start and the next drag update reinterprets the start pixel against a different scroll position and the `base` anchor silently jumps to a new buffer row — visually the selection collapses to the visible viewport and copy returns the wrong range. `AnchorPinningTerminalController` (in `features/terminal/`) is a `TerminalController` subclass that, while a primary-mouse drag is in flight, pins the first observed `(BufferLine, x)` and re-creates a fresh `CellAnchor` on every subsequent `setSelection` call — re-creation is required because xterm's base `setSelection` disposes the prior `_selectionBase`, which would detach a pinned anchor after one reuse. If the pinned line rotates out of the scrollback (`BufferLine.attached == false`), the next call adopts the fresh `base` instead of minting an anchor on a detached line. The pin is armed in the existing right-click `Listener.onPointerDown` (alongside the context-menu branch) and released on `onPointerUp` / `onPointerCancel`. The trigger is narrowed to `PointerDeviceKind.mouse` + `kPrimaryButton` and skipped while `Terminal.isUsingAltBuffer` is true: touch goes through xterm's long-press word-extend (which passes a left-extending `range.begin` the pin would freeze), and the alt-buffer has no scrollback so the bug cannot occur there. `clearSelection` drops the pin so non-drag selection paths (double-tap word, search highlight) stay unaffected.
+**Deferred on the desktop path.** Selection/copy and search route through the Rust session (`setSelection` / `selectionText` / `search`) in a later task — the old `xterm`-coupled search bar and `AnchorPinningTerminalController` drag-pinning were removed from the desktop pane. Per-tab broadcast and session recording also pause on the desktop pane: both forked the per-byte stream in Dart's `ShellHelper`, and that fork moves into the Rust pump body (the recorder / broadcast hook slot documented on `TerminalSession::events`) — the connection-bar record button hides itself while no pane registers a recording handle. The `xterm`-mode-only Shift-bypass and `hardwareKeyboardOnly` notes no longer apply to the desktop grid (mouse-mode forwarding is an engine concern); they survive only on the mobile / read-only surfaces still on `xterm`.
 
 #### Keyboard Shortcuts
 
@@ -3934,14 +3971,12 @@ Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape seque
 | Ctrl+Shift+M | Toggle panel maximize (zoom) |
 | Ctrl+, | Toggle settings |
 
-**Terminal** (`terminal_pane.dart`):
-
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+Shift+C | Copy selection |
-| Ctrl+Shift+V | Paste clipboard |
-| Ctrl+Shift+F | Toggle search bar |
-| Escape | Close search bar |
+**Terminal** — copy / paste / search (Ctrl+Shift+C / V / F, Escape) are
+defined in `AppShortcutRegistry` and remain live on the `xterm`-backed
+mobile pane. On the new desktop grid they are paused with the
+selection/copy/search migration to the Rust session; the desktop pane
+currently dispatches only the local zoom combos (Ctrl+`=` / Ctrl+`-` /
+Ctrl+`0`).
 
 **SFTP file browser** (`file_pane.dart` — `Focus.onKeyEvent`):
 
@@ -3969,6 +4004,14 @@ SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane I
 Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
 
 #### Broadcast input — per-tab fan-out
+
+> **Status:** paused on the new desktop grid pane. Broadcast forked the
+> per-byte input stream in Dart's `ShellHelper`; with the desktop pane on
+> the Rust `TerminalSession`, that fork moves into the Rust pump body (the
+> recorder / broadcast hook slot on `TerminalSession::events`). The
+> `BroadcastController` and its provider stay in place; the wiring below
+> describes the `xterm`-era hookup that returns once the pump-side fork
+> lands.
 
 `BroadcastController` (`features/terminal/broadcast_controller.dart`) is a `ChangeNotifier` instantiated per tab via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`. One pane in a tab can be the **driver**; every byte its `Terminal.onOutput` produces is mirrored into every registered **receiver** pane's shell sink. The pane registers itself in `_attachBroadcast` once `_openShell` returns, and unregisters in `dispose` — `_broadcastUnsubscribe` cleans up the listener subscription, `BroadcastController.unregisterSink` clears the role assignment.
 
