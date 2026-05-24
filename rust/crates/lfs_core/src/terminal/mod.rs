@@ -16,9 +16,11 @@
 //! Architecture: see ARCHITECTURE.md → "Rust terminal engine".
 
 mod frame;
+mod input;
 mod palette;
 
 pub use frame::{Cell, CursorShape, Frame, FrameCursor, FrameSelection};
+pub use input::{encode_key, encode_paste, KeyInput, KeyName};
 pub use palette::{Rgb, TermPalette};
 
 use std::sync::{Arc, Mutex};
@@ -28,7 +30,7 @@ use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::{Column, Line, Point, Side};
 use alacritty_terminal::selection::{Selection, SelectionType};
 use alacritty_terminal::term::cell::Flags;
-use alacritty_terminal::term::{Config, Term};
+use alacritty_terminal::term::{Config, Term, TermMode};
 use alacritty_terminal::vte::ansi::{CursorShape as VteCursorShape, Processor};
 
 /// A side-effect the terminal emitted while parsing a byte stream. These
@@ -185,6 +187,16 @@ impl TerminalEngine {
     /// [`TerminalEvent::PtyWrite`].
     pub fn feed(&mut self, bytes: &[u8]) {
         self.parser.advance(&mut self.term, bytes);
+    }
+
+    /// The terminal's current mode bitfield (DECCKM application-cursor,
+    /// bracketed-paste, LNM, etc.). The key encoder reads it so a
+    /// keystroke's bytes match what the running program set up — e.g.
+    /// arrows flip to SS3 form under [`TermMode::APP_CURSOR`]. Returned by
+    /// value (`TermMode` is `Copy`) so callers don't borrow the engine
+    /// across the `encode_key` call.
+    pub fn mode(&self) -> TermMode {
+        *self.term.mode()
     }
 
     /// Resize the viewport. Content reflows per alacritty's rules and the

@@ -9,8 +9,8 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'ssh.dart';
 part 'terminal.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The OneDark default palette as a DTO. The Dart theme layer uses this
 /// as the starting point before overriding swatches from AppTheme.
@@ -91,6 +91,13 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// in without reshaping the lock/await ordering.
   Stream<TerminalUiEvent> events();
 
+  /// Encode pasted text against the engine's current mode and write it to
+  /// the shell. Under bracketed-paste mode the body is framed with
+  /// `\x1b[200~` … `\x1b[201~` (and any embedded terminator stripped per
+  /// the paste-safety rule); otherwise the raw bytes go through. Same
+  /// lock discipline as [`Self::send_key`].
+  Future<void> paste({required String text});
+
   /// Resize the viewport: the engine reflows the grid and the shell
   /// notifies the remote of the new window size. Both must happen — the
   /// engine for the local model, the `window_change` so the remote PTY
@@ -111,6 +118,18 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// The text covered by the active selection, or `None` when there is
   /// no selection.
   Future<String?> selectionText();
+
+  /// Encode a key press against the engine's **current** terminal mode
+  /// and write the resulting VT bytes to the shell. The mode read is why
+  /// this is Rust-side: arrows flip to SS3 form under DECCKM, Enter
+  /// becomes CR+LF under LNM, etc., and only the engine holds that state.
+  ///
+  /// Lock discipline: the engine lock is taken only to read the mode
+  /// (a synchronous `Copy` read), released, and the encode + `shell.write`
+  /// run after — the lock is never held across the `await`, matching the
+  /// pump's discipline. An empty encoding (e.g. an out-of-range F-key)
+  /// writes nothing rather than an empty frame.
+  Future<void> sendKey({required TerminalKey key});
 
   /// Replace the color palette (e.g. on theme change). Takes effect on
   /// the next snapshot; already-parsed cells keep their abstract colors
@@ -138,8 +157,9 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// Forward Dart key bytes straight to the remote shell's stdin. The
   /// engine processes only **server output**, never local input — so
   /// input bypasses the engine entirely (the server echoes it back, and
-  /// that echo is what the engine renders). Key-byte encoding is a later
-  /// task; this just forwards the already-encoded bytes.
+  /// that echo is what the engine renders). Callers that already hold
+  /// encoded bytes (snippets, `sendCommand`) use this; live keystrokes
+  /// go through [`Self::send_key`] so the encoding reads the live mode.
   Future<void> writeInput({required List<int> bytes});
 }
 
@@ -333,6 +353,69 @@ class TerminalFrameSelection {
           endRow == other.endRow &&
           endCol == other.endCol &&
           isBlock == other.isBlock;
+}
+
+/// FRB mirror of `lfs_core::terminal::KeyInput` — a normalised key event:
+/// the logical key plus the modifier state. The Dart key-event layer
+/// builds this from a `LogicalKeyboardKey` + `HardwareKeyboard` modifiers;
+/// the encoder (`send_key`) reads the live terminal mode and produces the
+/// VT byte sequence.
+class TerminalKey {
+  final TerminalKeyName name;
+  final bool ctrl;
+  final bool alt;
+  final bool shift;
+  final bool meta;
+
+  const TerminalKey({
+    required this.name,
+    required this.ctrl,
+    required this.alt,
+    required this.shift,
+    required this.meta,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      ctrl.hashCode ^
+      alt.hashCode ^
+      shift.hashCode ^
+      meta.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TerminalKey &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          ctrl == other.ctrl &&
+          alt == other.alt &&
+          shift == other.shift &&
+          meta == other.meta;
+}
+
+@freezed
+sealed class TerminalKeyName with _$TerminalKeyName {
+  const TerminalKeyName._();
+
+  const factory TerminalKeyName.char({required int code}) =
+      TerminalKeyName_Char;
+  const factory TerminalKeyName.enter() = TerminalKeyName_Enter;
+  const factory TerminalKeyName.tab() = TerminalKeyName_Tab;
+  const factory TerminalKeyName.backspace() = TerminalKeyName_Backspace;
+  const factory TerminalKeyName.escape() = TerminalKeyName_Escape;
+  const factory TerminalKeyName.up() = TerminalKeyName_Up;
+  const factory TerminalKeyName.down() = TerminalKeyName_Down;
+  const factory TerminalKeyName.right() = TerminalKeyName_Right;
+  const factory TerminalKeyName.left() = TerminalKeyName_Left;
+  const factory TerminalKeyName.home() = TerminalKeyName_Home;
+  const factory TerminalKeyName.end() = TerminalKeyName_End;
+  const factory TerminalKeyName.pageUp() = TerminalKeyName_PageUp;
+  const factory TerminalKeyName.pageDown() = TerminalKeyName_PageDown;
+  const factory TerminalKeyName.insert() = TerminalKeyName_Insert;
+  const factory TerminalKeyName.delete() = TerminalKeyName_Delete;
+  const factory TerminalKeyName.f({required int number}) = TerminalKeyName_F;
 }
 
 /// One search match — FRB mirror of `lfs_core::terminal::MatchRange`, in

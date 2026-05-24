@@ -21,11 +21,13 @@ typedef TerminalSnapshotProvider = TerminalFrame Function();
 /// frame (coalesced via a post-frame gate, so a busy output burst that
 /// fires many wakeups still repaints once per vsync).
 ///
-/// Render-only: no key encoding or selection gestures yet — those land
-/// in later tasks. The host wires [onTitle]/[onResetTitle]/[onClosed]
-/// callbacks; [onBell] defaults to a no-op (visual/audible bell is a
-/// host concern wired later). The data is Rust-owned; this widget holds
-/// only the latest pulled frame, never mutating it Dart-side.
+/// Render + scroll only: keyboard input is owned by the host's `Focus`
+/// surface (see `TerminalPane.handleKey`), which encodes keystrokes
+/// Rust-side; selection gestures land in a later task. The host wires
+/// [onTitle]/[onResetTitle]/[onClosed] callbacks; [onBell] defaults to a
+/// no-op (visual/audible bell is a host concern wired later). The data is
+/// Rust-owned; this widget holds only the latest pulled frame, never
+/// mutating it Dart-side.
 ///
 /// Sizing is reported back via [onResize] so the host can drive
 /// `TerminalSession.resize` — this widget does not call FFI resize

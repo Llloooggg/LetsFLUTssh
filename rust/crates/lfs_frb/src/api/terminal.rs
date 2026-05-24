@@ -26,7 +26,8 @@ use flutter_rust_bridge::frb;
 use tokio::sync::Mutex;
 
 use lfs_core::terminal::{
-    MatchRange, SelectionKind, TermPalette, TerminalEngine, TerminalEvent as CoreTerminalEvent,
+    encode_key, encode_paste, KeyInput, KeyName, MatchRange, SelectionKind, TermPalette,
+    TerminalEngine, TerminalEvent as CoreTerminalEvent,
 };
 
 use crate::api::frb_err;
@@ -271,6 +272,88 @@ impl TerminalSelectionKind {
         match self {
             TerminalSelectionKind::Simple => SelectionKind::Simple,
             TerminalSelectionKind::Block => SelectionKind::Block,
+        }
+    }
+}
+
+// ---- Key input DTO ----------------------------------------------------
+
+/// FRB mirror of `lfs_core::terminal::KeyName` — a logical, OS-independent
+/// key. The `Char` variant carries the resolved Unicode scalar (`u32`, as
+/// FRB has no `char`); the Dart layer puts the typed character here and the
+/// encoder applies any Ctrl/Alt transform Rust-side. `F` carries the
+/// function-key number (1..=12); out-of-range numbers encode to nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalKeyName {
+    Char { code: u32 },
+    Enter,
+    Tab,
+    Backspace,
+    Escape,
+    Up,
+    Down,
+    Right,
+    Left,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    Insert,
+    Delete,
+    F { number: u8 },
+}
+
+impl TerminalKeyName {
+    /// Resolve into the core [`KeyName`]. A `Char` scalar that is not a
+    /// valid Unicode code point degrades to the replacement character
+    /// rather than failing the keystroke — a malformed descriptor types a
+    /// visible glyph instead of dropping the input silently.
+    fn into_core(self) -> KeyName {
+        match self {
+            TerminalKeyName::Char { code } => {
+                KeyName::Char(char::from_u32(code).unwrap_or('\u{fffd}'))
+            }
+            TerminalKeyName::Enter => KeyName::Enter,
+            TerminalKeyName::Tab => KeyName::Tab,
+            TerminalKeyName::Backspace => KeyName::Backspace,
+            TerminalKeyName::Escape => KeyName::Escape,
+            TerminalKeyName::Up => KeyName::Up,
+            TerminalKeyName::Down => KeyName::Down,
+            TerminalKeyName::Right => KeyName::Right,
+            TerminalKeyName::Left => KeyName::Left,
+            TerminalKeyName::Home => KeyName::Home,
+            TerminalKeyName::End => KeyName::End,
+            TerminalKeyName::PageUp => KeyName::PageUp,
+            TerminalKeyName::PageDown => KeyName::PageDown,
+            TerminalKeyName::Insert => KeyName::Insert,
+            TerminalKeyName::Delete => KeyName::Delete,
+            TerminalKeyName::F { number } => KeyName::F(number),
+        }
+    }
+}
+
+/// FRB mirror of `lfs_core::terminal::KeyInput` — a normalised key event:
+/// the logical key plus the modifier state. The Dart key-event layer
+/// builds this from a `LogicalKeyboardKey` + `HardwareKeyboard` modifiers;
+/// the encoder (`send_key`) reads the live terminal mode and produces the
+/// VT byte sequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TerminalKey {
+    pub name: TerminalKeyName,
+    pub ctrl: bool,
+    pub alt: bool,
+    pub shift: bool,
+    pub meta: bool,
+}
+
+impl TerminalKey {
+    fn into_core(self) -> KeyInput {
+        KeyInput {
+            key: self.name.into_core(),
+            ctrl: self.ctrl,
+            alt: self.alt,
+            shift: self.shift,
+            meta: self.meta,
         }
     }
 }
@@ -526,9 +609,55 @@ impl TerminalSession {
     /// Forward Dart key bytes straight to the remote shell's stdin. The
     /// engine processes only **server output**, never local input — so
     /// input bypasses the engine entirely (the server echoes it back, and
-    /// that echo is what the engine renders). Key-byte encoding is a later
-    /// task; this just forwards the already-encoded bytes.
+    /// that echo is what the engine renders). Callers that already hold
+    /// encoded bytes (snippets, `sendCommand`) use this; live keystrokes
+    /// go through [`Self::send_key`] so the encoding reads the live mode.
     pub async fn write_input(&self, bytes: Vec<u8>) -> Result<(), String> {
+        self.shell
+            .write(&bytes)
+            .await
+            .map_err(|e| frb_err::from_core(&e))
+    }
+
+    /// Encode a key press against the engine's **current** terminal mode
+    /// and write the resulting VT bytes to the shell. The mode read is why
+    /// this is Rust-side: arrows flip to SS3 form under DECCKM, Enter
+    /// becomes CR+LF under LNM, etc., and only the engine holds that state.
+    ///
+    /// Lock discipline: the engine lock is taken only to read the mode
+    /// (a synchronous `Copy` read), released, and the encode + `shell.write`
+    /// run after — the lock is never held across the `await`, matching the
+    /// pump's discipline. An empty encoding (e.g. an out-of-range F-key)
+    /// writes nothing rather than an empty frame.
+    pub async fn send_key(&self, key: TerminalKey) -> Result<(), String> {
+        let mode = {
+            let guard = self.engine.lock().await;
+            guard.mode()
+        };
+        let bytes = encode_key(&key.into_core(), mode);
+        if bytes.is_empty() {
+            return Ok(());
+        }
+        self.shell
+            .write(&bytes)
+            .await
+            .map_err(|e| frb_err::from_core(&e))
+    }
+
+    /// Encode pasted text against the engine's current mode and write it to
+    /// the shell. Under bracketed-paste mode the body is framed with
+    /// `\x1b[200~` … `\x1b[201~` (and any embedded terminator stripped per
+    /// the paste-safety rule); otherwise the raw bytes go through. Same
+    /// lock discipline as [`Self::send_key`].
+    pub async fn paste(&self, text: String) -> Result<(), String> {
+        let mode = {
+            let guard = self.engine.lock().await;
+            guard.mode()
+        };
+        let bytes = encode_paste(&text, mode);
+        if bytes.is_empty() {
+            return Ok(());
+        }
         self.shell
             .write(&bytes)
             .await
@@ -828,6 +957,45 @@ mod tests {
             !line.contains("[6n"),
             "raw payload leaked into log line: {line:?}"
         );
+    }
+
+    #[test]
+    fn terminal_key_converts_to_core_input() {
+        // Spec: the DTO mirrors KeyInput field-for-field — the logical key
+        // and every modifier bool survive the boundary so the encoder sees
+        // exactly what the Dart layer captured.
+        let dto = TerminalKey {
+            name: TerminalKeyName::Char { code: 'c' as u32 },
+            ctrl: true,
+            alt: false,
+            shift: true,
+            meta: false,
+        };
+        let core = dto.into_core();
+        assert_eq!(core.key, KeyName::Char('c'));
+        assert!(core.ctrl);
+        assert!(!core.alt);
+        assert!(core.shift);
+        assert!(!core.meta);
+    }
+
+    #[test]
+    fn terminal_key_name_maps_special_keys() {
+        // Spec: each special-key variant maps to its core counterpart; the
+        // F variant carries its number through.
+        assert_eq!(TerminalKeyName::Enter.into_core(), KeyName::Enter);
+        assert_eq!(TerminalKeyName::Up.into_core(), KeyName::Up);
+        assert_eq!(TerminalKeyName::Delete.into_core(), KeyName::Delete);
+        assert_eq!(TerminalKeyName::F { number: 5 }.into_core(), KeyName::F(5));
+    }
+
+    #[test]
+    fn terminal_key_char_invalid_scalar_degrades_to_replacement() {
+        // Spec: a Char code that is not a valid Unicode scalar (e.g. a
+        // surrogate half) degrades to U+FFFD rather than failing the
+        // keystroke — the input still types a visible glyph.
+        let dto = TerminalKeyName::Char { code: 0xD800 };
+        assert_eq!(dto.into_core(), KeyName::Char('\u{fffd}'));
     }
 
     #[test]

@@ -597,6 +597,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalKey dco_decode_box_autoadd_terminal_key(dynamic raw);
+
+  @protected
   TerminalPalette dco_decode_box_autoadd_terminal_palette(dynamic raw);
 
   @protected
@@ -1642,6 +1645,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TerminalFrameSelection dco_decode_terminal_frame_selection(dynamic raw);
 
   @protected
+  TerminalKey dco_decode_terminal_key(dynamic raw);
+
+  @protected
+  TerminalKeyName dco_decode_terminal_key_name(dynamic raw);
+
+  @protected
   TerminalMatch dco_decode_terminal_match(dynamic raw);
 
   @protected
@@ -2220,6 +2229,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TerminalFrameSelection sse_decode_box_autoadd_terminal_frame_selection(
     SseDeserializer deserializer,
   );
+
+  @protected
+  TerminalKey sse_decode_box_autoadd_terminal_key(SseDeserializer deserializer);
 
   @protected
   TerminalPalette sse_decode_box_autoadd_terminal_palette(
@@ -3607,6 +3619,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TerminalKey sse_decode_terminal_key(SseDeserializer deserializer);
+
+  @protected
+  TerminalKeyName sse_decode_terminal_key_name(SseDeserializer deserializer);
+
+  @protected
   TerminalMatch sse_decode_terminal_match(SseDeserializer deserializer);
 
   @protected
@@ -4305,6 +4323,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_terminal_frame_selection(
     TerminalFrameSelection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_terminal_key(
+    TerminalKey self,
     SseSerializer serializer,
   );
 
@@ -6062,6 +6086,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_terminal_frame_selection(
     TerminalFrameSelection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_key(TerminalKey self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_key_name(
+    TerminalKeyName self,
     SseSerializer serializer,
   );
 

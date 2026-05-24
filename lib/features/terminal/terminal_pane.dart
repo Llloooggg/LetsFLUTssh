@@ -16,8 +16,10 @@ import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import '../../utils/terminal_clipboard.dart';
 import '../../widgets/terminal/connection_progress.dart';
 import '../../widgets/terminal/terminal_grid_view.dart';
+import '../../widgets/terminal/terminal_key_input.dart';
 import '../../widgets/terminal/terminal_palette_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../snippets/snippet_picker.dart';
@@ -28,10 +30,12 @@ import '../snippets/snippet_picker.dart';
 ///
 /// Multiple panes can share the same [Connection] (each opens its own shell).
 /// During the connect cascade the pane shows [ConnectionProgress]; once the
-/// session opens it swaps to the live grid view. The grid view is currently
-/// **display-only** — keyboard input encoding and selection/copy/search land in
-/// later tasks (input forwarding, selection-via-Rust). Scroll-wheel scrollback
-/// and font zoom work today.
+/// session opens it swaps to the live grid view. Keyboard input is encoded
+/// Rust-side: [handleKey] normalises each event to a
+/// [rust_terminal.TerminalKey] and forwards it through
+/// [rust_terminal.TerminalSession.sendKey] (Ctrl+Shift+C/V stay reserved for
+/// copy/paste). Selection/copy via mouse and in-terminal search land in a
+/// later task. Scroll-wheel scrollback and font zoom work today.
 class TerminalPane extends ConsumerStatefulWidget {
   final Connection connection;
   final bool isFocused;
@@ -378,16 +382,23 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     );
   }
 
-  /// Intercept keyboard zoom shortcuts. Full key-input encoding lands in the
-  /// input task; for now only the local zoom combos are handled.
+  /// Keyboard dispatch for the live pane. Order matters: app-level combos
+  /// (zoom, copy, paste) are claimed first so they never reach the shell as
+  /// raw bytes; every other key-down / repeat is normalised to a
+  /// [rust_terminal.TerminalKey] and forwarded through [rust_terminal.TerminalSession.sendKey],
+  /// which reads the live terminal mode Rust-side and encodes the VT bytes.
   KeyEventResult handleKey(KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Only key-down and repeat produce input; key-up never does. Repeats
+    // (auto-repeat held key) must reach the shell, so accept both.
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
     _shortcuts ??= <AppShortcut, VoidCallback>{
       AppShortcut.zoomIn: _zoomIn,
       AppShortcut.zoomOut: _zoomOut,
       AppShortcut.zoomReset: _zoomReset,
+      AppShortcut.terminalCopy: _copySelection,
+      AppShortcut.terminalPaste: _pasteClipboard,
     };
 
     for (final entry in _shortcuts!.entries) {
@@ -396,7 +407,61 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         return KeyEventResult.handled;
       }
     }
-    return KeyEventResult.ignored;
+
+    return _forwardKey(event);
+  }
+
+  /// Normalise a key event and send it to the shell. Returns `handled` when
+  /// the event maps to PTY bytes so the framework does not also treat it as
+  /// a text-input / traversal event; `ignored` for bare modifiers and
+  /// unmappable keys so other handlers (and IME) still see them.
+  KeyEventResult _forwardKey(KeyEvent event) {
+    final session = _session;
+    if (session == null) return KeyEventResult.ignored;
+    final key = terminalKeyFromEvent(
+      event,
+      HardwareKeyboard.instance.logicalKeysPressed,
+    );
+    if (key == null) return KeyEventResult.ignored;
+    unawaited(session.sendKey(key: key));
+    return KeyEventResult.handled;
+  }
+
+  /// Copy the active terminal selection to the clipboard. Selection set-up
+  /// (mouse drag) lands in the selection task; this reads whatever the Rust
+  /// engine currently holds so the Ctrl+Shift+C combo is reserved (never
+  /// sent to the shell as raw bytes) and works once selection is wired.
+  void _copySelection() {
+    final session = _session;
+    if (session == null) return;
+    unawaited(_copySelectionAsync(session));
+  }
+
+  Future<void> _copySelectionAsync(
+    rust_terminal.TerminalSession session,
+  ) async {
+    final text = await session.selectionText();
+    if (text == null || text.isEmpty) return;
+    TerminalClipboard.copyText(text);
+  }
+
+  /// Paste clipboard text into the shell via the Rust paste encoder, which
+  /// wraps the body in bracketed-paste framing when the running program
+  /// enabled it (and filters any embedded terminator) — so a multi-line
+  /// paste lands as data, not as a burst of executed commands.
+  void _pasteClipboard() {
+    final session = _session;
+    if (session == null) return;
+    unawaited(_pasteClipboardAsync(session));
+  }
+
+  Future<void> _pasteClipboardAsync(
+    rust_terminal.TerminalSession session,
+  ) async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text;
+    if (text == null || text.isEmpty) return;
+    await session.paste(text: text);
   }
 
   Future<void> showSnippetPicker(BuildContext context) async {

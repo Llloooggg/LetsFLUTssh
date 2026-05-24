@@ -3516,6 +3516,7 @@ is re-exported from `vte` (`alacritty_terminal::vte::ansi`).
 |---|---|---|
 | `mod.rs` | `TerminalEngine`, `TerminalEvent`, `SelectionKind`, `MatchRange` | The engine: feed bytes, snapshot, resize, scroll, select, search, drain events |
 | `frame.rs` | `Frame`, `Cell`, `FrameCursor`, `FrameSelection`, `CursorShape` | Owned render snapshot DTOs — no borrows, no `alacritty_terminal`/FRB types |
+| `input.rs` | `KeyInput`, `KeyName`, `encode_key`, `encode_paste` | Mode-driven VT/xterm key encoder — maps a logical key + modifiers to PTY bytes against the engine's live `TermMode` |
 | `palette.rs` | `TermPalette`, `Rgb` | 16 ANSI colors + default fg/bg/cursor/selection + the derived 256-color cube; resolves every cell color to concrete RGB |
 
 #### Data flow
@@ -3599,7 +3600,9 @@ flowchart LR
     ENG -->|Bell / Title / Wakeup| SINK["StreamSink&lt;TerminalUiEvent&gt;"]
     SINK --> DART[Dart renderer]
     DART -->|"snapshot() sync"| ENG
-    DART -->|"write_input() key bytes"| SHELL
+    DART -->|"send_key(TerminalKey)"| ENC["encode_key(mode) -> VT bytes"]
+    ENC --> SHELL
+    DART -->|"write_input() pre-encoded bytes"| SHELL
 ```
 
 **Open / subscribe is two calls.** `terminal_session_open(session, cols,
@@ -3647,11 +3650,66 @@ Dart-facing event enum — `PtyWrite` is deliberately absent (forwarded
 Rust-side), `Wakeup` is the coalesced "grid changed, pull a snapshot"
 signal emitted once per fed chunk, and `Closed` fires on channel `Eof`.
 
-**Input never feeds the engine.** `write_input(bytes)` forwards Dart key
-bytes straight to the shell's stdin; the engine processes only server
-*output* (the server echoes input back, and that echo is what renders).
-`resize(cols, rows)` resizes both the engine grid and the remote PTY
-(`window_change`). Key-byte encoding is a later renderer-side task.
+**Input never feeds the engine.** Both input paths write straight to the
+shell's stdin; the engine processes only server *output* (the server echoes
+input back, and that echo is what renders). `send_key(TerminalKey)` encodes
+a keystroke (below) and writes the bytes; `write_input(bytes)` forwards
+already-encoded bytes for callers that hold them (snippets, `sendCommand`);
+`paste(text)` runs the bracketed-paste encoder. `resize(cols, rows)` resizes
+both the engine grid and the remote PTY (`window_change`).
+
+#### Key encoding — Rust-owned, mode-driven (`lfs_core::terminal::input`)
+
+`alacritty_terminal` ships only the terminal *model*: the Alacritty binary
+owns its key→byte encoding, so a library consumer gets none. The encoder
+therefore lives next to the engine (`terminal/input.rs`), because the
+correct byte sequence for a key depends on terminal *modes* the engine
+tracks live:
+
+- **DECCKM** (`TermMode::APP_CURSOR`) flips arrows / Home / End between the
+  CSI form (`\x1b[A`) and the SS3 form (`\x1bOA`).
+- **LNM** (`TermMode::LINE_FEED_NEW_LINE`) turns Enter from CR (`\r`) into
+  CR+LF.
+- **Bracketed paste** (`TermMode::BRACKETED_PASTE`) frames pasted text.
+
+Placing the encoder Dart-side would mean shipping a stale copy of the mode
+bits across FRB on every keystroke; here it reads the model the parser
+already maintains, and is unit-tested against xterm/VT semantics rather than
+observed bytes.
+
+`encode_key(&KeyInput, TermMode) -> Vec<u8>` is the single entry point.
+`KeyInput` is a logical key (`KeyName`: `Char(char)`, `Enter`, `Tab`,
+`Backspace`, `Escape`, arrows, `Home`/`End`, `PageUp`/`PageDown`,
+`Insert`/`Delete`, `F(1..=12)`) plus four modifier bools (`ctrl`, `alt`,
+`shift`, `meta`). The grammar:
+
+- **Printable `Char`** → its UTF-8 bytes. Ctrl+letter → the control byte
+  (`Ctrl+A`=0x01 … `Ctrl+_`=0x1F, `Ctrl+@`/`Ctrl+Space`=NUL, `Ctrl+?`=DEL);
+  Alt → ESC prefix (metaSendsEscape). `meta` is carried but never folded
+  into the bytes (it drives app shortcuts).
+- **Enter/Tab/Backspace/Escape** → `\r` (or `\r\n` under LNM) / `\t`
+  (Shift+Tab → `\x1b[Z`) / 0x7F / 0x1B.
+- **Arrows + Home/End** → SS3 vs CSI per DECCKM; with any modifier the CSI
+  `1;mod` form (e.g. Ctrl+Up = `\x1b[1;5A`), where the xterm modifier code
+  is `1 + (shift=1 | alt=2 | ctrl=4)`.
+- **PageUp/PageDown/Insert/Delete** → `\x1b[5~`/`6~`/`2~`/`3~` (with `;mod`).
+- **F1–F4** → SS3 `\x1bOP`..`\x1bOS`; **F5–F12** → CSI `\x1b[15~`..`\x1b[24~`;
+  any modifier forces the CSI `;mod` form.
+
+`encode_paste(text, mode)`: under bracketed-paste mode it wraps the body in
+`\x1b[200~` … `\x1b[201~` and **strips any embedded `\x1b[201~`** so a
+hostile / accidental payload cannot close the paste early and inject the
+remainder as typed commands; otherwise it returns the raw bytes. The
+engine's mode is read through `TerminalEngine::mode() -> TermMode`.
+
+`send_key` / `paste` follow the pump's lock discipline: lock the engine only
+to read the mode (a `Copy` read), release, then encode and `shell.write`
+after the lock is dropped — never held across the `await`. An empty encoding
+(e.g. an out-of-range F-key) writes nothing.
+
+**Not yet: mouse reporting.** SGR / X10 mouse-event encoding (the click +
+drag bytes `vim`/`htop`/`tmux` consume under mouse mode) is a separate
+follow-up — `send_key` covers keyboard input only.
 
 **Scrub clears scrollback, not just the viewport.** `clear()` is the
 auto-lock / wipe scrub entry point (`TerminalScrubber` registers it per
@@ -3680,12 +3738,12 @@ it is not wired yet.
 
 #### Relation to the Dart terminal feature
 
-The Flutter terminal feature (`features/terminal/`, [§5.1](#51-terminal-with-tiling-featuresterminal))
-still describes the `xterm`-based panes today; the FRB bridge above is
-landed, but the `CustomPaint` renderer that consumes `TerminalFrame` lands
-in a later step, after which the `xterm` dependency is removed. Until then
-both descriptions coexist: §3.16 is the Rust engine + FRB bridge, §5.1 is
-the current Dart rendering path.
+The desktop pane (`features/terminal/`, [§5.1](#51-terminal-with-tiling-featuresterminal))
+renders this engine through a `CustomPaint` cell grid and feeds keyboard
+input back through `send_key` / `paste`. The mobile / recording-playback /
+read-only-log surfaces still use `xterm` and migrate in their own tasks,
+after which the `xterm` dependency is removed. §3.16 is the Rust engine +
+FRB bridge + key encoder; §5.1 is the Dart rendering + input path.
 
 ## 4. State Management — Riverpod
 
@@ -3872,17 +3930,18 @@ class _FooDialogState extends State<FooDialog> {
 > `TerminalSession` — see [Desktop rendering](#desktop-rendering--custompaint-cell-grid) below.
 > The **mobile pane**, **recording playback**, and the **read-only log
 > viewer** still render through `xterm`'s `TerminalView`; they migrate in
-> their own tasks. Desktop input encoding (keyboard) and
-> selection/copy/search-via-Rust are not yet wired on the new path — the
-> desktop grid is display-only with working scroll-wheel scrollback and
-> font zoom.
+> their own tasks. Desktop **keyboard input** is wired (encoded Rust-side via
+> `TerminalSession.sendKey` / `paste` — see [Keyboard input](#keyboard-input--rust-encoded) below);
+> selection/copy/search-via-Rust and mouse reporting are not yet wired on the
+> new path. Scroll-wheel scrollback and font zoom work.
 
 #### Files
 
 | File | Class | Purpose |
 |------|-------|---------|
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
-| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport and renders it via `TerminalGridView`. Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
+| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport and renders it via `TerminalGridView`. Owns the keyboard `Focus`; `handleKey` dispatches zoom / copy / paste combos then forwards keystrokes through `session.sendKey`. Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
+| `widgets/terminal/terminal_key_input.dart` | `terminalKeyFromEvent` | Pure `KeyEvent` + held-modifiers → `TerminalKey` descriptor mapping (logical key + modifier bools). The VT byte encoding itself lives Rust-side; this only normalises the platform event. |
 | `widgets/terminal/terminal_grid_view.dart` | `TerminalGridView` | `StatefulWidget` that subscribes to `TerminalSession.events()`, pulls a fresh `snapshot()` on each coalesced `Wakeup`, repaints once per frame, computes cols/rows from `measureMonoCell` and reports resize, and forwards wheel scroll. Has a live-session constructor and a `.fromSource` DI constructor (snapshot fn + event stream) for tests. |
 | `widgets/terminal/terminal_grid_painter.dart` | `TerminalGridPainter`, `selectionRects` | `CustomPainter` that paints one sparse `TerminalFrame`: per-cell background rects, glyph runs, cursor (with inverted glyph under a block), and the selection highlight. `selectionRects` is the pure linear/block geometry helper. |
 | `widgets/terminal/terminal_cell_flags.dart` | `TerminalCellFlags` | Single decode point for the raw `alacritty_terminal` attribute bitfield (bold / italic / underline / strikeout / hidden / wide). Constants mirror `alacritty_terminal-0.26.0/src/term/cell.rs`. |
@@ -3949,11 +4008,19 @@ flowchart TD
 
 **Connection progress:** During the connect cascade the pane shows the shared `ConnectionProgress` widget (still `xterm`-backed — it migrates with the other secondary surfaces), swapping to the live grid once the session opens. On failure the pane shows the localized error text in the terminal background.
 
-**Focus surface (input deferred):** The grid is display-only. `TerminalPane` wraps the body in a `Focus` node so the tab-switch keyboard-ownership contract holds (ownership follows `isActiveTab && isFocused`, re-grabbed in `didUpdateWidget`) and the local zoom shortcuts dispatch; key-byte encoding to `session.writeInput` lands in the input task. `sendCommand` (snippet picker) already forwards through `session.writeInput`.
+#### Keyboard input — Rust-encoded
+
+`TerminalPane` wraps the body in a `Focus` node that owns keyboard input. Ownership follows `isActiveTab && isFocused` and is re-grabbed in `didUpdateWidget` so the tab-switch contract holds. `handleKey` dispatches in priority order: app-level combos first (zoom Ctrl+`=`/`-`/`0`, copy Ctrl+Shift+C, paste Ctrl+Shift+V) so they never reach the shell as raw bytes; every other key-down / repeat is forwarded to the shell.
+
+The Flutter→Rust split mirrors the data-ownership pillar: Dart only **normalises** the platform event, Rust **encodes** it. `terminalKeyFromEvent` (a pure function in `widgets/terminal/terminal_key_input.dart`, unit-tested without a live session) maps a `KeyEvent` + the held-modifier set (`HardwareKeyboard.instance.logicalKeysPressed`) into a `TerminalKey` descriptor — a logical `TerminalKeyName` (named special keys win over the typed character; F1–F12; otherwise the printable `Char`, falling back to the logical-key label under Ctrl where the OS reports no character) plus `ctrl`/`alt`/`shift`/`meta` bools. A bare modifier press or an unmappable key maps to `null` and is not forwarded. `TerminalSession.sendKey` then reads the engine's live `TermMode` and runs `encode_key` Rust-side (see [§3.16 Key encoding](#key-encoding--rust-owned-mode-driven-lfs_coreterminalinput)).
+
+**Paste.** Ctrl+Shift+V reads the system clipboard and calls `session.paste(text)`, which runs the bracketed-paste encoder Rust-side (wraps + filters the terminator under `BRACKETED_PASTE`, raw bytes otherwise) — so a multi-line paste lands as data, not a burst of executed commands. `sendCommand` (snippet picker) forwards pre-encoded bytes through `session.writeInput`; Ctrl+Shift+C copies the current Rust-side selection text to the clipboard (a no-op until mouse selection lands, but the combo stays reserved).
+
+**Not yet wired:** mouse reporting (SGR / X10 click + drag bytes for `vim`/`htop`/`tmux` under mouse mode) — keyboard input only.
 
 **Focus indicator:** No border is drawn on panes — the 4 px divider in `TilingView` already separates them visually. The focused pane is identifiable by the active cursor and toolbar highlight.
 
-**Deferred on the desktop path.** Selection/copy and search route through the Rust session (`setSelection` / `selectionText` / `search`) in a later task — the old `xterm`-coupled search bar and `AnchorPinningTerminalController` drag-pinning were removed from the desktop pane. Per-tab broadcast and session recording also pause on the desktop pane: both forked the per-byte stream in Dart's `ShellHelper`, and that fork moves into the Rust pump body (the recorder / broadcast hook slot documented on `TerminalSession::events`) — the connection-bar record button hides itself while no pane registers a recording handle. The `xterm`-mode-only Shift-bypass and `hardwareKeyboardOnly` notes no longer apply to the desktop grid (mouse-mode forwarding is an engine concern); they survive only on the mobile / read-only surfaces still on `xterm`.
+**Deferred on the desktop path.** Mouse selection / copy-by-drag and in-terminal search route through the Rust session (`setSelection` / `selectionText` / `search`) in a later task — the old `xterm`-coupled search bar and `AnchorPinningTerminalController` drag-pinning were removed from the desktop pane (Ctrl+Shift+C already reads `selectionText`, so it activates the moment mouse selection lands). Mouse *reporting* (forwarding click/drag to programs under mouse mode) is also a follow-up. Per-tab broadcast and session recording also pause on the desktop pane: both forked the per-byte stream in Dart's `ShellHelper`, and that fork moves into the Rust pump body (the recorder / broadcast hook slot documented on `TerminalSession::events`) — the connection-bar record button hides itself while no pane registers a recording handle. The `xterm`-mode-only Shift-bypass and `hardwareKeyboardOnly` notes no longer apply to the desktop grid (mouse-mode forwarding is an engine concern); they survive only on the mobile / read-only surfaces still on `xterm`.
 
 #### Keyboard Shortcuts
 
@@ -3972,11 +4039,12 @@ Terminal uses `Ctrl+Shift+` prefix to avoid conflicts with terminal escape seque
 | Ctrl+, | Toggle settings |
 
 **Terminal** — copy / paste / search (Ctrl+Shift+C / V / F, Escape) are
-defined in `AppShortcutRegistry` and remain live on the `xterm`-backed
-mobile pane. On the new desktop grid they are paused with the
-selection/copy/search migration to the Rust session; the desktop pane
-currently dispatches only the local zoom combos (Ctrl+`=` / Ctrl+`-` /
-Ctrl+`0`).
+defined in `AppShortcutRegistry`. On the desktop grid, **paste**
+(Ctrl+Shift+V) and the local **zoom** combos (Ctrl+`=` / Ctrl+`-` /
+Ctrl+`0`) are live; **copy** (Ctrl+Shift+C) is reserved and reads the
+Rust-side selection (active once mouse selection lands); **search**
+(Ctrl+Shift+F) is paused with the search migration. The same shortcuts
+remain live on the `xterm`-backed mobile pane.
 
 **SFTP file browser** (`file_pane.dart` — `Focus.onKeyEvent`):
 
