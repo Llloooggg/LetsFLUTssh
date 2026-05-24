@@ -8,6 +8,8 @@ import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// Static stand-in for [ConnectionsNotifier]. Keeps the test out of the
 /// FRB bus, the credential cache, and the connect cascade — the pane
 /// only reads the notifier through `notifyStateChanged()`, which the
@@ -63,7 +65,11 @@ bool _paneHasFocus(WidgetTester tester) =>
     tester.binding.focusManager.primaryFocus?.debugLabel == 'TerminalPane';
 
 void main() {
+  // The pane renders `ConnectionProgress` while connecting, which opens a
+  // real `ReadOnlyTerminalController` (Rust `terminalReplayOpen` over FRB) in
+  // `initState` — so the native library must be loaded for the pane to build.
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
 
   testWidgets(
     'disposing the pane mid-connect does not throw — _connectAndOpenShell '

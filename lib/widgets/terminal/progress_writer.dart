@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:xterm/xterm.dart';
+import 'package:meta/meta.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../utils/logger.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
@@ -24,30 +23,32 @@ abstract final class _Ansi {
 
 /// Writes structured connection progress steps into a terminal sink.
 ///
-/// Two back ends behind one ANSI-writing core: the desktop SFTP /
-/// connection-progress surface drives the Rust terminal engine
-/// ([ProgressWriter.controller] over a [ReadOnlyTerminalController]); the
-/// mobile pane drives its xterm [Terminal] ([ProgressWriter.new]). The step
-/// formatting + phase labels are shared — only the byte sink differs.
+/// The connection-progress surfaces (desktop pane, mobile pane, SFTP
+/// connect) all drive the Rust terminal engine through a
+/// [ReadOnlyTerminalController] — [ProgressWriter.controller] encodes each
+/// ANSI string to UTF-8 and feeds the controller, which repaints the
+/// read-only grid. The step formatting + phase labels are shared.
 class ProgressWriter {
-  /// xterm-backed writer (mobile terminal pane). Writes ANSI strings straight
-  /// into the [Terminal].
-  ProgressWriter({
-    required Terminal terminal,
-    required this.l10n,
-    required this.config,
-    this.channelLabel,
-  }) : _write = ((ansi) => terminal.write(ansi));
-
-  /// Rust-engine-backed writer (desktop connection-progress surface). Encodes
-  /// each ANSI string to UTF-8 and feeds the [ReadOnlyTerminalController],
-  /// which repaints the read-only grid.
+  /// Rust-engine-backed writer. Encodes each ANSI string to UTF-8 and feeds
+  /// the [ReadOnlyTerminalController], which repaints the read-only grid.
   ProgressWriter.controller({
     required ReadOnlyTerminalController controller,
     required this.l10n,
     required this.config,
     this.channelLabel,
   }) : _write = ((ansi) => controller.feed(utf8.encode(ansi)));
+
+  /// Test seam — writes each formatted ANSI string straight to [sink] so the
+  /// step formatting + phase labels are unit-testable without a live
+  /// [ReadOnlyTerminalController] (whose `feed` reaches into the Rust
+  /// engine). Production always uses [ProgressWriter.controller].
+  @visibleForTesting
+  ProgressWriter.sink({
+    required void Function(String ansi) sink,
+    required this.l10n,
+    required this.config,
+    this.channelLabel,
+  }) : _write = sink;
 
   final void Function(String ansi) _write;
   final S l10n;
@@ -69,40 +70,26 @@ class ProgressWriter {
     return tracker.stream.listen(writeStep);
   }
 
-  /// Write a single progress step to the sink.
-  ///
-  /// Wrapped in a RangeError guard because xterm's escape parser trips
-  /// `IndexAwareCircularBuffer[-2]` when its terminal has not been sized yet
-  /// but a sequence like `\x1B[A` (cursor up) already arrives — the progress
-  /// stream fires during connect, which can precede the terminal widget's
-  /// first layout pass. The Rust engine sink never throws here; the guard
-  /// covers the xterm sink (mobile pane). Swallow + log so the user's log
-  /// file stays readable and the visible UI recovers on the next frame.
+  /// Write a single progress step to the sink. The Rust engine sink
+  /// tolerates a sequence like `\x1B[A` (cursor up) arriving before the
+  /// grid has been sized — it clamps internally rather than throwing — so
+  /// no buffer-not-ready guard is needed here.
   void writeStep(ConnectionStep step) {
     final label = _phaseLabel(step.phase);
-    try {
-      switch (step.status) {
-        case StepStatus.inProgress:
-          _write('${_Ansi.yellow}[*]${_Ansi.reset} $label...\r\n');
-        case StepStatus.success:
-          _write(
-            '${_Ansi.moveUpAndClear}'
-            '${_Ansi.green}[✓]${_Ansi.reset} $label\r\n',
-          );
-        case StepStatus.failed:
-          final detail = step.detail != null ? ': ${step.detail}' : '';
-          _write(
-            '${_Ansi.moveUpAndClear}'
-            '${_Ansi.red}[✗]${_Ansi.reset} $label$detail\r\n',
-          );
-      }
-    } on RangeError catch (e) {
-      AppLogger.instance.log(
-        'Terminal buffer not ready for progress step '
-        '(${step.phase.name}/${step.status.name}); skipped',
-        name: 'ProgressWriter',
-        error: e,
-      );
+    switch (step.status) {
+      case StepStatus.inProgress:
+        _write('${_Ansi.yellow}[*]${_Ansi.reset} $label...\r\n');
+      case StepStatus.success:
+        _write(
+          '${_Ansi.moveUpAndClear}'
+          '${_Ansi.green}[✓]${_Ansi.reset} $label\r\n',
+        );
+      case StepStatus.failed:
+        final detail = step.detail != null ? ': ${step.detail}' : '';
+        _write(
+          '${_Ansi.moveUpAndClear}'
+          '${_Ansi.red}[✗]${_Ansi.reset} $label$detail\r\n',
+        );
     }
   }
 

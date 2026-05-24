@@ -101,7 +101,7 @@ Order of preference when a feature needs OS capability: **bundle it** (e.g. SQLi
 
 - **UI primitives** in `lib/widgets/` — `AppIconButton`, `AppButton` (`.cancel`/`.primary`/`.secondary`/`.destructive`), `AppDialog` (+ `AppDialogHeader`/`Footer`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`. No widget that has more than one caller is duplicated.
 - **Theme primitives** in `lib/theme/` — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes/radii/heights are treated as bugs.
-- **Cross-feature mixins and helpers** in `lib/core/**` — `SftpBrowserMixin` (shared SFTP init/upload/download for desktop + mobile browsers), `key_file_helper.dart` (PEM detection shared by importer / `~/.ssh` scanner / file picker), `breadcrumb_path.dart`, `column_widths.dart`, `progress_writer.dart`, `shell_helper.dart`. New cross-cutting logic gets a `*_helper.dart` or mixin instead of being inlined per call site.
+- **Cross-feature mixins and helpers** in `lib/core/**` — `SftpBrowserMixin` (shared SFTP init/upload/download for desktop + mobile browsers), `key_file_helper.dart` (PEM detection shared by importer / `~/.ssh` scanner / file picker), `breadcrumb_path.dart`, `column_widths.dart`, `progress_writer.dart`. New cross-cutting logic gets a `*_helper.dart` or mixin instead of being inlined per call site.
 - **DAO + Store layering** — every persisted entity has the same `Store → DAO` shape ([§11](#11-persistence--storage)); a new entity follows the existing template, not its own ad-hoc pattern.
 
 The practical upshot: before adding a widget, helper, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent; if behaviour is close but not identical, extend the shared primitive (add a parameter) rather than fork it. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason should be obvious from the code.
@@ -263,8 +263,8 @@ lib/
 │   │   ├── paste_import_link_dialog.dart, ssh_dir_import_dialog.dart, local_directory_picker.dart
 │   │   └── file_conflict_dialog.dart # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
 │   └── terminal/                     # Terminal rendering widgets (engine in features/terminal)
-│       ├── app_terminal_view.dart, readonly_terminal_grid_view.dart, xterm_shell_terminal.dart
-│       ├── anchor_pinning_terminal_controller.dart, terminal_cell_metrics.dart
+│       ├── terminal_grid_view.dart, terminal_grid_painter.dart, readonly_terminal_grid_view.dart
+│       ├── terminal_cell_metrics.dart, terminal_cell_flags.dart, terminal_palette_theme.dart
 │       └── connection_progress.dart, progress_writer.dart, update_progress_indicator.dart
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
@@ -299,7 +299,6 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError`, `ProxyJumpBastionError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
 | `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
-| `shell_helper.dart` | `ShellHelper.openShell()` | Shared shell-open path used by the terminal pane + session recorder. Returns a `ShellConnection` wrapping the FRB shell handle. |
 | `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`. Host-key verification runs entirely Rust-side: the russh `check_server_key` callback consults `lfs_core::known_hosts` directly + raises `BusEvent::KnownHostPromptRequest` for unknown / mismatched fingerprints; the Dart side's `HostKeyPromptListener` (`lib/app/host_key_prompt_listener.dart`) shows the dialog and resolves the prompt via the known-host bus command. |
 | `rust/crates/lfs_core/src/ssh/sk.rs` | `lfs_core::ssh::sk` | FIDO2 `sk-*` userauth glue — `FidoCredential` type, `sign_for_userauth`, `algorithm_from_key_type`, `extract_application_from_openssh_pub`. Bridges `lfs_core::fido2::get_assertion` (CTAP2 round trip) to the SSH `sk-*` signature trailer + outer wire string. |
 | `rust/crates/lfs_core/src/fido2/brokers.rs` | `lfs_core::fido2::brokers` | Transport dispatcher between the OS-managed FIDO2 broker (`lfs_os_security::fido2_broker`) and the direct HID path (`lfs_core::fido2::client`). Hosts the process-wide `PREFER_DIRECT_HID` atomic + the pure-data `select_transport(Availability) -> Transport` decision; called from `fido2::is_available` / `fido2::get_assertion`. |
@@ -2084,7 +2083,7 @@ Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security
 
 *Fallback:* the failure posture is platform-aware. Linux has no cloud-clipboard default — a Rust-path failure there falls through to Flutter's stock `Clipboard.setData` and the wipe timer still runs. Windows / macOS / iOS / Android **refuse** the write on failure and `setText` returns `false` — landing a secret on a cloud-syncing pasteboard without the per-platform opt-out flags would expose it to history rings the 30-second timer cannot retract. Callers (`ClipboardSecret.copySecret`, `qr_display_screen`) propagate the `false` to the UI so the user sees a "copy failed" toast instead of silently leaking material into Win+V / Universal Clipboard / iCloud-synced clipboard / the Android 13+ history preview.
 
-*Terminal-copy integration.* [`TerminalClipboard.copy`](../lib/utils/terminal_clipboard.dart) runs the sensitivity heuristic on the selected text and routes through `SecureClipboard` when the selection matches (PEM private-key markers or a ≥ 200-char base64-alphabet run); non-sensitive selections take the stock `Clipboard.setData` path so routine copies (filenames, command fragments) still benefit from Win+V / Handoff. Without this branch, a terminal user running `cat ~/.ssh/id_ed25519` or `vault kv get secret/api-token` would land the secret in Windows clipboard-history / iCloud-synced pasteboard / Android 13+ preview toast — the 30-second auto-wipe protects the live slot but cannot retract what the sync layers already ingested. Regression guard: `test/utils/terminal_clipboard_test.dart` "sensitive payload goes through SecureClipboard".
+*Terminal-copy integration.* [`TerminalClipboard.copyText`](../lib/utils/terminal_clipboard.dart) runs the sensitivity heuristic on the selected text and routes through `SecureClipboard` when the selection matches (PEM private-key markers or a ≥ 200-char base64-alphabet run); non-sensitive selections take the stock `Clipboard.setData` path so routine copies (filenames, command fragments) still benefit from Win+V / Handoff. Without this branch, a terminal user running `cat ~/.ssh/id_ed25519` or `vault kv get secret/api-token` would land the secret in Windows clipboard-history / iCloud-synced pasteboard / Android 13+ preview toast — the 30-second auto-wipe protects the live slot but cannot retract what the sync layers already ingested. Regression guards: `test/utils/terminal_clipboard_test.dart` "sensitive text routes through SecureClipboard (no stock fallback)" and `test/widgets/terminal/readonly_terminal_grid_view_test.dart` "Ctrl+C routes a sensitive selection through SecureClipboard". Both exercise the routing through the `SecureClipboard.debugRustWriterOverride` / `TerminalClipboard.debugHashOverride` / `debugRustCompareAndClearOverride` seams so a sensitive copy is testable without an FRB runtime (no real `osSecuritySetSecureClipboard` / `cryptoSha256Hex` call to wedge the headless test isolate).
 
 #### Password entry widget
 
@@ -3045,22 +3044,22 @@ Per-shell terminal recorder that captures the user-visible output stream + input
 
 Two entry points open a recorder, both routed through the same `SessionRecorder.open`:
 
-- **Auto-open at connect** — `TerminalPane._maybeOpenRecorder` consults `Session.extras['record']` and, when true, builds the recorder and hands it to `ShellHelper.openShell` as the `recorder:` parameter.
-- **Toolbar toggle mid-session** — the connection bar's record button (`workspace_view._recordButton`) looks the focused pane up in `PaneRecordingRegistry` and calls its `toggle`. The pane's handler builds the recorder through the same `_openRecorder` helper (no extras check) and swaps it onto the live `ShellConnection` via `setRecorder`.
+- **Auto-open at connect** — `TerminalPane._maybeAutoStartRecording` consults `Session.extras['record']` and, when true, opens the recorder and attaches it to the live `TerminalSession`.
+- **Toolbar toggle mid-session** — the connection bar's record button (`workspace_view._recordButton`) looks the focused pane up in `PaneRecordingRegistry` and calls its `toggle`. The pane's `_startRecording` / `_stopRecording` open / seal a recorder (no extras check) and attach / detach it.
 
-`ShellHelper.openShell` reads `shellConn.recorder` dynamically on every chunk (late-bound capture, not a closure-captured parameter), so a recorder swap mid-stream takes effect on the next byte without restarting the shell. `ShellConnection.setRecorder` closes the previous recorder (sealing its file) before adopting the new one, so a Stop tap finalises the current `.lfsr` / `.cast` in the recordings browser even while the shell stays live.
+Both paths call `session.setRecorder(id)` with the recorder's Rust-side handle id (or `null` to detach). The **Rust pump then tees session output, and the send paths tee input**, into the recorder queue under that id — see [§3.16 Recorder fork](#recorder-fork--output-in-the-pump-input-on-the-send-paths). A recorder swap takes effect on the next byte without restarting the session, and detaching before `SessionRecorder.close()` seals the current `.lfsr` / `.cast` so a Stop tap finalises it in the recordings browser while the session stays live.
 
-`ShellConnection.close` calls `recorder.close()` after the shell tears down so any final tail bytes (banner, "logout") still land before the file is sealed.
+`TerminalPane.dispose` calls `recorder.close()` (fire-and-forget) before dropping the session so any final tail bytes still land before the file is sealed.
 
 ```
 TerminalPane
   ├── auto: reads Session.extras['record']
   │    └── SessionRecorder.open(sessionId, label, w, h)
-  │         └── ShellHelper.openShell(... recorder: rec)
-  │              ├── stdout/stderr.listen → terminal.write + shellConn.recorder?.recordOutput
-  │              └── terminal.onOutput   → shell.write   + shellConn.recorder?.recordInput
+  │         └── session.setRecorder(recorder.handleId)
+  │              ├── pump: shell output  → recorder_queue.enqueue(Output)
+  │              └── sendKey/paste/writeInput → recorder_queue.enqueue(Input)
   └── on-demand: PaneRecordingRegistry.toggle
-       └── SessionRecorder.open(...) + ShellConnection.setRecorder(rec | null)
+       └── SessionRecorder.open(...) + session.setRecorder(id | null)
 ```
 
 `PaneRecordingRegistry` is a process-wide singleton keyed by paneId. Each `TerminalPaneState` registers its `PaneRecordingHandle` (a `ValueListenable<bool> isRecording` + a `Future<void> toggle()` + a `canRecord` gate) in `initState` and removes it in `dispose`. The connection bar reads the focused pane id from `focusedPaneProvider` (a per-tab Riverpod `NotifierProvider.family<String?, String>` that `TerminalTabState` writes on every `onPaneFocused` callback) so the button always operates on whichever pane the user just clicked in a split tab. Unsaved quick-connect sessions report `canRecord = false` — recordings need a stable session folder to land in — and the button hides for them.
@@ -3658,6 +3657,45 @@ already-encoded bytes for callers that hold them (snippets, `sendCommand`);
 `paste(text)` runs the bracketed-paste encoder. `resize(cols, rows)` resizes
 both the engine grid and the remote PTY (`window_change`).
 
+#### Recorder fork — output in the pump, input on the send paths
+
+A live `TerminalSession` can tee its bytes into the session recorder
+([§3.13 Session Recording](#313-session-recording-recorder)). The session
+holds an optional recorder handle id behind a `std::sync::Mutex<Option<String>>`;
+`set_recorder(id)` (`#[frb(sync)]`) attaches or detaches it. Dart's
+`SessionRecorder` owns the register / spawn / header / close lifecycle and
+the on-disk `.lfsr` / `.cast` file — `set_recorder` only flips the in-pump
+fork on or off, so a record-toggle never reshapes the pump or the shell.
+
+When a recorder is attached:
+
+- **Output** — the pump tees the shell output chunk to
+  `app.recorder_queue.enqueue_event_chunk(id, Output, …)` right after it is
+  read and **before** it is fed into the engine. `recorder_id` clones the id
+  out under its own lock and drops it before the tee `await`, so the fork
+  never widens the engine-lock window or breaks the pump's lock/await
+  ordering.
+- **Input** — `send_key` / `paste` / `write_input` tee the bytes they write
+  to the shell as `Input`. Both directions land at the same byte layer the
+  shell sees, so a recording captures both halves of the session.
+
+The tee is best-effort: an `enqueue_event_chunk` failure (worker gone,
+recording already closing) is logged through the core bus and dropped — a
+recording fault must never stall input or the pump. The `.cast` / `.lfsr`
+framing and the recorder API are unchanged; this is a re-wiring of where the
+fork lives (it was a Dart `shell_helper.dart` tee around the xterm sink
+before the engine migration).
+
+#### Broadcast — input mirroring, not output
+
+Broadcast ([§5.1 Broadcast](#broadcast--input-mirroring)) mirrors a driver
+pane's **input** to receiver panes, and stays a Dart concern: each receiver
+re-encodes the action against its own terminal mode, so the driver fans the
+high-level action (a `TerminalKey` to each receiver's `sendKey`, bytes to
+`writeInput` for paste / snippets) rather than its own encoded bytes. There
+is no broadcast hook in the pump — fanning output would echo the driver's
+rendered bytes onto receivers as if typed, doubling prompts.
+
 #### `TerminalReplay` — the shell-less read-only handle
 
 The read-only surfaces — recording playback, the connection-progress output,
@@ -3803,13 +3841,15 @@ second stream (a `StreamSink` parameter would make FRB collapse `clear`
 into a stream-returning function). If the pump has not started yet the
 grid is still wiped; the next output drives the repaint.
 
-**Recorder / broadcast fork — follow-up.** Today Dart forks shell output
-bytes to the session recorder and broadcast controller inside its events
-loop (`lib/core/ssh/shell_helper.dart`). When the live pane switches to
-`TerminalSession`, that fork moves into the pump body — right after the
-output bytes are read and before they are fed into the engine. The pump
-is shaped so the hook slots in without reshaping the lock/await ordering;
-it is not wired yet.
+**Recorder fork.** When a recorder is attached via `set_recorder(id)`, the
+pump tees shell **output** bytes to the recorder queue right after they are
+read and before they are fed into the engine, and the input methods
+(`send_key` / `paste` / `write_input`) tee their bytes as **input**. The id
+is cloned out under its own lock before each tee `await`, so the fork never
+widens the engine-lock window or breaks the lock/await ordering — see
+[Recorder fork](#recorder-fork--output-in-the-pump-input-on-the-send-paths).
+Broadcast input mirroring stays Dart-side (each receiver re-encodes against
+its own mode), not in the pump.
 
 #### Relation to the Dart terminal feature
 
@@ -4008,23 +4048,29 @@ class _FooDialogState extends State<FooDialog> {
 > cell grid (`TerminalGridView` / `TerminalGridPainter`) fed by the FRB
 > `TerminalSession` — see [Desktop rendering](#desktop-rendering--custompaint-cell-grid) below.
 > **Recording playback**, the **connection-progress output**, and the
-> **read-only log viewer** now render through the Rust engine too, over a
+> **read-only log viewer** render through the Rust engine too, over a
 > shell-less `TerminalReplay` (see [Read-only rendering](#read-only-rendering--terminalreplay)
-> below). The **mobile pane** is the last remaining `xterm` consumer and
-> migrates in its own task. Desktop **keyboard input** is wired (encoded Rust-side via
-> `TerminalSession.sendKey` / `paste` — see [Keyboard input](#keyboard-input--rust-encoded) below).
-> Desktop **selection + copy**, **in-terminal search**, and **mouse
-> reporting** are wired on the new path — see
+> below). The **mobile pane** now renders the same engine through the shared
+> `TerminalGridView` (see [Mobile pane](#mobile-pane--rust-engine) below) —
+> no Dart code creates an `xterm` `Terminal` / `TerminalView` any more; the
+> `xterm` dependency itself is dropped in its own task. **Keyboard input**
+> is encoded Rust-side via `TerminalSession.sendKey` / `paste` (see
+> [Keyboard input](#keyboard-input--rust-encoded) below). **Selection +
+> copy**, **in-terminal search**, and **mouse reporting** are wired on the
+> new path — see
 > [Pointer input, selection, copy](#pointer-input-selection-copy--mouse-reporting)
-> and [In-terminal search](#in-terminal-search) below. Scroll-wheel
-> scrollback and font zoom work.
+> and [In-terminal search](#in-terminal-search) below. **Session recording**
+> (output + input fork in the Rust pump) and **per-tab broadcast** (input
+> mirroring across sessions) are restored — see
+> [Recording](#recording--pump-fork) and [Broadcast](#broadcast--input-mirroring).
+> Scroll-wheel scrollback and font zoom work.
 
 #### Files
 
 | File | Class | Purpose |
 |------|-------|---------|
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
-| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport and renders it via `TerminalGridView`. Owns the keyboard `Focus`; `handleKey` dispatches zoom / copy / paste / search combos then forwards keystrokes through `session.sendKey`. Orchestrates selection (`setSelection`/`clearSelection`), copy (via `TerminalClipboard`), mouse reports (`sendMouse`), and the search bar (`search` + next/prev + scroll-to-match). Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
+| `terminal_pane.dart` | `TerminalPane` | Single desktop terminal: opens a Rust `TerminalSession` over the connection transport and renders it via `TerminalGridView`. Owns the keyboard `Focus`; `handleKey` dispatches zoom / copy / paste / search combos then forwards keystrokes through `session.sendKey`. Orchestrates selection (`setSelection`/`clearSelection`), copy (via `TerminalClipboard`), mouse reports (`sendMouse`), and the search bar (`search` + next/prev + scroll-to-match). Registers a `PaneRecordingHandle` and drives the recorder via `session.setRecorder`; fans driver input into the per-tab `BroadcastController`. Shows `ConnectionProgress` during the connect cascade, then swaps to the live grid. |
 | `widgets/terminal/terminal_key_input.dart` | `terminalKeyFromEvent` | Pure `KeyEvent` + held-modifiers → `TerminalKey` descriptor mapping (logical key + modifier bools). The VT byte encoding itself lives Rust-side; this only normalises the platform event. |
 | `widgets/terminal/terminal_pointer_input.dart` | `pointerToCell`, `routePointerGesture`, `routeWheelGesture`, `highlightRectsForMatches`, `scrollDeltaToRevealLine` | Pure pointer-input math: pixel→cell mapping (viewport + absolute row), the report-vs-select / report-vs-scroll routing decision given mouse-tracking level + Shift, search-match → viewport-rect projection, and the scroll delta to reveal a match. Free of any live session so it is unit-testable without FFI. |
 | `widgets/terminal/terminal_grid_view.dart` | `TerminalGridView`, `MouseActionKind` | `StatefulWidget` that subscribes to `TerminalSession.events()`, pulls a fresh `snapshot()` on each coalesced `Wakeup`, repaints once per frame, computes cols/rows from `measureMonoCell` and reports resize. Owns pointer input: a primary drag drives a local character selection, a double-click a word and a triple-click a whole line (or a mouse report under tracking), a wheel scrolls scrollback (or reports under tracking), and Shift forces local handling. Projects `searchMatches` onto the viewport for the painter. Live-session + `.fromSource` DI constructor (snapshot fn + event stream) for tests. |
@@ -4033,10 +4079,14 @@ class _FooDialogState extends State<FooDialog> {
 | `widgets/terminal/terminal_cell_flags.dart` | `TerminalCellFlags` | Single decode point for the raw `alacritty_terminal` attribute bitfield (bold / italic / underline / strikeout / hidden / wide). Constants mirror `alacritty_terminal-0.26.0/src/term/cell.rs`. |
 | `widgets/terminal/terminal_palette_theme.dart` | `TerminalPaletteFromTheme` | Maps the live `AppTheme.term*` swatches (dark + light) into the FRB `TerminalPalette` DTO pushed at open and re-pushed via `setPalette` on a brightness change. |
 | `widgets/terminal/readonly_terminal_grid_view.dart` | `ReadOnlyTerminalController`, `ReadOnlyTerminalGridView` | Read-only rendering over a shell-less `TerminalReplay`: the controller (widget-local `ChangeNotifier`) feeds bytes + bumps a repaint signal; the view re-pulls a `snapshot()` and paints it through `TerminalGridPainter` with no input / selection / mouse. Backs recording playback, connection-progress output, and the log viewer — see [Read-only rendering](#read-only-rendering--terminalreplay). |
-| `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay) for the mobile pane, the last `xterm` consumer. Exports the canonical 1.2 line-height multiplier every custom painter — including `TerminalGridPainter` — sizes glyphs with. |
 | `tiling_view.dart` | `TilingView` | Recursive split-tree renderer. Drives terminal-pane tiling: `BranchNode`s are created by the divider drag handler + the Ctrl+\\ / Ctrl+Shift+\\ duplicate-shortcut path; `LeafNode`s materialise per pane. |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
-| `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out). Wired to terminal panes via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`; driver + receiver roles set through the pane context menu. |
+| `pane_recording_registry.dart` | `PaneRecordingRegistry`, `PaneRecordingHandle` | Global pane-id → recording-handle lookup so the workspace connection-bar record button (a different subtree) can read `isRecording` / `canRecord` and `toggle` the focused pane's recorder. |
+| `broadcast_controller.dart` | `BroadcastController`, `BroadcastInput` (`BroadcastKey` / `BroadcastBytes`) | Per-tab fan-out for terminal broadcast input — see [Broadcast](#broadcast--input-mirroring). Wired to terminal panes via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`; driver + receiver roles set through the pane context menu. Fans a high-level `BroadcastInput` (a `TerminalKey` or pre-encoded bytes) so each receiver re-encodes against its own mode. |
+| `mobile/mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen mobile pane on the Rust engine: opens a `TerminalSession`, renders it through `TerminalGridView`, captures soft-keyboard text via a hidden `EditableText` (each char → `sendKey`), drives the `SshKeyboardBar` and the trackpad copy overlay. |
+| `mobile/ssh_keyboard_bar.dart` | `SshKeyboardBar` | Virtual SSH key bar: emits logical `TerminalKey`s (Esc / Tab / arrows / Fn / chars) with sticky Ctrl / Alt folded into the modifier flags, via `onKey`. |
+| `mobile/ssh_keyboard_keys.dart` | `charKey`, `namedKey`, `SshBarKeys` | Pure on-bar-key → `TerminalKey` mapping (modifiers folded in); unit-tested without a live session. |
+| `mobile/terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style copy mode driving the engine selection: a virtual cursor pans in cell units, "Set anchor" drops the start, and pans extend via `onSetSelection` (absolute coords) → `session.setSelection`; copy reads `session.selectionText`. |
 
 #### Split tree (tiling)
 
@@ -4083,7 +4133,7 @@ flowchart TD
   theme["AppTheme brightness flip"] -->|setPalette| sess
 ```
 
-**Open + render path.** Once the connection's transport is adopted, `TerminalPane` calls `SshTransport.openTerminalSession(cols, rows, scrollback, palette)`. The Rust core opens the PTY shell, builds the engine + pump, and returns a `TerminalSession` handle — the raw `SshSession` never crosses back to the pane (the transport keeps it; the pane only ever holds the terminal handle). `TerminalGridView` subscribes to `session.events()`; on each coalesced `Wakeup` it pulls a fresh sync `session.snapshot()` and schedules one repaint per vsync via a post-frame gate (the same coalescing shape as `CursorTextOverlay._repaintScheduled`), so a busy output burst still repaints once per frame.
+**Open + render path.** Once the connection's transport is adopted, `TerminalPane` calls `SshTransport.openTerminalSession(cols, rows, scrollback, palette)`. The Rust core opens the PTY shell, builds the engine + pump, and returns a `TerminalSession` handle — the raw `SshSession` never crosses back to the pane (the transport keeps it; the pane only ever holds the terminal handle). `TerminalGridView` subscribes to `session.events()`; on each coalesced `Wakeup` it pulls a fresh sync `session.snapshot()` and schedules one repaint per vsync via a post-frame gate, so a busy output burst still repaints once per frame.
 
 **Sparse frame + flags decode.** A `TerminalFrame` carries only non-blank cells (the engine omits blank default-background cells). `TerminalGridPainter` clears to the default background once via the host `ColoredBox`, then for each cell paints its background rect (skipped when it equals the default bg), and overlays the glyph at the cell's `row`/`col` × cell-metric origin (`ch` → `String.fromCharCode`). `INVERSE` and `DIM` are already folded into the cell's concrete `fg`/`bg` Rust-side, so the painter never resolves color; the remaining attribute bits are decoded in exactly one place — `TerminalCellFlags.fromBits` — whose constants mirror `alacritty_terminal`'s `term::cell::Flags` (`BOLD`→weight, `ITALIC`→italic, `UNDERLINE`/`STRIKEOUT`→decoration, `HIDDEN`→skip glyph, `WIDE_CHAR`→two-column span). The block cursor re-draws the covered glyph in the background color for the classic inverted-cursor look. `shouldRepaint` keys off a monotonic frame revision the view bumps per pull (cheaper than a deep `cells` compare and never misses a frame that value-equals a prior one).
 
@@ -4129,7 +4179,19 @@ flowchart TD
 
 Ctrl+Shift+F opens `TerminalSearchBar` above the grid (Esc / the close button hide it; Esc only closes while the bar is open so it still reaches the shell otherwise). The bar owns only its text buffer + a 200 ms debounce; on each query change the pane runs `session.search(query)` (Rust-side per-line substring scan over grid + scrollback) and holds the `List<TerminalMatch>` in absolute grid-line coordinates plus the current-match index. `TerminalGridView` projects those matches onto the live viewport each build via `highlightRectsForMatches` (so highlights track scrolling) and paints them under the glyphs, the focused match in a stronger color. Next / prev (buttons or Enter / Shift+Enter) advance the index and call `scrollDeltaToRevealLine` → `session.scroll` so the focused match is always on screen; the `current/total` count comes from the Rust-computed list, not a Dart re-count.
 
-**Deferred on the desktop path.** Per-tab broadcast and session recording pause on the desktop pane: both forked the per-byte stream in Dart's `ShellHelper`, and that fork moves into the Rust pump body (the recorder / broadcast hook slot documented on `TerminalSession::events`) — the connection-bar record button hides itself while no pane registers a recording handle. The `xterm`-mode-only `hardwareKeyboardOnly` notes survive only on the mobile pane, the last `xterm` consumer.
+#### Mobile pane — Rust engine
+
+`MobileTerminalView` renders the same Rust `TerminalSession` as the desktop pane, through the shared `TerminalGridView` — no fork of the paint or input logic. It opens the session once the transport is adopted (after a post-frame delay so the grid reports the real viewport size before the shell opens), pushes the palette, and re-pushes it on a brightness flip. Single-pane, full screen — no tiling, no broadcast (there is no second pane in a mobile tab to mirror to).
+
+**Soft-keyboard capture.** The grid view owns hardware-key input via its `Focus`; the soft keyboard needs a text client. A zero-size offstage `EditableText` (`_buildImeCapture`) owns the IME — a tap on the terminal area focuses it (industry-standard: one explicit tap rather than auto-opening the keyboard). Each `onChanged` diff is the freshly-typed text (the field is cleared after every change — the terminal owns the real buffer), sent one `TerminalKey` per character through `session.sendKey` so the bar's sticky Ctrl / Alt fold in.
+
+**On-bar keys.** `SshKeyboardBar` emits logical `TerminalKey`s (Esc / Tab / arrows / Fn / `|` `~` `/` `-`) via `onKey`, with the sticky Ctrl / Alt modifiers folded into the key flags — `TerminalSession.sendKey` then encodes the VT bytes against the live mode (so an arrow flips to SS3 under DECCKM exactly as on desktop). The pure mapping lives in `ssh_keyboard_keys.dart`. Snippets go through `session.writeInput`; paste through `session.paste`.
+
+**Copy mode.** `TerminalCopyOverlay` drives the engine selection: a virtual trackpad cursor pans in cell units over the grid, the bar's "Set anchor" drops the start cell (in absolute grid coords, accounting for `displayOffset`), and pans extend the selection via `onSetSelection` → `session.setSelection`. Copy reads `session.selectionText` and routes through `TerminalClipboard.copyText` (the same `SecureClipboard` + auto-wipe path as desktop). Edge pans scroll the viewport so one drag can span the scrollback.
+
+#### Recording — pump fork
+
+The connection-bar record button (`workspace_view._recordButton`) resolves the focused pane's `PaneRecordingHandle` from `PaneRecordingRegistry` (each `TerminalPaneState` registers in `initState`, unregisters in `dispose`). `canRecord` is false for unsaved quick-connect panes (no `sessionId` folder), which hides the button. The handle's `toggle` opens / seals a `SessionRecorder` and attaches it to the session via `session.setRecorder(id)`; a session whose saved `extras['record']` is true auto-starts on open. From there the **Rust pump tees output and the send paths tee input** into the recorder queue under that id — see [§3.16 Recorder fork](#recorder-fork--output-in-the-pump-input-on-the-send-paths). The `.cast` / `.lfsr` format and the recorder lifecycle (register / spawn / header / rotate / close) are unchanged from [§3.13](#313-session-recording-recorder); only the byte fork moved from Dart's old `ShellHelper` into the pump.
 
 #### Read-only rendering — `TerminalReplay`
 
@@ -4140,7 +4202,7 @@ bytes and paint:
 - **Connection-progress output** (`widgets/terminal/connection_progress.dart` + `progress_writer.dart`) — the ANSI step lines (`[*]` / `[✓]` / `[✗]` with cursor-up rewrites) the connect cascade emits.
 - **Log viewer** (`features/settings/settings_logging.dart`) — the ANSI-formatted log stream (per-level stripe glyph + bold-tinted tag); the replay engine is chosen over a plain monospace list precisely because log lines carry SGR color.
 
-All three drive a `ReadOnlyTerminalController` (a widget-local `ChangeNotifier` wrapping a `TerminalReplay`) and render it through `ReadOnlyTerminalGridView`, which reuses the live pane's `TerminalGridPainter` + `measureMonoCell`. The view has no keyboard / selection / mouse wiring — read-only means no input. After each `feed` / `clear` / `resize` the controller bumps the notifier; the view re-pulls a `snapshot()` and repaints (no `Wakeup` event stream exists for a replay — see [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle)). When `reportResize` is set (progress + log surfaces) the laid-out whole-cell count is reported back so the engine grid tracks the viewport; recording playback leaves it off and renders the fixed recorded `w × h`. `ProgressWriter` keeps a second `xterm`-backed constructor (`ProgressWriter.new`) for the mobile pane, which still owns an `xterm` `Terminal`; the desktop surface uses `ProgressWriter.controller`.
+All three drive a `ReadOnlyTerminalController` (a widget-local `ChangeNotifier` wrapping a `TerminalReplay`) and render it through `ReadOnlyTerminalGridView`, which reuses the live pane's `TerminalGridPainter` + `measureMonoCell`. The view has no keyboard / selection / mouse wiring — read-only means no input. After each `feed` / `clear` / `resize` the controller bumps the notifier; the view re-pulls a `snapshot()` and repaints (no `Wakeup` event stream exists for a replay — see [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle)). When `reportResize` is set (progress + log surfaces) the laid-out whole-cell count is reported back so the engine grid tracks the viewport; recording playback leaves it off and renders the fixed recorded `w × h`. `ProgressWriter` writes through `ProgressWriter.controller` (the single production sink, feeding the `ReadOnlyTerminalController`); a `@visibleForTesting` `ProgressWriter.sink` constructor takes a raw `void Function(String)` so the step-formatting logic is unit-testable without the Rust engine.
 
 #### Keyboard Shortcuts
 
@@ -4165,8 +4227,9 @@ defined in `AppShortcutRegistry`. On the desktop grid all are live:
 encoder Rust-side; **search** (Ctrl+Shift+F) opens the in-terminal search
 bar and **Escape** closes it (only while it is open, so Escape otherwise
 reaches the shell); the local **zoom** combos (Ctrl+`=` / Ctrl+`-` /
-Ctrl+`0`) re-measure the cell grid. The same shortcuts remain live on the
-`xterm`-backed mobile pane.
+Ctrl+`0`) re-measure the cell grid. The mobile pane shares the same
+`TerminalSession` surface; its on-screen bar and copy overlay drive the same
+`sendKey` / `paste` / `selectionText` paths.
 
 **SFTP file browser** (`file_pane.dart` — `Focus.onKeyEvent`):
 
@@ -4193,30 +4256,17 @@ SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane I
 
 Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
 
-#### Broadcast input — per-tab fan-out
+#### Broadcast — input mirroring
 
-> **Status:** paused on the new desktop grid pane. Broadcast forked the
-> per-byte input stream in Dart's `ShellHelper`; with the desktop pane on
-> the Rust `TerminalSession`, that fork moves into the Rust pump body (the
-> recorder / broadcast hook slot on `TerminalSession::events`). The
-> `BroadcastController` and its provider stay in place; the wiring below
-> describes the `xterm`-era hookup that returns once the pump-side fork
-> lands.
+`BroadcastController` (`features/terminal/broadcast_controller.dart`) is a `ChangeNotifier` instantiated per tab via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`. One pane in a tab can be the **driver**; every input action it produces is mirrored into every registered **receiver** pane.
 
-`BroadcastController` (`features/terminal/broadcast_controller.dart`) is a `ChangeNotifier` instantiated per tab via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`. One pane in a tab can be the **driver**; every byte its `Terminal.onOutput` produces is mirrored into every registered **receiver** pane's shell sink. The pane registers itself in `_attachBroadcast` once `_openShell` returns, and unregisters in `dispose` — `_broadcastUnsubscribe` cleans up the listener subscription, `BroadcastController.unregisterSink` clears the role assignment.
+**Input layer, not output.** Broadcast taps the driver's **input** path, not its shell output. Mirroring output would echo the driver's rendered bytes onto receivers as if typed — doubling prompts and corrupting receiver grids. The driver fans the *high-level action* as a `BroadcastInput`: a `BroadcastKey` carrying a `TerminalKey` (the key path) or a `BroadcastBytes` carrying pre-encoded bytes (paste / snippet). The receiver re-runs it against its **own** session — `session.sendKey` for a key (re-encoded against that receiver's mode, so an arrow lands correctly even when receivers differ in DECCKM / keypad state) and `session.writeInput` for bytes. The driver's own session still gets the input directly; broadcast is a side-channel, never a replacement.
 
-**Why per-tab and not workspace-global.** A workspace-wide controller would let a driver in tab A leak keystrokes into tab B's panes after a tab switch — almost never what the user wants. Tying the lifetime of the controller to the tab matches the user's mental "I'm broadcasting in this tab" model and survives split / unsplit operations within the same tab. Trade-off: re-opening a tab from scratch gives a fresh controller; we accept that because the alternative (persisting broadcast state across tab close) is the worse default.
+**Why per-tab and not workspace-global.** A workspace-wide controller would let a driver in tab A leak keystrokes into tab B's panes after a tab switch — almost never what the user wants. Tying the controller's lifetime to the tab matches the "I'm broadcasting in this tab" model and survives split / unsplit within the same tab. Trade-off: re-opening a tab gives a fresh controller; the alternative (persisting broadcast state across tab close) is the worse default.
 
-**Driver / receiver wiring.**
-- `_attachBroadcast` wraps `Terminal.onOutput` so the original hook installed by `ShellHelper.openShell` still runs; the wrapper additionally calls `controller.broadcastFrom(paneId, bytes)` when `controller.isDriver(paneId)` is true. The driver's own shell still receives the bytes through the original hook — broadcast is a side-channel, never a replacement.
-- Receivers register a sink that calls `shell.write(bytes)` directly. The controller iterates the sink list in registration order and wraps each call in `try/catch` — a torn-down receiver shell never stalls the driver loop.
-- `isActive` requires both a driver and at least one *other* receiver. A driver alone does not broadcast; toggling the driver's id in the receiver set is filtered out.
+**Wiring.** `TerminalPane._attachBroadcast` registers a sink once the session opens; the sink switches on the `BroadcastInput` shape and replays it on this pane's session. The pane's `_forwardKey` / `_pasteClipboardAsync` / `sendCommand` paths call `_broadcastInput(...)` after sending to their own session. `dispose` unregisters the sink. The controller iterates receivers in registration order and wraps each call in `try/catch` — a torn-down receiver session never stalls the driver loop. `isActive` requires both a driver and at least one *other* receiver.
 
-**Visual indicator.** The pane build wraps its content in a `Container` whose `Border.all` colour is `AppTheme.yellow` for both driver and receiver, with a slightly thicker stroke (2.5 px) on the driver. Active state is read from the per-tab controller via `ref.watch(broadcastControllerProvider(tabId))` so border updates land on the same `notifyListeners()` cycle that flips the role.
-
-**Paste guard.** When the focused pane is the active driver, `_pasteClipboard` shunts through a confirmation dialog (`broadcastPasteTitle` / `broadcastPasteBody` / `broadcastPasteSend`) before letting the bytes through. The body string carries character count + receiver count so the user gets a concrete picture of the blast radius before sending. Cancel returns to the pane without writing anything; confirm calls `terminal.paste(text)` so the broadcast wrapper fires (sending paste bytes through the bypass would skip every receiver — wrong by construction).
-
-**Single-pane / mobile guard.** `TerminalPane.supportsBroadcast` returns `paneId != null && tabId != null`. The mobile shell and quick-connect surfaces don't plumb either id, so every broadcast path stays inert and the context menu does not grow misleading entries on solo panes. The desktop tiling view passes both ids through `TilingView._buildLeaf`.
+**Single-pane / mobile guard.** `TerminalPane._supportsBroadcast` returns `paneId != null && tabId != null`. The mobile shell (single pane, no tab tiling) and quick-connect surfaces don't plumb either id, so every broadcast path stays inert there. The desktop tiling view passes both ids through `TilingView._buildLeaf`.
 
 ---
 
@@ -4456,13 +4506,13 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | File | Class | Purpose |
 |------|-------|---------|
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
-| `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar + copy-mode overlay |
-| `terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style virtual cursor + live selection + Copy/Cancel toolbar |
+| `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal on the Rust engine (`TerminalGridView`) + keyboard bar + copy-mode overlay. Soft-keyboard text via a hidden `EditableText` → `sendKey`. See [§5.1 Mobile pane](#mobile-pane--rust-engine). |
+| `terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style virtual cursor driving the engine selection (`onSetSelection` → `session.setSelection`) + Copy/Cancel in the bar row |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Copy. Main row is horizontally scrollable (`ListView`); Paste + Copy + Fn buttons are fixed at right edge. `applyModifiers` cascades Ctrl then Alt — Alt wraps the Ctrl result rather than replacing it, so Alt+Ctrl+X produces the standard `ESC + Ctrl-X` two-byte sequence emacs / readline reads as `C-M-x`. An earlier implementation wrote both transforms to the same `result` slot while reading the original `data`, silently collapsing the combo to bare Ctrl+X |
-| `ssh_key_sequences.dart` | — | Escape sequences for keys |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Copy. Main row is horizontally scrollable (`ListView`); Paste + Copy + Fn buttons are fixed at right edge. Emits logical `TerminalKey`s via `onKey` with sticky Ctrl / Alt folded into the key flags — the Rust encoder produces the VT bytes (so Alt+Ctrl+X lands as the standard `ESC + Ctrl-X` meta-control sequence against the live mode) |
+| `ssh_keyboard_keys.dart` | `charKey`, `namedKey`, `SshBarKeys` | Pure on-bar-key → `TerminalKey` mapping (modifiers folded in) |
 
-**Gesture routing.** `MobileTerminalView` wraps the terminal area in a bare [`Listener`](https://api.flutter.dev/flutter/widgets/Listener-class.html) and tracks every active pointer in a `Map<int, Offset>`. One-finger events are *not* consumed by the Listener — they continue to xterm's internal gesture recognizers for scrolling + tap-to-focus; copy-mode routes single-finger drags through `_copyOverlayKey` to pan the virtual cursor instead. Multi-touch is intentionally unused. **Don't add pinch-to-zoom over `_fontSize`** — every pinch frame propagates through `TerminalView` into `Terminal.buffer.resize` (cell width changes ↔ columns change), which reflows the scrollback dozens of times per gesture and produces visible garbage. Font size is driven **only** by the Settings slider — one commit per release, one reflow, manageable. **Don't add a stock `ScaleGestureRecognizer`** either: it treats a single-pointer drag as a 1× scale and wins the gesture arena, silently killing xterm's own recognizers sharing the same subtree.
+**Gesture routing.** `MobileTerminalView` wraps the terminal area in a bare [`Listener`](https://api.flutter.dev/flutter/widgets/Listener-class.html) and tracks every active pointer in a `Map<int, Offset>`. Outside copy mode a tap (via a `GestureDetector`) focuses the hidden IME field to summon the soft keyboard, and the grid's own pointer handling drives scroll; in copy mode the grid is wrapped in an `AbsorbPointer` and single-finger drags route through `_copyOverlayKey` to pan the virtual cursor. Multi-touch is intentionally unused. **Don't add pinch-to-zoom over `_fontSize`** — a per-frame font mutation drives a per-frame `session.resize`, which reflows the grid dozens of times per gesture and produces visible churn. Font size is driven **only** by the Settings slider — one commit per release, one reflow, manageable.
 
 **Touch selection is opt-in.** xterm's built-in `TerminalGestureHandler` routes every touch long-press into `renderTerminal.selectWord` and every single-finger drag into `renderTerminal.selectCharacters`. On mobile that free-for-all collided with the dedicated copy-mode overlay — users could stamp a stray word selection by holding a finger anywhere and had no way to disable it. There is no public xterm flag to turn that path off, and winning the gesture arena at a parent level would also steal the scroll gesture. The workaround lives on the **controller** instead: `MobileTerminalView` attaches a listener to its `TerminalController` that calls `clearSelection()` whenever a new selection appears while the copy-mode overlay is *not* active. The guard no-ops when selection is already null, so the follow-up `notifyListeners` call does not recurse. The overlay itself remains the only sanctioned selection surface on mobile; desktop is untouched because long-press-to-word-select is a first-class desktop flow.
 
@@ -5703,11 +5753,9 @@ abstract final class AppFonts {
 
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
 
-**Monospace fallback chain** (`AppFonts.monoFallback`). JetBrains Mono's cmap covers Latin, extended-Latin, and box-drawing, but *not* emoji, CJK, or most symbol blocks. `TerminalStyle` on every terminal surface (desktop `TerminalPane`, mobile `MobileTerminalView`, and the custom `CursorTextOverlay` painter) is instantiated with `fontFamily: AppFonts.monoFamily` **plus** `fontFamilyFallback: AppFonts.monoFallback` — `Noto Color Emoji` / `Apple Color Emoji` / `Segoe UI Emoji` / `Segoe UI Symbol` / `Noto Sans Symbols 2` / `sans-serif`. Every target OS ships one of those under the exact name in its system font registry, so Flutter/Skia resolves the missing glyph chain without us bundling a ~10 MB color-emoji font. Without the fallback, the terminal rendered emoji and CJK as tofu on Android; the `CursorTextOverlay` custom painter was the worst-affected site because it built a bare `ui.TextStyle(fontFamily: ...)` with no fallback parameter at all.
+**Monospace fallback chain** (`AppFonts.monoFallback`). JetBrains Mono's cmap covers Latin, extended-Latin, and box-drawing, but *not* emoji, CJK, or most symbol blocks. `TerminalGridPainter` (the single painter behind the desktop pane, mobile pane, and read-only surfaces) builds each glyph run with `fontFamily: AppFonts.monoFamily` **plus** `fontFamilyFallback: AppFonts.monoFallback` — `Noto Color Emoji` / `Apple Color Emoji` / `Segoe UI Emoji` / `Segoe UI Symbol` / `Noto Sans Symbols 2` / `sans-serif`. Every target OS ships one of those under the exact name in its system font registry, so Flutter/Skia resolves the missing glyph chain without us bundling a ~10 MB color-emoji font. Without the fallback the terminal rendered emoji and CJK as tofu on Android.
 
-**Cell metrics lockstep (`kTerminalLineHeight`).** xterm's internal `TerminalStyle` defaults `height: 1.2` and forwards the multiplier into `ui.ParagraphStyle(height: …)` when it measures cell size. Every painter we stack on top of `TerminalView` — `CursorTextOverlay` (desktop + mobile), the mobile `TerminalCopyOverlay` virtual cursor + selection anchors — has to measure cells with the same multiplier. Drop the multiplier on our side and the paragraph height collapses from `fontSize × 1.2` to `fontSize × ~1.17`; cell rows drift up ~20 % per row, so the block-cursor glyph lands above its real cell and the mobile copy-mode selection rectangle renders a couple of lines below the virtual cursor. The invariant lives as `kTerminalLineHeight` in `cursor_overlay.dart`; the mobile overlay imports the same symbol so one edit covers both surfaces.
-
-**Row snap: no dead strip at the bottom.** xterm's `TerminalView` paints whole cells only — it rounds `constraints.maxHeight` down to `floor(h / cellHeight)` rows and leaves the subpixel remainder as a background-coloured strip, which reads as dead terminal space (user report: *"он выглядит как терминал, но туда ничего не выписывается"*). Both `TerminalPane` (desktop) and `MobileTerminalView` (mobile) wrap `TerminalView` in a `LayoutBuilder` that snaps the widget's own height to `rows * fontSize * kTerminalLineHeight + padding` via a `SizedBox`. The remainder pixels become a `ColoredBox` painted in the terminal background, so the boundary between the last row and the next widget (split divider / SSH keyboard bar / status line) reads as a clean edge instead of an unwriteable gap. The pre-layout estimate uses the shared `kTerminalLineHeight` multiplier; xterm's live measurement agrees to within a subpixel so the snap holds.
+**Cell metrics (`kTerminalLineHeight`).** The grid painter measures one cell with `measureMonoCell` (`terminal_cell_metrics.dart`), which uses a `1.2` line-height multiplier — `kTerminalLineHeight`. The mobile `TerminalCopyOverlay` measures with the same helper so its virtual cursor + selection rectangle land exactly on the painter's cell grid; one constant covers every surface. The padding constant (`kTerminalPadding`) lives in the same module so the grid view, read-only grid, and copy overlay share one inset source.
 
 **CJK & non-Latin in language picker:** Native language names (中文, 日本語, 한국어, العربية, فارسی, हिन्दी) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic, Persian, Hindi) as fallback for systems without those fonts. No bundled CJK/Arabic/Devanagari fonts — keeps the binary small.
 

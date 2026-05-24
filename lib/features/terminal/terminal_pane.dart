@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,11 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
+import '../../core/session/session_recorder.dart';
 import '../../widgets/core/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
 import '../../core/config/app_config.dart';
+import '../../providers/broadcast_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -25,6 +29,8 @@ import '../../widgets/terminal/terminal_pointer_input.dart';
 import '../../widgets/terminal/terminal_search_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../snippets/snippet_picker.dart';
+import 'broadcast_controller.dart';
+import 'pane_recording_registry.dart';
 
 /// A single terminal pane — a Rust-engine-backed [rust_terminal.TerminalSession]
 /// rendered through the [TerminalGridView] cell-grid painter, connected to one
@@ -88,6 +94,23 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   rust_terminal.TerminalSession? _session;
 
+  /// Per-tab broadcast controller this pane is registered with, or null
+  /// when the pane is not part of a tab (single-pane / test callers). Held
+  /// so `dispose` can unregister this pane's sink from the same controller
+  /// it registered against.
+  BroadcastController? _broadcast;
+
+  /// Live recording state for this pane. Drives the connection-bar record
+  /// button via [PaneRecordingRegistry] — the registry handle re-exports
+  /// this [ValueListenable] so a single `ValueListenableBuilder` rebuilds
+  /// the icon when recording starts / stops without churning the grid.
+  final ValueNotifier<bool> _isRecording = ValueNotifier<bool>(false);
+
+  /// The active recorder for this pane, or null when not recording. The
+  /// recorder owns its `.lfsr` / `.cast` file; `set_recorder` Rust-side
+  /// forks the session bytes into it while it is attached.
+  SessionRecorder? _recorder;
+
   /// Bumped each time a fresh session opens so the [TerminalGridView] (keyed
   /// on this) tears down its old event subscription and resubscribes to the
   /// new session's stream rather than reusing the stale one.
@@ -98,6 +121,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
+
+  /// True when both the pane id and tab id are present — guards every
+  /// broadcast-related path. Single-pane / test callers omit them.
+  bool get _supportsBroadcast => widget.paneId != null && widget.tabId != null;
 
   String? _error;
 
@@ -140,7 +167,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final session = _session;
     if (session == null) return;
     final cmd = command.endsWith('\n') ? command : '$command\n';
-    unawaited(session.writeInput(bytes: cmd.codeUnits));
+    final bytes = Uint8List.fromList(utf8.encode(cmd));
+    unawaited(session.writeInput(bytes: bytes));
+    _broadcastInput(BroadcastBytes(bytes));
   }
 
   @override
@@ -157,6 +186,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       if (session != null) unawaited(session.clear());
     };
     TerminalScrubber.instance.register(_scrubFn);
+    _registerRecordingHandle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.isActiveTab && widget.isFocused) _terminalFocus.requestFocus();
@@ -248,6 +278,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         'Terminal session open: success for ${conn.id}',
         name: 'TerminalPane',
       );
+      _attachBroadcast(session);
+      await _maybeAutoStartRecording(session, conn);
       ref.read(connectionsProvider.notifier).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
@@ -258,6 +290,133 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       if (!mounted) return;
       setState(() => _error = localizeError(S.of(context), e));
     }
+  }
+
+  // ── Broadcast ──────────────────────────────────────────────────────────
+
+  /// Wire this pane into the per-tab broadcast controller. Runs after the
+  /// session opens so the receiver sink has a live session to replay onto.
+  /// The sink re-runs each fanned [BroadcastInput] against THIS pane's
+  /// session — keys through `sendKey` (re-encoded against this pane's mode),
+  /// bytes through `writeInput` — so a broadcast holds across panes whose
+  /// programs differ in terminal mode.
+  void _attachBroadcast(rust_terminal.TerminalSession session) {
+    if (!_supportsBroadcast) return;
+    final controller = ref.read(broadcastControllerProvider(widget.tabId!));
+    _broadcast = controller;
+    controller.registerSink(widget.paneId!, (input) {
+      // Replay on this receiver's own session. A torn-down session
+      // between dispatch and replay drops the input rather than faulting
+      // the driver loop (the controller already isolates throws).
+      switch (input) {
+        case BroadcastKey(:final key):
+          unawaited(session.sendKey(key: key));
+        case BroadcastBytes(:final bytes):
+          unawaited(session.writeInput(bytes: bytes));
+      }
+    });
+  }
+
+  /// Fan a driver-side input action to every receiver pane. No-op unless
+  /// this pane is the active driver (the controller enforces the gate) or
+  /// the pane is not part of a tab.
+  void _broadcastInput(BroadcastInput input) {
+    final controller = _broadcast;
+    if (controller == null) return;
+    final paneId = widget.paneId;
+    if (paneId == null) return;
+    controller.broadcastFrom(paneId, input);
+  }
+
+  // ── Recording ────────────────────────────────────────────────────────
+
+  /// Register this pane's recording handle so the workspace connection
+  /// bar's record button can find it by paneId. Runs once at mount; the
+  /// registry holds a stable [ValueListenable] pointer that survives shell
+  /// reconnects. `canRecord` is false for unsaved quick-connect panes —
+  /// recordings need a session folder to land in, and the button hides
+  /// itself when this is false.
+  void _registerRecordingHandle() {
+    final paneId = widget.paneId;
+    if (paneId == null) return;
+    PaneRecordingRegistry.instance.register(
+      paneId,
+      PaneRecordingHandle(
+        isRecording: _isRecording,
+        canRecord: widget.connection.sessionId != null,
+        toggle: _toggleRecording,
+      ),
+    );
+  }
+
+  /// Auto-start recording when the session opted in via
+  /// `Session.extras['record'] == true`. No-op for quick-connect
+  /// (no `sessionId`) or sessions without the opt-in flag.
+  Future<void> _maybeAutoStartRecording(
+    rust_terminal.TerminalSession session,
+    Connection conn,
+  ) async {
+    final sessionId = conn.sessionId;
+    if (sessionId == null) return;
+    final saved = ref.read(sessionMutatorProvider).get(sessionId);
+    if (saved == null || saved.extrasBool('record') != true) return;
+    await _startRecording(session, conn);
+  }
+
+  /// Start or stop recording for the open session. No-op when the session
+  /// has not opened yet (the user mashed the button during the connect
+  /// spinner) — the pane records no pre-session bytes either way.
+  Future<void> _toggleRecording() async {
+    final session = _session;
+    if (session == null) return;
+    if (_isRecording.value) {
+      await _stopRecording(session);
+      return;
+    }
+    await _startRecording(session, widget.connection);
+  }
+
+  /// Open a recorder, attach it to the Rust pump (which then tees output +
+  /// input bytes to it), and flip the recording flag. Recorder open is
+  /// best-effort: a null recorder (unsaved session / open failure) leaves
+  /// recording off rather than blocking the session.
+  Future<void> _startRecording(
+    rust_terminal.TerminalSession session,
+    Connection conn,
+  ) async {
+    final sessionId = conn.sessionId;
+    if (sessionId == null) return;
+    final saved = ref.read(sessionMutatorProvider).get(sessionId);
+    if (saved == null) return;
+    final recorder = await SessionRecorder.open(
+      sessionId: sessionId,
+      shellLabel: saved.label,
+      width: _cols,
+      height: _rows,
+    );
+    if (recorder == null) return;
+    if (!mounted || _session != session) {
+      // Pane disposed or session swapped mid-open — seal the half-open
+      // file rather than leaving it with only a header.
+      await recorder.close();
+      return;
+    }
+    _recorder = recorder;
+    session.setRecorder(id: recorder.handleId);
+    _isRecording.value = true;
+  }
+
+  /// Detach the recorder from the pump and seal the file. Idempotent —
+  /// a no-op when not recording.
+  Future<void> _stopRecording(rust_terminal.TerminalSession session) async {
+    final recorder = _recorder;
+    if (recorder == null) return;
+    // Detach the fork first so no further bytes tee into a closing file,
+    // then seal it.
+    session.setRecorder(id: null);
+    _recorder = null;
+    _isRecording.value = false;
+    await recorder.close();
   }
 
   @override
@@ -280,8 +439,18 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   void dispose() {
     TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
+    final paneId = widget.paneId;
+    if (paneId != null) {
+      _broadcast?.unregisterSink(paneId);
+      PaneRecordingRegistry.instance.unregister(paneId);
+    }
+    // Seal the recording before the session drops so its trailing bytes
+    // land before the shell closes. Best-effort, fire-and-forget.
+    final recorder = _recorder;
+    if (recorder != null) unawaited(recorder.close());
     _session?.dispose();
     _terminalFocus.dispose();
+    _isRecording.dispose();
     super.dispose();
   }
 
@@ -508,6 +677,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     );
     if (key == null) return KeyEventResult.ignored;
     unawaited(session.sendKey(key: key));
+    // Mirror the logical key to receivers so each re-encodes against its
+    // own terminal mode (arrows under DECCKM, etc.).
+    _broadcastInput(BroadcastKey(key));
     return KeyEventResult.handled;
   }
 
@@ -621,6 +793,13 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final text = data?.text;
     if (text == null || text.isEmpty) return;
     await session.paste(text: text);
+    // Mirror the paste body to receivers. They write it verbatim — the
+    // driver's session already applied any bracketed-paste framing when it
+    // wrote, but each receiver re-frames on its own `writeInput`/`paste`
+    // path is unnecessary here: the user intent is "the same text reaches
+    // every shell", so the raw text bytes are fanned and each receiver's
+    // shell consumes them directly.
+    _broadcastInput(BroadcastBytes(Uint8List.fromList(utf8.encode(text))));
   }
 
   Future<void> showSnippetPicker(BuildContext context) async {

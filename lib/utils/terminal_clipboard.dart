@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:xterm/xterm.dart';
 
 import '../core/security/secure_clipboard.dart';
 import '../src/rust/api/crypto.dart' as rust_crypto;
@@ -43,6 +42,35 @@ class TerminalClipboard {
     debugRustCompareAndClearOverride = null;
   }
 
+  /// Test seam — cancel any armed auto-wipe timer so a widget test that
+  /// copies sensitive content doesn't leave a live 30 s [Timer] that
+  /// trips flutter_test's "A Timer is still pending" check. Production
+  /// never calls this; the timer fires on its own schedule and clears
+  /// the slot.
+  @visibleForTesting
+  static void debugCancelPendingWipe() {
+    _wipeTimer?.cancel();
+    _wipeTimer = null;
+    _lastSecretHash = null;
+  }
+
+  /// Test seam — replaces the SHA-256 digest used to gate the auto-wipe.
+  /// Production leaves this `null` and [_hash] crosses FRB to
+  /// `lfs_core::crypto::sha256_hex`. Widget tests that copy sensitive
+  /// content without an FRB runtime install a pure-Dart stand-in so the
+  /// arm path doesn't throw "flutter_rust_bridge has not been
+  /// initialized" inside the synchronous copy call (which wedges the
+  /// flutter_test harness). The digest only feeds the process-local
+  /// "newer-arm-overrides" gate, so any stable function of the text is
+  /// sufficient for a test.
+  @visibleForTesting
+  static String Function(String text)? debugHashOverride;
+
+  @visibleForTesting
+  static void debugResetHashOverride() {
+    debugHashOverride = null;
+  }
+
   /// Time to keep a copied secret on the clipboard before overwriting it.
   /// Long enough to paste it once into another window; short enough that
   /// a careless `Ctrl+V` minutes later can't surface a private key.
@@ -62,36 +90,23 @@ class TerminalClipboard {
   /// reference to gate the actual read+wipe.
   static String? _lastSecretHash;
 
-  /// Copy the current selection text to clipboard and clear selection.
-  /// Sensitive-looking content (PEM blocks, long base64 runs) is
-  /// routed through [SecureClipboard] so it never lands in Windows
-  /// clipboard history / macOS Handoff / Android 13+ toast preview /
-  /// iOS Universal Clipboard. Non-sensitive selections take the stock
-  /// clipboard path so normal copy/paste workflow (Win+V, cross-
-  /// device sync) keeps working for non-secrets.
+  /// Copy a text snapshot to the clipboard with sensitive-content
+  /// routing + auto-wipe arming.
   ///
-  /// In both cases a local 30-second auto-wipe is armed for sensitive
-  /// payloads so the *current* clipboard slot is also cleared after
-  /// the user has had a chance to paste once; the sync opt-out and
-  /// the auto-wipe defend two different layers of the clipboard
-  /// threat model and are independent.
-  static void copy(Terminal terminal, TerminalController controller) {
-    final selection = controller.selection;
-    if (selection == null) return;
-    final text = terminal.buffer.getText(selection);
-    copyText(text);
-    controller.clearSelection();
-  }
-
-  /// Copy a pre-captured text snapshot to the clipboard with the same
-  /// sensitive-content routing + auto-wipe arming as [copy].
+  /// Sensitive-looking content (PEM blocks, long base64 runs) is routed
+  /// through [SecureClipboard] so it never lands in Windows clipboard
+  /// history / macOS Handoff / Android 13+ toast preview / iOS Universal
+  /// Clipboard. Non-sensitive text takes the stock clipboard path so normal
+  /// copy/paste workflow (Win+V, cross-device sync) keeps working for
+  /// non-secrets. A local 30-second auto-wipe is armed for sensitive
+  /// payloads so the *current* clipboard slot is also cleared after the
+  /// user has had a chance to paste once; the sync opt-out and the auto-wipe
+  /// defend two different layers of the clipboard threat model and are
+  /// independent.
   ///
-  /// Used by the read-only progress terminal: the right-click menu
-  /// captures the selected text synchronously at pointer-down time
-  /// (before xterm's gesture recognizer can touch the controller
-  /// state), so the actual copy works against a stable string even
-  /// if the underlying selection is cleared by a competing recogniser
-  /// before the menu item is chosen.
+  /// Callers capture the selection text first (off the Rust engine's
+  /// `selectionText`, or synchronously at pointer-down for the read-only
+  /// right-click menu) so the copy works against a stable string.
   static void copyText(String text) {
     if (text.isEmpty) return;
     if (_looksSensitive(text)) {
@@ -105,14 +120,6 @@ class TerminalClipboard {
       Clipboard.setData(ClipboardData(text: text));
     }
     _maybeArmWipe(text);
-  }
-
-  /// Paste clipboard text into terminal.
-  static Future<void> paste(Terminal terminal) async {
-    final data = await Clipboard.getData('text/plain');
-    if (data?.text != null && data!.text!.isNotEmpty) {
-      terminal.textInput(data.text!);
-    }
   }
 
   /// Heuristic: looks-like-a-secret content gets a clipboard auto-wipe.
@@ -165,6 +172,9 @@ class TerminalClipboard {
     _lastSecretHash = null;
   }
 
-  static String _hash(String text) =>
-      rust_crypto.cryptoSha256Hex(bytes: utf8.encode(text));
+  static String _hash(String text) {
+    final hook = debugHashOverride;
+    if (hook != null) return hook(text);
+    return rust_crypto.cryptoSha256Hex(bytes: utf8.encode(text));
+  }
 }

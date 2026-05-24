@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:xterm/xterm.dart';
 
 import '../utils/platform.dart' as plat;
 
@@ -761,36 +760,6 @@ abstract final class AppTheme {
   static const Color _searchHighlightLight = Color(0xFFFFD700);
   static Color get searchHighlight =>
       isDark ? _searchHighlightDark : _searchHighlightLight;
-
-  /// Terminal search hit foreground — high-contrast text on colored bg.
-  static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
-
-  /// Shared terminal color theme for xterm views.
-  static TerminalTheme get terminalTheme => TerminalTheme(
-    cursor: termCursor,
-    selection: termSelection,
-    foreground: fg,
-    background: bg2,
-    black: termBlack,
-    red: termRed,
-    green: termGreen,
-    yellow: termYellow,
-    blue: termBlue,
-    magenta: termMagenta,
-    cyan: termCyan,
-    white: termWhite,
-    brightBlack: termBrightBlack,
-    brightRed: termBrightRed,
-    brightGreen: termBrightGreen,
-    brightYellow: termBrightYellow,
-    brightBlue: termBrightBlue,
-    brightMagenta: termBrightMagenta,
-    brightCyan: termBrightCyan,
-    brightWhite: termBrightWhite,
-    searchHitBackground: accent.withValues(alpha: 0.3),
-    searchHitBackgroundCurrent: accent,
-    searchHitForeground: searchHitFg,
-  );
 
   /// Standard input decoration used across dialogs.
   ///

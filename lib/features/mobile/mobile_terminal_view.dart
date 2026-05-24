@@ -5,50 +5,48 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:xterm/xterm.dart';
 
-import '../../widgets/terminal/xterm_shell_terminal.dart';
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
-import '../../core/connection/progress_tracker.dart';
-import '../../widgets/terminal/progress_writer.dart';
 import '../../core/security/terminal_scrubber.dart';
-import '../../core/ssh/shell_helper.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
+import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
-import '../../widgets/terminal/app_terminal_view.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
+import '../../widgets/terminal/connection_progress.dart';
+import '../../widgets/terminal/terminal_grid_view.dart';
+import '../../widgets/terminal/terminal_palette_theme.dart';
 import '../snippets/snippet_picker.dart';
-import '../../widgets/terminal/terminal_cell_metrics.dart';
-import '../terminal/cursor_overlay.dart';
 import 'ssh_keyboard_bar.dart';
 import 'terminal_copy_overlay.dart';
 
-/// Full-screen mobile terminal with SSH keyboard bar.
+/// Full-screen mobile terminal: a Rust-engine-backed
+/// [rust_terminal.TerminalSession] rendered through the shared
+/// [TerminalGridView] cell-grid painter, with an SSH keyboard bar above the
+/// soft keyboard.
 ///
 /// No tiling/splitting — single pane, full screen.
 ///
-/// **Gestures**. One-finger drags go to xterm (tap, scroll, long-press →
-/// select-word). Font size is driven exclusively by the Settings slider —
-/// pinch-to-zoom is intentionally absent: every pinch frame updated
-/// `_fontSize`, which propagated into `TerminalView` and triggered a
-/// per-frame `Terminal.buffer.resize` (columns change with cell width),
-/// and even xterm's reflow path leaves the scrollback visibly shuffled
-/// across dozens of such resize calls. One font change per settings
-/// commit is a manageable single reflow; dozens per pinch are not.
+/// **Input model.** The on-bar keys build logical [rust_terminal.TerminalKey]s
+/// (sticky Ctrl / Alt folded in) and feed `TerminalSession.sendKey`, which
+/// encodes the VT bytes Rust-side against the live terminal mode. System
+/// soft-keyboard text is captured by a hidden text field and routed the same
+/// way, one [rust_terminal.TerminalKey] per typed character so the bar's
+/// modifiers apply.
 ///
-/// **Copy mode**. Tapping the Copy button in the keyboard bar enters a
-/// trackpad-style [TerminalCopyOverlay]: xterm pointer input is
-/// suspended, a virtual cursor overlays the terminal, single-finger
-/// drags move the cursor in cell units. The selection anchor is
-/// dropped on the *first pointer-up* of the session, not on the first
-/// pointer-down — this gives the user an explicit "aim" phase: drag
-/// the virtual cursor to the start cell, lift → anchor drops, then
-/// drag again to extend. Subsequent pointer-ups don't re-anchor, so
-/// the user can lift + re-touch without losing progress.
+/// **Gestures.** One-finger drags scroll the scrollback. Font size is driven
+/// exclusively by the Settings slider — pinch-to-zoom is intentionally absent
+/// (it drove a per-frame resize that visibly reshuffled the grid).
+///
+/// **Copy mode.** Tapping the Copy button in the keyboard bar enters a
+/// trackpad-style [TerminalCopyOverlay]: a virtual cursor overlays the
+/// terminal, single-finger drags move it in cell units, the "Set anchor"
+/// bar button drops the selection start, and a further drag extends it. The
+/// selection is driven entirely through the Rust engine's
+/// `setSelection` / `selectionText`.
 class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
@@ -59,127 +57,66 @@ class MobileTerminalView extends ConsumerStatefulWidget {
 }
 
 class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
-  late final Terminal _terminal;
   late final void Function() _scrubFn;
-  late final TerminalController _terminalController;
 
-  /// Shared with the copy overlay. Passing a `ScrollController`
-  /// into `TerminalView` gives us a handle to the viewport offset
-  /// so copy mode can scroll the buffer when the virtual cursor
-  /// hits the top / bottom edge during selection extension.
-  /// Without this the cursor clamps inside the visible viewport,
-  /// making it impossible to select more than one screen's worth
-  /// of scrollback in one gesture.
-  final ScrollController _terminalScrollController = ScrollController();
   final _keyboardKey = GlobalKey<SshKeyboardBarState>();
   final _copyOverlayKey = GlobalKey<TerminalCopyOverlayState>();
-  ShellConnection? _shellConn;
 
-  /// Whether the terminal pane is in an error state (for potential retry).
-  bool hasError = false;
+  /// Hidden text field that captures soft-keyboard input. Tapping the
+  /// terminal focuses it (summoning the keyboard); each change is diffed to
+  /// the inserted text and routed to the session.
+  final _imeController = TextEditingController();
+  final _imeFocus = FocusNode(debugLabel: 'MobileTerminalIme');
+
+  rust_terminal.TerminalSession? _session;
+
+  /// Bumped on each fresh session open so the [TerminalGridView] (keyed on
+  /// this) resubscribes to the new event stream rather than the stale one.
+  int _sessionEpoch = 0;
+
+  /// Last viewport size reported by the grid view — re-pushed to the session
+  /// after a re-layout / font-zoom.
+  int _cols = 80;
+  int _rows = 24;
+
+  /// Brightness the live palette was last pushed for; a theme toggle
+  /// re-pushes via [rust_terminal.TerminalSession.setPalette].
+  bool? _paletteIsDark;
+
+  String? _error;
   StreamSubscription<ConnectionStep>? _progressSub;
   double _fontSize = 14.0;
   bool _copyMode = false;
 
   /// Manual pointer tracking — the outer [Listener] mirrors every active
-  /// pointer here so the copy-mode overlay can pan the virtual cursor
-  /// on single-finger drags. Two-finger gestures are not used anywhere
-  /// (pinch-to-zoom was removed per the class docstring); tracking
-  /// them here is still useful for future multi-touch gestures.
+  /// pointer here so copy mode can pan the virtual cursor on single-finger
+  /// drags.
   final Map<int, Offset> _pointers = {};
 
-  /// Debounced soft-keyboard inset. The raw `viewInsets.bottom` ticks
-  /// once per animation frame while the keyboard slides in or out,
-  /// which — fed straight into the layout — would drive a terminal
-  /// height change and a matching `Terminal.buffer.resize` every
-  /// frame. Each frame-level resize is lossy on xterm's rows-shrink
-  /// path: lines near the cursor shuffle in and out of scrollback,
-  /// and if the user also scrolls the terminal mid-animation the
-  /// visible scrollback appears to rip. The debouncer freezes layout
-  /// at the previous stable inset until the raw value has held still
-  /// for [_insetSettleDuration]; then we apply one resize for the
-  /// whole animation.
+  /// Debounced soft-keyboard inset so the bar slides smoothly while the
+  /// terminal area only re-lays-out (and re-resizes the engine grid) once
+  /// the animation settles, not once per frame.
   double _appliedKeyboardInset = 0;
   Timer? _insetSettleTimer;
   static const _insetSettleDuration = Duration(milliseconds: 200);
 
-  // `xterm.dart` 4.0.0 ships a known scrollback-corruption bug in
-  // `Buffer.scrollUp` / `scrollDown` (issue #222): the in-place index
-  // shift leaves detached `BufferLine` objects at intermediate slots
-  // of the `IndexAwareCircularBuffer`, and in release mode (no
-  // assertions) this silently mis-indexes lines — visible as
-  // "chunks of text disappearing from the middle of the scrollback"
-  // during vim / tmux / htop / paste-driven escape-sequence traffic.
-  // Client-side workarounds (eviction watchdog via `CellAnchor`,
-  // slow-fling `ClampingScrollPhysics`, scroll-offset compensation
-  // via `ScrollPosition.correctBy`) were tried and reverted: they
-  // masked the symptom without fixing the root cause, and xterm's
-  // own `_scrollToBottom` path bypasses the shared scroll controller
-  // anyway (issue #218). The honest stance is to wait on the
-  // upstream patch.
-  //
-  //   https://github.com/TerminalStudio/xterm.dart/issues/222
-  //
-  // Related upstream items that would let us re-enable a subset of
-  // the mitigations cleanly once merged: PR #219 adds a
-  // `scrollOnInput` flag (stops xterm fighting our scroll position);
-  // PR #220 adds a `scrollPhysics` parameter (lets us install a
-  // velocity cap without a `ScrollConfiguration` hack).
-
   @override
   void initState() {
     super.initState();
-    final config = ref.read(configProvider);
-    _terminal = Terminal(maxLines: config.scrollback);
     _scrubFn = () {
-      _terminal.buffer.clear();
-      _terminal.setCursor(0, 0);
+      final session = _session;
+      if (session != null) unawaited(session.clear());
     };
     TerminalScrubber.instance.register(_scrubFn);
-    _terminalController = TerminalController();
-    // Hard-block xterm's built-in touch selection (long-press → word,
-    // finger-drag → character select). xterm's [TerminalGestureHandler]
-    // internally calls `renderTerminal.selectWord/selectCharacters` on
-    // every touch long-press + drag; there is no public flag to turn
-    // that off, and winning the Flutter gesture arena at a parent level
-    // would also steal the scroll gesture. Instead we listen to the
-    // controller and drop any selection that appears while the copy-mode
-    // overlay is not active — that overlay is the only sanctioned
-    // selection surface on mobile. The listener no-ops when selection
-    // is already null, so `clearSelection()` does not recurse through
-    // `notifyListeners`. Users who want to select text must enter copy
-    // mode via the keyboard bar's 📋 button.
-    _terminalController.addListener(_enforceCopyModeSelectionGuard);
-    // Delay connection until after the first frame so TerminalView can
-    // set the correct terminal dimensions. Without this, the shell opens
-    // with the default 80x24 and the server sends output for that size;
-    // when TerminalView later resizes, the buffer rearranges and causes
-    // duplicated/garbled first lines on mobile (where the actual viewport
-    // differs significantly from 80x24).
+    // Delay connect until after the first frame so the grid view reports the
+    // real viewport size before the shell opens — opening at the default
+    // 80x24 then resizing garbles the first lines on a phone viewport.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _connectAndOpenShell();
+      if (!mounted) return;
+      _connectAndOpenSession();
     });
   }
 
-  /// See [initState] for the rationale — xterm's built-in touch
-  /// selection is blocked outside copy mode by clearing any selection
-  /// that lands on the controller when `_copyMode` is false.
-  void _enforceCopyModeSelectionGuard() {
-    if (_copyMode) return;
-    if (_terminalController.selection == null) return;
-    _terminalController.clearSelection();
-  }
-
-  /// Arm the debounce timer so we update [_appliedKeyboardInset] only
-  /// after the raw `viewInsets.bottom` has stopped ticking for
-  /// [_insetSettleDuration]. Called from [build] — Flutter rebuilds
-  /// the subtree on every inset tick during the keyboard slide
-  /// animation (we read `MediaQuery.viewInsetsOf(context)` there to
-  /// register the dependency), so this runs once per animation frame
-  /// and keeps resetting the timer until the animation ends. Takes
-  /// the raw value as an argument so we don't re-read MediaQuery in
-  /// the timer callback — by the time the callback fires the context
-  /// may have been deactivated.
   void _scheduleKeyboardInsetSettle(double raw) {
     if (raw == _appliedKeyboardInset) return;
     _insetSettleTimer?.cancel();
@@ -189,87 +126,73 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     });
   }
 
-  Future<void> _connectAndOpenShell() async {
+  Future<void> _connectAndOpenSession() async {
     final conn = widget.connection;
-    final l10n = S.of(context);
-    final tracker = ProgressTracker(conn);
-    final writer = ProgressWriter(
-      terminal: _terminal,
-      l10n: l10n,
-      config: conn.sshConfig,
-    );
-
-    _progressSub = writer.subscribe(tracker);
     await conn.waitUntilReady();
-    // `state == connected` flips before [Connection._adoptSession]
-    // assigns the russh handle to `transport`; wait for the adopt
-    // to settle so `_openShell` doesn't see a null transport.
-    if (conn.isConnecting || conn.isConnected) {
-      await conn.transportReady;
-    }
-    _progressSub?.cancel();
-    _progressSub = null;
-    tracker.dispose();
-
-    if (!conn.isConnected) {
-      if (mounted) {
-        final error = conn.connectionError != null
-            ? localizeError(l10n, conn.connectionError!)
-            : l10n.errConnectionFailed;
-        _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
-        setState(() => hasError = true);
-      }
+    if (!mounted) {
+      _disposeProgress();
       return;
     }
+    if (conn.isConnecting || conn.isConnected) {
+      await conn.transportReady;
+      if (!mounted) {
+        _disposeProgress();
+        return;
+      }
+    }
+    _disposeProgress();
 
+    if (!conn.isConnected) {
+      _onConnectFailed(conn);
+      return;
+    }
+    await _openSessionAndAttach(conn);
+  }
+
+  void _disposeProgress() {
+    _progressSub?.cancel();
+    _progressSub = null;
+  }
+
+  void _onConnectFailed(Connection conn) {
+    conn.state = SSHConnectionState.disconnected;
+    final l10n = S.of(context);
+    final error = conn.connectionError != null
+        ? localizeError(l10n, conn.connectionError!)
+        : l10n.errConnectionFailed;
+    setState(() => _error = error);
+  }
+
+  Future<void> _openSessionAndAttach(Connection conn) async {
     try {
-      // Clear progress log before opening shell — openShell wires stdout
-      // to terminal.write(), so any server output must not be erased.
-      writer.clear();
-      _shellConn = await ShellHelper.openShell(
-        connection: conn,
-        terminal: XtermShellTerminal(_terminal),
-        onDone: () {
-          if (mounted) {
-            setState(() => hasError = true);
-          }
-        },
+      final transport = conn.transport;
+      if (transport == null || !transport.isConnected) {
+        throw StateError('Not connected');
+      }
+      final isDark = AppTheme.isDark;
+      final session = await transport.openTerminalSession(
+        cols: _cols,
+        rows: _rows,
+        scrollback: ref.read(configProvider).scrollback,
+        palette: TerminalPaletteFromTheme.fromAppTheme(),
       );
-
-      // Override terminal.onOutput to apply keyboard bar modifiers
-      // (Ctrl/Alt) to system keyboard input before sending to shell.
-      //
-      // Encode via `utf8.encode` — `String.codeUnits` returns UTF-16
-      // code units, and `Uint8List.fromList` masks each element to its
-      // low byte, which silently collapses every non-ASCII codepoint
-      // onto the 0x00–0xFF range. On a Russian Gboard long-press the
-      // symptom was Cyrillic letters landing as ASCII punctuation /
-      // digits: U+0430 `а` → 0x30 `0`, U+0440 `р` → 0x40 `@`, and so
-      // on across U+0430..U+044F → 0x30..0x4F. The same truncation
-      // would silently corrupt CJK, Arabic, emoji and every other
-      // non-ASCII script. `utf8.encode` produces the correct
-      // multi-byte sequence the SSH shell expects.
-      _terminal.onOutput = (data) {
-        final transformed =
-            _keyboardKey.currentState?.applyModifiers(data) ?? data;
-        // `utf8.encode` already returns Uint8List on dart:convert
-        // ≥ 2.18 — the wrapping `Uint8List.fromList` was a no-op
-        // copy on every keystroke.
-        _shellConn?.write(utf8.encode(transformed));
-      };
-
-      if (mounted) setState(() {});
+      if (!mounted) {
+        session.dispose();
+        return;
+      }
+      setState(() {
+        _session = session;
+        _sessionEpoch++;
+        _paletteIsDark = isDark;
+      });
     } catch (e) {
       AppLogger.instance.log(
-        'Shell open failed: $e',
+        'Mobile terminal session open failed: $e',
         name: 'MobileTerminal',
         error: e,
       );
-      if (mounted) {
-        final localized = localizeError(l10n, e);
-        _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
-        setState(() => hasError = true);
-      }
+      if (!mounted) return;
+      setState(() => _error = localizeError(S.of(context), e));
     }
   }
 
@@ -277,28 +200,78 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   void dispose() {
     TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
-    _shellConn?.close();
     _insetSettleTimer?.cancel();
-    _terminalController.removeListener(_enforceCopyModeSelectionGuard);
-    _terminalController.dispose();
-    _terminalScrollController.dispose();
+    _imeController.dispose();
+    _imeFocus.dispose();
+    _session?.dispose();
     super.dispose();
   }
 
-  void _onKeyboardInput(String data) {
-    _shellConn?.write(Uint8List.fromList(utf8.encode(data)));
+  // ── Input ────────────────────────────────────────────────────────────
+
+  /// Forward a logical key from the keyboard bar to the session. Re-encoded
+  /// Rust-side against the live mode.
+  void _onBarKey(rust_terminal.TerminalKey key) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.sendKey(key: key));
+  }
+
+  /// Diff the hidden IME field on each change and send the inserted text. We
+  /// reset the field to empty after each change so the next change carries
+  /// only the freshly-typed text — the terminal owns the real text buffer,
+  /// the field is a pure capture surface. Each character is sent as its own
+  /// [rust_terminal.TerminalKey] so the bar's sticky Ctrl / Alt fold in.
+  void _onImeChanged(String value) {
+    if (value.isEmpty) return;
+    final session = _session;
+    _imeController.clear();
+    if (session == null) return;
+    final bar = _keyboardKey.currentState;
+    final ctrl = bar?.ctrlActive ?? false;
+    final alt = bar?.altActive ?? false;
+    for (final rune in value.runes) {
+      // Newline / tab must encode as the named Enter / Tab key so the Rust
+      // encoder applies the live mode (CR vs CR+LF under LNM, etc.) — a bare
+      // Char(0x0A) would type a literal control byte instead.
+      final name = switch (rune) {
+        0x0A || 0x0D => const rust_terminal.TerminalKeyName.enter(),
+        0x09 => const rust_terminal.TerminalKeyName.tab(),
+        _ => rust_terminal.TerminalKeyName.char(code: rune),
+      };
+      unawaited(
+        session.sendKey(
+          key: rust_terminal.TerminalKey(
+            name: name,
+            ctrl: ctrl,
+            alt: alt,
+            shift: false,
+            meta: false,
+          ),
+        ),
+      );
+    }
+    bar?.consumeOneShotModifiers();
   }
 
   void _paste() {
-    TerminalClipboard.paste(_terminal);
+    final session = _session;
+    if (session == null) return;
+    unawaited(_pasteAsync(session));
   }
 
-  /// Open the snippet picker and, if the user picks a snippet, send the
-  /// command to the shell with a trailing newline — matching the desktop
-  /// terminal pane behaviour.
+  Future<void> _pasteAsync(rust_terminal.TerminalSession session) async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text;
+    if (text == null || text.isEmpty) return;
+    await session.paste(text: text);
+  }
+
+  /// Open the snippet picker and send the chosen command with a trailing
+  /// newline — matching the desktop pane.
   Future<void> _showSnippets() async {
-    final shell = _shellConn;
-    if (shell == null) return;
+    final session = _session;
+    if (session == null) return;
     final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
       context,
@@ -313,19 +286,13 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     );
     if (command == null) return;
     final payload = command.endsWith('\n') ? command : '$command\n';
-    shell.write(Uint8List.fromList(utf8.encode(payload)));
+    await session.writeInput(bytes: Uint8List.fromList(utf8.encode(payload)));
   }
 
   // ── Pointer tracking ─────────────────────────────────────────────────
 
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
-    // Multi-touch is intentionally unused: pinch-to-zoom was removed
-    // because every pinch frame drove a `_fontSize` mutation that
-    // propagated through `TerminalView` into `Terminal.buffer.resize`,
-    // which reflowed columns and reshuffled scrollback dozens of
-    // times per gesture. Font size is now driven exclusively by the
-    // Settings slider (one commit = one reflow).
   }
 
   void _onPointerMove(PointerMoveEvent e) {
@@ -335,117 +302,120 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     if (_pointers.length == 1 && _copyMode) {
       _copyOverlayKey.currentState?.onCursorPan(e.delta);
     }
-    // Single-finger outside copy mode: do nothing — the pointer event
-    // has already reached xterm (Listener does not consume events),
-    // which handles tap / long-press / drag-select on its own. The
-    // controller-side guard in [_enforceCopyModeSelectionGuard] wipes
-    // any selection xterm tries to stamp.
   }
 
   void _onPointerUp(PointerEvent e) {
     _pointers.remove(e.pointer);
-    // Anchor drop is no longer bound to pointer-up. Earlier revisions
-    // auto-committed the anchor on the first release, which forced
-    // the user to land the cursor in a single uninterrupted drag —
-    // too demanding on a phone viewport where the target cell is
-    // often under the thumb and the user needs to lift + re-grip to
-    // aim. The explicit "Set anchor" button in the copy-mode bar row
-    // now commits the anchor; lifts are free aim passes until then.
   }
 
-  /// Fired by the copy-mode row's "Set anchor" button. Drops the
-  /// selection anchor at the current virtual cursor position and
-  /// flips the bar from the aim hint to the extend hint.
-  void _onSetCopyAnchor() {
-    if (!_copyMode) return;
-    _copyOverlayKey.currentState?.onAnchorDown();
-    HapticFeedback.selectionClick();
-    // `anchorSet` is exposed via the overlay's GlobalKey state and the
-    // bar reads it through the `anchorSet` prop on every build;
-    // `setState` forces the re-read so the row's affordances flip to
-    // the post-anchor layout (Copy replaces the anchor button).
-    if (mounted) setState(() {});
+  /// Summon the soft keyboard on a tap of the terminal area (outside copy
+  /// mode). Industry-standard: one explicit tap rather than auto-opening the
+  /// keyboard the moment the tab is shown.
+  void _focusKeyboard() {
+    if (_copyMode) return;
+    if (!_imeFocus.hasFocus) _imeFocus.requestFocus();
   }
 
   // ── Copy mode ────────────────────────────────────────────────────────
 
   void _onCopyModeChanged(bool active) {
     setState(() => _copyMode = active);
+    if (active) {
+      // Drop the soft keyboard so the whole viewport is free for the
+      // trackpad cursor.
+      _imeFocus.unfocus();
+    }
   }
 
-  void _copyFromOverlay() {
+  void _onSetCopyAnchor() {
+    if (!_copyMode) return;
+    _copyOverlayKey.currentState?.onAnchorDown();
+    HapticFeedback.selectionClick();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _copyFromOverlay() async {
+    final session = _session;
+    if (session == null) return;
     HapticFeedback.lightImpact();
-    TerminalClipboard.copy(_terminal, _terminalController);
+    final text = await session.selectionText();
+    if (text != null && text.isNotEmpty) {
+      // Reuse the shared sensitive-content routing + auto-wipe path.
+      TerminalClipboard.copyText(text);
+    }
+    unawaited(session.clearSelection());
     _keyboardKey.currentState?.exitCopyMode();
+  }
+
+  void _onSetSelection(int startRow, int startCol, int endRow, int endCol) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(
+      session
+          .setSelection(
+            startRow: startRow,
+            startCol: startCol,
+            endRow: endRow,
+            endCol: endCol,
+            kind: rust_terminal.TerminalSelectionKind.simple,
+          )
+          .then((_) {
+            // The engine raises no Wakeup for a host-driven selection;
+            // rebuild so the grid pulls a fresh snapshot with the highlight.
+            if (mounted) setState(() {});
+          }),
+    );
+  }
+
+  void _onClearSelection() {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.clearSelection());
+  }
+
+  void _onCopyScroll(int lineDelta) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.scroll(delta: lineDelta));
+  }
+
+  // ── Grid callbacks ───────────────────────────────────────────────────
+
+  void _onResize(int cols, int rows) {
+    _cols = cols;
+    _rows = rows;
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.resize(cols: cols, rows: rows));
+  }
+
+  void _onScroll(int lineDelta) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.scroll(delta: lineDelta));
+  }
+
+  void _onSessionClosed() {
+    if (!mounted) return;
+    setState(() => _error = S.of(context).errSessionClosed);
+  }
+
+  void _maybeRepushPalette() {
+    final session = _session;
+    if (session == null) return;
+    final isDark = AppTheme.isDark;
+    if (_paletteIsDark == isDark) return;
+    _paletteIsDark = isDark;
+    unawaited(
+      session.setPalette(palette: TerminalPaletteFromTheme.fromAppTheme()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // React to font size changes from the Settings slider. This
-    // triggers an xterm `buffer.resize` (cell width + height both
-    // change, so columns AND rows move), which runs one reflow.
-    // Accepted tradeoff — single commit per slider release on the
-    // settings side means a single visible reflow, not the dozens
-    // pinch-to-zoom used to produce.
     _fontSize = ref.watch(configProvider.select((c) => c.fontSize));
+    _maybeRepushPalette();
 
-    // Layout rationale — reflow-on-keyboard, stable-on-copy-mode.
-    //
-    // Two triggers could resize the terminal widget: soft-keyboard
-    // open/close, and copy-mode toggle. Each one propagates into
-    // `Terminal.buffer.resize`, and xterm's resize has visible
-    // side effects. The compromise landing here:
-    //
-    //   - **Keyboard reflow is allowed.** When the soft keyboard
-    //     opens, the terminal shrinks to the free area above the
-    //     SSH bar (which floats flush against the keyboard top).
-    //     xterm runs its rows-only resize path — popping empty
-    //     trailing lines when the cursor is already at bottom,
-    //     otherwise moving the cursor up — and the earlier rows
-    //     become reachable via xterm's own scrollback gesture.
-    //     The prior "translate + ClipRect + stable height"
-    //     attempt avoided the resize but parked the top rows
-    //     off-screen under the mobile-shell AppBar with NO way
-    //     for the user to scroll them back into view (scrolling
-    //     xterm moves the whole render, not the clip), which is
-    //     worse than a clean reflow.
-    //   - **Copy-mode toggle is stable.** `SshKeyboardBar` swaps
-    //     its row content in-place between normal keys and the
-    //     copy-mode variant (hint + Copy + Cancel) inside the
-    //     same `itemHeightLg` Container. No widget in the column
-    //     changes height on toggle, so `buffer.resize` does not
-    //     fire when the user enters or leaves copy mode — that
-    //     was the scrollback-corruption path.
-    //
-    // `MobileShell` already sets `resizeToAvoidBottomInset: false`
-    // on the terminal page, so we own the keyboard layout here —
-    // the Scaffold body stays at full height regardless of the
-    // keyboard. The bar's `bottom` offset clamps to `navBarHeight`
-    // (sits above the mobile-shell nav bar when the keyboard is
-    // hidden) and follows the *settled* keyboard inset once the
-    // animation has finished. `_appliedKeyboardInset` is updated
-    // through the [_scheduleKeyboardInsetSettle] debouncer so we
-    // don't re-layout (and re-resize xterm) on every animation
-    // frame — per-frame resizes visibly rip the scrollback.
-    //
-    // Reading `MediaQuery.viewInsetsOf(context)` here is load-
-    // bearing: it registers a dependency on MediaQuery so build
-    // fires on every keyboard-animation tick, which both arms the
-    // debouncer for terminal-side layout and lets the SSH bar
-    // track the sliding keyboard in real time.
-    //
-    // Two separate `bottom` offsets come out of this split:
-    //   * `_barBottomLive` follows the raw inset — the bar slides
-    //     with the keyboard so the user sees a smooth motion
-    //     rather than a post-animation snap.
-    //   * `_terminalBottomSettled` uses the debounced
-    //     `_appliedKeyboardInset` — the xterm-hosting `Positioned`
-    //     keeps its size until the animation settles, so
-    //     `Terminal.buffer.resize` fires exactly once per
-    //     keyboard open / close. During the animation the terminal
-    //     keeps its old rendered height; the bar paints on top of
-    //     the lower rows, and those rows briefly tuck behind the
-    //     bar + keyboard. No scrollback shuffle, no visual rip.
     final rawKeyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     _scheduleKeyboardInsetSettle(rawKeyboardInset);
     const navBarHeight = AppTheme.itemHeightXl;
@@ -473,7 +443,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           child: SelectionContainer.disabled(
             child: SshKeyboardBar(
               key: _keyboardKey,
-              onInput: _onKeyboardInput,
+              onKey: _onBarKey,
               onPaste: _paste,
               onSnippets: _showSnippets,
               onCopyModeChanged: _onCopyModeChanged,
@@ -488,124 +458,99 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   Widget _buildTerminalArea() {
-    // xterm's `TerminalView` paints whole cells only — its viewport
-    // rounds the available height down to `floor(h / cellHeight)` rows
-    // and leaves the remainder as a theme-coloured strip at the bottom
-    // that the user reads as "dead terminal space" (the literal
-    // complaint: *"он выглядит как терминал, но туда ничего не
-    // выписывается"*). `LayoutBuilder` below snaps the widget's own
-    // height to an integer-row multiple so the last rendered row sits
-    // flush against the next widget in the Column; the few remaining
-    // pixels between the snapped height and the parent's height become
-    // a `ColoredBox` strip that visually belongs to the bottom control
-    // strip instead of the terminal.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Cell height mirrors xterm's painter: fontSize × the shared
-        // `kTerminalLineHeight` multiplier. Padding is the same
-        // `AppTerminalView.padding` we pass to TerminalView below —
-        // we read the combined vertical from `AppTerminalView` so a
-        // future tweak to the shared constant propagates without a
-        // stale magic number here.
-        const verticalPadding = AppTerminalView.verticalPadding;
-        final cellHeight = _fontSize * kTerminalLineHeight;
-        final usable = constraints.maxHeight - verticalPadding;
-        final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
-        final snappedHeight = rows > 0
-            ? rows * cellHeight + verticalPadding
-            : constraints.maxHeight;
-        return Column(
-          children: [
-            SizedBox(height: snappedHeight, child: _buildTerminalListener()),
-            if (snappedHeight < constraints.maxHeight)
-              Expanded(
-                child: ColoredBox(color: AppTheme.terminalTheme.background),
-              ),
-          ],
-        );
-      },
-    );
+    final error = _error;
+    if (error != null) {
+      return ColoredBox(
+        color: AppTheme.bg2,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            error,
+            style: AppFonts.mono(fontSize: _fontSize, color: AppTheme.red),
+          ),
+        ),
+      );
+    }
+    final session = _session;
+    if (session == null) {
+      return ConnectionProgress(
+        connection: widget.connection,
+        fontSize: _fontSize,
+      );
+    }
+    return _buildLiveTerminal(session);
   }
 
-  Widget _buildTerminalListener() {
+  Widget _buildLiveTerminal(rust_terminal.TerminalSession session) {
+    final grid = TerminalGridView(
+      key: ValueKey<int>(_sessionEpoch),
+      session: session,
+      fontSize: _fontSize,
+      onResize: _onResize,
+      onScroll: _onScroll,
+      onClosed: _onSessionClosed,
+    );
     return Listener(
       onPointerDown: _onPointerDown,
       onPointerMove: _onPointerMove,
       onPointerUp: _onPointerUp,
       onPointerCancel: _onPointerUp,
-      child: Stack(
-        children: [
-          // Isolate xterm's internal gesture recognizers (drag-select,
-          // scroll) while copy mode is active. xterm still sees
-          // `setSuspendPointerInput(true)` which gates mouse-reporting
-          // to the remote shell, but its LOCAL LongPressGestureRecognizer
-          // + PanGestureRecognizer keep firing without this shield:
-          // a single-finger drag in copy mode used to run both
-          // `renderTerminal.selectCharacters` (xterm) *and*
-          // `onCursorPan` (our overlay) on every frame, and the two
-          // competing setSelection calls produced the duplicate-rows +
-          // gaps artefacts users saw in scrollback. `AbsorbPointer`
-          // blocks pointers from reaching TerminalView; the outer
-          // Listener still observes them via its ancestor hit-test so
-          // cursor-pan deltas keep flowing.
-          AbsorbPointer(
-            absorbing: _copyMode,
-            child: TerminalView(
-              _terminal,
-              controller: _terminalController,
-              scrollController: _terminalScrollController,
-              // `autofocus: false` on mobile. xterm's `TerminalView`
-              // couples focus with the system keyboard — the previous
-              // `true` value auto-opened Gboard / iOS keyboard the
-              // instant the user navigated into the terminal tab,
-              // eating half the viewport before they'd even decided
-              // whether they wanted to type. One explicit tap on the
-              // terminal is the industry-standard way to summon the
-              // keyboard on mobile (Termux, Blink, Termius all do
-              // this), and the tap target is the whole terminal area
-              // so the extra step costs nothing. Desktop still calls
-              // into a separate `TerminalPane`, untouched.
-              autofocus: false,
-              backgroundOpacity: 1.0,
-              padding: const EdgeInsets.all(AppTerminalView.padding),
-              theme: AppTheme.terminalTheme,
-              textStyle: TerminalStyle(
-                fontSize: _fontSize,
-                fontFamily: AppFonts.monoFamily,
-                fontFamilyFallback: AppFonts.monoFallback,
+      child: GestureDetector(
+        // A tap that did not drag summons the soft keyboard. The grid's own
+        // pointer handling drives scroll; this only captures the tap.
+        behavior: HitTestBehavior.translucent,
+        onTap: _focusKeyboard,
+        child: Stack(
+          children: [
+            // AbsorbPointer in copy mode so the grid's own scroll/selection
+            // recognisers don't fight the virtual cursor — the outer
+            // Listener still observes pointers via its ancestor hit-test so
+            // cursor-pan deltas keep flowing.
+            AbsorbPointer(absorbing: _copyMode, child: grid),
+            // Offstage IME capture field. Zero-size so it never paints; its
+            // focus node owns the system keyboard, and each change feeds the
+            // session via _onImeChanged.
+            _buildImeCapture(),
+            if (_copyMode)
+              Positioned.fill(
+                child: TerminalCopyOverlay(
+                  key: _copyOverlayKey,
+                  snapshotProvider: session.snapshot,
+                  onSetSelection: _onSetSelection,
+                  onClearSelection: _onClearSelection,
+                  onScroll: _onCopyScroll,
+                  fontSize: _fontSize,
+                ),
               ),
-              // xterm's default is `TextInputType.emailAddress`, which
-              // tells Gboard/iOS that the field holds an email — the
-              // IME then surfaces email-specific helpers (the
-              // clipboard/@-symbol pill, auto-suggest toolbars that
-              // wouldn't dismiss with a tap on the terminal) that
-              // users correctly interpreted as "random popups I
-              // can't close". `TextInputType.text` removes the
-              // email hint while still advertising a text field so
-              // IMEs keep full cursor-gesture support; xterm's own
-              // `CustomTextEdit` already disables autocorrect,
-              // suggestions, and IME personalisation inside its
-              // `TextInputConfiguration`, so the field stays
-              // prediction-free regardless.
-              keyboardType: TextInputType.text,
-            ),
-          ),
-          Positioned.fill(
-            child: CursorTextOverlay(terminal: _terminal, fontSize: _fontSize),
-          ),
-          if (_copyMode)
-            Positioned.fill(
-              child: TerminalCopyOverlay(
-                key: _copyOverlayKey,
-                terminal: _terminal,
-                controller: _terminalController,
-                scrollController: _terminalScrollController,
-                fontSize: _fontSize,
-                fontFamily: AppFonts.monoFamily,
-                fontFamilyFallback: AppFonts.monoFallback,
-              ),
-            ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImeCapture() {
+    return Positioned(
+      width: 0,
+      height: 0,
+      child: Opacity(
+        opacity: 0,
+        child: EditableText(
+          controller: _imeController,
+          focusNode: _imeFocus,
+          onChanged: _onImeChanged,
+          // Multi-line keeps Enter producing a newline character the diff
+          // can capture, rather than a submit action that loses it; the
+          // session encodes Enter from the char itself.
+          maxLines: null,
+          cursorColor: AppTheme.termCursor,
+          backgroundCursorColor: AppTheme.termCursor,
+          style: TextStyle(fontSize: _fontSize, color: AppTheme.fg),
+          keyboardType: TextInputType.text,
+          // Prediction-free so the IME doesn't rewrite already-sent text.
+          autocorrect: false,
+          enableSuggestions: false,
+          enableIMEPersonalizedLearning: false,
+        ),
       ),
     );
   }

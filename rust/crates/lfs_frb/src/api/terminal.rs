@@ -25,6 +25,7 @@ use std::sync::Arc;
 use flutter_rust_bridge::frb;
 use tokio::sync::Mutex;
 
+use lfs_core::recorder::RecordDirection;
 use lfs_core::terminal::{
     encode_key, encode_mouse, encode_paste, KeyInput, KeyName, MatchRange, MouseAction,
     MouseButton, MouseInput, MouseTracking, SelectionKind, TermPalette, TerminalEngine,
@@ -519,6 +520,18 @@ pub struct TerminalSession {
     /// it is touched from sync and async contexts and never held across an
     /// `await`.
     ui_sink: Arc<std::sync::Mutex<Option<StreamSink<TerminalUiEvent>>>>,
+    /// Active session-recorder handle id, or `None` when recording is off
+    /// for this terminal. Set by [`Self::set_recorder`] from Dart's
+    /// `SessionRecorder` (which has already registered + spawned the
+    /// recorder worker under this id). The pump tees shell **output** bytes
+    /// to `app.recorder_queue` under this id, and the input methods
+    /// (`send_key` / `paste` / `write_input`) tee the bytes they write to
+    /// the shell as **input** — so a recording captures both halves of the
+    /// session at the same byte layer the shell sees. Behind a
+    /// `std::sync::Mutex` because it is read from the async pump and the
+    /// method bodies and never held across an `await`: only the
+    /// `Option<String>` is cloned out under the lock, then the lock drops.
+    recorder: Arc<std::sync::Mutex<Option<String>>>,
 }
 
 /// Open a PTY-backed shell on `session`, build the engine, and return a
@@ -561,7 +574,42 @@ pub async fn terminal_session_open(
         engine,
         shell,
         ui_sink: Arc::new(std::sync::Mutex::new(None)),
+        recorder: Arc::new(std::sync::Mutex::new(None)),
     })
+}
+
+/// Read the recorder handle id out of the shared slot, or `None` when
+/// recording is off. Factored out so both the pump and the input methods
+/// take the lock the same way — clone the `Option<String>` out and drop
+/// the lock immediately, never holding it across the subsequent `await`.
+fn recorder_id(slot: &std::sync::Mutex<Option<String>>) -> Option<String> {
+    slot.lock()
+        .expect("terminal recorder slot poisoned")
+        .clone()
+}
+
+/// Tee a chunk of session bytes into the recorder queue under `id` in the
+/// given direction. Fire-and-forget at the byte layer: `enqueue_event_chunk`
+/// coalesces and serialises writes Rust-side, so a failure (worker gone /
+/// recording already closed) is logged and dropped rather than faulting the
+/// terminal — recording is best-effort and must never stall input or the
+/// pump. Empty chunks are a no-op (`enqueue_event_chunk` skips them too).
+async fn tee_to_recorder(id: &str, direction: RecordDirection, bytes: Vec<u8>) {
+    if bytes.is_empty() {
+        return;
+    }
+    let app = lfs_core::app::instance();
+    if let Err(e) = app
+        .recorder_queue
+        .enqueue_event_chunk(id, direction, bytes)
+        .await
+    {
+        app.bus.publish(lfs_core::bus::Event::CoreLog {
+            level: lfs_core::bus::CoreLogLevel::Warn,
+            name: "Terminal".to_string(),
+            message: format!("recorder tee dropped a chunk: {e}"),
+        });
+    }
 }
 
 impl TerminalSession {
@@ -577,12 +625,16 @@ impl TerminalSession {
     /// `PtyWrite` back to the shell Rust→Rust and pushes the translated
     /// UI events (coalesced `Wakeup`, bell, title, clipboard) to `sink`.
     ///
-    /// Recorder / broadcast fork hook: when the live terminal pane moves to
-    /// `TerminalSession`, the per-byte fork to the session recorder and the
-    /// broadcast controller (today in Dart's `shell_helper.dart`) moves
-    /// into the pump body, right after the output bytes are read and before
-    /// they are fed into the engine. The loop is shaped so that hook slots
-    /// in without reshaping the lock/await ordering.
+    /// Recorder output fork: when a recorder is attached (via
+    /// [`Self::set_recorder`]) the pump tees the shell **output** bytes to
+    /// `app.recorder_queue` right after they are read and before they are
+    /// fed into the engine — `recorder_id` clones the id out under its own
+    /// lock and drops it before the tee `await`, so the fork does not widen
+    /// the engine lock window or break the pump's lock/await ordering. The
+    /// matching **input** fork lives on `send_key` / `paste` / `write_input`
+    /// (the bytes those write to the shell). Broadcast input mirroring is a
+    /// Dart concern (each receiver re-encodes against its own mode), so it
+    /// stays on the input call sites, not in the pump.
     pub async fn events(&self, sink: StreamSink<TerminalUiEvent>) -> Result<(), String> {
         let engine = self.engine.clone();
         let shell = self.shell.clone();
@@ -607,6 +659,16 @@ impl TerminalSession {
                 lfs_core::ssh::ShellEvent::ExitStatus(_)
                 | lfs_core::ssh::ShellEvent::ExitSignal(_) => continue,
             };
+
+            // Fork the OUTPUT bytes the user is about to see into the active
+            // recorder before feeding the engine. The tee runs before the
+            // engine lock so a slow recorder queue never widens the window
+            // the engine lock is held, and `recorder_id` clones the id out
+            // and drops its own lock immediately so it is not held across
+            // the `tee_to_recorder().await`.
+            if let Some(id) = recorder_id(&self.recorder) {
+                tee_to_recorder(&id, RecordDirection::Output, bytes.clone()).await;
+            }
 
             // Lock, feed, drain, then RELEASE before any write/await.
             // `pty_writes` is collected under the lock and flushed after —
@@ -724,10 +786,28 @@ impl TerminalSession {
     /// encoded bytes (snippets, `sendCommand`) use this; live keystrokes
     /// go through [`Self::send_key`] so the encoding reads the live mode.
     pub async fn write_input(&self, bytes: Vec<u8>) -> Result<(), String> {
+        if let Some(id) = recorder_id(&self.recorder) {
+            tee_to_recorder(&id, RecordDirection::Input, bytes.clone()).await;
+        }
         self.shell
             .write(&bytes)
             .await
             .map_err(|e| frb_err::from_core(&e))
+    }
+
+    /// Attach or detach the session recorder. Pass the handle id of an
+    /// already-registered + spawned recorder to start teeing output/input
+    /// to it; pass `None` to stop teeing. Dart's `SessionRecorder` owns the
+    /// register / spawn / header / close lifecycle and the on-disk file —
+    /// this only flips the in-pump fork on or off, so a record toggle never
+    /// reshapes the pump or the shell. Idempotent: setting the same id twice
+    /// keeps teeing to it.
+    #[frb(sync)]
+    pub fn set_recorder(&self, id: Option<String>) {
+        *self
+            .recorder
+            .lock()
+            .expect("terminal recorder slot poisoned") = id;
     }
 
     /// Encode a key press against the engine's **current** terminal mode
@@ -749,6 +829,9 @@ impl TerminalSession {
         if bytes.is_empty() {
             return Ok(());
         }
+        if let Some(id) = recorder_id(&self.recorder) {
+            tee_to_recorder(&id, RecordDirection::Input, bytes.clone()).await;
+        }
         self.shell
             .write(&bytes)
             .await
@@ -768,6 +851,9 @@ impl TerminalSession {
         let bytes = encode_paste(&text, mode);
         if bytes.is_empty() {
             return Ok(());
+        }
+        if let Some(id) = recorder_id(&self.recorder) {
+            tee_to_recorder(&id, RecordDirection::Input, bytes.clone()).await;
         }
         self.shell
             .write(&bytes)
@@ -1371,6 +1457,22 @@ mod tests {
         let frame = replay.snapshot();
         assert_eq!(frame.cols, 40);
         assert_eq!(frame.rows, 10);
+    }
+
+    #[test]
+    fn recorder_id_reads_the_slot_without_holding_the_lock() {
+        // Spec: the pump + input methods read the recorder handle by cloning
+        // the Option<String> out of the slot and releasing the lock before
+        // the subsequent tee await. `recorder_id` must return None for an
+        // empty slot and the cloned id for a set slot, and the lock must be
+        // free again right after the call (a re-lock must not deadlock).
+        let slot = std::sync::Mutex::new(None);
+        assert_eq!(recorder_id(&slot), None);
+        *slot.lock().unwrap() = Some("rec-1".to_string());
+        assert_eq!(recorder_id(&slot), Some("rec-1".to_string()));
+        // Lock is free after the read — this would deadlock if recorder_id
+        // held it.
+        assert!(slot.lock().unwrap().is_some());
     }
 
     #[test]

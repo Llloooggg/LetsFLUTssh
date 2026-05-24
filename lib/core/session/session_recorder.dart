@@ -73,6 +73,11 @@ class SessionRecorder {
   final String _handleId;
   String? _currentPath;
 
+  /// The Rust-side recorder handle id. The terminal pane hands this to
+  /// `TerminalSession.setRecorder` so the Rust pump tees session bytes
+  /// into the same worker this recorder registered + spawned.
+  String get handleId => _handleId;
+
   /// Subscription to the per-id recorder bus topic — flips the
   /// file path on rotate-requested and remembers the last
   /// reported on-disk path so [close] returns the freshest value.

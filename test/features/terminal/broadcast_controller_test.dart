@@ -2,6 +2,17 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/terminal/broadcast_controller.dart';
+import 'package:letsflutssh/src/rust/api/terminal.dart' as rust_terminal;
+
+BroadcastBytes _bytes(List<int> b) => BroadcastBytes(Uint8List.fromList(b));
+
+rust_terminal.TerminalKey _charKey(String ch) => rust_terminal.TerminalKey(
+  name: rust_terminal.TerminalKeyName.char(code: ch.runes.first),
+  ctrl: false,
+  alt: false,
+  shift: false,
+  meta: false,
+);
 
 void main() {
   group('BroadcastController', () {
@@ -37,11 +48,13 @@ void main() {
       expect(controller.isDriver('a'), isTrue);
     });
 
-    test('broadcastFrom fans bytes to all receivers except origin', () {
+    test('broadcastFrom fans byte input to all receivers except origin', () {
       final received = <String, List<int>>{};
       void registerSink(String id) {
-        controller.registerSink(id, (bytes) {
-          received.putIfAbsent(id, () => []).addAll(bytes);
+        controller.registerSink(id, (input) {
+          received
+              .putIfAbsent(id, () => [])
+              .addAll((input as BroadcastBytes).bytes);
         });
       }
 
@@ -52,11 +65,28 @@ void main() {
       controller.toggleReceiver('a');
       controller.toggleReceiver('b');
 
-      controller.broadcastFrom('drv', Uint8List.fromList([0x41, 0x42]));
+      controller.broadcastFrom('drv', _bytes([0x41, 0x42]));
 
       expect(received['a'], [0x41, 0x42]);
       expect(received['b'], [0x41, 0x42]);
       expect(received.containsKey('drv'), isFalse);
+    });
+
+    test('broadcastFrom fans a key descriptor verbatim to each receiver', () {
+      // Spec: a key is fanned as the same logical descriptor so each
+      // receiver re-encodes it against its own terminal mode — the
+      // controller does not flatten it to bytes.
+      final received = <String, rust_terminal.TerminalKey>{};
+      controller.registerSink('drv', (_) {});
+      controller.registerSink('a', (input) {
+        received['a'] = (input as BroadcastKey).key;
+      });
+      controller.setDriver('drv');
+      controller.toggleReceiver('a');
+
+      final key = _charKey('c');
+      controller.broadcastFrom('drv', BroadcastKey(key));
+      expect(received['a'], key);
     });
 
     test('broadcastFrom is a no-op when origin is not the driver', () {
@@ -65,7 +95,7 @@ void main() {
       controller.setDriver('drv');
       controller.toggleReceiver('a');
 
-      controller.broadcastFrom('imposter', Uint8List.fromList([0]));
+      controller.broadcastFrom('imposter', _bytes([0]));
       expect(calls, 0);
     });
 
@@ -74,19 +104,22 @@ void main() {
       controller.registerSink('drv', (_) => calls++);
       controller.setDriver('drv');
 
-      controller.broadcastFrom('drv', Uint8List.fromList([0]));
+      controller.broadcastFrom('drv', _bytes([0]));
       expect(calls, 0);
     });
 
     test('a throwing receiver does not block the rest', () {
       final delivered = <String, int>{};
       controller.registerSink('a', (_) => throw StateError('broken'));
-      controller.registerSink('b', (bytes) => delivered['b'] = bytes.length);
+      controller.registerSink(
+        'b',
+        (input) => delivered['b'] = (input as BroadcastBytes).bytes.length,
+      );
       controller.setDriver('drv');
       controller.toggleReceiver('a');
       controller.toggleReceiver('b');
 
-      controller.broadcastFrom('drv', Uint8List.fromList([1, 2, 3]));
+      controller.broadcastFrom('drv', _bytes([1, 2, 3]));
       expect(delivered['b'], 3);
     });
 

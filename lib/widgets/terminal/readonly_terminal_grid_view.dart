@@ -11,7 +11,6 @@ import '../../theme/app_theme.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../core/context_menu.dart';
 import '../core/shortcut_registry.dart' show AppShortcut;
-import 'app_terminal_view.dart';
 import 'terminal_cell_metrics.dart';
 import 'terminal_grid_painter.dart';
 import 'terminal_grid_view.dart' show TerminalSnapshotProvider;
@@ -227,7 +226,7 @@ class ReadOnlyTerminalGridView extends StatefulWidget {
 }
 
 class _ReadOnlyTerminalGridViewState extends State<ReadOnlyTerminalGridView> {
-  static const EdgeInsets _padding = EdgeInsets.all(AppTerminalView.padding);
+  static const EdgeInsets _padding = EdgeInsets.all(kTerminalPadding);
 
   /// Plain `Ctrl+C` / `Cmd+C` copy. This surface renders a log / replay, not a
   /// live PTY, so the Unix convention of reserving `Ctrl+C` for SIGINT does

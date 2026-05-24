@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'ssh.dart';
 part 'terminal.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`
+// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`, `recorder_id`, `tee_to_recorder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The OneDark default palette as a DTO. The Dart theme layer uses this
@@ -156,12 +156,16 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// `PtyWrite` back to the shell Rust→Rust and pushes the translated
   /// UI events (coalesced `Wakeup`, bell, title, clipboard) to `sink`.
   ///
-  /// Recorder / broadcast fork hook: when the live terminal pane moves to
-  /// `TerminalSession`, the per-byte fork to the session recorder and the
-  /// broadcast controller (today in Dart's `shell_helper.dart`) moves
-  /// into the pump body, right after the output bytes are read and before
-  /// they are fed into the engine. The loop is shaped so that hook slots
-  /// in without reshaping the lock/await ordering.
+  /// Recorder output fork: when a recorder is attached (via
+  /// [`Self::set_recorder`]) the pump tees the shell **output** bytes to
+  /// `app.recorder_queue` right after they are read and before they are
+  /// fed into the engine — `recorder_id` clones the id out under its own
+  /// lock and drops it before the tee `await`, so the fork does not widen
+  /// the engine lock window or break the pump's lock/await ordering. The
+  /// matching **input** fork lives on `send_key` / `paste` / `write_input`
+  /// (the bytes those write to the shell). Broadcast input mirroring is a
+  /// Dart concern (each receiver re-encodes against its own mode), so it
+  /// stays on the input call sites, not in the pump.
   Stream<TerminalUiEvent> events();
 
   /// Encode pasted text against the engine's current mode and write it to
@@ -219,6 +223,15 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// the next snapshot; already-parsed cells keep their abstract colors
   /// and re-resolve against the new palette.
   Future<void> setPalette({required TerminalPalette palette});
+
+  /// Attach or detach the session recorder. Pass the handle id of an
+  /// already-registered + spawned recorder to start teeing output/input
+  /// to it; pass `None` to stop teeing. Dart's `SessionRecorder` owns the
+  /// register / spawn / header / close lifecycle and the on-disk file —
+  /// this only flips the in-pump fork on or off, so a record toggle never
+  /// reshapes the pump or the shell. Idempotent: setting the same id twice
+  /// keeps teeing to it.
+  void setRecorder({String? id});
 
   /// Set a selection spanning `start` to `end` in absolute grid
   /// coordinates (negative row = scrollback). Read the covered text back

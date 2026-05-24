@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/secure_clipboard.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/terminal.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
@@ -159,15 +160,46 @@ void main() {
     late List<List<Object>> setCalls;
     late int clearCalls;
     late String? selectionText;
+    late List<String> secureWrites;
 
     setUp(() {
       setCalls = [];
       clearCalls = 0;
       selectionText = null;
+      // Capture sensitive-text copies in-process so the copy path never
+      // reaches the FRB `osSecuritySetSecureClipboard` write. Under bare
+      // `flutter test` the Rust runtime is uninitialized, so any FRB call
+      // on the synchronous copy path throws "flutter_rust_bridge has not
+      // been initialized" from inside the key-message handler, which
+      // wedges the test harness. The fake also lets sensitive copies be
+      // asserted without an FRB runtime.
+      secureWrites = [];
+      // Inject a fresh SecureClipboard wired to the capturing writer.
+      // The override alone is not enough: TerminalClipboard's
+      // `_secureClipboard` is constructed at static init (before this
+      // setUp runs), so it captured the real FRB writer — replace the
+      // instance outright so the copy path reaches the fake.
+      SecureClipboard.debugRustWriterOverride = secureWrites.add;
+      TerminalClipboard.debugSetSecureClipboard(
+        SecureClipboard(rustWriter: secureWrites.add),
+      );
+      // The auto-wipe arm hashes the copied text via FRB
+      // (`cryptoSha256Hex`); stand in a pure-Dart digest so a sensitive
+      // copy doesn't throw "flutter_rust_bridge has not been initialized"
+      // inside the synchronous copy call.
+      TerminalClipboard.debugHashOverride = (text) => 'h:${text.length}';
+      // Neutralize the 30 s auto-wipe timer's FRB hop the same way so a
+      // sensitive copy leaves no live Timer to trip "A Timer is still
+      // pending" at end of test.
+      TerminalClipboard.debugRustCompareAndClearOverride = (_) => true;
     });
 
     tearDown(() {
+      TerminalClipboard.debugCancelPendingWipe();
       clearClipboardMock();
+      SecureClipboard.debugResetRustWriter();
+      TerminalClipboard.debugResetHashOverride();
+      TerminalClipboard.debugResetRustCompareAndClear();
       TerminalClipboard.debugResetSecureClipboard();
     });
 
@@ -229,16 +261,45 @@ void main() {
       );
       await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump();
-      await Future<void>.delayed(Duration.zero);
+      await _copyWithCtrlC(tester);
 
       expect(lastWrite, 'copied text');
       // Selection cleared after copy (plus the single-click clear from the
       // focusing tap) — at least one clear fired.
       expect(clearCalls, greaterThanOrEqualTo(1));
+    });
+
+    // Spec: a sensitive selection (PEM private key) is routed through the
+    // SecureClipboard audit perimeter, NOT the stock pasteboard — so a copied
+    // private key never lands in OS clipboard history / cloud sync. Asserted
+    // against the captured secure writer so the path is testable without an
+    // FRB runtime.
+    testWidgets('Ctrl+C routes a sensitive selection through SecureClipboard', (
+      tester,
+    ) async {
+      const secret =
+          '-----BEGIN OPENSSH PRIVATE KEY-----\nABCD\n'
+          '-----END OPENSSH PRIVATE KEY-----';
+      selectionText = secret;
+      var stockWrites = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') stockWrites++;
+            return null;
+          });
+
+      await tester.pumpWidget(buildSelectable());
+      await tester.pump();
+      await tester.tapAt(
+        tester.getCenter(find.byType(ReadOnlyTerminalGridView)),
+      );
+      await tester.pump();
+
+      await _copyWithCtrlC(tester);
+
+      expect(secureWrites, [secret]);
+      // The stock pasteboard must be skipped for the secret.
+      expect(stockWrites, 0);
     });
 
     // Spec: Ctrl+Shift+C — the live pane's terminalCopy binding — also copies,
@@ -261,13 +322,19 @@ void main() {
       );
       await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      // Drive the keystrokes on the real event loop so the discarded
+      // `Clipboard.setData` future and the async mock method-call handler
+      // settle before the synthetic-clock teardown — otherwise they race
+      // the harness shutdown ("Cannot close sink while adding stream").
+      await tester.runAsync(() async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await Future<void>.delayed(Duration.zero);
+      });
       await tester.pump();
-      await Future<void>.delayed(Duration.zero);
 
       expect(lastWrite, 'shift copy');
     });
@@ -290,11 +357,7 @@ void main() {
       );
       await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump();
-      await Future<void>.delayed(Duration.zero);
+      await _copyWithCtrlC(tester);
 
       expect(stockWrites, 0);
     });
@@ -326,4 +389,19 @@ void main() {
 void clearClipboardMock() {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(SystemChannels.platform, null);
+}
+
+/// Send Ctrl+C on the real event loop. The copy path discards the
+/// `Clipboard.setData` future, and the test's async mock method-call
+/// handler resolves a real microtask; dispatching inside [runAsync]
+/// lets both settle before the synthetic-clock teardown so they don't
+/// race the harness shutdown ("Cannot close sink while adding stream").
+Future<void> _copyWithCtrlC(WidgetTester tester) async {
+  await tester.runAsync(() async {
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await Future<void>.delayed(Duration.zero);
+  });
+  await tester.pump();
 }

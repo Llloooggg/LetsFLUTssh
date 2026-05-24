@@ -1,26 +1,73 @@
 import 'package:flutter/foundation.dart';
 
+import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../utils/logger.dart';
 
-/// Sink that consumes broadcast bytes for a single pane.
+/// One unit of broadcast input fanned from the driver pane to each
+/// receiver. Two shapes, because the two input paths must be replayed
+/// differently on the receiver side:
 ///
-/// The pane registers a callback that writes the bytes to its own SSH
-/// shell. The controller invokes this callback when the pane is a
-/// receiver and the driver pane fans out a keystroke.
-typedef BroadcastSink = void Function(Uint8List bytes);
+///   * [BroadcastKey] carries a logical [rust_terminal.TerminalKey]. The
+///     receiver re-encodes it against **its own** terminal mode via
+///     `TerminalSession.sendKey`, so an arrow key lands as the right
+///     SS3/CSI form even when the driver and receiver shells differ in
+///     DECCKM / keypad state.
+///   * [BroadcastBytes] carries already-encoded bytes (a paste body, a
+///     snippet command, an on-bar special key) for `writeInput`. These
+///     are mode-independent — bracketed-paste framing is decided at the
+///     driver before the bytes are produced — so each receiver writes
+///     them verbatim.
+///
+/// Fanning the high-level action (rather than the driver's encoded
+/// keystroke bytes) is the load-bearing choice: re-encoding per receiver
+/// is the only way a single broadcast keeps working across panes whose
+/// programs put the terminal in different modes.
+sealed class BroadcastInput {
+  const BroadcastInput();
+}
+
+/// A logical key press to re-encode against each receiver's own mode.
+class BroadcastKey extends BroadcastInput {
+  const BroadcastKey(this.key);
+
+  final rust_terminal.TerminalKey key;
+}
+
+/// Pre-encoded input bytes (paste / snippet / special on-bar key) to
+/// write verbatim into each receiver's shell.
+class BroadcastBytes extends BroadcastInput {
+  const BroadcastBytes(this.bytes);
+
+  final Uint8List bytes;
+}
+
+/// Sink that consumes broadcast input for a single pane.
+///
+/// The pane registers a callback that replays the [BroadcastInput] on
+/// its own SSH shell — keys through `sendKey`, bytes through
+/// `writeInput`. The controller invokes this callback when the pane is a
+/// receiver and the driver pane fans out an input action.
+typedef BroadcastSink = void Function(BroadcastInput input);
 
 /// Per-tab fan-out coordinator for terminal broadcast input.
 ///
-/// One pane per tab can be the **driver**: every byte the driver's
-/// `Terminal.onOutput` produces is mirrored into every registered
-/// **receiver** pane's shell sink. Driver and receivers are
-/// identified by the leaf-node id of their pane in the tiling tree.
+/// One pane per tab can be the **driver**: every input action the driver
+/// produces (a key, a paste, a snippet) is mirrored into every registered
+/// **receiver** pane's shell sink. Driver and receivers are identified by
+/// the leaf-node id of their pane in the tiling tree.
 ///
 /// **Why per-tab.** A workspace-wide controller would let the driver
 /// in tab A leak keystrokes into tab B's receivers — almost never
 /// what the user wants when they tab-switched. Tying lifetime to the
 /// tab matches the user's mental "I'm broadcasting in this tab"
 /// model and survives split / unsplit operations within the same tab.
+///
+/// **Why input-layer mirroring.** Broadcast taps the driver pane's
+/// **input** path (the key / paste / snippet the user produced), not the
+/// shell's output. Mirroring output would echo the driver's rendered
+/// bytes onto receivers as if they were typed — doubling prompts and
+/// corrupting the receiver grids. Each receiver re-runs the action
+/// against its own session instead.
 ///
 /// **Failure isolation.** A receiver sink may throw (broken shell,
 /// closed connection). The controller wraps each invocation in a
@@ -53,7 +100,7 @@ class BroadcastController extends ChangeNotifier {
   bool isReceiver(String paneId) =>
       _receiverIds.contains(paneId) && paneId != _driverId;
 
-  /// Register the byte sink for [paneId]. Called by the pane in its
+  /// Register the input sink for [paneId]. Called by the pane in its
   /// `initState` flow; idempotent on the same id (latest sink wins,
   /// since a pane that lost its shell on reconnect re-registers with
   /// a fresh write callback).
@@ -106,13 +153,13 @@ class BroadcastController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fan [bytes] from [originPaneId] into every registered receiver
+  /// Fan [input] from [originPaneId] into every registered receiver
   /// sink. No-op when [originPaneId] is not the current driver — the
-  /// shell helper calls this on every keystroke regardless, the
-  /// controller enforces the gate. Also no-op when no receivers are
-  /// wired (the broadcast feature is opt-in; without receivers the
-  /// driver is a label, not a multiplexer).
-  void broadcastFrom(String originPaneId, Uint8List bytes) {
+  /// pane calls this on every key / paste regardless, the controller
+  /// enforces the gate. Also no-op when no receivers are wired (the
+  /// broadcast feature is opt-in; without receivers the driver is a
+  /// label, not a multiplexer).
+  void broadcastFrom(String originPaneId, BroadcastInput input) {
     if (originPaneId != _driverId) return;
     if (_receiverIds.isEmpty) return;
     for (final receiverId in _receiverIds) {
@@ -120,7 +167,7 @@ class BroadcastController extends ChangeNotifier {
       final sink = _sinks[receiverId];
       if (sink == null) continue;
       try {
-        sink(bytes);
+        sink(input);
       } catch (e, st) {
         AppLogger.instance.log(
           'Broadcast sink failed for receiver',

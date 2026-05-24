@@ -6,7 +6,6 @@ import 'package:flutter/widgets.dart';
 
 import '../../src/rust/api/terminal.dart';
 import '../../theme/app_theme.dart';
-import 'app_terminal_view.dart';
 import 'terminal_cell_metrics.dart';
 import 'terminal_grid_painter.dart';
 import 'terminal_pointer_input.dart';
@@ -162,7 +161,7 @@ class TerminalGridView extends StatefulWidget {
 }
 
 class _TerminalGridViewState extends State<TerminalGridView> {
-  static const EdgeInsets _padding = EdgeInsets.all(AppTerminalView.padding);
+  static const EdgeInsets _padding = EdgeInsets.all(kTerminalPadding);
 
   StreamSubscription<TerminalUiEvent>? _eventSub;
   late TerminalFrame _frame;

@@ -438,7 +438,7 @@ There is none. The private key never leaves the AndroidKeyStore; the `.lfs` arch
 ### What you see
 
 - Top of the terminal shows connection progress (`[*]` yellow, `[✓]` green, `[✗]` red) until the shell opens.
-- After connect, full xterm: 256-color + RGB, mouse modes, scrollback, search.
+- After connect, a full xterm-compatible terminal: 256-color + RGB, mouse modes, scrollback, search.
 
 ### Keyboard shortcuts (desktop)
 
@@ -781,7 +781,7 @@ The on-demand record button (status bar) and the Always-on `extras.record` flag 
 
 1. **Tools → Recordings**.
 2. List sorted by date (newest first). Each row shows session label, timestamp, duration, file size, encrypted/plain badge.
-3. Tap **Play** → modal opens with embedded xterm replay.
+3. Tap **Play** → modal opens with an embedded terminal replay.
 4. **Speed picker:** `0.5×` / `1×` / `2×` / `4×`.
 5. **Scrub bar:** drag to jump to any point in the recording — playback rebuilds the terminal state from the start up to that point so curses apps (htop / vim) land correctly. Pause, speed, and scrub share one row above the terminal.
 6. **Trash** on a row → delete the file.

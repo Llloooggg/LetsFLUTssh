@@ -16,6 +16,15 @@ import '../../theme/app_theme.dart';
 /// `pubspec.yaml`.
 const double kTerminalLineHeight = 1.2;
 
+/// Inset around terminal content — single source of truth across every
+/// terminal surface (PTY pane, mobile pane, log viewer, connection
+/// progress, read-only replay). Callers that snap a `LayoutBuilder`
+/// constraint to whole cells subtract [kTerminalVerticalPadding] first.
+const double kTerminalPadding = AppSpacing.xs;
+
+/// Combined vertical inset (top + bottom).
+const double kTerminalVerticalPadding = kTerminalPadding * 2;
+
 /// Measure one terminal cell (width × height) the same way
 /// xterm-flutter does internally so callers can size their host
 /// `SizedBox` / overlay coordinates without drifting off
