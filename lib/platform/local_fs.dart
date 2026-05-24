@@ -5,7 +5,6 @@ import 'package:path_provider/path_provider.dart';
 import '../core/sftp/file_system.dart';
 import '../core/sftp/sftp_models.dart';
 import '../src/rust/api/local_fs.dart' as rust_local_fs;
-import '../src/rust/api/path.dart' as rust_path;
 import '../utils/logger.dart';
 import '../utils/platform.dart';
 
@@ -68,7 +67,11 @@ class LocalFS implements FileSystem {
   Future<List<FileEntry>> list(String path) async {
     final List<rust_local_fs.DbLocalFileEntry> rows;
     try {
-      rows = await rust_local_fs.localFsList(path: path);
+      // `localFsListVisible` drops Windows Hidden / System files
+      // Rust-side so the pane matches Explorer — the hidden-name
+      // decision + filter loop are no longer Dart's. Identical to
+      // a plain list on every non-Windows target.
+      rows = await rust_local_fs.localFsListVisible(path: path);
     } catch (e) {
       // Re-throw as FileSystemException so callers that catch it
       // see one stable exception type regardless of FRB error
@@ -78,15 +81,8 @@ class LocalFS implements FileSystem {
       throw FileSystemException(_describeError(e), path);
     }
 
-    final hiddenNames = Platform.isWindows
-        ? (await rust_local_fs.localFsWindowsHiddenNames(
-            dir: path,
-          )).map((n) => n.toLowerCase()).toSet()
-        : const <String>{};
-
     final entries = <FileEntry>[];
     for (final row in rows) {
-      if (hiddenNames.contains(row.name.toLowerCase())) continue;
       entries.add(
         FileEntry(
           name: row.name,
@@ -103,13 +99,6 @@ class LocalFS implements FileSystem {
     sortFileEntries(entries);
     return entries;
   }
-
-  /// Parse Windows `attrib` output and return lowercase names of
-  /// hidden/system files via `lfs_core::path::parse_windows_attrib_output`.
-  /// Kept as a static for the existing Dart-facing tests; production
-  /// callers route through [list] which hits Rust directly.
-  static Set<String> parseAttribOutput(String output) =>
-      rust_path.pathParseWindowsAttribOutput(output: output).toSet();
 
   @override
   Future<void> mkdir(String path) async {
@@ -136,6 +125,25 @@ class LocalFS implements FileSystem {
   Future<int> dirSize(String path) async {
     final size = await rust_local_fs.localFsDirSize(path: path);
     return size.toInt();
+  }
+
+  /// Single FRB call — the recursive enumeration, symlink-skip, and
+  /// per-segment name validation all run in `lfs_core::fs::local`.
+  /// The upload walker calls this instead of recursing through
+  /// `dart:io` / per-level `list`.
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(
+    String root, {
+    int maxDepth = 100,
+  }) async {
+    final leaves = await rust_local_fs.localFsFlatWalkFiles(
+      root: root,
+      maxDepth: maxDepth,
+    );
+    return [
+      for (final e in leaves)
+        FlatFileLeaf(relPath: e.relPath, size: e.size.toInt()),
+    ];
   }
 
   /// Cheap presence probe — `localFsSymlinkStat` returns `null`

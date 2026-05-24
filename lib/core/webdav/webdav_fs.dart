@@ -107,6 +107,12 @@ class WebDavFileSystem implements FileSystem {
     return size.toInt();
   }
 
+  /// No single-call WebDAV walker — recurse via the shared
+  /// `list`-based helper (PROPFIND depth=1 per collection).
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+
   /// Cheap presence probe — one `PROPFIND depth=0` via
   /// `WebDavConnection.stat`. Beats the trait's parent-listing
   /// default for transports where a single-resource probe is

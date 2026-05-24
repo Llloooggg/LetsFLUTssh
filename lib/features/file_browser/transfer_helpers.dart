@@ -8,7 +8,6 @@ import '../../core/transfer/conflict_resolver.dart';
 import '../../core/transfer/unique_name.dart';
 import '../../providers/transfer_provider.dart';
 import '../../src/rust/api/local_fs.dart' as rust_local_fs;
-import '../../src/rust/api/path.dart' as rust_path;
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
@@ -120,11 +119,12 @@ class TransferHelpers {
     return true;
   }
 
-  /// Walk [localDir] recursively and enqueue an upload task per leaf
-  /// file. Skips symlinks (we don't follow them into arbitrary targets)
-  /// and conflict-skipped paths. Returns the total enqueue count.
-  /// Routes the directory listing through `lfs_core::fs::local::list`
-  /// so `dart:io` never participates in upload enumeration.
+  /// Enqueue an upload task per leaf file under [localDir]. The
+  /// recursive walk — symlink-skip + per-segment name validation —
+  /// runs in one `lfs_core::fs::local::flat_walk_files` FRB call;
+  /// Dart only enqueues from the returned flat list and resolves
+  /// per-file conflicts (the conflict UI stays Dart). Returns the
+  /// total enqueue count.
   static Future<int> _enqueueUploadDir({
     required TransfersNotifier manager,
     required FileSystem remoteFs,
@@ -133,29 +133,28 @@ class TransferHelpers {
     required String remoteDir,
     required BatchConflictResolver? conflictResolver,
   }) async {
+    final leaves = await rust_local_fs.localFsFlatWalkFiles(
+      root: localDir,
+      maxDepth: _maxWalkDepth,
+    );
     var enqueued = 0;
-    try {
-      await remoteFs.mkdir(remoteDir);
-    } catch (_) {
-      // Already exists or other transient — per-file upserts will fail
-      // if the dir is genuinely unwritable; let those surface there.
-    }
-    final children = await rust_local_fs.localFsList(path: localDir);
-    for (final child in children) {
-      // Symlinks are surfaced by Rust's `list` with `isSymlink: true`;
-      // skip them so we never follow into arbitrary targets.
-      if (child.isSymlink) continue;
-      final remoteChild = p.posix.join(remoteDir, child.name);
-      if (child.isDir) {
-        enqueued += await _enqueueUploadDir(
-          manager: manager,
-          remoteFs: remoteFs,
-          connectionId: connectionId,
-          localDir: child.path,
-          remoteDir: remoteChild,
-          conflictResolver: conflictResolver,
-        );
-        continue;
+    final createdDirs = <String>{};
+    for (final leaf in leaves) {
+      final localPath = p.join(localDir, _toNative(leaf.relPath));
+      final remoteChild = p.posix.join(remoteDir, leaf.relPath);
+      // Recreate the remote parent chain once per distinct directory
+      // before its first file lands. A flat walk loses the per-level
+      // mkdir the recursion used to do, so derive the parent from the
+      // child path and mkdir it idempotently (errors are transient —
+      // the upload upsert surfaces a genuinely unwritable dir).
+      final remoteParent = p.posix.dirname(remoteChild);
+      if (createdDirs.add(remoteParent)) {
+        try {
+          await remoteFs.mkdir(remoteParent);
+        } catch (_) {
+          // Already exists or transient — per-file upload surfaces a
+          // real failure.
+        }
       }
       String? resolved = remoteChild;
       if (conflictResolver != null) {
@@ -169,17 +168,20 @@ class TransferHelpers {
       await manager.enqueueUpload(
         connectionId: connectionId,
         name: p.posix.basename(resolved),
-        localPath: child.path,
+        localPath: localPath,
         remotePath: resolved,
-        sizeBytes: child.size.toInt(),
+        sizeBytes: leaf.size.toInt(),
       );
       enqueued++;
     }
     return enqueued;
   }
 
-  /// Walk [remoteDir] over SFTP and enqueue a download task per leaf
-  /// file. Mirrors [_enqueueUploadDir] in shape.
+  /// Enqueue a download task per leaf file under [remoteDir]. The
+  /// recursive SFTP walk — symlink-skip + server-name validation —
+  /// runs in one `Sftp::flat_walk_files` FRB call; Dart only enqueues
+  /// from the returned flat list and resolves per-file conflicts.
+  /// Mirrors [_enqueueUploadDir] in shape.
   static Future<int> _enqueueDownloadDir({
     required TransfersNotifier manager,
     required FileSystem remoteFs,
@@ -188,58 +190,51 @@ class TransferHelpers {
     required String localDir,
     required BatchConflictResolver? conflictResolver,
   }) async {
+    final leaves = await remoteFs.flatWalkFiles(
+      remoteDir,
+      maxDepth: _maxWalkDepth,
+    );
     var enqueued = 0;
-    await rust_local_fs.localFsMkdir(path: localDir);
-    final entries = await remoteFs.list(remoteDir);
-    for (final remoteEntry in entries) {
-      final base = remoteEntry.name;
-      if (!rust_path.pathIsSafeEntryName(name: base)) {
-        // SFTP server-supplied names are untrusted bytes — a hostile
-        // remote returning `name: "../../../etc/cron.d/x"` (or a
-        // backslash on Windows, an embedded NUL anywhere, or a `.`/`..`
-        // traversal segment) flows straight into `p.join`, which does
-        // NOT normalise: the resulting `localPath` could land outside
-        // the user-chosen download directory. The safety predicate is
-        // owned by `lfs_core::path::is_safe_transfer_entry_name`.
-        AppLogger.instance.log(
-          'Skipping remote entry with unsafe name <name> in $remoteDir',
-          name: 'Transfer',
-          level: LogLevel.warn,
-        );
-        continue;
+    final createdDirs = <String>{};
+    for (final leaf in leaves) {
+      final remoteChild = p.posix.join(remoteDir, leaf.relPath);
+      final localChild = p.join(localDir, _toNative(leaf.relPath));
+      // Recreate the local parent chain once per distinct directory.
+      final localParent = p.dirname(localChild);
+      if (createdDirs.add(localParent)) {
+        await rust_local_fs.localFsMkdir(path: localParent);
       }
-      final remoteChild = p.posix.join(remoteDir, base);
-      final localChild = p.join(localDir, base);
-      if (remoteEntry.isDir) {
-        enqueued += await _enqueueDownloadDir(
-          manager: manager,
-          remoteFs: remoteFs,
-          connectionId: connectionId,
-          remoteDir: remoteChild,
-          localDir: localChild,
-          conflictResolver: conflictResolver,
+      String? resolved = localChild;
+      if (conflictResolver != null) {
+        resolved = await _resolveDownloadConflict(
+          targetPath: localChild,
+          resolver: conflictResolver,
         );
-      } else {
-        String? resolved = localChild;
-        if (conflictResolver != null) {
-          resolved = await _resolveDownloadConflict(
-            targetPath: localChild,
-            resolver: conflictResolver,
-          );
-          if (resolved == null) continue;
-        }
-        await manager.enqueueDownload(
-          connectionId: connectionId,
-          name: p.basename(resolved),
-          remotePath: remoteChild,
-          localPath: resolved,
-          sizeBytes: remoteEntry.size,
-        );
-        enqueued++;
+        if (resolved == null) continue;
       }
+      await manager.enqueueDownload(
+        connectionId: connectionId,
+        name: p.basename(resolved),
+        remotePath: remoteChild,
+        localPath: resolved,
+        sizeBytes: leaf.size,
+      );
+      enqueued++;
     }
     return enqueued;
   }
+
+  /// Max directory recursion depth for the flat walks — matches the
+  /// `dirSize` cap so a cyclic tree (junction loop / symlinked dir
+  /// the server presents as a directory) can't drive an unbounded
+  /// walk. The Rust walkers stop descending past this rather than
+  /// erroring.
+  static const _maxWalkDepth = 100;
+
+  /// Convert a `/`-joined relative path (the flat-walk contract) to
+  /// the host's native separator so `p.join` lands the local path
+  /// correctly on Windows. SFTP / POSIX paths already use `/`.
+  static String _toNative(String relPath) => p.joinAll(p.posix.split(relPath));
 
   /// Refresh the file pane a moment after enqueue so the UI catches
   /// up once the Rust queue starts the first task. The Rust executor

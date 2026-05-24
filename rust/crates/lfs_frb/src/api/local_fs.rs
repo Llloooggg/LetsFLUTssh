@@ -39,6 +39,51 @@ pub async fn local_fs_list(path: String) -> Result<Vec<DbLocalFileEntry>, String
         .collect())
 }
 
+/// List `path` for the file-browser view — same as
+/// [`local_fs_list`] but with Windows Hidden / System files already
+/// dropped so the pane matches Explorer. Identical to
+/// [`local_fs_list`] on every non-Windows target. The Dart
+/// `LocalFS.list` routes here so the hidden-name filter no longer
+/// loops Dart-side; the upload walker keeps [`local_fs_list`] so
+/// directory uploads still carry hidden files.
+pub async fn local_fs_list_visible(path: String) -> Result<Vec<DbLocalFileEntry>, String> {
+    Ok(lfs_core::fs::local::list_visible(path)
+        .await?
+        .into_iter()
+        .map(to_db_entry)
+        .collect())
+}
+
+/// One leaf file from [`local_fs_flat_walk_files`]. `rel_path` is
+/// `/`-joined relative to the walk root; every segment has passed
+/// the safe-entry-name guard Rust-side.
+#[derive(Debug, Clone)]
+pub struct DbFlatFileEntry {
+    pub rel_path: String,
+    pub size: u64,
+}
+
+/// Recursively enumerate every leaf file under `root`, skipping
+/// symlinks and validating each name, in one FRB call. Replaces the
+/// Dart per-level `list` recursion in the upload walker — the Dart
+/// caller enqueues one transfer task per returned entry (re-joining
+/// `rel_path` onto the local source + remote destination) and keeps
+/// the per-file conflict-resolution UI. `max_depth` caps recursion
+/// (the file browser passes 100).
+pub async fn local_fs_flat_walk_files(
+    root: String,
+    max_depth: u32,
+) -> Result<Vec<DbFlatFileEntry>, String> {
+    Ok(lfs_core::fs::local::flat_walk_files(root, max_depth)
+        .await?
+        .into_iter()
+        .map(|e| DbFlatFileEntry {
+            rel_path: e.rel_path,
+            size: e.size,
+        })
+        .collect())
+}
+
 /// Stat `path` following symlinks. `None` means "does not
 /// exist"; other I/O failures (permission denied, broken disk)
 /// surface as `Err`. The transfer walker uses this to read size
@@ -80,10 +125,6 @@ pub async fn local_fs_rename(old_path: String, new_path: String) -> Result<(), S
 
 pub async fn local_fs_dir_size(path: String) -> Result<u64, String> {
     lfs_core::fs::local::dir_size(path).await
-}
-
-pub async fn local_fs_windows_hidden_names(dir: String) -> Vec<String> {
-    lfs_core::fs::local::windows_hidden_names(dir).await
 }
 
 /// Copy a single file. Replaces the destination if it exists.

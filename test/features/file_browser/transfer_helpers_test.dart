@@ -47,6 +47,10 @@ class _RecordingFs implements FileSystem {
   Future<int> dirSize(String path) async => 0;
 
   @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+
+  @override
   Future<bool> exists(String path) async => existing.contains(path);
 
   @override

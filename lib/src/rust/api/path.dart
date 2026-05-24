@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`, `from`
+
 /// Expand a leading `~` against the running process's home
 /// directory. See [`lfs_core::path::expand_tilde`] for the
 /// resolution rules.
@@ -64,6 +66,15 @@ bool pathIsSuspicious({required String path}) =>
 bool pathIsSafeEntryName({required String name}) =>
     RustLib.instance.api.crateApiPathPathIsSafeEntryName(name: name);
 
+/// Parent directory of `path`, or `null` when the path has no
+/// parent (POSIX / SFTP root, a Windows drive root, an empty
+/// string, or a bare relative segment). The file pane's `navigateUp`
+/// and the `RemoteFS.exists` dirname fallback both route here so the
+/// Windows / POSIX parent grammar lives one place. See
+/// [`lfs_core::path::parent`].
+String? pathParent({required String path, required DbPathStyle style}) =>
+    RustLib.instance.api.crateApiPathPathParent(path: path, style: style);
+
 /// Shorten a path to its last two non-empty segments, prefixed
 /// with `.../`. Used by the transfer panel + history rows to
 /// keep long paths readable in narrow row widths without losing
@@ -87,12 +98,9 @@ String pathSiblingCandidate({
   posix: posix,
 );
 
-/// Parse `cmd /c attrib *` output and return the lowercase
-/// basenames of files flagged Hidden (H) or System (S). Used by
-/// the Windows directory lister to filter the view to match
-/// what Explorer would hide. Pure parser — caller spawns the
-/// subprocess and feeds stdout here.
-List<String> pathParseWindowsAttribOutput({required String output}) => RustLib
-    .instance
-    .api
-    .crateApiPathPathParseWindowsAttribOutput(output: output);
+/// Separator family for [`path_parent`] — mirrors
+/// `lfs_core::path::PathStyle`. `Auto` infers from the string (a
+/// `\` or a `X:` drive prefix selects Windows rules); the file pane
+/// passes `Auto` so one call handles the Windows local pane and the
+/// forward-slash SFTP pane.
+enum DbPathStyle { posix, windows, auto }

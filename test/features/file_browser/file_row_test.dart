@@ -52,13 +52,18 @@ void main() {
       expect(find.text('test.txt'), findsOneWidget);
     });
 
-    testWidgets('renders file icon for files', (tester) async {
+    testWidgets('renders generic file icon for unclassified files', (
+      tester,
+    ) async {
+      // A name with no recognised extension classifies as
+      // `DbFileKind.plain` (Rust `file_kind`) and renders the generic
+      // file glyph.
       await tester.pumpWidget(
         buildApp(
           FileRow(
             entry: FileEntry(
-              name: 'doc.pdf',
-              path: '/doc.pdf',
+              name: 'mystery.qwerty',
+              path: '/mystery.qwerty',
               size: 2048,
               modTime: now,
               isDir: false,
@@ -72,6 +77,62 @@ void main() {
         ),
       );
       expect(find.byIcon(Icons.insert_drive_file), findsOneWidget);
+    });
+
+    testWidgets('renders document icon for a PDF', (tester) async {
+      // `.pdf` classifies as `DbFileKind.document` Rust-side; the
+      // Dart kind→glyph map renders the article icon.
+      await tester.pumpWidget(
+        buildApp(
+          FileRow(
+            entry: FileEntry(
+              name: 'report.pdf',
+              path: '/report.pdf',
+              size: 2048,
+              modTime: now,
+              isDir: false,
+            ),
+            isSelected: false,
+            onTap: () {},
+            onCtrlTap: () {},
+            onDoubleTap: () {},
+            onContextMenu: (_) {},
+          ),
+        ),
+      );
+      expect(find.byIcon(Icons.article), findsOneWidget);
+    });
+
+    testWidgets('renders kind-specific icons for image / code / archive', (
+      tester,
+    ) async {
+      // Each extension bucket (Rust `file_kind`) maps to its own glyph
+      // via the Dart kind→icon map.
+      Future<void> pumpName(String name) => tester.pumpWidget(
+        buildApp(
+          FileRow(
+            entry: FileEntry(
+              name: name,
+              path: '/$name',
+              size: 1,
+              modTime: now,
+              isDir: false,
+            ),
+            isSelected: false,
+            onTap: () {},
+            onCtrlTap: () {},
+            onDoubleTap: () {},
+            onContextMenu: (_) {},
+          ),
+        ),
+      );
+
+      await pumpName('pic.png');
+      expect(find.byIcon(Icons.image), findsOneWidget);
+      await pumpName('main.rs');
+      expect(find.byIcon(Icons.description), findsOneWidget);
+      await pumpName('bundle.zip');
+      expect(find.byIcon(Icons.archive), findsOneWidget);
     });
 
     testWidgets('renders folder icon for directories', (tester) async {

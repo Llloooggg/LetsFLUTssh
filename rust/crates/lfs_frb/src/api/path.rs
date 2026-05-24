@@ -92,6 +92,39 @@ pub fn path_is_safe_entry_name(name: String) -> bool {
     lfs_core::path::is_safe_transfer_entry_name(&name)
 }
 
+/// Separator family for [`path_parent`] — mirrors
+/// `lfs_core::path::PathStyle`. `Auto` infers from the string (a
+/// `\` or a `X:` drive prefix selects Windows rules); the file pane
+/// passes `Auto` so one call handles the Windows local pane and the
+/// forward-slash SFTP pane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbPathStyle {
+    Posix,
+    Windows,
+    Auto,
+}
+
+impl From<DbPathStyle> for lfs_core::path::PathStyle {
+    fn from(d: DbPathStyle) -> Self {
+        match d {
+            DbPathStyle::Posix => lfs_core::path::PathStyle::Posix,
+            DbPathStyle::Windows => lfs_core::path::PathStyle::Windows,
+            DbPathStyle::Auto => lfs_core::path::PathStyle::Auto,
+        }
+    }
+}
+
+/// Parent directory of `path`, or `null` when the path has no
+/// parent (POSIX / SFTP root, a Windows drive root, an empty
+/// string, or a bare relative segment). The file pane's `navigateUp`
+/// and the `RemoteFS.exists` dirname fallback both route here so the
+/// Windows / POSIX parent grammar lives one place. See
+/// [`lfs_core::path::parent`].
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_parent(path: String, style: DbPathStyle) -> Option<String> {
+    lfs_core::path::parent(&path, style.into())
+}
+
 /// Shorten a path to its last two non-empty segments, prefixed
 /// with `.../`. Used by the transfer panel + history rows to
 /// keep long paths readable in narrow row widths without losing
@@ -110,20 +143,6 @@ pub fn path_shorten_to_two_segments(path: String) -> String {
 #[flutter_rust_bridge::frb(sync)]
 pub fn path_sibling_candidate(path: String, n: u32, posix: bool) -> String {
     lfs_core::path::sibling_candidate(&path, n, posix)
-}
-
-/// Parse `cmd /c attrib *` output and return the lowercase
-/// basenames of files flagged Hidden (H) or System (S). Used by
-/// the Windows directory lister to filter the view to match
-/// what Explorer would hide. Pure parser — caller spawns the
-/// subprocess and feeds stdout here.
-#[flutter_rust_bridge::frb(sync)]
-pub fn path_parse_windows_attrib_output(output: String) -> Vec<String> {
-    let mut out: Vec<String> = lfs_core::path::parse_windows_attrib_output(&output)
-        .into_iter()
-        .collect();
-    out.sort();
-    out
 }
 
 #[cfg(test)]
@@ -178,6 +197,26 @@ mod tests {
     }
 
     #[test]
+    fn path_parent_resolves_posix_and_windows_and_roots() {
+        assert_eq!(
+            path_parent("/home/user/file.txt".into(), DbPathStyle::Posix).as_deref(),
+            Some("/home/user")
+        );
+        assert!(path_parent("/".into(), DbPathStyle::Auto).is_none());
+        assert_eq!(
+            path_parent(r"C:\Users\foo".into(), DbPathStyle::Auto).as_deref(),
+            Some(r"C:\Users")
+        );
+        // Parent of a first-level dir snaps back to the drive root.
+        assert_eq!(
+            path_parent(r"C:\Users".into(), DbPathStyle::Auto).as_deref(),
+            Some(r"C:\")
+        );
+        assert!(path_parent(r"C:\".into(), DbPathStyle::Auto).is_none());
+        assert!(path_parent("notes.txt".into(), DbPathStyle::Posix).is_none());
+    }
+
+    #[test]
     fn shorten_to_two_segments_collapses_long_paths() {
         let s = path_shorten_to_two_segments("/var/log/letsflutssh/recordings/run.lfsr".into());
         assert!(s.starts_with(".../"), "got: {s}");
@@ -192,24 +231,5 @@ mod tests {
         assert!(c.contains("photo"));
         assert!(c.ends_with(".jpg"));
         assert!(c.contains("(1)") || c.contains(" 1"), "got: {c}");
-    }
-
-    #[test]
-    fn parse_windows_attrib_returns_sorted_basenames() {
-        // `attrib *` output: column 1 holds the flag set, the
-        // tail holds the absolute path. Hidden + System rows must
-        // come back as lowercase basenames, sorted, deduplicated.
-        let output = "\
-A H        C:\\Users\\Alice\\Hidden.bin                       \r\n\
-   S       C:\\Users\\Alice\\System.bin                       \r\n\
-A          C:\\Users\\Alice\\Plain.bin                        \r\n";
-        let basenames = path_parse_windows_attrib_output(output.to_string());
-        assert!(basenames.iter().any(|s| s == "hidden.bin"));
-        assert!(basenames.iter().any(|s| s == "system.bin"));
-        assert!(!basenames.iter().any(|s| s == "plain.bin"));
-        // Sorted.
-        let mut copy = basenames.clone();
-        copy.sort();
-        assert_eq!(basenames, copy);
     }
 }

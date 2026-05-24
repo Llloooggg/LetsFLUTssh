@@ -86,6 +86,13 @@ class S3FileSystem implements FileSystem {
     return size.toInt();
   }
 
+  /// No single-call object-store walker — recurse via the shared
+  /// `list`-based helper. S3 has no symlinks to skip, so the
+  /// `ListObjectsV2`-per-prefix recursion enumerates every key.
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+
   /// Cheap presence probe — one `HeadObject` via
   /// `S3Connection.stat`. Beats the trait's parent-listing default
   /// because `ListObjectsV2` over an unknown prefix is heavier

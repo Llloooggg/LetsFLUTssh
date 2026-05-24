@@ -22,6 +22,13 @@ abstract class RemoteSftpFs {
   Future<List<FileEntry>> list(String path);
   Future<int> dirSizeRecursive(String path, int maxDepth);
 
+  /// Recursively enumerate every leaf file under [path] in a single
+  /// FRB call — the walk runs Rust-side over one SFTP channel pair
+  /// instead of N Dart-side `list` round-trips. Symlinks are skipped
+  /// and server-supplied names validated Rust-side; `relPath` is
+  /// `/`-joined relative to [path].
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth);
+
   /// Cheap existence check. Implementations stat the path and
   /// return true on success, false on any error.
   Future<bool> exists(String path);
@@ -117,6 +124,19 @@ class RustSftpFs extends RemoteSftpFs {
   Future<int> dirSizeRecursive(String path, int maxDepth) async {
     final total = await _sftp.dirSizeRecursive(path: path, maxDepth: maxDepth);
     return total.toInt();
+  }
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth) async {
+    try {
+      final leaves = await _sftp.flatWalkFiles(path: path, maxDepth: maxDepth);
+      return [
+        for (final e in leaves)
+          FlatFileLeaf(relPath: e.relPath, size: e.size.toInt()),
+      ];
+    } catch (e) {
+      throw SFTPError.wrap(e, 'flatWalkFiles', path);
+    }
   }
 
   @override
@@ -390,6 +410,13 @@ class RemoteFS implements FileSystem {
   @override
   Future<int> dirSize(String path, [int depth = 0]) =>
       sftp.dirSizeRecursive(path, _maxRecursionDepth);
+
+  /// Single FRB call — the recursive walk runs Rust-side over one
+  /// SFTP channel pair rather than the `FileSystem` default's
+  /// per-level Dart `list` recursion.
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      sftp.flatWalkFiles(root, maxDepth);
 
   /// SFTP listings carry both `st_mode` and the owning uid name
   /// (server's `OWNER` SFTP attribute) on every entry, so both

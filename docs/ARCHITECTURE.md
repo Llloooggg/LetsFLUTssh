@@ -454,8 +454,8 @@ Per-session "bounce through a bastion before reaching the final host" model. Sav
 | File | Class | Purpose |
 |------|-------|---------|
 | `sftp_fs.dart` | `RemoteSftpFs` (abstract), `RustSftpFs` (impl over the russh-sftp engine), `RemoteFS` (`FileSystem` adapter) | Public SFTP surface used by [`features/file_browser/`](#52-file-browser-featuresfile_browser) and [`features/transfer/`](#33-transfer-queue-coretransfer). Both leaf primitives (list / mkdir / remove / rename / upload / download) and the recursive composites (`uploadDir` / `downloadDir` / `removeDir`) route through the Rust SFTP engine in one FRB hop each — `lfs_core::sftp` owns the per-entry recursion so the bridge isn't crossed per file. |
-| `file_system.dart` | `FileSystem`, `LocalFS` | Engine-agnostic file-system interface used by `FilePaneController` so the same UI code drives local and remote panes. `LocalFS` wraps `dart:io`; `RemoteFS` (in `sftp_fs.dart`) wraps `RustSftpFs`. |
-| `sftp_models.dart` | `FileEntry`, `TransferProgress` | File/directory model (name, path, size, mode, modTime, isDir, owner) plus the progress event the transfer queue emits per chunk. |
+| `file_system.dart` | `FileSystem`, `flatWalkViaList` | Engine-agnostic file-system interface used by `FilePaneController` so the same UI code drives local and remote panes. `LocalFS` (in `platform/local_fs.dart`) routes every op through `lfs_core::fs::local`; `RemoteFS` (in `sftp_fs.dart`) wraps `RustSftpFs`. `exists` and the `flatWalkFiles` default both delegate path-grammar / recursion to Rust where the backend has a single-call walker; `flatWalkViaList` is the shared `list`-recursion fallback for object stores. |
+| `sftp_models.dart` | `FileEntry`, `FlatFileLeaf`, `TransferProgress`, `sortFileEntries`/`sortFileEntriesBy` | File/directory model (name, path, size, mode, modTime, isDir, owner) plus the progress event the transfer queue emits per chunk. `FlatFileLeaf` carries one leaf from a Rust flat-walk. `sortFileEntriesBy` projects every sortable axis and calls `lfs_core::sftp_models::sort_file_entries_by` — the dir-first + column-ordering grammar is Rust-owned; `FileEntry.modeString` likewise renders via `lfs_core::sftp_models::mode_string`. |
 | `errors.dart` | `SFTPError` family | Typed errors layered over the russh-sftp status codes so the UI can localise "permission denied" / "no such file" / "disk full" without grepping strings. |
 | `rust/crates/lfs_core/src/sftp/mod.rs` | `lfs_core::sftp::Sftp` | russh-sftp client wrapper — open/read/write/list/stat/mkdir/remove/rename/chmod, including the streaming readdir loop and the chunked read/write loops the transfer queue feeds. |
 
@@ -524,13 +524,15 @@ class FileSystemCapabilities {
   static const posix = FileSystemCapabilities(posixMode: true, owner: true);    // LocalFS, RemoteFS
 }
 
-class LocalFS implements FileSystem { ... }              // wraps dart:io
+class LocalFS implements FileSystem { ... }              // routes through lfs_core::fs::local
 class RemoteFS implements FileSystem { ... }             // wraps RustSftpFs; dirSize capped at 64 levels
 class WebDavFileSystem implements FileSystem { ... }     // wraps WebDavConnection
 class S3FileSystem implements FileSystem { ... }         // wraps S3Connection
 ```
 
 **Why an interface.** `FilePaneController` works identically across every backend; tests substitute fakes by injecting a different `FileSystem`. Adding a new backend (the WebDAV / S3 path) plugs into the same surface without touching the file-browser UI.
+
+**Windows hidden-file filtering is Rust-owned.** `LocalFS.list` calls `local_fs_list_visible` (`lfs_core::fs::local::list_visible`), which lists the directory and drops Hidden / System entries in one call — the `cmd /c attrib *` spawn lives in `lfs_os_security` (the subprocess audit perimeter), the pure parse in `lfs_core::path::parse_windows_attrib_output`, and the filter join in `list_visible`. Dart no longer fetches a hidden-name set and loops to drop matches; it renders the already-filtered list. On every non-Windows target `list_visible` is identical to the raw `list`. The upload walker deliberately keeps the unfiltered `flat_walk_files` so a directory upload still carries hidden files.
 
 **Why capabilities are a struct, not per-getter overrides.** The file-pane gates per-column visibility on whether the backend actually populates that column (Mode + Owner are hidden for WebDAV / S3 — every row would render `--------` / blank). A single `FileSystemCapabilities` struct field means adding a new capability is one struct field plus a literal update in each production impl; test stubs that don't care keep `objectStore` and never need to touch the new flag. The earlier per-getter shape (`supportsPosixMode`, `supportsOwner` etc.) cascaded every new flag through every `implements FileSystem` site, turning test files into capability-declaration boilerplate.
 
@@ -4275,15 +4277,15 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_pane_layout.dart` | — (`extension _Layout`) | Header / breadcrumb / path editor / nav / column headers / file-list / footer / drop-target builders. Routes setState through the State's `rebuild(VoidCallback)` wrapper. |
 | `file_pane_actions.dart` | — (`extension _Actions`) | Context menus + dialog wrapper handlers (delegated to `FilePaneDialogs`). |
 | `file_pane_dialogs.dart` | — | Dialogs: New Folder, Rename, Delete |
-| `file_row.dart` | `FileRow` | Row in the file table |
+| `file_row.dart` | `FileRow`, `fileIcon`, `fileIconColor` | Row in the file table. File-type **classification** (extension buckets, directory / symlink precedence) lives in Rust `lfs_core::sftp_models::file_kind` (FRB `sftpFileKind` → `DbFileKind`); `fileIcon` / `fileIconColor` hold only the `DbFileKind → IconData + theme colour` rendering map, the one file-type decision that legitimately stays Dart-side |
 | `breadcrumb_path.dart` | `BreadcrumbPath`, `parseBreadcrumbPath()`, `buildPathForSegment()` | Shared breadcrumb path parsing for desktop and mobile file browsers |
 | `column_widths.dart` | `FileBrowserColumns` | Shared default widths for Size + Modified/Time columns. `FilePane` and `TransferPanelController` both use these so the SFTP tab and transfer queue stay visually aligned |
-| `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
+| `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort. The **sort comparator** (dir-first, column + direction) and **parent-directory navigation** are Rust-owned: `setSort` / column-header clicks route through `sortFileEntriesBy` (FRB `sftpSortFileEntriesBy` → `lfs_core::sftp_models::sort_file_entries_by`, projecting every sortable axis so Dart never re-implements a per-column compare); `navigateUp` calls `pathParent(style: auto)` (FRB → `lfs_core::path::parent`) which handles POSIX + Windows drive roots in one call |
 | `sftp_browser_mixin.dart` | `SftpBrowserMixin` | Shared mixin: SFTP init, upload, download — used by `FileBrowserTab` and `MobileFileBrowser` |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
 | `transfer_panel.dart` | `TransferPanel` | Bottom panel: progress + history (resizable columns, sorting, column dividers). State (expand, height, column widths, sort column + direction) lives on `TransferPanelController` |
 | `transfer_panel_controller.dart` | `TransferPanelController`, `TransferSortColumn` | Headless `ChangeNotifier` — resize clamps, sort-cycle rules, auto-expand edge (fires once per false→true `isRunning` transition), pure `sorted(history)` comparator. Same pattern as [`FilePaneController`](#filepanecontroller) |
-| `transfer_helpers.dart` | `TransferHelpers` | Upload/download helpers; `enqueueUpload`/`enqueueDownload` accept `required S loc` for localized status strings |
+| `transfer_helpers.dart` | `TransferHelpers` | Upload/download helpers; `enqueueUpload`/`enqueueDownload` accept `required S loc` for localized status strings. **Directory transfers walk Rust-side**: the recursive enumeration (symlink-skip + per-segment safe-name validation) runs in one FRB call — `lfs_core::fs::local::flat_walk_files` for the local upload source, `lfs_core::sftp::Sftp::flat_walk_files` for the remote download source (surfaced via `FileSystem.flatWalkFiles`, overridden by `LocalFS` / `RemoteFS`; object-store backends fall back to the shared `flatWalkViaList` `list`-recursion). Dart enqueues one task per returned leaf and resolves per-file conflicts (the conflict UI stays Dart) |
 
 #### FilePaneController
 

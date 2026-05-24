@@ -67,6 +67,24 @@ pub struct SftpFileMetadata {
     pub permissions: u32,
 }
 
+/// One leaf file from `SshSftp::flat_walk_files`. `rel_path` is
+/// `/`-joined relative to the walk root; every segment has passed
+/// the safe-entry-name guard Rust-side.
+#[derive(Debug, Clone)]
+pub struct SftpFlatFileEntry {
+    pub rel_path: String,
+    pub size: u64,
+}
+
+impl From<lfs_core::sftp::FlatRemoteFile> for SftpFlatFileEntry {
+    fn from(e: lfs_core::sftp::FlatRemoteFile) -> Self {
+        SftpFlatFileEntry {
+            rel_path: e.rel_path,
+            size: e.size,
+        }
+    }
+}
+
 impl From<lfs_core::sftp::FileMetadata> for SftpFileMetadata {
     fn from(m: lfs_core::sftp::FileMetadata) -> Self {
         SftpFileMetadata {
@@ -214,6 +232,25 @@ impl SshSftp {
             .dir_size_recursive(&path, max_depth)
             .await
             .map_err(|e| crate::api::frb_err::from_core(&e))
+    }
+
+    /// Recursively enumerate every leaf file under `path` in one
+    /// FRB call — the walk runs Rust-side over one SFTP channel
+    /// pair instead of N FRB hops per directory level. Symlinks are
+    /// skipped and server names validated Rust-side. The Dart caller
+    /// enqueues one download per returned entry; `max_depth` caps a
+    /// cyclic remote tree (the file browser passes 100).
+    pub async fn flat_walk_files(
+        &self,
+        path: String,
+        max_depth: u32,
+    ) -> Result<Vec<SftpFlatFileEntry>, String> {
+        let leaves = self
+            .inner
+            .flat_walk_files(&path, max_depth)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
+        Ok(leaves.into_iter().map(SftpFlatFileEntry::from).collect())
     }
 
     /// Stat a path without resolving symlinks.

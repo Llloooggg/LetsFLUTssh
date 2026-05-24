@@ -3,6 +3,8 @@ import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// In-memory file system for testing.
 class _MockFS implements FileSystem {
   final Map<String, List<FileEntry>> dirs;
@@ -45,6 +47,10 @@ class _MockFS implements FileSystem {
   }
 
   @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+
+  @override
   Future<bool> exists(String path) async => dirs.containsKey(path);
 
   @override
@@ -52,6 +58,11 @@ class _MockFS implements FileSystem {
 }
 
 void main() {
+  // The controller delegates sort (`sortFileEntriesBy`) and parent
+  // navigation (`pathParent`) to Rust via sync FRB calls, so the
+  // suite needs the Rust library loaded.
+  setUpAll(requireFrbLoaded);
+
   final now = DateTime(2024, 1, 1);
   final testEntries = [
     FileEntry(

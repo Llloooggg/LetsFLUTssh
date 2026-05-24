@@ -766,10 +766,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFido2Transport dco_decode_db_fido_2_transport(dynamic raw);
 
   @protected
+  DbFileKind dco_decode_db_file_kind(dynamic raw);
+
+  @protected
   DbFileSortKey dco_decode_db_file_sort_key(dynamic raw);
 
   @protected
   DbFileSweepReport dco_decode_db_file_sweep_report(dynamic raw);
+
+  @protected
+  DbFlatFileEntry dco_decode_db_flat_file_entry(dynamic raw);
 
   @protected
   DbFolder dco_decode_db_folder(dynamic raw);
@@ -894,6 +900,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPasswordStrength dco_decode_db_password_strength(dynamic raw);
+
+  @protected
+  DbPathStyle dco_decode_db_path_style(dynamic raw);
 
   @protected
   DbPkcs11ImportArgs dco_decode_db_pkcs_11_import_args(dynamic raw);
@@ -1075,6 +1084,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSnippet dco_decode_db_snippet(dynamic raw);
 
   @protected
+  DbSortField dco_decode_db_sort_field(dynamic raw);
+
+  @protected
   DbSshDefaults dco_decode_db_ssh_defaults(dynamic raw);
 
   @protected
@@ -1239,6 +1251,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbFileSortKey> dco_decode_list_db_file_sort_key(dynamic raw);
+
+  @protected
+  List<DbFlatFileEntry> dco_decode_list_db_flat_file_entry(dynamic raw);
 
   @protected
   List<DbFolder> dco_decode_list_db_folder(dynamic raw);
@@ -1433,6 +1448,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SftpDirEntry> dco_decode_list_sftp_dir_entry(dynamic raw);
+
+  @protected
+  List<SftpFlatFileEntry> dco_decode_list_sftp_flat_file_entry(dynamic raw);
 
   @protected
   List<TerminalCell> dco_decode_list_terminal_cell(dynamic raw);
@@ -1642,6 +1660,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SftpFileMetadata dco_decode_sftp_file_metadata(dynamic raw);
+
+  @protected
+  SftpFlatFileEntry dco_decode_sftp_flat_file_entry(dynamic raw);
 
   @protected
   SshConnectPubkeySkCertArgs dco_decode_ssh_connect_pubkey_sk_cert_args(
@@ -2473,12 +2494,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFido2Transport sse_decode_db_fido_2_transport(SseDeserializer deserializer);
 
   @protected
+  DbFileKind sse_decode_db_file_kind(SseDeserializer deserializer);
+
+  @protected
   DbFileSortKey sse_decode_db_file_sort_key(SseDeserializer deserializer);
 
   @protected
   DbFileSweepReport sse_decode_db_file_sweep_report(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbFlatFileEntry sse_decode_db_flat_file_entry(SseDeserializer deserializer);
 
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
@@ -2651,6 +2678,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPasswordStrength sse_decode_db_password_strength(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbPathStyle sse_decode_db_path_style(SseDeserializer deserializer);
 
   @protected
   DbPkcs11ImportArgs sse_decode_db_pkcs_11_import_args(
@@ -2912,6 +2942,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSnippet sse_decode_db_snippet(SseDeserializer deserializer);
 
   @protected
+  DbSortField sse_decode_db_sort_field(SseDeserializer deserializer);
+
+  @protected
   DbSshDefaults sse_decode_db_ssh_defaults(SseDeserializer deserializer);
 
   @protected
@@ -3120,6 +3153,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbFileSortKey> sse_decode_list_db_file_sort_key(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbFlatFileEntry> sse_decode_list_db_flat_file_entry(
     SseDeserializer deserializer,
   );
 
@@ -3386,6 +3424,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SftpFlatFileEntry> sse_decode_list_sftp_flat_file_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<TerminalCell> sse_decode_list_terminal_cell(
     SseDeserializer deserializer,
   );
@@ -3647,6 +3690,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SftpFileMetadata sse_decode_sftp_file_metadata(SseDeserializer deserializer);
+
+  @protected
+  SftpFlatFileEntry sse_decode_sftp_flat_file_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SshConnectPubkeySkCertArgs sse_decode_ssh_connect_pubkey_sk_cert_args(
@@ -4674,6 +4722,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_file_kind(DbFileKind self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_file_sort_key(
     DbFileSortKey self,
     SseSerializer serializer,
@@ -4682,6 +4733,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_file_sweep_report(
     DbFileSweepReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_flat_file_entry(
+    DbFlatFileEntry self,
     SseSerializer serializer,
   );
 
@@ -4903,6 +4960,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbPasswordStrength self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_path_style(DbPathStyle self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_pkcs_11_import_args(
@@ -5241,6 +5301,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_snippet(DbSnippet self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_sort_field(DbSortField self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_ssh_defaults(DbSshDefaults self, SseSerializer serializer);
 
   @protected
@@ -5504,6 +5567,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_file_sort_key(
     List<DbFileSortKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_flat_file_entry(
+    List<DbFlatFileEntry> self,
     SseSerializer serializer,
   );
 
@@ -5841,6 +5910,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sftp_flat_file_entry(
+    List<SftpFlatFileEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_terminal_cell(
     List<TerminalCell> self,
     SseSerializer serializer,
@@ -6157,6 +6232,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sftp_file_metadata(
     SftpFileMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sftp_flat_file_entry(
+    SftpFlatFileEntry self,
     SseSerializer serializer,
   );
 

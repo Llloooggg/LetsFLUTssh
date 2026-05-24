@@ -35,6 +35,10 @@ class _MockFS implements FileSystem {
       renames.add((oldPath, newPath));
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 
@@ -58,6 +62,10 @@ class _ErrorMkdirFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 
@@ -82,6 +90,10 @@ class _ErrorRenameFS implements FileSystem {
       throw Exception('rename failed');
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 
@@ -105,6 +117,10 @@ class _ErrorDeleteFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 

@@ -1,3 +1,4 @@
+import '../../src/rust/api/path.dart' as rust_path;
 import 'sftp_models.dart';
 
 /// Capability set a [FileSystem] backend declares to its callers.
@@ -67,8 +68,16 @@ abstract class FileSystem {
   /// LSTAT-NotFound shape).
   Future<bool> exists(String path) async {
     try {
-      final dir = _posixDirname(path);
-      final name = _posixBasename(path);
+      // Parent + basename grammar is Rust-owned. SFTP paths are
+      // always POSIX, so this default (used by the legacy `RemoteFS`
+      // shim + in-process test stubs) forces POSIX parsing. A `null`
+      // parent means a root / bare segment with no directory to list.
+      final dir = rust_path.pathParent(
+        path: path,
+        style: rust_path.DbPathStyle.posix,
+      );
+      if (dir == null) return false;
+      final name = rust_path.pathBasename(path: path);
       if (name.isEmpty) return false;
       final entries = await list(dir);
       for (final entry in entries) {
@@ -83,6 +92,19 @@ abstract class FileSystem {
   /// Recursively calculate the total size of a directory.
   Future<int> dirSize(String path);
 
+  /// Recursively enumerate every leaf (non-directory) file under
+  /// [root], skipping symlinks and validating each entry name, and
+  /// return each as a [FlatFileLeaf] whose `relPath` is `/`-joined
+  /// relative to [root]. Used by the transfer walker to enqueue one
+  /// task per file without a Dart-side per-level recursion.
+  ///
+  /// `LocalFS` and `RemoteFS` (SFTP) override this with a single
+  /// Rust FRB call so the whole walk runs Rust-/server-side over one
+  /// hop. Object-store backends (WebDAV / S3) that have no single-call
+  /// walker delegate to [flatWalkViaList], the shared `list`-based
+  /// recursion. `maxDepth` bounds a cyclic tree.
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100});
+
   /// What this backend can surface. Defaults to "nothing populated"
   /// — the conservative shape that matches every HTTP-style object
   /// store. Concrete backends override with the constants on
@@ -90,23 +112,36 @@ abstract class FileSystem {
   FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
-String _posixDirname(String path) {
-  if (path.isEmpty) return '/';
-  final trimmed = path.endsWith('/') && path.length > 1
-      ? path.substring(0, path.length - 1)
-      : path;
-  final i = trimmed.lastIndexOf('/');
-  if (i < 0) return '';
-  if (i == 0) return '/';
-  return trimmed.substring(0, i);
-}
+/// Shared `list`-based recursive walk for [FileSystem.flatWalkFiles]
+/// backends that have no single-call walker (WebDAV / S3 object
+/// stores). Recurses through [fs] with [FileSystem.list] per level,
+/// collecting leaf files with their `/`-joined relative paths.
+/// Bounded by [maxDepth] against a cyclic tree.
+Future<List<FlatFileLeaf>> flatWalkViaList(
+  FileSystem fs,
+  String root, {
+  int maxDepth = 100,
+}) {
+  Future<List<FlatFileLeaf>> walk(
+    String dir,
+    String relPrefix,
+    int depth,
+  ) async {
+    if (depth >= maxDepth) return const [];
+    final out = <FlatFileLeaf>[];
+    final entries = await fs.list(dir);
+    for (final entry in entries) {
+      final childRel = relPrefix.isEmpty
+          ? entry.name
+          : '$relPrefix/${entry.name}';
+      if (entry.isDir) {
+        out.addAll(await walk(entry.path, childRel, depth + 1));
+      } else {
+        out.add(FlatFileLeaf(relPath: childRel, size: entry.size));
+      }
+    }
+    return out;
+  }
 
-String _posixBasename(String path) {
-  if (path.isEmpty) return '';
-  final trimmed = path.endsWith('/') && path.length > 1
-      ? path.substring(0, path.length - 1)
-      : path;
-  final i = trimmed.lastIndexOf('/');
-  if (i < 0) return trimmed;
-  return trimmed.substring(i + 1);
+  return walk(root, '', 0);
 }

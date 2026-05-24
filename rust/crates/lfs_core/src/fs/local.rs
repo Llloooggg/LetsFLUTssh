@@ -154,6 +154,119 @@ pub async fn list(path: String) -> Result<Vec<LocalFileEntry>, String> {
     Ok(entries)
 }
 
+/// List `path` for the file-browser *view*: same as [`list`] but
+/// with Windows Hidden / System files dropped so the pane matches
+/// what Explorer would show. On every non-Windows target this is
+/// identical to [`list`] — the filter set is empty.
+///
+/// The hidden-name decision lives here rather than in the Dart
+/// caller: the caller used to `list`, separately fetch the hidden
+/// set, then loop-and-drop. Folding the filter into one Rust call
+/// keeps the "what does the browser hide?" rule Rust-owned and saves
+/// the second FRB hop. The transfer-upload walker deliberately keeps
+/// the raw [`list`] — an upload of a directory should carry hidden
+/// files too, so the view filter must not leak into the walk.
+pub async fn list_visible(path: String) -> Result<Vec<LocalFileEntry>, String> {
+    let entries = list(path.clone()).await?;
+    let hidden = windows_hidden_names(path).await;
+    if hidden.is_empty() {
+        return Ok(entries);
+    }
+    let hidden_lower: std::collections::HashSet<String> =
+        hidden.into_iter().map(|n| n.to_lowercase()).collect();
+    Ok(entries
+        .into_iter()
+        .filter(|e| !hidden_lower.contains(&e.name.to_lowercase()))
+        .collect())
+}
+
+/// One leaf file from a recursive directory walk. `rel_path` is the
+/// path relative to the walk root, joined with `/` regardless of
+/// platform so the caller can re-join it onto either a local or a
+/// remote (SFTP, always `/`) destination. Every segment of
+/// `rel_path` has passed [`crate::path::is_safe_transfer_entry_name`].
+#[derive(Debug, Clone)]
+pub struct FlatFileEntry {
+    /// `/`-joined path relative to the walk root.
+    pub rel_path: String,
+    pub size: u64,
+}
+
+/// Recursively walk `root` and return every leaf (non-directory)
+/// file as a [`FlatFileEntry`]. Symlinks are skipped (never
+/// followed into arbitrary targets), and every path segment is
+/// validated through [`crate::path::is_safe_transfer_entry_name`]
+/// so a hostile name can never escape the destination when the
+/// caller re-joins `rel_path`. Recursion is bounded by `max_depth`
+/// to cap a pathological directory cycle (junction loop / bind
+/// mount); the walk silently stops descending past the budget
+/// rather than erroring, matching the size-walk posture.
+///
+/// One FRB call replaces the Dart recursion that issued a `list`
+/// per directory level — the enqueue loop stays Dart-side (it
+/// resolves per-file conflicts through the UI) but the tree
+/// enumeration is Rust-owned.
+pub async fn flat_walk_files(root: String, max_depth: u32) -> Result<Vec<FlatFileEntry>, String> {
+    let mut out = Vec::new();
+    walk_flat(
+        std::path::PathBuf::from(&root),
+        String::new(),
+        0,
+        max_depth,
+        &mut out,
+    )
+    .await?;
+    Ok(out)
+}
+
+fn walk_flat<'a>(
+    dir: std::path::PathBuf,
+    rel_prefix: String,
+    depth: u32,
+    max_depth: u32,
+    out: &'a mut Vec<FlatFileEntry>,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+    Box::pin(async move {
+        if depth >= max_depth {
+            return Ok(());
+        }
+        let mut rd = tokio::fs::read_dir(&dir).await.map_err(map_io_error)?;
+        while let Some(entry) = rd.next_entry().await.map_err(map_io_error)? {
+            // `DirEntry::file_type` does not follow symlinks on Unix
+            // — a symlink (file or dir) is identified before we ever
+            // touch its target, so it is skipped without recursion.
+            let Ok(file_type) = entry.file_type().await else {
+                continue;
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().into_owned();
+            // Reject any name that could escape the destination when
+            // the caller re-joins `rel_path` — same guard the SFTP
+            // walk applies to peer-supplied names.
+            if !crate::path::is_safe_transfer_entry_name(&name) {
+                continue;
+            }
+            let child_rel = if rel_prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{rel_prefix}/{name}")
+            };
+            if file_type.is_dir() {
+                walk_flat(entry.path(), child_rel, depth + 1, max_depth, out).await?;
+            } else if file_type.is_file() {
+                let size = entry.metadata().await.map(|m| m.len()).unwrap_or(0);
+                out.push(FlatFileEntry {
+                    rel_path: child_rel,
+                    size,
+                });
+            }
+        }
+        Ok(())
+    })
+}
+
 /// Stat `path`, following symlinks. Returns `Ok(Some(entry))`
 /// when the path resolves, `Ok(None)` when it does not exist,
 /// and `Err(...)` for every other I/O failure (permission
@@ -746,10 +859,108 @@ mod tests {
 
     #[cfg(not(target_os = "windows"))]
     #[tokio::test]
+    async fn list_visible_matches_list_off_windows() {
+        // Off Windows the hidden-name set is always empty, so the
+        // view listing is byte-identical to the raw listing — a
+        // dotfile is NOT a Windows-hidden entry and stays visible.
+        let dir = temp_dir("list_visible");
+        std::fs::write(dir.join("plain.txt"), b"x").unwrap();
+        std::fs::write(dir.join(".dotfile"), b"y").unwrap();
+        let mut raw = list(dir.to_string_lossy().into_owned()).await.unwrap();
+        let mut visible = list_visible(dir.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        raw.sort_by(|a, b| a.name.cmp(&b.name));
+        visible.sort_by(|a, b| a.name.cmp(&b.name));
+        let raw_names: Vec<&str> = raw.iter().map(|e| e.name.as_str()).collect();
+        let visible_names: Vec<&str> = visible.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(raw_names, visible_names);
+        assert!(visible_names.contains(&".dotfile"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
     async fn windows_hidden_names_is_empty_off_windows() {
         let dir = temp_dir("hidden");
         let result = windows_hidden_names(dir.to_string_lossy().into_owned()).await;
         assert!(result.is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn flat_walk_returns_nested_leaves_with_relative_paths() {
+        let dir = temp_dir("flat_walk_nested");
+        std::fs::write(dir.join("top.txt"), b"12345").unwrap();
+        std::fs::create_dir_all(dir.join("a/b")).unwrap();
+        std::fs::write(dir.join("a/mid.bin"), b"xy").unwrap();
+        std::fs::write(dir.join("a/b/deep.log"), b"deep!").unwrap();
+
+        let mut leaves = flat_walk_files(dir.to_string_lossy().into_owned(), 100)
+            .await
+            .unwrap();
+        leaves.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
+        let rels: Vec<&str> = leaves.iter().map(|e| e.rel_path.as_str()).collect();
+        // `/`-joined relative paths regardless of platform; only
+        // leaf files, no directory rows.
+        assert_eq!(rels, vec!["a/b/deep.log", "a/mid.bin", "top.txt"]);
+        let top = leaves.iter().find(|e| e.rel_path == "top.txt").unwrap();
+        assert_eq!(top.size, 5);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn flat_walk_empty_tree_returns_no_leaves() {
+        let dir = temp_dir("flat_walk_empty");
+        std::fs::create_dir_all(dir.join("empty_sub")).unwrap();
+        let leaves = flat_walk_files(dir.to_string_lossy().into_owned(), 100)
+            .await
+            .unwrap();
+        assert!(leaves.is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn flat_walk_skips_symlinks() {
+        use std::os::unix::fs::symlink;
+        let dir = temp_dir("flat_walk_symlink");
+        std::fs::write(dir.join("real.txt"), b"real").unwrap();
+        // A symlinked file and a symlinked directory both inside the
+        // tree — neither should appear in the flat list, and the
+        // linked directory must not be descended into.
+        let target_dir = dir.join("target_dir");
+        std::fs::create_dir(&target_dir).unwrap();
+        std::fs::write(target_dir.join("inside.txt"), b"x").unwrap();
+        symlink(dir.join("real.txt"), dir.join("link_to_file")).unwrap();
+        symlink(&target_dir, dir.join("link_to_dir")).unwrap();
+
+        let leaves = flat_walk_files(dir.to_string_lossy().into_owned(), 100)
+            .await
+            .unwrap();
+        let rels: Vec<&str> = leaves.iter().map(|e| e.rel_path.as_str()).collect();
+        // `target_dir/inside.txt` is reachable directly (not through
+        // the link), so it IS present; the link entries are not.
+        assert!(rels.contains(&"real.txt"));
+        assert!(rels.contains(&"target_dir/inside.txt"));
+        assert!(!rels.iter().any(|r| r.contains("link_to_file")));
+        assert!(!rels.iter().any(|r| r.contains("link_to_dir")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn flat_walk_respects_max_depth() {
+        let dir = temp_dir("flat_walk_depth");
+        std::fs::create_dir_all(dir.join("a/b/c")).unwrap();
+        std::fs::write(dir.join("a/b/c/deep.txt"), b"x").unwrap();
+        std::fs::write(dir.join("top.txt"), b"y").unwrap();
+        // max_depth 1 walks only the root level — `top.txt` lands,
+        // the deeper `a/...` subtree is not descended.
+        let leaves = flat_walk_files(dir.to_string_lossy().into_owned(), 1)
+            .await
+            .unwrap();
+        let rels: Vec<&str> = leaves.iter().map(|e| e.rel_path.as_str()).collect();
+        assert_eq!(rels, vec!["top.txt"]);
         std::fs::remove_dir_all(&dir).ok();
     }
 

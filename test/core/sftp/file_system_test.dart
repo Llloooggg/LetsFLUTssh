@@ -132,38 +132,12 @@ void main() {
     });
   });
 
-  group('LocalFS.parseAttribOutput', () {
-    test('parses hidden and system files', () {
-      const output =
-          '     A  SH  C:\\Users\\\$Recycle.Bin\n'
-          '     A          C:\\Users\\Documents\n'
-          '     A    H     C:\\Users\\desktop.ini\n'
-          '     A  S       C:\\System Volume Information\n';
-      final result = LocalFS.parseAttribOutput(output);
-      expect(result, contains('\$recycle.bin'));
-      expect(result, contains('desktop.ini'));
-      expect(result, contains('system volume information'));
-      expect(result, isNot(contains('documents')));
-    });
-
-    test('returns empty set for empty output', () {
-      expect(LocalFS.parseAttribOutput(''), isEmpty);
-    });
-
-    test('returns empty set for output with no H/S flags', () {
-      const output =
-          '     A          C:\\file1.txt\n'
-          '     A    R     C:\\file2.txt\n';
-      expect(LocalFS.parseAttribOutput(output), isEmpty);
-    });
-
-    test('handles lines without valid format', () {
-      const output = 'some garbage\n\n     A  SH  C:\\hidden.dat\n';
-      final result = LocalFS.parseAttribOutput(output);
-      expect(result, contains('hidden.dat'));
-      expect(result.length, 1);
-    });
-  });
+  // The Windows hidden-file filter (parsing `attrib` output + dropping
+  // Hidden / System entries) lives entirely in Rust now
+  // (`lfs_core::path::parse_windows_attrib_output` +
+  // `lfs_core::fs::local::list_visible`) and is unit-tested there. The
+  // Dart `LocalFS.list` only renders the already-filtered listing, so
+  // there is no Dart-side parser left to test here.
 
   group('LocalFS file operations', () {
     late Directory tempDir;
@@ -435,33 +409,6 @@ void main() {
       expect(Directory(newPath).existsSync(), isTrue);
       expect(File('$newPath/file.txt').existsSync(), isTrue);
       expect(Directory(oldPath).existsSync(), isFalse);
-    });
-  });
-
-  group('LocalFS.parseAttribOutput edge cases', () {
-    test('handles mixed attributes on same file', () {
-      const output = '  A  SHR  C:\\Users\\secret.dat\n';
-      final result = LocalFS.parseAttribOutput(output);
-      expect(result, contains('secret.dat'));
-    });
-
-    test('handles path with spaces', () {
-      const output = '     A    H     C:\\Program Files\\hidden file.dat\n';
-      final result = LocalFS.parseAttribOutput(output);
-      expect(result, contains('hidden file.dat'));
-    });
-
-    test('handles only whitespace lines', () {
-      const output = '   \n   \n';
-      final result = LocalFS.parseAttribOutput(output);
-      expect(result, isEmpty);
-    });
-
-    test('converts names to lowercase for case-insensitive matching', () {
-      const output = '     A  SH  C:\\Users\\HIDDEN.DAT\n';
-      final result = LocalFS.parseAttribOutput(output);
-      expect(result, contains('hidden.dat'));
-      expect(result, isNot(contains('HIDDEN.DAT')));
     });
   });
 

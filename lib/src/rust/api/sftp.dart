@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'ssh.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Open an SFTP subsystem on a fresh channel of the given session.
 /// Multiple SFTP clients can coexist on one SSH session — each call
@@ -55,6 +55,17 @@ abstract class SshSftp implements RustOpaqueInterface {
   Stream<DbTransferProgress> downloadDir({
     required String remoteDir,
     required String localDir,
+  });
+
+  /// Recursively enumerate every leaf file under `path` in one
+  /// FRB call — the walk runs Rust-side over one SFTP channel
+  /// pair instead of N FRB hops per directory level. Symlinks are
+  /// skipped and server names validated Rust-side. The Dart caller
+  /// enqueues one download per returned entry; `max_depth` caps a
+  /// cyclic remote tree (the file browser passes 100).
+  Future<List<SftpFlatFileEntry>> flatWalkFiles({
+    required String path,
+    required int maxDepth,
   });
 
   /// List a directory.
@@ -286,4 +297,25 @@ class SftpFileMetadata {
           isSymlink == other.isSymlink &&
           modifiedUnix == other.modifiedUnix &&
           permissions == other.permissions;
+}
+
+/// One leaf file from `SshSftp::flat_walk_files`. `rel_path` is
+/// `/`-joined relative to the walk root; every segment has passed
+/// the safe-entry-name guard Rust-side.
+class SftpFlatFileEntry {
+  final String relPath;
+  final BigInt size;
+
+  const SftpFlatFileEntry({required this.relPath, required this.size});
+
+  @override
+  int get hashCode => relPath.hashCode ^ size.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SftpFlatFileEntry &&
+          runtimeType == other.runtimeType &&
+          relPath == other.relPath &&
+          size == other.size;
 }

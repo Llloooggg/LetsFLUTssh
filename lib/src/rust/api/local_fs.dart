@@ -7,10 +7,35 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `to_db_entry`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 
 Future<List<DbLocalFileEntry>> localFsList({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsList(path: path);
+
+/// List `path` for the file-browser view — same as
+/// [`local_fs_list`] but with Windows Hidden / System files already
+/// dropped so the pane matches Explorer. Identical to
+/// [`local_fs_list`] on every non-Windows target. The Dart
+/// `LocalFS.list` routes here so the hidden-name filter no longer
+/// loops Dart-side; the upload walker keeps [`local_fs_list`] so
+/// directory uploads still carry hidden files.
+Future<List<DbLocalFileEntry>> localFsListVisible({required String path}) =>
+    RustLib.instance.api.crateApiLocalFsLocalFsListVisible(path: path);
+
+/// Recursively enumerate every leaf file under `root`, skipping
+/// symlinks and validating each name, in one FRB call. Replaces the
+/// Dart per-level `list` recursion in the upload walker — the Dart
+/// caller enqueues one transfer task per returned entry (re-joining
+/// `rel_path` onto the local source + remote destination) and keeps
+/// the per-file conflict-resolution UI. `max_depth` caps recursion
+/// (the file browser passes 100).
+Future<List<DbFlatFileEntry>> localFsFlatWalkFiles({
+  required String root,
+  required int maxDepth,
+}) => RustLib.instance.api.crateApiLocalFsLocalFsFlatWalkFiles(
+  root: root,
+  maxDepth: maxDepth,
+);
 
 /// Stat `path` following symlinks. `None` means "does not
 /// exist"; other I/O failures (permission denied, broken disk)
@@ -50,9 +75,6 @@ Future<void> localFsRename({
 Future<BigInt> localFsDirSize({required String path}) =>
     RustLib.instance.api.crateApiLocalFsLocalFsDirSize(path: path);
 
-Future<List<String>> localFsWindowsHiddenNames({required String dir}) =>
-    RustLib.instance.api.crateApiLocalFsLocalFsWindowsHiddenNames(dir: dir);
-
 /// Copy a single file. Replaces the destination if it exists.
 /// Symmetric with [`local_fs_copy_recursive_no_symlinks`] so the
 /// file-browser drop path stays Rust-side across both branches.
@@ -86,6 +108,27 @@ Future<String?> localFsAndroidInitialDir({required String homeDir}) => RustLib
     .instance
     .api
     .crateApiLocalFsLocalFsAndroidInitialDir(homeDir: homeDir);
+
+/// One leaf file from [`local_fs_flat_walk_files`]. `rel_path` is
+/// `/`-joined relative to the walk root; every segment has passed
+/// the safe-entry-name guard Rust-side.
+class DbFlatFileEntry {
+  final String relPath;
+  final BigInt size;
+
+  const DbFlatFileEntry({required this.relPath, required this.size});
+
+  @override
+  int get hashCode => relPath.hashCode ^ size.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbFlatFileEntry &&
+          runtimeType == other.runtimeType &&
+          relPath == other.relPath &&
+          size == other.size;
+}
 
 class DbLocalFileEntry {
   final String name;

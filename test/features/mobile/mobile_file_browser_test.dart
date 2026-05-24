@@ -30,6 +30,9 @@ class _NoopSftpFs implements RemoteSftpFs {
   @override
   Future<int> dirSizeRecursive(String path, int maxDepth) async => 0;
   @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth) async =>
+      const [];
+  @override
   Future<bool> exists(String path) async => false;
   @override
   Future<void> mkdir(String path) async {}
@@ -102,6 +105,10 @@ class FakeFileSystem implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 
@@ -132,6 +139,10 @@ class ErrorFileSystem implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 

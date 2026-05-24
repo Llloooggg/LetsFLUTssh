@@ -27,6 +27,19 @@ class FileEntry {
       rust_sftp_models.sftpModeString(mode: mode, isDir: isDir);
 }
 
+/// One leaf file from a recursive directory walk. [relPath] is the
+/// `/`-joined path relative to the walk root; the enumeration +
+/// per-segment safety validation + symlink-skip all happen Rust-side
+/// (`lfs_core::fs::local::flat_walk_files` / `Sftp::flat_walk_files`).
+/// The transfer enqueue loop re-joins [relPath] onto the source +
+/// destination roots.
+class FlatFileLeaf {
+  final String relPath;
+  final int size;
+
+  const FlatFileLeaf({required this.relPath, required this.size});
+}
+
 /// Transfer progress callback data.
 class TransferProgress {
   final String fileName;
@@ -48,18 +61,41 @@ class TransferProgress {
 }
 
 /// Sort file entries: directories first, then alphabetical by name
-/// via `lfs_core::sftp_models::sort_file_entries` — the dirs-first
-/// + case-insensitive grammar lives in Rust.
+/// — the default post-`list()` order. Delegates to
+/// [sortFileEntriesBy] with the Name column ascending so the grammar
+/// stays single-sourced in `lfs_core::sftp_models::sort_file_entries_by`.
 void sortFileEntries(List<FileEntry> entries) {
+  sortFileEntriesBy(entries, rust_sftp_models.DbSortField.name, true);
+}
+
+/// Sort [entries] in place by [field] + direction via
+/// `lfs_core::sftp_models::sort_file_entries_by`. Directories always
+/// lead regardless of column / direction; the comparison rules
+/// (case-folding, numeric / temporal ordering) are Rust-owned — Dart
+/// only projects each row's sortable axes and re-keys against the
+/// returned permutation.
+void sortFileEntriesBy(
+  List<FileEntry> entries,
+  rust_sftp_models.DbSortField field,
+  bool ascending,
+) {
   final keys = entries
       .map(
         (e) => rust_sftp_models.DbFileSortKey(
           isDir: e.isDir,
           nameLower: e.name.toLowerCase(),
+          size: BigInt.from(e.size),
+          mode: e.mode,
+          modTimeUnixMs: e.modTime.millisecondsSinceEpoch,
+          ownerLower: e.owner.toLowerCase(),
         ),
       )
       .toList(growable: false);
-  final indices = rust_sftp_models.sftpSortFileEntries(keys: keys);
+  final indices = rust_sftp_models.sftpSortFileEntriesBy(
+    keys: keys,
+    field: field,
+    ascending: ascending,
+  );
   final sorted = [for (final i in indices) entries[i]];
   entries
     ..clear()

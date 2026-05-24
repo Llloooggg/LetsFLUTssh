@@ -47,6 +47,10 @@ class _MockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 
@@ -73,6 +77,10 @@ class _NeverCompleteFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 
@@ -3140,6 +3148,10 @@ class _WindowsMockFS implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
   @override
   Future<bool> exists(String path) async => false;
 

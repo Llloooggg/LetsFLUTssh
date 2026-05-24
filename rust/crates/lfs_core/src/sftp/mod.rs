@@ -118,6 +118,73 @@ impl Sftp {
         walk(self, path, 0, max_depth).await
     }
 
+    /// Recursively enumerate every leaf (non-directory) file under
+    /// the remote tree rooted at `path`. Returns each as a
+    /// [`FlatRemoteFile`] with its path relative to `path` (joined
+    /// with `/`) and size. Symlinks are skipped (never followed),
+    /// and server-supplied entry names are validated through
+    /// [`crate::path::is_safe_transfer_entry_name`] so a hostile
+    /// remote cannot smuggle a traversal segment into the relative
+    /// path the caller re-joins onto a local download destination.
+    ///
+    /// `max_depth` bounds recursion against a cyclic remote tree
+    /// (symlink loop the server presents as directories). One FRB
+    /// call replaces the Dart per-level `list` recursion — the
+    /// Dart caller enqueues one download task per returned entry and
+    /// keeps the per-file conflict-resolution UI.
+    pub async fn flat_walk_files(
+        &self,
+        path: &str,
+        max_depth: u32,
+    ) -> Result<Vec<FlatRemoteFile>, Error> {
+        fn walk<'a>(
+            sftp: &'a Sftp,
+            path: &'a str,
+            rel_prefix: String,
+            depth: u32,
+            max_depth: u32,
+            out: &'a mut Vec<FlatRemoteFile>,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>>
+        {
+            Box::pin(async move {
+                if depth >= max_depth {
+                    return Ok(());
+                }
+                let entries = sftp.list(path).await?;
+                for entry in entries {
+                    if entry.name == "." || entry.name == ".." || entry.is_symlink {
+                        continue;
+                    }
+                    if !crate::path::is_safe_transfer_entry_name(&entry.name) {
+                        continue;
+                    }
+                    let child_path = if path.ends_with('/') {
+                        format!("{path}{}", entry.name)
+                    } else {
+                        format!("{path}/{}", entry.name)
+                    };
+                    let child_rel = if rel_prefix.is_empty() {
+                        entry.name.clone()
+                    } else {
+                        format!("{rel_prefix}/{}", entry.name)
+                    };
+                    if entry.is_dir {
+                        walk(sftp, &child_path, child_rel, depth + 1, max_depth, out).await?;
+                    } else {
+                        out.push(FlatRemoteFile {
+                            rel_path: child_rel,
+                            size: entry.size,
+                        });
+                    }
+                }
+                Ok(())
+            })
+        }
+        let mut out = Vec::new();
+        walk(self, path, String::new(), 0, max_depth, &mut out).await?;
+        Ok(out)
+    }
+
     /// Read a small file fully into memory. Suitable for config /
     /// dotfile-sized reads; large files (≥ a few MB) should go
     /// through the streaming surface (`open` + `read_chunk`).
@@ -793,6 +860,15 @@ pub struct DirEntry {
     pub modified_unix: Option<i64>,
     /// POSIX mode bits (e.g. 0o755). `0` when unavailable.
     pub permissions: u32,
+}
+
+/// One leaf file from [`Sftp::flat_walk_files`]. `rel_path` is the
+/// path relative to the walk root, joined with `/`; every segment
+/// has passed [`crate::path::is_safe_transfer_entry_name`].
+#[derive(Debug, Clone)]
+pub struct FlatRemoteFile {
+    pub rel_path: String,
+    pub size: u64,
 }
 
 /// File metadata returned by `Sftp::stat` / `stat_symlink`.

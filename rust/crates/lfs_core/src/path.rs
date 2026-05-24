@@ -135,6 +135,106 @@ pub fn parse_windows_attrib_output(output: &str) -> std::collections::HashSet<St
     hidden
 }
 
+/// Separator family for [`parent`]. `Posix` forces `/`-only
+/// parsing (SFTP remote paths, always forward-slash); `Windows`
+/// recognises both `\` and `/` and the `C:\` drive-root form;
+/// `Auto` infers from the string — a `\` or a `X:`-style drive
+/// prefix selects Windows rules, otherwise POSIX. The file pane
+/// passes `Auto` so the same `navigateUp` handles the Windows local
+/// pane (native `C:\Users\foo`) and the SFTP pane (forward-slash)
+/// without a platform branch at the call site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathStyle {
+    Posix,
+    Windows,
+    Auto,
+}
+
+/// Parent directory of [`path`], or `None` when the path has no
+/// parent (POSIX / SFTP root `/`, a Windows drive root `C:\`, an
+/// empty string, or a bare relative segment with no separator).
+///
+/// A trailing separator is stripped first so `parent("/a/b/")` is
+/// `/a`, not `/a/b`. The POSIX root collapses to `/` (parent of
+/// `/foo` is `/`). The Windows drive root snaps its trailing
+/// separator back so `parent(r"C:\Users")` returns `C:\` (the form
+/// `list()` expects) rather than the bare `C:`. Returning `None` at
+/// a root lets the caller render "Up" as a no-op rather than
+/// dropping to a wrong directory the lister then rejects.
+#[must_use]
+pub fn parent(path: &str, style: PathStyle) -> Option<String> {
+    if path.is_empty() || path == "/" {
+        return None;
+    }
+    let windows = match style {
+        PathStyle::Posix => false,
+        PathStyle::Windows => true,
+        PathStyle::Auto => path.contains('\\') || is_windows_drive_prefixed(path),
+    };
+    if windows {
+        windows_parent(path)
+    } else {
+        posix_parent(path)
+    }
+}
+
+/// True when `path` starts with a `X:` drive-letter prefix
+/// (`C:\Users`, `D:/data`, or the bare `C:`). Used by [`PathStyle::Auto`]
+/// to pick Windows rules for a drive-rooted path even when it uses
+/// forward slashes.
+fn is_windows_drive_prefixed(path: &str) -> bool {
+    let mut chars = path.chars();
+    matches!(chars.next(), Some(c) if c.is_ascii_alphabetic()) && chars.next() == Some(':')
+}
+
+fn posix_parent(path: &str) -> Option<String> {
+    let trimmed = path.strip_suffix('/').unwrap_or(path);
+    if trimmed.is_empty() {
+        // Was just "/" after stripping — root has no parent.
+        return None;
+    }
+    match trimmed.rfind('/') {
+        None => None,                     // bare relative segment, no parent
+        Some(0) => Some("/".to_string()), // "/foo" → "/"
+        Some(idx) => Some(trimmed[..idx].to_string()),
+    }
+}
+
+fn windows_parent(path: &str) -> Option<String> {
+    // A drive root in any separator form (`C:\`, `D:/`, bare `C:`)
+    // has no parent.
+    if is_windows_drive_root(path) {
+        return None;
+    }
+    let trimmed = match path.chars().last() {
+        Some('\\') | Some('/') => &path[..path.len() - 1],
+        _ => path,
+    };
+    // Re-check after trimming: `C:\` trims to `C:`.
+    if is_windows_drive_root(trimmed) {
+        return None;
+    }
+    let idx = trimmed.rfind(['\\', '/'])?;
+    let up = &trimmed[..idx];
+    // `up` of `C:\Users` is `C:`; snap the drive root's trailing
+    // separator back so the lister gets the canonical `C:\` form.
+    if is_windows_drive_root(up) {
+        return Some(format!("{up}\\"));
+    }
+    Some(up.to_string())
+}
+
+/// True when `path` is a Windows drive root in any separator form:
+/// `C:`, `C:\`, or `C:/`.
+fn is_windows_drive_root(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    match bytes.len() {
+        2 => bytes[0].is_ascii_alphabetic() && bytes[1] == b':',
+        3 => bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && matches!(bytes[2], b'\\' | b'/'),
+        _ => false,
+    }
+}
+
 /// Generate the `n`-th `"stem (N)ext"` sibling-name candidate
 /// next to [`path`]. Used by the transfer-conflict resolver +
 /// the local + remote drag-into-existing flows: each attempt
@@ -604,6 +704,82 @@ mod tests {
         assert!(is_safe_transfer_entry_name(&huge));
         let huge_sep = format!("{huge}/y");
         assert!(!is_safe_transfer_entry_name(&huge_sep));
+    }
+
+    #[test]
+    fn parent_of_posix_file_drops_to_dir() {
+        assert_eq!(
+            parent("/home/user/file.txt", PathStyle::Posix).as_deref(),
+            Some("/home/user")
+        );
+    }
+
+    #[test]
+    fn parent_of_first_level_posix_collapses_to_root() {
+        assert_eq!(parent("/home", PathStyle::Posix).as_deref(), Some("/"));
+    }
+
+    #[test]
+    fn parent_of_posix_root_is_none() {
+        assert!(parent("/", PathStyle::Posix).is_none());
+        assert!(parent("/", PathStyle::Auto).is_none());
+    }
+
+    #[test]
+    fn parent_strips_trailing_slash_first() {
+        assert_eq!(
+            parent("/home/user/", PathStyle::Posix).as_deref(),
+            Some("/home")
+        );
+    }
+
+    #[test]
+    fn parent_of_empty_is_none() {
+        assert!(parent("", PathStyle::Auto).is_none());
+    }
+
+    #[test]
+    fn parent_of_bare_relative_segment_is_none() {
+        assert!(parent("file.txt", PathStyle::Posix).is_none());
+    }
+
+    #[test]
+    fn parent_of_windows_path_drops_to_dir() {
+        assert_eq!(
+            parent(r"C:\Users\foo\file.txt", PathStyle::Auto).as_deref(),
+            Some(r"C:\Users\foo")
+        );
+    }
+
+    #[test]
+    fn parent_of_windows_first_level_snaps_drive_root() {
+        // Parent of `C:\Users` is the drive root `C:\`, not bare `C:`.
+        assert_eq!(
+            parent(r"C:\Users", PathStyle::Auto).as_deref(),
+            Some(r"C:\")
+        );
+    }
+
+    #[test]
+    fn parent_of_windows_drive_root_is_none() {
+        assert!(parent(r"C:\", PathStyle::Auto).is_none());
+        assert!(parent("C:", PathStyle::Windows).is_none());
+        assert!(parent("D:/", PathStyle::Auto).is_none());
+    }
+
+    #[test]
+    fn parent_auto_detects_windows_from_forward_slash_drive() {
+        // Drive-prefixed even with forward slashes → Windows rules,
+        // so the drive root snaps back with a backslash.
+        assert_eq!(parent("C:/Users", PathStyle::Auto).as_deref(), Some(r"C:\"));
+    }
+
+    #[test]
+    fn parent_auto_treats_plain_path_as_posix() {
+        assert_eq!(
+            parent("/var/log/app", PathStyle::Auto).as_deref(),
+            Some("/var/log")
+        );
     }
 
     #[test]
