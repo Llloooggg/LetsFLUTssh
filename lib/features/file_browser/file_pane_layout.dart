@@ -329,7 +329,13 @@ extension _Layout on _FilePaneState {
     ThemeData theme,
     ({bool size, bool modified, bool mode, bool owner}) cols,
   ) {
-    if (ctrl.loading) {
+    // Only show the full-pane spinner on the first load, when there is
+    // nothing to display yet. A refresh of an already-populated pane (after a
+    // download lands, a mkdir, a rename) keeps the current list rendered — it
+    // updates in place once `refresh()` returns, so the scroll controller
+    // stays attached and the user keeps their scroll position instead of being
+    // thrown back to the top.
+    if (ctrl.loading && ctrl.entries.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (ctrl.error != null) {
