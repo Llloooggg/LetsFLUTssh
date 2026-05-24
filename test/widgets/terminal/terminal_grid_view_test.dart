@@ -107,6 +107,45 @@ void main() {
       expect(painter.frameRevision, 1);
     });
 
+    // Regression: a Wakeup must schedule its OWN frame. In production no
+    // pump runs while the app is idle, so if the view only registered a
+    // post-frame callback (without scheduleFrame) the repaint would starve
+    // until an unrelated pointer/anim frame — the terminal froze mid-stream
+    // and only caught up on a mouse move. A plain `pump()` can't catch this
+    // because the manual frame masks the missing scheduleFrame, so deliver
+    // the event off-pump via runAsync and assert a frame got requested.
+    testWidgets('Wakeup schedules its own frame (no external pump)', (
+      tester,
+    ) async {
+      final controller = StreamController<TerminalUiEvent>();
+      addTearDown(controller.close);
+      await tester.pumpWidget(
+        _app(
+          TerminalGridView.fromSource(
+            snapshotProvider: () => _frameWith('A'),
+            events: controller.stream,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.binding.hasScheduledFrame,
+        isFalse,
+        reason: 'idle after settle',
+      );
+
+      await tester.runAsync(() async {
+        controller.add(const TerminalUiEvent.wakeup());
+        await Future<void>.delayed(Duration.zero);
+      });
+
+      expect(
+        tester.binding.hasScheduledFrame,
+        isTrue,
+        reason: 'a pump Wakeup must request a frame on its own',
+      );
+    });
+
     testWidgets('a burst of wakeups coalesces to one repaint', (tester) async {
       final controller = StreamController<TerminalUiEvent>();
       addTearDown(controller.close);

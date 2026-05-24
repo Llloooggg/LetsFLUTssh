@@ -43,9 +43,15 @@ enum MouseActionKind { press, release, move }
 class TerminalGridView extends StatefulWidget {
   /// Live-session convenience constructor: pulls frames from
   /// `session.snapshot()` and listens to `session.events()`.
-  TerminalGridView({
+  ///
+  /// The session is held as-is and `events()` is subscribed once in the
+  /// State — calling `session.events()` here in the initializer would mint a
+  /// fresh FRB stream on every parent rebuild, and the keyed State would then
+  /// re-subscribe each time (dropping pump wakeups and posting to torn-down
+  /// sinks, the "Fail to post message to Dart" spam).
+  const TerminalGridView({
     super.key,
-    required TerminalSession session,
+    required this.session,
     this.fontSize = 14.0,
     this.onTitle,
     this.onResetTitle,
@@ -60,8 +66,8 @@ class TerminalGridView extends StatefulWidget {
     this.onMouse,
     this.searchMatches = const [],
     this.activeMatchIndex = -1,
-  }) : snapshotProvider = session.snapshot,
-       events = session.events();
+  }) : snapshotProvider = null,
+       events = null;
 
   /// Dependency-injected constructor for tests / non-FFI hosts: supply a
   /// snapshot function and an event stream directly.
@@ -83,10 +89,19 @@ class TerminalGridView extends StatefulWidget {
     this.onMouse,
     this.searchMatches = const [],
     this.activeMatchIndex = -1,
-  });
+  }) : session = null;
 
-  final TerminalSnapshotProvider snapshotProvider;
-  final Stream<TerminalUiEvent> events;
+  /// Live session, or `null` when built via [TerminalGridView.fromSource].
+  /// `events()` is called once from the State, never per rebuild.
+  final TerminalSession? session;
+
+  /// Injected snapshot source for [TerminalGridView.fromSource]; `null` on the
+  /// live-session path (the State reads `session.snapshot` instead).
+  final TerminalSnapshotProvider? snapshotProvider;
+
+  /// Injected event stream for [TerminalGridView.fromSource]; `null` on the
+  /// live-session path (the State subscribes to `session.events()` once).
+  final Stream<TerminalUiEvent>? events;
   final double fontSize;
 
   /// Remote set the window/tab title (OSC 0/2).
@@ -199,27 +214,53 @@ class _TerminalGridViewState extends State<TerminalGridView> {
   DateTime _lastPressTime = DateTime.fromMillisecondsSinceEpoch(0);
   TerminalSelectionKind _tapKind = TerminalSelectionKind.simple;
 
+  /// Resolved once per (re)subscribe: the live session's `snapshot`/`events`,
+  /// or the injected DI source. `events()` is minted exactly once here so a
+  /// parent rebuild does not churn the FRB stream.
+  late TerminalSnapshotProvider _snapshotProvider;
+  late Stream<TerminalUiEvent> _events;
+
   @override
   void initState() {
     super.initState();
-    _frame = widget.snapshotProvider();
+    _resolveSources();
+    _frame = _snapshotProvider();
     _subscribe();
+  }
+
+  void _resolveSources() {
+    final session = widget.session;
+    if (session != null) {
+      _snapshotProvider = session.snapshot;
+      _events = session.events();
+    } else {
+      _snapshotProvider = widget.snapshotProvider!;
+      _events = widget.events!;
+    }
   }
 
   @override
   void didUpdateWidget(TerminalGridView old) {
     super.didUpdateWidget(old);
-    if (old.events != widget.events) {
+    // Re-resolve only when the *source identity* changed — a different live
+    // session, or a different injected stream/provider. A plain parent
+    // rebuild keeps the same session, so we must NOT re-subscribe (which
+    // would re-mint `events()` and drop wakeups).
+    final sessionChanged = !identical(widget.session, old.session);
+    final injectedChanged =
+        widget.session == null &&
+        (widget.events != old.events ||
+            widget.snapshotProvider != old.snapshotProvider);
+    if (sessionChanged || injectedChanged) {
       _eventSub?.cancel();
+      _resolveSources();
       _subscribe();
-    }
-    if (old.snapshotProvider != widget.snapshotProvider) {
       _pullFrame();
     }
   }
 
   void _subscribe() {
-    _eventSub = widget.events.listen(_onEvent, onDone: widget.onClosed);
+    _eventSub = _events.listen(_onEvent, onDone: widget.onClosed);
   }
 
   void _onEvent(TerminalUiEvent event) {
@@ -250,11 +291,18 @@ class _TerminalGridViewState extends State<TerminalGridView> {
       if (!mounted) return;
       _pullFrame();
     });
+    // A post-frame callback only runs once a frame is actually produced.
+    // When the app is otherwise idle (no animation, no pointer/key input)
+    // nothing schedules one, so a pump Wakeup would starve until the next
+    // unrelated frame — the terminal would freeze mid-stream and only catch
+    // up on a mouse move. Force a frame so streamed output (vim redraw,
+    // htop, long build logs) repaints on its own.
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   void _pullFrame() {
     setState(() {
-      _frame = widget.snapshotProvider();
+      _frame = _snapshotProvider();
       _frameRevision++;
     });
   }
