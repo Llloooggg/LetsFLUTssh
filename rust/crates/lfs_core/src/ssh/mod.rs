@@ -1486,9 +1486,17 @@ async fn finish_authenticate_pubkey_sk_cert(
 /// the methods the server still offers plus a partial-success flag; the
 /// SSH protocol exposes nothing more granular — a server never reports
 /// which key was wrong (anti-enumeration) — so this is the honest
-/// ceiling for a non-verbose connect. The detail rides `Error::Auth`,
-/// which the connect driver surfaces verbatim into the progress step,
-/// the `ConnectionError` event, and the `CoreConnect` warn log.
+/// ceiling for a non-verbose connect.
+///
+/// A plain credential rejection (`partial_success == false`) rides
+/// `Error::AuthFailed`, whose Display includes the detail and which
+/// maps to the `auth_failed` wire kind so the Dart router re-prompts
+/// the credential tier. A partial success (`partial_success == true`)
+/// means the server accepted this step but requires a further auth
+/// method, which is genuinely "other" — it rides `Error::Auth` /
+/// `auth_other`, routed to manual retry. Either way the detail is
+/// surfaced verbatim into the progress step, the `ConnectionError`
+/// event, and the `CoreConnect` warn log.
 fn check_auth_result(result: AuthResult) -> Result<(), Error> {
     match result {
         AuthResult::Success => Ok(()),
@@ -1502,14 +1510,15 @@ fn check_auth_result(result: AuthResult) -> Result<(), Error> {
             } else {
                 methods.join(", ")
             };
-            let partial = if partial_success {
-                " (partial success: the server accepted this step but requires further authentication)"
+            if partial_success {
+                Err(Error::Auth(format!(
+                    "server rejected the credential — methods the server still offers: {methods} (partial success: the server accepted this step but requires further authentication)"
+                )))
             } else {
-                ""
-            };
-            Err(Error::Auth(format!(
-                "server rejected the credential — methods the server still offers: {methods}{partial}"
-            )))
+                Err(Error::AuthFailed(format!(
+                    "server rejected the credential — methods the server still offers: {methods}"
+                )))
+            }
         }
     }
 }
@@ -1634,6 +1643,12 @@ mod tests {
         assert!(msg.contains("password"), "got: {msg}");
         assert!(msg.contains("publickey"), "got: {msg}");
         assert!(!msg.contains("partial success"), "got: {msg}");
+        // A plain rejection is `AuthFailed` (→ auth_failed wire kind),
+        // so the Dart router re-prompts the matching credential tier.
+        assert!(
+            matches!(err, Error::AuthFailed(_)),
+            "plain rejection must be AuthFailed: {err:?}"
+        );
     }
 
     #[test]
@@ -1646,6 +1661,13 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("partial success"), "got: {msg}");
         assert!(msg.contains("none"), "got: {msg}");
+        // Partial success means "further auth required" — genuinely
+        // other, so it rides `Auth` (→ auth_other) for manual retry,
+        // never `AuthFailed`.
+        assert!(
+            matches!(err, Error::Auth(_)),
+            "partial success must be Auth (auth_other): {err:?}"
+        );
     }
 
     fn random_ed25519_pem() -> Vec<u8> {

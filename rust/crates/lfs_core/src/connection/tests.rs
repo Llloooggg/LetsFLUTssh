@@ -133,7 +133,7 @@ fn make_actor(id: &str, internal: bool) -> ConnectionActor {
 fn failure_phase_routes_auth_variants_to_authenticate() {
     for err in [
         Error::Auth("server refused".into()),
-        Error::AuthFailed,
+        Error::AuthFailed("server rejected the credential".into()),
         Error::PassphraseRequired,
         Error::PassphraseIncorrect,
         Error::KeyParse("malformed PEM".into()),

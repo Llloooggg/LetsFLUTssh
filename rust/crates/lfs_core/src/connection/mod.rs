@@ -1217,7 +1217,7 @@ fn hardware_over_proxyjump_unsupported(signer: HardwareSigner) -> Error {
 fn failure_phase(err: &Error) -> ConnectionPhase {
     match err {
         Error::Auth(_)
-        | Error::AuthFailed
+        | Error::AuthFailed(_)
         | Error::PassphraseRequired
         | Error::PassphraseIncorrect
         | Error::KeyParse(_) => ConnectionPhase::Authenticate,

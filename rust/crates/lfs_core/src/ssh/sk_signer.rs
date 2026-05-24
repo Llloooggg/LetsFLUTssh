@@ -168,8 +168,8 @@ mod tests {
 
     #[test]
     fn signer_error_round_trips_to_core_error() {
-        let core: Error = SkSignerError::Fido(Error::AuthFailed).into();
-        assert!(matches!(core, Error::AuthFailed));
+        let core: Error = SkSignerError::Fido(Error::AuthFailed("rejected".into())).into();
+        assert!(matches!(core, Error::AuthFailed(_)));
         let io: Error = SkSignerError::Send(russh::SendError {}).into();
         assert!(matches!(io, Error::Io(_)));
     }

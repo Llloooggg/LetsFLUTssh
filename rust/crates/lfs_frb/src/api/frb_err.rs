@@ -234,7 +234,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
     match err {
         CoreError::Connect(s) => wire(kind::CONNECT, s),
         CoreError::Handshake(s) => wire(kind::HANDSHAKE, s),
-        CoreError::AuthFailed => wire(kind::AUTH_FAILED, ""),
+        CoreError::AuthFailed(s) => wire(kind::AUTH_FAILED, s),
         CoreError::Auth(s) => wire(kind::AUTH_OTHER, s),
         CoreError::KeyParse(s) => wire(kind::KEY_PARSE, s),
         CoreError::PassphraseRequired => wire(kind::PASSPHRASE_REQUIRED, ""),
@@ -610,8 +610,8 @@ mod tests {
     #[test]
     fn from_core_maps_each_variant() {
         assert_eq!(
-            from_core(&CoreError::AuthFailed),
-            r#"{"kind":"auth_failed","detail":""}"#
+            from_core(&CoreError::AuthFailed("server rejected".into())),
+            r#"{"kind":"auth_failed","detail":"server rejected"}"#
         );
         assert_eq!(
             from_core(&CoreError::Sftp("no such file".into())),

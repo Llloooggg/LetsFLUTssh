@@ -18,8 +18,16 @@ pub enum Error {
     #[error("ssh handshake failed: {0}")]
     Handshake(String),
 
-    #[error("authentication failed")]
-    AuthFailed,
+    /// Server rejected the supplied credential — every offered tier
+    /// was exhausted without a partial-success step. Carries the
+    /// server's failure detail (the methods it still offers) so the
+    /// connection log / progress step explain *why* instead of a bare
+    /// "authentication failed". Maps to the `auth_failed` wire kind,
+    /// which the Dart router re-prompts on the matching credential tier
+    /// — distinct from `Auth`, whose `auth_other` kind routes to manual
+    /// retry.
+    #[error("authentication failed: {0}")]
+    AuthFailed(String),
 
     #[error("auth error: {0}")]
     Auth(String),
