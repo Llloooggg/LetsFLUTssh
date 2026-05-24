@@ -263,7 +263,7 @@ lib/
 │   │   ├── paste_import_link_dialog.dart, ssh_dir_import_dialog.dart, local_directory_picker.dart
 │   │   └── file_conflict_dialog.dart # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
 │   └── terminal/                     # Terminal rendering widgets (engine in features/terminal)
-│       ├── app_terminal_view.dart, readonly_terminal_view.dart, xterm_shell_terminal.dart
+│       ├── app_terminal_view.dart, readonly_terminal_grid_view.dart, xterm_shell_terminal.dart
 │       ├── anchor_pinning_terminal_controller.dart, terminal_cell_metrics.dart
 │       └── connection_progress.dart, progress_writer.dart, update_progress_indicator.dart
 ├── theme/                            # OneDark / One Light palettes
@@ -3658,6 +3658,29 @@ already-encoded bytes for callers that hold them (snippets, `sendCommand`);
 `paste(text)` runs the bracketed-paste encoder. `resize(cols, rows)` resizes
 both the engine grid and the remote PTY (`window_change`).
 
+#### `TerminalReplay` — the shell-less read-only handle
+
+The read-only surfaces — recording playback, the connection-progress output,
+and the log viewer — have **no SSH shell**. They only push pre-formed bytes
+(recorded session output, ANSI progress frames, ANSI-formatted log lines)
+into an engine and render the resulting grid; there is no remote to send
+input to and no `next_event` loop to pump. `terminal_replay_open(cols, rows,
+scrollback, palette)` returns a `TerminalReplay`: the same `TerminalEngine`
+behind an `Arc<Mutex<…>>`, minus the shell and the pump.
+
+`feed(bytes)`, `snapshot()`, `resize`, `clear`, and `set_palette` are all
+`#[frb(sync)]` — the only contender for the lock is the feeder's own calls
+(no async pump), so a feeder can push a tight burst of frames and pull one
+snapshot without an `await` per write. `feed` drains the engine's event queue
+after each feed and **discards** it: a replay has no shell to forward a
+[`PtyWrite`](#events-and-the-ptywrite-contract) reply to (a device-status
+query like `ESC[6n` produces one), and no host wired to bell / title on these
+surfaces — but it still drains so the queue cannot grow unbounded across a
+long replay. There is no event stream: the feeder triggers its own repaint
+after each feed (the Dart `ReadOnlyTerminalController` bumps a `ChangeNotifier`
+the `ReadOnlyTerminalGridView` listens to — see
+[§5.1 read-only rendering](#read-only-rendering--terminalreplay)).
+
 #### Key encoding — Rust-owned, mode-driven (`lfs_core::terminal::input`)
 
 `alacritty_terminal` ships only the terminal *model*: the Alacritty binary
@@ -3794,10 +3817,12 @@ The desktop pane (`features/terminal/`, [§5.1](#51-terminal-with-tiling-feature
 renders this engine through a `CustomPaint` cell grid and feeds keyboard
 input back through `send_key` / `paste`, pointer drags through
 `set_selection` / `send_mouse`, and the search bar through `search`. The
-mobile / recording-playback / read-only-log surfaces still use `xterm` and
-migrate in their own tasks,
-after which the `xterm` dependency is removed. §3.16 is the Rust engine +
-FRB bridge + key encoder; §5.1 is the Dart rendering + input path.
+read-only surfaces (recording playback, connection-progress output, the log
+viewer) render through the same painter over a shell-less `TerminalReplay`
+(above). The **mobile pane** is the last remaining `xterm` consumer and
+migrates in its own task, after which the `xterm` dependency is removed.
+§3.16 is the Rust engine + FRB bridge + key encoder; §5.1 is the Dart
+rendering + input path.
 
 ## 4. State Management — Riverpod
 
@@ -3982,9 +4007,11 @@ class _FooDialogState extends State<FooDialog> {
 > The **desktop pane** now renders that engine through a `CustomPaint`
 > cell grid (`TerminalGridView` / `TerminalGridPainter`) fed by the FRB
 > `TerminalSession` — see [Desktop rendering](#desktop-rendering--custompaint-cell-grid) below.
-> The **mobile pane**, **recording playback**, and the **read-only log
-> viewer** still render through `xterm`'s `TerminalView`; they migrate in
-> their own tasks. Desktop **keyboard input** is wired (encoded Rust-side via
+> **Recording playback**, the **connection-progress output**, and the
+> **read-only log viewer** now render through the Rust engine too, over a
+> shell-less `TerminalReplay` (see [Read-only rendering](#read-only-rendering--terminalreplay)
+> below). The **mobile pane** is the last remaining `xterm` consumer and
+> migrates in its own task. Desktop **keyboard input** is wired (encoded Rust-side via
 > `TerminalSession.sendKey` / `paste` — see [Keyboard input](#keyboard-input--rust-encoded) below).
 > Desktop **selection + copy**, **in-terminal search**, and **mouse
 > reporting** are wired on the new path — see
@@ -4005,7 +4032,8 @@ class _FooDialogState extends State<FooDialog> {
 | `widgets/terminal/terminal_grid_painter.dart` | `TerminalGridPainter`, `TerminalSelectionRect`, `selectionRects`, `TerminalHighlightRect` | `CustomPainter` that paints one sparse `TerminalFrame`: per-cell background rects, search-match highlights (active match in a stronger color), glyph runs, cursor (with inverted glyph under a block), and the selection highlight. `selectionRects` is the pure linear/block geometry helper. |
 | `widgets/terminal/terminal_cell_flags.dart` | `TerminalCellFlags` | Single decode point for the raw `alacritty_terminal` attribute bitfield (bold / italic / underline / strikeout / hidden / wide). Constants mirror `alacritty_terminal-0.26.0/src/term/cell.rs`. |
 | `widgets/terminal/terminal_palette_theme.dart` | `TerminalPaletteFromTheme` | Maps the live `AppTheme.term*` swatches (dark + light) into the FRB `TerminalPalette` DTO pushed at open and re-pushed via `setPalette` on a brightness change. |
-| `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay) for the surfaces still on `xterm`. Exports the canonical 1.2 line-height multiplier every custom painter — including `TerminalGridPainter` — sizes glyphs with. |
+| `widgets/terminal/readonly_terminal_grid_view.dart` | `ReadOnlyTerminalController`, `ReadOnlyTerminalGridView` | Read-only rendering over a shell-less `TerminalReplay`: the controller (widget-local `ChangeNotifier`) feeds bytes + bumps a repaint signal; the view re-pulls a `snapshot()` and paints it through `TerminalGridPainter` with no input / selection / mouse. Backs recording playback, connection-progress output, and the log viewer — see [Read-only rendering](#read-only-rendering--terminalreplay). |
+| `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay) for the mobile pane, the last `xterm` consumer. Exports the canonical 1.2 line-height multiplier every custom painter — including `TerminalGridPainter` — sizes glyphs with. |
 | `tiling_view.dart` | `TilingView` | Recursive split-tree renderer. Drives terminal-pane tiling: `BranchNode`s are created by the divider drag handler + the Ctrl+\\ / Ctrl+Shift+\\ duplicate-shortcut path; `LeafNode`s materialise per pane. |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
 | `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out). Wired to terminal panes via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`; driver + receiver roles set through the pane context menu. |
@@ -4065,7 +4093,7 @@ flowchart TD
 
 **Scrollback + zoom.** A plain mouse wheel over the grid converts pixel delta to whole lines and calls `session.scroll` (positive = up into scrollback); Ctrl+wheel is routed to font zoom instead. Font size lives in `configProvider` and drives the cell metrics, so a zoom re-measures and re-resizes the session.
 
-**Connection progress:** During the connect cascade the pane shows the shared `ConnectionProgress` widget (still `xterm`-backed — it migrates with the other secondary surfaces), swapping to the live grid once the session opens. On failure the pane shows the localized error text in the terminal background.
+**Connection progress:** During the connect cascade the pane shows the shared `ConnectionProgress` widget (now Rust-engine-backed via a `TerminalReplay` — see [Read-only rendering](#read-only-rendering--terminalreplay)), swapping to the live grid once the session opens. On failure the pane shows the localized error text in the terminal background.
 
 #### Keyboard input — Rust-encoded
 
@@ -4101,7 +4129,18 @@ flowchart TD
 
 Ctrl+Shift+F opens `TerminalSearchBar` above the grid (Esc / the close button hide it; Esc only closes while the bar is open so it still reaches the shell otherwise). The bar owns only its text buffer + a 200 ms debounce; on each query change the pane runs `session.search(query)` (Rust-side per-line substring scan over grid + scrollback) and holds the `List<TerminalMatch>` in absolute grid-line coordinates plus the current-match index. `TerminalGridView` projects those matches onto the live viewport each build via `highlightRectsForMatches` (so highlights track scrolling) and paints them under the glyphs, the focused match in a stronger color. Next / prev (buttons or Enter / Shift+Enter) advance the index and call `scrollDeltaToRevealLine` → `session.scroll` so the focused match is always on screen; the `current/total` count comes from the Rust-computed list, not a Dart re-count.
 
-**Deferred on the desktop path.** Per-tab broadcast and session recording pause on the desktop pane: both forked the per-byte stream in Dart's `ShellHelper`, and that fork moves into the Rust pump body (the recorder / broadcast hook slot documented on `TerminalSession::events`) — the connection-bar record button hides itself while no pane registers a recording handle. The `xterm`-mode-only `hardwareKeyboardOnly` notes no longer apply to the desktop grid; they survive only on the mobile / read-only surfaces still on `xterm`.
+**Deferred on the desktop path.** Per-tab broadcast and session recording pause on the desktop pane: both forked the per-byte stream in Dart's `ShellHelper`, and that fork moves into the Rust pump body (the recorder / broadcast hook slot documented on `TerminalSession::events`) — the connection-bar record button hides itself while no pane registers a recording handle. The `xterm`-mode-only `hardwareKeyboardOnly` notes survive only on the mobile pane, the last `xterm` consumer.
+
+#### Read-only rendering — `TerminalReplay`
+
+Three surfaces render terminal content with no live shell — they only feed
+bytes and paint:
+
+- **Recording playback** (`features/recordings/recording_playback_dialog.dart`) — replays an asciinema-v2 capture: the 60 Hz tick concatenates the events due since the last tick and feeds them in one engine call. A scrub feeds `ESC c` (RIS, full reset — clears the screen *and* the alt-screen / scroll-region / SGR modes a plain grid clear leaves alive) then re-feeds `0..target`, so htop / vim captures rebuild on a pristine engine instead of bleeding ghost characters.
+- **Connection-progress output** (`widgets/terminal/connection_progress.dart` + `progress_writer.dart`) — the ANSI step lines (`[*]` / `[✓]` / `[✗]` with cursor-up rewrites) the connect cascade emits.
+- **Log viewer** (`features/settings/settings_logging.dart`) — the ANSI-formatted log stream (per-level stripe glyph + bold-tinted tag); the replay engine is chosen over a plain monospace list precisely because log lines carry SGR color.
+
+All three drive a `ReadOnlyTerminalController` (a widget-local `ChangeNotifier` wrapping a `TerminalReplay`) and render it through `ReadOnlyTerminalGridView`, which reuses the live pane's `TerminalGridPainter` + `measureMonoCell`. The view has no keyboard / selection / mouse wiring — read-only means no input. After each `feed` / `clear` / `resize` the controller bumps the notifier; the view re-pulls a `snapshot()` and repaints (no `Wakeup` event stream exists for a replay — see [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle)). When `reportResize` is set (progress + log surfaces) the laid-out whole-cell count is reported back so the engine grid tracks the viewport; recording playback leaves it off and renders the fixed recorded `w × h`. `ProgressWriter` keeps a second `xterm`-backed constructor (`ProgressWriter.new`) for the mobile pane, which still owns an `xterm` `Terminal`; the desktop surface uses `ProgressWriter.controller`.
 
 #### Keyboard Shortcuts
 
@@ -4964,15 +5003,21 @@ Compact icon + number indicator with tooltip. Used in sidebar footer to display 
 
 **File:** `lib/widgets/core/status_indicator.dart`
 
-### ReadOnlyTerminalView
+### ReadOnlyTerminalGridView
 
 ```dart
-ReadOnlyTerminalView({
-  required Terminal terminal,
+ReadOnlyTerminalGridView({
+  required ReadOnlyTerminalController controller,
   double fontSize = 14.0,
+  bool reportResize = false,
+})
+ReadOnlyTerminalGridView.fromSource({           // DI seam for tests
+  required TerminalSnapshotProvider snapshotProvider,
+  required Listenable repaint,
+  void Function(int cols, int rows)? onResize,
 })
 ```
-Read-only xterm `TerminalView` wrapper — no keyboard input, cursor hidden. Used by `ConnectionProgress` for SFTP tab progress/error display. Wraps in a `Focus` for the terminal-copy keyboard shortcut and a `Listener` whose `onPointerDown` shows a one-item Copy context menu on right-click. The selection text is captured synchronously in the listener (before xterm's gesture arena resolves) so the menu's Copy action operates on a stable snapshot — competing recognisers that wipe `controller.selection` between right-click and the menu tap can no longer turn a Copy into a no-op.
+Read-only rendering over a shell-less `TerminalReplay`, reusing the live pane's `TerminalGridPainter`. No keyboard / selection / mouse — read-only means no input. The `ReadOnlyTerminalController` (a widget-local `ChangeNotifier` wrapping the replay) exposes `feed` / `clear` / `resize` / `setPalette` / `snapshot` and bumps the notifier after each mutation; the view re-pulls a snapshot and repaints on every notify (there is no `Wakeup` stream — the feeder triggers its own repaint). With `reportResize` the laid-out whole-cell count is reported back so the engine grid tracks the viewport. Used by recording playback, `ConnectionProgress`, and the log viewer — see [§5.1 Read-only rendering](#read-only-rendering--terminalreplay) and [§3.16 TerminalReplay](#terminalreplay--the-shell-less-read-only-handle).
 
 ### ThresholdDraggable
 
@@ -5479,11 +5524,9 @@ sensitive-content heuristic on the resulting text, writes it through
 either `SecureClipboard` (PEM private key / ≥ 200-char base64 run) or
 `Clipboard.setData`, then clears the selection as a side-effect.
 `copyText()` is the same routing without the controller dependency —
-used by [ReadOnlyTerminalView](#readonlyterminalview)'s right-click
-menu, which captures the selected text snapshot synchronously at
-`onPointerDown` so the menu's Copy action stays correct even if a
-competing gesture recogniser clears `controller.selection` between
-the right-click and the user's choice.
+used by the desktop pane's Ctrl+Shift+C, which reads
+`session.selectionText()` (the Rust-side selection) and routes the result
+through `copyText` (see [§5.1 Pointer input](#pointer-input-selection-copy--mouse-reporting)).
 
 ### Format
 

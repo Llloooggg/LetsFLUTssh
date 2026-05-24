@@ -159,14 +159,16 @@ class _LogViewerHost extends StatelessWidget {
   }
 }
 
-/// Inline live log viewer. Rendered as a `ListView.builder` of
-/// styled rows wrapped in a `SelectionArea` — drag-select crosses
-/// row boundaries natively, the right-click context menu is
-/// Flutter's adaptive Copy / Select All toolbar, and each row
-/// carries a level-tinted left border + tag chip without any ANSI
-/// hackery. Data flows through the app-level [LogStore] singleton
-/// which is seeded at boot and updated live by `AppLogger.liveEntries`,
-/// so opening the tab is instant.
+/// Inline live log viewer. Renders an ANSI-formatted log stream through the
+/// Rust terminal engine ([ReadOnlyTerminalController] + grid view): each entry
+/// is formatted with a level-tinted vertical stripe + bold tag chip, the
+/// engine owns scrollback, and the grid view paints it. Data flows through the
+/// app-level [LogStore] singleton which is seeded at boot and updated live by
+/// `AppLogger.liveEntries`, so opening the tab is instant.
+///
+/// The replay engine (over a plain monospace list) is chosen because log
+/// lines carry ANSI SGR color — per-level stripes + tinted tags — so a plain
+/// `SelectableText` would render escape sequences as literal text.
 class _LiveLogViewer extends ConsumerStatefulWidget {
   final VoidCallback onExport;
   final VoidCallback onClear;
@@ -193,25 +195,18 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   final _searchController = TextEditingController();
   late final LogStore _store;
 
-  /// Backing xterm `Terminal`. Holds the ANSI-formatted stream that
-  /// renders into [ReadOnlyTerminalView]. Sized for the LogStore's
-  /// 50k entry cap × ~2 visual lines per entry (with continuations)
-  /// — well under xterm's per-line memory budget.
-  ///
-  /// Migrated from a `SelectionArea + ListView.builder + _LogRow`
-  /// shape because Flutter's `SelectableRegion` had compounding
-  /// right-click bugs in this configuration: nested regions fought
-  /// over the global `ContextMenuController`, the lazy `ListView`
-  /// triggered `RenderParagraph.getBoxesForSelection` assertion
-  /// floods when its children mounted mid-selection, and
-  /// inflating row selection rects to fix the "click-between-glyphs"
-  /// collapse only papered over symptoms. xterm owns selection and
-  /// the context menu internally (via `ReadOnlyTerminalView`'s
-  /// `Listener`-based secondary-tap handler), so the log viewer
-  /// no longer participates in Flutter's selection machinery at all.
-  late final Terminal _terminal;
+  /// Backing Rust terminal engine. Holds the ANSI-formatted stream that
+  /// renders into [ReadOnlyTerminalGridView]. Scrollback sized for the
+  /// LogStore's entry cap × ~2 visual lines per entry (with continuations).
+  late final ReadOnlyTerminalController _controller;
 
-  /// Last batch of filteredEntries we wrote to [_terminal]. Used by
+  /// Wrap width (columns) the entries were last formatted against. The grid
+  /// view reports the laid-out cell count back through the controller's
+  /// resize; when it changes, the wrap points are stale and the next sync
+  /// forces a full rewrite (see [_syncTerminal]).
+  int _lastFormatCols = 0;
+
+  /// Last batch of filteredEntries fed into the engine. Used by
   /// [_syncTerminal] to choose between appending a tail-only diff
   /// vs. tearing down and re-streaming the whole filtered set.
   List<LogEntry>? _lastWrittenSnapshot;
@@ -233,16 +228,13 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   void initState() {
     super.initState();
     _store = ref.read(logStoreProvider);
-    // No `onResize` wiring: rewriting the whole buffer to refresh
-    // wrap-points on every resize wipes the scrollback (`\x1B[3J`
-    // in `_syncTerminal`) and invalidates every active selection
-    // anchor — a single-pixel viewport-width change (e.g.
-    // scrollbar toggling on a scroll burst) drops the user's
-    // active selection mid-interaction. Old lines keep their
-    // write-time wrap; new lines use the current width. Modern
-    // terminal emulators behave similarly — they don't reflow on
-    // resize either, so this is the conventional trade-off.
-    _terminal = Terminal(maxLines: 100000);
+    // The grid view reports the laid-out cell count back through
+    // `reportResize`, so the engine's `cols` tracks the actual viewport
+    // width and `_syncTerminal` wraps entries to fit. A width change forces
+    // one full rewrite (the wrap points moved); steady-state appends do not.
+    _controller = ReadOnlyTerminalController(cols: 80, rows: 200);
+    _lastFormatCols = _controller.cols;
+    _controller.addListener(_onControllerChanged);
     _changesSub = _store.changes.listen((_) => _syncTerminal());
     _syncTerminal();
     // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
@@ -255,15 +247,26 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   @override
   void dispose() {
     unawaited(_changesSub?.cancel());
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// React to the controller resizing (the grid view reported a new cell
+  /// count): if the wrap width changed, re-sync so entries re-wrap to the new
+  /// column count. The controller also notifies on feed, but `_syncTerminal`
+  /// is what feeds, so a re-sync there is driven by [LogStore.changes], not
+  /// this listener — this only catches the resize-width branch.
+  void _onControllerChanged() {
+    if (_controller.cols != _lastFormatCols) _syncTerminal();
   }
 
   void _pushFilter() {
     _store.applyFilter(visibleLevels: _visibleLevels, query: _query);
   }
 
-  /// Reconcile [_terminal] with [`LogStore.filteredEntries`]. Two
+  /// Reconcile the engine with [`LogStore.filteredEntries`]. Two
   /// shapes:
   ///   * **Append**: the new list is a strict extension of the
   ///     last snapshot (same references at every prior index, just
@@ -279,27 +282,37 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   /// `List` on change. The append-vs-rewrite check is therefore a
   /// cheap reference walk, not a structural compare.
   void _syncTerminal() {
+    // Latch the wrap width up front so the controller's per-feed notify
+    // (which fires `_onControllerChanged`) sees an already-current
+    // `_lastFormatCols` and does not re-enter this sync.
+    final cols = _controller.cols;
+    final colsChanged = cols != _lastFormatCols;
+    _lastFormatCols = cols;
+
     final current = _store.filteredEntries;
     final lastSnap = _lastWrittenSnapshot;
-    if (lastSnap == null ||
+    final buf = StringBuffer();
+    if (colsChanged ||
+        lastSnap == null ||
         current.length < lastSnap.length ||
         !_startsWith(current, lastSnap)) {
       // CSI H = home cursor; CSI 2J = erase visible viewport;
       // CSI 3J = erase scrollback. The 2J alone wipes only the
-      // visible area — xterm preserves scrollback above unless
-      // 3J asks otherwise. Without 3J the previously-written
-      // banner + entries linger above the freshly-rewritten ones
-      // (visible on scroll-up as a duplicate session) every time
-      // a resize or filter change forces a full rewrite.
-      _terminal.write('\x1B[H\x1B[2J\x1B[3J');
+      // visible area — scrollback is preserved unless 3J asks
+      // otherwise. Without 3J the previously-written banner +
+      // entries linger above the freshly-rewritten ones (visible
+      // on scroll-up as a duplicate session) every time a resize
+      // or filter change forces a full rewrite.
+      buf.write('\x1B[H\x1B[2J\x1B[3J');
       for (final entry in current) {
-        _terminal.write(_formatEntry(entry));
+        buf.write(_formatEntry(entry));
       }
     } else if (current.length > lastSnap.length) {
       for (var i = lastSnap.length; i < current.length; i++) {
-        _terminal.write(_formatEntry(current[i]));
+        buf.write(_formatEntry(current[i]));
       }
     }
+    if (buf.isNotEmpty) _controller.feed(utf8.encode(buf.toString()));
     _lastWrittenSnapshot = current;
   }
 
@@ -315,22 +328,19 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   ///
   /// Routine entries: `▎ HH:MM:SS [TAG] message` where:
   ///   * `▎` (U+258E LEFT ONE QUARTER BLOCK) is a per-level
-  ///     vertical stripe (info/warn/error → blue / yellow / red),
-  ///     the xterm equivalent of the 2 px `Border(left: ...)` the
-  ///     pre-migration `_LogRow` rendered. xterm has no cell-
-  ///     border concept; a coloured glyph in column 0 is the
-  ///     closest visual analog.
+  ///     vertical stripe (info/warn/error → blue / yellow / red).
+  ///     A terminal grid has no per-cell border, so a coloured glyph
+  ///     in column 0 is the closest visual analog to a left accent bar.
   ///   * The tag is bold-tinted in the level colour. No padding —
   ///     padding to a fixed column read as a "weird gap" after
   ///     `]` since short tags left big trailing whitespace.
-  ///   * Long lines are **manually wrapped** to the terminal's
-  ///     current `viewWidth`, with the stripe re-emitted on every
-  ///     visual row so the level marker stays continuous on
-  ///     wraps. xterm's built-in wrap drops to column 0 on each
-  ///     wrap → stripe disappears from the tail of a wrapped
-  ///     entry. The cached `_lastWrittenSnapshot` is invalidated
-  ///     on terminal resize (see [_onTerminalResize]) so wrap
-  ///     points stay in sync with the column count.
+  ///   * Long lines are **manually wrapped** to the engine's
+  ///     current column count (`_controller.cols`), with the stripe
+  ///     re-emitted on every visual row so the level marker stays
+  ///     continuous on wraps. The terminal's built-in wrap drops to
+  ///     column 0 on each wrap → the stripe would disappear from the
+  ///     tail of a wrapped entry. A column-count change forces a full
+  ///     rewrite in [_syncTerminal] so wrap points stay in sync.
   ///   * Continuation lines repeat the stripe (and the message-
   ///     start indent) so the row remains visually contiguous,
   ///     and dim the body.
@@ -343,14 +353,14 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   /// Other headers (`Platform: ...`, `Dart: ...`) just render as
   /// dim text with no decoration.
   ///
-  /// `\r\n` line breaks throughout so xterm's terminal state
-  /// machine treats each line as its own row — a bare `\n` would
-  /// scroll without carriage return and the next entry would
-  /// start at the previous column.
+  /// `\r\n` line breaks throughout so the terminal state machine
+  /// treats each line as its own row — a bare `\n` would scroll
+  /// without carriage return and the next entry would start at the
+  /// previous column.
   String _formatEntry(LogEntry entry) {
     if (entry.isHeader) {
       if (entry.message.startsWith('--- ')) {
-        final dividerWidth = _terminal.viewWidth.clamp(20, 200);
+        final dividerWidth = _controller.cols.clamp(20, 200);
         final divider = '\x1B[2m${'─' * dividerWidth}\x1B[0m';
         final cleaned = entry.message.replaceAll(
           RegExp(r'^---\s+|\s+---$'),
@@ -371,7 +381,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
         : '';
     final tagAnsi = '\x1B[1;${code}m${tagRaw.trimRight()}\x1B[0m ';
 
-    final viewWidth = _terminal.viewWidth;
+    final viewWidth = _controller.cols;
     final availRest = (viewWidth - stripeColumns).clamp(8, viewWidth);
     final availFirst = (availRest - headerColumns).clamp(8, availRest);
 
@@ -518,9 +528,9 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   /// Copy semantics: serialise every entry currently in the store's
   /// `allEntries` list (filter-independent — a "Copy log" button means
   /// "everything captured", not "what is shown after my level filter").
-  /// Falls back to a "log is empty" toast when nothing has been
-  /// logged yet. The right-click context menu inside the viewer
-  /// handles selection-aware copy via `SelectionArea`.
+  /// Falls back to a "log is empty" toast when nothing has been logged yet.
+  /// This is the only copy path — the read-only grid view does not support
+  /// in-viewer text selection.
   void _copyLogToClipboard(BuildContext context) {
     final entries = _store.allEntries;
     final buf = StringBuffer();
@@ -604,14 +614,11 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   }
 
   Widget _buildLogBody() {
-    // The log viewer renders to an xterm `Terminal` through
-    // [ReadOnlyTerminalView]. The terminal owns scrollback,
-    // selection, right-click context menu, and Ctrl+C copy — none
-    // of which go through Flutter's `SelectableRegion` machinery.
-    // The "is the buffer empty?" overlay still rebuilds when the
-    // store signals a change (via `StreamBuilder` on `_store.changes`),
-    // so the localized empty-state stays in sync with
-    // `_store.allEntries`.
+    // The log viewer renders the ANSI-formatted stream through the Rust
+    // terminal engine ([ReadOnlyTerminalGridView]); the engine owns
+    // scrollback. The "is the buffer empty?" overlay rebuilds when the store
+    // signals a change (via `StreamBuilder` on `_store.changes`), so the
+    // localized empty-state stays in sync with `_store.allEntries`.
     return StreamBuilder<void>(
       stream: _store.changes,
       builder: (context, _) {
@@ -627,14 +634,15 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
             ),
           );
         }
-        // `ClipRect` so xterm's last partial row (when the
-        // container's pixel height isn't an integer multiple of
-        // the row height) is clipped at the bottom border instead
-        // of bleeding past it.
+        // `ClipRect` so the last partial row (when the container's pixel
+        // height isn't an integer multiple of the row height) is clipped at
+        // the bottom border instead of bleeding past it.
         return ClipRect(
-          child: ReadOnlyTerminalView(
-            terminal: _terminal,
+          child: ReadOnlyTerminalGridView(
+            controller: _controller,
             fontSize: AppFonts.sm,
+            reportResize: true,
+            selectable: true,
           ),
         );
       },

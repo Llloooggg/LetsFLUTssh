@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:xterm/xterm.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
@@ -67,7 +66,7 @@ import '../../widgets/core/app_popup_select.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_selection_area.dart';
 import '../../widgets/core/sidebar_nav_dialog.dart';
-import '../../widgets/terminal/readonly_terminal_view.dart';
+import '../../widgets/terminal/readonly_terminal_grid_view.dart';
 import '../../widgets/core/app_icon_button.dart';
 import '../../widgets/core/confirm_dialog.dart';
 import '../../widgets/core/typed_name_confirm_dialog.dart';
@@ -233,10 +232,10 @@ class _MobileSettingsScreen extends ConsumerWidget {
       // `SelectionArea` wraps the body because this route is pushed
       // on the root Navigator, above the MainScreen-level
       // `SelectionArea` — so without an inner one the body's Text
-      // widgets would lose drag-to-select. The log viewer no longer
-      // nests its own `SelectionArea` (it renders to an xterm
-      // `Terminal` which has independent selection), so there is no
-      // `ContextMenuController` contention any more.
+      // widgets would lose drag-to-select. The log viewer renders to the
+      // Rust terminal engine (a `CustomPaint` grid), which holds no
+      // selection of its own, so there is no `ContextMenuController`
+      // contention with this outer area.
       body: AppSelectionArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

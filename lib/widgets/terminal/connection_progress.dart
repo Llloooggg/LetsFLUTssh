@@ -1,17 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
 import 'progress_writer.dart';
+import 'readonly_terminal_grid_view.dart';
 import '../../l10n/app_localizations.dart';
-import 'readonly_terminal_view.dart';
 
-/// Displays structured connection progress using a read-only xterm Terminal —
-/// identical rendering to the terminal pane progress output.
+/// Displays structured connection progress through the Rust terminal engine —
+/// identical rendering to the live terminal pane's progress output.
 ///
 /// Used by SFTP file browser tabs (desktop and mobile).
 class ConnectionProgress extends StatefulWidget {
@@ -34,7 +34,7 @@ class ConnectionProgress extends StatefulWidget {
 }
 
 class ConnectionProgressState extends State<ConnectionProgress> {
-  late final Terminal _terminal;
+  late final ReadOnlyTerminalController _controller;
   ProgressTracker? _tracker;
   late ProgressWriter _writer;
   StreamSubscription<ConnectionStep>? _sub;
@@ -42,7 +42,11 @@ class ConnectionProgressState extends State<ConnectionProgress> {
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(maxLines: 50);
+    _controller = ReadOnlyTerminalController(
+      cols: 80,
+      rows: 24,
+      scrollback: 50,
+    );
     _tracker = ProgressTracker(widget.connection);
   }
 
@@ -50,8 +54,8 @@ class ConnectionProgressState extends State<ConnectionProgress> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_sub != null) return; // already subscribed
-    _writer = ProgressWriter(
-      terminal: _terminal,
+    _writer = ProgressWriter.controller(
+      controller: _controller,
       l10n: S.of(context),
       config: widget.connection.sshConfig,
       channelLabel: widget.channelLabel,
@@ -63,6 +67,7 @@ class ConnectionProgressState extends State<ConnectionProgress> {
   void dispose() {
     _sub?.cancel();
     _tracker?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -74,11 +79,16 @@ class ConnectionProgressState extends State<ConnectionProgress> {
 
   /// Write a localized error message to the progress terminal.
   void writeError(String message) {
-    _terminal.write('\x1B[?25h\x1B[31m$message\x1B[0m\r\n');
+    _controller.feed(utf8.encode('\x1B[?25h\x1B[31m$message\x1B[0m\r\n'));
   }
 
   @override
   Widget build(BuildContext context) {
-    return ReadOnlyTerminalView(terminal: _terminal, fontSize: widget.fontSize);
+    return ReadOnlyTerminalGridView(
+      controller: _controller,
+      fontSize: widget.fontSize,
+      reportResize: true,
+      selectable: true,
+    );
   }
 }

@@ -52,6 +52,79 @@ Future<TerminalSession> terminalSessionOpen({
   palette: palette,
 );
 
+/// Build a shell-less replay engine sized `cols × rows` with `scrollback`
+/// history lines and `palette` colors. No PTY is opened and no pump task is
+/// spawned — the caller feeds bytes with [`TerminalReplay::feed`] and pulls
+/// frames with [`TerminalReplay::snapshot`].
+TerminalReplay terminalReplayOpen({
+  required int cols,
+  required int rows,
+  required int scrollback,
+  required TerminalPalette palette,
+}) => RustLib.instance.api.crateApiTerminalTerminalReplayOpen(
+  cols: cols,
+  rows: rows,
+  scrollback: scrollback,
+  palette: palette,
+);
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TerminalReplay>>
+abstract class TerminalReplay implements RustOpaqueInterface {
+  /// Wipe the visible grid AND scrollback, homing the cursor. The recording
+  /// scrub path calls this before re-feeding `0..target` so alt-screen /
+  /// scroll-region / character-attribute modes from the prior position
+  /// cannot bleed into the rebuild. Sync — same lock shape as
+  /// [`Self::feed`].
+  void clear();
+
+  /// Clear any active selection. Sync — same lock shape as [`Self::feed`].
+  void clearSelection();
+
+  /// Feed bytes into the engine grid, then drain and DISCARD the engine's
+  /// event queue. A replay has no shell to forward `PtyWrite` replies to,
+  /// and no host wired to bell / title on these read-only surfaces, so the
+  /// drained queue is dropped — but it is still drained so it does not grow
+  /// unbounded across a long replay. The caller pulls a fresh snapshot and
+  /// repaints itself; no `Wakeup` event stream exists. Sync so a feeder
+  /// (progress writer, log viewer, scrub loop) can push a tight burst of
+  /// frames and pull one snapshot without an `await` per write — the only
+  /// contender for the lock is the feeder's own calls.
+  void feed({required List<int> bytes});
+
+  /// Resize the engine grid. There is no remote PTY to notify (shell-less),
+  /// so this only reflows the local model. Sync — same lock shape as
+  /// [`Self::feed`].
+  void resize({required int cols, required int rows});
+
+  /// The text covered by the active selection, or `None` when there is no
+  /// selection. Sync — same lock shape as [`Self::feed`].
+  String? selectionText();
+
+  /// Replace the color palette (e.g. on a theme toggle). Takes effect on
+  /// the next snapshot; already-parsed cells re-resolve their abstract
+  /// colors against the new palette. Sync — same lock shape as
+  /// [`Self::feed`].
+  void setPalette({required TerminalPalette palette});
+
+  /// Set a selection spanning `start` to `end` in absolute grid coordinates
+  /// (negative row = scrollback). Read the covered text back with
+  /// [`Self::selection_text`]. Sync — the read-only surfaces drive selection
+  /// from a pointer drag and pull a fresh snapshot immediately after, so the
+  /// same no-`await` lock shape as [`Self::feed`] keeps drag latency low.
+  void setSelection({
+    required int startRow,
+    required int startCol,
+    required int endRow,
+    required int endCol,
+    required TerminalSelectionKind kind,
+  });
+
+  /// Build an owned render snapshot of the current viewport. Sync so the
+  /// feeder pulls a frame without an `await` per paint — the only contender
+  /// for the lock is the feeder's own `feed`, never an async pump.
+  TerminalFrame snapshot();
+}
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TerminalSession>>
 abstract class TerminalSession implements RustOpaqueInterface {
   /// Wipe the terminal: blank the visible grid AND purge the scrollback

@@ -850,6 +850,145 @@ impl TerminalSession {
     }
 }
 
+// ---- Shell-less replay handle -----------------------------------------
+
+/// A shell-less terminal engine: feed bytes, snapshot, no PTY, no pump.
+///
+/// The read-only / replay surfaces (recording playback, connection-progress
+/// output, the log viewer) have no SSH shell — they only push pre-formed
+/// bytes (recorded output, ANSI progress frames, formatted log lines) into
+/// an engine and render the resulting grid. `TerminalReplay` wraps the same
+/// [`TerminalEngine`] behind an `Arc<Mutex<…>>` for that case: there is no
+/// `next_event` loop, so the feeder drives the repaint itself after each
+/// `feed`. Drained [`PtyWrite`](CoreTerminalEvent::PtyWrite) bytes are
+/// discarded — a replay has nowhere to send a cursor-position reply — and
+/// non-output events (bell / title) carry no host that wants them on these
+/// surfaces, so the whole drained queue is dropped after every feed.
+///
+/// The `Mutex` is `tokio::sync::Mutex` to match `snapshot`'s `blocking_lock`
+/// shape with [`TerminalSession`]; there is no async pump contending for it,
+/// so contention is bounded to the feeder's own calls.
+#[frb(opaque)]
+pub struct TerminalReplay {
+    engine: Arc<Mutex<TerminalEngine>>,
+}
+
+/// Build a shell-less replay engine sized `cols × rows` with `scrollback`
+/// history lines and `palette` colors. No PTY is opened and no pump task is
+/// spawned — the caller feeds bytes with [`TerminalReplay::feed`] and pulls
+/// frames with [`TerminalReplay::snapshot`].
+#[frb(sync)]
+pub fn terminal_replay_open(
+    cols: u32,
+    rows: u32,
+    scrollback: u32,
+    palette: TerminalPalette,
+) -> TerminalReplay {
+    let engine = Arc::new(Mutex::new(TerminalEngine::new(
+        cols.max(1) as usize,
+        rows.max(1) as usize,
+        scrollback as usize,
+        palette.into_core(),
+    )));
+    TerminalReplay { engine }
+}
+
+impl TerminalReplay {
+    /// Feed bytes into the engine grid, then drain and DISCARD the engine's
+    /// event queue. A replay has no shell to forward `PtyWrite` replies to,
+    /// and no host wired to bell / title on these read-only surfaces, so the
+    /// drained queue is dropped — but it is still drained so it does not grow
+    /// unbounded across a long replay. The caller pulls a fresh snapshot and
+    /// repaints itself; no `Wakeup` event stream exists. Sync so a feeder
+    /// (progress writer, log viewer, scrub loop) can push a tight burst of
+    /// frames and pull one snapshot without an `await` per write — the only
+    /// contender for the lock is the feeder's own calls.
+    #[frb(sync)]
+    pub fn feed(&self, bytes: Vec<u8>) {
+        let mut guard = self.engine.blocking_lock();
+        guard.feed(&bytes);
+        // Drain to bound the queue; the events are intentionally dropped on
+        // a shell-less replay (no PTY for PtyWrite, no host for bell/title).
+        let _ = guard.drain_events();
+    }
+
+    /// Build an owned render snapshot of the current viewport. Sync so the
+    /// feeder pulls a frame without an `await` per paint — the only contender
+    /// for the lock is the feeder's own `feed`, never an async pump.
+    #[frb(sync)]
+    pub fn snapshot(&self) -> TerminalFrame {
+        let guard = self.engine.blocking_lock();
+        TerminalFrame::from_core(guard.snapshot())
+    }
+
+    /// Resize the engine grid. There is no remote PTY to notify (shell-less),
+    /// so this only reflows the local model. Sync — same lock shape as
+    /// [`Self::feed`].
+    #[frb(sync)]
+    pub fn resize(&self, cols: u32, rows: u32) {
+        let mut guard = self.engine.blocking_lock();
+        guard.resize(cols.max(1) as usize, rows.max(1) as usize);
+    }
+
+    /// Wipe the visible grid AND scrollback, homing the cursor. The recording
+    /// scrub path calls this before re-feeding `0..target` so alt-screen /
+    /// scroll-region / character-attribute modes from the prior position
+    /// cannot bleed into the rebuild. Sync — same lock shape as
+    /// [`Self::feed`].
+    #[frb(sync)]
+    pub fn clear(&self) {
+        let mut guard = self.engine.blocking_lock();
+        guard.clear();
+    }
+
+    /// Replace the color palette (e.g. on a theme toggle). Takes effect on
+    /// the next snapshot; already-parsed cells re-resolve their abstract
+    /// colors against the new palette. Sync — same lock shape as
+    /// [`Self::feed`].
+    #[frb(sync)]
+    pub fn set_palette(&self, palette: TerminalPalette) {
+        let mut guard = self.engine.blocking_lock();
+        guard.set_palette(palette.into_core());
+    }
+
+    /// Set a selection spanning `start` to `end` in absolute grid coordinates
+    /// (negative row = scrollback). Read the covered text back with
+    /// [`Self::selection_text`]. Sync — the read-only surfaces drive selection
+    /// from a pointer drag and pull a fresh snapshot immediately after, so the
+    /// same no-`await` lock shape as [`Self::feed`] keeps drag latency low.
+    #[frb(sync)]
+    pub fn set_selection(
+        &self,
+        start_row: i32,
+        start_col: u32,
+        end_row: i32,
+        end_col: u32,
+        kind: TerminalSelectionKind,
+    ) {
+        let mut guard = self.engine.blocking_lock();
+        guard.set_selection(
+            (start_row, start_col as usize),
+            (end_row, end_col as usize),
+            kind.into_core(),
+        );
+    }
+
+    /// Clear any active selection. Sync — same lock shape as [`Self::feed`].
+    #[frb(sync)]
+    pub fn clear_selection(&self) {
+        let mut guard = self.engine.blocking_lock();
+        guard.clear_selection();
+    }
+
+    /// The text covered by the active selection, or `None` when there is no
+    /// selection. Sync — same lock shape as [`Self::feed`].
+    #[frb(sync)]
+    pub fn selection_text(&self) -> Option<String> {
+        let guard = self.engine.blocking_lock();
+        guard.selection_text()
+    }
+}
+
 /// Split drained engine events into the bytes to write back to the PTY and
 /// the Dart-facing UI events. `Repaint` (and any non-PtyWrite mutation)
 /// collapses into a single coalesced `Wakeup` so the renderer pulls one
@@ -1147,6 +1286,91 @@ mod tests {
         // keystroke — the input still types a visible glyph.
         let dto = TerminalKeyName::Char { code: 0xD800 };
         assert_eq!(dto.into_core(), KeyName::Char('\u{fffd}'));
+    }
+
+    #[test]
+    fn replay_feed_mirrors_into_snapshot() {
+        // Spec: a shell-less replay feeds bytes straight into the engine, so
+        // a snapshot after a feed must mirror the fed text cell-for-cell —
+        // the same contract as a live session's feed/snapshot, minus the
+        // pump.
+        let replay = terminal_replay_open(20, 5, 100, terminal_palette_default());
+        replay.feed(b"Hi".to_vec());
+        let frame = replay.snapshot();
+        let chars: Vec<char> = frame
+            .cells
+            .iter()
+            .map(|c| char::from_u32(c.ch).expect("valid scalar"))
+            .collect();
+        assert!(chars.contains(&'H'));
+        assert!(chars.contains(&'i'));
+        // Cursor advanced two columns past the start.
+        assert_eq!(frame.cursor.col, 2);
+    }
+
+    #[test]
+    fn replay_clear_wipes_the_grid() {
+        // Spec: clear blanks the visible grid AND scrollback so the scrub
+        // rebuild from t=0 lands on a pristine engine — after clear the
+        // snapshot carries no printed glyphs.
+        let replay = terminal_replay_open(20, 5, 100, terminal_palette_default());
+        replay.feed(b"hello world".to_vec());
+        assert!(!replay.snapshot().cells.is_empty());
+        replay.clear();
+        let frame = replay.snapshot();
+        // No non-blank cells remain (the engine omits blank default cells).
+        assert!(
+            frame.cells.is_empty(),
+            "clear left cells behind: {:?}",
+            frame.cells
+        );
+        // Cursor homed.
+        assert_eq!(frame.cursor.col, 0);
+        assert_eq!(frame.cursor.row, 0);
+    }
+
+    #[test]
+    fn replay_feed_discards_pty_writes_without_panicking() {
+        // Spec: a replay has no shell to forward PtyWrite replies to. A
+        // device-status-report query (`ESC[6n`) makes the engine queue a
+        // PtyWrite reply; the replay must drain-and-drop it rather than leak
+        // or panic, and the grid still renders the rest of the output.
+        let replay = terminal_replay_open(20, 5, 100, terminal_palette_default());
+        replay.feed(b"A\x1b[6nB".to_vec());
+        let chars: Vec<char> = replay
+            .snapshot()
+            .cells
+            .iter()
+            .map(|c| char::from_u32(c.ch).expect("valid scalar"))
+            .collect();
+        assert!(chars.contains(&'A'));
+        assert!(chars.contains(&'B'));
+    }
+
+    #[test]
+    fn replay_selection_reads_back_fed_text() {
+        // Spec: a selection set over fed content on a shell-less replay reads
+        // back the covered text — the same select-then-copy contract the live
+        // session exposes, so the read-only surfaces can copy out of recorded
+        // / progress output. Clearing the selection then yields no text.
+        let replay = terminal_replay_open(20, 5, 100, terminal_palette_default());
+        replay.feed(b"hello world".to_vec());
+        // Select "hello" — row 0 (live screen), columns 0..4 inclusive.
+        replay.set_selection(0, 0, 0, 4, TerminalSelectionKind::Simple);
+        assert_eq!(replay.selection_text().as_deref(), Some("hello"));
+        replay.clear_selection();
+        assert_eq!(replay.selection_text(), None);
+    }
+
+    #[test]
+    fn replay_resize_reflows_geometry() {
+        // Spec: resize reflows the engine grid; the next snapshot reports the
+        // new column / row count.
+        let replay = terminal_replay_open(20, 5, 100, terminal_palette_default());
+        replay.resize(40, 10);
+        let frame = replay.snapshot();
+        assert_eq!(frame.cols, 40);
+        assert_eq!(frame.rows, 10);
     }
 
     #[test]

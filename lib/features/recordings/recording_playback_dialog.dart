@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:xterm/xterm.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
@@ -10,45 +10,42 @@ import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_popup_select.dart';
-import '../../widgets/terminal/readonly_terminal_view.dart';
+import '../../widgets/terminal/readonly_terminal_grid_view.dart';
 import '../../widgets/terminal/terminal_cell_metrics.dart';
 import 'recording_reader.dart';
 
-/// Modal that replays a recording into a read-only xterm widget at
+/// Modal that replays a recording into a read-only terminal at
 /// a user-selectable speed (0.5× / 1× / 2× / 4×) with a
 /// fully-functional scrub bar.
 ///
-/// **Why pre-decode + Timer-driven playback.** Earlier shape was a
-/// `Stream.listen` with `await Future.delayed` between frames — each
-/// asciinema event went through a microtask + a delayed Future. For
-/// dense recordings (htop refresh = dozens of ANSI frames clustered
-/// inside 100 ms) every frame paid a microtask + a `Future.delayed`
-/// rounding-loss penalty, and the renderer painted between every
-/// event. Visually that surfaces as choppy / jerky playback.
+/// **Why pre-decode + Timer-driven playback.** A `Stream.listen` with
+/// `await Future.delayed` between frames put each asciinema event through a
+/// microtask + a delayed Future. For dense recordings (htop refresh = dozens
+/// of ANSI frames clustered inside 100 ms) every frame paid a microtask + a
+/// `Future.delayed` rounding-loss penalty, and the renderer painted between
+/// every event — choppy / jerky playback.
 ///
-/// The new shape loads the full event list once on dialog open,
-/// then drives the screen off a single 60 Hz `Timer.periodic`. Each
-/// tick advances a virtual position by `wall_elapsed × speed` and
-/// applies every event whose timestamp crossed under the new
-/// position. Renders coalesce on the single tick boundary — xterm
-/// gets a tight burst of writes per tick, paints once.
+/// The shape used here loads the full event list once on dialog open, then
+/// drives the screen off a single 60 Hz `Timer.periodic`. Each tick advances
+/// a virtual position by `wall_elapsed × speed` and applies every event whose
+/// timestamp crossed under the new position. Renders coalesce on the single
+/// tick boundary — the engine gets a tight burst of feeds per tick and the
+/// controller fires one repaint.
 ///
 /// **Scrub correctness.** asciinema events are ANSI deltas: a
 /// "move cursor to row 5, write 'CPU: 12%'" frame at second 30 has
 /// no value without the preceding frames that put the cursor +
-/// screen state in the right place. Seek-via-sidecar (the previous
-/// scrub path) jumped the byte cursor mid-stream and rendered
-/// garbage for htop-style recordings. The new scrub clears the
-/// terminal and re-applies every event from `t=0` up to the target
-/// in one tight synchronous loop — no microtask between events,
-/// xterm only paints when the next Flutter frame ticks. The user
-/// sees a single transition, not a fast-scroll-from-beginning.
+/// screen state in the right place. Seek-via-sidecar (a byte-cursor jump
+/// mid-stream) rendered garbage for htop-style recordings. The scrub here
+/// clears the engine and re-feeds every event from `t=0` up to the target in
+/// one tight synchronous loop — the controller fires one repaint at the end.
+/// The user sees a single transition, not a fast-scroll-from-beginning.
 ///
 /// **Why a custom replay loop, not asciinema's player package.**
 /// Their package is built on package:web — it injects a `<canvas>`
 /// inside an iframe and is not portable to Flutter desktop / mobile.
-/// Re-implementing the loop ourselves over xterm keeps the same
-/// rendering stack the rest of the app uses.
+/// Re-implementing the loop ourselves over the Rust terminal engine keeps the
+/// same rendering stack the rest of the app uses.
 class RecordingPlaybackDialog extends ConsumerStatefulWidget {
   final String filePath;
   final bool encrypted;
@@ -107,22 +104,24 @@ class _RecordingPlaybackDialogState
   /// overflows rather than shrinking past readability.
   static const double _minFontSize = 6.0;
 
-  /// Guard pixel added to the grid's pixel size so xterm's integer
+  /// Guard pixel added to the grid's pixel size so the renderer's integer
   /// `viewport ~/ cellSize` row / col count cannot truncate to one
   /// less than the recorded `w × h` on a sub-pixel float rounding.
   /// One pixel is far below a cell, so it never seats an extra cell.
   static const double _cellGuard = 1.0;
 
-  /// Terminal instance the playback writes into. Re-built on every
-  /// scrub so the rebuild from `t=0` lands on a pristine state —
-  /// `buffer.clear()` alone leaves alt-screen / scroll-region /
-  /// character-attribute modes from the prior position alive, which
-  /// surfaces as ghost characters on htop / vim recordings (the
-  /// next ANSI line lands at the wrong column / colour because the
-  /// terminal still thinks it is in the previous mode). Re-creating
-  /// the `Terminal` is the only way to get a true reset; xterm-flutter
-  /// exposes no hard-reset escape.
-  late Terminal _terminal;
+  /// RIS — `ESC c`, full terminal reset. Fed before a scrub rebuild from
+  /// `t=0` so alt-screen / scroll-region / character-attribute modes from
+  /// the prior position cannot bleed in: a plain grid clear blanks cells but
+  /// leaves those modes alive, and the next ANSI line then lands at the wrong
+  /// column / colour (ghost characters on htop / vim recordings). RIS resets
+  /// the screen AND the modes in one sequence.
+  static const _ris = '\x1Bc';
+
+  /// Drives the shell-less Rust terminal engine the playback feeds into.
+  /// A scrub re-feeds from `t=0` after a [_ris] reset rather than rebuilding
+  /// the engine.
+  late final ReadOnlyTerminalController _controller;
   int _terminalCols = 80;
   int _terminalRows = 24;
 
@@ -183,8 +182,10 @@ class _RecordingPlaybackDialogState
     super.initState();
     _terminalCols = widget.meta?.header.width ?? 80;
     _terminalRows = widget.meta?.header.height ?? 24;
-    _terminal = Terminal(maxLines: 10000);
-    _terminal.resize(_terminalCols, _terminalRows);
+    _controller = ReadOnlyTerminalController(
+      cols: _terminalCols,
+      rows: _terminalRows,
+    );
     _totalMs = ((widget.meta?.durationSeconds ?? 0) * 1000).round();
     _loadAll();
   }
@@ -225,7 +226,7 @@ class _RecordingPlaybackDialogState
             // path keeps working.
             _terminalCols = header.width;
             _terminalRows = header.height;
-            _terminal.resize(_terminalCols, _terminalRows);
+            _controller.resize(_terminalCols, _terminalRows);
             continue;
           }
         }
@@ -292,16 +293,19 @@ class _RecordingPlaybackDialogState
   }
 
   /// Apply every event from `_cursor` onwards whose timestamp lies
-  /// at or below `targetMs`. Hot path — kept tight with no
-  /// allocations + a single `Terminal.write` per output event.
+  /// at or below `targetMs`. Hot path — the due output events are
+  /// concatenated and fed in one engine call so the controller fires a
+  /// single repaint per tick rather than one per event.
   void _applyEventsTo(int targetMs) {
     final targetSec = targetMs / 1000.0;
+    final buf = StringBuffer();
     while (_cursor < _events.length &&
         _events[_cursor].timestamp <= targetSec) {
       final e = _events[_cursor];
-      if (e.direction == 'o') _terminal.write(e.data);
+      if (e.direction == 'o') buf.write(e.data);
       _cursor++;
     }
+    if (buf.isNotEmpty) _controller.feed(utf8.encode(buf.toString()));
   }
 
   /// Scrub to `targetMs`. Always rebuilds terminal state from
@@ -309,20 +313,19 @@ class _RecordingPlaybackDialogState
   /// positions — htop's "redraw row 5" only makes sense if the
   /// preceding row-setup frames already ran.
   ///
-  /// Synchronous: `_applyEventsTo` runs inside a tight `while` with
-  /// no Future / Timer yields, so xterm accumulates writes and the
-  /// next Flutter frame paints a single transition. The user does
-  /// not see a fast-scroll-from-beginning even on recordings with
-  /// thousands of events before the target.
+  /// Synchronous: `_applyEventsTo` concatenates the due events and feeds the
+  /// engine once, so the controller fires a single repaint and the next
+  /// Flutter frame paints one transition. The user does not see a
+  /// fast-scroll-from-beginning even on recordings with thousands of events
+  /// before the target.
   void _jumpTo(int targetMs) {
     if (_loading || _disposed) return;
-    // Re-create the terminal so alt-screen / scroll-region /
-    // character-attribute modes from the previous position cannot
-    // bleed into the rebuild from t=0. `buffer.clear()` alone left
-    // those modes alive and htop / vim recordings rendered ghost
-    // characters on lines re-written under the wrong mode.
-    _terminal = Terminal(maxLines: 10000);
-    _terminal.resize(_terminalCols, _terminalRows);
+    // Feed RIS to reset the engine to a pristine state so alt-screen /
+    // scroll-region / character-attribute modes from the previous position
+    // cannot bleed into the rebuild from t=0. A plain grid clear blanks cells
+    // but leaves those modes alive, and htop / vim recordings then render
+    // ghost characters on lines re-written under the wrong mode.
+    _controller.feed(utf8.encode(_ris));
     _cursor = 0;
     _applyEventsTo(targetMs);
     setState(() => _positionMs = targetMs.clamp(0, _totalMs));
@@ -356,6 +359,7 @@ class _RecordingPlaybackDialogState
     _disposed = true;
     _ticker?.cancel();
     _ticker = null;
+    _controller.dispose();
     super.dispose();
   }
 
@@ -366,12 +370,12 @@ class _RecordingPlaybackDialogState
     // which `_loadAll` decodes and stores in `_terminalCols/Rows`
     // (seeded from `widget.meta` in `initState`). Reading those — not
     // `widget.meta` directly — keeps the SizedBox aligned with the
-    // dims xterm is actually resized to even when meta is missing.
+    // engine's grid size even when meta is missing.
     final w = _terminalCols;
     final h = _terminalRows;
-    // Match xterm's own cell measurement, which scales by the OS text
-    // scale (`terminal_view.dart`); measuring unscaled here would clip
-    // the bottom row whenever the system text scale is above 1.0.
+    // Match the grid view's cell measurement, which scales by the OS text
+    // scale (`measureMonoCell`); measuring unscaled here would clip the
+    // bottom row whenever the system text scale is above 1.0.
     final textScaler = MediaQuery.textScalerOf(context);
     final settingsFontSize = ref.watch(
       configProvider.select((c) => c.fontSize),
@@ -517,21 +521,13 @@ class _RecordingPlaybackDialogState
     double settingsFontSize,
     TextScaler textScaler,
   ) {
-    // Delegate to `ReadOnlyTerminalView` — the same widget the log
-    // viewer uses. Brings xterm's drag-to-select, the right-click
-    // context menu (Copy / Select All via `showAppContextMenu`),
-    // and the Ctrl+C / Cmd+C copy shortcut for free.
-    //
-    // The whole recorded grid renders at its natural pixel size with
-    // no surrounding scroll view: `_resolveFontSize` picks the
-    // largest font (capped at the user's terminal font) at which
-    // `w × h` cells fit the dialog. xterm's auto-resize then lands
-    // exactly on the recorded `w × h`, so htop / curses recordings
-    // keep their fixed header + footer rows aligned to the recorded
-    // scroll region. A surrounding `SingleChildScrollView` would
-    // install a drag recogniser that beats xterm's selection pan in
-    // the gesture arena, so dropping it also makes drag-to-select
-    // behave exactly like the log terminal.
+    // Render the engine through the read-only grid view — the same painter
+    // the live desktop pane uses. The whole recorded grid renders at its
+    // natural pixel size with no surrounding scroll view: `_resolveFontSize`
+    // picks the largest font (capped at the user's terminal font) at which
+    // `w × h` cells fit the dialog. The engine is fixed at the recorded
+    // `w × h` (no `reportResize`), so htop / curses recordings keep their
+    // fixed header + footer rows aligned to the recorded scroll region.
     final desired = settingsFontSize * _fontScale;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -542,19 +538,20 @@ class _RecordingPlaybackDialogState
           constraints,
           textScaler,
         );
-        // Cell metrics come from a `TextPainter` against the same
-        // mono stack — and the same OS text scale — the terminal
-        // renders with, so the SizedBox math matches xterm's internal
-        // layout byte-for-byte; a sub-cell drift would drop the
-        // auto-resize to `w-1` cols / `h-1` rows and clip the edge.
+        // Cell metrics come from a `TextPainter` against the same mono
+        // stack — and the same OS text scale — the grid view measures with
+        // (`measureMonoCell`), so the SizedBox math matches the renderer's
+        // own layout; a sub-cell drift would clip the right / bottom edge.
         final cell = measureMonoCell(
           fontSize: fontSize,
           textScaler: textScaler,
         );
+        // `AppTerminalView.padding` on all four sides is the grid view's
+        // inner padding — the SizedBox must add the same so `w × h` cells fit.
         const innerPad = AppSpacing.xs * 2.0;
-        // `+ _cellGuard` keeps xterm's integer `~/ cellSize` row / col
-        // count from truncating to `h-1` / `w-1` on a sub-pixel float
-        // rounding; one extra guard pixel never seats another cell.
+        // `+ _cellGuard` keeps the integer `~/ cellSize` row / col count from
+        // truncating to `h-1` / `w-1` on a sub-pixel float rounding; one
+        // extra guard pixel never seats another cell.
         final terminalWidth = w * cell.width + innerPad + _cellGuard;
         final terminalHeight = h * cell.height + innerPad + _cellGuard;
         // `heightFactor: 1` hugs the grid height so a recording
@@ -563,31 +560,23 @@ class _RecordingPlaybackDialogState
         return Align(
           alignment: Alignment.topCenter,
           heightFactor: 1.0,
-          // `SelectionContainer.disabled` opts the xterm subtree out
-          // of the dialog's outer `AppSelectionArea` (AppDialog wraps
-          // every body in one). Without it, SelectionArea's pan
-          // recogniser claims every drag / secondary-tap before
-          // `TerminalView` sees it, so the context menu never opens
-          // and drag-to-select never starts. The log viewer does not
-          // need this — it lives in Settings, not inside an AppDialog.
-          child: SelectionContainer.disabled(
-            child: Container(
-              // Border via `foregroundDecoration` so it paints over
-              // the grid edge instead of insetting the child — an
-              // inset would shrink the render box below `w × h` cells.
-              decoration: const BoxDecoration(borderRadius: AppTheme.radiusSm),
-              foregroundDecoration: BoxDecoration(
-                border: Border.all(color: AppTheme.borderLight),
-                borderRadius: AppTheme.radiusSm,
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: terminalWidth,
-                height: terminalHeight,
-                child: ReadOnlyTerminalView(
-                  terminal: _terminal,
-                  fontSize: fontSize,
-                ),
+          child: Container(
+            // Border via `foregroundDecoration` so it paints over the grid
+            // edge instead of insetting the child — an inset would shrink
+            // the render box below `w × h` cells.
+            decoration: const BoxDecoration(borderRadius: AppTheme.radiusSm),
+            foregroundDecoration: BoxDecoration(
+              border: Border.all(color: AppTheme.borderLight),
+              borderRadius: AppTheme.radiusSm,
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              width: terminalWidth,
+              height: terminalHeight,
+              child: ReadOnlyTerminalGridView(
+                controller: _controller,
+                fontSize: fontSize,
+                selectable: true,
               ),
             ),
           ),
@@ -601,7 +590,7 @@ class _RecordingPlaybackDialogState
   /// and floored at [_minFontSize]. Cell size is linear in font size,
   /// so the fit font is the desired font scaled by the tighter of the
   /// width / height overflow ratios. [textScaler] keeps the cell
-  /// measurement in step with the OS text scale xterm renders with.
+  /// measurement in step with the OS text scale the grid view renders with.
   double _resolveFontSize(
     int w,
     int h,
@@ -639,7 +628,7 @@ class _RecordingPlaybackDialogState
 /// pixels (already including [innerPad]) fits a [maxWidth] × [maxHeight]
 /// viewport, capped at [desiredFontSize] and floored at [minFontSize].
 ///
-/// xterm's cell size is linear in font size, so once the grid overflows
+/// The cell size is linear in font size, so once the grid overflows
 /// an axis the fit font is the desired font scaled by that axis's
 /// overflow ratio — the constant [innerPad] is excluded from the scale
 /// because the terminal padding does not grow with the font. The
