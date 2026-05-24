@@ -674,9 +674,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // (SecureClipboard underneath) — reused so the new engine's copy obeys
     // the same clipboard threat model as the old renderer.
     TerminalClipboard.copyText(text);
-    // Match the prior copy UX: clear the selection once it is on the
-    // clipboard so the highlight does not linger.
-    unawaited(session.clearSelection());
+    // Clear through the controller, not the raw session, so it pulses the
+    // repaint signal and the highlight actually disappears — the engine
+    // raises no Wakeup for a host-driven selection change.
+    _controller?.clearSelection();
   }
 
   // ── In-terminal search ─────────────────────────────────────────────────
@@ -688,8 +689,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   void _closeSearch() {
     if (!_searchOpen) return;
-    final session = _session;
-    if (session != null) unawaited(session.clearSelection());
+    _controller?.clearSelection();
     setState(() {
       _searchOpen = false;
       _matches = const [];

@@ -151,6 +151,10 @@ class LiveTerminalController extends TerminalController {
   @override
   void scroll(int delta) => unawaited(_session.scroll(delta: delta));
 
+  // The engine raises no Wakeup for a host-driven selection change, so the
+  // controller pulses `repaint` once the change lands — that way every caller
+  // (the view's drag, the pane's copy-then-clear, Select All) repaints the
+  // highlight through the same signal, with no per-caller frame pull.
   @override
   Future<void> setSelection(
     int startRow,
@@ -158,16 +162,19 @@ class LiveTerminalController extends TerminalController {
     int endRow,
     int endCol,
     TerminalSelectionKind kind,
-  ) => _session.setSelection(
-    startRow: startRow,
-    startCol: startCol,
-    endRow: endRow,
-    endCol: endCol,
-    kind: kind,
-  );
+  ) => _session
+      .setSelection(
+        startRow: startRow,
+        startCol: startCol,
+        endRow: endRow,
+        endCol: endCol,
+        kind: kind,
+      )
+      .then((_) => _repaint.notify());
 
   @override
-  void clearSelection() => unawaited(_session.clearSelection());
+  void clearSelection() =>
+      unawaited(_session.clearSelection().then((_) => _repaint.notify()));
 
   @override
   Future<String?> selectionText() => _session.selectionText();
