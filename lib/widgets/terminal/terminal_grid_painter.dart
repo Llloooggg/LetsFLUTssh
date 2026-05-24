@@ -114,19 +114,27 @@ class TerminalGridPainter extends CustomPainter {
   );
 
   void _paintCellBackgrounds(Canvas canvas) {
-    final paint = Paint()..style = PaintingStyle.fill;
+    // Anti-aliasing must be OFF for the cell fills: the cell pitch is
+    // fractional, so AA fades each rect's edge independently and leaves a
+    // thin transparent seam between neighbours — colour bars (htop, status
+    // lines) showed vertical stripes. With AA off and each edge derived from
+    // the shared cell boundary (cell N's right == cell N+1's left, same
+    // formula), abutting fills tile seamlessly.
+    final paint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = false;
     for (final cell in frame.cells) {
       final bg = _color(cell.bg);
       // The surface is already cleared to the default bg by the host's
       // ColoredBox; skip cells that match it to save a fill.
       if (bg == defaultBackground) continue;
       paint.color = bg;
-      final origin = _cellOrigin(cell.row, cell.col);
-      final width = _columnSpan(cell) * cellSize.width;
-      canvas.drawRect(
-        Rect.fromLTWH(origin.dx, origin.dy, width, cellSize.height),
-        paint,
-      );
+      final left = cell.col * cellSize.width + padding.left;
+      final right =
+          (cell.col + _columnSpan(cell)) * cellSize.width + padding.left;
+      final top = cell.row * cellSize.height + padding.top;
+      final bottom = (cell.row + 1) * cellSize.height + padding.top;
+      canvas.drawRect(Rect.fromLTRB(left, top, right, bottom), paint);
     }
   }
 
