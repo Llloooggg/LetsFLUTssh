@@ -9,8 +9,8 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'ssh.dart';
 part 'terminal.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The OneDark default palette as a DTO. The Dart theme layer uses this
 /// as the starting point before overriding swatches from AppTheme.
@@ -130,6 +130,17 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// pump's discipline. An empty encoding (e.g. an out-of-range F-key)
   /// writes nothing rather than an empty frame.
   Future<void> sendKey({required TerminalKey key});
+
+  /// Encode a mouse event against the engine's current mode and write the
+  /// report to the shell. Returns without writing when the running
+  /// program does not report that event (no tracking, or a motion event
+  /// under a click-only mode) — the renderer only calls this when the
+  /// frame already showed tracking is active, but the mode is re-read
+  /// here so the gate is authoritative even if the frame the renderer
+  /// saw was a tick stale. Same lock discipline as [`Self::send_key`]:
+  /// the engine lock is taken only to read the mode and released before
+  /// the `shell.write`.
+  Future<void> sendMouse({required TerminalMouseInput event});
 
   /// Replace the color palette (e.g. on theme change). Takes effect on
   /// the next snapshot; already-parsed cells keep their abstract colors
@@ -282,6 +293,10 @@ class TerminalFrame {
 
   /// Total scrollback lines available above the live screen.
   final int historySize;
+
+  /// Mouse-tracking level the running program enabled — the renderer
+  /// routes pointer events off this.
+  final TerminalMouseTracking mouseTracking;
   final List<TerminalCell> cells;
   final TerminalFrameSelection? selection;
 
@@ -291,6 +306,7 @@ class TerminalFrame {
     required this.cursor,
     required this.displayOffset,
     required this.historySize,
+    required this.mouseTracking,
     required this.cells,
     this.selection,
   });
@@ -302,6 +318,7 @@ class TerminalFrame {
       cursor.hashCode ^
       displayOffset.hashCode ^
       historySize.hashCode ^
+      mouseTracking.hashCode ^
       cells.hashCode ^
       selection.hashCode;
 
@@ -315,6 +332,7 @@ class TerminalFrame {
           cursor == other.cursor &&
           displayOffset == other.displayOffset &&
           historySize == other.historySize &&
+          mouseTracking == other.mouseTracking &&
           cells == other.cells &&
           selection == other.selection;
 }
@@ -444,6 +462,77 @@ class TerminalMatch {
           endCol == other.endCol;
 }
 
+/// FRB mirror of `lfs_core::terminal::MouseAction`.
+enum TerminalMouseAction { press, release, move }
+
+/// FRB mirror of `lfs_core::terminal::MouseButton`. Wheel up/down ride the
+/// same report channel as buttons; `None` is a bare motion with no button.
+enum TerminalMouseButton { left, middle, right, wheelUp, wheelDown, none }
+
+/// FRB mirror of `lfs_core::terminal::MouseInput`. `col`/`row` are 1-based
+/// cell coordinates as they appear in the report — the Dart layer maps
+/// pixels to a 0-based cell and adds 1 before crossing the boundary.
+class TerminalMouseInput {
+  final TerminalMouseButton button;
+  final TerminalMouseAction action;
+  final int col;
+  final int row;
+  final bool shift;
+  final bool alt;
+  final bool ctrl;
+
+  const TerminalMouseInput({
+    required this.button,
+    required this.action,
+    required this.col,
+    required this.row,
+    required this.shift,
+    required this.alt,
+    required this.ctrl,
+  });
+
+  @override
+  int get hashCode =>
+      button.hashCode ^
+      action.hashCode ^
+      col.hashCode ^
+      row.hashCode ^
+      shift.hashCode ^
+      alt.hashCode ^
+      ctrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TerminalMouseInput &&
+          runtimeType == other.runtimeType &&
+          button == other.button &&
+          action == other.action &&
+          col == other.col &&
+          row == other.row &&
+          shift == other.shift &&
+          alt == other.alt &&
+          ctrl == other.ctrl;
+}
+
+/// Which mouse-tracking level the running program enabled — FRB mirror of
+/// `lfs_core::terminal::MouseTracking`. The renderer reads it off each
+/// frame to route a pointer drag to the program (mouse report) vs locally
+/// (text selection), without an extra FFI call per pointer event.
+enum TerminalMouseTracking {
+  /// No tracking — the pointer drives local selection / scrollback.
+  none,
+
+  /// Click-only: press / release, no motion.
+  click,
+
+  /// Button-event: press / release + drag (button held).
+  buttonEvent,
+
+  /// Any-motion: press / release + drag + bare motion.
+  anyMotion,
+}
+
 /// FRB-friendly palette: the 16 ANSI base colors plus the default
 /// foreground / background / cursor / selection swatches. Converts into
 /// the core [`TermPalette`]; the 256-color cube is derived inside the
@@ -488,7 +577,16 @@ class TerminalPalette {
 
 /// Selection geometry — FRB mirror of
 /// `lfs_core::terminal::SelectionKind`.
-enum TerminalSelectionKind { simple, block }
+enum TerminalSelectionKind {
+  simple,
+  block,
+
+  /// Word selection (double-click) — expands to semantic word boundaries.
+  semantic,
+
+  /// Whole-line selection (triple-click).
+  lines,
+}
 
 @freezed
 sealed class TerminalUiEvent with _$TerminalUiEvent {

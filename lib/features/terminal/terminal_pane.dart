@@ -21,6 +21,8 @@ import '../../widgets/terminal/connection_progress.dart';
 import '../../widgets/terminal/terminal_grid_view.dart';
 import '../../widgets/terminal/terminal_key_input.dart';
 import '../../widgets/terminal/terminal_palette_theme.dart';
+import '../../widgets/terminal/terminal_pointer_input.dart';
+import '../../widgets/terminal/terminal_search_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../snippets/snippet_picker.dart';
 
@@ -107,6 +109,17 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   /// Brightness the live session's palette was last pushed for. A theme
   /// toggle re-pushes the palette via [rust_terminal.TerminalSession.setPalette].
   bool? _paletteIsDark;
+
+  /// Whether the in-terminal search bar is open.
+  bool _searchOpen = false;
+
+  /// Matches from the last `TerminalSession.search`, in absolute grid-line
+  /// coordinates. The highlight overlay and next/prev navigation derive
+  /// from this list; empty when the query is empty or has no hit.
+  List<rust_terminal.TerminalMatch> _matches = const [];
+
+  /// Index of the focused match within [_matches], or `-1` when none.
+  int _currentMatch = -1;
 
   /// Exposed for testing — the active Rust terminal session, or null before
   /// the shell opens / after an error.
@@ -330,7 +343,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       );
     }
 
-    return TerminalGridView(
+    final grid = TerminalGridView(
       // Re-key on the session epoch so a reconnect rebinds the event stream.
       key: ValueKey<int>(_sessionEpoch),
       session: session,
@@ -339,7 +352,33 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       onScroll: _onScroll,
       onPointerSignal: _onPointerSignal,
       onClosed: _onSessionClosed,
+      onSetSelection: _onSetSelection,
+      onClearSelection: _onClearSelection,
+      onMouse: _onMouse,
+      searchMatches: _searchOpen ? _matches : const [],
+      activeMatchIndex: _searchOpen ? _currentMatch : -1,
     );
+    if (!_searchOpen) return grid;
+    return Column(
+      children: [
+        TerminalSearchBar(
+          onQueryChanged: _onSearchQueryChanged,
+          onNext: _nextMatch,
+          onPrevious: _prevMatch,
+          onClose: _closeSearch,
+          hasMatches: _matches.isNotEmpty,
+          matchLabel: _matchLabel(),
+        ),
+        Expanded(child: grid),
+      ],
+    );
+  }
+
+  /// `current/total` for the search bar, or null when there is nothing to
+  /// label (empty query / no matches). Pure number formatting — no l10n.
+  String? _matchLabel() {
+    if (_matches.isEmpty) return null;
+    return '${_currentMatch + 1}/${_matches.length}';
   }
 
   void _onScroll(int lineDelta) {
@@ -371,6 +410,43 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     ref.read(connectionsProvider.notifier).notifyStateChanged();
   }
 
+  /// Apply a selection to the engine. The grid view chooses the geometry —
+  /// drag = simple, double-click = semantic (word), triple-click = lines.
+  /// Returns the FRB future so the grid view can await it and pull a fresh
+  /// snapshot — the engine raises no Wakeup for a host-driven selection.
+  Future<void> _onSetSelection(
+    int startRow,
+    int startCol,
+    int endRow,
+    int endCol,
+    rust_terminal.TerminalSelectionKind kind,
+  ) {
+    final session = _session;
+    if (session == null) return Future<void>.value();
+    return session.setSelection(
+      startRow: startRow,
+      startCol: startCol,
+      endRow: endRow,
+      endCol: endCol,
+      kind: kind,
+    );
+  }
+
+  void _onClearSelection() {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.clearSelection());
+  }
+
+  /// Forward a mouse report to the running program. The engine re-reads its
+  /// mode and drops the report when the program does not track that event,
+  /// so the pane forwards unconditionally.
+  void _onMouse(rust_terminal.TerminalMouseInput event) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.sendMouse(event: event));
+  }
+
   void _maybeRepushPalette() {
     final session = _session;
     if (session == null) return;
@@ -393,12 +469,20 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (event is KeyUpEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
+    // Esc closes the search bar only while it is open; otherwise Esc must
+    // reach the shell (vim, less, …), so it is not a blanket shortcut.
+    if (_searchOpen && reg.matches(AppShortcut.terminalCloseSearch, event)) {
+      _closeSearch();
+      return KeyEventResult.handled;
+    }
+
     _shortcuts ??= <AppShortcut, VoidCallback>{
       AppShortcut.zoomIn: _zoomIn,
       AppShortcut.zoomOut: _zoomOut,
       AppShortcut.zoomReset: _zoomReset,
       AppShortcut.terminalCopy: _copySelection,
       AppShortcut.terminalPaste: _pasteClipboard,
+      AppShortcut.terminalSearch: _openSearch,
     };
 
     for (final entry in _shortcuts!.entries) {
@@ -442,7 +526,82 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   ) async {
     final text = await session.selectionText();
     if (text == null || text.isEmpty) return;
+    // Sensitive-content routing + 30s auto-wipe live in TerminalClipboard
+    // (SecureClipboard underneath) — reused so the new engine's copy obeys
+    // the same clipboard threat model as the old renderer.
     TerminalClipboard.copyText(text);
+    // Match the prior copy UX: clear the selection once it is on the
+    // clipboard so the highlight does not linger.
+    unawaited(session.clearSelection());
+  }
+
+  // ── In-terminal search ─────────────────────────────────────────────────
+
+  void _openSearch() {
+    if (_searchOpen) return;
+    setState(() => _searchOpen = true);
+  }
+
+  void _closeSearch() {
+    if (!_searchOpen) return;
+    final session = _session;
+    if (session != null) unawaited(session.clearSelection());
+    setState(() {
+      _searchOpen = false;
+      _matches = const [];
+      _currentMatch = -1;
+    });
+    _terminalFocus.requestFocus();
+  }
+
+  void _onSearchQueryChanged(String query) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(_runSearch(session, query));
+  }
+
+  Future<void> _runSearch(
+    rust_terminal.TerminalSession session,
+    String query,
+  ) async {
+    final matches = await session.search(query: query);
+    if (!mounted) return;
+    setState(() {
+      _matches = matches;
+      _currentMatch = matches.isEmpty ? -1 : 0;
+    });
+    if (matches.isNotEmpty) _revealMatch(session, 0);
+  }
+
+  void _nextMatch() {
+    if (_matches.isEmpty) return;
+    _focusMatch((_currentMatch + 1) % _matches.length);
+  }
+
+  void _prevMatch() {
+    if (_matches.isEmpty) return;
+    _focusMatch((_currentMatch - 1 + _matches.length) % _matches.length);
+  }
+
+  void _focusMatch(int index) {
+    final session = _session;
+    if (session == null) return;
+    setState(() => _currentMatch = index);
+    _revealMatch(session, index);
+  }
+
+  /// Scroll the focused match into view so next/prev never lands on an
+  /// off-screen hit. The scroll delta is computed against the live frame's
+  /// offset; `scroll` clamps internally so an over-scroll is harmless.
+  void _revealMatch(rust_terminal.TerminalSession session, int index) {
+    if (index < 0 || index >= _matches.length) return;
+    final frame = session.snapshot();
+    final delta = scrollDeltaToRevealLine(
+      matchLine: _matches[index].line,
+      displayOffset: frame.displayOffset,
+      rows: frame.rows,
+    );
+    if (delta != 0) unawaited(session.scroll(delta: delta));
   }
 
   /// Paste clipboard text into the shell via the Rust paste encoder, which

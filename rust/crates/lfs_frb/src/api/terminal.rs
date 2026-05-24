@@ -26,8 +26,9 @@ use flutter_rust_bridge::frb;
 use tokio::sync::Mutex;
 
 use lfs_core::terminal::{
-    encode_key, encode_paste, KeyInput, KeyName, MatchRange, SelectionKind, TermPalette,
-    TerminalEngine, TerminalEvent as CoreTerminalEvent,
+    encode_key, encode_mouse, encode_paste, KeyInput, KeyName, MatchRange, MouseAction,
+    MouseButton, MouseInput, MouseTracking, SelectionKind, TermPalette, TerminalEngine,
+    TerminalEvent as CoreTerminalEvent,
 };
 
 use crate::api::frb_err;
@@ -184,6 +185,33 @@ pub struct TerminalFrameSelection {
     pub is_block: bool,
 }
 
+/// Which mouse-tracking level the running program enabled — FRB mirror of
+/// `lfs_core::terminal::MouseTracking`. The renderer reads it off each
+/// frame to route a pointer drag to the program (mouse report) vs locally
+/// (text selection), without an extra FFI call per pointer event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalMouseTracking {
+    /// No tracking — the pointer drives local selection / scrollback.
+    None,
+    /// Click-only: press / release, no motion.
+    Click,
+    /// Button-event: press / release + drag (button held).
+    ButtonEvent,
+    /// Any-motion: press / release + drag + bare motion.
+    AnyMotion,
+}
+
+impl TerminalMouseTracking {
+    fn from_core(t: MouseTracking) -> Self {
+        match t {
+            MouseTracking::None => TerminalMouseTracking::None,
+            MouseTracking::Click => TerminalMouseTracking::Click,
+            MouseTracking::ButtonEvent => TerminalMouseTracking::ButtonEvent,
+            MouseTracking::AnyMotion => TerminalMouseTracking::AnyMotion,
+        }
+    }
+}
+
 /// Complete render state for one paint — FRB mirror of
 /// `lfs_core::terminal::Frame`. The `cells` vector is sparse: blank
 /// default cells are omitted, so the renderer clears to the background
@@ -198,6 +226,9 @@ pub struct TerminalFrame {
     pub display_offset: u32,
     /// Total scrollback lines available above the live screen.
     pub history_size: u32,
+    /// Mouse-tracking level the running program enabled — the renderer
+    /// routes pointer events off this.
+    pub mouse_tracking: TerminalMouseTracking,
     pub cells: Vec<TerminalCell>,
     pub selection: Option<TerminalFrameSelection>,
 }
@@ -234,6 +265,7 @@ impl TerminalFrame {
             },
             display_offset: frame.display_offset as u32,
             history_size: frame.history_size as u32,
+            mouse_tracking: TerminalMouseTracking::from_core(frame.mouse_tracking),
             cells,
             selection,
         }
@@ -265,6 +297,10 @@ impl TerminalMatch {
 pub enum TerminalSelectionKind {
     Simple,
     Block,
+    /// Word selection (double-click) — expands to semantic word boundaries.
+    Semantic,
+    /// Whole-line selection (triple-click).
+    Lines,
 }
 
 impl TerminalSelectionKind {
@@ -272,6 +308,81 @@ impl TerminalSelectionKind {
         match self {
             TerminalSelectionKind::Simple => SelectionKind::Simple,
             TerminalSelectionKind::Block => SelectionKind::Block,
+            TerminalSelectionKind::Semantic => SelectionKind::Semantic,
+            TerminalSelectionKind::Lines => SelectionKind::Lines,
+        }
+    }
+}
+
+// ---- Mouse input DTO --------------------------------------------------
+
+/// FRB mirror of `lfs_core::terminal::MouseButton`. Wheel up/down ride the
+/// same report channel as buttons; `None` is a bare motion with no button.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalMouseButton {
+    Left,
+    Middle,
+    Right,
+    WheelUp,
+    WheelDown,
+    None,
+}
+
+impl TerminalMouseButton {
+    fn into_core(self) -> MouseButton {
+        match self {
+            TerminalMouseButton::Left => MouseButton::Left,
+            TerminalMouseButton::Middle => MouseButton::Middle,
+            TerminalMouseButton::Right => MouseButton::Right,
+            TerminalMouseButton::WheelUp => MouseButton::WheelUp,
+            TerminalMouseButton::WheelDown => MouseButton::WheelDown,
+            TerminalMouseButton::None => MouseButton::None,
+        }
+    }
+}
+
+/// FRB mirror of `lfs_core::terminal::MouseAction`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalMouseAction {
+    Press,
+    Release,
+    Move,
+}
+
+impl TerminalMouseAction {
+    fn into_core(self) -> MouseAction {
+        match self {
+            TerminalMouseAction::Press => MouseAction::Press,
+            TerminalMouseAction::Release => MouseAction::Release,
+            TerminalMouseAction::Move => MouseAction::Move,
+        }
+    }
+}
+
+/// FRB mirror of `lfs_core::terminal::MouseInput`. `col`/`row` are 1-based
+/// cell coordinates as they appear in the report — the Dart layer maps
+/// pixels to a 0-based cell and adds 1 before crossing the boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TerminalMouseInput {
+    pub button: TerminalMouseButton,
+    pub action: TerminalMouseAction,
+    pub col: u32,
+    pub row: u32,
+    pub shift: bool,
+    pub alt: bool,
+    pub ctrl: bool,
+}
+
+impl TerminalMouseInput {
+    fn into_core(self) -> MouseInput {
+        MouseInput {
+            button: self.button.into_core(),
+            action: self.action.into_core(),
+            col: self.col,
+            row: self.row,
+            shift: self.shift,
+            alt: self.alt,
+            ctrl: self.ctrl,
         }
     }
 }
@@ -664,6 +775,29 @@ impl TerminalSession {
             .map_err(|e| frb_err::from_core(&e))
     }
 
+    /// Encode a mouse event against the engine's current mode and write the
+    /// report to the shell. Returns without writing when the running
+    /// program does not report that event (no tracking, or a motion event
+    /// under a click-only mode) — the renderer only calls this when the
+    /// frame already showed tracking is active, but the mode is re-read
+    /// here so the gate is authoritative even if the frame the renderer
+    /// saw was a tick stale. Same lock discipline as [`Self::send_key`]:
+    /// the engine lock is taken only to read the mode and released before
+    /// the `shell.write`.
+    pub async fn send_mouse(&self, event: TerminalMouseInput) -> Result<(), String> {
+        let mode = {
+            let guard = self.engine.lock().await;
+            guard.mode()
+        };
+        let Some(bytes) = encode_mouse(&event.into_core(), mode) else {
+            return Ok(());
+        };
+        self.shell
+            .write(&bytes)
+            .await
+            .map_err(|e| frb_err::from_core(&e))
+    }
+
     /// Set a selection spanning `start` to `end` in absolute grid
     /// coordinates (negative row = scrollback). Read the covered text back
     /// with [`Self::selection_text`].
@@ -919,6 +1053,23 @@ mod tests {
         assert!(ui.contains(&TerminalUiEvent::ClipboardStore {
             text: "copied".into()
         }));
+    }
+
+    #[test]
+    fn frame_dto_mirrors_mouse_tracking() {
+        // Spec: the mouse-tracking level the program enabled surfaces in
+        // the DTO so the renderer routes pointer events without an extra
+        // FFI mode read. `?1002h` = button-event tracking.
+        let mut engine = TerminalEngine::new(10, 3, 50, TermPalette::one_dark());
+        assert_eq!(
+            TerminalFrame::from_core(engine.snapshot()).mouse_tracking,
+            TerminalMouseTracking::None,
+        );
+        engine.feed(b"\x1b[?1002h");
+        assert_eq!(
+            TerminalFrame::from_core(engine.snapshot()).mouse_tracking,
+            TerminalMouseTracking::ButtonEvent,
+        );
     }
 
     #[test]

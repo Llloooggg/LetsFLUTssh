@@ -62,6 +62,26 @@ pub struct FrameSelection {
     pub is_block: bool,
 }
 
+/// Which mouse-tracking level the running program enabled, carried in the
+/// frame so the renderer can decide — without an extra FFI call per
+/// pointer event — whether a drag should be sent to the program as a mouse
+/// report or handled locally as text selection. `None` means no tracking:
+/// the pointer drives local selection / scrollback. The levels are
+/// inclusive supersets in capability — `anyMotion` also reports drags and
+/// clicks — but they are distinct so the renderer can still gate bare
+/// motion (only `anyMotion` wants button-less moves).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseTracking {
+    /// No mouse tracking — the pointer is local (selection / scroll).
+    None,
+    /// Click-only (`?1000h`): press / release, no motion.
+    Click,
+    /// Button-event (`?1002h`): press / release + drag (button held).
+    ButtonEvent,
+    /// Any-motion (`?1003h`): press / release + drag + bare motion.
+    AnyMotion,
+}
+
 /// Complete render state for one paint. Owned — safe to hold across FFI.
 #[derive(Debug, Clone)]
 pub struct Frame {
@@ -73,6 +93,11 @@ pub struct Frame {
     pub display_offset: usize,
     /// Total scrollback lines available above the live screen.
     pub history_size: usize,
+    /// Mouse-tracking level the running program enabled. The renderer
+    /// routes pointer events to the program (mouse report) vs locally
+    /// (selection / scroll) off this — a Shift modifier always forces
+    /// local selection regardless, matching the xterm override convention.
+    pub mouse_tracking: MouseTracking,
     /// Non-blank cells in the current viewport. Blank default cells are
     /// omitted so the renderer paints the background once and overlays only
     /// what differs — the grid is sparse for most TUI screens.

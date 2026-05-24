@@ -19,8 +19,10 @@ mod frame;
 mod input;
 mod palette;
 
-pub use frame::{Cell, CursorShape, Frame, FrameCursor, FrameSelection};
-pub use input::{encode_key, encode_paste, KeyInput, KeyName};
+pub use frame::{Cell, CursorShape, Frame, FrameCursor, FrameSelection, MouseTracking};
+pub use input::{
+    encode_key, encode_mouse, encode_paste, KeyInput, KeyName, MouseAction, MouseButton, MouseInput,
+};
 pub use palette::{Rgb, TermPalette};
 
 use std::sync::{Arc, Mutex};
@@ -129,6 +131,13 @@ pub enum SelectionKind {
     Simple,
     /// Rectangular (block) selection.
     Block,
+    /// Word selection — expands either end out to the nearest semantic
+    /// escape char (double-click UX). Boundaries follow alacritty's
+    /// `semantic_escape_chars` (default: whitespace + common punctuation).
+    Semantic,
+    /// Whole-line selection (triple-click UX) — expands to cover the
+    /// entire grid line(s) the span touches.
+    Lines,
 }
 
 /// One substring match found by [`TerminalEngine::search`], in absolute
@@ -310,6 +319,7 @@ impl TerminalEngine {
             },
             display_offset,
             history_size: self.term.history_size(),
+            mouse_tracking: mouse_tracking_of(*self.term.mode()),
             cells,
             selection,
         }
@@ -341,6 +351,8 @@ impl TerminalEngine {
         let ty = match kind {
             SelectionKind::Simple => SelectionType::Simple,
             SelectionKind::Block => SelectionType::Block,
+            SelectionKind::Semantic => SelectionType::Semantic,
+            SelectionKind::Lines => SelectionType::Lines,
         };
         let start_point = Point::new(Line(start.0), Column(start.1));
         let end_point = Point::new(Line(end.0), Column(end.1));
@@ -403,6 +415,24 @@ fn collect_line_matches(row: &[char], query: &[char], line_idx: i32, out: &mut V
                 end_col: start + query.len() - 1,
             });
         }
+    }
+}
+
+/// Collapse the mode's mouse bits into the render-facing
+/// [`MouseTracking`] level. The bits are not mutually exclusive in the
+/// flag set, but the program sets exactly one tracking DEC mode at a time
+/// (`?1000`/`?1002`/`?1003`); read them most-capable-first so a stale
+/// lower bit never masks the active level. Used by the renderer to decide
+/// pointer routing without an FFI mode read per event.
+fn mouse_tracking_of(mode: TermMode) -> MouseTracking {
+    if mode.contains(TermMode::MOUSE_MOTION) {
+        MouseTracking::AnyMotion
+    } else if mode.contains(TermMode::MOUSE_DRAG) {
+        MouseTracking::ButtonEvent
+    } else if mode.contains(TermMode::MOUSE_REPORT_CLICK) {
+        MouseTracking::Click
+    } else {
+        MouseTracking::None
     }
 }
 

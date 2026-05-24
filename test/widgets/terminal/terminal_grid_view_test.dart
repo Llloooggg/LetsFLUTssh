@@ -12,7 +12,11 @@ import 'package:letsflutssh/widgets/terminal/terminal_grid_view.dart';
 const _fg = TerminalColor(r: 200, g: 200, b: 200);
 const _bg = TerminalColor(r: 10, g: 10, b: 10);
 
-TerminalFrame _frameWith(String ch) => TerminalFrame(
+TerminalFrame _frameWith(
+  String ch, {
+  TerminalMouseTracking tracking = TerminalMouseTracking.none,
+  int displayOffset = 0,
+}) => TerminalFrame(
   cols: 10,
   rows: 5,
   cursor: const TerminalCursor(
@@ -21,8 +25,9 @@ TerminalFrame _frameWith(String ch) => TerminalFrame(
     shape: TerminalCursorShape.block,
     visible: true,
   ),
-  displayOffset: 0,
+  displayOffset: displayOffset,
   historySize: 0,
+  mouseTracking: tracking,
   cells: [
     TerminalCell(
       row: 0,
@@ -302,6 +307,182 @@ void main() {
       await tester.pump();
 
       expect(deltas, isEmpty);
+    });
+  });
+
+  group('TerminalGridView — selection drag', () {
+    // Spec: with no mouse tracking, a primary-button drag drives a local
+    // text selection — pointer-down clears, then each move sets a
+    // selection spanning the anchor to the current cell.
+    testWidgets('a primary drag clears then sets a selection', (tester) async {
+      final controller = StreamController<TerminalUiEvent>();
+      addTearDown(controller.close);
+      var cleared = 0;
+      final sels = <List<int>>[];
+      final kinds = <TerminalSelectionKind>[];
+
+      await tester.pumpWidget(
+        _app(
+          TerminalGridView.fromSource(
+            snapshotProvider: () => _frameWith('A'),
+            events: controller.stream,
+            fontSize: 14,
+            onClearSelection: () => cleared++,
+            onSetSelection: (sr, sc, er, ec, kind) async {
+              sels.add([sr, sc, er, ec]);
+              kinds.add(kind);
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final topLeft = tester.getTopLeft(find.byType(TerminalGridView));
+      final gesture = await tester.startGesture(
+        topLeft + const Offset(10, 10),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      await gesture.moveTo(topLeft + const Offset(60, 40));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(cleared, 1, reason: 'pointer-down clears prior selection');
+      expect(sels, isNotEmpty);
+      // The first set is the anchor (collapsed); a later set spans to the
+      // moved cell with a larger end column / row.
+      expect(sels.first[0], sels.first[2]); // anchor row == end row
+      expect(sels.last[3], greaterThan(sels.first[1]));
+      // A single drag selects character-by-character (Simple geometry).
+      expect(
+        kinds,
+        everyElement(TerminalSelectionKind.simple),
+        reason: 'a plain drag is a simple selection',
+      );
+    });
+
+    // Spec: a double-click on a cell drives a word (Semantic) selection and
+    // a triple-click drives a whole-line (Lines) selection; the engine
+    // expands a collapsed anchor==end span to the word / line.
+    testWidgets('double-click selects a word, triple-click a line', (
+      tester,
+    ) async {
+      final controller = StreamController<TerminalUiEvent>();
+      addTearDown(controller.close);
+      final kinds = <TerminalSelectionKind>[];
+
+      await tester.pumpWidget(
+        _app(
+          TerminalGridView.fromSource(
+            snapshotProvider: () => _frameWith('A'),
+            events: controller.stream,
+            fontSize: 14,
+            onSetSelection: (sr, sc, er, ec, kind) async => kinds.add(kind),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final center = tester.getCenter(find.byType(TerminalGridView));
+      // Three fast taps on the same cell → single, double, triple click.
+      await tester.tapAt(center, kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.tapAt(center, kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.tapAt(center, kind: PointerDeviceKind.mouse);
+      await tester.pump();
+
+      expect(
+        kinds,
+        containsAllInOrder(<TerminalSelectionKind>[
+          TerminalSelectionKind.simple,
+          TerminalSelectionKind.semantic,
+          TerminalSelectionKind.lines,
+        ]),
+        reason: '1st tap simple, 2nd word, 3rd line',
+      );
+    });
+
+    // Spec: when the program enabled mouse tracking, a drag is reported to
+    // the program (press → move → release) instead of selecting locally.
+    testWidgets('a drag under mouse tracking reports instead of selecting', (
+      tester,
+    ) async {
+      final controller = StreamController<TerminalUiEvent>();
+      addTearDown(controller.close);
+      var cleared = 0;
+      final mouse = <TerminalMouseInput>[];
+
+      await tester.pumpWidget(
+        _app(
+          TerminalGridView.fromSource(
+            snapshotProvider: () =>
+                _frameWith('A', tracking: TerminalMouseTracking.buttonEvent),
+            events: controller.stream,
+            fontSize: 14,
+            onClearSelection: () => cleared++,
+            onSetSelection: (sr, sc, er, ec, kind) async {},
+            onMouse: mouse.add,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final topLeft = tester.getTopLeft(find.byType(TerminalGridView));
+      final gesture = await tester.startGesture(
+        topLeft + const Offset(10, 10),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      await gesture.moveTo(topLeft + const Offset(40, 30));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(cleared, 0, reason: 'no local selection under tracking');
+      expect(mouse, isNotEmpty);
+      expect(mouse.first.action, TerminalMouseAction.press);
+      expect(mouse.first.button, TerminalMouseButton.left);
+      expect(mouse.last.action, TerminalMouseAction.release);
+      // Report coordinates are 1-based.
+      expect(mouse.first.col, greaterThanOrEqualTo(1));
+      expect(mouse.first.row, greaterThanOrEqualTo(1));
+    });
+
+    // Spec: a wheel under mouse tracking reports a wheel button instead of
+    // scrolling scrollback locally.
+    testWidgets('wheel under tracking reports wheel button, not scroll', (
+      tester,
+    ) async {
+      final controller = StreamController<TerminalUiEvent>();
+      addTearDown(controller.close);
+      final deltas = <int>[];
+      final mouse = <TerminalMouseInput>[];
+
+      await tester.pumpWidget(
+        _app(
+          TerminalGridView.fromSource(
+            snapshotProvider: () =>
+                _frameWith('A', tracking: TerminalMouseTracking.click),
+            events: controller.stream,
+            fontSize: 14,
+            onScroll: deltas.add,
+            onMouse: mouse.add,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final center = tester.getCenter(find.byType(TerminalGridView));
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(pointer.hover(center));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 30)));
+      await tester.pump();
+
+      expect(deltas, isEmpty, reason: 'wheel went to the program');
+      expect(mouse, hasLength(1));
+      expect(mouse.single.button, TerminalMouseButton.wheelDown);
     });
   });
 }

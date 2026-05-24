@@ -452,6 +452,8 @@ There is none. The private key never leaves the AndroidKeyStore; the `.lfs` arch
 | `Shift` (hold while dragging) | Bypass app's mouse-mode capture for text selection in TUI apps (htop, vim, mc) |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 
+**Mouse selection.** Drag to select character-by-character, **double-click** to select a word, **triple-click** to select a whole line — then `Ctrl+Shift+C` to copy. Inside a full-screen mouse program (htop, vim, mc) hold `Shift` while dragging to select locally instead of sending the click to the program.
+
 ### Reconnect
 
 - Tab header dot turns red on disconnect. Right-click tab → Reconnect, or click the inline "Reconnect" button.

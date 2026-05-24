@@ -598,6 +598,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TerminalKey dco_decode_box_autoadd_terminal_key(dynamic raw);
 
   @protected
+  TerminalMouseInput dco_decode_box_autoadd_terminal_mouse_input(dynamic raw);
+
+  @protected
   TerminalPalette dco_decode_box_autoadd_terminal_palette(dynamic raw);
 
   @protected
@@ -1652,6 +1655,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TerminalMatch dco_decode_terminal_match(dynamic raw);
 
   @protected
+  TerminalMouseAction dco_decode_terminal_mouse_action(dynamic raw);
+
+  @protected
+  TerminalMouseButton dco_decode_terminal_mouse_button(dynamic raw);
+
+  @protected
+  TerminalMouseInput dco_decode_terminal_mouse_input(dynamic raw);
+
+  @protected
+  TerminalMouseTracking dco_decode_terminal_mouse_tracking(dynamic raw);
+
+  @protected
   TerminalPalette dco_decode_terminal_palette(dynamic raw);
 
   @protected
@@ -2230,6 +2245,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TerminalKey sse_decode_box_autoadd_terminal_key(SseDeserializer deserializer);
+
+  @protected
+  TerminalMouseInput sse_decode_box_autoadd_terminal_mouse_input(
+    SseDeserializer deserializer,
+  );
 
   @protected
   TerminalPalette sse_decode_box_autoadd_terminal_palette(
@@ -3626,6 +3646,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TerminalMatch sse_decode_terminal_match(SseDeserializer deserializer);
 
   @protected
+  TerminalMouseAction sse_decode_terminal_mouse_action(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalMouseButton sse_decode_terminal_mouse_button(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalMouseInput sse_decode_terminal_mouse_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TerminalMouseTracking sse_decode_terminal_mouse_tracking(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   TerminalPalette sse_decode_terminal_palette(SseDeserializer deserializer);
 
   @protected
@@ -4327,6 +4367,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_terminal_key(
     TerminalKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_terminal_mouse_input(
+    TerminalMouseInput self,
     SseSerializer serializer,
   );
 
@@ -6098,6 +6144,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_terminal_match(TerminalMatch self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_terminal_mouse_action(
+    TerminalMouseAction self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_mouse_button(
+    TerminalMouseButton self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_mouse_input(
+    TerminalMouseInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_terminal_mouse_tracking(
+    TerminalMouseTracking self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_terminal_palette(

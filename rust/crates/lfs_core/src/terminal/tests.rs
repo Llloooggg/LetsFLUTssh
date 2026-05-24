@@ -267,6 +267,38 @@ fn selection_returns_selected_text() {
 }
 
 #[test]
+fn semantic_selection_expands_to_whole_word() {
+    // Spec: a Semantic (double-click) selection started anywhere inside a
+    // word expands out to the word's boundaries. Words break on alacritty's
+    // semantic escape chars (whitespace + common punctuation), so over
+    // "foo bar baz" a click inside "bar" yields exactly "bar" regardless of
+    // which column of the word the start/end land on.
+    let mut eng = engine(20, 3);
+    eng.feed(b"foo bar baz");
+    // "bar" occupies columns 4..6; start and end both inside the word.
+    eng.set_selection((0, 5), (0, 5), SelectionKind::Semantic);
+    assert_eq!(eng.selection_text().as_deref(), Some("bar"));
+    // Starting on the first column of the word expands the same way.
+    eng.set_selection((0, 4), (0, 4), SelectionKind::Semantic);
+    assert_eq!(eng.selection_text().as_deref(), Some("bar"));
+}
+
+#[test]
+fn lines_selection_expands_to_whole_line() {
+    // Spec: a Lines (triple-click) selection started at one cell expands to
+    // cover the entire grid line the point touches, regardless of the start
+    // column. A whole-line selection carries the line terminator, so the
+    // text reads back with a trailing newline.
+    let mut eng = engine(20, 3);
+    eng.feed(b"the whole line here");
+    eng.set_selection((0, 9), (0, 9), SelectionKind::Lines);
+    assert_eq!(
+        eng.selection_text().as_deref(),
+        Some("the whole line here\n")
+    );
+}
+
+#[test]
 fn clear_selection_drops_text() {
     // Spec: clearing the selection leaves no selected text.
     let mut eng = engine(20, 3);
@@ -401,6 +433,31 @@ fn set_palette_changes_resolved_colors() {
 
     assert_ne!(before, after);
     assert_eq!(after, Rgb::new(1, 2, 3));
+}
+
+#[test]
+fn frame_reports_no_mouse_tracking_by_default() {
+    // Spec: a fresh engine has no mouse tracking — the pointer is local
+    // (selection / scroll), so the frame reports `None`.
+    let eng = engine(20, 5);
+    assert_eq!(eng.snapshot().mouse_tracking, MouseTracking::None);
+}
+
+#[test]
+fn frame_tracks_mouse_dec_modes() {
+    // Spec: enabling a mouse DEC mode surfaces the matching tracking level
+    // in the frame so the renderer routes the pointer to the program.
+    // `?1000h` = click-only, `?1002h` = button-event, `?1003h` = any-motion.
+    let mut eng = engine(20, 5);
+    eng.feed(b"\x1b[?1000h");
+    assert_eq!(eng.snapshot().mouse_tracking, MouseTracking::Click);
+    eng.feed(b"\x1b[?1002h");
+    assert_eq!(eng.snapshot().mouse_tracking, MouseTracking::ButtonEvent);
+    eng.feed(b"\x1b[?1003h");
+    assert_eq!(eng.snapshot().mouse_tracking, MouseTracking::AnyMotion);
+    // Disabling returns to local.
+    eng.feed(b"\x1b[?1003l\x1b[?1002l\x1b[?1000l");
+    assert_eq!(eng.snapshot().mouse_tracking, MouseTracking::None);
 }
 
 #[test]

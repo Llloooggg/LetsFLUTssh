@@ -18,9 +18,10 @@
 //! SS3 vs CSI selection, paste-terminator filtering) lives here and is
 //! unit-tested against xterm/VT semantics.
 //!
-//! Scope: this encodes a single keystroke's bytes. It deliberately does
-//! NOT implement the Kitty keyboard protocol, nor SGR mouse reporting —
-//! mouse input (vim/htop click + drag) is a separate follow-up.
+//! Scope: this encodes a single keystroke's bytes, plus mouse reports
+//! ([`encode_mouse`]) for programs that enable mouse tracking (vim/htop
+//! click + drag + wheel). It deliberately does NOT implement the Kitty
+//! keyboard protocol.
 
 use alacritty_terminal::term::TermMode;
 
@@ -284,6 +285,190 @@ pub fn encode_paste(text: &str, mode: TermMode) -> Vec<u8> {
     } else {
         text.as_bytes().to_vec()
     }
+}
+
+// ---- Mouse reporting --------------------------------------------------
+
+/// Which button a mouse report is about. Wheel up/down ride the same CSI
+/// `M`/SGR channel as buttons (xterm encodes the wheel as buttons 64/65),
+/// so they are buttons here. `None` is a bare pointer move with no button
+/// held — only encoded under [`TermMode::MOUSE_MOTION`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseButton {
+    Left,
+    Middle,
+    Right,
+    WheelUp,
+    WheelDown,
+    /// No button — a bare motion event.
+    None,
+}
+
+/// What happened to the pointer. A `Press` reports the button going down,
+/// `Release` the button coming up, `Move` a drag (button held) or bare
+/// motion (button `None`). Wheel events are always a `Press` (xterm has no
+/// wheel release).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseAction {
+    Press,
+    Release,
+    Move,
+}
+
+/// A normalised mouse event for [`encode_mouse`]. `col`/`row` are 1-based
+/// cell coordinates as they appear in the report (the Dart layer converts
+/// pixels → 0-based cell, then the FRB DTO adds 1). Modifier bools fold
+/// into the xterm modifier bits (Shift=4, Alt=8, Ctrl=16).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MouseInput {
+    pub button: MouseButton,
+    pub action: MouseAction,
+    /// 1-based column in the report.
+    pub col: u32,
+    /// 1-based row in the report.
+    pub row: u32,
+    pub shift: bool,
+    pub alt: bool,
+    pub ctrl: bool,
+}
+
+/// The xterm button code (the low 6 bits of the CC byte before the
+/// motion/modifier bits are OR-ed in). Left=0, Middle=1, Right=2,
+/// release-of-a-normal-button also uses the button's own code under SGR
+/// (the trailing `m` marks it a release) but `3` under the legacy
+/// protocol. Wheel up/down are 64/65. A bare motion with no button is the
+/// "no button" sentinel 3.
+fn mouse_button_code(button: MouseButton) -> u8 {
+    match button {
+        MouseButton::Left => 0,
+        MouseButton::Middle => 1,
+        MouseButton::Right => 2,
+        MouseButton::None => 3,
+        MouseButton::WheelUp => 64,
+        MouseButton::WheelDown => 65,
+    }
+}
+
+/// Fold the modifier bools into the xterm CC byte: Shift=4, Alt(Meta)=8,
+/// Ctrl=16. Matches xterm's modifyOtherKeys-independent mouse modifier
+/// layout.
+fn mouse_modifier_bits(input: &MouseInput) -> u8 {
+    let mut bits = 0u8;
+    if input.shift {
+        bits |= 4;
+    }
+    if input.alt {
+        bits |= 8;
+    }
+    if input.ctrl {
+        bits |= 16;
+    }
+    bits
+}
+
+/// True when the engine's mode reports the given event at all. Click-only
+/// mode ([`TermMode::MOUSE_REPORT_CLICK`]) reports press/release but no
+/// motion; button-event mode ([`TermMode::MOUSE_DRAG`]) adds motion while a
+/// button is held; any-motion mode ([`TermMode::MOUSE_MOTION`]) adds bare
+/// motion with no button. Wheel and press/release report under any of the
+/// three.
+fn mouse_event_reported(input: &MouseInput, mode: TermMode) -> bool {
+    let any_tracking = mode
+        .intersects(TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION);
+    if !any_tracking {
+        return false;
+    }
+    match input.action {
+        MouseAction::Press | MouseAction::Release => true,
+        MouseAction::Move => {
+            if input.button == MouseButton::None {
+                // Bare motion (no button) only under any-motion mode.
+                mode.contains(TermMode::MOUSE_MOTION)
+            } else {
+                // Drag (button held) under button-event or any-motion mode.
+                mode.intersects(TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION)
+            }
+        }
+    }
+}
+
+/// Encode a mouse event into the bytes to write to the PTY, or `None` when
+/// the current `mode` does not report that event (no tracking enabled, or a
+/// motion event under a mode that only reports clicks). Produces the SGR
+/// form (`\x1b[<Cb;Col;Row M` for press/motion, `…m` for release) when
+/// [`TermMode::SGR_MOUSE`] is set, otherwise the legacy X10/normal form
+/// (`\x1b[M` then three bytes `Cb+32`, `Col+32`, `Row+32`).
+///
+/// SGR is preferred when available because the legacy form caps a
+/// coordinate at 223 (255 − 32): a click past column 223 in the legacy
+/// form would emit a byte the program cannot decode, so the legacy branch
+/// clamps to that ceiling while SGR carries the true coordinate.
+pub fn encode_mouse(input: &MouseInput, mode: TermMode) -> Option<Vec<u8>> {
+    if !mouse_event_reported(input, mode) {
+        return None;
+    }
+    let base = mouse_button_code(input.button);
+    // Motion (drag / bare-move) sets bit 5 (32) on the button code.
+    let motion_bit = if input.action == MouseAction::Move {
+        32
+    } else {
+        0
+    };
+    let modifiers = mouse_modifier_bits(input);
+
+    if mode.contains(TermMode::SGR_MOUSE) {
+        let cb = u32::from(base) | u32::from(motion_bit) | u32::from(modifiers);
+        // Release is the trailing `m`; press / motion / wheel use `M`. A
+        // wheel is always a press (no release), so it takes `M`.
+        let terminator = if input.action == MouseAction::Release {
+            'm'
+        } else {
+            'M'
+        };
+        Some(format!("\x1b[<{cb};{};{}{terminator}", input.col, input.row).into_bytes())
+    } else {
+        encode_legacy_mouse(input, base, motion_bit, modifiers)
+    }
+}
+
+/// The legacy X10/normal mouse report: `\x1b[M` then three bytes, each a
+/// value offset by 32. A normal-button release encodes the button code 3
+/// (the protocol has no per-button release); wheel and motion keep their
+/// own codes. Coordinates clamp to 223 because the byte is `value + 32`
+/// and a `u8` saturates at 255.
+fn encode_legacy_mouse(
+    input: &MouseInput,
+    base: u8,
+    motion_bit: u8,
+    modifiers: u8,
+) -> Option<Vec<u8>> {
+    // A normal-button release loses its button identity in the legacy
+    // form — code 3 with the motion/modifier bits preserved.
+    let button_code = if input.action == MouseAction::Release
+        && matches!(
+            input.button,
+            MouseButton::Left | MouseButton::Middle | MouseButton::Right
+        ) {
+        3
+    } else {
+        base
+    };
+    let cb = button_code
+        .wrapping_add(motion_bit)
+        .wrapping_add(modifiers)
+        .wrapping_add(32);
+    let col = clamp_legacy_coord(input.col);
+    let row = clamp_legacy_coord(input.row);
+    Some(vec![0x1b, b'[', b'M', cb, col, row])
+}
+
+/// Clamp a 1-based coordinate into the legacy report's representable range
+/// and offset it by 32. The byte holds `coord + 32`, so the largest
+/// encodable coordinate is `255 - 32 = 223`; past that the legacy protocol
+/// cannot represent the position and clamps to the ceiling.
+fn clamp_legacy_coord(coord: u32) -> u8 {
+    let clamped = coord.min(223);
+    (clamped as u8).wrapping_add(32)
 }
 
 #[cfg(test)]
@@ -619,5 +804,125 @@ mod tests {
         // The terminator must appear exactly once — the trailing frame.
         let body = &out[..out.len() - 6];
         assert!(!body.windows(6).any(|w| w == b"\x1b[201~"));
+    }
+
+    // ---- Mouse reporting tests ----------------------------------------
+
+    fn sgr() -> TermMode {
+        TermMode::MOUSE_REPORT_CLICK | TermMode::SGR_MOUSE
+    }
+
+    fn mouse(button: MouseButton, action: MouseAction, col: u32, row: u32) -> MouseInput {
+        MouseInput {
+            button,
+            action,
+            col,
+            row,
+            shift: false,
+            alt: false,
+            ctrl: false,
+        }
+    }
+
+    #[test]
+    fn no_mouse_report_without_tracking() {
+        // Spec: with no mouse-tracking mode set, every event encodes to
+        // nothing — local selection / scroll handles the pointer instead.
+        let press = mouse(MouseButton::Left, MouseAction::Press, 1, 1);
+        assert_eq!(encode_mouse(&press, no_mode()), None);
+    }
+
+    #[test]
+    fn sgr_left_press_and_release() {
+        // Spec: SGR press is `\x1b[<Cb;Col;RowM`; the release is the same
+        // button code with the trailing `m`. Left button code = 0.
+        let press = mouse(MouseButton::Left, MouseAction::Press, 5, 7);
+        assert_eq!(encode_mouse(&press, sgr()).unwrap(), b"\x1b[<0;5;7M");
+        let release = mouse(MouseButton::Left, MouseAction::Release, 5, 7);
+        assert_eq!(encode_mouse(&release, sgr()).unwrap(), b"\x1b[<0;5;7m");
+    }
+
+    #[test]
+    fn sgr_right_and_middle_button_codes() {
+        // Spec: Middle = 1, Right = 2.
+        let middle = mouse(MouseButton::Middle, MouseAction::Press, 1, 1);
+        assert_eq!(encode_mouse(&middle, sgr()).unwrap(), b"\x1b[<1;1;1M");
+        let right = mouse(MouseButton::Right, MouseAction::Press, 1, 1);
+        assert_eq!(encode_mouse(&right, sgr()).unwrap(), b"\x1b[<2;1;1M");
+    }
+
+    #[test]
+    fn sgr_wheel_up_and_down() {
+        // Spec: wheel up = 64, wheel down = 65; both are a press (`M`)
+        // since the wheel has no release. Reportable under click-only mode.
+        let up = mouse(MouseButton::WheelUp, MouseAction::Press, 3, 4);
+        assert_eq!(encode_mouse(&up, sgr()).unwrap(), b"\x1b[<64;3;4M");
+        let down = mouse(MouseButton::WheelDown, MouseAction::Press, 3, 4);
+        assert_eq!(encode_mouse(&down, sgr()).unwrap(), b"\x1b[<65;3;4M");
+    }
+
+    #[test]
+    fn sgr_drag_sets_motion_bit() {
+        // Spec: a drag (button held + Move) ORs in the motion bit 32 — a
+        // left-button drag is code 0|32 = 32. Reportable only under
+        // button-event (DRAG) mode, not click-only.
+        let drag = mouse(MouseButton::Left, MouseAction::Move, 9, 2);
+        let mode = TermMode::MOUSE_DRAG | TermMode::SGR_MOUSE;
+        assert_eq!(encode_mouse(&drag, mode).unwrap(), b"\x1b[<32;9;2M");
+        // The same drag under click-only mode is not reported.
+        assert_eq!(encode_mouse(&drag, sgr()), None);
+    }
+
+    #[test]
+    fn bare_motion_only_under_motion_mode() {
+        // Spec: a no-button move is reported only under any-motion mode;
+        // the button-event (DRAG) mode does not report button-less motion.
+        let move_event = mouse(MouseButton::None, MouseAction::Move, 4, 4);
+        let motion = TermMode::MOUSE_MOTION | TermMode::SGR_MOUSE;
+        // No-button code 3, plus motion bit 32 = 35.
+        assert_eq!(encode_mouse(&move_event, motion).unwrap(), b"\x1b[<35;4;4M");
+        let drag_only = TermMode::MOUSE_DRAG | TermMode::SGR_MOUSE;
+        assert_eq!(encode_mouse(&move_event, drag_only), None);
+    }
+
+    #[test]
+    fn sgr_modifier_bits_fold_in() {
+        // Spec: Shift=4, Alt=8, Ctrl=16 OR into the button code. A
+        // Ctrl+Shift left press = 0 | 16 | 4 = 20.
+        let input = MouseInput {
+            shift: true,
+            ctrl: true,
+            ..mouse(MouseButton::Left, MouseAction::Press, 1, 1)
+        };
+        assert_eq!(encode_mouse(&input, sgr()).unwrap(), b"\x1b[<20;1;1M");
+    }
+
+    #[test]
+    fn legacy_normal_mouse_report() {
+        // Spec: without SGR_MOUSE the legacy `\x1b[M` form encodes three
+        // value+32 bytes. Left press at (1,1) = button 0+32=32 (space),
+        // col 1+32=33 ('!'), row 1+32=33 ('!').
+        let press = mouse(MouseButton::Left, MouseAction::Press, 1, 1);
+        let mode = TermMode::MOUSE_REPORT_CLICK;
+        assert_eq!(encode_mouse(&press, mode).unwrap(), b"\x1b[M\x20\x21\x21");
+    }
+
+    #[test]
+    fn legacy_release_uses_button_code_three() {
+        // Spec: the legacy form has no per-button release — a normal-button
+        // release encodes button code 3 (3+32 = 35 = '#').
+        let release = mouse(MouseButton::Left, MouseAction::Release, 1, 1);
+        let mode = TermMode::MOUSE_REPORT_CLICK;
+        assert_eq!(encode_mouse(&release, mode).unwrap(), b"\x1b[M\x23\x21\x21");
+    }
+
+    #[test]
+    fn legacy_coordinate_clamps_at_223() {
+        // Spec: the legacy byte is coord+32, so coordinates past 223 cannot
+        // be represented and clamp to 223 (223+32 = 255 = 0xFF).
+        let press = mouse(MouseButton::Left, MouseAction::Press, 500, 1);
+        let mode = TermMode::MOUSE_REPORT_CLICK;
+        let out = encode_mouse(&press, mode).unwrap();
+        assert_eq!(out[4], 0xFF); // clamped column byte
     }
 }

@@ -38,6 +38,7 @@ TerminalFrame _frame({
       ),
   displayOffset: 0,
   historySize: 0,
+  mouseTracking: TerminalMouseTracking.none,
   cells: cells,
   selection: selection,
 );

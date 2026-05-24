@@ -6,6 +6,7 @@ import '../../src/rust/api/terminal.dart';
 import '../../theme/app_theme.dart';
 import 'terminal_cell_flags.dart';
 import 'terminal_cell_metrics.dart';
+import 'terminal_pointer_input.dart';
 
 /// Paints one [TerminalFrame] onto a cell grid.
 ///
@@ -34,6 +35,10 @@ class TerminalGridPainter extends CustomPainter {
     this.fontFamily = AppFonts.monoFamily,
     this.fontFamilyFallback = AppFonts.monoFallback,
     this.padding = EdgeInsets.zero,
+    this.searchHighlights = const [],
+    this.searchHighlightColor,
+    this.activeSearchHighlight,
+    this.activeSearchHighlightColor,
   });
 
   final TerminalFrame frame;
@@ -53,12 +58,46 @@ class TerminalGridPainter extends CustomPainter {
   final List<String> fontFamilyFallback;
   final EdgeInsets padding;
 
+  /// Search-match highlight spans in viewport-cell coordinates (exclusive
+  /// end column). Painted under the glyphs so the matched text stays
+  /// legible. Empty when no search is active.
+  final List<TerminalHighlightRect> searchHighlights;
+
+  /// Fill color for non-active search matches. Falls back to a translucent
+  /// [selectionColor] when null (the search bar always supplies one).
+  final Color? searchHighlightColor;
+
+  /// The current match in next/prev navigation, painted in a stronger
+  /// color so the user sees which one is focused. Null when no search.
+  final TerminalHighlightRect? activeSearchHighlight;
+
+  /// Fill color for the active match. Falls back to [searchHighlightColor].
+  final Color? activeSearchHighlightColor;
+
   @override
   void paint(Canvas canvas, Size size) {
     _paintCellBackgrounds(canvas);
+    _paintSearchHighlights(canvas);
     _paintSelection(canvas);
     _paintGlyphs(canvas);
     _paintCursor(canvas);
+  }
+
+  void _paintSearchHighlights(Canvas canvas) {
+    if (searchHighlights.isEmpty) return;
+    final baseColor = searchHighlightColor ?? selectionColor;
+    final activeColor = activeSearchHighlightColor ?? baseColor;
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (final hl in searchHighlights) {
+      paint.color = hl == activeSearchHighlight ? activeColor : baseColor;
+      final origin = _cellOrigin(hl.row, hl.startCol);
+      final width = (hl.endCol - hl.startCol) * cellSize.width;
+      if (width <= 0) continue;
+      canvas.drawRect(
+        Rect.fromLTWH(origin.dx, origin.dy, width, cellSize.height),
+        paint,
+      );
+    }
   }
 
   /// Pixel offset of a cell's top-left corner.
@@ -224,7 +263,20 @@ class TerminalGridPainter extends CustomPainter {
       fontSize != old.fontSize ||
       defaultBackground != old.defaultBackground ||
       cursorColor != old.cursorColor ||
-      selectionColor != old.selectionColor;
+      selectionColor != old.selectionColor ||
+      activeSearchHighlight != old.activeSearchHighlight ||
+      !_listEquals(searchHighlights, old.searchHighlights);
+
+  static bool _listEquals(
+    List<TerminalHighlightRect> a,
+    List<TerminalHighlightRect> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
 /// One contiguous run of selected columns on a single viewport row.
