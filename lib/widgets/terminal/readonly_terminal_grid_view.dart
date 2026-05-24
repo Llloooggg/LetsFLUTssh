@@ -325,6 +325,7 @@ class _ReadOnlyTerminalGridViewState extends State<ReadOnlyTerminalGridView> {
               selectionColor: AppTheme.termSelection,
               fontSize: widget.fontSize,
               padding: _padding,
+              showCursor: false,
             ),
           ),
         );

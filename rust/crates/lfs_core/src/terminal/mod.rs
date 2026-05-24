@@ -279,13 +279,24 @@ impl TerminalEngine {
             if flags.contains(Flags::WIDE_CHAR_SPACER) {
                 continue;
             }
-            // Blank default cells are omitted — the renderer clears to the
-            // background and overlays only non-blank cells.
-            if cell.c == ' ' && !flags.contains(Flags::INVERSE) {
+            let (fg, bg) = self.resolve_colors(cell.fg, cell.bg, flags);
+            // Omit only a *truly* blank cell: a space whose resolved
+            // background is the default and which carries no decoration.
+            // A space with a coloured background must still be emitted —
+            // otherwise full-width colour bars (the htop header/footer,
+            // status lines, selection runs) lose their fill and only the
+            // cells under glyphs get painted. INVERSE is already folded into
+            // `bg` by `resolve_colors`, so an inverse space has a non-default
+            // background here and survives.
+            const DECORATION: Flags = Flags::UNDERLINE
+                .union(Flags::DOUBLE_UNDERLINE)
+                .union(Flags::UNDERCURL)
+                .union(Flags::DOTTED_UNDERLINE)
+                .union(Flags::DASHED_UNDERLINE)
+                .union(Flags::STRIKEOUT);
+            if cell.c == ' ' && bg == self.palette.background && !flags.intersects(DECORATION) {
                 continue;
             }
-
-            let (fg, bg) = self.resolve_colors(cell.fg, cell.bg, flags);
             // Viewport row: the iterator yields native lines where 0 is the
             // top of the live screen; the visible top accounts for the
             // scroll offset so row 0 is always the topmost painted line.

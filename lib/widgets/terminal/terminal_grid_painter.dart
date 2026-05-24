@@ -39,6 +39,7 @@ class TerminalGridPainter extends CustomPainter {
     this.searchHighlightColor,
     this.activeSearchHighlight,
     this.activeSearchHighlightColor,
+    this.showCursor = true,
   });
 
   final TerminalFrame frame;
@@ -73,6 +74,12 @@ class TerminalGridPainter extends CustomPainter {
 
   /// Fill color for the active match. Falls back to [searchHighlightColor].
   final Color? activeSearchHighlightColor;
+
+  /// Whether to paint the block cursor. Read-only surfaces (log viewer,
+  /// recording playback, connection progress) pass `false` — they replay a
+  /// stream with no live input, so a cursor on the last line is noise, just
+  /// as the old read-only view sent `CSI ?25l` to hide it.
+  final bool showCursor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -183,6 +190,7 @@ class TerminalGridPainter extends CustomPainter {
   }
 
   void _paintCursor(Canvas canvas) {
+    if (!showCursor) return;
     final cursor = frame.cursor;
     if (!cursor.visible || cursor.shape == TerminalCursorShape.hidden) return;
     if (cursor.row < 0 || cursor.row >= frame.rows) return;
@@ -263,6 +271,7 @@ class TerminalGridPainter extends CustomPainter {
       fontSize != old.fontSize ||
       defaultBackground != old.defaultBackground ||
       cursorColor != old.cursorColor ||
+      showCursor != old.showCursor ||
       selectionColor != old.selectionColor ||
       activeSearchHighlight != old.activeSearchHighlight ||
       !_listEquals(searchHighlights, old.searchHighlights);

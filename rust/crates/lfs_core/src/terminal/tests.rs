@@ -27,6 +27,41 @@ fn row_text(frame: &Frame, row: i32) -> String {
 }
 
 #[test]
+fn space_with_coloured_background_is_emitted() {
+    // Regression: a space carrying a non-default background must survive the
+    // sparse-snapshot filter. htop/tmux paint full-width colour bars as
+    // spaces with an SGR background (not INVERSE); dropping them left the bar
+    // coloured only under glyphs with blank gaps between. Set a blue
+    // background (SGR 44), write two spaces, reset, and assert both blank
+    // cells are present with the blue background.
+    let mut eng = engine(20, 3);
+    eng.feed(format!("{ESC}[44m  {ESC}[0m").as_bytes());
+    let frame = eng.snapshot();
+    let blue = eng.palette.ansi[4];
+    let bar: Vec<&Cell> = frame
+        .cells
+        .iter()
+        .filter(|c| c.row == 0 && c.col < 2)
+        .collect();
+    assert_eq!(bar.len(), 2, "both background-coloured spaces emitted");
+    for cell in bar {
+        assert_eq!(cell.ch, ' ');
+        assert_eq!(cell.bg, blue, "space keeps its SGR background");
+    }
+}
+
+#[test]
+fn plain_default_space_is_omitted() {
+    // The sparse filter still drops a truly-blank cell: a space with the
+    // default background carries nothing to paint.
+    let mut eng = engine(20, 3);
+    eng.feed(b"a b"); // 'a', default-bg space, 'b'
+    let frame = eng.snapshot();
+    let middle: Vec<&Cell> = frame.cells.iter().filter(|c| c.col == 1).collect();
+    assert!(middle.is_empty(), "default-bg space omitted");
+}
+
+#[test]
 fn plain_text_lands_on_row_zero_and_advances_cursor() {
     // Spec: feeding printable bytes writes them left-to-right on the
     // current line and advances the cursor one column per glyph.
