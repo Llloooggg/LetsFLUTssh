@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
@@ -19,17 +21,19 @@ import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 /// latch contract.
 void main() {
   group('SecureKeyStorage Dart-side surface', () {
-    test('probeSecretServiceReachability defaults to true; tests opt out', () {
-      // Production constructs with the default `true`; widget tests
-      // that don't want a live D-Bus probe pass `false` and read
-      // back `DbKeyringProbeResult.available` without touching the
-      // session bus.
-      expect(SecureKeyStorage(), isNotNull);
-      expect(
-        SecureKeyStorage(probeSecretServiceReachability: false),
-        isNotNull,
-      );
-    });
+    test('probeSecretServiceReachability: false short-circuits the Linux '
+        'probe to available without a D-Bus connect', () async {
+      // The opt-out flag exists so widget tests get a deterministic
+      // `available` without a live session-bus connect. On Linux that
+      // is a pure-Dart short-circuit (no FRB call), so we can assert
+      // the observable effect directly; on other platforms `probe()`
+      // round-trips through the OS keychain over FRB, which is out of
+      // scope for a unit test (see the file header).
+      final result = await SecureKeyStorage(
+        probeSecretServiceReachability: false,
+      ).probe();
+      expect(result, DbKeyringProbeResult.available);
+    }, skip: Platform.isLinux ? false : 'Linux-only pure-Dart short-circuit');
 
     test(
       'DbKeyringProbeResult carries every documented classification label',
