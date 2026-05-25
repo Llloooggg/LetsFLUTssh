@@ -57,6 +57,12 @@ abstract class SshSftp implements RustOpaqueInterface {
     required String localDir,
   });
 
+  /// Existence probe. `Ok(false)` ONLY for a clean "no such file";
+  /// a permission / IO / protocol failure returns `Err` so the Dart
+  /// caller can fail closed instead of treating it as "free slot"
+  /// (which would silently overwrite a file in a no-read directory).
+  Future<bool> exists({required String path});
+
   /// Recursively enumerate every leaf file under `path` in one
   /// FRB call — the walk runs Rust-side over one SFTP channel
   /// pair instead of N FRB hops per directory level. Symlinks are

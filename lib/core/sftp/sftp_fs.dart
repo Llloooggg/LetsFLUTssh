@@ -176,11 +176,18 @@ class RustSftpFs extends RemoteSftpFs {
 
   @override
   Future<bool> exists(String path) async {
+    // The Rust probe returns false ONLY for a clean "no such file";
+    // a permission / IO error propagates. Don't swallow it into
+    // `false` — a stat that failed with EACCES against a no-read
+    // directory would read as "free slot" and let the conflict
+    // resolver / unique-name generator silently overwrite a remote
+    // file. Surfacing the error fails the operation closed instead.
     try {
-      await _sftp.stat(path: path);
-      return true;
-    } catch (_) {
-      return false;
+      return await _sftp.exists(path: path);
+    } on SFTPError {
+      rethrow;
+    } catch (e) {
+      throw SFTPError.wrap(e, 'exists', path);
     }
   }
 

@@ -218,6 +218,17 @@ impl SshSftp {
             .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
+    /// Existence probe. `Ok(false)` ONLY for a clean "no such file";
+    /// a permission / IO / protocol failure returns `Err` so the Dart
+    /// caller can fail closed instead of treating it as "free slot"
+    /// (which would silently overwrite a file in a no-read directory).
+    pub async fn exists(&self, path: String) -> Result<bool, String> {
+        self.inner
+            .try_exists(&path)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    }
+
     /// Recursive directory-size walk over the remote tree at
     /// `path`. Sums every non-directory entry's byte count,
     /// descending through subdirectories up to `max_depth`

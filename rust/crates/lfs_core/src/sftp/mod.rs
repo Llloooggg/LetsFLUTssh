@@ -217,6 +217,21 @@ impl Sftp {
         Ok(FileMetadata::from_russh(&meta))
     }
 
+    /// Existence probe that distinguishes "no such file" from every
+    /// other failure. `Ok(false)` is returned ONLY for a clean
+    /// `SSH_FX_NO_SUCH_FILE`; a permission-denied / IO / protocol
+    /// error propagates as `Err`. Callers (conflict resolution,
+    /// unique-name generation) must NOT treat an errored probe as
+    /// "free to write" — a `stat` that failed with EACCES against a
+    /// no-read directory would otherwise be read as "nothing there"
+    /// and silently overwrite an existing remote file.
+    pub async fn try_exists(&self, path: &str) -> Result<bool, Error> {
+        self.session
+            .try_exists(path)
+            .await
+            .map_err(|e| Error::Sftp(format!("sftp exists: {e}")))
+    }
+
     /// Stat a path without dereferencing symlinks.
     pub async fn stat_symlink(&self, path: &str) -> Result<FileMetadata, Error> {
         let meta = self
