@@ -214,6 +214,17 @@ impl Artefact for KdfArtefact {
             return Err(format!("{}: wrong magic", Self::FILE_NAME));
         }
         let version = bytes[Self::FILE_MAGIC.len()] as i32;
+        // The Artefact contract reserves `< 1` for "absent" (-1) and
+        // requires every other sub-1 value to be a corrupt-state `Err`,
+        // not a made-up version. A literal `0` version byte is a
+        // corrupt header — surface it so the runner routes the user
+        // through reset instead of walking a migration chain from 0.
+        if version < 1 {
+            return Err(format!(
+                "{}: invalid schema version {version} (must be ≥ 1)",
+                Self::FILE_NAME
+            ));
+        }
         Ok(version)
     }
 }
@@ -464,5 +475,16 @@ mod tests {
         fs::write(dir.path().join("credentials.kdf"), b"").unwrap();
         let err = KdfArtefact.read_version(dir.path()).unwrap_err();
         assert!(err.contains("truncated"));
+    }
+
+    #[test]
+    fn kdf_zero_version_byte_is_fatal() {
+        // The Artefact contract reserves `< 1` for absence (-1); a
+        // literal 0 version byte is corrupt state and must surface as
+        // Err, not a made-up version the runner would migrate from.
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("credentials.kdf"), b"LFKD\x00rest").unwrap();
+        let err = KdfArtefact.read_version(dir.path()).unwrap_err();
+        assert!(err.contains("invalid schema version 0"));
     }
 }
