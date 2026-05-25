@@ -568,7 +568,7 @@
   "generated": "Générée",
   "passphrase": "Phrase secrète",
   "enterMasterPassword": "Entrez le mot de passe principal pour accéder à vos identifiants.",
-  "wrongMasterPassword": "Mot de passe incorrect. Veuillez réessayer.",
+  "wrongMasterPassword": "Mot de passe incorrect. Réessayez.",
   "currentPassword": "Mot de passe actuel",
   "forgotPassword": "Mot de passe oublié ?",
   "credentialsReset": "Tous les identifiants enregistrés ont été supprimés",

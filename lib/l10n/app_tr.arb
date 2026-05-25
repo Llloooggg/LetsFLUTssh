@@ -568,7 +568,7 @@
   "generated": "Oluşturuldu",
   "passphrase": "Passphrase",
   "enterMasterPassword": "Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.",
-  "wrongMasterPassword": "Yanlış şifre. Lütfen tekrar deneyin.",
+  "wrongMasterPassword": "Yanlış şifre. Tekrar deneyin.",
   "currentPassword": "Mevcut şifre",
   "forgotPassword": "Şifrenizi mi unuttunuz?",
   "credentialsReset": "Tüm kayıtlı kimlik bilgileri silindi",

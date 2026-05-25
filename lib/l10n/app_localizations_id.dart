@@ -1802,7 +1802,7 @@ class SId extends S {
       'Masukkan kata sandi utama untuk mengakses kredensial tersimpan.';
 
   @override
-  String get wrongMasterPassword => 'Kata sandi salah. Silakan coba lagi.';
+  String get wrongMasterPassword => 'Kata sandi salah. Coba lagi.';
 
   @override
   String get currentPassword => 'Kata sandi saat ini';

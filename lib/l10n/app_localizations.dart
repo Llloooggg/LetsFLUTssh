@@ -3210,7 +3210,7 @@ abstract class S {
   /// No description provided for @wrongMasterPassword.
   ///
   /// In en, this message translates to:
-  /// **'Wrong password. Please try again.'**
+  /// **'Wrong password. Try again.'**
   String get wrongMasterPassword;
 
   /// No description provided for @currentPassword.

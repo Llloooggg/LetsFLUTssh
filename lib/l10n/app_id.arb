@@ -568,7 +568,7 @@
   "generated": "Dibuat",
   "passphrase": "Frasa sandi",
   "enterMasterPassword": "Masukkan kata sandi utama untuk mengakses kredensial tersimpan.",
-  "wrongMasterPassword": "Kata sandi salah. Silakan coba lagi.",
+  "wrongMasterPassword": "Kata sandi salah. Coba lagi.",
   "currentPassword": "Kata sandi saat ini",
   "forgotPassword": "Lupa kata sandi?",
   "credentialsReset": "Semua kredensial tersimpan telah dihapus",

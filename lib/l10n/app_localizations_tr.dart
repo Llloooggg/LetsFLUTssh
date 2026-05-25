@@ -1804,7 +1804,7 @@ class STr extends S {
       'Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.';
 
   @override
-  String get wrongMasterPassword => 'Yanlış şifre. Lütfen tekrar deneyin.';
+  String get wrongMasterPassword => 'Yanlış şifre. Tekrar deneyin.';
 
   @override
   String get currentPassword => 'Mevcut şifre';

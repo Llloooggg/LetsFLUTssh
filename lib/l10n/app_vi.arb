@@ -568,7 +568,7 @@
   "generated": "Đã tạo",
   "passphrase": "Passphrase",
   "enterMasterPassword": "Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.",
-  "wrongMasterPassword": "Sai mật khẩu. Vui lòng thử lại.",
+  "wrongMasterPassword": "Sai mật khẩu. Thử lại.",
   "currentPassword": "Mật khẩu hiện tại",
   "forgotPassword": "Quên mật khẩu?",
   "credentialsReset": "Tất cả thông tin đăng nhập đã lưu đã bị xóa",

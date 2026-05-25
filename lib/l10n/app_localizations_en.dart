@@ -1845,7 +1845,7 @@ class SEn extends S {
       'Enter master password to unlock your saved credentials.';
 
   @override
-  String get wrongMasterPassword => 'Wrong password. Please try again.';
+  String get wrongMasterPassword => 'Wrong password. Try again.';
 
   @override
   String get currentPassword => 'Current Password';

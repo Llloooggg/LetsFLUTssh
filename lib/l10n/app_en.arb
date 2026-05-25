@@ -1182,7 +1182,7 @@
   "generated": "Generated",
   "passphrase": "Passphrase",
   "enterMasterPassword": "Enter master password to unlock your saved credentials.",
-  "wrongMasterPassword": "Wrong password. Please try again.",
+  "wrongMasterPassword": "Wrong password. Try again.",
   "currentPassword": "Current Password",
   "forgotPassword": "Forgot Password?",
   "credentialsReset": "All saved credentials have been deleted",

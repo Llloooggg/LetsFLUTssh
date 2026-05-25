@@ -1797,7 +1797,7 @@ class SVi extends S {
       'Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.';
 
   @override
-  String get wrongMasterPassword => 'Sai mật khẩu. Vui lòng thử lại.';
+  String get wrongMasterPassword => 'Sai mật khẩu. Thử lại.';
 
   @override
   String get currentPassword => 'Mật khẩu hiện tại';

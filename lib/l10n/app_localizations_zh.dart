@@ -1757,7 +1757,7 @@ class SZh extends S {
   String get enterMasterPassword => '输入主密码以访问已保存的凭据。';
 
   @override
-  String get wrongMasterPassword => '密码错误。请重试。';
+  String get wrongMasterPassword => '密码错误。重试。';
 
   @override
   String get currentPassword => '当前密码';

@@ -568,7 +568,7 @@
   "generated": "जनरेट की गई",
   "passphrase": "पासफ़्रेज़",
   "enterMasterPassword": "सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।",
-  "wrongMasterPassword": "गलत पासवर्ड। कृपया पुनः प्रयास करें।",
+  "wrongMasterPassword": "गलत पासवर्ड। पुनः प्रयास करें।",
   "currentPassword": "वर्तमान पासवर्ड",
   "forgotPassword": "पासवर्ड भूल गए?",
   "credentialsReset": "सभी सहेजे गए क्रेडेंशियल हटा दिए गए",

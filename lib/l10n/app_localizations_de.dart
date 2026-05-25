@@ -1871,8 +1871,7 @@ class SDe extends S {
       'Geben Sie das Master-Passwort ein, um Ihre gespeicherten Anmeldedaten zu entsperren.';
 
   @override
-  String get wrongMasterPassword =>
-      'Falsches Passwort. Bitte versuchen Sie es erneut.';
+  String get wrongMasterPassword => 'Falsches Passwort. Erneut versuchen.';
 
   @override
   String get currentPassword => 'Aktuelles Passwort';

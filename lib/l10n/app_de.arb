@@ -568,7 +568,7 @@
   "generated": "Generiert",
   "passphrase": "Passphrase",
   "enterMasterPassword": "Geben Sie das Master-Passwort ein, um Ihre gespeicherten Anmeldedaten zu entsperren.",
-  "wrongMasterPassword": "Falsches Passwort. Bitte versuchen Sie es erneut.",
+  "wrongMasterPassword": "Falsches Passwort. Erneut versuchen.",
   "currentPassword": "Aktuelles Passwort",
   "forgotPassword": "Passwort vergessen?",
   "credentialsReset": "Alle gespeicherten Anmeldedaten wurden gelöscht",

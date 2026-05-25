@@ -1878,8 +1878,7 @@ class SFr extends S {
       'Entrez le mot de passe principal pour accéder à vos identifiants.';
 
   @override
-  String get wrongMasterPassword =>
-      'Mot de passe incorrect. Veuillez réessayer.';
+  String get wrongMasterPassword => 'Mot de passe incorrect. Réessayez.';
 
   @override
   String get currentPassword => 'Mot de passe actuel';

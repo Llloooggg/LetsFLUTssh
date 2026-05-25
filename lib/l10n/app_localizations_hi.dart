@@ -1806,7 +1806,7 @@ class SHi extends S {
       'सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।';
 
   @override
-  String get wrongMasterPassword => 'गलत पासवर्ड। कृपया पुनः प्रयास करें।';
+  String get wrongMasterPassword => 'गलत पासवर्ड। पुनः प्रयास करें।';
 
   @override
   String get currentPassword => 'वर्तमान पासवर्ड';
