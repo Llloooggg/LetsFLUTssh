@@ -10,8 +10,19 @@ use super::*;
 use crate::error::Error;
 use russh::keys::{ssh_key, HashAlg};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use zeroize::Zeroizing;
+
+/// Hard ceiling on a single agent-backed dial. The agent connects run
+/// on a `spawn_blocking` thread (the russh agent client holds a
+/// non-Send trait object), and `spawn_blocking` tasks cannot be
+/// cancelled — an outer `timeout` that drops our `JoinHandle` would
+/// leave the blocking thread and its half-open socket running until
+/// the dial returns on its own. Bounding the work inside the blocking
+/// thread guarantees it terminates within this window. Generous so a
+/// slow network or an agent confirmation prompt still completes.
+const AGENT_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl Session {
     /// Connect + authenticate with a username and password. The
@@ -873,7 +884,14 @@ impl Session {
         Box::pin(async move {
             let handle = tokio::runtime::Handle::current();
             tokio::task::spawn_blocking(move || {
-                handle.block_on(Self::connect_agent(&host, port, &user))
+                handle.block_on(async {
+                    tokio::time::timeout(
+                        AGENT_CONNECT_TIMEOUT,
+                        Self::connect_agent(&host, port, &user),
+                    )
+                    .await
+                    .map_err(|_| Error::Auth("ssh-agent connect timed out".into()))?
+                })
             })
             .await
             .map_err(|e| Error::Auth(format!("agent task: {e}")))?
@@ -991,7 +1009,14 @@ impl Session {
         Box::pin(async move {
             let handle = tokio::runtime::Handle::current();
             tokio::task::spawn_blocking(move || {
-                handle.block_on(Self::connect_agent_via_proxy(&parent, &host, port, &user))
+                handle.block_on(async {
+                    tokio::time::timeout(
+                        AGENT_CONNECT_TIMEOUT,
+                        Self::connect_agent_via_proxy(&parent, &host, port, &user),
+                    )
+                    .await
+                    .map_err(|_| Error::Auth("ssh-agent connect timed out".into()))?
+                })
             })
             .await
             .map_err(|e| Error::Auth(format!("agent task: {e}")))?
