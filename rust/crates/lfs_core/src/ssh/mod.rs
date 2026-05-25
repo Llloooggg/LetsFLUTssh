@@ -1570,6 +1570,11 @@ fn parse_private_key(bytes: &[u8], passphrase: Option<&str>) -> Result<PrivateKe
     let mut key = if trimmed.starts_with(b"PuTTY-User-Key-File-") {
         let ppk =
             std::str::from_utf8(&trimmed).map_err(|e| Error::KeyParse(format!("ppk utf8: {e}")))?;
+        // Same Argon2id cost-parameter cap the import path enforces —
+        // `from_ppk` forwards memory/passes/parallelism straight to
+        // the derive, so a stored or pasted hostile PPK would burn
+        // unbounded RAM / CPU here without this guard.
+        crate::keys::validate_ppk_argon2_params(ppk)?;
         let pass_owned = passphrase.map(|p| p.to_owned());
         PrivateKey::from_ppk(ppk, pass_owned).map_err(map_key_decrypt_err)?
     } else {

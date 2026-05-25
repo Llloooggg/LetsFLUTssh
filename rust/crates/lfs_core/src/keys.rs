@@ -134,25 +134,11 @@ pub fn import_ppk(
             "input does not start with the PuTTY PPK magic header".into(),
         ));
     }
-    // Reject PPK v3 files whose Argon2id memory cost exceeds the cap.
-    // A hostile `.ppk` could declare an arbitrarily large `Argon2-Memory`
-    // value; without a pre-parse cap, russh-keys would forward it to the
-    // Argon2 derive call and the runtime would try to allocate that
-    // many KiB before the file is even validated. 1 GiB matches the
-    // ceiling enforced on the LFSE archive envelope's KDF params.
-    //
-    // `Ok(None)` means no `Argon2-Memory` line (v2 PPK) — nothing to
-    // enforce. `Err(_)` means the line exists but the value does not
-    // parse as a u32; surface as a typed parse error so a hostile
-    // value larger than `u32::MAX` cannot silently bypass the cap.
-    if let Some(memory_kib) = parse_ppk_argon2_memory(trimmed)? {
-        const PPK_ARGON2_MEMORY_CAP_KIB: u32 = 1024 * 1024; // 1 GiB
-        if memory_kib > PPK_ARGON2_MEMORY_CAP_KIB {
-            return Err(Error::KeyParse(format!(
-                "ppk: Argon2-Memory {memory_kib} KiB exceeds {PPK_ARGON2_MEMORY_CAP_KIB} KiB cap"
-            )));
-        }
-    }
+    // Reject a PPK v3 header whose Argon2id cost parameters would burn
+    // unbounded RAM / CPU before the MAC is checked — see
+    // `validate_ppk_argon2_params`. The connect-time PPK branch in
+    // `crate::ssh` runs the same guard.
+    validate_ppk_argon2_params(trimmed)?;
     let key = PrivateKey::from_ppk(trimmed, passphrase.map(|p| p.to_owned())).map_err(|e| {
         // Mirror the OpenSSH path's "passphrase incorrect vs format
         // failure" split so callers can prompt for re-entry.
@@ -166,29 +152,59 @@ pub fn import_ppk(
     finish(key, comment)
 }
 
-/// Find `Argon2-Memory: N` in a PPK v3 header and return the
-/// declared memory cost in KiB.
+/// Reject a PPK v3 header whose Argon2id cost parameters would make a
+/// single import burn unbounded RAM or CPU before the MAC is even
+/// checked (the KDF runs first, MAC second). PuTTY-generated files sit
+/// far below these ceilings (single-digit passes, a few MiB); the caps
+/// only bite a hand-crafted / hostile `.ppk`. v2 PPK (no Argon2 lines)
+/// passes through untouched.
 ///
-/// - `Ok(None)` — no `Argon2-Memory` line (v2 PPK). Callers treat
-///   absence as "no cap to enforce".
-/// - `Ok(Some(n))` — line present with a value that parses as a
-///   `u32` (KiB).
-/// - `Err(Error::KeyParse)` — line present but the value does not
-///   parse as a `u32`. Trap: folding this signal into the absence
-///   case lets a hostile `.ppk` declare a value above `u32::MAX`
-///   (`99999999999999999999`) and silently bypass the cap. The
-///   typed error makes the caller reject the file before
-///   russh-keys forwards the line to the Argon2 derive.
+/// Must run on BOTH the import path and the connect-time
+/// [`crate::ssh`] PPK branch — `from_ppk` forwards these values
+/// straight to the Argon2 derive, so a cap on only one path leaves the
+/// other a DoS vector.
+pub(crate) fn validate_ppk_argon2_params(ppk_text: &str) -> Result<(), Error> {
+    const MAX_MEMORY_KIB: u32 = 1024 * 1024; // 1 GiB (matches the LFSE envelope cap)
+    const MAX_PASSES: u32 = 64; // PuTTY uses single digits; this only bounds abuse
+    const MAX_PARALLELISM: u32 = 64;
+    for (field, cap) in [
+        ("Argon2-Memory", MAX_MEMORY_KIB),
+        ("Argon2-Passes", MAX_PASSES),
+        ("Argon2-Parallelism", MAX_PARALLELISM),
+    ] {
+        if let Some(value) = parse_ppk_argon2_u32(ppk_text, field)? {
+            if value > cap {
+                return Err(Error::KeyParse(format!(
+                    "ppk: {field} {value} exceeds {cap} cap"
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Find `<field>: N` in a PPK v3 header and return the declared `u32`.
+///
+/// - `Ok(None)` — line absent (v2 PPK). Callers treat absence as "no
+///   cap to enforce".
+/// - `Ok(Some(n))` — present and parses as a `u32`.
+/// - `Err(Error::KeyParse)` — present but the value does not parse as
+///   a `u32`. Trap: folding this into the absence case lets a hostile
+///   `.ppk` declare a value above `u32::MAX`
+///   (`99999999999999999999`) and silently bypass the cap. The typed
+///   error makes the caller reject the file before russh-keys
+///   forwards the line to the Argon2 derive.
 ///
 /// Pure header sniff, no `russh_keys` invocation.
-fn parse_ppk_argon2_memory(ppk_text: &str) -> Result<Option<u32>, Error> {
+fn parse_ppk_argon2_u32(ppk_text: &str, field: &str) -> Result<Option<u32>, Error> {
+    let prefix = format!("{field}:");
     for line in ppk_text.lines() {
-        if let Some(rest) = line.strip_prefix("Argon2-Memory:") {
+        if let Some(rest) = line.strip_prefix(&prefix) {
             let value = rest.trim();
             return value
                 .parse::<u32>()
                 .map(Some)
-                .map_err(|_| Error::KeyParse("ppk: Argon2-Memory not a valid u32".into()));
+                .map_err(|_| Error::KeyParse(format!("ppk: {field} not a valid u32")));
         }
     }
     Ok(None)
@@ -930,27 +946,34 @@ mod tests {
     }
 
     #[test]
-    fn parse_ppk_argon2_memory_returns_none_when_line_missing() {
+    fn parse_ppk_argon2_u32_returns_none_when_line_missing() {
         // v2 PPK header — no `Argon2-Memory` line. The caller treats
         // `Ok(None)` as "no cap to enforce".
         let v2 = "PuTTY-User-Key-File-2: ssh-rsa\nEncryption: none\n";
-        assert_eq!(parse_ppk_argon2_memory(v2).unwrap(), None);
+        assert_eq!(parse_ppk_argon2_u32(v2, "Argon2-Memory").unwrap(), None);
     }
 
     #[test]
-    fn parse_ppk_argon2_memory_parses_valid_u32() {
-        let header = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 8192\n";
-        assert_eq!(parse_ppk_argon2_memory(header).unwrap(), Some(8192));
+    fn parse_ppk_argon2_u32_parses_valid_value() {
+        let header = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 8192\nArgon2-Passes: 13\n";
+        assert_eq!(
+            parse_ppk_argon2_u32(header, "Argon2-Memory").unwrap(),
+            Some(8192)
+        );
+        assert_eq!(
+            parse_ppk_argon2_u32(header, "Argon2-Passes").unwrap(),
+            Some(13)
+        );
     }
 
     #[test]
-    fn parse_ppk_argon2_memory_rejects_value_above_u32_max() {
+    fn parse_ppk_argon2_u32_rejects_value_above_u32_max() {
         // `99999999999999999999` is larger than `u32::MAX`. Trap:
         // folding the parse failure into the "no cap to enforce"
         // branch via `parse::<u32>().ok()` silently bypasses the
-        // 1 GiB cap. The typed parse error makes the caller reject.
+        // cap. The typed parse error makes the caller reject.
         let hostile = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 99999999999999999999\n";
-        let err = parse_ppk_argon2_memory(hostile).unwrap_err();
+        let err = parse_ppk_argon2_u32(hostile, "Argon2-Memory").unwrap_err();
         match err {
             Error::KeyParse(msg) => {
                 assert!(msg.contains("Argon2-Memory"), "unexpected message: {msg}");
@@ -960,12 +983,38 @@ mod tests {
     }
 
     #[test]
-    fn parse_ppk_argon2_memory_rejects_non_numeric_value() {
+    fn parse_ppk_argon2_u32_rejects_non_numeric_value() {
         let bad = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: abcd\n";
         assert!(matches!(
-            parse_ppk_argon2_memory(bad),
+            parse_ppk_argon2_u32(bad, "Argon2-Memory"),
             Err(Error::KeyParse(_))
         ));
+    }
+
+    #[test]
+    fn validate_ppk_argon2_params_accepts_realistic_putty_costs() {
+        // A normal PuTTY v3 export — well under every cap.
+        let ok = "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 8192\nArgon2-Passes: 13\nArgon2-Parallelism: 1\n";
+        assert!(validate_ppk_argon2_params(ok).is_ok());
+        // v2 PPK (no Argon2 lines) passes through untouched.
+        assert!(validate_ppk_argon2_params("PuTTY-User-Key-File-2: ssh-rsa\n").is_ok());
+    }
+
+    #[test]
+    fn validate_ppk_argon2_params_caps_passes_and_parallelism_not_just_memory() {
+        // The pre-fix gap: only memory was capped, so a hostile file
+        // could set a huge time-cost (passes) or lane count and still
+        // import. All three must now be bounded before the derive.
+        for hostile in [
+            "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Passes: 2000000000\n",
+            "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Parallelism: 1000000\n",
+            "PuTTY-User-Key-File-3: ssh-ed25519\nArgon2-Memory: 2000000\n",
+        ] {
+            assert!(
+                matches!(validate_ppk_argon2_params(hostile), Err(Error::KeyParse(_))),
+                "expected rejection for {hostile:?}"
+            );
+        }
     }
 
     #[test]
