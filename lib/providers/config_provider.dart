@@ -141,9 +141,14 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
   // an explicit save semantic ("save now") rather than letting the
   // actor's own debounce window absorb it.
   //
-  // The typed setter pulls the sync sub-bag from the live snapshot so
-  // the per-push / per-pull state Rust owns survives the round-trip;
-  // a missing snapshot collapses to canonical defaults.
+  // The typed setter pulls the sync sub-bag AND the security probe
+  // cache from the live snapshot so the state Rust owns survives the
+  // round-trip; a missing snapshot collapses to canonical defaults.
+  // The probe cache is written Rust-side by the capabilities
+  // persister and never by Dart — passing the live value stops an
+  // unrelated settings change (which full-replaces the snapshot from
+  // the Dart config, where the cache field is typically a stale null)
+  // from wiping it and forcing a hardware re-probe on next launch.
   //
   // The store's support dir is pinned ONCE at startup by
   // `bootstrapRustConfigStore`. The save path must not re-resolve
@@ -154,8 +159,13 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
   // that disk read stalls the UI isolate; reading the sync sub-bag
   // straight from the live in-memory snapshot is both faster and
   // avoids the reload wiping an unflushed sync change.
-  final liveSync = rust_config.configStoreGetTyped()?.sync_;
-  rust_config.configStoreSetTyped(value: config.toTyped(sync: liveSync));
+  final live = rust_config.configStoreGetTyped();
+  rust_config.configStoreSetTyped(
+    value: config.toTyped(
+      sync: live?.sync_,
+      probeCache: live?.securityProbeCache,
+    ),
+  );
   // `configStoreFlush` is async — the atomic write + fsync runs on a
   // Rust blocking worker, not the Dart UI isolate. A sync flush here
   // froze the UI for ~1-2 s after every settings change on Windows

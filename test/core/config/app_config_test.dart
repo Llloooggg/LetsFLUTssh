@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
 import '../../helpers/frb_bootstrap.dart';
@@ -506,6 +507,29 @@ void main() {
         const config = AppConfig();
         final restored = AppConfig.fromTyped(config.toTyped());
         expect(restored.security, isNull);
+      });
+
+      const probe = DbSecurityCapabilities(
+        keychainAvailable: true,
+        hardwareVaultAvailable: true,
+        biometricAvailable: false,
+        fprintdAvailable: false,
+        isLinuxHost: true,
+        keychainProbe: DbKeyringProbeResult.available,
+        hardwareProbeCode: 'ok',
+      );
+
+      test('toTyped prefers the passed probe cache over the local field', () {
+        // The probe cache is Rust-owned; the persist path passes the
+        // live value so an unrelated settings write cannot clobber it
+        // with the typically-stale Dart field (a null).
+        const config = AppConfig(); // securityProbeCache: null
+        expect(config.toTyped(probeCache: probe).securityProbeCache, probe);
+      });
+
+      test('toTyped falls back to the local probe cache when none passed', () {
+        const config = AppConfig(securityProbeCache: probe);
+        expect(config.toTyped().securityProbeCache, probe);
       });
     });
 

@@ -505,15 +505,23 @@ class AppConfig {
     );
   }
 
-  /// Build the FRB typed mirror for a `set` call. Sync sub-bag
-  /// values come from [`configStoreGetTyped`] verbatim — the Dart
-  /// side never holds the sync wire shape and lets Rust own
-  /// per-push / per-pull mutations. The argument is the previously
-  /// observed sync DTO (typically pulled from the same snapshot
-  /// that produced this config); for callers that haven't observed
-  /// one yet [`rust_config.configAppConfigDefaultsTyped`] returns a
-  /// canonical empty bag.
-  DbAppConfigSnapshot toTyped({DbSyncConfig? sync}) {
+  /// Build the FRB typed mirror for a `set` call. Sync sub-bag and
+  /// [securityProbeCache] both come from [`configStoreGetTyped`]
+  /// verbatim — both are Rust-owned and the Dart side never holds
+  /// the authoritative copy. [sync] is the per-push / per-pull state;
+  /// [probeCache] is the device-local hardware-capability cache the
+  /// Rust capabilities-persister writes. Passing them through (rather
+  /// than the possibly-stale Dart fields) stops an unrelated settings
+  /// change from wiping the value Rust just wrote: a full `set_json`
+  /// replaces the whole snapshot, so a stale Dart `null` would
+  /// otherwise clobber the cache and force a TPM/Secure-Enclave
+  /// re-probe on the next launch. Callers that haven't observed a
+  /// snapshot fall back to the canonical empty sync bag / the local
+  /// [securityProbeCache] field.
+  DbAppConfigSnapshot toTyped({
+    DbSyncConfig? sync,
+    DbSecurityCapabilities? probeCache,
+  }) {
     final effectiveSync =
         sync ?? rust_config.configAppConfigDefaultsTyped().sync_;
     return DbAppConfigSnapshot(
@@ -525,7 +533,7 @@ class AppConfig {
       maxHistory: maxHistory,
       locale: locale,
       security: _securityConfigToTyped(security),
-      securityProbeCache: securityProbeCache,
+      securityProbeCache: probeCache ?? securityProbeCache,
       recordingsStorageCapBytes: BigInt.from(recordingsStorageCapBytes),
       sync_: effectiveSync,
     );
