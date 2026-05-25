@@ -3660,4 +3660,22 @@ class SEn extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Locate the PKCS#11 module for token \"$token\"';
   }
+
+  @override
+  String get arrowLeft => 'Arrow left';
+
+  @override
+  String get arrowUp => 'Arrow up';
+
+  @override
+  String get arrowDown => 'Arrow down';
+
+  @override
+  String get arrowRight => 'Arrow right';
+
+  @override
+  String get copyMode => 'Copy mode';
+
+  @override
+  String get exitCopyMode => 'Exit copy mode';
 }

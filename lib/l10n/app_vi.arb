@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "Mũi tên trái",
+  "arrowUp": "Mũi tên lên",
+  "arrowDown": "Mũi tên xuống",
+  "arrowRight": "Mũi tên phải",
+  "copyMode": "Chế độ sao chép",
+  "exitCopyMode": "Thoát chế độ sao chép"
 }

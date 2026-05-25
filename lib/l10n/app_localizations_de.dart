@@ -3710,4 +3710,22 @@ class SDe extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'PKCS#11-Modul für Token \"$token\" auswählen';
   }
+
+  @override
+  String get arrowLeft => 'Pfeil links';
+
+  @override
+  String get arrowUp => 'Pfeil oben';
+
+  @override
+  String get arrowDown => 'Pfeil unten';
+
+  @override
+  String get arrowRight => 'Pfeil rechts';
+
+  @override
+  String get copyMode => 'Kopiermodus';
+
+  @override
+  String get exitCopyMode => 'Kopiermodus beenden';
 }

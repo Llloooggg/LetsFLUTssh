@@ -3522,4 +3522,22 @@ class SKo extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return '토큰 \"$token\"의 PKCS#11 모듈을 지정하세요';
   }
+
+  @override
+  String get arrowLeft => '왼쪽 화살표';
+
+  @override
+  String get arrowUp => '위 화살표';
+
+  @override
+  String get arrowDown => '아래 화살표';
+
+  @override
+  String get arrowRight => '오른쪽 화살표';
+
+  @override
+  String get copyMode => '복사 모드';
+
+  @override
+  String get exitCopyMode => '복사 모드 종료';
 }

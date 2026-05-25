@@ -3626,4 +3626,22 @@ class STr extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return '\"$token\" token\'ı için PKCS#11 modülünü bul';
   }
+
+  @override
+  String get arrowLeft => 'Sol ok';
+
+  @override
+  String get arrowUp => 'Yukarı ok';
+
+  @override
+  String get arrowDown => 'Aşağı ok';
+
+  @override
+  String get arrowRight => 'Sağ ok';
+
+  @override
+  String get copyMode => 'Kopyalama modu';
+
+  @override
+  String get exitCopyMode => 'Kopyalama modundan çık';
 }

@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "Panah kiri",
+  "arrowUp": "Panah atas",
+  "arrowDown": "Panah bawah",
+  "arrowRight": "Panah kanan",
+  "copyMode": "Mode salin",
+  "exitCopyMode": "Keluar mode salin"
 }

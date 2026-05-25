@@ -3623,4 +3623,22 @@ class SId extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Temukan modul PKCS#11 untuk token \"$token\"';
   }
+
+  @override
+  String get arrowLeft => 'Panah kiri';
+
+  @override
+  String get arrowUp => 'Panah atas';
+
+  @override
+  String get arrowDown => 'Panah bawah';
+
+  @override
+  String get arrowRight => 'Panah kanan';
+
+  @override
+  String get copyMode => 'Mode salin';
+
+  @override
+  String get exitCopyMode => 'Keluar mode salin';
 }

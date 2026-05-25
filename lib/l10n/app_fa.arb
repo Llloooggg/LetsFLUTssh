@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "فلش چپ",
+  "arrowUp": "فلش بالا",
+  "arrowDown": "فلش پایین",
+  "arrowRight": "فلش راست",
+  "copyMode": "حالت کپی",
+  "exitCopyMode": "خروج از حالت کپی"
 }

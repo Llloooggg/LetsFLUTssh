@@ -3627,4 +3627,22 @@ class SAr extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'حدد مسار وحدة PKCS#11 للرمز \"$token\"';
   }
+
+  @override
+  String get arrowLeft => 'سهم لليسار';
+
+  @override
+  String get arrowUp => 'سهم لأعلى';
+
+  @override
+  String get arrowDown => 'سهم لأسفل';
+
+  @override
+  String get arrowRight => 'سهم لليمين';
+
+  @override
+  String get copyMode => 'وضع النسخ';
+
+  @override
+  String get exitCopyMode => 'إنهاء وضع النسخ';
 }

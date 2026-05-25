@@ -3625,4 +3625,22 @@ class SHi extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'टोकन \"$token\" के लिए PKCS#11 मॉड्यूल खोजें';
   }
+
+  @override
+  String get arrowLeft => 'बायाँ तीर';
+
+  @override
+  String get arrowUp => 'ऊपर तीर';
+
+  @override
+  String get arrowDown => 'नीचे तीर';
+
+  @override
+  String get arrowRight => 'दायाँ तीर';
+
+  @override
+  String get copyMode => 'कॉपी मोड';
+
+  @override
+  String get exitCopyMode => 'कॉपी मोड से बाहर निकलें';
 }

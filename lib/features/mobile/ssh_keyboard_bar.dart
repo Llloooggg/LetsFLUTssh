@@ -195,6 +195,7 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
   }
 
   Widget _buildNormalRow() {
+    final l10n = S.of(context);
     return Row(
       children: [
         // Scrollable keys
@@ -221,22 +222,22 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_left,
-                semanticLabel: 'Arrow left',
+                semanticLabel: l10n.arrowLeft,
                 onTap: () => _emitNamed(SshBarKeys.arrowLeft),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_up,
-                semanticLabel: 'Arrow up',
+                semanticLabel: l10n.arrowUp,
                 onTap: () => _emitNamed(SshBarKeys.arrowUp),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_down,
-                semanticLabel: 'Arrow down',
+                semanticLabel: l10n.arrowDown,
                 onTap: () => _emitNamed(SshBarKeys.arrowDown),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_right,
-                semanticLabel: 'Arrow right',
+                semanticLabel: l10n.arrowRight,
                 onTap: () => _emitNamed(SshBarKeys.arrowRight),
               ),
               _KeyButton(label: '|', onTap: () => _emitChar('|')),
@@ -249,19 +250,19 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
         if (widget.onSnippets != null)
           _KeyButton(
             icon: Icons.code,
-            semanticLabel: 'Snippets',
+            semanticLabel: l10n.snippets,
             onTap: () => widget.onSnippets!.call(),
           ),
         _KeyButton(
           icon: Icons.paste,
-          semanticLabel: 'Paste',
+          semanticLabel: l10n.paste,
           onTap: () {
             widget.onPaste?.call();
           },
         ),
         _KeyButton(
           icon: Icons.copy,
-          semanticLabel: 'Copy mode',
+          semanticLabel: l10n.copyMode,
           onTap: _enterCopyMode,
         ),
         _KeyButton(
@@ -316,7 +317,7 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
         actionButton,
         _KeyButton(
           icon: Icons.close,
-          semanticLabel: 'Exit copy mode',
+          semanticLabel: l10n.exitCopyMode,
           onTap: exitCopyMode,
         ),
       ],

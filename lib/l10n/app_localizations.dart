@@ -6350,6 +6350,42 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Locate the PKCS#11 module for token \"{token}\"'**
   String pkcs11ModuleResolveOnFirstUse(String token);
+
+  /// Accessibility label for the on-screen left-arrow key
+  ///
+  /// In en, this message translates to:
+  /// **'Arrow left'**
+  String get arrowLeft;
+
+  /// Accessibility label for the on-screen up-arrow key
+  ///
+  /// In en, this message translates to:
+  /// **'Arrow up'**
+  String get arrowUp;
+
+  /// Accessibility label for the on-screen down-arrow key
+  ///
+  /// In en, this message translates to:
+  /// **'Arrow down'**
+  String get arrowDown;
+
+  /// Accessibility label for the on-screen right-arrow key
+  ///
+  /// In en, this message translates to:
+  /// **'Arrow right'**
+  String get arrowRight;
+
+  /// Accessibility label for the button that enters terminal copy mode
+  ///
+  /// In en, this message translates to:
+  /// **'Copy mode'**
+  String get copyMode;
+
+  /// Accessibility label for the button that exits terminal copy mode
+  ///
+  /// In en, this message translates to:
+  /// **'Exit copy mode'**
+  String get exitCopyMode;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

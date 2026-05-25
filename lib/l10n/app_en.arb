@@ -2012,5 +2012,17 @@
     "placeholders": {
       "token": { "type": "String" }
     }
-  }
+  },
+  "arrowLeft": "Arrow left",
+  "@arrowLeft": {"description": "Accessibility label for the on-screen left-arrow key"},
+  "arrowUp": "Arrow up",
+  "@arrowUp": {"description": "Accessibility label for the on-screen up-arrow key"},
+  "arrowDown": "Arrow down",
+  "@arrowDown": {"description": "Accessibility label for the on-screen down-arrow key"},
+  "arrowRight": "Arrow right",
+  "@arrowRight": {"description": "Accessibility label for the on-screen right-arrow key"},
+  "copyMode": "Copy mode",
+  "@copyMode": {"description": "Accessibility label for the button that enters terminal copy mode"},
+  "exitCopyMode": "Exit copy mode",
+  "@exitCopyMode": {"description": "Accessibility label for the button that exits terminal copy mode"}
 }

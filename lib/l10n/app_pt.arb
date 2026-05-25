@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "Seta esquerda",
+  "arrowUp": "Seta cima",
+  "arrowDown": "Seta baixo",
+  "arrowRight": "Seta direita",
+  "copyMode": "Modo de cópia",
+  "exitCopyMode": "Sair do modo de cópia"
 }

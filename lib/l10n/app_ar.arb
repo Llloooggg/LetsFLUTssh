@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "سهم لليسار",
+  "arrowUp": "سهم لأعلى",
+  "arrowDown": "سهم لأسفل",
+  "arrowRight": "سهم لليمين",
+  "copyMode": "وضع النسخ",
+  "exitCopyMode": "إنهاء وضع النسخ"
 }

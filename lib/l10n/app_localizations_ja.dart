@@ -3527,4 +3527,22 @@ class SJa extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'トークン \"$token\" の PKCS#11 モジュールを指定してください';
   }
+
+  @override
+  String get arrowLeft => '左矢印';
+
+  @override
+  String get arrowUp => '上矢印';
+
+  @override
+  String get arrowDown => '下矢印';
+
+  @override
+  String get arrowRight => '右矢印';
+
+  @override
+  String get copyMode => 'コピーモード';
+
+  @override
+  String get exitCopyMode => 'コピーモードを終了';
 }

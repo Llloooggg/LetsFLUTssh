@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "왼쪽 화살표",
+  "arrowUp": "위 화살표",
+  "arrowDown": "아래 화살표",
+  "arrowRight": "오른쪽 화살표",
+  "copyMode": "복사 모드",
+  "exitCopyMode": "복사 모드 종료"
 }

@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "左矢印",
+  "arrowUp": "上矢印",
+  "arrowDown": "下矢印",
+  "arrowRight": "右矢印",
+  "copyMode": "コピーモード",
+  "exitCopyMode": "コピーモードを終了"
 }

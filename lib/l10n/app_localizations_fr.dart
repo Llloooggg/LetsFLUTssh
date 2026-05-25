@@ -3726,4 +3726,22 @@ class SFr extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Localisez le module PKCS#11 pour le token « $token »';
   }
+
+  @override
+  String get arrowLeft => 'Flèche gauche';
+
+  @override
+  String get arrowUp => 'Flèche haut';
+
+  @override
+  String get arrowDown => 'Flèche bas';
+
+  @override
+  String get arrowRight => 'Flèche droite';
+
+  @override
+  String get copyMode => 'Mode copie';
+
+  @override
+  String get exitCopyMode => 'Quitter le mode copie';
 }

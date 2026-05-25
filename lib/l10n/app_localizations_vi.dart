@@ -3610,4 +3610,22 @@ class SVi extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Chọn module PKCS#11 cho token \"$token\"';
   }
+
+  @override
+  String get arrowLeft => 'Mũi tên trái';
+
+  @override
+  String get arrowUp => 'Mũi tên lên';
+
+  @override
+  String get arrowDown => 'Mũi tên xuống';
+
+  @override
+  String get arrowRight => 'Mũi tên phải';
+
+  @override
+  String get copyMode => 'Chế độ sao chép';
+
+  @override
+  String get exitCopyMode => 'Thoát chế độ sao chép';
 }

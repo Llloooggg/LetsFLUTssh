@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "Flèche gauche",
+  "arrowUp": "Flèche haut",
+  "arrowDown": "Flèche bas",
+  "arrowRight": "Flèche droite",
+  "copyMode": "Mode copie",
+  "exitCopyMode": "Quitter le mode copie"
 }

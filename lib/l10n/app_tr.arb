@@ -1350,5 +1350,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "arrowLeft": "Sol ok",
+  "arrowUp": "Yukarı ok",
+  "arrowDown": "Aşağı ok",
+  "arrowRight": "Sağ ok",
+  "copyMode": "Kopyalama modu",
+  "exitCopyMode": "Kopyalama modundan çık"
 }

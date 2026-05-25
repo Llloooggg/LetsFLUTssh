@@ -3711,4 +3711,22 @@ class SEs extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Ubica el módulo PKCS#11 para el token \"$token\"';
   }
+
+  @override
+  String get arrowLeft => 'Flecha izquierda';
+
+  @override
+  String get arrowUp => 'Flecha arriba';
+
+  @override
+  String get arrowDown => 'Flecha abajo';
+
+  @override
+  String get arrowRight => 'Flecha derecha';
+
+  @override
+  String get copyMode => 'Modo de copia';
+
+  @override
+  String get exitCopyMode => 'Salir del modo de copia';
 }

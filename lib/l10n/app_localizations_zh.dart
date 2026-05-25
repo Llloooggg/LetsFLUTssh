@@ -3486,4 +3486,22 @@ class SZh extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return '为令牌 \"$token\" 选择 PKCS#11 模块';
   }
+
+  @override
+  String get arrowLeft => '左箭头';
+
+  @override
+  String get arrowUp => '上箭头';
+
+  @override
+  String get arrowDown => '下箭头';
+
+  @override
+  String get arrowRight => '右箭头';
+
+  @override
+  String get copyMode => '复制模式';
+
+  @override
+  String get exitCopyMode => '退出复制模式';
 }

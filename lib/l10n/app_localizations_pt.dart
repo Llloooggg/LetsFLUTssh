@@ -3697,4 +3697,22 @@ class SPt extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Localize o módulo PKCS#11 para o token \"$token\"';
   }
+
+  @override
+  String get arrowLeft => 'Seta esquerda';
+
+  @override
+  String get arrowUp => 'Seta cima';
+
+  @override
+  String get arrowDown => 'Seta baixo';
+
+  @override
+  String get arrowRight => 'Seta direita';
+
+  @override
+  String get copyMode => 'Modo de cópia';
+
+  @override
+  String get exitCopyMode => 'Sair do modo de cópia';
 }

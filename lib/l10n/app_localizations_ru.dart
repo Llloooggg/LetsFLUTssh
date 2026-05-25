@@ -3650,4 +3650,22 @@ class SRu extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'Укажите путь к модулю PKCS#11 для токена «$token»';
   }
+
+  @override
+  String get arrowLeft => 'Стрелка влево';
+
+  @override
+  String get arrowUp => 'Стрелка вверх';
+
+  @override
+  String get arrowDown => 'Стрелка вниз';
+
+  @override
+  String get arrowRight => 'Стрелка вправо';
+
+  @override
+  String get copyMode => 'Режим копирования';
+
+  @override
+  String get exitCopyMode => 'Выйти из режима копирования';
 }

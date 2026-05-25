@@ -3613,4 +3613,22 @@ class SFa extends S {
   String pkcs11ModuleResolveOnFirstUse(String token) {
     return 'ماژول PKCS#11 برای توکن «$token» را پیدا کنید';
   }
+
+  @override
+  String get arrowLeft => 'فلش چپ';
+
+  @override
+  String get arrowUp => 'فلش بالا';
+
+  @override
+  String get arrowDown => 'فلش پایین';
+
+  @override
+  String get arrowRight => 'فلش راست';
+
+  @override
+  String get copyMode => 'حالت کپی';
+
+  @override
+  String get exitCopyMode => 'خروج از حالت کپی';
 }
