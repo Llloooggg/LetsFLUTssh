@@ -25,10 +25,10 @@
 //!   - `c`        — config object (verbatim)
 //!   - `kh`       — known_hosts blob (string)
 //!   - `tg`       — tags array `[{i, n, cl?}]`
-//!   - `st`       — session-tag links `[{si, ti}]`
+//!   - `st`       — session-tag links `[{si, ti}]` (`si` = short session id)
 //!   - `ft`       — folder-tag links `[{fi, ti}]`
 //!   - `sn`       — snippets array `[{i, t, cm, d?}]`
-//!   - `ss`       — session-snippet links `[{si, ni}]`
+//!   - `ss`       — session-snippet links `[{si, ni}]` (`si` = short session id)
 //!
 //! Per-session compact shape (`s` array):
 //!   - `l, h, u`  — label, host, user
@@ -38,6 +38,13 @@
 //!   - `ki`       — short key id reference (lookup in `km` / `mk`)
 //!   - `mg`       — `1` if `ki` references a manager key
 //!   - `pw`       — password (only when exporter opted in)
+//!   - `i`        — short session id (`s0`, `s1`, …)
+//!
+//! The compact `s` shape carries no DB UUID (camera bandwidth), so
+//! the `st` / `ss` link tables reference the short `i` instead. The
+//! decoder mints a fresh UUID per session and remaps the short onto
+//! it; a link whose `si` no shipped session carries (truncated, or a
+//! pre-`i` payload) is dropped rather than left dangling.
 
 use std::io::Write;
 
@@ -229,11 +236,25 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
         .unwrap_or_default();
 
     // ---- Sessions + empty folders -----------------------------
+    // Maps the payload's short session id (`s0`, `s1`, … under `i`)
+    // to the fresh UUID `decode_session` mints. The session→tag and
+    // session→snippet link tables reference the short id, so without
+    // this remap the links would point at an id no imported session
+    // carries and every association would be dropped (FK failure).
+    let mut session_id_remap: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     let mut sessions_out: Vec<Value> = Vec::new();
     if let Some(arr) = obj.get("s").and_then(|v| v.as_array()) {
         for entry in arr {
             if let Some(obj_session) = entry.as_object() {
-                sessions_out.push(decode_session(obj_session, &key_map));
+                let decoded = decode_session(obj_session, &key_map);
+                if let (Some(short), Some(new_id)) = (
+                    obj_session.get("i").and_then(|v| v.as_str()),
+                    decoded.get("id").and_then(|v| v.as_str()),
+                ) {
+                    session_id_remap.insert(short.to_string(), new_id.to_string());
+                }
+                sessions_out.push(decoded);
             }
         }
     }
@@ -316,9 +337,14 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
                 .iter()
                 .filter_map(|l| {
                     let o = l.as_object()?;
-                    let si = o.get("si").and_then(|v| v.as_str()).unwrap_or("");
-                    let ti = o.get("ti").and_then(|v| v.as_str()).unwrap_or("");
-                    Some(json!({"session_id": si, "tag_id": ti}))
+                    // `si` is the payload's short session id — remap it
+                    // onto the freshly-minted UUID, dropping links to a
+                    // session that did not ship (or an older payload
+                    // whose sessions carried no short id).
+                    let si = o.get("si").and_then(|v| v.as_str())?;
+                    let mapped = session_id_remap.get(si)?;
+                    let ti = o.get("ti").and_then(|v| v.as_str())?;
+                    Some(json!({"session_id": mapped, "tag_id": ti}))
                 })
                 .collect();
             serde_json::to_string(&pairs).unwrap_or_default()
@@ -376,9 +402,10 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
                 .iter()
                 .filter_map(|l| {
                     let o = l.as_object()?;
-                    let si = o.get("si").and_then(|v| v.as_str()).unwrap_or("");
-                    let ni = o.get("ni").and_then(|v| v.as_str()).unwrap_or("");
-                    Some(json!({"session_id": si, "snippet_id": ni}))
+                    let si = o.get("si").and_then(|v| v.as_str())?;
+                    let mapped = session_id_remap.get(si)?;
+                    let ni = o.get("ni").and_then(|v| v.as_str())?;
+                    Some(json!({"session_id": mapped, "snippet_id": ni}))
                 })
                 .collect();
             serde_json::to_string(&pairs).unwrap_or_default()
@@ -606,11 +633,14 @@ mod tests {
 
     #[test]
     fn decodes_tags_and_links() {
+        // The session carries short id `s0`; the `st` link references
+        // it and must resolve onto the UUID `decode_session` mints
+        // (the compact session shape carries no UUID of its own).
         let json_str = r##"{
             "v": 1,
-            "s": [{"l": "x", "h": "h", "u": "u"}],
+            "s": [{"l": "x", "h": "h", "u": "u", "i": "s0"}],
             "tg": [{"i": "tag1", "n": "Production", "cl": "#ff0000"}],
-            "st": [{"si": "sess1", "ti": "tag1"}],
+            "st": [{"si": "s0", "ti": "tag1"}],
             "ft": [{"fi": "/folder", "ti": "tag1"}]
         }"##;
         let result = decode_payload(&encode_payload_test(json_str)).unwrap();
@@ -624,8 +654,35 @@ mod tests {
             tags[0].as_object().unwrap().get("color").unwrap().as_str(),
             Some("#ff0000")
         );
-        assert!(result.pending.session_tags_json.is_some());
+        let sessions: Vec<Value> =
+            serde_json::from_str(result.pending.sessions_json.as_deref().unwrap()).unwrap();
+        let session_id = sessions[0]["id"].as_str().unwrap();
+        let links: Vec<Value> =
+            serde_json::from_str(result.pending.session_tags_json.as_deref().unwrap()).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0]["session_id"].as_str(), Some(session_id));
+        assert_eq!(links[0]["tag_id"].as_str(), Some("tag1"));
+        // folder_tags key on path, not the session remap.
         assert!(result.pending.folder_tags_json.is_some());
+    }
+
+    #[test]
+    fn session_link_to_absent_session_is_dropped() {
+        // A link whose short id no session carries (truncated payload,
+        // or a pre-short-id payload) must be dropped rather than
+        // passed through with a dangling session id — applying it
+        // would FK-fail and, in replace mode, roll back the import.
+        let json_str = r##"{
+            "v": 1,
+            "s": [{"l": "x", "h": "h", "u": "u", "i": "s0"}],
+            "tg": [{"i": "tag1", "n": "P"}],
+            "sn": [{"i": "sn1", "t": "T", "cm": "c"}],
+            "st": [{"si": "ghost", "ti": "tag1"}],
+            "ss": [{"si": "ghost", "ni": "sn1"}]
+        }"##;
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
+        assert!(result.pending.session_tags_json.is_none());
+        assert!(result.pending.session_snippets_json.is_none());
     }
 
     #[test]

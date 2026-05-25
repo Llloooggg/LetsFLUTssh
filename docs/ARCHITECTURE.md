@@ -660,15 +660,15 @@ JSON → deflate → base64url. Top-level keys:
 | `v` | `int` | Schema version (`1` — the floor; there is no version below it, and the format is always deflate-compressed). Both the composer (`lfs_core::archive::qr_compose`) and the decoder (`lfs_core::qr_codec_decode`, which rejects anything above its ceiling as "version too new") read this from `SchemaVersions::QR_PAYLOAD` — neither hardcodes a literal, so the stamped and accepted versions cannot drift. A payload that fails to inflate is rejected, not read raw. |
 | `km` | `Map<shortId, PEM>` | Deduplicated key map (embedded + manager private keys) |
 | `mk` | `Map<shortId, {l, t, p}>` | Manager key metadata: label, keyType, publicKey |
-| `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId |
+| `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId. `i` = short session id (`s0`, `s1`, …) — the compact shape carries no DB UUID, so the link tables reference this short id and the decoder mints a fresh UUID per session, remapping the short onto it |
 | `eg` | `List<String>` | Empty folder paths |
 | `c` | `Map` | App config JSON |
 | `kh` | `String` | Known hosts. **Export emits** the LetsFLUTssh internal wire format (`host:port keytype base64key`, one per line). **Import accepts both** the internal format and OpenSSH `~/.ssh/known_hosts` — `_parseLine` detects bare hostnames (port 22 default), `[host]:port` brackets (incl. IPv6), comma-separated multi-host fan-out, and `@cert-authority`/`@revoked` markers (stripped). Hashed (`|1|salt|hash`, `HashKnownHosts yes`) entries are skipped — HMAC-SHA1 hostname hashes are one-way so we have nothing to match against on a later TOFU `verify()`. The importer surfaces a "skipped N hashed entries" warning to the log when it drops them. The `key_base64` body is decode-checked against the standard base64 alphabet at parse time — invalid or empty bodies drop with a `KnownHostsImport` / `ArchiveKnownHosts` warning so a corrupt key body cannot sit in the DB until the next connect attempt surfaces it as a TOFU mismatch. |
 | `tg` | `List<{i, n, cl?}>` | Tags (id, name, optional color) |
-| `st` | `List<{si, ti}>` | Session→tag links |
+| `st` | `List<{si, ti}>` | Session→tag links — `si` is the **short** session id (`s.i`), not the DB UUID. The decoder remaps it onto the minted session id; a link to a session that didn't ship is dropped |
 | `ft` | `List<{fi, ti}>` | Folder→tag links (folderPath, tagId) |
 | `sn` | `List<{i, t, cm, d?}>` | Snippets (id, title, command, optional description) |
-| `ss` | `List<{si, ni}>` | Session→snippet links |
+| `ss` | `List<{si, ni}>` | Session→snippet links — `si` is the short session id, same remap as `st` |
 
 `ExportOptions` controls which keys are emitted: `includeSessions`, `includePasswords`, `includeEmbeddedKeys`, `includeManagerKeys` (session-bound only), `includeAllManagerKeys` (entire key store), `includeConfig`, `includeKnownHosts`, `includeTags`, `includeSnippets`, `includeRecordings` (the on-disk `<appSupport>/recordings/` tree — `.lfs` only, QR ignores it).
 

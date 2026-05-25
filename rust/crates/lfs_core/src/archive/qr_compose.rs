@@ -237,6 +237,19 @@ fn build_qr_export_json(
         payload.insert("mk".into(), Value::Object(mk));
     }
 
+    // Short session ids (`s0`, `s1`, …) keyed by the live DB id, in
+    // emission order. The compact `s` shape carries no UUID (camera
+    // bandwidth), so the session→tag / session→snippet link tables
+    // reference these shorts instead of the 36-char DB id; the
+    // decoder mints a fresh UUID per session and remaps the shorts
+    // onto it. Without this the links pointed at an id that never
+    // lands after decode and every association was dropped on import.
+    let session_id_to_short: HashMap<String, String> = session_rows
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (s.id.clone(), format!("s{i}")))
+        .collect();
+
     if input.options.include_sessions {
         let arr: Vec<Value> = session_rows
             .iter()
@@ -251,7 +264,7 @@ fn build_qr_export_json(
                 let is_manager = key_short
                     .map(|k| manager_shorts.contains(k))
                     .unwrap_or(false);
-                crate::qr_codec_encode::encode_session_compact(
+                let mut entry = crate::qr_codec_encode::encode_session_compact(
                     &crate::qr_codec_encode::SessionCompactInputs {
                         label: &s.label,
                         host: &s.host,
@@ -264,7 +277,13 @@ fn build_qr_export_json(
                         include_passwords: input.options.include_passwords,
                         password: &s.password,
                     },
-                )
+                );
+                if let (Some(obj), Some(short)) =
+                    (entry.as_object_mut(), session_id_to_short.get(&s.id))
+                {
+                    obj.insert("i".into(), json!(short));
+                }
+                entry
             })
             .collect();
         payload.insert("s".into(), Value::Array(arr));
@@ -318,8 +337,15 @@ fn build_qr_export_json(
 
             let mut session_tags = Vec::new();
             for sid in &input.selected_session_ids {
+                // Reference the session by its short id — the link
+                // resolves on import only if the session itself ships
+                // (and so has a short). Skip links to unexported
+                // sessions, which would dangle.
+                let Some(short) = session_id_to_short.get(sid) else {
+                    continue;
+                };
                 for tid in tags::list_session_tag_ids(conn, sid)? {
-                    session_tags.push(json!({"si": sid, "ti": tid}));
+                    session_tags.push(json!({"si": short, "ti": tid}));
                 }
             }
             if !session_tags.is_empty() {
@@ -360,8 +386,11 @@ fn build_qr_export_json(
 
             let mut session_snippets = Vec::new();
             for sid in &input.selected_session_ids {
+                let Some(short) = session_id_to_short.get(sid) else {
+                    continue;
+                };
                 for snid in snippets::list_session_snippet_ids(conn, sid)? {
-                    session_snippets.push(json!({"si": sid, "ni": snid}));
+                    session_snippets.push(json!({"si": short, "ni": snid}));
                 }
             }
             if !session_snippets.is_empty() {
@@ -740,8 +769,15 @@ mod tests {
         input.options.include_tags = true;
         input.selected_session_ids = vec!["s1".into()];
         let v = payload_value(&conn, &input);
+        // The link references the session by its short id (the `i`
+        // field on the compact session), not the raw DB UUID — the
+        // decoder mints a fresh session id and remaps the short onto
+        // it, so emitting the UUID here would dangle on import.
+        let short = v["s"].as_array().expect("s array")[0]["i"]
+            .as_str()
+            .expect("session short id");
         let st = v["st"].as_array().expect("st array");
-        assert_eq!(st[0]["si"], "s1");
+        assert_eq!(st[0]["si"].as_str(), Some(short));
         assert_eq!(st[0]["ti"], "t1");
     }
 
