@@ -628,6 +628,37 @@ void main() {
       expect(find.text(_pasteLabel), findsNothing);
       expect(find.text(_selectAllLabel), findsOneWidget);
     });
+
+    // Regression: right-click opens our menu even under mouse tracking. TUI
+    // apps (htop, vim) grab the left button + wheel, not the right, so the
+    // menu must stay reachable without Shift — a plain left drag still reports.
+    testWidgets('right-click opens the menu even under mouse tracking', (
+      tester,
+    ) async {
+      final c = _FakeController(
+        snapshotFn: () =>
+            _frameWith('A', tracking: TerminalMouseTracking.buttonEvent),
+        selection: 'sel',
+      );
+      addTearDown(c.repaintNotifier.dispose);
+
+      await tester.pumpWidget(
+        _app(
+          TerminalView(
+            controller: c,
+            config: const TerminalViewConfig.interactive(),
+            onCopy: () {},
+            onPaste: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await _rightClickCenter(tester);
+
+      expect(find.text(_copyLabel), findsOneWidget);
+      expect(find.text(_selectAllLabel), findsOneWidget);
+    });
   });
 
   group('TerminalView — read-only copy via the built-in path', () {

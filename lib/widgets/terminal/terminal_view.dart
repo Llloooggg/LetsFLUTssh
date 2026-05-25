@@ -466,6 +466,16 @@ class _TerminalViewState extends State<TerminalView> {
     final cell = _cellFor(event);
     if (cell == null) return;
     final shift = HardwareKeyboard.instance.isShiftPressed;
+    // Right-click always opens our context menu (Copy / Paste / Select All),
+    // even under mouse tracking. TUI apps that grab the mouse (htop, vim,
+    // tmux, less) use the left button + wheel, not the right — forwarding the
+    // right button would only make the menu unreachable, and mainstream GUI
+    // terminals show their menu on right-click regardless. Left-click / drag /
+    // wheel still route to the program under tracking.
+    if (event.buttons & kSecondaryButton != 0) {
+      if (widget.config.selectable) _showContextMenu(event.position);
+      return;
+    }
     if (widget.config.mouseReportable) {
       final routing = routePointerGesture(
         tracking: _frame.mouseTracking,
@@ -479,12 +489,6 @@ class _TerminalViewState extends State<TerminalView> {
     }
     _pointerReporting = false;
     if (!widget.config.selectable) return;
-    // Secondary button opens the context menu (when not mouse-reporting) and
-    // does not start a selection.
-    if (event.buttons & kSecondaryButton != 0) {
-      _showContextMenu(event.position);
-      return;
-    }
     // Only the primary button drives a local selection.
     if (event.buttons & kPrimaryMouseButton == 0) return;
     _focus?.requestFocus();
