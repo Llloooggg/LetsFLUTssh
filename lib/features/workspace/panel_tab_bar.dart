@@ -11,6 +11,11 @@ import '../../widgets/core/session_kind_icon.dart';
 import '../../widgets/core/threshold_draggable.dart';
 import '../tabs/tab_model.dart';
 
+/// Upper bound on a tab's rendered width — the strip clamps each tab to
+/// this and the drag-feedback chip mirrors it so a long label ellipsizes
+/// instead of growing the floating chip without bound.
+const double _maxTabWidth = 180.0;
+
 /// Data carried during a tab drag operation.
 class TabDragData {
   final TabEntry tab;
@@ -76,12 +81,11 @@ class _PanelTabBarState extends State<PanelTabBar> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const maxTabW = 180.0;
         const minTabW = 80.0;
         final natural = tabs.isEmpty
-            ? maxTabW
+            ? _maxTabWidth
             : constraints.maxWidth / tabs.length;
-        final tabW = natural.clamp(minTabW, maxTabW);
+        final tabW = natural.clamp(minTabW, _maxTabWidth);
 
         final tabsWidth = tabW * tabs.length;
         final endZoneW = (constraints.maxWidth - tabsWidth).clamp(
@@ -339,12 +343,17 @@ class _TabDragChip extends StatelessWidget {
         children: [
           Icon(_tabIcon(tab), size: 12, color: AppTheme.fgDim),
           const SizedBox(width: AppSpacing.xxs),
-          Text(
-            tab.label,
-            style: TextStyle(
-              fontFamily: AppFonts.interFamily,
-              fontSize: AppFonts.sm,
-              color: AppTheme.fg,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _maxTabWidth),
+            child: Text(
+              tab.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: AppFonts.interFamily,
+                fontSize: AppFonts.sm,
+                color: AppTheme.fg,
+              ),
             ),
           ),
         ],

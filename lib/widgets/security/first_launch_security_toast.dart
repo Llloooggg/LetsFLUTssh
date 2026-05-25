@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/first_launch_banner_provider.dart';
 import '../../theme/app_theme.dart';
 import '../core/app_button.dart';
+import '../core/app_icon_button.dart';
 
 /// Post-setup notification for the first-launch auto-select path.
 ///
@@ -148,17 +149,11 @@ class _ToastCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    InkWell(
+                    AppIconButton(
+                      icon: Icons.close,
+                      tooltip: l10n.close,
                       onTap: onDismiss,
-                      borderRadius: AppTheme.radiusXl,
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.xs),
-                        child: Icon(
-                          Icons.close,
-                          size: 14,
-                          color: AppTheme.fgDim,
-                        ),
-                      ),
+                      dense: true,
                     ),
                   ],
                 ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../core/app_dialog.dart';
 import '../core/app_selection_area.dart';
+import '../core/hover_region.dart';
 
 /// Text style of one line in a [HardwareKeyBadge] info popover.
 /// `dim` = body prose; `warn` = an orange caution note; `mono` = a
@@ -126,10 +127,10 @@ class HardwareKeyBadge extends StatelessWidget {
     if (info == null) return pill;
     return Tooltip(
       message: label,
-      child: InkWell(
+      child: HoverRegion(
+        cursor: SystemMouseCursors.click,
         onTap: () => _showInfo(context),
-        borderRadius: AppTheme.radiusSm,
-        child: pill,
+        builder: (_) => pill,
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../../src/rust/api/pkcs11.dart' as rust_pkcs11;
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../core/app_dialog.dart';
+import '../core/hover_region.dart';
 import 'hardware_key_badge.dart';
 import 'hardware_key_prompt_dialog.dart';
 import 'pkcs11_import_dialog_logic.dart';
@@ -677,9 +678,10 @@ class _ModuleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return HoverRegion(
+      cursor: SystemMouseCursors.click,
       onTap: onTap,
-      child: Container(
+      builder: (_) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? AppTheme.accent.withValues(alpha: 0.08) : null,
@@ -699,6 +701,7 @@ class _ModuleRow extends StatelessWidget {
                       color: AppTheme.fg,
                       fontWeight: FontWeight.w600,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     path,

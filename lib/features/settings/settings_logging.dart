@@ -768,10 +768,10 @@ class _LevelChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return HoverRegion(
+      cursor: SystemMouseCursors.click,
       onTap: onTap,
-      borderRadius: AppTheme.radiusSm,
-      child: Container(
+      builder: (_) => Container(
         width: 28,
         height: 28,
         decoration: BoxDecoration(

@@ -9,6 +9,7 @@ import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/logger.dart';
 import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
 import '../../widgets/core/app_popup_select.dart';
 import '../../widgets/terminal/terminal_cell_metrics.dart';
 import '../../widgets/terminal/terminal_controller.dart';
@@ -456,14 +457,10 @@ class _RecordingPlaybackDialogState
     );
     return Row(
       children: [
-        Tooltip(
-          message: _paused ? l10n.playRecording : l10n.playbackPause,
-          child: IconButton(
-            icon: Icon(_paused ? Icons.play_arrow : Icons.pause, size: 20),
-            onPressed: canTogglePause ? _togglePause : null,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
+        AppIconButton(
+          icon: _paused ? Icons.play_arrow : Icons.pause,
+          tooltip: _paused ? l10n.playRecording : l10n.playbackPause,
+          onTap: canTogglePause ? _togglePause : null,
         ),
         const SizedBox(width: AppSpacing.xs),
         // Shared no-animation picker (`AppPopupSelect`) — matches the
