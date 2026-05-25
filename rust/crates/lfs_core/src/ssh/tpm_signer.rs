@@ -19,6 +19,7 @@ use std::future::Future;
 use russh::keys::agent::AgentIdentity;
 use russh::keys::ssh_key::{Algorithm, EcdsaCurve, HashAlg};
 use russh::Signer;
+use zeroize::Zeroizing;
 
 use crate::error::Error;
 
@@ -83,8 +84,10 @@ pub struct TpmSigner {
     pub provider: TpmProvider,
     pub algo: TpmAlgo,
     /// PIN bytes resolved from the SecretStore (`tpm.pin.<key_id>`)
-    /// at connect-prepare time. `None` for empty-auth keys.
-    pub pin: Option<Vec<u8>>,
+    /// at connect-prepare time. `None` for empty-auth keys. Held in
+    /// `Zeroizing` so the secret is wiped on drop, matching the
+    /// PKCS#11 signer's PIN discipline.
+    pub pin: Option<Zeroizing<Vec<u8>>>,
     pub label: String,
 }
 
@@ -156,8 +159,13 @@ impl Signer for TpmSigner {
         async move {
             let (mut buf, sig_wrapper) =
                 tokio::task::spawn_blocking(move || -> Result<(Vec<u8>, Vec<u8>), Error> {
-                    let raw_wire =
-                        sign_native(&provider, algo, pin.as_deref(), &to_sign, &wire_alg)?;
+                    let raw_wire = sign_native(
+                        &provider,
+                        algo,
+                        pin.as_ref().map(|p| p.as_slice()),
+                        &to_sign,
+                        &wire_alg,
+                    )?;
                     let mut wrapped = Vec::with_capacity(wire_alg.len() + raw_wire.len() + 8);
                     wrapped.extend_from_slice(&(wire_alg.len() as u32).to_be_bytes());
                     wrapped.extend_from_slice(wire_alg.as_bytes());

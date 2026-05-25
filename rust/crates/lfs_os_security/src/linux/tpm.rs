@@ -329,6 +329,7 @@ fn wait_with_timeout(
 ) -> Result<std::process::Output, String> {
     use std::sync::mpsc;
     use std::thread;
+    let pid = child.id();
     let (tx, rx) = mpsc::channel();
     // Move stdin/stdout/stderr off the parent thread via wait_with_output.
     thread::spawn(move || {
@@ -338,7 +339,16 @@ fn wait_with_timeout(
     match rx.recv_timeout(timeout) {
         Ok(Ok(o)) => Ok(o),
         Ok(Err(e)) => Err(e.to_string()),
-        Err(_) => Err(format!("tpm2 timed out after {}s", timeout.as_secs())),
+        Err(_) => {
+            // Kill the orphaned `tpm2` on timeout instead of leaking
+            // both the process and the blocked wait thread. The thread
+            // still owns the unreaped Child, so its pid is valid (not
+            // yet recycled); SIGKILL lets `wait_with_output` return and
+            // reap it.
+            // SAFETY: `kill` on a pid we spawned and have not reaped.
+            unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+            Err(format!("tpm2 timed out after {}s", timeout.as_secs()))
+        }
     }
 }
 

@@ -762,13 +762,12 @@ impl Session {
                 }
             };
             // PIN resolution: lift the bytes out of the SecretStore
-            // once and hand them to the signer; the store entry is
-            // a transient id the caller drops after the dial settles.
-            // `SecretStore::get` returns the bytes wrapped in
-            // `Zeroizing<Vec<u8>>`; unwrap to a plain Vec so the
-            // signer holds a single owner.
+            // once and hand them to the signer; the store entry is a
+            // transient id the caller drops after the dial settles.
+            // `SecretStore::get` returns the bytes in `Zeroizing<Vec<u8>>`
+            // — keep the wrapper so the signer's PIN is wiped on drop.
             let pin = match args.pin_secret_id {
-                Some(id) => crate::app::instance().secrets.get(&id).map(|z| z.to_vec()),
+                Some(id) => crate::app::instance().secrets.get(&id),
                 None => None,
             };
             let mut signer = crate::ssh::tpm_signer::TpmSigner {
