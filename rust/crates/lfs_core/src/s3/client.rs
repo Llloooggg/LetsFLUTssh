@@ -54,6 +54,11 @@ use crate::s3::signer::{
 /// Scaleway — every S3-compatible vendor signs under this name.
 const SERVICE_S3: &str = "s3";
 
+/// Per-request wall-clock cap. Matches the WebDAV transport's 60 s
+/// ceiling so a stalled or black-holed endpoint cannot pin a transfer
+/// worker indefinitely.
+const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// One object surfaced by [`S3Client::list_objects_v2`]. `is_dir`
 /// is true when the entry came from `<CommonPrefixes>` (S3's
 /// virtual-directory marker); files have an explicit key + size +
@@ -134,7 +139,15 @@ impl S3Client {
     /// MITM warning. Both paths are mutually exclusive at the user
     /// level; the transport prefers insecure when both are set.
     pub fn new(cfg: S3Config) -> Result<Self, Error> {
-        let mut builder = reqwest::Client::builder();
+        // A SigV4 request is signed for one specific host; following a
+        // redirect would replay the `Authorization` header to the
+        // redirect target (credential leak) and break the signature
+        // anyway, so disable redirects outright. The timeout stops a
+        // stalled endpoint from pinning a transfer worker forever.
+        // WebDAV already sets both; S3 had neither.
+        let mut builder = reqwest::Client::builder()
+            .timeout(REQUEST_TIMEOUT)
+            .redirect(reqwest::redirect::Policy::none());
         if cfg.insecure_skip_verify {
             builder = builder
                 .danger_accept_invalid_certs(true)

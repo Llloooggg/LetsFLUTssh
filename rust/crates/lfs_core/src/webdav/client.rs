@@ -380,9 +380,27 @@ impl WebDavClient {
     /// "drag-drop lands on the wrong path" — every write verb fed
     /// a doubled-up path component to the server.
     fn join(&self, path: &str) -> Result<Url, Error> {
-        self.base_url
+        let resolved = self
+            .base_url
             .join(path)
-            .map_err(|e| Error::WebDav(format!("path join: {e}")))
+            .map_err(|e| Error::WebDav(format!("path join: {e}")))?;
+        // Refuse a path/href that resolves to a different origin than
+        // the configured base. A hostile or compromised server can
+        // return an absolute `<href>` (e.g. `http://attacker/x`, or a
+        // protocol-relative `//attacker/x`) inside a PROPFIND
+        // multistatus; the interactive file browser feeds those hrefs
+        // straight back into `list`/`get`/`put`/`remove`, and
+        // `apply_auth` would then stamp the user's Basic/Bearer
+        // credential onto the attacker's host. Same-origin relative
+        // and server-absolute paths still resolve normally.
+        if resolved.origin() != self.base_url.origin() {
+            return Err(Error::WebDav(
+                "refusing cross-origin path (server returned an href \
+                 outside the configured base URL)"
+                    .into(),
+            ));
+        }
+        Ok(resolved)
     }
 
     /// Send a request, stamping the right `Authorization:` header
@@ -656,6 +674,47 @@ mod tests {
     /// -subj /CN=test.local`. The actual subject / validity does
     /// not matter for the parser test; only the PEM shape matters.
     const SELF_SIGNED_PEM: &str = "-----BEGIN CERTIFICATE-----\nMIIDazCCAlOgAwIBAgIUFNJyP1HJ9HShdsZRfO4Pg6XnUmwwDQYJKoZIhvcNAQEL\nBQAwRTELMAkGA1UEBhMCVUExDjAMBgNVBAgMBVRlc3RTMQ4wDAYDVQQHDAVUZXN0\nQzEWMBQGA1UEAwwNbG9jYWxob3N0LXRlc3QwHhcNMjUwMTAxMDAwMDAwWhcNMjYw\nMTAxMDAwMDAwWjBFMQswCQYDVQQGEwJVQTEOMAwGA1UECAwFVGVzdFMxDjAMBgNV\nBAcMBVRlc3RDMRYwFAYDVQQDDA1sb2NhbGhvc3QtdGVzdDCCASIwDQYJKoZIhvcN\nAQEBBQADggEPADCCAQoCggEBAMK4tD9PdOmYnVqGRGiyMUuTfbHQpvVNeUkKXY8x\nF8gqK1ZQbS5OZ19o/SH4OQfTRkSqGZ+wMPRdEFm5OETIz1xPgxTbJyfDH8AdvjGM\nxZ6+8ngS+y6m+5+r9rg2nC4q3SNZw4cWQk0Eo2k1NWB+iqsKEXBSeqcuq8/N5UVS\nLpFFszLPB+xa7Ahw4OhQa+H8d0jWpQiAJl7ks7e2OqLAcyHkkpY9XxqA5OFOq5oT\nMfPmYO8xDywPwT5oOZBgyB69+W8Z5kIKxiB7e6/qY/4xBMVAOWMjmnUL76YYg1lh\nL7iSEnq8N9aLb1aMS3KuM4OG+IBhVCC8tRZWvHK0gPvT60UCAwEAAaNTMFEwHQYD\nVR0OBBYEFCKchpljkbAdNJW39CKPjqlf2wmYMB8GA1UdIwQYMBaAFCKchpljkbAd\nNJW39CKPjqlf2wmYMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB\nADV3VlqLZmqHpoBohOY6BdUVnPK7Q4QwI4OQM0pHy5LRdHqIaR0xRY+M3HQRkWcz\nVCw+aMP0zpEIJl9eq2KbjxhJgWxHwlSEPxLE7zX8m1xLM4Tk+1qSc+H6f4WiTwT/\n6w0wTPmTBYsdjF5sZ6vSXP9NxC1pNYykqHo3qq84MlS5KIaa4ZxIVqj/UWB8tnRA\n4iEW8sHbeUXjVprlrG/+/aMM6q9bbDfHmRVl+IpAi1ku3xkXrLb6/EOIUtxc9QmI\n3p8jW9oA4n82BlSdQH8oS6OnRJ81Mg2QmTpC5gLxr8aHEZ2K9D6XHQfdYySFvuRr\nWXFcUUSGOEhcg2Tf2EOAt7s=\n-----END CERTIFICATE-----\n";
+
+    #[test]
+    fn join_resolves_same_origin_paths() {
+        let client = make_client("https://dav.example.com/dav/");
+        // Relative + server-absolute + same-origin-absolute all resolve.
+        assert_eq!(
+            client.join("file.txt").unwrap().as_str(),
+            "https://dav.example.com/dav/file.txt"
+        );
+        assert_eq!(
+            client.join("/dav/other.txt").unwrap().as_str(),
+            "https://dav.example.com/dav/other.txt"
+        );
+        assert_eq!(
+            client
+                .join("https://dav.example.com/dav/abs.txt")
+                .unwrap()
+                .as_str(),
+            "https://dav.example.com/dav/abs.txt"
+        );
+    }
+
+    #[test]
+    fn join_rejects_cross_origin_href() {
+        // A hostile PROPFIND href pointing at another host/scheme/port
+        // must be refused so `apply_auth` never stamps the user's
+        // credential onto an attacker-controlled origin.
+        let client = make_client("https://dav.example.com/dav/");
+        for hostile in [
+            "http://attacker.example/x",
+            "https://attacker.example/x",
+            "https://dav.example.com:8443/x", // different port
+            "http://dav.example.com/x",       // different scheme
+        ] {
+            let err = client.join(hostile).unwrap_err();
+            assert!(
+                err.to_string().contains("cross-origin"),
+                "expected cross-origin refusal for {hostile}, got {err}"
+            );
+        }
+    }
 
     #[test]
     fn parse_pem_certs_handles_empty_blob() {
