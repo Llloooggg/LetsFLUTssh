@@ -237,6 +237,18 @@ impl Sftp {
             .map_err(|e| Error::Sftp(format!("sftp rename: {e}")))
     }
 
+    /// Promote a fully-written staging file over its destination.
+    /// SFTP's plain `SSH_FXP_RENAME` refuses an existing target, so
+    /// the prior file is dropped first — best-effort, since a
+    /// missing target (a fresh upload) is the common case. The
+    /// staged bytes are already `fsync`ed before this runs, so the
+    /// brief window between unlink and rename carries no data-loss
+    /// risk that the old write-directly-onto-the-target path didn't.
+    pub(crate) async fn promote_staged(&self, staged: &str, dest: &str) -> Result<(), Error> {
+        let _ = self.remove_file(dest).await;
+        self.rename(staged, dest).await
+    }
+
     /// Create a directory. Errors if the parent does not exist —
     /// callers wanting `mkdir -p` semantics must walk the path.
     pub async fn mkdir(&self, path: &str) -> Result<(), Error> {
@@ -434,25 +446,37 @@ impl Sftp {
         let mut local = tokio::fs::File::open(local_path)
             .await
             .map_err(|e| Error::Sftp(format!("open {local_path}: {e}")))?;
-        let remote = self.create(remote_path).await?;
-        let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
-        let mut done: u64 = 0;
-        loop {
-            let n = local
-                .read(&mut buf)
-                .await
-                .map_err(|e| Error::Sftp(format!("local read {local_path}: {e}")))?;
-            if n == 0 {
-                break;
+        // Stage onto a sibling `.part` so a cancelled or dropped
+        // upload never truncates the destination — the original is
+        // replaced only by the rename after the final byte lands.
+        let staged = transfer_staging_path(remote_path, &crate::id::random_uuid_v4());
+        let result: Result<(), Error> = async {
+            let remote = self.create(&staged).await?;
+            let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+            let mut done: u64 = 0;
+            loop {
+                let n = local
+                    .read(&mut buf)
+                    .await
+                    .map_err(|e| Error::Sftp(format!("local read {local_path}: {e}")))?;
+                if n == 0 {
+                    break;
+                }
+                remote.write_all(&buf[..n]).await?;
+                done = done.saturating_add(n as u64);
+                if !progress(done, total_bytes) {
+                    return Err(Error::Cancelled);
+                }
             }
-            remote.write_all(&buf[..n]).await?;
-            done = done.saturating_add(n as u64);
-            if !progress(done, total_bytes) {
-                return Err(Error::Cancelled);
-            }
+            remote.sync_all().await?;
+            Ok(())
         }
-        remote.sync_all().await?;
-        Ok(())
+        .await;
+        if result.is_err() {
+            let _ = self.remove_file(&staged).await;
+            return result;
+        }
+        self.promote_staged(&staged, remote_path).await
     }
 
     /// Streamed single-file download — mirror of
@@ -472,30 +496,45 @@ impl Sftp {
                 .await
                 .map_err(|e| Error::Sftp(format!("mkdir {parent:?}: {e}")))?;
         }
-        let mut local = tokio::fs::File::create(local_path)
+        // Stage to a sibling `.part` so a cancelled or failed
+        // download never truncates an existing local file; the
+        // target is replaced by an atomic rename on success.
+        let staged = transfer_staging_path(local_path, &crate::id::random_uuid_v4());
+        let mut local = tokio::fs::File::create(&staged)
             .await
-            .map_err(|e| Error::Sftp(format!("create {local_path}: {e}")))?;
-        let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
-        let mut done: u64 = 0;
-        loop {
-            let n = remote.read_into(&mut buf).await?;
-            if n == 0 {
-                break;
+            .map_err(|e| Error::Sftp(format!("create {staged}: {e}")))?;
+        let result: Result<(), Error> = async {
+            let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+            let mut done: u64 = 0;
+            loop {
+                let n = remote.read_into(&mut buf).await?;
+                if n == 0 {
+                    break;
+                }
+                local
+                    .write_all(&buf[..n])
+                    .await
+                    .map_err(|e| Error::Sftp(format!("local write {staged}: {e}")))?;
+                done = done.saturating_add(n as u64);
+                if !progress(done, total_bytes) {
+                    return Err(Error::Cancelled);
+                }
             }
             local
-                .write_all(&buf[..n])
+                .flush()
                 .await
-                .map_err(|e| Error::Sftp(format!("local write {local_path}: {e}")))?;
-            done = done.saturating_add(n as u64);
-            if !progress(done, total_bytes) {
-                return Err(Error::Cancelled);
-            }
+                .map_err(|e| Error::Sftp(format!("local flush {staged}: {e}")))?;
+            Ok(())
         }
-        local
-            .flush()
+        .await;
+        drop(local);
+        if result.is_err() {
+            let _ = tokio::fs::remove_file(&staged).await;
+            return result;
+        }
+        tokio::fs::rename(&staged, local_path)
             .await
-            .map_err(|e| Error::Sftp(format!("local flush {local_path}: {e}")))?;
-        Ok(())
+            .map_err(|e| Error::Sftp(format!("rename {staged} → {local_path}: {e}")))
     }
 }
 
@@ -513,6 +552,16 @@ pub struct TransferProgressEvent {
 /// Per-file streaming chunk size — matches russh-sftp's default
 /// packet window.
 const TRANSFER_CHUNK_SIZE: usize = 65536;
+
+/// Sibling staging name for an in-flight transfer, e.g.
+/// `report.pdf.<token>.part`. The caller supplies a unique token
+/// (the transfer task id, or a random uuid for ad-hoc streams) so
+/// concurrent transfers to the same destination never collide on
+/// the temp file. Used for both the remote (upload) and local
+/// (download) staging targets.
+pub(crate) fn transfer_staging_path(dest: &str, token: &str) -> String {
+    format!("{dest}.{token}.part")
+}
 
 async fn count_local_files(dir: &std::path::Path) -> u64 {
     fn walk(
@@ -904,6 +953,19 @@ mod tests {
 
     fn touch(path: &std::path::Path) {
         std::fs::File::create(path).expect("create test file");
+    }
+
+    #[test]
+    fn transfer_staging_path_appends_token_and_part_suffix() {
+        // The staged name must stay a sibling of the destination
+        // (same directory) so the final rename is an intra-directory
+        // move, and must carry the token so two concurrent transfers
+        // to the same destination never share a temp file.
+        let p = transfer_staging_path("/srv/data/report.pdf", "task-7");
+        assert_eq!(p, "/srv/data/report.pdf.task-7.part");
+        let a = transfer_staging_path("/d/f", "alpha");
+        let b = transfer_staging_path("/d/f", "beta");
+        assert_ne!(a, b);
     }
 
     #[tokio::test]

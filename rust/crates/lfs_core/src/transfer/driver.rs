@@ -407,7 +407,7 @@ async fn download(
     // existing target file untouched — only the .part file is
     // ever truncated. Closes the audit's "transfer/driver
     // truncates partial files on every retry" gap.
-    let part_path = format!("{}.{}.part", task.local_path, task.id);
+    let part_path = crate::sftp::transfer_staging_path(&task.local_path, &task.id);
     // tokio::fs::File so the local I/O runs on the blocking pool —
     // the SFTP read at the top of the loop is async and does not
     // block its worker thread, but a slow disk on the write side
@@ -469,26 +469,41 @@ async fn upload(
     let mut local = tokio::fs::File::open(&task.local_path)
         .await
         .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
-    let remote = sftp.create(&task.remote_path).await?;
-    let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+    // Stage onto a sibling `<dest>.<task-id>.part` and promote it
+    // over the destination only once the last byte lands. Writing
+    // straight onto `task.remote_path` (SFTP `create` truncates on
+    // open) would leave the prior remote file truncated or empty
+    // whenever the user cancels or the link drops mid-upload —
+    // silent remote data loss. Mirrors the download `.part` path.
+    let part_path = crate::sftp::transfer_staging_path(&task.remote_path, &task.id);
     let mut written: u64 = 0;
-    loop {
-        if cancel.is_cancelled() {
-            return Err(Error::Io("upload cancelled".to_string()));
+    let result: Result<(), Error> = async {
+        let remote = sftp.create(&part_path).await?;
+        let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+        loop {
+            if cancel.is_cancelled() {
+                return Err(Error::Io("upload cancelled".to_string()));
+            }
+            let n = local
+                .read(&mut buf)
+                .await
+                .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
+            if n == 0 {
+                break;
+            }
+            remote.write_all(&buf[..n]).await?;
+            written = written.saturating_add(n as u64);
+            app.transfers.set_progress(&task.id, written, &app.bus);
         }
-        let n = local
-            .read(&mut buf)
-            .await
-            .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
-        if n == 0 {
-            break;
-        }
-        remote.write_all(&buf[..n]).await?;
-        written = written.saturating_add(n as u64);
-        app.transfers.set_progress(&task.id, written, &app.bus);
+        remote.sync_all().await?;
+        Ok(())
     }
-    remote.sync_all().await?;
-    Ok(())
+    .await;
+    if result.is_err() {
+        let _ = sftp.remove_file(&part_path).await;
+        return result;
+    }
+    sftp.promote_staged(&part_path, &task.remote_path).await
 }
 
 #[cfg(test)]
