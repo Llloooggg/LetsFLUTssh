@@ -46,10 +46,10 @@
 //! it; a link whose `si` no shipped session carries (truncated, or a
 //! pre-`i` payload) is dropped rather than left dangling.
 
-use std::io::Write;
+use std::io::Read;
 
 use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use flate2::write::DeflateDecoder;
+use flate2::read::DeflateDecoder;
 use serde_json::{json, Value};
 
 use crate::archive::PendingImport;
@@ -156,9 +156,9 @@ fn decode_to_json_text(payload: &str) -> Result<String, Error> {
         .map_err(|e| Error::Crypto(format!("payload base64 decode: {e}")))?;
     let bytes = match inflate_capped(&raw) {
         Ok(bytes) => bytes,
-        Err(InflateError::TooLarge { size, limit }) => {
+        Err(InflateError::TooLarge { limit }) => {
             return Err(Error::Crypto(format!(
-                "payload too large: {size} bytes > limit {limit}"
+                "payload exceeds {limit}-byte inflate cap (zip bomb?)"
             )));
         }
         Err(InflateError::Inflate) => {
@@ -168,9 +168,10 @@ fn decode_to_json_text(payload: &str) -> Result<String, Error> {
     String::from_utf8(bytes).map_err(|e| Error::Crypto(format!("payload utf-8: {e}")))
 }
 
+#[derive(Debug)]
 enum InflateError {
     Inflate,
-    TooLarge { size: usize, limit: usize },
+    TooLarge { limit: usize },
 }
 
 impl From<std::io::Error> for InflateError {
@@ -183,20 +184,20 @@ impl From<std::io::Error> for InflateError {
 }
 
 fn inflate_capped(compressed: &[u8]) -> Result<Vec<u8>, InflateError> {
-    // `flate2`'s `DeflateDecoder` walks the deflate stream and
-    // writes inflated bytes into the inner `Vec`. We catch oversize
-    // before the user materialises it as a `String`.
-    let mut out = Vec::with_capacity(compressed.len().min(64 * 1024));
-    {
-        let mut dec = DeflateDecoder::new(&mut out);
-        dec.write_all(compressed)?;
-        dec.finish()?;
-    }
-    if out.len() > MAX_INFLATED_PAYLOAD_BYTES {
-        return Err(InflateError::TooLarge {
-            size: out.len(),
-            limit: MAX_INFLATED_PAYLOAD_BYTES,
-        });
+    // Bound materialisation to `cap + 1` bytes so a deflate bomb
+    // cannot balloon the heap before the size check. The read-based
+    // decoder lets us wrap the inflate stream in `Read::take`, so at
+    // most `cap + 1` inflated bytes are ever pulled into memory —
+    // mirroring the ZIP-import streaming cap in `archive::mod`. The
+    // earlier write-based decoder inflated the whole stream first
+    // and only then compared lengths.
+    let cap = MAX_INFLATED_PAYLOAD_BYTES;
+    let mut out = Vec::new();
+    DeflateDecoder::new(compressed)
+        .take((cap as u64).saturating_add(1))
+        .read_to_end(&mut out)?;
+    if out.len() > cap {
+        return Err(InflateError::TooLarge { limit: cap });
     }
     Ok(out)
 }
@@ -469,12 +470,20 @@ fn decode_session(
     let short_key = m.get("ki").and_then(|v| v.as_str());
     let is_manager = m.get("mg").and_then(|v| v.as_i64()) == Some(1);
 
-    // Manager key reference: keep short id in `key_id`. Apply
-    // driver remaps to the manager-key row that lands alongside.
-    // Embedded key: pull the PEM from the dedup map, write
-    // inline as `key_data`.
+    // Manager key reference: keep the short id in `key_id` only when
+    // the key's PEM is actually present in the dedup map. The
+    // manager-key row is emitted exclusively for short ids found in
+    // `km` (see the `mk` loop above), so a reference to a missing
+    // entry — a truncated or adversarial payload — would dangle and
+    // fail the FK on apply (lost in a merge, whole-import rollback in
+    // replace). Drop the reference and import the session keyless.
+    // Embedded key: pull the PEM from the dedup map, write inline as
+    // `key_data`.
     let (key_id, key_data) = if is_manager {
-        (short_key.unwrap_or("").to_string(), String::new())
+        match short_key {
+            Some(short) if key_map.contains_key(short) => (short.to_string(), String::new()),
+            _ => (String::new(), String::new()),
+        }
     } else if let Some(short) = short_key {
         (
             "".to_string(),
@@ -528,6 +537,7 @@ fn generate_uuid_v4() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     fn encode_payload_test(json_str: &str) -> String {
         use flate2::write::DeflateEncoder;
@@ -614,6 +624,66 @@ mod tests {
         assert_eq!(k0.get("label").unwrap().as_str(), Some("MyKey"));
         assert_eq!(k0.get("private_key").unwrap().as_str(), Some("PEM_BYTES"));
         assert_eq!(k0.get("key_type").unwrap().as_str(), Some("ssh-ed25519"));
+    }
+
+    #[test]
+    fn manager_ref_missing_from_km_imports_session_keyless() {
+        // Truncated / adversarial payload: the session references a
+        // manager key short id that the `km` dedup map does not
+        // carry. The manager-key row is emitted only for short ids
+        // present in `km`, so keeping the reference would dangle and
+        // fail the FK on apply. The session must import keyless.
+        let json_str = r#"{
+            "v": 1,
+            "s": [{"l": "x", "h": "h", "u": "u", "ki": "ghost", "mg": 1}],
+            "km": {},
+            "mk": {"ghost": {"l": "MyKey", "t": "ssh-ed25519", "p": "ssh-ed25519 BBBB"}}
+        }"#;
+        let result = decode_payload(&encode_payload_test(json_str)).unwrap();
+        let sessions: Vec<Value> =
+            serde_json::from_str(result.pending.sessions_json.as_deref().unwrap()).unwrap();
+        let s0 = sessions[0].as_object().unwrap();
+        assert!(
+            s0.get("key_id").is_none(),
+            "dangling manager reference must be dropped, got {:?}",
+            s0.get("key_id")
+        );
+        assert_eq!(s0.get("key_data").unwrap().as_str(), Some(""));
+        // No usable manager key row landed either.
+        assert!(result.pending.keys_json.is_none());
+    }
+
+    #[test]
+    fn inflate_capped_rejects_oversize_without_materialising_all() {
+        // A highly-compressible payload larger than the cap must be
+        // rejected. The read-based decoder caps materialisation at
+        // `cap + 1`, so this never balloons the heap to the full
+        // decompressed size.
+        let oversize = vec![b'A'; MAX_INFLATED_PAYLOAD_BYTES + 4096];
+        let compressed = {
+            use flate2::write::DeflateEncoder;
+            use flate2::Compression;
+            let mut enc = DeflateEncoder::new(Vec::new(), Compression::default());
+            enc.write_all(&oversize).unwrap();
+            enc.finish().unwrap()
+        };
+        match inflate_capped(&compressed) {
+            Err(InflateError::TooLarge { limit }) => {
+                assert_eq!(limit, MAX_INFLATED_PAYLOAD_BYTES);
+            }
+            Err(InflateError::Inflate) => panic!("expected TooLarge, got Inflate"),
+            Ok(v) => panic!("expected TooLarge, got Ok({} bytes)", v.len()),
+        }
+        // A within-cap payload still round-trips.
+        let small = b"hello world";
+        let compressed_small = {
+            use flate2::write::DeflateEncoder;
+            use flate2::Compression;
+            let mut enc = DeflateEncoder::new(Vec::new(), Compression::default());
+            enc.write_all(small).unwrap();
+            enc.finish().unwrap()
+        };
+        assert_eq!(inflate_capped(&compressed_small).unwrap(), small);
     }
 
     #[test]
