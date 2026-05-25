@@ -326,48 +326,68 @@ async fn upload_via_provider(
     cancel: &CancellationToken,
 ) -> Result<(), Error> {
     use futures_util::stream;
-    use tokio::io::AsyncReadExt;
-    let app = crate::app::instance();
-    let mut local = tokio::fs::File::open(&task.local_path)
+    let local = tokio::fs::File::open(&task.local_path)
         .await
         .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
-    let meta = local
+    let total = local
         .metadata()
         .await
-        .map_err(|e| Error::Transport(format!("stat {}: {e}", task.local_path)))?;
-    let total = meta.len();
-    // Pre-read into a Vec of chunks. Streaming `tokio::fs::File`
-    // through `ReaderStream` would be marginally more memory-
-    // efficient, but the resulting stream isn't `Send + 'static`
-    // through the `Provider` trait without a 'static lifetime hop
-    // — and the chunked Vec path matches the SFTP-native shape's
-    // memory footprint (one buffer per chunk in flight). For
-    // multi-GB files a follow-up could swap this for a streaming
-    // backend with per-chunk reads, but the typical drop is
-    // single-file under a few hundred MB.
-    let mut chunks: Vec<Result<bytes::Bytes, Error>> = Vec::new();
-    let mut written: u64 = 0;
-    let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
-    loop {
-        if cancel.is_cancelled() {
-            return Err(Error::Io("upload cancelled".to_string()));
-        }
-        let n = local
-            .read(&mut buf)
-            .await
-            .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
-        if n == 0 {
-            break;
-        }
-        let bytes = bytes::Bytes::copy_from_slice(&buf[..n]);
-        written = written.saturating_add(n as u64);
-        app.transfers.set_progress(&task.id, written, &app.bus);
-        chunks.push(Ok(bytes));
+        .map_err(|e| Error::Transport(format!("stat {}: {e}", task.local_path)))?
+        .len();
+
+    // Lazily stream the file from disk one chunk at a time instead of
+    // pre-reading the whole thing into a Vec — buffering would hold an
+    // entire multi-GB upload in RAM. `unfold` reads the next
+    // `TRANSFER_CHUNK_SIZE` block per poll, reports progress, and ends
+    // on EOF / cancel / read error (the `done` flag stops a poll after
+    // an error from re-yielding). Memory stays bounded to one chunk in
+    // flight, matching the SFTP-native path's footprint.
+    struct UploadState {
+        file: tokio::fs::File,
+        written: u64,
+        done: bool,
     }
-    if cancel.is_cancelled() {
-        return Err(Error::Io("upload cancelled".to_string()));
-    }
-    let body = Box::pin(stream::iter(chunks)) as crate::storage::ByteStream;
+    let app = crate::app::instance();
+    let task_id = task.id.clone();
+    let local_path = task.local_path.clone();
+    let cancel = cancel.clone();
+    let body = Box::pin(stream::unfold(
+        UploadState {
+            file: local,
+            written: 0,
+            done: false,
+        },
+        move |mut st| {
+            let app = app.clone();
+            let task_id = task_id.clone();
+            let local_path = local_path.clone();
+            let cancel = cancel.clone();
+            async move {
+                use tokio::io::AsyncReadExt;
+                if st.done {
+                    return None;
+                }
+                if cancel.is_cancelled() {
+                    st.done = true;
+                    return Some((Err(Error::Io("upload cancelled".to_string())), st));
+                }
+                let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+                match st.file.read(&mut buf).await {
+                    Ok(0) => None,
+                    Ok(n) => {
+                        st.written = st.written.saturating_add(n as u64);
+                        app.transfers.set_progress(&task_id, st.written, &app.bus);
+                        buf.truncate(n);
+                        Some((Ok(bytes::Bytes::from(buf)), st))
+                    }
+                    Err(e) => {
+                        st.done = true;
+                        Some((Err(Error::Transport(format!("read {local_path}: {e}"))), st))
+                    }
+                }
+            }
+        },
+    )) as crate::storage::ByteStream;
     provider
         .put_stream(&task.remote_path, body, Some(total))
         .await?;
