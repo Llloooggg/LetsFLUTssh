@@ -480,6 +480,7 @@ class _ExportImportTile extends ConsumerWidget {
         handleId,
         importConfig.options,
         importConfig.mode,
+        opened.preview.recordingCount.toInt(),
       );
       // Apply consumes the handle on success.
       handleId = null;
@@ -566,6 +567,7 @@ class _ExportImportTile extends ConsumerWidget {
     String handleId,
     ExportOptions options,
     ImportMode mode,
+    int recordingCount,
   ) async {
     final l10n = S.of(context);
     final reporter = ProgressReporter(l10n.progressWorking);
@@ -582,7 +584,11 @@ class _ExportImportTile extends ConsumerWidget {
         applyTags: options.includeTags,
         applySnippets: options.includeSnippets,
         applyKnownHosts: options.includeKnownHosts,
-        applyRecordings: options.includeRecordings,
+        // The LFS preview dialog has no recordings checkbox (the
+        // receiver gets whatever the archive carries), so gate on the
+        // archive's own recording count rather than the unsettable
+        // option flag — mirrors the drag-drop path in import_flow.
+        applyRecordings: recordingCount > 0,
         refreshAfterImport: () async {
           // Sessions ride the workspace stream — the Rust apply
           // publishes `SessionsChanged` and the stream re-fetches.
