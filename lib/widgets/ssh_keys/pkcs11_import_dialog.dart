@@ -765,9 +765,10 @@ class _TokenRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return InkWell(
+    return HoverRegion(
+      cursor: SystemMouseCursors.click,
       onTap: onTap,
-      child: Opacity(
+      builder: (_) => Opacity(
         opacity: locked ? 0.5 : 1.0,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -856,9 +857,10 @@ class _KeyRow extends StatelessWidget {
     final meta = algoDetail.detail.isEmpty
         ? algoLabel
         : s.pkcs11KeyMetaFormat(algoLabel, algoDetail.detail);
-    return InkWell(
+    return HoverRegion(
+      cursor: SystemMouseCursors.click,
       onTap: onTap,
-      child: Opacity(
+      builder: (_) => Opacity(
         opacity: enabled ? 1.0 : 0.5,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
