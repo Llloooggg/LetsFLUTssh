@@ -964,7 +964,9 @@ pub async fn db_sessions_get(id: String) -> Result<Option<DbSession>, String> {
 
 pub async fn db_sessions_upsert(row: DbSession) -> Result<(), String> {
     let row: lfs_core::db::sessions::SessionRow = row.into();
-    run_db_writing_sessions(move |c| lfs_core::db::sessions::upsert(c, &row)).await
+    // Transactional wrapper — the parent row + protocol-detail
+    // ins/del must commit or roll back together (see upsert_in_tx).
+    run_db_mut_writing_sessions(move |c| lfs_core::db::sessions::upsert_in_tx(c, &row)).await
 }
 
 pub async fn db_sessions_delete(id: String) -> Result<u32, String> {
@@ -1099,8 +1101,8 @@ pub async fn db_sessions_duplicate(
     target_folder_id: Option<String>,
     now_ms: i64,
 ) -> Result<(), String> {
-    run_db_writing_sessions(move |c| {
-        lfs_core::db::sessions::duplicate_session(
+    run_db_mut_writing_sessions(move |c| {
+        lfs_core::db::sessions::duplicate_session_in_tx(
             c,
             &src_id,
             &new_id,

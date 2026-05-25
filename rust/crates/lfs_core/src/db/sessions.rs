@@ -345,6 +345,25 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
     Ok(())
 }
 
+/// Transactional entry point for the standalone FRB upsert. [`upsert`]
+/// writes the parent row plus up to four protocol-detail ins/del as
+/// separate statements; wrapping them in one transaction means a
+/// mid-sequence failure (FK violation on a stale `via_session_id`,
+/// disk-full, a kind switch whose detail-insert succeeds but a stale-
+/// row delete fails) rolls back wholesale instead of leaving a session
+/// row with missing or stale detail rows. The archive-apply path calls
+/// [`upsert`] directly — it already runs inside its own transaction,
+/// and rusqlite does not nest.
+pub fn upsert_in_tx(conn: &mut Connection, row: &SessionRow) -> Result<(), Error> {
+    let tx = conn
+        .inner_mut()
+        .transaction()
+        .map_err(|e| Error::Db(format!("sessions upsert tx: {e}")))?;
+    upsert(&tx, row)?;
+    tx.commit()
+        .map_err(|e| Error::Db(format!("sessions upsert commit: {e}")))
+}
+
 /// Physically remove the `webdav_session_details` row for a session
 /// id. Issued when an upsert lands a non-WebDAV kind so a prior
 /// WebDAV row does not stay reachable as stale transport config.
@@ -862,6 +881,27 @@ pub fn duplicate_session(
     Ok(())
 }
 
+/// Transactional entry point for the FRB duplicate. [`duplicate_session`]
+/// copies the parent row plus the protocol-detail row as separate
+/// `INSERT … SELECT`s; one transaction keeps a partial failure from
+/// leaving a duplicated session with no (or a wrong-kind) detail row.
+pub fn duplicate_session_in_tx(
+    conn: &mut Connection,
+    src_id: &str,
+    new_id: &str,
+    new_label: &str,
+    target_folder_id: Option<&str>,
+    now_ms: i64,
+) -> Result<(), Error> {
+    let tx = conn
+        .inner_mut()
+        .transaction()
+        .map_err(|e| Error::Db(format!("sessions duplicate tx: {e}")))?;
+    duplicate_session(&tx, src_id, new_id, new_label, target_folder_id, now_ms)?;
+    tx.commit()
+        .map_err(|e| Error::Db(format!("sessions duplicate commit: {e}")))
+}
+
 /// Composite duplicate — looks up the source row, resolves
 /// [`target_folder_path`] to a folder id (creating folders as
 /// needed), computes a unique label against the live session list,
@@ -1106,6 +1146,49 @@ mod duplicate_tests {
             upsert(c, &row)
         })
         .unwrap();
+    }
+
+    #[test]
+    fn upsert_in_tx_round_trips_and_switches_kind() {
+        let db = db();
+        let mut row = SessionRow {
+            id: "s1".into(),
+            label: "Box".into(),
+            folder_id: None,
+            kind: SESSION_KIND_SSH.into(),
+            host: "h".into(),
+            port: 22,
+            user: "u".into(),
+            auth_type: "password".into(),
+            password: "secret".into(),
+            key_path: String::new(),
+            key_data: String::new(),
+            key_id: None,
+            passphrase: String::new(),
+            sort_order: 0,
+            notes: String::new(),
+            last_connected_at_ms: None,
+            extras: String::new(),
+            via_session_id: None,
+            via_host: None,
+            via_port: None,
+            via_user: None,
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        };
+        db.with_conn_mut(|c| upsert_in_tx(c, &row)).unwrap();
+        let got = db.with_conn(|c| get(c, "s1")).unwrap().unwrap();
+        assert_eq!(got.kind, SESSION_KIND_SSH);
+        assert_eq!(got.host, "h");
+
+        // Switch the kind: the SSH detail row must be dropped and the
+        // WebDAV row written — both in one transaction.
+        row.kind = SESSION_KIND_WEBDAV.into();
+        db.with_conn_mut(|c| upsert_in_tx(c, &row)).unwrap();
+        let got2 = db.with_conn(|c| get(c, "s1")).unwrap().unwrap();
+        assert_eq!(got2.kind, SESSION_KIND_WEBDAV);
+        // SSH detail gone → host no longer surfaces from the join.
+        assert_eq!(got2.host, "");
     }
 
     #[test]
