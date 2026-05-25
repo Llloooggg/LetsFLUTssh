@@ -199,7 +199,7 @@ impl S3Client {
 
     /// HEAD an object. Returns size / mtime / etag / content-type.
     pub async fn head_object(&self, bucket: &str, key: &str) -> Result<S3ObjectMetadata, Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let response = self
             .signed_request(Method::HEAD, bucket, &path, "", None, EMPTY_PAYLOAD_HASH)
             .await?;
@@ -232,7 +232,7 @@ impl S3Client {
         key: &str,
         range: Option<(u64, u64)>,
     ) -> Result<reqwest::Response, Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let extras: Vec<(String, String)> = match range {
             Some((start, end)) => vec![("Range".into(), format!("bytes={start}-{end}"))],
             None => Vec::new(),
@@ -264,7 +264,7 @@ impl S3Client {
         key: &str,
         body: Vec<u8>,
     ) -> Result<(), Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let payload_hash = hex_sha256(&body);
         let response = self
             .signed_request(
@@ -286,7 +286,7 @@ impl S3Client {
 
     /// DELETE one object.
     pub async fn delete_object(&self, bucket: &str, key: &str) -> Result<(), Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let response = self
             .signed_request(Method::DELETE, bucket, &path, "", None, EMPTY_PAYLOAD_HASH)
             .await?;
@@ -310,7 +310,7 @@ impl S3Client {
         dst_bucket: &str,
         dst_key: &str,
     ) -> Result<(), Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(dst_key, false));
+        let path = format!("/{}", dst_key);
         // The copy-source header carries the encoded source path
         // (URL-encode the key but leave the bucket separator alone).
         let source = format!(
@@ -341,7 +341,7 @@ impl S3Client {
     /// the orchestrator. Exposed individually so the orchestrator
     /// can run abort cleanup independent of the success path.
     pub async fn create_multipart_upload(&self, bucket: &str, key: &str) -> Result<String, Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let response = self
             .signed_request(
                 Method::POST,
@@ -373,7 +373,7 @@ impl S3Client {
         part_number: i32,
         body: Vec<u8>,
     ) -> Result<String, Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let query = format!(
             "partNumber={}&uploadId={}",
             part_number,
@@ -413,7 +413,7 @@ impl S3Client {
         upload_id: &str,
         parts: &[(i32, String)],
     ) -> Result<(), Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let query = format!(
             "uploadId={}",
             crate::s3::signer::uri_encode(upload_id, true)
@@ -454,7 +454,7 @@ impl S3Client {
         key: &str,
         upload_id: &str,
     ) -> Result<(), Error> {
-        let path = format!("/{}", crate::s3::signer::uri_encode(key, false));
+        let path = format!("/{}", key);
         let query = format!(
             "uploadId={}",
             crate::s3::signer::uri_encode(upload_id, true)
@@ -583,11 +583,16 @@ impl S3Client {
 
         // Compose the final request URL. Path-style addressing already
         // baked the bucket into `base`; here we only append the
-        // resource path + the query.
+        // resource path + the query. Encode the path through the SAME
+        // `canonical_path` the signer uses so the wire URL and the
+        // signed canonical request are byte-identical — callers pass
+        // the raw key, encoding happens exactly once, here and in the
+        // signer.
+        let encoded_path = crate::s3::signer::canonical_path(path);
         let url = if query.is_empty() {
-            format!("{base}{path}")
+            format!("{base}{encoded_path}")
         } else {
-            format!("{base}{path}?{query}")
+            format!("{base}{encoded_path}?{query}")
         };
 
         let mut builder = self.http.request(method, &url);

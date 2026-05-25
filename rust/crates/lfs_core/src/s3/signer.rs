@@ -212,7 +212,14 @@ pub fn presign_url(input: &PresignInput<'_>, scheme: &str) -> String {
 /// Canonicalise the path component per the SigV4 spec — every
 /// segment URI-encoded, slashes preserved. Empty input maps to
 /// `/` per the AWS canonical-request grammar.
-fn canonical_path(path: &str) -> String {
+///
+/// Callers pass the **raw** path (un-encoded key); this applies the
+/// single encoding the signed canonical request needs. The live
+/// request builder reuses it to encode the wire URL too, so the
+/// signed path and the wire path stay byte-identical — encoding the
+/// key a second time at the call site would sign `%2520` while the
+/// wire carried `%20` and every special-char key would 403.
+pub(crate) fn canonical_path(path: &str) -> String {
     if path.is_empty() {
         return "/".into();
     }
@@ -440,6 +447,22 @@ mod tests {
     #[test]
     fn canonical_path_keeps_trailing_slash() {
         assert_eq!(canonical_path("/sub/"), "/sub/");
+    }
+
+    #[test]
+    fn canonical_path_must_receive_a_raw_key_not_a_pre_encoded_one() {
+        // Regression guard for the double-encoding bug: the client
+        // request builder feeds the RAW key path through
+        // `canonical_path` for BOTH the signature and the wire URL,
+        // so they stay byte-identical. If a caller pre-encodes the
+        // key (`uri_encode` then `canonical_path`), the space's `%`
+        // gets encoded again into `%2520` — the signed path then
+        // disagrees with the `%20` on the wire and S3 returns 403
+        // SignatureDoesNotMatch.
+        let raw = "/my key.txt";
+        assert_eq!(canonical_path(raw), "/my%20key.txt");
+        let pre_encoded = format!("/{}", uri_encode("my key.txt", false));
+        assert_eq!(canonical_path(&pre_encoded), "/my%2520key.txt");
     }
 
     #[test]
