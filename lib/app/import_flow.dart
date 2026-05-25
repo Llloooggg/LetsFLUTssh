@@ -190,7 +190,11 @@ Future<ImportSummary> _applyRustQrSource({
     handleId: rust.handleId,
     mode: choice.mode,
     applySessions: choice.options.includeSessions,
-    applyKeys: choice.options.includeManagerKeys,
+    // Both "session-linked keys" and "all manager keys" land in the
+    // payload's `mk`/`km` blocks and share the single Rust-side
+    // `apply_keys` gate, so the apply toggle must honor either flag —
+    // the default "Full import" preset sets only `includeAllManagerKeys`.
+    applyKeys: choice.options.hasManagerKeys,
     applyTags: choice.options.includeTags,
     applySnippets: choice.options.includeSnippets,
     applyKnownHosts: choice.options.includeKnownHosts,

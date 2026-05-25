@@ -576,7 +576,9 @@ class _ExportImportTile extends ConsumerWidget {
         handleId: handleId,
         mode: mode,
         applySessions: options.includeSessions,
-        applyKeys: options.includeManagerKeys,
+        // Honor either key flag — "all manager keys" and "session-linked
+        // keys" share one Rust-side `apply_keys` gate (see import_flow).
+        applyKeys: options.hasManagerKeys,
         applyTags: options.includeTags,
         applySnippets: options.includeSnippets,
         applyKnownHosts: options.includeKnownHosts,

@@ -479,6 +479,51 @@ void main() {
       expect(find.textContaining('2'), findsWidgets);
     });
 
+    _testFlow('includeAllManagerKeys (default "Full" preset) sets applyKeys', (
+      tester,
+    ) async {
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(log: log, applyResult: () => _applyResult(sessions: 1)),
+      );
+
+      final source = QrDecodedSource.rust(
+        rust_archive.DbImportOpenResult(
+          handleId: 'qr-h',
+          preview: _previewWith(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton('go', (ctx, ref) async {
+            await handleQrImportSource(
+              context: ctx,
+              ref: ref,
+              source: source,
+              // "Full import" preset: only includeAllManagerKeys is set,
+              // includeManagerKeys stays false. Both must enable apply.
+              choice: (
+                mode: ImportMode.merge,
+                options: const ExportOptions(
+                  includeSessions: true,
+                  includeAllManagerKeys: true,
+                  includeManagerKeys: false,
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(log.applyCalls.single.applyKeys, isTrue);
+    });
+
     _testFlow('apply throws: error toast', (tester) async {
       final log = _CallLog();
       debugSetImportFlowSeams(
