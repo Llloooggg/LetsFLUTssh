@@ -40,6 +40,58 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<TagRow>, Error> {
     Ok(out)
 }
 
+/// Every tag paired with its `deleted_at` stamp, tombstones
+/// included. The sync composer needs the tombstoned rows so a peer
+/// device can replay a tag deletion; `list_all` filters them out
+/// (live snapshot only), so a soft-deleted tag would otherwise
+/// never reach the wire and the peer would push the still-live tag
+/// straight back. Archive / QR exports keep using `list_all` (live
+/// rows only). Tags carry no `updated_at` column, so the LWW key is
+/// `created_at_ms`; the tombstone's own `deleted_at` stamp is the
+/// deletion event time [`apply_tombstone`] compares against.
+pub fn list_all_with_tombstones(
+    conn: &impl crate::db::DbAccess,
+) -> Result<Vec<(TagRow, Option<i64>)>, Error> {
+    let mut stmt = conn
+        .raw()
+        .prepare_cached(
+            "SELECT id, name, color, created_at, deleted_at FROM tags ORDER BY name ASC",
+        )
+        .map_err(|e| Error::Db(format!("tags list_all_with_tombstones prepare: {e}")))?;
+    let rows = stmt
+        .query_map([], |row| {
+            let r = row_from(row)?;
+            let deleted_at: Option<i64> = row.get("deleted_at")?;
+            Ok((r, deleted_at))
+        })
+        .map_err(|e| Error::Db(format!("tags list_all_with_tombstones query: {e}")))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| Error::Db(format!("tags list_all_with_tombstones row: {e}")))?);
+    }
+    Ok(out)
+}
+
+/// Apply a peer tag tombstone with an explicit stamp under the sync
+/// LWW rule. The row's `deleted_at` flips only when the peer's
+/// `deleted_at_ms` is strictly newer than the local `created_at` —
+/// tags carry no `updated_at`, so `created_at` is the LWW
+/// timestamp; a tie or a stale stamp loses. Returns the affected
+/// row count (0 = LWW rejected the tombstone).
+pub fn apply_tombstone(
+    conn: &impl crate::db::DbAccess,
+    id: &str,
+    deleted_at_ms: i64,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE tags SET deleted_at = ?1 \
+             WHERE id = ?2 AND deleted_at IS NULL AND created_at < ?1",
+            params![deleted_at_ms, id],
+        )
+        .map_err(|e| Error::Db(format!("tags apply_tombstone: {e}")))
+}
+
 pub fn upsert(conn: &impl crate::db::DbAccess, row: &TagRow) -> Result<(), Error> {
     conn.raw()
         .execute(
@@ -405,6 +457,46 @@ mod tombstone_tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "t1");
         assert!(raw_deleted_at(&db, "t1").is_none());
+    }
+
+    #[test]
+    fn list_all_with_tombstones_keeps_tombstoned_rows() {
+        let db = db();
+        seed(&db, "alive", "alive");
+        seed(&db, "dead", "dead");
+        db.with_conn(|c| delete(c, "dead")).unwrap();
+        let rows = db.with_conn(list_all_with_tombstones).unwrap();
+        assert_eq!(rows.len(), 2);
+        let dead = rows.iter().find(|(r, _)| r.id == "dead").unwrap();
+        assert!(dead.1.is_some(), "dead row carries a deleted_at stamp");
+        let alive = rows.iter().find(|(r, _)| r.id == "alive").unwrap();
+        assert!(alive.1.is_none(), "alive row has no tombstone");
+    }
+
+    #[test]
+    fn apply_tombstone_lww_blocks_stale_stamp() {
+        let db = db();
+        // Tags key LWW on `created_at` (no `updated_at` column).
+        db.with_conn(|c| {
+            upsert(
+                c,
+                &TagRow {
+                    id: "t1".into(),
+                    name: "prod".into(),
+                    color: None,
+                    created_at_ms: 100,
+                },
+            )
+        })
+        .unwrap();
+        // Stale peer tombstone (50 < local created_at 100) is rejected.
+        let n = db.with_conn(|c| apply_tombstone(c, "t1", 50)).unwrap();
+        assert_eq!(n, 0);
+        assert!(raw_deleted_at(&db, "t1").is_none());
+        // Fresh peer tombstone (200 > local 100) lands.
+        let n = db.with_conn(|c| apply_tombstone(c, "t1", 200)).unwrap();
+        assert_eq!(n, 1);
+        assert!(raw_deleted_at(&db, "t1").is_some());
     }
 
     /// Pin the partial-unique contract: a tombstoned tag does not

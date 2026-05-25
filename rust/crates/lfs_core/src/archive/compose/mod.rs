@@ -185,10 +185,18 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
 
     write_manifest(&mut zw, opts, input)?;
 
+    // Tombstoned rows travel only on the sync wire, not in manual
+    // `.lfs` archive exports. Sync push stamps a non-empty
+    // `sync_origin` on the manifest; manual exports leave the field
+    // absent. The flag is computed up-front because the sessions /
+    // keys / tags / snippets composers all gate tombstone emission
+    // on it, mirroring the v3 child-table composers below.
+    let sync_mode = input.sync_origin.as_deref().is_some_and(|s| !s.is_empty());
+
     if input.options.include_sessions {
         let folder_paths = build_folder_paths(conn)?;
         let sessions_value =
-            build_sessions_value(conn, &input.selected_session_ids, &folder_paths)?;
+            build_sessions_value(conn, &input.selected_session_ids, &folder_paths, sync_mode)?;
         write_json_entry(&mut zw, opts, "sessions.json", &sessions_value)?;
         if !input.selected_empty_folders.is_empty() {
             let value = Value::Array(
@@ -207,6 +215,7 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
             conn,
             &input.selected_session_ids,
             input.options.include_all_manager_keys,
+            sync_mode,
         )?;
         if let Some(value) = keys_value {
             write_json_entry(&mut zw, opts, "keys.json", &value)?;
@@ -229,7 +238,7 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
     }
 
     if input.options.include_tags {
-        if let Some(tags_value) = build_tags_value(conn)? {
+        if let Some(tags_value) = build_tags_value(conn, sync_mode)? {
             write_json_entry(&mut zw, opts, "tags.json", &tags_value)?;
 
             if let Some(session_tags) = build_session_tags_value(conn, &input.selected_session_ids)?
@@ -244,7 +253,7 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
     }
 
     if input.options.include_snippets {
-        if let Some(snippets_value) = build_snippets_value(conn)? {
+        if let Some(snippets_value) = build_snippets_value(conn, sync_mode)? {
             write_json_entry(&mut zw, opts, "snippets.json", &snippets_value)?;
             if let Some(session_snippets) =
                 build_session_snippets_value(conn, &input.selected_session_ids)?
@@ -271,13 +280,9 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
             write_json_entry(&mut zw, opts, "ssh_key_certificates.json", &value)?;
         }
     }
-    // Tombstoned rows travel only on the sync wire, not in manual
-    // `.lfs` archive exports. Sync push stamps `sync_origin` on the
-    // manifest; manual exports leave the field absent. Keying
-    // tombstone emission off that flag keeps the archive-import
-    // applier insulated from sync-protocol concerns even when the
-    // user-facing dialog reuses the same composer.
-    let sync_mode = input.sync_origin.as_deref().is_some_and(|s| !s.is_empty());
+    // `sync_mode` (computed above) keeps tombstone emission off the
+    // archive-import applier even when the user-facing dialog reuses
+    // the same composer — manual exports leave `sync_origin` absent.
     if input.options.include_sessions {
         if let Some(value) =
             build_webdav_session_details_value(conn, &input.selected_session_ids, sync_mode)?
@@ -289,7 +294,9 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
         {
             write_json_entry(&mut zw, opts, "s3_session_details.json", &value)?;
         }
-        if let Some(value) = build_sftp_bookmarks_value(conn, &input.selected_session_ids)? {
+        if let Some(value) =
+            build_sftp_bookmarks_value(conn, &input.selected_session_ids, sync_mode)?
+        {
             write_json_entry(&mut zw, opts, "sftp_bookmarks.json", &value)?;
         }
         if let Some(value) =
@@ -459,12 +466,28 @@ fn build_sessions_value(
     conn: &impl crate::db::DbAccess,
     selected_ids: &[String],
     folder_paths: &HashMap<String, String>,
+    sync_mode: bool,
 ) -> Result<Value, Error> {
-    let rows = sessions::list_all(conn)?;
     let want: HashSet<&str> = selected_ids.iter().map(|s| s.as_str()).collect();
     let mut arr = Vec::new();
-    for r in rows.into_iter().filter(|r| want.contains(r.id.as_str())) {
-        arr.push(session_row_to_json(&r, folder_paths)?);
+    if sync_mode {
+        // Sync emits tombstoned sessions so a peer can replay the
+        // deletion; `list_all` filters them out, which is why a
+        // delete on one device used to silently resurrect after a
+        // round-trip. `selected_ids` already includes tombstoned
+        // ids in the sync path (see `sync::service::compose_archive`).
+        let rows = sessions::list_all_with_tombstones(conn)?;
+        for (r, _updated_at, deleted_at) in rows {
+            if !want.contains(r.id.as_str()) {
+                continue;
+            }
+            arr.push(session_row_to_json(&r, folder_paths, deleted_at)?);
+        }
+    } else {
+        let rows = sessions::list_all(conn)?;
+        for r in rows.into_iter().filter(|r| want.contains(r.id.as_str())) {
+            arr.push(session_row_to_json(&r, folder_paths, None)?);
+        }
     }
     Ok(Value::Array(arr))
 }
@@ -472,6 +495,7 @@ fn build_sessions_value(
 fn session_row_to_json(
     r: &sessions::SessionRow,
     folder_paths: &HashMap<String, String>,
+    deleted_at: Option<i64>,
 ) -> Result<Value, Error> {
     let folder_path = r
         .folder_id
@@ -551,6 +575,16 @@ fn session_row_to_json(
         obj.insert("notes".into(), json!(r.notes));
     }
 
+    // Sync tombstone marker. Present only when the caller passed a
+    // `deleted_at` (sync push of a soft-deleted session); the
+    // `updated_at` field above already carries the deletion stamp
+    // for the LWW gate, so the apply path keys the tombstone off
+    // this flag and the timestamp.
+    if let Some(ts) = deleted_at {
+        obj.insert("deleted_at_ms".into(), json!(ts));
+        obj.insert("tombstone".into(), json!(true));
+    }
+
     Ok(Value::Object(obj))
 }
 
@@ -558,9 +592,22 @@ fn build_manager_keys_value(
     conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
     include_all: bool,
+    sync_mode: bool,
 ) -> Result<Option<Value>, Error> {
-    let all_keys = ssh_keys::list_all(conn)?;
-    if all_keys.is_empty() {
+    // Sync emits tombstoned keys so a peer can replay a key
+    // deletion (a deleted credential must not resurrect); archive /
+    // QR export keeps to live keys. The key list shape is identical
+    // either way — the tombstone path just pairs each row with its
+    // `deleted_at` stamp and tags the dead ones.
+    let keyed_rows: Vec<(ssh_keys::SshKeyRow, Option<i64>)> = if sync_mode {
+        ssh_keys::list_all_with_tombstones(conn)?
+    } else {
+        ssh_keys::list_all(conn)?
+            .into_iter()
+            .map(|k| (k, None))
+            .collect()
+    };
+    if keyed_rows.is_empty() {
         return Ok(None);
     }
     let used_ids: HashSet<String> = if include_all {
@@ -576,10 +623,10 @@ fn build_manager_keys_value(
             .collect()
     };
 
-    let arr: Vec<Value> = all_keys
+    let arr: Vec<Value> = keyed_rows
         .into_iter()
-        .filter(|k| include_all || used_ids.contains(&k.id))
-        .map(|k| build_key_value(&k))
+        .filter(|(k, _)| include_all || used_ids.contains(&k.id))
+        .map(|(k, deleted_at)| build_key_value(&k, deleted_at))
         .collect();
     if arr.is_empty() {
         Ok(None)
@@ -602,7 +649,7 @@ fn build_manager_keys_value(
 /// `pkcs11_module_path` is NEVER emitted (per-host install location);
 /// re-discovered on first use via the well-known-paths scan keyed on
 /// `pkcs11_token_serial`.
-fn build_key_value(k: &ssh_keys::SshKeyRow) -> Value {
+fn build_key_value(k: &ssh_keys::SshKeyRow, deleted_at: Option<i64>) -> Value {
     let mut obj = serde_json::Map::new();
     obj.insert("id".into(), json!(k.id));
     obj.insert("label".into(), json!(k.label));
@@ -653,6 +700,13 @@ fn build_key_value(k: &ssh_keys::SshKeyRow) -> Value {
             // (enclave_tag / hello_credential_name / tpm_* /
             // keystore_*) stays on the source device's hardware.
         }
+    }
+    // Sync tombstone marker. Keys carry `created_at` (not
+    // `updated_at`) as their LWW key; the apply path compares the
+    // peer `deleted_at_ms` against the local `created_at`.
+    if let Some(ts) = deleted_at {
+        obj.insert("deleted_at_ms".into(), json!(ts));
+        obj.insert("tombstone".into(), json!(true));
     }
     Value::Object(obj)
 }
@@ -850,23 +904,41 @@ fn s3_row_to_value(
 fn build_sftp_bookmarks_value(
     conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
+    sync_mode: bool,
 ) -> Result<Option<Value>, Error> {
-    let all_rows = sftp_bookmarks::list_all(conn)?;
-    if all_rows.is_empty() {
+    let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
+    // Sync emits tombstoned bookmarks so a peer can replay a
+    // deletion; archive / QR export keeps to live bookmarks.
+    // Bookmarks carry `created_at` as their LWW key.
+    let keyed_rows: Vec<(sftp_bookmarks::SftpBookmarkRow, Option<i64>)> = if sync_mode {
+        sftp_bookmarks::list_all_with_tombstones(conn)?
+    } else {
+        sftp_bookmarks::list_all(conn)?
+            .into_iter()
+            .map(|r| (r, None))
+            .collect()
+    };
+    if keyed_rows.is_empty() {
         return Ok(None);
     }
-    let want: HashSet<&str> = selected_session_ids.iter().map(|s| s.as_str()).collect();
-    let arr: Vec<Value> = all_rows
+    let arr: Vec<Value> = keyed_rows
         .into_iter()
-        .filter(|r| want.contains(r.session_id.as_str()))
-        .map(|r| {
-            json!({
-                "id": r.id,
-                "session_id": r.session_id,
-                "remote_path": r.remote_path,
-                "label": r.label,
-                "created_at": format_iso8601_utc(r.created_at_ms),
-            })
+        .filter(|(r, _)| want.contains(r.session_id.as_str()))
+        .map(|(r, deleted_at)| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("id".into(), json!(r.id));
+            obj.insert("session_id".into(), json!(r.session_id));
+            obj.insert("remote_path".into(), json!(r.remote_path));
+            obj.insert("label".into(), json!(r.label));
+            obj.insert(
+                "created_at".into(),
+                json!(format_iso8601_utc(r.created_at_ms)),
+            );
+            if let Some(ts) = deleted_at {
+                obj.insert("deleted_at_ms".into(), json!(ts));
+                obj.insert("tombstone".into(), json!(true));
+            }
+            Value::Object(obj)
         })
         .collect();
     if arr.is_empty() {
@@ -934,20 +1006,40 @@ fn port_forward_row_to_value(
     Value::Object(obj)
 }
 
-fn build_tags_value(conn: &impl crate::db::DbAccess) -> Result<Option<Value>, Error> {
-    let rows = tags::list_all(conn)?;
-    if rows.is_empty() {
+fn build_tags_value(
+    conn: &impl crate::db::DbAccess,
+    sync_mode: bool,
+) -> Result<Option<Value>, Error> {
+    // Sync emits tombstoned tags so a peer can replay a deletion;
+    // archive / QR export keeps to live tags. Tags carry `created_at`
+    // as their LWW key (no `updated_at` column).
+    let keyed_rows: Vec<(tags::TagRow, Option<i64>)> = if sync_mode {
+        tags::list_all_with_tombstones(conn)?
+    } else {
+        tags::list_all(conn)?
+            .into_iter()
+            .map(|t| (t, None))
+            .collect()
+    };
+    if keyed_rows.is_empty() {
         return Ok(None);
     }
-    let arr: Vec<Value> = rows
+    let arr: Vec<Value> = keyed_rows
         .into_iter()
-        .map(|t| {
-            json!({
-                "id": t.id,
-                "name": t.name,
-                "color": t.color,
-                "created_at": format_iso8601_utc(t.created_at_ms),
-            })
+        .map(|(t, deleted_at)| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("id".into(), json!(t.id));
+            obj.insert("name".into(), json!(t.name));
+            obj.insert("color".into(), json!(t.color));
+            obj.insert(
+                "created_at".into(),
+                json!(format_iso8601_utc(t.created_at_ms)),
+            );
+            if let Some(ts) = deleted_at {
+                obj.insert("deleted_at_ms".into(), json!(ts));
+                obj.insert("tombstone".into(), json!(true));
+            }
+            Value::Object(obj)
         })
         .collect();
     Ok(Some(Value::Array(arr)))
@@ -995,22 +1087,49 @@ fn build_folder_tags_value(conn: &impl crate::db::DbAccess) -> Result<Option<Val
     }
 }
 
-fn build_snippets_value(conn: &impl crate::db::DbAccess) -> Result<Option<Value>, Error> {
-    let rows = snippets::list_all(conn)?;
-    if rows.is_empty() {
+fn build_snippets_value(
+    conn: &impl crate::db::DbAccess,
+    sync_mode: bool,
+) -> Result<Option<Value>, Error> {
+    // Sync emits tombstoned snippets so a peer can replay a
+    // deletion; archive / QR export keeps to live snippets. LWW key
+    // is `updated_at` — the deletion stamp rides on it via the
+    // tombstone's `deleted_at_ms`.
+    let keyed_rows: Vec<(snippets::SnippetRow, Option<i64>)> = if sync_mode {
+        snippets::list_all_with_tombstones(conn)?
+            .into_iter()
+            .map(|(s, _updated, deleted)| (s, deleted))
+            .collect()
+    } else {
+        snippets::list_all(conn)?
+            .into_iter()
+            .map(|s| (s, None))
+            .collect()
+    };
+    if keyed_rows.is_empty() {
         return Ok(None);
     }
-    let arr: Vec<Value> = rows
+    let arr: Vec<Value> = keyed_rows
         .into_iter()
-        .map(|s| {
-            json!({
-                "id": s.id,
-                "title": s.title,
-                "command": s.command,
-                "description": s.description,
-                "created_at": format_iso8601_utc(s.created_at_ms),
-                "updated_at": format_iso8601_utc(s.updated_at_ms),
-            })
+        .map(|(s, deleted_at)| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("id".into(), json!(s.id));
+            obj.insert("title".into(), json!(s.title));
+            obj.insert("command".into(), json!(s.command));
+            obj.insert("description".into(), json!(s.description));
+            obj.insert(
+                "created_at".into(),
+                json!(format_iso8601_utc(s.created_at_ms)),
+            );
+            obj.insert(
+                "updated_at".into(),
+                json!(format_iso8601_utc(s.updated_at_ms)),
+            );
+            if let Some(ts) = deleted_at {
+                obj.insert("deleted_at_ms".into(), json!(ts));
+                obj.insert("tombstone".into(), json!(true));
+            }
+            Value::Object(obj)
         })
         .collect();
     Ok(Some(Value::Array(arr)))

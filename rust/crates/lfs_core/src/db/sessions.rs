@@ -266,6 +266,59 @@ pub fn list_all_with_flags(
     Ok(out)
 }
 
+/// Every session paired with `(updated_at_ms, deleted_at)`,
+/// tombstones included. The sync composer needs the tombstoned
+/// rows so a peer device can replay a deletion; `list_all` filters
+/// them out (live snapshot only), which is why a soft-deleted
+/// session would otherwise never reach the wire and the peer would
+/// push the still-live row straight back. Archive / QR exports keep
+/// using `list_all` (live rows only). LWW key is `updated_at_ms` —
+/// the same stamp [`apply_tombstone`] gates on.
+pub fn list_all_with_tombstones(
+    conn: &impl crate::db::DbAccess,
+) -> Result<Vec<(SessionRow, i64, Option<i64>)>, Error> {
+    let mut stmt = conn
+        .raw()
+        .prepare_cached(&format!(
+            "SELECT {SESSIONS_COLS}, {SSH_JOIN_COLS}, s.deleted_at AS deleted_at \
+             {FROM_JOIN} ORDER BY s.sort_order ASC, s.label ASC"
+        ))
+        .map_err(|e| Error::Db(format!("sessions list_all_with_tombstones prepare: {e}")))?;
+    let rows = stmt
+        .query_map([], |row| {
+            let r = row_from(row)?;
+            let updated_at = r.updated_at_ms;
+            let deleted_at: Option<i64> = row.get("deleted_at")?;
+            Ok((r, updated_at, deleted_at))
+        })
+        .map_err(|e| Error::Db(format!("sessions list_all_with_tombstones query: {e}")))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| Error::Db(format!("sessions list_all_with_tombstones row: {e}")))?);
+    }
+    Ok(out)
+}
+
+/// Apply a peer tombstone with an explicit stamp under the sync
+/// LWW rule. The row's `deleted_at` flips and `updated_at` advances
+/// to the same stamp only when the peer's `deleted_at_ms` is
+/// strictly newer than the local `updated_at` — a tie or a stale
+/// stamp loses, so a deletion never clobbers a fresher local edit.
+/// Returns the affected row count (0 = LWW rejected the tombstone).
+pub fn apply_tombstone(
+    conn: &impl crate::db::DbAccess,
+    id: &str,
+    deleted_at_ms: i64,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE sessions SET deleted_at = ?1, updated_at = ?1 \
+             WHERE id = ?2 AND (updated_at IS NULL OR updated_at < ?1)",
+            params![deleted_at_ms, id],
+        )
+        .map_err(|e| Error::Db(format!("sessions apply_tombstone: {e}")))
+}
+
 pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SessionRow>, Error> {
     Ok(get_with_flags(conn, id)?.map(|(row, _)| row))
 }
@@ -1528,6 +1581,52 @@ mod tombstone_tests {
         seed(&db, "s1");
         assert!(db.with_conn(|c| get(c, "s1")).unwrap().is_some());
         assert!(raw_deleted_at(&db, "s1").is_none());
+    }
+
+    #[test]
+    fn list_all_with_tombstones_keeps_tombstoned_rows() {
+        // The sync composer needs the dead rows `list_all` hides so a
+        // peer can replay the deletion; the live read path must not.
+        let db = db();
+        seed(&db, "alive");
+        seed(&db, "dead");
+        db.with_conn(|c| delete(c, "dead")).unwrap();
+        let rows = db.with_conn(list_all_with_tombstones).unwrap();
+        assert_eq!(rows.len(), 2);
+        let dead = rows.iter().find(|(r, _, _)| r.id == "dead").unwrap();
+        assert!(dead.2.is_some(), "dead row carries a deleted_at stamp");
+        let alive = rows.iter().find(|(r, _, _)| r.id == "alive").unwrap();
+        assert!(alive.2.is_none(), "alive row has no tombstone");
+    }
+
+    #[test]
+    fn apply_tombstone_lww_blocks_stale_stamp() {
+        // Sessions key LWW on `updated_at`. A peer tombstone older
+        // than the local edit must lose; a newer one wins and
+        // advances the stamp so a same-time revival can't beat it.
+        let db = db();
+        db.with_conn(|c| {
+            upsert(
+                c,
+                &SessionRow {
+                    id: "s1".into(),
+                    label: "s1".into(),
+                    host: "h".into(),
+                    port: 22,
+                    user: "u".into(),
+                    auth_type: "password".into(),
+                    updated_at_ms: 100,
+                    ..Default::default()
+                },
+            )
+        })
+        .unwrap();
+        let n = db.with_conn(|c| apply_tombstone(c, "s1", 50)).unwrap();
+        assert_eq!(n, 0);
+        assert!(raw_deleted_at(&db, "s1").is_none());
+        let n = db.with_conn(|c| apply_tombstone(c, "s1", 200)).unwrap();
+        assert_eq!(n, 1);
+        assert!(raw_deleted_at(&db, "s1").is_some());
     }
 }
 

@@ -340,6 +340,70 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error
     Ok(out)
 }
 
+/// Every key paired with its `deleted_at` stamp, tombstones
+/// included. The sync composer needs the tombstoned rows so a peer
+/// device can replay a key deletion; `list_all` filters them out
+/// (live snapshot only), so a soft-deleted key would otherwise
+/// never reach the wire and the peer would push the still-live key
+/// straight back — reviving a deleted credential. Archive / QR
+/// exports keep using `list_all` (live rows only). Keys carry no
+/// `updated_at` column, so the LWW key is `created_at_ms`; the
+/// tombstone's own `deleted_at` stamp is the deletion event time,
+/// which [`apply_tombstone`] compares against the local
+/// `created_at`.
+pub fn list_all_with_tombstones(
+    conn: &impl crate::db::DbAccess,
+) -> Result<Vec<(SshKeyRow, Option<i64>)>, Error> {
+    let mut stmt = conn
+        .raw()
+        .prepare_cached(
+            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at, \
+                    credential_id, application_string, has_user_verification, agent_policy, \
+                    backend, pkcs11_uri, pkcs11_module_path, pkcs11_token_serial, \
+                    pkcs11_object_id, pkcs11_object_label, enclave_tag, \
+                    hello_credential_name, tpm_blob, tpm_handle, tpm_provider, \
+                    tpm_pin_required, cng_key_name, keystore_alias, \
+                    keystore_strongbox, keystore_user_auth_required, keystore_platform, \
+                    imported_as_stub, deleted_at \
+             FROM ssh_keys ORDER BY created_at DESC",
+        )
+        .map_err(|e| Error::Db(format!("ssh_keys list_all_with_tombstones prepare: {e}")))?;
+    let rows = stmt
+        .query_map([], |row| {
+            let r = row_from(row)?;
+            let deleted_at: Option<i64> = row.get("deleted_at")?;
+            Ok((r, deleted_at))
+        })
+        .map_err(|e| Error::Db(format!("ssh_keys list_all_with_tombstones query: {e}")))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| Error::Db(format!("ssh_keys list_all_with_tombstones row: {e}")))?);
+    }
+    Ok(out)
+}
+
+/// Apply a peer key tombstone with an explicit stamp under the sync
+/// LWW rule. The row's `deleted_at` flips only when the peer's
+/// `deleted_at_ms` is strictly newer than the local `created_at` —
+/// keys carry no `updated_at`, so `created_at` is the row's LWW
+/// timestamp; a tie or a stale stamp loses, so a stale deletion
+/// never clobbers a key the local side re-created with a newer
+/// `created_at`. Returns the affected row count (0 = LWW rejected
+/// the tombstone).
+pub fn apply_tombstone(
+    conn: &impl crate::db::DbAccess,
+    id: &str,
+    deleted_at_ms: i64,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE ssh_keys SET deleted_at = ?1 \
+             WHERE id = ?2 AND deleted_at IS NULL AND created_at < ?1",
+            params![deleted_at_ms, id],
+        )
+        .map_err(|e| Error::Db(format!("ssh_keys apply_tombstone: {e}")))
+}
+
 pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow>, Error> {
     let mut stmt = conn
         .raw()
@@ -1209,5 +1273,48 @@ mod tombstone_tests {
         seed(&db, "k1");
         assert!(db.with_conn(|c| get(c, "k1")).unwrap().is_some());
         assert!(raw_deleted_at(&db, "k1").is_none());
+    }
+
+    #[test]
+    fn list_all_with_tombstones_keeps_tombstoned_rows() {
+        // The sync composer needs the dead keys `list_all` hides so a
+        // peer can replay the deletion (a deleted credential must not
+        // resurrect); the live read path must not see them.
+        let db = db();
+        seed(&db, "alive");
+        seed(&db, "dead");
+        db.with_conn(|c| delete(c, "dead")).unwrap();
+        let rows = db.with_conn(list_all_with_tombstones).unwrap();
+        assert_eq!(rows.len(), 2);
+        let dead = rows.iter().find(|(r, _)| r.id == "dead").unwrap();
+        assert!(dead.1.is_some(), "dead row carries a deleted_at stamp");
+        let alive = rows.iter().find(|(r, _)| r.id == "alive").unwrap();
+        assert!(alive.1.is_none(), "alive row has no tombstone");
+    }
+
+    #[test]
+    fn apply_tombstone_lww_blocks_stale_stamp() {
+        // Keys key LWW on `created_at` (no `updated_at` column). A peer
+        // tombstone older than the local key's `created_at` must lose
+        // so a stale deletion can't drop a key re-created with a newer
+        // stamp; a newer tombstone wins.
+        let db = db();
+        seed(&db, "k1");
+        db.with_conn(|c| {
+            c.raw()
+                .execute(
+                    "UPDATE ssh_keys SET created_at = 100 WHERE id = ?1",
+                    params!["k1"],
+                )
+                .unwrap();
+            Ok(())
+        })
+        .unwrap();
+        let n = db.with_conn(|c| apply_tombstone(c, "k1", 50)).unwrap();
+        assert_eq!(n, 0);
+        assert!(raw_deleted_at(&db, "k1").is_none());
+        let n = db.with_conn(|c| apply_tombstone(c, "k1", 200)).unwrap();
+        assert_eq!(n, 1);
+        assert!(raw_deleted_at(&db, "k1").is_some());
     }
 }

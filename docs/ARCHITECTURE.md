@@ -3423,7 +3423,7 @@ tombstone defaults to `0` and cannot delete a newer local row.
 | `snippets` | `updated_at` | same |
 | `ssh_keys` | `created_at` | DAO has no `updated_at`; mutations re-stamp `created_at` on upsert |
 | `tags` | `created_at` | same |
-| `sftp_bookmarks` | `created_at` | same; v1 archives do not emit `sftp_bookmarks` yet |
+| `sftp_bookmarks` | `created_at` | same; emitted under `include_sessions` |
 
 **M2M join tables** (`session_tags`, `folder_tags`,
 `session_snippets`) carry no timestamps. The merge unions local +
@@ -3432,13 +3432,30 @@ knows about survives. **Removal of an edge is not replayed in
 v1** because the wire format does not carry a "this edge was
 deleted" marker; the user re-unlinks on the second device.
 
-**Tombstone replay caveat — v1 limitation.** The export composer
-(`archive::compose::build_sessions_value` and siblings) filters
-`deleted_at IS NULL` before serialising, so v1 archives carry
-live rows only. A peer device cannot observe a tombstone the
-source device stamped through this wire format; cross-device
-deletion replay lands when the export pipeline grows a
-`deleted_at` field per row.
+**Tombstone replay.** Cross-device deletion propagation is keyed
+off whether the composer runs in *sync mode* — `ExportInput.
+sync_origin` is non-empty (a sync push) versus absent (a manual
+`.lfs` / QR export). In sync mode `build_sessions_value` and its
+siblings pull `*::list_all_with_tombstones` and emit each
+soft-deleted row tagged with `"tombstone": true` + `"deleted_at_ms"`;
+manual exports keep using `list_all` (live rows only), so a shared
+`.lfs` never leaks a deleted row. On the apply side
+(`archive::apply`), a `tombstone` row routes through the DAO's
+`apply_tombstone`, which flips `deleted_at` only when the peer
+stamp wins LWW (§ above) — a stale deletion never clobbers a newer
+local edit, and the row is dropped silently on an archive import
+(tombstones are a sync-only concern). Covered tables: `sessions`,
+`ssh_keys`, `tags`, `snippets`, `sftp_bookmarks` (the WebDAV / S3 /
+port-forward child tables already replicated tombstones). The sync
+push selects *every* session id including tombstoned ones
+(`sync::service::compose_archive` reads `list_all_with_tombstones`)
+so a deleted parent session still carries its child-row tombstones
+to the peer. Without this, deleting a session/key/tag/snippet/
+bookmark on one device silently resurrected after the peer pushed
+its still-live copy back. The markers are additive JSON fields, so
+the sync wire format needs no version bump — an older peer ignores
+the unknown keys and a newer peer reading an older payload sees no
+`tombstone` and treats the row as live.
 
 #### Self-push echo guard
 
@@ -6354,9 +6371,10 @@ The five tombstoned tables (`sessions`, `ssh_keys`, `tags`,
 column. Every DAO read filters `WHERE deleted_at IS NULL` so a
 soft-deleted row is invisible to the rest of the app. The DAO
 `delete*` family flips the column to the current unix-millis
-instead of issuing a `DELETE FROM`; the row survives so a
-sync-merge teardown (`§8b`, planned) can replay the tombstone
-across devices. Physical removal goes through a single
+instead of issuing a `DELETE FROM`; the row survives so the sync
+push can ship the tombstone and a peer replays it through
+`apply_tombstone` (mechanism + LWW rule in §8b → *Tombstone
+replay*). Physical removal goes through a single
 `purge_tombstones(before_ms)` helper per DAO — reserved for the
 sync-merge cleanup and the user-initiated "Reset All Data" path.
 Re-`upsert` of a tombstoned row clears `deleted_at` (`ON

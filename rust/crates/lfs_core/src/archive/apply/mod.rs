@@ -856,6 +856,24 @@ fn apply_sessions(
             }
             continue;
         }
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        // Archive imports never carry tombstones — they're a sync-
+        // protocol concern. Drop the row silently rather than apply
+        // it as a fake revival.
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
+            match sessions::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.sessions_applied += 1,
+                Err(e) => outcome.errors.push(format!("session {id} tombstone: {e}")),
+            }
+            continue;
+        }
         let peer_updated_at = if mode.is_sync() {
             // Sync LWW: a missing / malformed peer stamp must LOSE,
             // not win. Default to 0 (oldest) so it never clobbers a
@@ -1021,6 +1039,23 @@ fn apply_keys_sync(
     for v in arr {
         let id = json_string(&v, "id");
         if id.is_empty() {
+            continue;
+        }
+        // A deleted key must not resurrect on a peer. Apply the
+        // tombstone through the DAO's own LWW gate (peer
+        // `deleted_at_ms` must beat the local `created_at`).
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
+            match ssh_keys::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.keys_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("sync merge key {id} tombstone: {e}")),
+            }
             continue;
         }
         // Sync LWW key on `created_at` (keys carry no `updated_at`);
@@ -1200,6 +1235,27 @@ fn apply_tags(
     for v in arr {
         let id = json_string(&v, "id");
         let name = json_string(&v, "name");
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        // Archive imports never carry tombstones; drop silently. A
+        // tag deletion on a peer must not resurrect here, so the
+        // sync path routes through the DAO's LWW-gated tombstone.
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            if id.is_empty() {
+                continue;
+            }
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
+            match tags::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.tags_applied += 1,
+                Err(e) => outcome.errors.push(format!("tag {id} tombstone: {e}")),
+            }
+            continue;
+        }
         // Archive import: a missing `created_at` is informational →
         // default to `now`. Sync LWW keys on `created_at`, so a
         // missing peer stamp defaults to 0 to LOSE the merge rather
@@ -1268,6 +1324,24 @@ fn apply_snippets(
         let id = json_string(&v, "id");
         let title = json_string(&v, "title");
         if id.is_empty() {
+            continue;
+        }
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        // Archive imports never carry tombstones; drop silently. A
+        // snippet deletion on a peer routes through the DAO's
+        // LWW-gated tombstone so it can't resurrect.
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
+            match snippets::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.snippets_applied += 1,
+                Err(e) => outcome.errors.push(format!("snippet {id} tombstone: {e}")),
+            }
             continue;
         }
         if !mode.is_sync() && title.is_empty() {
@@ -1679,7 +1753,7 @@ fn apply_s3_session_details(
 fn apply_sftp_bookmarks(
     conn: &impl crate::db::DbAccess,
     json: &str,
-    _mode: ApplyMode,
+    mode: ApplyMode,
     now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
@@ -1699,10 +1773,52 @@ fn apply_sftp_bookmarks(
             return;
         }
     };
+    // Local snapshot for the sync LWW gate. Bookmarks carry no
+    // `updated_at`, so `created_at` is the LWW timestamp — a peer's
+    // stale live row must not revive a freshly-tombstoned local
+    // bookmark, and a stale peer tombstone must not delete a newer
+    // local row. The DAO's `apply_tombstone` enforces the second
+    // half; the first is the `peer_ts <= local` skip below.
+    let local_created_at: HashMap<String, i64> = if mode.is_sync() {
+        match sftp_bookmarks::list_all_with_tombstones(conn) {
+            Ok(rows) => rows
+                .into_iter()
+                .map(|(r, _)| (r.id.clone(), r.created_at_ms))
+                .collect(),
+            Err(e) => {
+                outcome
+                    .errors
+                    .push(format!("sftp_bookmarks local snapshot: {e}"));
+                return;
+            }
+        }
+    } else {
+        HashMap::new()
+    };
     for v in arr {
         let id = json_string(&v, "id");
         let session_id = json_string(&v, "session_id");
         if id.is_empty() || session_id.is_empty() {
+            continue;
+        }
+        let is_tombstone = v
+            .get("tombstone")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
+        // Archive imports never carry tombstones; drop silently. A
+        // bookmark deletion on a peer routes through the DAO's
+        // LWW-gated tombstone so it can't resurrect.
+        if is_tombstone && mode.is_archive() {
+            continue;
+        }
+        if is_tombstone {
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
+            match sftp_bookmarks::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.sftp_bookmarks_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("sftp_bookmark {id} tombstone: {e}")),
+            }
             continue;
         }
         if !live_sessions.contains(&session_id) {
@@ -1715,6 +1831,17 @@ fn apply_sftp_bookmarks(
             v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""),
             now_ms,
         );
+        if mode.is_sync() {
+            // Strict-greater so a tie keeps local state; a peer's
+            // stale live row must not revive a freshly-tombstoned
+            // local bookmark (the tombstone's `deleted_at` is
+            // recorded as a later `created_at` would have to beat).
+            if let Some(local_created) = local_created_at.get(&id) {
+                if created_at_ms <= *local_created {
+                    continue;
+                }
+            }
+        }
         let row = sftp_bookmarks::SftpBookmarkRow {
             id: id.clone(),
             session_id,

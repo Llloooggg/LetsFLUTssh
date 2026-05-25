@@ -461,14 +461,20 @@ fn compose_archive(
     strip_for_export(&mut config_value);
     let config_json = config_value.to_string();
 
-    // Pull every live session id so the export ships the full
-    // local snapshot — the peer's pull pipeline expects a
-    // complete picture each time.
+    // Pull every session id — tombstones included — so the export
+    // ships the full local snapshot the peer's pull pipeline
+    // expects. Tombstoned ids must be in this set: the child-table
+    // composers (webdav / s3 / port-forward / sftp-bookmark) filter
+    // their rows by `selected_session_ids`, so a deleted parent's
+    // child tombstones would be dropped if the set carried only
+    // live ids — the deletion of a WebDAV / S3 session would then
+    // stay invisible to peers. `build_sessions_value` likewise
+    // emits the parent session tombstone for these ids in sync mode.
     let session_ids = db
-        .with_conn(crate::db::sessions::list_all)
+        .with_conn(crate::db::sessions::list_all_with_tombstones)
         .map_err(SyncError::from)?
         .into_iter()
-        .map(|r| r.id)
+        .map(|(r, _updated_at, _deleted_at)| r.id)
         .collect::<Vec<_>>();
 
     let input = ExportInput {

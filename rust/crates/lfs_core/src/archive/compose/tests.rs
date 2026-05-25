@@ -205,6 +205,56 @@ fn sessions_filtered_by_selected_ids() {
 }
 
 #[test]
+fn sync_export_emits_session_tombstone_but_archive_omits_it() {
+    // The deletion-resurrection fix: a soft-deleted session must
+    // reach the peer ON THE SYNC WIRE (sync_origin present) so the
+    // peer can replay the delete, but a manual `.lfs` archive
+    // (sync_origin absent) must still carry only the live row.
+    let conn = fresh_db();
+    insert_session(&conn, make_session("alive", "alpha"));
+    insert_session(&conn, make_session("dead", "bravo"));
+    sessions::delete(&conn, "dead").unwrap();
+
+    let mut input = baseline_input();
+    input.options.include_sessions = true;
+    input.selected_session_ids = vec!["alive".into(), "dead".into()];
+
+    // Archive mode: tombstoned row filtered out entirely.
+    let archive = read_zip(&export_archive(&conn, &input).unwrap());
+    let arr = json_entry(&archive, "sessions.json").unwrap();
+    let ids: Vec<&str> = arr
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, vec!["alive"], "archive export drops tombstones");
+
+    // Sync mode: tombstoned row present and tagged.
+    input.sync_origin = Some("install-abc:1700000000000".into());
+    let sync = read_zip(&export_archive(&conn, &input).unwrap());
+    let arr = json_entry(&sync, "sessions.json").unwrap();
+    let dead = arr
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == "dead")
+        .expect("sync export keeps the tombstoned session");
+    assert_eq!(dead["tombstone"], serde_json::json!(true));
+    assert!(dead.get("deleted_at_ms").and_then(|v| v.as_i64()).is_some());
+    let alive = arr
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == "alive")
+        .expect("live session still present");
+    assert!(
+        alive.get("tombstone").is_none(),
+        "live row carries no tombstone"
+    );
+}
+
+#[test]
 fn sessions_carry_credentials_and_core_fields() {
     let conn = fresh_db();
     let mut s = make_session("s1", "prod");
