@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
@@ -116,7 +117,7 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final storage = container.read(secureKeyStorageProvider);
-      expect(storage, isA<Object>()); // SecureKeyStorage instance
+      expect(storage, isA<SecureKeyStorage>());
     });
   });
 
