@@ -26,14 +26,17 @@ import '../../utils/logger.dart';
 ///   known_hosts    — TOFU host key database
 ///
 /// Wire format:
-///   `[LFSE 4][0x02 1][KdfParams N][salt 32][iv 12][ct+tag]`
+///   `[LFSE 4][0x03 1][KdfParams N][salt 32][iv 12][ct+tag]`
 ///
-/// GCM's auth tag protects archive integrity end-to-end, so the manifest
-/// carries metadata only — no redundant content hash. v1 is the permanent
-/// floor; any on-disk archive reporting a different `schema_version`, a
-/// missing manifest, an unrecognised header byte, or no `LFSE` magic is
-/// rejected with [UnsupportedLfsVersionException]. Future format changes
-/// ship a [Migration] registered in `archive_registry.dart`.
+/// Every fresh export emits version `0x03` (Argon2id + AES-GCM with the
+/// pre-IV header bound as AAD); the legacy `0x02` (empty-AAD) envelope is
+/// still readable on import. GCM's auth tag protects archive integrity
+/// end-to-end, so the manifest carries metadata only — no redundant
+/// content hash. Unlike the intra-DB artefacts, the `.lfs` schema is
+/// **rejection-only, never migrated**: any archive reporting a
+/// newer-than-supported `schema_version`, a missing manifest, an
+/// unrecognised header byte, or no `LFSE` magic is rejected with
+/// [UnsupportedLfsVersionException] rather than upgraded.
 ///
 /// **Read path lives in Rust** — `lfs_core::archive::read_archive_to_pending`
 /// + `apply_pending_import` handle decrypt + parse + apply. The Dart
@@ -394,37 +397,4 @@ class ImportResult {
     this.includeKnownHosts = false,
     this.skippedSessions = 0,
   });
-
-  /// Returns a copy of this result filtered by [options], with the given
-  /// [mode].
-  ///
-  /// When `includeSessions` is false, session-dependent collections
-  /// (emptyFolders, managerKeys, sessionTags, folderTags, sessionSnippets)
-  /// are also dropped, since they are FK-referenced by sessions and cannot
-  /// be imported on their own. Standalone tags/snippets remain controllable
-  /// via their own flags.
-  ImportResult filtered(ExportOptions options, ImportMode mode) {
-    final wantSessions = options.includeSessions;
-    return ImportResult(
-      sessions: wantSessions ? sessions : const [],
-      emptyFolders: wantSessions ? emptyFolders : const {},
-      managerKeys: wantSessions && options.includeManagerKeys
-          ? managerKeys
-          : const [],
-      tags: options.includeTags ? tags : const [],
-      sessionTags: wantSessions && options.includeTags ? sessionTags : const [],
-      folderTags: wantSessions && options.includeTags ? folderTags : const [],
-      snippets: options.includeSnippets ? snippets : const [],
-      sessionSnippets: wantSessions && options.includeSnippets
-          ? sessionSnippets
-          : const [],
-      config: options.includeConfig ? config : null,
-      mode: mode,
-      knownHostsContent: options.includeKnownHosts ? knownHostsContent : null,
-      includeTags: options.includeTags,
-      includeSnippets: options.includeSnippets,
-      includeKnownHosts: options.includeKnownHosts,
-      skippedSessions: skippedSessions,
-    );
-  }
 }
