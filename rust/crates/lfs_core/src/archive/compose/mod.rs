@@ -543,6 +543,14 @@ fn session_row_to_json(
     obj.insert("key_data".into(), json!(r.key_data));
     obj.insert("passphrase".into(), json!(r.passphrase));
 
+    // Free-form user note. The apply driver reads `notes` for archive
+    // imports (`apply_sessions`), so omitting it here silently dropped
+    // the field on every round-trip. Omit-when-empty keeps pre-notes
+    // archives byte-identical.
+    if !r.notes.is_empty() {
+        obj.insert("notes".into(), json!(r.notes));
+    }
+
     Ok(Value::Object(obj))
 }
 

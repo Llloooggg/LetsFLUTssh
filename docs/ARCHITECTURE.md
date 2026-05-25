@@ -2699,7 +2699,7 @@ class DeepLinkHandler {
 
 payload = ZIP archive:
   manifest.json              ← schema_version (now v3), app_version, created_at, optional sync_origin (v2+)
-  sessions.json              ← session metadata with credentials (toJsonWithCredentials)
+  sessions.json              ← session metadata with credentials, incl. the free-form `notes` column (composer mirrors the persisted session columns)
   empty_folders.json         ← list of empty folder paths
   keys.json                  ← manager SSH keys + per-backend payload (see table below)
   config.json                ← app configuration

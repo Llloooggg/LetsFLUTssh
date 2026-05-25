@@ -211,6 +211,7 @@ fn sessions_carry_credentials_and_core_fields() {
     s.password = "secret-pw".into();
     s.key_data = "PRIVATE KEY DATA".into();
     s.passphrase = "kpass".into();
+    s.notes = "important box".into();
     insert_session(&conn, s);
     let mut input = baseline_input();
     input.options.include_sessions = true;
@@ -228,6 +229,25 @@ fn sessions_carry_credentials_and_core_fields() {
     assert_eq!(s0["password"], "secret-pw");
     assert_eq!(s0["key_data"], "PRIVATE KEY DATA");
     assert_eq!(s0["passphrase"], "kpass");
+    // `notes` must round-trip — the apply driver reads it back, so
+    // omitting it from the composer silently dropped user notes.
+    assert_eq!(s0["notes"], "important box");
+}
+
+#[test]
+fn session_omits_notes_when_empty() {
+    // Omit-when-empty keeps a note-less session's JSON byte-identical
+    // to pre-notes archives (the apply side defaults missing to "").
+    let conn = fresh_db();
+    insert_session(&conn, make_session("s1", "prod"));
+    let mut input = baseline_input();
+    input.options.include_sessions = true;
+    input.selected_session_ids = vec!["s1".into()];
+    let bytes = export_archive(&conn, &input).unwrap();
+    let zip = read_zip(&bytes);
+    let arr = json_entry(&zip, "sessions.json").unwrap();
+    let s0 = &arr.as_array().unwrap()[0];
+    assert!(s0.as_object().unwrap().get("notes").is_none());
 }
 
 #[test]
