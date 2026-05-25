@@ -2777,72 +2777,73 @@ class SPt extends S {
   String get masterPasswordLabel => 'Senha mestra';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => 'Erro inesperado';
 
   @override
   String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+      'Ocorreu um erro inesperado. O app continuará funcionando.';
 
   @override
   String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+      'Todos os detalhes foram gravados no arquivo de log.';
 
   @override
   String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+      'Ative o log nas Configurações para salvar os detalhes do erro.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return 'Erro: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => 'Ativar log';
 
   @override
   String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+      'Log ativado — os erros serão gravados no arquivo de log';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => 'Sair';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => 'Apagar todos os dados';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => 'Apagando…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      'Apagar remove todos os arquivos do app (config, banco de dados, blobs do vault, logs); a próxima inicialização começa de uma instalação limpa. Não pode ser desfeito.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => 'Apagar todos os dados?';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'Isto apaga permanentemente todos os arquivos de config, banco de dados e vault. O app reiniciará de uma instalação vazia. Continuar?';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => 'Apagar tudo';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      'Este arquivo não é protegido por senha. Qualquer um com o arquivo pode ler o conteúdo.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed =>
+      'Falha ao copiar para a área de transferência.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      'O nome de host contém caracteres não ASCII — verifique cada caractere contra o que você digitou. Codepoints visualmente parecidos (cirílico / grego) podem falsificar um domínio latino.';
 
   @override
   String get playbackPause => 'Pausar';
 
   @override
   String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+      'Desbloqueie o app para reproduzir esta gravação criptografada.';
 
   @override
   String get recordToggleStart => 'Iniciar gravação';

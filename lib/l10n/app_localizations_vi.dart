@@ -2693,72 +2693,72 @@ class SVi extends S {
   String get masterPasswordLabel => 'Mật khẩu chính';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => 'Lỗi không mong đợi';
 
   @override
   String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+      'Đã xảy ra lỗi không mong đợi. Ứng dụng sẽ tiếp tục chạy.';
 
   @override
   String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+      'Toàn bộ chi tiết đã được ghi vào file log.';
 
   @override
   String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+      'Bật ghi log trong Cài đặt để lưu chi tiết lỗi.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return 'Lỗi: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => 'Bật ghi log';
 
   @override
   String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+      'Đã bật ghi log — lỗi sẽ được ghi vào file log';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => 'Thoát';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => 'Xóa toàn bộ dữ liệu';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => 'Đang xóa…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      'Xóa sẽ loại bỏ mọi file của ứng dụng (config, database, blob vault, log); lần khởi động sau bắt đầu từ bản cài đặt sạch. Không thể hoàn tác.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => 'Xóa toàn bộ dữ liệu?';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'Thao tác này xóa vĩnh viễn mọi file config, database và vault. Ứng dụng sẽ khởi động lại từ bản cài đặt trống. Tiếp tục?';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => 'Xóa tất cả';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      'Kho lưu trữ này không được bảo vệ bằng mật khẩu. Bất kỳ ai có file đều đọc được nội dung.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => 'Không sao chép được vào clipboard.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      'Tên host chứa ký tự không phải ASCII — đối chiếu từng ký tự với những gì bạn đã nhập. Các codepoint trông giống nhau (Kirin / Hy Lạp) có thể giả mạo một tên miền Latin.';
 
   @override
   String get playbackPause => 'Tạm dừng';
 
   @override
   String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+      'Mở khóa ứng dụng để phát bản ghi đã mã hóa này.';
 
   @override
   String get recordToggleStart => 'Bắt đầu ghi';

@@ -2708,72 +2708,72 @@ class SId extends S {
   String get masterPasswordLabel => 'Kata sandi utama';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => 'Kesalahan tak terduga';
 
   @override
   String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+      'Terjadi kesalahan tak terduga. Aplikasi akan tetap berjalan.';
 
   @override
   String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+      'Semua detail telah ditulis ke file log.';
 
   @override
   String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+      'Aktifkan logging di Pengaturan untuk menyimpan detail kesalahan.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return 'Kesalahan: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => 'Aktifkan logging';
 
   @override
   String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+      'Logging aktif — kesalahan akan ditulis ke file log';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => 'Keluar';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => 'Hapus semua data';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => 'Menghapus…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      'Menghapus akan membuang semua file aplikasi (config, database, blob vault, log); peluncuran berikutnya mulai dari instalasi bersih. Tidak bisa dibatalkan.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => 'Hapus semua data?';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'Ini menghapus permanen semua file config, database, dan vault. Aplikasi akan mulai ulang dari instalasi kosong. Lanjutkan?';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => 'Hapus semuanya';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      'Arsip ini tidak dilindungi kata sandi. Siapa pun yang punya file ini bisa membaca isinya.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => 'Gagal menyalin ke clipboard.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      'Nama host mengandung karakter non-ASCII — periksa tiap karakter terhadap yang kamu ketik. Codepoint yang mirip secara visual (Sirilik / Yunani) bisa memalsukan domain Latin.';
 
   @override
   String get playbackPause => 'Jeda';
 
   @override
   String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+      'Buka kunci aplikasi untuk memutar rekaman terenkripsi ini.';
 
   @override
   String get recordToggleStart => 'Mulai recording';

@@ -2712,72 +2712,70 @@ class SAr extends S {
   String get masterPasswordLabel => 'كلمة المرور الرئيسية';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => 'خطأ غير متوقع';
 
   @override
-  String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+  String get globalErrorBody => 'حدث خطأ غير متوقع. سيستمر التطبيق في العمل.';
 
   @override
-  String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+  String get globalErrorLogSavedNote => 'كُتبت كل التفاصيل في ملف log.';
 
   @override
   String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+      'فعّل التسجيل من الإعدادات لحفظ تفاصيل الأخطاء.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return 'خطأ: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => 'تفعيل التسجيل (log)';
 
   @override
   String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+      'تم تفعيل التسجيل — ستُكتب الأخطاء في ملف log';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => 'خروج';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => 'محو كل البيانات';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => 'جارٍ المحو…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      'المحو يحذف كل ملفات التطبيق (config وقاعدة البيانات وكتل vault والـ log)، فيبدأ التشغيل التالي من تثبيت نظيف. لا يمكن التراجع.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => 'محو كل البيانات؟';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'هذا يحذف نهائيًا كل ملفات config وقاعدة البيانات وvault. سيعيد التطبيق التشغيل من تثبيت فارغ. متابعة؟';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => 'محو كل شيء';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      'هذا الأرشيف غير محمي بكلمة مرور. أي شخص يملك الملف يمكنه قراءة محتواه.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => 'فشل النسخ إلى الحافظة.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      'اسم المضيف يحتوي على أحرف غير ASCII — تحقق من كل حرف مقابل ما كتبته. النقاط البرمجية المتشابهة بصريًا (السيريلية / اليونانية) قد تنتحل نطاقًا لاتينيًا.';
 
   @override
   String get playbackPause => 'إيقاف مؤقت';
 
   @override
   String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+      'افتح قفل التطبيق لتشغيل هذا التسجيل المشفّر.';
 
   @override
   String get recordToggleStart => 'بدء التسجيل';

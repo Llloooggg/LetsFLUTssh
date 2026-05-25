@@ -2613,72 +2613,66 @@ class SZh extends S {
   String get masterPasswordLabel => '主密码';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => '意外错误';
 
   @override
-  String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+  String get globalErrorBody => '发生了意外错误。应用将继续运行。';
 
   @override
-  String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+  String get globalErrorLogSavedNote => '完整详情已写入日志文件。';
 
   @override
-  String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+  String get globalErrorLogDisabledNote => '在设置中启用日志以保存错误详情。';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return '错误：$detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => '启用日志';
 
   @override
-  String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+  String get globalErrorLoggingEnabledToast => '已启用日志 — 错误将写入日志文件';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => '退出';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => '清除所有数据';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => '正在清除…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      '清除会删除所有应用文件（config、数据库、vault blob、日志）；下次启动将从全新安装开始。无法撤销。';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => '清除所有数据？';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      '这将永久删除所有 config、数据库和 vault 文件。应用将从空白安装重新启动。是否继续？';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => '全部清除';
 
   @override
-  String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+  String get unencryptedArchiveWarning => '此存档未设置密码保护。任何拿到该文件的人都能读取其内容。';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => '复制到剪贴板失败。';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      '主机名包含非 ASCII 字符 — 请逐个核对你输入的字符。视觉相近的码位（西里尔 / 希腊字母）可能假冒拉丁域名。';
 
   @override
   String get playbackPause => '暂停';
 
   @override
-  String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+  String get recordingPlayLocked => '解锁应用以播放此加密录制。';
 
   @override
   String get recordToggleStart => '开始录制';

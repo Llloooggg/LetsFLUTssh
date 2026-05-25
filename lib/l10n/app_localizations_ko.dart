@@ -2634,72 +2634,67 @@ class SKo extends S {
   String get masterPasswordLabel => '마스터 비밀번호';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => '예기치 않은 오류';
 
   @override
-  String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+  String get globalErrorBody => '예기치 않은 오류가 발생했습니다. 앱은 계속 실행됩니다.';
 
   @override
-  String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+  String get globalErrorLogSavedNote => '전체 세부 정보가 로그 파일에 기록되었습니다.';
 
   @override
-  String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+  String get globalErrorLogDisabledNote => '오류 세부 정보를 저장하려면 설정에서 로깅을 활성화하세요.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return '오류: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => '로깅 활성화';
 
   @override
-  String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+  String get globalErrorLoggingEnabledToast => '로깅 활성화됨 — 오류가 로그 파일에 기록됩니다';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => '종료';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => '모든 데이터 삭제';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => '삭제 중…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      '삭제하면 모든 앱 파일(config, 데이터베이스, vault blob, 로그)이 제거되고 다음 실행은 깨끗한 설치 상태에서 시작됩니다. 되돌릴 수 없습니다.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => '모든 데이터를 삭제할까요?';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'config, 데이터베이스, vault 파일이 모두 영구적으로 삭제됩니다. 앱은 빈 설치 상태에서 다시 시작됩니다. 계속할까요?';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => '전체 삭제';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      '이 아카이브는 비밀번호로 보호되어 있지 않습니다. 파일을 가진 사람은 누구나 내용을 읽을 수 있습니다.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => '클립보드 복사에 실패했습니다.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      '호스트 이름에 비 ASCII 문자가 있습니다 — 입력한 문자와 한 글자씩 대조하세요. 시각적으로 유사한 코드포인트(키릴 / 그리스 문자)는 Latin 도메인을 위장할 수 있습니다.';
 
   @override
   String get playbackPause => '일시정지';
 
   @override
-  String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+  String get recordingPlayLocked => '이 암호화된 녹화를 재생하려면 앱 잠금을 해제하세요.';
 
   @override
   String get recordToggleStart => '녹화 시작';

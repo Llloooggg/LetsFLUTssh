@@ -2712,72 +2712,71 @@ class STr extends S {
   String get masterPasswordLabel => 'Ana parola';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => 'Beklenmeyen hata';
 
   @override
   String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+      'Beklenmeyen bir hata oluştu. Uygulama çalışmaya devam edecek.';
 
   @override
-  String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+  String get globalErrorLogSavedNote => 'Tüm ayrıntılar log dosyasına yazıldı.';
 
   @override
   String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+      'Hata ayrıntılarını kaydetmek için Ayarlar\'dan log\'u etkinleştir.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return 'Hata: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => 'Log\'u etkinleştir';
 
   @override
   String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+      'Log etkin — hatalar log dosyasına yazılacak';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => 'Çık';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => 'Tüm verileri sil';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => 'Siliniyor…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      'Silme, tüm uygulama dosyalarını (config, veritabanı, vault blob\'ları, log\'lar) kaldırır; sonraki açılış temiz bir kurulumdan başlar. Geri alınamaz.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => 'Tüm veriler silinsin mi?';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'Bu, tüm config, veritabanı ve vault dosyalarını kalıcı olarak siler. Uygulama boş bir kurulumdan yeniden başlar. Devam edilsin mi?';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => 'Her şeyi sil';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      'Bu arşiv parola korumalı değil. Dosyaya sahip olan herkes içeriğini okuyabilir.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => 'Panoya kopyalanamadı.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      'Host adı ASCII olmayan karakterler içeriyor — her karakteri yazdığınla karşılaştır. Görsel olarak benzer kod noktaları (Kiril / Yunan) bir Latin alan adını taklit edebilir.';
 
   @override
   String get playbackPause => 'Duraklat';
 
   @override
   String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+      'Bu şifreli kaydı oynatmak için uygulamanın kilidini aç.';
 
   @override
   String get recordToggleStart => 'Kaydı başlat';

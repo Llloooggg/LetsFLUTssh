@@ -2697,72 +2697,71 @@ class SFa extends S {
   String get masterPasswordLabel => 'رمز عبور اصلی';
 
   @override
-  String get globalErrorTitle => 'Unexpected Error';
+  String get globalErrorTitle => 'خطای غیرمنتظره';
 
   @override
   String get globalErrorBody =>
-      'An unexpected error occurred. The app will continue running.';
+      'یک خطای غیرمنتظره رخ داد. برنامه به کار ادامه می‌دهد.';
 
   @override
-  String get globalErrorLogSavedNote =>
-      'Full details have been saved to the log file.';
+  String get globalErrorLogSavedNote => 'همهٔ جزئیات در فایل log نوشته شد.';
 
   @override
   String get globalErrorLogDisabledNote =>
-      'Enable logging in Settings to save error details.';
+      'برای ذخیرهٔ جزئیات خطا، log را در تنظیمات فعال کن.';
 
   @override
   String globalErrorTechnicalLine(String detail) {
-    return 'Error: $detail';
+    return 'خطا: $detail';
   }
 
   @override
-  String get globalErrorEnableLoggingButton => 'Enable Logging';
+  String get globalErrorEnableLoggingButton => 'فعال‌سازی log';
 
   @override
   String get globalErrorLoggingEnabledToast =>
-      'Logging enabled — errors will be saved to log file';
+      'log فعال شد — خطاها در فایل log نوشته می‌شوند';
 
   @override
-  String get fatalErrorQuitButton => 'Quit';
+  String get fatalErrorQuitButton => 'خروج';
 
   @override
-  String get fatalErrorWipeButton => 'Wipe all data';
+  String get fatalErrorWipeButton => 'پاک‌کردن همهٔ داده‌ها';
 
   @override
-  String get fatalErrorWipingButton => 'Wiping…';
+  String get fatalErrorWipingButton => 'در حال پاک‌کردن…';
 
   @override
   String get fatalErrorWipeExplanation =>
-      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+      'پاک‌کردن همهٔ فایل‌های برنامه (config، دیتابیس، blobهای vault، logها) را حذف می‌کند و اجرای بعدی از نصب تمیز شروع می‌شود. قابل بازگشت نیست.';
 
   @override
-  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+  String get fatalErrorWipeConfirmTitle => 'همهٔ داده‌ها پاک شوند؟';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+      'این کار همهٔ فایل‌های config، دیتابیس و vault را برای همیشه حذف می‌کند. برنامه از نصب خالی دوباره اجرا می‌شود. ادامه می‌دهید؟';
 
   @override
-  String get fatalErrorWipeConfirmAction => 'Wipe everything';
+  String get fatalErrorWipeConfirmAction => 'پاک‌کردن همه‌چیز';
 
   @override
   String get unencryptedArchiveWarning =>
-      'This archive is not password-protected. Anyone with the file can read its contents.';
+      'این آرشیو با رمز محافظت نشده است. هر کسی که فایل را داشته باشد می‌تواند محتوای آن را بخواند.';
 
   @override
-  String get clipboardCopyFailed => 'Copy to clipboard failed.';
+  String get clipboardCopyFailed => 'کپی به clipboard ناموفق بود.';
 
   @override
   String get nonAsciiHostnameWarning =>
-      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
+      'نام host شامل نویسه‌های غیر ASCII است — هر نویسه را با چیزی که تایپ کردی مقایسه کن. کدپوینت‌های از نظر ظاهری مشابه (سیریلیک / یونانی) می‌توانند یک دامنهٔ لاتین را جعل کنند.';
 
   @override
   String get playbackPause => 'توقف موقت';
 
   @override
   String get recordingPlayLocked =>
-      'Unlock the app to play this encrypted recording';
+      'برای پخش این ضبط رمزگذاری‌شده، قفل برنامه را باز کن.';
 
   @override
   String get recordToggleStart => 'شروع ضبط';
