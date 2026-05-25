@@ -14,7 +14,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use russh::client::{self, AuthResult, Handle, Handler, Msg};
+use russh::client::{self, AuthResult, Handle, Handler, KeyboardInteractiveAuthResponse, Msg};
 use russh::keys::{ssh_key, Certificate, HashAlg, PrivateKey, PrivateKeyWithHashAlg};
 use russh::{ChannelMsg, ChannelReadHalf, ChannelWriteHalf};
 use tokio::sync::Mutex;
@@ -1515,6 +1515,82 @@ async fn finish_authenticate_pubkey_sk_cert(
 /// `auth_other`, routed to manual retry. Either way the detail is
 /// surfaced verbatim into the progress step, the `ConnectionError`
 /// event, and the `CoreConnect` warn log.
+/// Max keyboard-interactive prompt rounds before giving up — guards
+/// against a server that re-prompts forever.
+const MAX_KBD_INTERACTIVE_ROUNDS: usize = 16;
+
+/// Authenticate with `password`, falling back to keyboard-interactive
+/// when the server rejects the `password` method but still offers
+/// `keyboard-interactive`. This is the common `PasswordAuthentication
+/// no` + `KbdInteractiveAuthentication yes` (PAM-password) server: a
+/// correct password would otherwise be rejected because russh only
+/// tried the `password` method. Each kbd-interactive prompt is
+/// answered with the same password. A genuine multi-prompt challenge
+/// (OTP / 2FA) needs an interactive UI and is out of scope — those
+/// prompts get the password and the server rejects, surfacing as a
+/// normal auth failure.
+pub(crate) async fn authenticate_password_or_keyboard_interactive(
+    handle: &mut Handle<LfsHandler>,
+    user: &str,
+    password: &str,
+) -> Result<AuthResult, Error> {
+    let result = handle
+        .authenticate_password(user, password)
+        .await
+        .map_err(|e| Error::Auth(e.to_string()))?;
+    let offers_kbd = match &result {
+        AuthResult::Success => return Ok(result),
+        AuthResult::Failure {
+            remaining_methods, ..
+        } => remaining_methods
+            .iter()
+            .any(|m| String::from(m) == "keyboard-interactive"),
+    };
+    if !offers_kbd {
+        return Ok(result);
+    }
+    authenticate_keyboard_interactive_password(handle, user, password).await
+}
+
+/// Drive a keyboard-interactive exchange, answering every prompt with
+/// `password`. Maps russh's `KeyboardInteractiveAuthResponse` onto the
+/// shared [`AuthResult`] so the caller's `check_auth_result` reports a
+/// rejection uniformly with the password / pubkey paths.
+async fn authenticate_keyboard_interactive_password(
+    handle: &mut Handle<LfsHandler>,
+    user: &str,
+    password: &str,
+) -> Result<AuthResult, Error> {
+    let mut response = handle
+        .authenticate_keyboard_interactive_start(user.to_owned(), None)
+        .await
+        .map_err(|e| Error::Auth(e.to_string()))?;
+    for _ in 0..MAX_KBD_INTERACTIVE_ROUNDS {
+        match response {
+            KeyboardInteractiveAuthResponse::Success => return Ok(AuthResult::Success),
+            KeyboardInteractiveAuthResponse::Failure {
+                remaining_methods,
+                partial_success,
+            } => {
+                return Ok(AuthResult::Failure {
+                    remaining_methods,
+                    partial_success,
+                });
+            }
+            KeyboardInteractiveAuthResponse::InfoRequest { prompts, .. } => {
+                let answers = vec![password.to_owned(); prompts.len()];
+                response = handle
+                    .authenticate_keyboard_interactive_respond(answers)
+                    .await
+                    .map_err(|e| Error::Auth(e.to_string()))?;
+            }
+        }
+    }
+    Err(Error::AuthFailed(
+        "keyboard-interactive exceeded the prompt-round limit".into(),
+    ))
+}
+
 fn check_auth_result(result: AuthResult) -> Result<(), Error> {
     match result {
         AuthResult::Success => Ok(()),

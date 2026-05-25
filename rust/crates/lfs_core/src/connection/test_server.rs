@@ -56,7 +56,7 @@ use std::time::Duration;
 use base64::Engine as _;
 use russh::keys::{Algorithm, PrivateKey};
 use russh::server::{Auth, Config, Handle as ServerHandle, Handler, Msg, Server, Session};
-use russh::{Channel, ChannelId};
+use russh::{Channel, ChannelId, MethodKind, MethodSet};
 use russh_sftp::protocol::{
     Attrs, Data, File as SftpFile, FileAttributes, Handle as SftpHandle, Name, OpenFlags, Status,
     StatusCode, Version,
@@ -131,7 +131,21 @@ impl TestServerHandle {
 
 /// Start the in-process SSH fixture. Must be called from inside a
 /// tokio runtime — uses `tokio::spawn` for the accept loop.
+/// Default fixture: accepts the fixed password via the `password`
+/// method.
 pub async fn start() -> Result<TestServerHandle, Error> {
+    start_with_auth(false).await
+}
+
+/// PAM-style fixture: rejects the `password` method outright and only
+/// offers `keyboard-interactive`, accepting the fixed password when it
+/// is supplied as the answer to the single info-request prompt. Drives
+/// the client's password→keyboard-interactive fallback.
+pub async fn start_kbd_interactive_only() -> Result<TestServerHandle, Error> {
+    start_with_auth(true).await
+}
+
+async fn start_with_auth(kbd_only: bool) -> Result<TestServerHandle, Error> {
     let host_key = PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519)
         .map_err(|e| Error::Transport(format!("test_server: host key gen: {e}")))?;
 
@@ -173,6 +187,7 @@ pub async fn start() -> Result<TestServerHandle, Error> {
     let shutdown_for_loop = shutdown.clone();
     let server_template = TestSshServer {
         sftp_root: Arc::new(sftp_root.clone()),
+        kbd_only,
     };
 
     // Custom accept loop instead of `Server::run_on_socket` so the
@@ -220,6 +235,7 @@ pub async fn start() -> Result<TestServerHandle, Error> {
 #[derive(Clone)]
 struct TestSshServer {
     sftp_root: Arc<PathBuf>,
+    kbd_only: bool,
 }
 
 impl Server for TestSshServer {
@@ -229,6 +245,7 @@ impl Server for TestSshServer {
             sftp_root: self.sftp_root.clone(),
             channels: Arc::new(Mutex::new(HashMap::new())),
             remote_forwards: Arc::new(Mutex::new(HashMap::new())),
+            kbd_only: self.kbd_only,
         }
     }
 }
@@ -247,6 +264,10 @@ struct TestSshHandler {
     sftp_root: Arc<PathBuf>,
     channels: Arc<Mutex<HashMap<ChannelId, Channel<Msg>>>>,
     remote_forwards: RemoteForwardMap,
+    /// When set, reject the `password` method and only offer
+    /// `keyboard-interactive` — a PAM-style server that drives the
+    /// client's password→keyboard-interactive fallback.
+    kbd_only: bool,
 }
 
 impl Handler for TestSshHandler {
@@ -257,10 +278,48 @@ impl Handler for TestSshHandler {
     /// surfaces an Authenticate-phase failure immediately rather
     /// than hanging.
     async fn auth_password(&mut self, _user: &str, password: &str) -> Result<Auth, Self::Error> {
+        if self.kbd_only {
+            // PAM-style server: refuse the `password` method outright
+            // and steer the client to `keyboard-interactive`.
+            return Ok(Auth::Reject {
+                proceed_with_methods: Some(MethodSet::from(&[MethodKind::KeyboardInteractive][..])),
+                partial_success: false,
+            });
+        }
         if password == TEST_PASSWORD {
             Ok(Auth::Accept)
         } else {
             Ok(Auth::reject())
+        }
+    }
+
+    /// Single-prompt keyboard-interactive exchange. The first call
+    /// (no response yet) returns one `Password:` prompt; the second
+    /// call carries the client's answer, which we accept when it
+    /// matches the fixed test password.
+    async fn auth_keyboard_interactive<'a>(
+        &'a mut self,
+        _user: &str,
+        _submethods: &str,
+        response: Option<russh::server::Response<'a>>,
+    ) -> Result<Auth, Self::Error> {
+        match response {
+            None => Ok(Auth::Partial {
+                name: "".into(),
+                instructions: "".into(),
+                prompts: vec![("Password: ".into(), false)].into(),
+            }),
+            Some(mut resp) => {
+                let answer = resp
+                    .next()
+                    .map(|b| String::from_utf8_lossy(&b).into_owned())
+                    .unwrap_or_default();
+                if answer == TEST_PASSWORD {
+                    Ok(Auth::Accept)
+                } else {
+                    Ok(Auth::reject())
+                }
+            }
         }
     }
 

@@ -173,6 +173,51 @@ async fn try_connect_password_returns_err_for_unreachable_host() {
 }
 
 #[tokio::test]
+async fn connect_password_falls_back_to_keyboard_interactive() {
+    // A PAM-style server that refuses the `password` method and only
+    // offers `keyboard-interactive` (the `PasswordAuthentication no` +
+    // `KbdInteractiveAuthentication yes` case). A correct password must
+    // still authenticate, via the client's password→kbd-interactive
+    // fallback, instead of failing closed.
+    let _gate = DB_BOOTSTRAP_GATE.lock().await;
+    let _ = lfs_core::app::init();
+    let _dir = bootstrap_db_in_tempdir().await;
+    let handle = lfs_core::connection::test_server::start_kbd_interactive_only()
+        .await
+        .expect("start_kbd_interactive_only");
+    db_known_hosts_upsert_by_host_port(
+        "127.0.0.1".into(),
+        handle.port as i64,
+        handle.host_pubkey_algorithm.clone(),
+        handle.host_pubkey_b64.clone(),
+        0,
+    )
+    .await
+    .expect("known_hosts upsert");
+
+    let session = ssh_connect_password(
+        "127.0.0.1".into(),
+        handle.port,
+        "tester".into(),
+        TEST_PASSWORD.as_bytes().to_vec(),
+    )
+    .await
+    .expect("kbd-interactive fallback should authenticate the correct password");
+    session.disconnect().await.expect("disconnect");
+
+    // A wrong password still fails through the same fallback.
+    let wrong = ssh_connect_password(
+        "127.0.0.1".into(),
+        handle.port,
+        "tester".into(),
+        b"nope".to_vec(),
+    )
+    .await;
+    assert!(wrong.is_err(), "wrong password must fail kbd-interactive");
+    handle.shutdown();
+}
+
+#[tokio::test]
 async fn full_session_lifecycle_connects_lists_sftp_root_and_disconnects() {
     let _gate = DB_BOOTSTRAP_GATE.lock().await;
     let _ = lfs_core::app::init();

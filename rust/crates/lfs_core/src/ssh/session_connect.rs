@@ -36,10 +36,9 @@ impl Session {
         let password = Zeroizing::new(password.to_owned());
         let (mut handle, forward_rx) = open_handle_for_session(host, port).await?;
 
-        let auth_result = handle
-            .authenticate_password(user, password.as_str())
-            .await
-            .map_err(|e| Error::Auth(e.to_string()))?;
+        let auth_result =
+            authenticate_password_or_keyboard_interactive(&mut handle, user, password.as_str())
+                .await?;
 
         check_auth_result(auth_result)?;
 
@@ -263,10 +262,9 @@ impl Session {
         let password = Zeroizing::new(password.to_owned());
         let (mut handle, forward_rx) = open_handle_via_proxy(parent, host, port).await?;
 
-        let auth_result = handle
-            .authenticate_password(user, password.as_str())
-            .await
-            .map_err(|e| Error::Auth(e.to_string()))?;
+        let auth_result =
+            authenticate_password_or_keyboard_interactive(&mut handle, user, password.as_str())
+                .await?;
 
         check_auth_result(auth_result)?;
 
