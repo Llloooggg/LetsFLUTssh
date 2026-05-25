@@ -411,6 +411,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       // event resets the idle timer. LockScreen overlays on top
       // with zero hit-test for the app beneath while locked.
       //
+      // The workspace child is wrapped in `ExcludeFocus` (+
+      // `IgnorePointer`) gated on `locked`: the opaque LockScreen
+      // Scaffold blocks the POINTER, but without excluding focus the
+      // still-mounted workspace keeps its FocusNodes — keystrokes
+      // would route to the focused terminal pane and reach the live
+      // SSH shell (and Tab could traverse focus back into the
+      // workspace from the lock field). `ExcludeFocus` drops the
+      // whole subtree from focus + traversal the instant `locked`
+      // flips, so the lock screen actually blocks keyboard input,
+      // not just clicks.
+      //
       // `SelectionArea` cannot live at this layer — its
       // `SelectableRegion` walks up the widget tree for an
       // `Overlay` ancestor, and `Overlay` is provided by the
@@ -424,7 +435,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       child: AutoLockDetector(
         child: Stack(
           children: [
-            ?child,
+            if (child != null)
+              ExcludeFocus(
+                excluding: locked,
+                child: IgnorePointer(ignoring: locked, child: child),
+              ),
             // Pure side-effect widget: watches `connectionsProvider`
             // and fires `SemanticsService.sendAnnouncement` on each
             // per-id state transition. Lives inside the Stack so it
