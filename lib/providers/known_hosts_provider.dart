@@ -95,13 +95,10 @@ class KnownHostsMutator {
 
   /// Remove a single known host entry. `hostPort` is the canonical
   /// `host:port` key the stream emits; the helper splits it back
-  /// into the FRB DAO's `(host, port)` shape, defaulting to port 22
-  /// when no colon is present.
+  /// into the FRB DAO's `(host, port)` shape.
   Future<void> removeHost(String hostPort) async {
-    final parts = hostPort.split(':');
-    if (parts.isEmpty) return;
-    final host = parts[0];
-    final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+    if (hostPort.isEmpty) return;
+    final (host, port) = splitKnownHostKey(hostPort);
     try {
       await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
     } catch (e) {
@@ -237,6 +234,22 @@ class KnownHostsMutator {
 /// pass-throughs to FRB. Tests override the provider directly with
 /// a fake mutator subclass when they need to assert call counts or
 /// seed responses.
+/// Split a `host:port` stream key back into its `(host, port)` parts,
+/// the inverse of the `'${e.host}:${e.port}'` key the known-hosts
+/// stream builds. Splits on the LAST colon so an IPv6 host — whose
+/// address itself embeds colons (`::1` → key `::1:2222`) — keeps its
+/// address intact instead of collapsing to an empty host (the bug
+/// that made IPv6 known-host rows un-deletable). A key whose trailing
+/// segment isn't a number (no port appended) is treated as a bare
+/// host on the default port 22.
+(String host, int port) splitKnownHostKey(String hostPort) {
+  final lastColon = hostPort.lastIndexOf(':');
+  if (lastColon <= 0) return (hostPort, 22);
+  final port = int.tryParse(hostPort.substring(lastColon + 1));
+  if (port == null) return (hostPort, 22);
+  return (hostPort.substring(0, lastColon), port);
+}
+
 final knownHostsMutatorProvider = Provider<KnownHostsMutator>(
   (ref) => const KnownHostsMutator(),
 );

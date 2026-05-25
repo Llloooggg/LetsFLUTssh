@@ -85,6 +85,27 @@ void main() {
     });
   });
 
+  group('splitKnownHostKey', () {
+    test('splits a plain host:port key', () {
+      expect(splitKnownHostKey('example.com:22'), ('example.com', 22));
+      expect(splitKnownHostKey('10.0.0.1:2222'), ('10.0.0.1', 2222));
+    });
+
+    test('keeps an IPv6 address intact by splitting on the last colon', () {
+      // The bug: split(':')[0] returned '' for `::1:2222`, so the
+      // delete never matched and IPv6 rows were un-removable.
+      expect(splitKnownHostKey('::1:2222'), ('::1', 2222));
+      expect(splitKnownHostKey('fe80::1ff:fe23:4567:890a:22'), (
+        'fe80::1ff:fe23:4567:890a',
+        22,
+      ));
+    });
+
+    test('falls back to port 22 for a key without a numeric trailing port', () {
+      expect(splitKnownHostKey('bare-host'), ('bare-host', 22));
+    });
+  });
+
   group('knownHostFingerprint', () {
     test('returns SHA256: prefix + base64-no-pad body', () {
       // Any byte sequence — the Rust helper hashes it with SHA-256
