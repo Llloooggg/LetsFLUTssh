@@ -136,5 +136,15 @@ void main() {
       // None of the inert calls put anything on the grid.
       expect(controller.snapshot().cells, isEmpty);
     });
+
+    test('dispose releases the Rust replay handle deterministically', () {
+      // The controller owns the `TerminalReplay` opaque, so its dispose
+      // must drop it rather than leaving it to the FRB finalizer. After
+      // dispose the freed handle rejects further engine calls instead of
+      // operating on a released Arc.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      controller.dispose();
+      expect(() => controller.feed(utf8.encode('x')), throwsA(anything));
+    });
   });
 }

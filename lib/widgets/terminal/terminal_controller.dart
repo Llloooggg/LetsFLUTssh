@@ -119,6 +119,16 @@ class LiveTerminalController extends TerminalController {
   late final StreamSubscription<TerminalUiEvent> _sub;
   final _repaint = _RepaintNotifier();
   final _uiEvents = StreamController<TerminalUiEvent>.broadcast();
+  bool _disposed = false;
+
+  // `setSelection` / `clearSelection` notify the repaint signal from a
+  // `.then` callback that can resolve after the pane closes and
+  // [dispose] ran — `notifyListeners` on a disposed ChangeNotifier
+  // throws. Gate every notify on the disposed flag.
+  void _notifyRepaint() {
+    if (_disposed) return;
+    _repaint.notify();
+  }
 
   /// The wrapped session, exposed so the host can drive the lifecycle calls
   /// the controller intentionally does not own (dispose, set_recorder).
@@ -126,7 +136,7 @@ class LiveTerminalController extends TerminalController {
 
   void _onEvent(TerminalUiEvent event) {
     if (event is TerminalUiEvent_Wakeup) {
-      _repaint.notify();
+      _notifyRepaint();
       return;
     }
     if (!_uiEvents.isClosed) _uiEvents.add(event);
@@ -170,11 +180,11 @@ class LiveTerminalController extends TerminalController {
         endCol: endCol,
         kind: kind,
       )
-      .then((_) => _repaint.notify());
+      .then((_) => _notifyRepaint());
 
   @override
   void clearSelection() =>
-      unawaited(_session.clearSelection().then((_) => _repaint.notify()));
+      unawaited(_session.clearSelection().then((_) => _notifyRepaint()));
 
   @override
   Future<String?> selectionText() => _session.selectionText();
@@ -202,6 +212,7 @@ class LiveTerminalController extends TerminalController {
   /// is the host's, which may outlive a controller swap. Dispose the session
   /// separately.
   void dispose() {
+    _disposed = true;
     unawaited(_sub.cancel());
     unawaited(_uiEvents.close());
     _repaint.dispose();
@@ -309,6 +320,15 @@ class ReplayTerminalController extends TerminalController with ChangeNotifier {
 
   @override
   Future<String?> selectionText() async => _replay.selectionText();
+
+  @override
+  void dispose() {
+    // Release the Rust-side replay engine deterministically instead of
+    // leaving the opaque handle to the FRB finalizer; the host calls
+    // this from its `State.dispose`.
+    _replay.dispose();
+    super.dispose();
+  }
 }
 
 /// A [ChangeNotifier] whose notify is public, so [LiveTerminalController] can

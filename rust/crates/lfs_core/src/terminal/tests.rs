@@ -504,3 +504,36 @@ fn zero_dimensions_are_clamped() {
     let frame = eng.snapshot();
     assert!(frame.cols >= 1 && frame.rows >= 1);
 }
+
+#[test]
+fn oversize_osc52_clipboard_store_is_dropped() {
+    // OSC 52 lets the remote write the local clipboard. A payload past
+    // the propagation cap must not reach the app's clipboard sink; a
+    // within-cap one must pass through. Drive the Proxy directly so the
+    // assertion isolates our cap from vte's own OSC-buffer limit.
+    use alacritty_terminal::event::{Event as AlacrittyEvent, EventListener};
+    use alacritty_terminal::term::ClipboardType;
+
+    let proxy = Proxy::default();
+    let oversized = "x".repeat(MAX_CLIPBOARD_STORE_BYTES + 1);
+    proxy.send_event(AlacrittyEvent::ClipboardStore(
+        ClipboardType::Clipboard,
+        oversized,
+    ));
+    assert!(
+        proxy.drain().is_empty(),
+        "oversize clipboard-store must be dropped"
+    );
+
+    let within = "copy me".to_string();
+    proxy.send_event(AlacrittyEvent::ClipboardStore(
+        ClipboardType::Clipboard,
+        within.clone(),
+    ));
+    let events = proxy.drain();
+    assert_eq!(events.len(), 1);
+    assert!(matches!(
+        &events[0],
+        TerminalEvent::ClipboardStore(t) if *t == within
+    ));
+}

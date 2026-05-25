@@ -58,6 +58,14 @@ pub enum TerminalEvent {
     ClipboardStore(String),
 }
 
+/// Upper bound on an OSC 52 clipboard-store payload we propagate to the
+/// OS clipboard. OSC 52 lets the remote write arbitrary text to the
+/// local clipboard; vte already bounds the raw OSC buffer, and this
+/// caps what crosses into the app so a crafted sequence cannot push an
+/// oversized payload at the clipboard sink. 1 MiB covers any realistic
+/// clipboard text.
+const MAX_CLIPBOARD_STORE_BYTES: usize = 1024 * 1024;
+
 /// `EventListener` sink. `send_event` takes `&self`, so the queue lives
 /// behind a `Mutex` for interior mutability. The engine keeps a cloned
 /// `Arc` handle to the same queue because `Term` exposes no accessor back
@@ -82,7 +90,13 @@ impl EventListener for Proxy {
             AlacrittyEvent::Bell => Some(TerminalEvent::Bell),
             AlacrittyEvent::Title(t) => Some(TerminalEvent::Title(t)),
             AlacrittyEvent::ResetTitle => Some(TerminalEvent::ResetTitle),
-            AlacrittyEvent::ClipboardStore(_, text) => Some(TerminalEvent::ClipboardStore(text)),
+            AlacrittyEvent::ClipboardStore(_, text) => {
+                if text.len() > MAX_CLIPBOARD_STORE_BYTES {
+                    None
+                } else {
+                    Some(TerminalEvent::ClipboardStore(text))
+                }
+            }
             AlacrittyEvent::Wakeup | AlacrittyEvent::MouseCursorDirty => {
                 Some(TerminalEvent::Repaint)
             }
