@@ -40,8 +40,20 @@ pub fn build_folder_path(folder_id: &str, folders: &BTreeMap<String, FolderRow>)
         return String::new();
     }
     let mut parts: Vec<String> = Vec::new();
+    let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut current: Option<String> = Some(folder_id.to_string());
     while let Some(id) = current {
+        // A cyclic `parent_id` chain (both rows present, e.g. a
+        // hand-edited or pre-fix DB) would otherwise loop forever and
+        // grow `parts` without bound. Bail on revisit — mirrors the
+        // guards on the write-side folder walkers in `db::folders`
+        // (`is_descendant_of` hop cap, `delete_recursive` UNION
+        // dedup); this read-side walker runs on every session-list
+        // render, so an unguarded cycle hangs the UI.
+        if !visited.insert(id.clone()) {
+            parts.reverse();
+            return format!("(cycle)/{}", parts.join("/"));
+        }
         match folders.get(&id) {
             Some(row) => {
                 parts.push(row.name.clone());
@@ -203,6 +215,32 @@ mod tests {
         assert_eq!(build_folder_path("c", &folders), "Production/EU/web");
         assert_eq!(build_folder_path("b", &folders), "Production/EU");
         assert_eq!(build_folder_path("a", &folders), "Production");
+    }
+
+    #[test]
+    fn build_path_breaks_a_parent_cycle_instead_of_looping() {
+        // Cyclic parent_id chain (hand-edited / pre-fix DB): a -> b,
+        // b -> a. The walk must terminate at a "(cycle)/…" marker
+        // rather than loop forever / OOM growing the path.
+        let folders = map_of(vec![
+            row("a", "Alpha", Some("b")),
+            row("b", "Bravo", Some("a")),
+        ]);
+        let path = build_folder_path("a", &folders);
+        assert!(
+            path.starts_with("(cycle)/"),
+            "expected a cycle marker, got {path:?}"
+        );
+    }
+
+    #[test]
+    fn build_path_breaks_a_self_referential_cycle() {
+        let folders = map_of(vec![row("a", "Alpha", Some("a"))]);
+        let path = build_folder_path("a", &folders);
+        assert!(
+            path.starts_with("(cycle)/"),
+            "expected a cycle marker, got {path:?}"
+        );
     }
 
     #[test]
