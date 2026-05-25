@@ -422,9 +422,18 @@ mod tests {
 
     #[test]
     fn expand_home_handles_tilde() {
-        // The home directory could be empty in some test contexts;
-        // assert only the expand-shape, not a specific path.
-        assert!(!expand_home("~").is_empty() || expand_home("~").is_empty());
+        // `~` and `~/x` expand to the resolved home directory; a path
+        // that doesn't start with `~` is returned verbatim. Assert
+        // against `home_directory()` rather than a hardcoded path so
+        // the test holds whatever the host resolves home to — but
+        // still catches a regression where `~` fails to expand (the
+        // prior `X || !X` form asserted nothing).
+        let home = crate::host_info::home_directory();
+        assert_eq!(expand_home("~"), home);
+        assert_eq!(
+            expand_home("~/.ssh/id_ed25519"),
+            format!("{home}/.ssh/id_ed25519")
+        );
         assert_eq!(expand_home("/abs/path"), "/abs/path");
         assert_eq!(expand_home("relative"), "relative");
     }
