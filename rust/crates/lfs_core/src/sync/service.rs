@@ -641,14 +641,15 @@ fn now_unix_ms() -> i64 {
         .unwrap_or(0)
 }
 
-/// Stable per-install identifier the orchestrator stamps into
-/// `manifest.sync_origin` on every push. The token is the
-/// hostname (or `"install"` as a last-resort fallback) joined
-/// with the process start time so a peer device's pull can
-/// recognise its own push echoing back through the WebDAV
-/// round-trip. The id is opaque to the user and never crosses
-/// any other boundary; if a future arc needs a stable, opaque
-/// device id this is the slot to lift it out of.
+/// Per-process identifier the orchestrator stamps into
+/// `manifest.sync_origin` on every push, so a pull can recognise
+/// its own push echoing back through the WebDAV round-trip and skip
+/// the redundant self-merge. Twelve random bytes minted once per
+/// process — see the inline note for why per-process (not
+/// per-install) is the right scope for the echo guard. The id is
+/// opaque to the user and never crosses any other boundary; if a
+/// future arc needs a stable, opaque device id this is the slot to
+/// lift it out of.
 fn read_install_id() -> String {
     static INSTALL_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     INSTALL_ID
