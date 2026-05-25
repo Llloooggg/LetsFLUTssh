@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
@@ -53,6 +55,39 @@ class _MockFS implements FileSystem {
   @override
   Future<bool> exists(String path) async => dirs.containsKey(path);
 
+  @override
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
+}
+
+/// FS whose `list` returns a future the test resolves by hand, one
+/// `Completer` per path — lets a test interleave two in-flight
+/// listings to exercise the refresh-race guard.
+class _GatedFS implements FileSystem {
+  final Map<String, Completer<List<FileEntry>>> pending = {};
+
+  Completer<List<FileEntry>> gate(String path) =>
+      pending.putIfAbsent(path, Completer<List<FileEntry>>.new);
+
+  @override
+  Future<List<FileEntry>> list(String path) => gate(path).future;
+
+  @override
+  Future<String> initialDir() async => '/';
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+  @override
+  Future<bool> exists(String path) async => false;
   @override
   FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
@@ -133,6 +168,43 @@ void main() {
       await ctrl.navigateTo('/home/docs');
       await ctrl.navigateUp();
       expect(ctrl.currentPath, '/home');
+    });
+
+    test('a superseded slow listing does not overwrite the current dir', () {
+      // Race guard: list(/A) is in flight when the user navigates to
+      // /B. Resolving /B then the late /A must leave /B's entries —
+      // the stale /A result is dropped.
+      final gated = _GatedFS();
+      final raceCtrl = FilePaneController(fs: gated, label: 'Race');
+      addTearDown(raceCtrl.dispose);
+      final entryB = FileEntry(
+        name: 'b.txt',
+        path: '/B/b.txt',
+        size: 1,
+        modTime: now,
+        isDir: false,
+      );
+
+      // Both navigations start before either listing resolves.
+      final navA = raceCtrl.navigateTo('/A', addToHistory: false);
+      final navB = raceCtrl.navigateTo('/B', addToHistory: false);
+
+      // Resolve the newer listing (/B) first, then the stale /A.
+      gated.gate('/B').complete([entryB]);
+      gated.gate('/A').complete([
+        FileEntry(
+          name: 'a.txt',
+          path: '/A/a.txt',
+          size: 1,
+          modTime: now,
+          isDir: false,
+        ),
+      ]);
+
+      return Future.wait([navA, navB]).then((_) {
+        expect(raceCtrl.currentPath, '/B');
+        expect(raceCtrl.entries.map((e) => e.name).toList(), ['b.txt']);
+      });
     });
 
     test('navigateUp from root stays at root', () async {

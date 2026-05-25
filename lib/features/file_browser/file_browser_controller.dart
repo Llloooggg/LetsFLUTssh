@@ -50,6 +50,11 @@ class FilePaneController extends ChangeNotifier {
   Set<String> _selected = {};
   bool _loading = false;
   Object? _error;
+  // Monotonic refresh token. Each `refresh()` claims the next value;
+  // an in-flight listing whose token is no longer current (the user
+  // navigated, or a later refresh started) drops its result so a slow
+  // listing of directory A can't land its entries under path B.
+  int _refreshGeneration = 0;
   SortColumn _sortColumn = SortColumn.name;
   bool _sortAscending = true;
 
@@ -211,17 +216,25 @@ class FilePaneController extends ChangeNotifier {
 
   /// Refresh current directory listing.
   Future<void> refresh() async {
+    final generation = ++_refreshGeneration;
+    final path = _currentPath;
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _entries = await fs.list(_currentPath);
+      final entries = await fs.list(path);
+      // A later refresh / navigation superseded this listing while
+      // `list` was in flight — drop the stale result rather than
+      // render directory `path`'s contents under the current path.
+      if (generation != _refreshGeneration) return;
+      _entries = entries;
       _sortEntries();
       _invalidateCaches();
     } catch (e) {
+      if (generation != _refreshGeneration) return;
       AppLogger.instance.log(
-        'Failed to list $_currentPath: $e',
+        'Failed to list $path: $e',
         name: 'FilePane',
         error: e,
       );
@@ -229,8 +242,12 @@ class FilePaneController extends ChangeNotifier {
       _entries = [];
       _invalidateCaches();
     } finally {
-      _loading = false;
-      notifyListeners();
+      // Only the latest refresh owns the loading flag; a superseded
+      // one leaves it to the refresh that replaced it.
+      if (generation == _refreshGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
