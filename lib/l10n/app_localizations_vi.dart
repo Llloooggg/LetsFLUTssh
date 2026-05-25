@@ -3628,4 +3628,9 @@ class SVi extends S {
 
   @override
   String get exitCopyMode => 'Thoát chế độ sao chép';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Đã nhập: $items';
+  }
 }

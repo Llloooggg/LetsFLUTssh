@@ -3644,4 +3644,9 @@ class STr extends S {
 
   @override
   String get exitCopyMode => 'Kopyalama modundan çık';
+
+  @override
+  String importedGeneric(String items) {
+    return 'İçe aktarıldı: $items';
+  }
 }

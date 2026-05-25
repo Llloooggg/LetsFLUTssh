@@ -1356,5 +1356,6 @@
   "arrowDown": "नीचे तीर",
   "arrowRight": "दायाँ तीर",
   "copyMode": "कॉपी मोड",
-  "exitCopyMode": "कॉपी मोड से बाहर निकलें"
+  "exitCopyMode": "कॉपी मोड से बाहर निकलें",
+  "importedGeneric": "आयात किया: {items}"
 }

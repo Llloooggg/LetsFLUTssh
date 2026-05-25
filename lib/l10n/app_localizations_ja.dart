@@ -3545,4 +3545,9 @@ class SJa extends S {
 
   @override
   String get exitCopyMode => 'コピーモードを終了';
+
+  @override
+  String importedGeneric(String items) {
+    return 'インポート済み: $items';
+  }
 }

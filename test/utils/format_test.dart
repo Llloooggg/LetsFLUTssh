@@ -949,6 +949,18 @@ void main() {
       expect(out, l10n.importedSessions(0));
     });
 
+    test('sessions-free import leads with the generic prefix', () {
+      // Keys / tags only, no sessions: the lead must NOT be the
+      // odd "No sessions imported, 4 SSH keys" — use the generic
+      // "Imported: …" prefix instead.
+      final out = formatImportSummary(
+        l10n,
+        const ImportSummary(managerKeys: 4, tags: 2),
+      );
+      expect(out, l10n.importedGeneric('4 ${l10n.sshKeys}, 2 ${l10n.tags}'));
+      expect(out, isNot(contains(l10n.importedSessions(0))));
+    });
+
     test('appends skipped-sessions note when the counter is non-zero', () {
       // The note suffix is separated by an em-dash so importers can
       // tell the "headline result" from the "plus these rows did not

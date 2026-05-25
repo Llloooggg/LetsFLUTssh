@@ -1356,5 +1356,6 @@
   "arrowDown": "Стрелка вниз",
   "arrowRight": "Стрелка вправо",
   "copyMode": "Режим копирования",
-  "exitCopyMode": "Выйти из режима копирования"
+  "exitCopyMode": "Выйти из режима копирования",
+  "importedGeneric": "Импортировано: {items}"
 }

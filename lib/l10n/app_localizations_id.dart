@@ -3641,4 +3641,9 @@ class SId extends S {
 
   @override
   String get exitCopyMode => 'Keluar mode salin';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Diimpor: $items';
+  }
 }

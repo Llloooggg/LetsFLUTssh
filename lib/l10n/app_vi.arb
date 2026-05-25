@@ -1356,5 +1356,6 @@
   "arrowDown": "Mũi tên xuống",
   "arrowRight": "Mũi tên phải",
   "copyMode": "Chế độ sao chép",
-  "exitCopyMode": "Thoát chế độ sao chép"
+  "exitCopyMode": "Thoát chế độ sao chép",
+  "importedGeneric": "Đã nhập: {items}"
 }

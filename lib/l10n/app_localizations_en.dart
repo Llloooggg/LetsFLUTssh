@@ -3678,4 +3678,9 @@ class SEn extends S {
 
   @override
   String get exitCopyMode => 'Exit copy mode';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Imported: $items';
+  }
 }

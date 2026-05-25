@@ -1356,5 +1356,6 @@
   "arrowDown": "Aşağı ok",
   "arrowRight": "Sağ ok",
   "copyMode": "Kopyalama modu",
-  "exitCopyMode": "Kopyalama modundan çık"
+  "exitCopyMode": "Kopyalama modundan çık",
+  "importedGeneric": "İçe aktarıldı: {items}"
 }

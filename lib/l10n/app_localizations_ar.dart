@@ -3645,4 +3645,9 @@ class SAr extends S {
 
   @override
   String get exitCopyMode => 'إنهاء وضع النسخ';
+
+  @override
+  String importedGeneric(String items) {
+    return 'تم الاستيراد: $items';
+  }
 }

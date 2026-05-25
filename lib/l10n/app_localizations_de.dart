@@ -3728,4 +3728,9 @@ class SDe extends S {
 
   @override
   String get exitCopyMode => 'Kopiermodus beenden';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Importiert: $items';
+  }
 }

@@ -3668,4 +3668,9 @@ class SRu extends S {
 
   @override
   String get exitCopyMode => 'Выйти из режима копирования';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Импортировано: $items';
+  }
 }

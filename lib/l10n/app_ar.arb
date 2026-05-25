@@ -1356,5 +1356,6 @@
   "arrowDown": "سهم لأسفل",
   "arrowRight": "سهم لليمين",
   "copyMode": "وضع النسخ",
-  "exitCopyMode": "إنهاء وضع النسخ"
+  "exitCopyMode": "إنهاء وضع النسخ",
+  "importedGeneric": "تم الاستيراد: {items}"
 }

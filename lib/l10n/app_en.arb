@@ -2024,5 +2024,7 @@
   "copyMode": "Copy mode",
   "@copyMode": {"description": "Accessibility label for the button that enters terminal copy mode"},
   "exitCopyMode": "Exit copy mode",
-  "@exitCopyMode": {"description": "Accessibility label for the button that exits terminal copy mode"}
+  "@exitCopyMode": {"description": "Accessibility label for the button that exits terminal copy mode"},
+  "importedGeneric": "Imported: {items}",
+  "@importedGeneric": {"placeholders": {"items": {"type": "String"}}, "description": "Import-summary lead when no sessions were imported but other items were"}
 }

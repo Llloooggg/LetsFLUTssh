@@ -6386,6 +6386,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Exit copy mode'**
   String get exitCopyMode;
+
+  /// Import-summary lead when no sessions were imported but other items were
+  ///
+  /// In en, this message translates to:
+  /// **'Imported: {items}'**
+  String importedGeneric(String items);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

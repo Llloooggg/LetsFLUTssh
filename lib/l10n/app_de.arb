@@ -1356,5 +1356,6 @@
   "arrowDown": "Pfeil unten",
   "arrowRight": "Pfeil rechts",
   "copyMode": "Kopiermodus",
-  "exitCopyMode": "Kopiermodus beenden"
+  "exitCopyMode": "Kopiermodus beenden",
+  "importedGeneric": "Importiert: {items}"
 }

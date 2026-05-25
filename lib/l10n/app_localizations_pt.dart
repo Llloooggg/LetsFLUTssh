@@ -3715,4 +3715,9 @@ class SPt extends S {
 
   @override
   String get exitCopyMode => 'Sair do modo de cópia';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Importado: $items';
+  }
 }

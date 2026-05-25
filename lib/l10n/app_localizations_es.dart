@@ -3729,4 +3729,9 @@ class SEs extends S {
 
   @override
   String get exitCopyMode => 'Salir del modo de copia';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Importado: $items';
+  }
 }

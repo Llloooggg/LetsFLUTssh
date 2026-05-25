@@ -1356,5 +1356,6 @@
   "arrowDown": "下矢印",
   "arrowRight": "右矢印",
   "copyMode": "コピーモード",
-  "exitCopyMode": "コピーモードを終了"
+  "exitCopyMode": "コピーモードを終了",
+  "importedGeneric": "インポート済み: {items}"
 }

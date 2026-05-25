@@ -1356,5 +1356,6 @@
   "arrowDown": "فلش پایین",
   "arrowRight": "فلش راست",
   "copyMode": "حالت کپی",
-  "exitCopyMode": "خروج از حالت کپی"
+  "exitCopyMode": "خروج از حالت کپی",
+  "importedGeneric": "وارد شد: {items}"
 }

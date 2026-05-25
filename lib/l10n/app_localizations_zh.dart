@@ -3504,4 +3504,9 @@ class SZh extends S {
 
   @override
   String get exitCopyMode => '退出复制模式';
+
+  @override
+  String importedGeneric(String items) {
+    return '已导入：$items';
+  }
 }

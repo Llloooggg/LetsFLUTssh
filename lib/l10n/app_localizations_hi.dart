@@ -3643,4 +3643,9 @@ class SHi extends S {
 
   @override
   String get exitCopyMode => 'कॉपी मोड से बाहर निकलें';
+
+  @override
+  String importedGeneric(String items) {
+    return 'आयात किया: $items';
+  }
 }

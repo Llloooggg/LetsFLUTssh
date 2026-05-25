@@ -1356,5 +1356,6 @@
   "arrowDown": "下箭头",
   "arrowRight": "右箭头",
   "copyMode": "复制模式",
-  "exitCopyMode": "退出复制模式"
+  "exitCopyMode": "退出复制模式",
+  "importedGeneric": "已导入：{items}"
 }

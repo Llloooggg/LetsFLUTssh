@@ -1356,5 +1356,6 @@
   "arrowDown": "아래 화살표",
   "arrowRight": "오른쪽 화살표",
   "copyMode": "복사 모드",
-  "exitCopyMode": "복사 모드 종료"
+  "exitCopyMode": "복사 모드 종료",
+  "importedGeneric": "가져옴: {items}"
 }

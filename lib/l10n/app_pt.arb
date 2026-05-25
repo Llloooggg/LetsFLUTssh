@@ -1356,5 +1356,6 @@
   "arrowDown": "Seta baixo",
   "arrowRight": "Seta direita",
   "copyMode": "Modo de cópia",
-  "exitCopyMode": "Sair do modo de cópia"
+  "exitCopyMode": "Sair do modo de cópia",
+  "importedGeneric": "Importado: {items}"
 }

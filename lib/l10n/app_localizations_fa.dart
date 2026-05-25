@@ -3631,4 +3631,9 @@ class SFa extends S {
 
   @override
   String get exitCopyMode => 'خروج از حالت کپی';
+
+  @override
+  String importedGeneric(String items) {
+    return 'وارد شد: $items';
+  }
 }

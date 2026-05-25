@@ -3540,4 +3540,9 @@ class SKo extends S {
 
   @override
   String get exitCopyMode => '복사 모드 종료';
+
+  @override
+  String importedGeneric(String items) {
+    return '가져옴: $items';
+  }
 }

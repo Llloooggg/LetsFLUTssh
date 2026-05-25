@@ -93,8 +93,20 @@ String formatImportSummary(S l10n, ImportSummary s) {
   if (s.snippets > 0) extras.add('${s.snippets} ${l10n.snippets}');
   if (s.knownHostsApplied) extras.add(l10n.knownHosts);
   if (s.configApplied) extras.add(l10n.appSettings);
-  final head = l10n.importedSessions(s.sessions);
-  final body = extras.isEmpty ? head : '$head, ${extras.join(', ')}';
+  // Lead with the session count when sessions were imported. For a
+  // sessions-free import (keys / tags / snippets only) the
+  // "No sessions imported" head would read oddly in front of the
+  // extras, so use the generic "Imported: …" lead instead; an
+  // all-empty result still reports "No sessions imported".
+  final String body;
+  if (s.sessions > 0) {
+    final head = l10n.importedSessions(s.sessions);
+    body = extras.isEmpty ? head : '$head, ${extras.join(', ')}';
+  } else if (extras.isEmpty) {
+    body = l10n.importedSessions(0);
+  } else {
+    body = l10n.importedGeneric(extras.join(', '));
+  }
   final notes = <String>[];
   if (s.skippedSessions > 0) {
     notes.add(l10n.importSkippedSessions(s.skippedSessions));

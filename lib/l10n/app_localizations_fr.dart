@@ -3744,4 +3744,9 @@ class SFr extends S {
 
   @override
   String get exitCopyMode => 'Quitter le mode copie';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Importé : $items';
+  }
 }

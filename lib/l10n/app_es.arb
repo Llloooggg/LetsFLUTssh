@@ -1356,5 +1356,6 @@
   "arrowDown": "Flecha abajo",
   "arrowRight": "Flecha derecha",
   "copyMode": "Modo de copia",
-  "exitCopyMode": "Salir del modo de copia"
+  "exitCopyMode": "Salir del modo de copia",
+  "importedGeneric": "Importado: {items}"
 }

@@ -1356,5 +1356,6 @@
   "arrowDown": "Panah bawah",
   "arrowRight": "Panah kanan",
   "copyMode": "Mode salin",
-  "exitCopyMode": "Keluar mode salin"
+  "exitCopyMode": "Keluar mode salin",
+  "importedGeneric": "Diimpor: {items}"
 }
