@@ -124,24 +124,17 @@ static gboolean my_application_local_command_line(GApplication* application,
 
   // Single-instance gate. After register, `g_application_get_is_remote`
   // returns TRUE if a primary instance already owns the application
-  // ID's D-Bus name — that means we're the duplicate, the existing
-  // primary will keep running, and we should exit without spinning
-  // up the Flutter engine. Surface a native GTK info dialog before
-  // exit so the user sees explicit feedback (matches the Windows
-  // shell's `MessageBoxW`). English-only — pulling from `app_*.arb`
-  // would need the Flutter engine running, which defeats the
-  // "reject before paying engine cost" point.
+  // ID's D-Bus name — that means we're the duplicate and should exit
+  // without spinning up a second Flutter engine. Forward `activate`
+  // to the primary first: GApplication relays it over D-Bus, the
+  // primary's `my_application_activate` runs, and its
+  // `gtk_window_present(existing)` branch raises and focuses the
+  // already-open window. Just showing a native "already running"
+  // dialog (the prior behaviour) left that window buried wherever it
+  // was — raising it is the expected desktop UX and what the activate
+  // handler above was written for.
   if (g_application_get_is_remote(application)) {
-    gtk_init(nullptr, nullptr);
-    GtkWidget* dialog = gtk_message_dialog_new(
-        nullptr,
-        GTK_DIALOG_MODAL,
-        GTK_MESSAGE_INFO,
-        GTK_BUTTONS_OK,
-        "An instance of LetsFLUTssh is already running.");
-    gtk_window_set_title(GTK_WINDOW(dialog), "LetsFLUTssh");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
+    g_application_activate(application);
     *exit_status = 0;
     return TRUE;
   }
