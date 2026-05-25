@@ -44,7 +44,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1533006527;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1329805521;
 
 // Section: executor
 
@@ -26721,6 +26721,38 @@ fn wire__crate__api__webdav__webdav_server_address_from_base_url_impl(
         },
     )
 }
+fn wire__crate__api__webdav__webdav_validate_base_url_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "webdav_validate_base_url",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_base_url = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::webdav::webdav_validate_base_url(
+                    api_base_url,
+                ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__winbio__winbio_count_units_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -31434,6 +31466,19 @@ impl SseDecode for crate::api::update_metadata::DbVersionOrder {
     }
 }
 
+impl SseDecode for crate::api::webdav::DbWebDavBaseUrlCheck {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::webdav::DbWebDavBaseUrlCheck::Ok,
+            1 => crate::api::webdav::DbWebDavBaseUrlCheck::Empty,
+            2 => crate::api::webdav::DbWebDavBaseUrlCheck::Invalid,
+            _ => unreachable!("Invalid variant for DbWebDavBaseUrlCheck: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::db::DbWebDavSessionDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -34032,8 +34077,8 @@ fn pde_ffi_dispatcher_primary_impl(
 694 => wire__crate__api__update_http__update_download_with_verification_impl(port, ptr, rust_vec_len, data_len),
 695 => wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len),
 700 => wire__crate__api__webdav__webdav_connect_impl(port, ptr, rust_vec_len, data_len),
-706 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(port, ptr, rust_vec_len, data_len),
-707 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+707 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(port, ptr, rust_vec_len, data_len),
+708 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -34344,10 +34389,11 @@ fn pde_ffi_dispatcher_sync_impl(
 698 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
 699 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
 701 => wire__crate__api__webdav__webdav_server_address_from_base_url_impl(ptr, rust_vec_len, data_len),
-702 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-703 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-704 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
-705 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
+702 => wire__crate__api__webdav__webdav_validate_base_url_impl(ptr, rust_vec_len, data_len),
+703 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+704 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+705 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+706 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -39708,6 +39754,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::update_metadata::DbVersionOrd
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::webdav::DbWebDavBaseUrlCheck {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Ok => 0.into_dart(),
+            Self::Empty => 1.into_dart(),
+            Self::Invalid => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::webdav::DbWebDavBaseUrlCheck
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::webdav::DbWebDavBaseUrlCheck>
+    for crate::api::webdav::DbWebDavBaseUrlCheck
+{
+    fn into_into_dart(self) -> crate::api::webdav::DbWebDavBaseUrlCheck {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::db::DbWebDavSessionDetails {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -44042,6 +44110,23 @@ impl SseEncode for crate::api::update_metadata::DbVersionOrder {
                 crate::api::update_metadata::DbVersionOrder::Less => 0,
                 crate::api::update_metadata::DbVersionOrder::Equal => 1,
                 crate::api::update_metadata::DbVersionOrder::Greater => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::webdav::DbWebDavBaseUrlCheck {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::webdav::DbWebDavBaseUrlCheck::Ok => 0,
+                crate::api::webdav::DbWebDavBaseUrlCheck::Empty => 1,
+                crate::api::webdav::DbWebDavBaseUrlCheck::Invalid => 2,
                 _ => {
                     unimplemented!("");
                 }

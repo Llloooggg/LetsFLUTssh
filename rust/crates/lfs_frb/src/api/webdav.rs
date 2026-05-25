@@ -103,6 +103,29 @@ pub fn webdav_server_address_from_base_url(base_url: String) -> DbServerAddressF
     lfs_core::webdav::server_address_from_base_url(&base_url).into()
 }
 
+/// Validation verdict for a WebDAV base URL — the session-edit form's
+/// inline validator maps each variant to its own localized message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbWebDavBaseUrlCheck {
+    Ok,
+    Empty,
+    Invalid,
+}
+
+/// Validate a user-entered WebDAV base URL the same way the connect
+/// path parses it (`url::Url`, http/https, non-empty host). Sync so
+/// it slots into the Dart `Form.validate` pipeline. Keeping the
+/// grammar Rust-side stops the dialog from accepting a URL the
+/// transport would later reject.
+#[flutter_rust_bridge::frb(sync)]
+pub fn webdav_validate_base_url(base_url: String) -> DbWebDavBaseUrlCheck {
+    match lfs_core::webdav::validate_base_url(&base_url) {
+        lfs_core::webdav::BaseUrlCheck::Ok => DbWebDavBaseUrlCheck::Ok,
+        lfs_core::webdav::BaseUrlCheck::Empty => DbWebDavBaseUrlCheck::Empty,
+        lfs_core::webdav::BaseUrlCheck::Invalid => DbWebDavBaseUrlCheck::Invalid,
+    }
+}
+
 /// Live WebDAV client tied to a single session. Drop on the Dart
 /// side releases the inner `Arc`; the underlying `reqwest` client
 /// drops its connection pool when the last reference goes away.

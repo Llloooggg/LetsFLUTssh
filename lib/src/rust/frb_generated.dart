@@ -149,7 +149,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1533006527;
+  int get rustContentHash => 1329805521;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -2874,6 +2874,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   DbServerAddressFields crateApiWebdavWebdavServerAddressFromBaseUrl({
+    required String baseUrl,
+  });
+
+  DbWebDavBaseUrlCheck crateApiWebdavWebdavValidateBaseUrl({
     required String baseUrl,
   });
 
@@ -26230,6 +26234,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  DbWebDavBaseUrlCheck crateApiWebdavWebdavValidateBaseUrl({
+    required String baseUrl,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(baseUrl, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 702,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_web_dav_base_url_check,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWebdavWebdavValidateBaseUrlConstMeta,
+        argValues: [baseUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebdavWebdavValidateBaseUrlConstMeta =>
+      const TaskConstMeta(
+        debugName: "webdav_validate_base_url",
+        argNames: ["baseUrl"],
+      );
+
+  @override
   PlatformInt64 crateApiWinbioWinbioCountUnits() {
     return handler.executeSync(
       SyncTask(
@@ -26238,7 +26274,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 702,
+            funcId: 703,
           )!;
         },
         codec: SseCodec(
@@ -26264,7 +26300,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 703,
+            funcId: 704,
           )!;
         },
         codec: SseCodec(
@@ -26290,7 +26326,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 704,
+            funcId: 705,
           )!;
         },
         codec: SseCodec(
@@ -26316,7 +26352,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 705,
+            funcId: 706,
           )!;
         },
         codec: SseCodec(
@@ -26345,7 +26381,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 706,
+            funcId: 707,
             port: port_,
           );
         },
@@ -26372,7 +26408,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 707,
+            funcId: 708,
             port: port_,
           );
         },
@@ -30283,6 +30319,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbVersionOrder dco_decode_db_version_order(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DbVersionOrder.values[raw as int];
+  }
+
+  @protected
+  DbWebDavBaseUrlCheck dco_decode_db_web_dav_base_url_check(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbWebDavBaseUrlCheck.values[raw as int];
   }
 
   @protected
@@ -36364,6 +36406,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return DbVersionOrder.values[inner];
+  }
+
+  @protected
+  DbWebDavBaseUrlCheck sse_decode_db_web_dav_base_url_check(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DbWebDavBaseUrlCheck.values[inner];
   }
 
   @protected
@@ -42583,6 +42634,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_db_version_order(
     DbVersionOrder self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_web_dav_base_url_check(
+    DbWebDavBaseUrlCheck self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs

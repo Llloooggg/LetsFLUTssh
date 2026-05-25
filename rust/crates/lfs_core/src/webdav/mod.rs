@@ -74,6 +74,41 @@ pub struct ServerAddressFields {
     pub port: u32,
 }
 
+/// Outcome of validating a user-entered WebDAV base URL. Mirrors the
+/// two distinct error states the session-edit dialog surfaces — empty
+/// vs malformed/unsupported-scheme — so the form can map each to its
+/// own message. Validation lives here (the same `url::Url` parse the
+/// connect path uses) rather than Dart-side so the dialog cannot
+/// accept a URL the transport would later reject, or vice versa.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaseUrlCheck {
+    Ok,
+    Empty,
+    Invalid,
+}
+
+/// Validate a base URL the way the connect path will parse it:
+/// non-empty, parseable by `url::Url`, `http`/`https` scheme, and a
+/// non-empty host.
+pub fn validate_base_url(raw: &str) -> BaseUrlCheck {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return BaseUrlCheck::Empty;
+    }
+    let parsed = match url::Url::parse(trimmed) {
+        Ok(u) => u,
+        Err(_) => return BaseUrlCheck::Invalid,
+    };
+    let scheme = parsed.scheme().to_ascii_lowercase();
+    if scheme != "http" && scheme != "https" {
+        return BaseUrlCheck::Invalid;
+    }
+    if parsed.host_str().is_none_or(str::is_empty) {
+        return BaseUrlCheck::Invalid;
+    }
+    BaseUrlCheck::Ok
+}
+
 pub fn server_address_from_base_url(base_url: &str) -> ServerAddressFields {
     let trimmed = base_url.trim();
     if trimmed.is_empty() {
@@ -107,6 +142,39 @@ pub fn server_address_from_base_url(base_url: &str) -> ServerAddressFields {
 #[cfg(test)]
 mod server_address_tests {
     use super::*;
+
+    #[test]
+    fn validate_base_url_classifies_empty_invalid_and_ok() {
+        assert_eq!(validate_base_url(""), BaseUrlCheck::Empty);
+        assert_eq!(validate_base_url("   "), BaseUrlCheck::Empty);
+        // Malformed / unparseable, no scheme, wrong scheme, no host.
+        assert_eq!(validate_base_url("not a url"), BaseUrlCheck::Invalid);
+        assert_eq!(
+            validate_base_url("dav.example.com/x"),
+            BaseUrlCheck::Invalid
+        );
+        assert_eq!(
+            validate_base_url("ftp://dav.example.com"),
+            BaseUrlCheck::Invalid
+        );
+        assert_eq!(
+            validate_base_url("file:///etc/passwd"),
+            BaseUrlCheck::Invalid
+        );
+        // Accepted shapes.
+        assert_eq!(
+            validate_base_url("https://dav.example.com/dav/"),
+            BaseUrlCheck::Ok
+        );
+        assert_eq!(
+            validate_base_url("http://dav.example.com:8443/x"),
+            BaseUrlCheck::Ok
+        );
+        assert_eq!(
+            validate_base_url("  https://dav.example.com  "),
+            BaseUrlCheck::Ok
+        );
+    }
 
     #[test]
     fn empty_url_yields_empty_host_zero_port() {

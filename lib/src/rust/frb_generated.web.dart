@@ -1217,6 +1217,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbVersionOrder dco_decode_db_version_order(dynamic raw);
 
   @protected
+  DbWebDavBaseUrlCheck dco_decode_db_web_dav_base_url_check(dynamic raw);
+
+  @protected
   DbWebDavSessionDetails dco_decode_db_web_dav_session_details(dynamic raw);
 
   @protected
@@ -3105,6 +3108,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer);
+
+  @protected
+  DbWebDavBaseUrlCheck sse_decode_db_web_dav_base_url_check(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbWebDavSessionDetails sse_decode_db_web_dav_session_details(
@@ -5510,6 +5518,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_version_order(
     DbVersionOrder self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_web_dav_base_url_check(
+    DbWebDavBaseUrlCheck self,
     SseSerializer serializer,
   );
 

@@ -785,22 +785,19 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// as an `http://` / `https://` absolute URL. Returned message is
   /// rendered inline under the field by the form framework.
   String? _webDavBaseUrlValidator(String? raw) {
-    final value = (raw ?? '').trim();
-    if (value.isEmpty) return S.of(context).errWebDavBaseUrlRequired;
-    Uri? parsed;
-    try {
-      parsed = Uri.parse(value);
-    } on FormatException {
-      parsed = null;
+    // Validation grammar lives Rust-side (`webdav::validate_base_url`,
+    // the same `url::Url` parse the connect path uses) so the dialog
+    // can't accept a base URL the transport would later reject. Each
+    // failure variant maps to its own localized message.
+    final l10n = S.of(context);
+    switch (rust_webdav.webdavValidateBaseUrl(baseUrl: raw ?? '')) {
+      case rust_webdav.DbWebDavBaseUrlCheck.ok:
+        return null;
+      case rust_webdav.DbWebDavBaseUrlCheck.empty:
+        return l10n.errWebDavBaseUrlRequired;
+      case rust_webdav.DbWebDavBaseUrlCheck.invalid:
+        return l10n.errWebDavBaseUrlInvalid;
     }
-    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
-      return S.of(context).errWebDavBaseUrlInvalid;
-    }
-    final scheme = parsed.scheme.toLowerCase();
-    if (scheme != 'http' && scheme != 'https') {
-      return S.of(context).errWebDavBaseUrlInvalid;
-    }
-    return null;
   }
 
   void _save({bool connect = false}) {

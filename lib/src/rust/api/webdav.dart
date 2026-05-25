@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `parse_auth_method`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Parse `base_url` and return the WebDAV session's host + port
 /// projection. Explicit `:port` wins; otherwise scheme default
@@ -19,6 +19,14 @@ DbServerAddressFields webdavServerAddressFromBaseUrl({
 }) => RustLib.instance.api.crateApiWebdavWebdavServerAddressFromBaseUrl(
   baseUrl: baseUrl,
 );
+
+/// Validate a user-entered WebDAV base URL the same way the connect
+/// path parses it (`url::Url`, http/https, non-empty host). Sync so
+/// it slots into the Dart `Form.validate` pipeline. Keeping the
+/// grammar Rust-side stops the dialog from accepting a URL the
+/// transport would later reject.
+DbWebDavBaseUrlCheck webdavValidateBaseUrl({required String baseUrl}) =>
+    RustLib.instance.api.crateApiWebdavWebdavValidateBaseUrl(baseUrl: baseUrl);
 
 /// Open a WebDAV session.
 ///
@@ -120,6 +128,10 @@ class DbServerAddressFields {
           host == other.host &&
           port == other.port;
 }
+
+/// Validation verdict for a WebDAV base URL — the session-edit form's
+/// inline validator maps each variant to its own localized message.
+enum DbWebDavBaseUrlCheck { ok, empty, invalid }
 
 /// One directory entry surfaced by [`WebDavConnection::list`].
 /// Field set mirrors the SFTP shape so the Dart `RemoteFileSystem`
