@@ -545,7 +545,58 @@ fn apply_session_tags_requires_both_sessions_and_tags_toggles() {
         apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
             .unwrap();
     assert_eq!(result.session_tags_applied, 1);
+    // A link whose target landed must not inflate the skip counter.
+    assert_eq!(result.links_skipped, 0);
     assert_eq!(tags::list_session_tag_ids(&conn, "s1").unwrap(), vec!["t1"]);
+}
+
+#[test]
+fn apply_counts_links_dropped_when_target_is_missing() {
+    // Merge import of links whose targets are NOT in the import set:
+    // the session exists but the referenced tag / snippet do not, so
+    // each link FK-fails and is dropped. Merge mode keeps going, and
+    // `links_skipped` is the count surfaced to the user (the import
+    // is not rolled back).
+    let conn = fresh_db();
+    sessions::upsert(
+        &conn,
+        &sessions::SessionRow {
+            id: "s1".into(),
+            label: "l".into(),
+            host: "a".into(),
+            port: 22,
+            user: "u".into(),
+            auth_type: "password".into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let pending = PendingImport {
+        // `t-missing` / `sn-missing` were never imported → FK drop.
+        // An empty-id row is also a drop. A `folder_tags` row for a
+        // path that was not materialised is dropped too.
+        session_tags_json: Some(
+            r#"[{"session_id":"s1","tag_id":"t-missing"},{"session_id":"","tag_id":"t1"}]"#
+                .to_string(),
+        ),
+        session_snippets_json: Some(
+            r#"[{"session_id":"s1","snippet_id":"sn-missing"}]"#.to_string(),
+        ),
+        folder_tags_json: Some(r#"[{"folder_path":"/Nope","tag_id":"t1"}]"#.to_string()),
+        ..empty_pending()
+    };
+    let result =
+        apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+            .unwrap();
+    assert!(!result.rolled_back, "merge keeps going past dropped links");
+    assert_eq!(result.session_tags_applied, 0);
+    assert_eq!(result.session_snippets_applied, 0);
+    assert_eq!(result.folder_tags_applied, 0);
+    // Two session_tags rows (FK-miss + empty id) + one session_snippet
+    // (FK-miss) + one folder_tag (path not materialised) = 4 drops.
+    assert_eq!(result.links_skipped, 4);
 }
 
 #[test]

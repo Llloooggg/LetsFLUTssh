@@ -133,6 +133,14 @@ pub struct ApplyOutcome {
     pub s3_session_details_applied: i64,
     pub sftp_bookmarks_applied: i64,
     pub port_forward_rules_applied: i64,
+    /// M2M link rows (`session_tags`, `folder_tags`,
+    /// `session_snippets`) dropped during apply — either because the
+    /// link's target was not part of the import set (the insert
+    /// FK-fails, common in a partial Merge import) or because the row
+    /// was malformed. In Merge mode the link is silently dropped and
+    /// the import continues, so this counter is the only signal the
+    /// user gets that some associations did not survive.
+    pub links_skipped: i64,
     pub errors: Vec<String>,
     /// Soft warnings the apply driver emits for filtered or skipped
     /// rows that are still "well-formed" — e.g. a cert row whose
@@ -163,6 +171,7 @@ impl ApplyOutcome {
             session_tags_applied: self.session_tags_applied,
             folder_tags_applied: self.folder_tags_applied,
             session_snippets_applied: self.session_snippets_applied,
+            links_skipped: self.links_skipped,
             errors: self.errors.clone(),
             rolled_back: self.rolled_back,
         }
@@ -207,6 +216,9 @@ pub struct ApplyResult {
     pub session_tags_applied: i64,
     pub folder_tags_applied: i64,
     pub session_snippets_applied: i64,
+    /// M2M link rows dropped during apply (target not in the import
+    /// set, or malformed). See [`ApplyOutcome::links_skipped`].
+    pub links_skipped: i64,
     pub errors: Vec<String>,
     /// Replace-mode-only flag — set when the per-row apply
     /// produced one or more errors and the transaction rolled
@@ -695,13 +707,17 @@ fn apply_session_tags(conn: &impl crate::db::DbAccess, json: &str, outcome: &mut
         let session_id = json_string(&v, "session_id");
         let tag_id = json_string(&v, "tag_id");
         if session_id.is_empty() || tag_id.is_empty() {
+            outcome.links_skipped += 1;
             continue;
         }
         match tags::link_session_tag(conn, &session_id, &tag_id) {
             Ok(_) => outcome.session_tags_applied += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("session_tag {session_id}↔{tag_id}: {e}")),
+            Err(e) => {
+                outcome.links_skipped += 1;
+                outcome
+                    .errors
+                    .push(format!("session_tag {session_id}↔{tag_id}: {e}"));
+            }
         }
     }
 }
@@ -734,20 +750,25 @@ fn apply_folder_tags(
         let folder_path = json_string(&v, "folder_path");
         let tag_id = json_string(&v, "tag_id");
         if folder_path.is_empty() || tag_id.is_empty() {
+            outcome.links_skipped += 1;
             continue;
         }
         let Some(folder_id) = path_to_id.get(&folder_path) else {
             // Path was not materialised this import — sessions for
             // it weren't applied and it wasn't in empty_folders.
-            // Skip silently: the link belongs to a folder the user
-            // chose not to import.
+            // Drop the link: it belongs to a folder the user chose
+            // not to import. Counted as a skipped link.
+            outcome.links_skipped += 1;
             continue;
         };
         match tags::link_folder_tag(conn, folder_id, &tag_id) {
             Ok(_) => outcome.folder_tags_applied += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("folder_tag {folder_path}↔{tag_id}: {e}")),
+            Err(e) => {
+                outcome.links_skipped += 1;
+                outcome
+                    .errors
+                    .push(format!("folder_tag {folder_path}↔{tag_id}: {e}"));
+            }
         }
     }
 }
@@ -764,13 +785,17 @@ fn apply_session_snippets(conn: &impl crate::db::DbAccess, json: &str, outcome: 
         let session_id = json_string(&v, "session_id");
         let snippet_id = json_string(&v, "snippet_id");
         if session_id.is_empty() || snippet_id.is_empty() {
+            outcome.links_skipped += 1;
             continue;
         }
         match snippets::link_session_snippet(conn, &session_id, &snippet_id) {
             Ok(_) => outcome.session_snippets_applied += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("session_snippet {session_id}↔{snippet_id}: {e}")),
+            Err(e) => {
+                outcome.links_skipped += 1;
+                outcome
+                    .errors
+                    .push(format!("session_snippet {session_id}↔{snippet_id}: {e}"));
+            }
         }
     }
 }

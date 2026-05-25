@@ -88,6 +88,7 @@ void main() {
           sessionTagsApplied: 0,
           folderTagsApplied: 0,
           sessionSnippetsApplied: 0,
+          linksSkipped: 0,
           errors: const [],
           configJson: configJson,
           rolledBack: false,

@@ -209,6 +209,14 @@ class DbApplyResult {
   final PlatformInt64 sessionTagsApplied;
   final PlatformInt64 folderTagsApplied;
   final PlatformInt64 sessionSnippetsApplied;
+
+  /// M2M link rows (session↔tag, folder↔tag, session↔snippet)
+  /// dropped during apply because their target was not in the
+  /// import set or the row was malformed. In Merge mode the link
+  /// is dropped silently and the import continues, so this is the
+  /// only signal surfaced to the user that some associations did
+  /// not survive.
+  final PlatformInt64 linksSkipped;
   final List<String> errors;
   final String? configJson;
 
@@ -230,6 +238,7 @@ class DbApplyResult {
     required this.sessionTagsApplied,
     required this.folderTagsApplied,
     required this.sessionSnippetsApplied,
+    required this.linksSkipped,
     required this.errors,
     this.configJson,
     required this.rolledBack,
@@ -247,6 +256,7 @@ class DbApplyResult {
       sessionTagsApplied.hashCode ^
       folderTagsApplied.hashCode ^
       sessionSnippetsApplied.hashCode ^
+      linksSkipped.hashCode ^
       errors.hashCode ^
       configJson.hashCode ^
       rolledBack.hashCode;
@@ -266,6 +276,7 @@ class DbApplyResult {
           sessionTagsApplied == other.sessionTagsApplied &&
           folderTagsApplied == other.folderTagsApplied &&
           sessionSnippetsApplied == other.sessionSnippetsApplied &&
+          linksSkipped == other.linksSkipped &&
           errors == other.errors &&
           configJson == other.configJson &&
           rolledBack == other.rolledBack;

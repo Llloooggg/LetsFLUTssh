@@ -588,6 +588,13 @@ pub struct DbApplyResult {
     pub session_tags_applied: i64,
     pub folder_tags_applied: i64,
     pub session_snippets_applied: i64,
+    /// M2M link rows (session↔tag, folder↔tag, session↔snippet)
+    /// dropped during apply because their target was not in the
+    /// import set or the row was malformed. In Merge mode the link
+    /// is dropped silently and the import continues, so this is the
+    /// only signal surfaced to the user that some associations did
+    /// not survive.
+    pub links_skipped: i64,
     pub errors: Vec<String>,
     pub config_json: Option<String>,
     /// Replace-mode-only flag. True when the apply driver hit a
@@ -611,6 +618,7 @@ impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
             session_tags_applied: r.session_tags_applied,
             folder_tags_applied: r.folder_tags_applied,
             session_snippets_applied: r.session_snippets_applied,
+            links_skipped: r.links_skipped,
             errors: r.errors,
             config_json: None,
             rolled_back: r.rolled_back,
@@ -770,6 +778,7 @@ mod tests {
             session_tags_applied: 8,
             folder_tags_applied: 9,
             session_snippets_applied: 10,
+            links_skipped: 11,
             errors: vec!["unknown session".into()],
             rolled_back: false,
         };
@@ -784,6 +793,7 @@ mod tests {
         assert_eq!(db.session_tags_applied, 8);
         assert_eq!(db.folder_tags_applied, 9);
         assert_eq!(db.session_snippets_applied, 10);
+        assert_eq!(db.links_skipped, 11);
         assert_eq!(db.errors.len(), 1);
         assert!(!db.rolled_back);
         // `config_json` stays None at the From boundary; the
@@ -808,6 +818,7 @@ mod tests {
             session_tags_applied: 0,
             folder_tags_applied: 0,
             session_snippets_applied: 0,
+            links_skipped: 0,
             errors: vec!["row 5 invalid".into()],
             rolled_back: true,
         };

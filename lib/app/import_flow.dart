@@ -417,6 +417,6 @@ ImportSummary _summaryFromApply(
     configApplied: configApplied,
     knownHostsApplied: apply.knownHostsApplied > 0,
     skippedSessions: skippedSessions,
-    skippedLinks: 0,
+    skippedLinks: apply.linksSkipped.toInt(),
   );
 }

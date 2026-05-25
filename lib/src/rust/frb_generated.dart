@@ -27827,8 +27827,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbApplyResult dco_decode_db_apply_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return DbApplyResult(
       sessionsApplied: dco_decode_i_64(arr[0]),
       keysApplied: dco_decode_i_64(arr[1]),
@@ -27840,9 +27840,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sessionTagsApplied: dco_decode_i_64(arr[7]),
       folderTagsApplied: dco_decode_i_64(arr[8]),
       sessionSnippetsApplied: dco_decode_i_64(arr[9]),
-      errors: dco_decode_list_String(arr[10]),
-      configJson: dco_decode_opt_String(arr[11]),
-      rolledBack: dco_decode_bool(arr[12]),
+      linksSkipped: dco_decode_i_64(arr[10]),
+      errors: dco_decode_list_String(arr[11]),
+      configJson: dco_decode_opt_String(arr[12]),
+      rolledBack: dco_decode_bool(arr[13]),
     );
   }
 
@@ -33339,6 +33340,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_sessionTagsApplied = sse_decode_i_64(deserializer);
     var var_folderTagsApplied = sse_decode_i_64(deserializer);
     var var_sessionSnippetsApplied = sse_decode_i_64(deserializer);
+    var var_linksSkipped = sse_decode_i_64(deserializer);
     var var_errors = sse_decode_list_String(deserializer);
     var var_configJson = sse_decode_opt_String(deserializer);
     var var_rolledBack = sse_decode_bool(deserializer);
@@ -33353,6 +33355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sessionTagsApplied: var_sessionTagsApplied,
       folderTagsApplied: var_folderTagsApplied,
       sessionSnippetsApplied: var_sessionSnippetsApplied,
+      linksSkipped: var_linksSkipped,
       errors: var_errors,
       configJson: var_configJson,
       rolledBack: var_rolledBack,
@@ -40316,6 +40319,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.sessionTagsApplied, serializer);
     sse_encode_i_64(self.folderTagsApplied, serializer);
     sse_encode_i_64(self.sessionSnippetsApplied, serializer);
+    sse_encode_i_64(self.linksSkipped, serializer);
     sse_encode_list_String(self.errors, serializer);
     sse_encode_opt_String(self.configJson, serializer);
     sse_encode_bool(self.rolledBack, serializer);

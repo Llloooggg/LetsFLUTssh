@@ -68,6 +68,7 @@ rust_archive.DbApplyResult _applyResult({
   int tags = 0,
   int snippets = 0,
   int knownHosts = 0,
+  int linksSkipped = 0,
   String? configJson,
   bool rolledBack = false,
 }) => rust_archive.DbApplyResult(
@@ -81,6 +82,7 @@ rust_archive.DbApplyResult _applyResult({
   sessionTagsApplied: 0,
   folderTagsApplied: 0,
   sessionSnippetsApplied: 0,
+  linksSkipped: linksSkipped,
   errors: const [],
   configJson: configJson,
   rolledBack: rolledBack,
@@ -311,6 +313,37 @@ void main() {
         expect(find.textContaining('3'), findsWidgets);
       },
     );
+
+    _testFlow('apply links_skipped surfaces in the success toast notes', (
+      tester,
+    ) async {
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openPreview: _previewWith(hasKnownHosts: false),
+          applyResult: () => _applyResult(sessions: 1, linksSkipped: 2),
+          lfsDialogResult: (password: 'secret', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The Rust-reported dropped-link count must reach the toast —
+      // the note branch was dead before the count was plumbed through.
+      expect(find.textContaining('dropped'), findsWidgets);
+    });
 
     _testFlow('plaintext archive: empty password threads through to open', (
       tester,
