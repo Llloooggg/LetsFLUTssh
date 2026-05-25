@@ -91,10 +91,21 @@ class AppDataRow extends StatelessWidget {
       // rule the `_ActionTile` / `HoverRegion` stack applies: when the
       // whole row dispatches on tap, neither the I-beam cursor nor
       // drag-select belong here.
-      body = InkWell(
-        onTap: onTap,
-        onDoubleTap: onDoubleTap,
-        child: SelectionContainer.disabled(child: body),
+      //
+      // `MergeSemantics` + `Semantics(button: true)` collapses the
+      // title / secondary / tertiary text nodes into one node a screen
+      // reader announces as a button — every list built on this shared
+      // primitive (tag / snippet / recordings / key manager) inherits
+      // the accessible tap target instead of an unlabelled InkWell.
+      body = MergeSemantics(
+        child: Semantics(
+          button: true,
+          child: InkWell(
+            onTap: onTap,
+            onDoubleTap: onDoubleTap,
+            child: SelectionContainer.disabled(child: body),
+          ),
+        ),
       );
     }
     return body;
