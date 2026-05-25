@@ -647,10 +647,26 @@ fn resolve_active_session(connection_id: &str) -> Result<Arc<crate::ssh::Session
 }
 
 fn parse_bind_addr(bind_host: &str, bind_port: u32) -> Result<SocketAddr, Error> {
-    let bind_str = format!("{bind_host}:{bind_port}");
-    bind_str
-        .parse::<SocketAddr>()
-        .map_err(|e| Error::Transport(format!("invalid bind address {bind_str}: {e}")))
+    use std::net::ToSocketAddrs;
+    // The rule editor's validator accepts any non-empty bind host, so
+    // the bind path must resolve names (`localhost`) as well as IP
+    // literals — parsing a bare `SocketAddr` rejected `localhost` even
+    // though the editor let it through. `to_socket_addrs` parses IP
+    // literals directly and resolves hostnames (local for the usual
+    // `localhost` / `0.0.0.0` cases); take the first address.
+    let port = u16::try_from(bind_port)
+        .map_err(|_| Error::Transport(format!("bind port out of range: {bind_port}")))?;
+    (bind_host, port)
+        .to_socket_addrs()
+        .map_err(|e| {
+            Error::Transport(format!("invalid bind address {bind_host}:{bind_port}: {e}"))
+        })?
+        .next()
+        .ok_or_else(|| {
+            Error::Transport(format!(
+                "bind address {bind_host}:{bind_port} resolved to no address"
+            ))
+        })
 }
 
 /// Start a `-L` local-forward listener against the connection
@@ -991,5 +1007,22 @@ mod tests {
         assert!(second.is_err());
         let events = reporter.snapshot();
         assert!(events.iter().any(|(s, _)| *s == RuleStatus::Error));
+    }
+
+    #[test]
+    fn parse_bind_addr_accepts_localhost_and_ip_literals() {
+        // The editor validator accepts any non-empty bind host, so the
+        // bind path must resolve `localhost` (loopback) as well as IP
+        // literals — not only bare `SocketAddr` strings.
+        let loopback = parse_bind_addr("localhost", 8022).expect("localhost resolves");
+        assert!(loopback.ip().is_loopback());
+        assert_eq!(loopback.port(), 8022);
+
+        let v4 = parse_bind_addr("0.0.0.0", 9000).expect("ipv4 literal");
+        assert_eq!(v4.port(), 9000);
+        assert!(v4.ip().is_unspecified());
+
+        // Out-of-range port is rejected before resolution.
+        assert!(parse_bind_addr("127.0.0.1", 70000).is_err());
     }
 }
