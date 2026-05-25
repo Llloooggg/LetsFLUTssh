@@ -10,7 +10,7 @@ use zeroize::Zeroizing;
 /// Per-session S3 configuration. Built by the connect path from
 /// `lfs_core::db::s3_sessions::S3SessionRow` + the SecretStore-
 /// resolved secret access key.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct S3Config {
     /// AWS access key id (`AKIA…`, MinIO console-generated key,
     /// R2 access key id, etc.). Public-side credential.
@@ -50,6 +50,27 @@ pub struct S3Config {
     /// dialog renders an explicit MITM warning before letting the
     /// user flip it on.
     pub insecure_skip_verify: bool,
+}
+
+// Hand-written so `{:?}` never prints the secret access key. The
+// derived `Debug` would forward to `Zeroizing<String>`'s inner
+// `String` and leak it into any log line / panic message that
+// formats an `S3Config`. Mirrors `webdav::Credentials`'s redacting
+// `Debug`.
+impl std::fmt::Debug for S3Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("S3Config")
+            .field("access_key_id", &self.access_key_id)
+            .field("secret_access_key", &"<redacted>")
+            .field("region", &self.region)
+            .field("endpoint", &self.endpoint)
+            .field("path_style", &self.path_style)
+            .field("default_bucket", &self.default_bucket)
+            .field("default_prefix", &self.default_prefix)
+            .field("trusted_cert_pem", &self.trusted_cert_pem)
+            .field("insecure_skip_verify", &self.insecure_skip_verify)
+            .finish()
+    }
 }
 
 /// Validate a bucket name against AWS S3 naming rules (RFC-grade

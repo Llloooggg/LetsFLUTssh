@@ -73,10 +73,9 @@ fn row_is_publishable(row: &SshKeyRow) -> bool {
     if BackendKind::from_row(row) == BackendKind::Fido2 && row.has_user_verification {
         crate::app_log_info!(
             "SshAgent",
-            "skip listing key=<{}> label=<{}>: FIDO2 user-verification required; \
+            "skip listing key=<{}>: FIDO2 user-verification required; \
              agent wire has no PIN surface — use direct connection",
-            row.id,
-            row.label
+            row.id
         );
         return false;
     }
