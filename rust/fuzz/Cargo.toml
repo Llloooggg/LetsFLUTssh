@@ -9,9 +9,11 @@ license = "GPL-3.0-only"
 # consumers in lfs_core / lfs_os_security: deeplink URI, known_hosts
 # entries, QR codec payload, the OpenSSH config grammar, the PKCS#11
 # URI parser, PEM certificate parsing, the SSH target parser, the
-# SFTP transfer-entry-name safety predicate, and the terminal engine's
-# ANSI/VT parser (hostile SSH-stream bytes). Each target is a thin
-# `fuzz_target!` shim that drives bytes from the fuzzer at the pure-fn
+# SFTP transfer-entry-name safety predicate, the terminal engine's
+# ANSI/VT parser (hostile SSH-stream bytes), and the SSH private-key
+# importers (OpenSSH / PKCS#1 / PKCS#8 PEM, PuTTY PPK v2/v3, FIDO2
+# `sk-*`). Each target is a thin `fuzz_target!` shim that drives bytes
+# from the fuzzer at the pure-fn
 # entrypoint and asserts no panic / no UB / fail-closed on malformed
 # input.
 #
@@ -92,6 +94,27 @@ bench = false
 [[bin]]
 name = "terminal_engine"
 path = "fuzz_targets/terminal_engine.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ppk_import"
+path = "fuzz_targets/ppk_import.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "openssh_key_import"
+path = "fuzz_targets/openssh_key_import.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sk_key_import"
+path = "fuzz_targets/sk_key_import.rs"
 test = false
 doc = false
 bench = false
