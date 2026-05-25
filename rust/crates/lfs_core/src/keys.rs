@@ -86,11 +86,9 @@ pub fn generate_rsa(bits: usize, comment: &str) -> Result<KeyMaterial, Error> {
         .map_err(|e| Error::KeyParse(format!("rsa keygen: {e}")))?;
     let key = PrivateKey::new(KeypairData::from(rsa), comment.to_string())
         .map_err(|e| Error::KeyParse(format!("rsa wrap: {e}")))?;
-    // Match OpenSSH's default `ssh-keygen -t rsa` output: SHA-256
-    // hash on the algorithm tag so userauth picks `rsa-sha2-256` over
-    // the legacy SHA-1 `ssh-rsa`. The wire bytes of the public key
-    // don't change; only the algorithm metadata does.
-    let _ = HashAlg::Sha256;
+    // The generated key carries no hash tag — `rsa-sha2-256` vs the
+    // legacy SHA-1 `ssh-rsa` is chosen at userauth time by russh's
+    // algorithm negotiation, not baked into the key here.
     finish(key, comment)
 }
 
