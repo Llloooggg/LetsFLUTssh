@@ -3403,6 +3403,18 @@ Per-row last-write-wins on the table's effective timestamp. The
 merge runs inside a single SQLite transaction so a mid-merge crash
 leaves the local DB untouched.
 
+A peer row with a missing or unparseable effective timestamp
+defaults to `0` (epoch) for the LWW comparison, not the apply
+moment — an unstamped peer row must *lose* to any real local stamp
+rather than win. Defaulting to `now` (as the archive-import path
+does for an informational `created_at`) would let a malformed or
+old-client row silently clobber newer local edits. The row that
+*does* apply stores `now` as its fresh stamp where the table
+carries a separate stored column (WebDAV / S3 details); session /
+key / tag rows reuse the comparison value as the stored stamp.
+Tombstone deletion timestamps follow the same rule — an unstamped
+tombstone defaults to `0` and cannot delete a newer local row.
+
 | Table | Field consulted | Notes |
 |---|---|---|
 | `sessions` | `updated_at` | strict-greater ⇒ peer wins |

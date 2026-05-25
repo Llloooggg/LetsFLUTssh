@@ -63,7 +63,7 @@ use crate::db::{
 };
 use crate::error::Error;
 
-use super::iso8601::parse_iso8601_or_now;
+use super::iso8601::{parse_iso8601_opt, parse_iso8601_or_now};
 use super::PendingImport;
 
 /// Apply mode — `Merge` upserts, `Replace` clears the matching
@@ -857,10 +857,12 @@ fn apply_sessions(
             continue;
         }
         let peer_updated_at = if mode.is_sync() {
-            parse_iso8601_or_now(
-                v.get("updated_at").and_then(|x| x.as_str()).unwrap_or(""),
-                now_ms,
-            )
+            // Sync LWW: a missing / malformed peer stamp must LOSE,
+            // not win. Default to 0 (oldest) so it never clobbers a
+            // real local `updated_at`; defaulting to `now_ms` here
+            // would make every unstamped peer row overwrite local.
+            parse_iso8601_opt(v.get("updated_at").and_then(|x| x.as_str()).unwrap_or(""))
+                .unwrap_or(0)
         } else {
             now_ms
         };
@@ -1021,10 +1023,11 @@ fn apply_keys_sync(
         if id.is_empty() {
             continue;
         }
-        let peer_ts = parse_iso8601_or_now(
-            v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""),
-            now_ms,
-        );
+        // Sync LWW key on `created_at` (keys carry no `updated_at`);
+        // a missing / malformed stamp defaults to 0 so it loses to a
+        // real local row instead of winning via `now_ms`.
+        let peer_ts = parse_iso8601_opt(v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""))
+            .unwrap_or(0);
         if let Some(local_row) = local.get(&id) {
             if peer_ts <= local_row.created_at_ms {
                 continue;
@@ -1197,10 +1200,12 @@ fn apply_tags(
     for v in arr {
         let id = json_string(&v, "id");
         let name = json_string(&v, "name");
-        let peer_ts = parse_iso8601_or_now(
-            v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""),
-            now_ms,
-        );
+        // Archive import: a missing `created_at` is informational →
+        // default to `now`. Sync LWW keys on `created_at`, so a
+        // missing peer stamp defaults to 0 to LOSE the merge rather
+        // than win via `now`.
+        let peer_ts = parse_iso8601_opt(v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""))
+            .unwrap_or(if mode.is_sync() { 0 } else { now_ms });
         if id.is_empty() || (!mode.is_sync() && name.is_empty()) {
             continue;
         }
@@ -1268,10 +1273,13 @@ fn apply_snippets(
         if !mode.is_sync() && title.is_empty() {
             continue;
         }
-        let peer_updated = parse_iso8601_or_now(
-            v.get("updated_at").and_then(|x| x.as_str()).unwrap_or(""),
-            now_ms,
-        );
+        // Only consumed under sync (the `updated_at_ms` assignment
+        // below uses `now_ms` for archive imports). A missing peer
+        // stamp defaults to 0 so it loses the LWW gate instead of
+        // winning via `now_ms`.
+        let peer_updated =
+            parse_iso8601_opt(v.get("updated_at").and_then(|x| x.as_str()).unwrap_or(""))
+                .unwrap_or(0);
         if mode.is_sync() {
             if let Some(local_row) = local.get(&id) {
                 if peer_updated <= local_row.updated_at_ms {
@@ -1503,7 +1511,7 @@ fn apply_webdav_session_details(
             continue;
         }
         if is_tombstone {
-            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(now_ms);
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
             match webdav_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
                 Ok(_) => outcome.webdav_session_details_applied += 1,
                 Err(e) => outcome.errors.push(format!(
@@ -1519,7 +1527,7 @@ fn apply_webdav_session_details(
             continue;
         }
         if mode.is_sync() {
-            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
+            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(0);
             // LWW gate: skip when the local stamp is at least as
             // fresh as the peer's. The tombstone branch above uses
             // its own gate inside `apply_tombstone`.
@@ -1548,6 +1556,10 @@ fn apply_webdav_session_details(
                 .unwrap_or(false),
         };
         let result = if mode.is_sync() {
+            // Stored stamp: a row that passed the LWW gate is being
+            // applied now, so a missing peer stamp falls back to
+            // `now_ms` (the gate above already used 0 so an unstamped
+            // peer can't *win* over a newer local row).
             let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
             webdav_sessions::upsert_with_stamp(conn, &row, peer_updated_at)
         } else {
@@ -1600,7 +1612,7 @@ fn apply_s3_session_details(
             continue;
         }
         if is_tombstone {
-            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(now_ms);
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
             match s3_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
                 Ok(_) => outcome.s3_session_details_applied += 1,
                 Err(e) => outcome
@@ -1616,7 +1628,7 @@ fn apply_s3_session_details(
             continue;
         }
         if mode.is_sync() {
-            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
+            let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(0);
             if let Some(local_updated) = s3_sessions::get_updated_at(conn, &session_id)
                 .ok()
                 .flatten()
@@ -1648,6 +1660,8 @@ fn apply_s3_session_details(
                 .unwrap_or(false),
         };
         let result = if mode.is_sync() {
+            // Stored stamp falls back to `now_ms` (fresh apply); the
+            // LWW gate above used 0 so an unstamped peer cannot win.
             let peer_updated_at = json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms);
             s3_sessions::upsert_with_stamp(conn, &row, peer_updated_at)
         } else {
@@ -1777,7 +1791,7 @@ fn apply_port_forward_rules(
             continue;
         }
         if is_tombstone {
-            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(now_ms);
+            let deleted_at_ms = json_i64_opt(&v, "deleted_at_ms").unwrap_or(0);
             match port_forwards::apply_tombstone(conn, &id, deleted_at_ms) {
                 Ok(_) => outcome.port_forward_rules_applied += 1,
                 Err(e) => outcome
@@ -1793,7 +1807,7 @@ fn apply_port_forward_rules(
             continue;
         }
         let peer_updated_at = if mode.is_sync() {
-            json_i64_opt(&v, "updated_at_ms").unwrap_or(now_ms)
+            json_i64_opt(&v, "updated_at_ms").unwrap_or(0)
         } else {
             now_ms
         };

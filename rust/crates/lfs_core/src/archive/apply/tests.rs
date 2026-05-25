@@ -1313,6 +1313,49 @@ fn apply_ssh_key_certificates_drops_with_warning_when_parent_absent() {
 }
 
 #[test]
+fn sync_unstamped_peer_session_does_not_clobber_newer_local() {
+    // A peer session with a missing `updated_at` must LOSE the sync
+    // LWW gate, not win: the fallback is 0 (oldest), so a real local
+    // stamp is kept. Defaulting the peer stamp to `now` would let
+    // every unstamped peer row overwrite newer local edits.
+    let mut conn = fresh_db();
+    let local = sessions::SessionRow {
+        id: "s1".into(),
+        label: "local-label".into(),
+        host: "h".into(),
+        port: 22,
+        user: "u".into(),
+        auth_type: "password".into(),
+        updated_at_ms: 9_000_000_000_000,
+        ..Default::default()
+    };
+    sessions::upsert(&conn, &local).unwrap();
+    let pending = PendingImport {
+        sessions_json: Some(
+            r#"[{"id":"s1","label":"peer-label","host":"h","port":22,"user":"u","auth_type":"password"}]"#
+                .into(),
+        ),
+        ..empty_pending()
+    };
+    let mut outcome = ApplyOutcome::default();
+    apply_pending_to_db(
+        &mut conn,
+        &pending,
+        ApplyMode::Sync,
+        &ApplyOptions::default(),
+        1_700_000_000_000,
+        &mut outcome,
+    )
+    .unwrap();
+    let row = sessions::list_all(&conn)
+        .unwrap()
+        .into_iter()
+        .find(|r| r.id == "s1")
+        .expect("session present");
+    assert_eq!(row.label, "local-label", "unstamped peer must not win");
+}
+
+#[test]
 fn apply_webdav_session_details_round_trip() {
     let mut conn = fresh_db();
     seed_session_id(&conn, "s1");

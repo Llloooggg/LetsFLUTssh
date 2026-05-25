@@ -61,17 +61,17 @@ pub(crate) fn civil_to_unix_ms(year: i64, month: u32, day: u32, hh: u32, mm: u32
     secs * 1000
 }
 
-/// Iso8601 → unix-millis. Best-effort: drops to `now` on parse
-/// failure since the archive's "created_at" is informational only —
-/// the row's effective timestamp is the apply moment.
-pub fn parse_iso8601_or_now(s: &str, now_ms: i64) -> i64 {
-    if s.is_empty() {
-        return now_ms;
-    }
+/// Iso8601 → unix-millis, or `None` when the string is empty / too
+/// short to be our `YYYY-MM-DDTHH:MM:SS.mmmZ` shape. Callers pick the
+/// fallback that fits their semantics: archive imports default a
+/// missing `created_at` to `now` (informational), while sync LWW
+/// defaults a missing comparison stamp to `0` so an unstamped peer
+/// row LOSES the merge instead of clobbering newer local state.
+pub fn parse_iso8601_opt(s: &str) -> Option<i64> {
     // Match the format we emit: YYYY-MM-DDTHH:MM:SS.mmmZ
     let bytes = s.as_bytes();
     if bytes.len() < 24 {
-        return now_ms;
+        return None;
     }
     let parse = |off: usize, len: usize| -> Option<i64> {
         std::str::from_utf8(&bytes[off..off + len])
@@ -86,14 +86,23 @@ pub fn parse_iso8601_or_now(s: &str, now_ms: i64) -> i64 {
     let mm = parse(14, 2).unwrap_or(0);
     let ss = parse(17, 2).unwrap_or(0);
     let ms = parse(20, 3).unwrap_or(0);
-    civil_to_unix_ms(
-        year,
-        month as u32,
-        day as u32,
-        hh as u32,
-        mm as u32,
-        ss as u32,
-    ) + ms
+    Some(
+        civil_to_unix_ms(
+            year,
+            month as u32,
+            day as u32,
+            hh as u32,
+            mm as u32,
+            ss as u32,
+        ) + ms,
+    )
+}
+
+/// Iso8601 → unix-millis. Best-effort: drops to `now` on parse
+/// failure since the archive's "created_at" is informational only —
+/// the row's effective timestamp is the apply moment.
+pub fn parse_iso8601_or_now(s: &str, now_ms: i64) -> i64 {
+    parse_iso8601_opt(s).unwrap_or(now_ms)
 }
 
 #[cfg(test)]
@@ -152,5 +161,16 @@ mod tests {
         let now = 42;
         assert_eq!(parse_iso8601_or_now("", now), now);
         assert_eq!(parse_iso8601_or_now("nope", now), now);
+    }
+
+    #[test]
+    fn parse_iso8601_opt_returns_none_for_unparseable() {
+        // The sync LWW gate relies on `None` for empty / too-short
+        // input so it can default to 0 (lose) instead of `now` (win).
+        assert_eq!(parse_iso8601_opt(""), None);
+        assert_eq!(parse_iso8601_opt("nope"), None);
+        assert_eq!(parse_iso8601_opt("2026-01-01"), None); // < 24 bytes
+        let ms = 1_777_161_600_123_i64;
+        assert_eq!(parse_iso8601_opt(&format_iso8601_utc(ms)), Some(ms));
     }
 }
