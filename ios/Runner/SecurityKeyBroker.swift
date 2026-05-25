@@ -150,9 +150,15 @@ private final class SecurityKeyDelegate: NSObject,
             nsErr.code,
             nsErr.localizedDescription,
         )
-        let msg = nsErr.localizedDescription.cString(using: .utf8)
-        msg?.withUnsafeBufferPointer { ptr in
-            callback(tag, status, nil, 0, nil, 0, nil, 0, ptr.baseAddress)
+        // Fire the callback exactly once even when the message is not
+        // UTF-8 convertible — otherwise `cleanup()` drops the pending
+        // entry and the Rust `oneshot` receiver hangs forever.
+        if let msg = nsErr.localizedDescription.cString(using: .utf8) {
+            msg.withUnsafeBufferPointer { ptr in
+                callback(tag, status, nil, 0, nil, 0, nil, 0, ptr.baseAddress)
+            }
+        } else {
+            callback(tag, status, nil, 0, nil, 0, nil, 0, nil)
         }
         cleanup()
     }
@@ -257,15 +263,28 @@ private final class SecurityKeyBroker {
     }
 
     private func signalTimeout(tag: UInt64, delegate: SecurityKeyDelegate) {
-        let msg = "security-key prompt timed out".cString(using: .utf8)
-        msg?.withUnsafeBufferPointer { ptr in
+        // Fire the callback exactly once even when the message is not
+        // UTF-8 convertible — otherwise the Rust `oneshot` receiver
+        // for this tag hangs forever.
+        if let msg = "security-key prompt timed out".cString(using: .utf8) {
+            msg.withUnsafeBufferPointer { ptr in
+                delegate.callback(
+                    tag,
+                    BrokerStatus.timeout,
+                    nil, 0,
+                    nil, 0,
+                    nil, 0,
+                    ptr.baseAddress,
+                )
+            }
+        } else {
             delegate.callback(
                 tag,
                 BrokerStatus.timeout,
                 nil, 0,
                 nil, 0,
                 nil, 0,
-                ptr.baseAddress,
+                nil,
             )
         }
     }
