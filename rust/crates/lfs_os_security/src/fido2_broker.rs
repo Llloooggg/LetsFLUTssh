@@ -294,16 +294,32 @@ mod platform_impl {
                     Some(a) => a,
                     None => return Err(BrokerError::Other("null assertion pointer".into())),
                 };
-                let signature = std::slice::from_raw_parts(
-                    assertion.pbSignature,
-                    assertion.cbSignature as usize,
-                )
-                .to_vec();
-                let authenticator_data = std::slice::from_raw_parts(
-                    assertion.pbAuthenticatorData,
-                    assertion.cbAuthenticatorData as usize,
-                )
-                .to_vec();
+                // Guard each pointer before slicing — `from_raw_parts`
+                // on a null pointer is UB even at length 0. A
+                // well-formed assertion always carries signature +
+                // authenticator data, but matching the `pbUserId`
+                // guard below (and the sibling assertion path) keeps a
+                // malformed callback from tripping UB.
+                let signature = if assertion.cbSignature > 0 && !assertion.pbSignature.is_null() {
+                    std::slice::from_raw_parts(
+                        assertion.pbSignature,
+                        assertion.cbSignature as usize,
+                    )
+                    .to_vec()
+                } else {
+                    Vec::new()
+                };
+                let authenticator_data = if assertion.cbAuthenticatorData > 0
+                    && !assertion.pbAuthenticatorData.is_null()
+                {
+                    std::slice::from_raw_parts(
+                        assertion.pbAuthenticatorData,
+                        assertion.cbAuthenticatorData as usize,
+                    )
+                    .to_vec()
+                } else {
+                    Vec::new()
+                };
                 let user_handle = if assertion.cbUserId > 0 && !assertion.pbUserId.is_null() {
                     Some(
                         std::slice::from_raw_parts(assertion.pbUserId, assertion.cbUserId as usize)
