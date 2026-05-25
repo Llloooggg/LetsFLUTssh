@@ -83,12 +83,17 @@ use sk_signer::FidoSigner;
 pub struct LfsHandler {
     forward_tx: Option<tokio::sync::mpsc::Sender<ForwardedConnection>>,
     /// Endpoint we're connecting to — used by `check_server_key` to
-    /// look up the matching `known_hosts` entry. Empty `host` /
-    /// zero `port` means "skip TOFU enforcement" (probe handlers
-    /// auto-accept; production handlers always carry a real
-    /// endpoint).
+    /// look up the matching `known_hosts` entry. Always a real
+    /// endpoint, for probes and production handlers alike.
     host: String,
     port: u16,
+    /// Probe handlers (`try_connect_*`) run host-key verification in
+    /// read-only mode: accept only an already-trusted key, reject an
+    /// unknown / changed one WITHOUT prompting or writing
+    /// `known_hosts`. A probe must never auto-accept — that would leak
+    /// the credential to an unverified host — nor pollute the trust
+    /// store before the user has committed to connecting.
+    probe_only: bool,
 }
 
 /// Per-session backlog cap on inbound `-R` forwarded
@@ -115,22 +120,24 @@ impl LfsHandler {
                 forward_tx: Some(tx),
                 host: host.to_string(),
                 port,
+                probe_only: false,
             },
             rx,
         )
     }
 
-    fn probe() -> Self {
+    fn probe(host: &str, port: u16) -> Self {
         // One-shot probes (`try_connect_*`) never request remote
-        // forwards, so no receiver is needed. Sender stays None;
-        // any (hypothetical) inbound forwarded channel is dropped.
-        // Probe handlers also skip TOFU — an unauthenticated probe
-        // should not pollute the user's known_hosts table or pop a
-        // dialog before the user has decided to actually connect.
+        // forwards, so no receiver is needed. Sender stays None; any
+        // (hypothetical) inbound forwarded channel is dropped. The
+        // probe still verifies the host key, but in read-only TOFU
+        // mode (see `probe_only`) so it neither auto-accepts an
+        // unverified host nor writes the trust store.
         LfsHandler {
             forward_tx: None,
-            host: String::new(),
-            port: 0,
+            host: host.to_string(),
+            port,
+            probe_only: true,
         }
     }
 }
@@ -142,15 +149,13 @@ impl Handler for LfsHandler {
         &mut self,
         server_public_key: &ssh_key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Empty host / zero port marks a probe handler — auto-accept.
-        if self.host.is_empty() || self.port == 0 {
-            return Ok(true);
-        }
         // Defensive — a DB read failure or a missing prompt
         // listener resolves to "rejected" so the handshake fails
-        // closed. Better than silent accept.
+        // closed. Better than silent accept. Probe handlers pass
+        // `allow_prompt = false` so an unknown key is rejected
+        // read-only instead of popping a dialog or auto-accepting.
         Ok(
-            check_server_key_via_tofu(&self.host, self.port, server_public_key)
+            check_server_key_via_tofu(&self.host, self.port, server_public_key, !self.probe_only)
                 .await
                 .unwrap_or(false),
         )
@@ -326,9 +331,13 @@ fn read_keepalive_sec_from_config_store() -> u64 {
 }
 
 async fn open_handle_for_probe(host: &str, port: u16) -> Result<Handle<LfsHandler>, Error> {
-    client::connect(default_client_config(), (host, port), LfsHandler::probe())
-        .await
-        .map_err(|e| Error::Connect(e.to_string()))
+    client::connect(
+        default_client_config(),
+        (host, port),
+        LfsHandler::probe(host, port),
+    )
+    .await
+    .map_err(|e| Error::Connect(e.to_string()))
 }
 
 /// Run the TOFU lookup against the running DB and (when the host
@@ -346,6 +355,7 @@ async fn check_server_key_via_tofu(
     host: &str,
     port: u16,
     server_public_key: &ssh_key::PublicKey,
+    allow_prompt: bool,
 ) -> Result<bool, Error> {
     use base64::engine::{general_purpose::STANDARD as B64_STD, Engine as _};
     let app = crate::app::instance();
@@ -395,6 +405,14 @@ async fn check_server_key_via_tofu(
         crate::known_hosts::HostCheckResult::Accepted => return Ok(true),
         crate::known_hosts::HostCheckResult::Mismatch(m) => m,
     };
+    // Read-only mode (probes): an unknown or changed key is rejected
+    // without prompting the user or writing the trust store. Only an
+    // already-trusted key (the `Accepted` arm above) lets a probe
+    // through, so a probe can never leak the credential to an
+    // unverified host.
+    if !allow_prompt {
+        return Ok(false);
+    }
     let kind = crate::known_hosts::prompt_kind_for(&mismatch);
     let fingerprint = format_fingerprint(&key_bytes);
     let prompt_id = generate_prompt_id();

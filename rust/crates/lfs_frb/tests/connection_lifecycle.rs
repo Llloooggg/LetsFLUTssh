@@ -76,7 +76,17 @@ async fn pre_register_known_host(
 
 #[tokio::test]
 async fn try_connect_password_succeeds_against_test_server_with_correct_password() {
-    let handle = test_server::start().await.expect("test_server::start");
+    // The probe now runs read-only TOFU — it accepts only an
+    // already-trusted host key — so bootstrap a DB and pre-register
+    // the fixture's key before the probe reaches userauth.
+    let _gate = DB_BOOTSTRAP_GATE.lock().await;
+    let _ = lfs_core::app::init();
+    let _dir = bootstrap_db_in_tempdir().await;
+    let handle = lfs_frb::api::test_hooks::test_ssh_server_start()
+        .await
+        .expect("test_ssh_server_start");
+    pre_register_known_host("127.0.0.1", handle.port, &handle).await;
+
     let res = ssh_try_connect_password(
         "127.0.0.1".into(),
         handle.port,
@@ -85,12 +95,22 @@ async fn try_connect_password_succeeds_against_test_server_with_correct_password
     )
     .await;
     assert!(res.is_ok(), "expected Ok, got {res:?}");
-    handle.shutdown();
+    lfs_frb::api::test_hooks::test_ssh_server_stop_all();
 }
 
 #[tokio::test]
 async fn try_connect_password_rejects_wrong_password_against_test_server() {
-    let handle = test_server::start().await.expect("test_server::start");
+    // Pre-register the host key so the probe clears read-only TOFU and
+    // the failure surfaces at userauth (not as a host-key rejection),
+    // pinning the `kind=auth_failed` envelope.
+    let _gate = DB_BOOTSTRAP_GATE.lock().await;
+    let _ = lfs_core::app::init();
+    let _dir = bootstrap_db_in_tempdir().await;
+    let handle = lfs_frb::api::test_hooks::test_ssh_server_start()
+        .await
+        .expect("test_ssh_server_start");
+    pre_register_known_host("127.0.0.1", handle.port, &handle).await;
+
     let res = ssh_try_connect_password(
         "127.0.0.1".into(),
         handle.port,
@@ -107,7 +127,34 @@ async fn try_connect_password_rejects_wrong_password_against_test_server() {
         envelope.contains("auth_failed"),
         "expected typed kind=auth_failed envelope, got {envelope}"
     );
-    handle.shutdown();
+    lfs_frb::api::test_hooks::test_ssh_server_stop_all();
+}
+
+#[tokio::test]
+async fn try_connect_probe_rejects_unknown_host_key() {
+    // Security regression: the probe must NOT auto-accept an
+    // unverified host key — that would leak the credential to a MITM.
+    // With no `known_hosts` entry, read-only TOFU rejects the
+    // handshake before userauth even though the password is correct.
+    let _gate = DB_BOOTSTRAP_GATE.lock().await;
+    let _ = lfs_core::app::init();
+    let _dir = bootstrap_db_in_tempdir().await;
+    let handle = lfs_frb::api::test_hooks::test_ssh_server_start()
+        .await
+        .expect("test_ssh_server_start");
+    // Deliberately skip `pre_register_known_host`.
+    let res = ssh_try_connect_password(
+        "127.0.0.1".into(),
+        handle.port,
+        "tester".into(),
+        TEST_PASSWORD.as_bytes().to_vec(),
+    )
+    .await;
+    assert!(
+        res.is_err(),
+        "unknown host key must be rejected, not auto-accepted: {res:?}"
+    );
+    lfs_frb::api::test_hooks::test_ssh_server_stop_all();
 }
 
 #[tokio::test]
