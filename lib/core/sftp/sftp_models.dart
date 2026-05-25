@@ -8,6 +8,14 @@ class FileEntry {
   final int mode; // Unix permissions (e.g. 0755)
   final DateTime modTime;
   final bool isDir;
+
+  /// True when the entry is a symbolic link (resolved via `lstat`,
+  /// not by following the target). Delete routing keys on this so a
+  /// link is unlinked rather than recursed into — recursing through
+  /// a symlinked directory would wipe the link's *target* contents.
+  /// Defaults false for backends without a link concept (WebDAV/S3).
+  final bool isSymlink;
+
   final String owner;
 
   const FileEntry({
@@ -17,6 +25,7 @@ class FileEntry {
     this.mode = 0,
     required this.modTime,
     required this.isDir,
+    this.isSymlink = false,
     this.owner = '',
   });
 

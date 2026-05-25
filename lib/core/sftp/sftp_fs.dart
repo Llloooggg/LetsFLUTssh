@@ -160,6 +160,7 @@ class RustSftpFs extends RemoteSftpFs {
                   )
                 : DateTime.now(),
             isDir: e.isDir,
+            isSymlink: e.isSymlink,
             owner: '',
           ),
         );

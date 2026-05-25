@@ -93,6 +93,7 @@ class LocalFS implements FileSystem {
             row.modTimeUnixMs.toInt(),
           ),
           isDir: row.isDir,
+          isSymlink: row.isSymlink,
         ),
       );
     }

@@ -289,6 +289,20 @@ impl Sftp {
     /// completes; the next iteration of the for-loop never
     /// starts.
     pub async fn remove_dir_recursive(&self, path: &str) -> Result<(), Error> {
+        // Never recurse through a symlinked root: `list(path)` would
+        // follow the link and delete the *target* directory's
+        // contents. Unlink the link itself instead — matches the
+        // per-child symlink handling inside the walk and POSIX
+        // `rm -r` on a symlink argument. `stat_symlink` is `lstat`,
+        // so it reports the link's own type without chasing it.
+        if self
+            .stat_symlink(path)
+            .await
+            .map(|m| m.is_symlink)
+            .unwrap_or(false)
+        {
+            return self.remove_file(path).await;
+        }
         remove_dir_recursive_inner(self, path, 0).await
     }
 }

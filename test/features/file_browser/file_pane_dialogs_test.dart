@@ -862,6 +862,55 @@ void main() {
       ctrl.dispose();
     });
 
+    testWidgets('symlinked directory is unlinked, not recursed', (
+      tester,
+    ) async {
+      final fs = _MockFS();
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.navigateTo('/test', addToHistory: false);
+
+      // A symlink-to-directory reports isDir:true; deleting it must
+      // unlink the link (remove) rather than recurse (removeDir),
+      // which would wipe the link target's contents.
+      final entry = FileEntry(
+        name: 'mylink',
+        path: '/test/mylink',
+        size: 0,
+        modTime: DateTime.now(),
+        isDir: true,
+        isSymlink: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  child: const Text('Go'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Go'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+
+      expect(fs.removedFiles, ['/test/mylink']);
+      expect(fs.removedDirs, isEmpty);
+      ctrl.dispose();
+    });
+
     testWidgets('cancel does not delete', (tester) async {
       final fs = _MockFS();
       final ctrl = FilePaneController(fs: fs, label: 'Test');

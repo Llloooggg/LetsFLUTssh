@@ -213,7 +213,11 @@ class FilePaneDialogs {
     FilePaneController ctrl,
     FileEntry entry,
   ) async {
-    if (entry.isDir) {
+    // A symlink-to-directory reports `isDir: true` (the metadata
+    // follows the link), but recursing into it would delete the
+    // link's *target* contents. Unlink the link itself instead —
+    // `remove` lstat-routes to an unlink for symlinks.
+    if (entry.isDir && !entry.isSymlink) {
       await ctrl.fs.removeDir(entry.path);
     } else {
       await ctrl.fs.remove(entry.path);
