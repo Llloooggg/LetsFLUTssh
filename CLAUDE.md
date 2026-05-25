@@ -1,6 +1,6 @@
 # LetsFLUTssh — Development Guide
 
-Lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 desktops + mobile). Open-source alt to Xshell/Termius. **Solo developer project.** This file is the single source of truth for agent rules.
+Cross-platform SSH/SFTP client (Flutter UI on a Rust core, all 5 desktops + mobile). Open-source alt to Xshell/Termius. **Solo developer project.** This file is the single source of truth for agent rules.
 
 ## Documentation Map
 

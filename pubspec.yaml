@@ -1,5 +1,5 @@
 name: letsflutssh
-description: Lightweight cross-platform SSH/SFTP client with GUI
+description: Cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
 version: 7.3.2+419
 homepage: https://github.com/Llloooggg/LetsFLUTssh

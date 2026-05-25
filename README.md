@@ -18,7 +18,7 @@
 
 > **Disclaimer:** This is a functional neuroslop pet project — built with AI assistance under the supervision and direction of a real developer, for personal use, self-education, and fun. Use at your own risk.
 
-Lightweight cross-platform SSH/SFTP client with GUI — **Flutter UI on a Rust core** (security, transport, terminal emulation via [`alacritty_terminal`](https://github.com/alacritty/alacritty), and SQLCipher all inside `lfs_core` + `lfs_os_security`, bridged via [`flutter_rust_bridge`](https://github.com/fzyzcjy/flutter_rust_bridge); Flutter only renders, secrets never cross to Dart). Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
+Cross-platform SSH/SFTP client with GUI — **Flutter UI on a Rust core** (security, transport, terminal emulation via [`alacritty_terminal`](https://github.com/alacritty/alacritty), and SQLCipher all inside `lfs_core` + `lfs_os_security`, bridged via [`flutter_rust_bridge`](https://github.com/fzyzcjy/flutter_rust_bridge); Flutter only renders, secrets never cross to Dart). Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
 
 ![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_terminal.png)
 ![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_files.png)
