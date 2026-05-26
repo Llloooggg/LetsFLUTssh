@@ -3,7 +3,7 @@
 # repo). Username / password are hard-coded to tester / testpass —
 # this image is for local dev only.
 
-FROM httpd:2.4-alpine
+FROM httpd:2.4-alpine@sha256:0136c2d4462f3b8ecc92bea70efdfef4d06523999ae8d7aa533969dea6db4576
 
 # `apr-util-dbm_gdbm` is the DBM provider mod_dav_fs uses for its
 # per-resource lock database (`DAVLockDB`). Without it every write
