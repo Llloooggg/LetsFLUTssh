@@ -213,7 +213,7 @@ Future<bool> _initRustCoreOrFatal() async {
     }
     runApp(
       const FatalErrorApp(
-        summary: 'LetsFLUTssh cannot start.',
+        summary: _fatalStartSummary,
         detail:
             'The bundled native core failed to load. This usually means the '
             'application bundle is incomplete or incompatible with this '
@@ -224,6 +224,10 @@ Future<bool> _initRustCoreOrFatal() async {
     return false;
   }
 }
+
+/// Summary shown by [FatalErrorApp] on every unrecoverable cold-start
+/// path (native-core load failure, fatal rollback, init crash).
+const _fatalStartSummary = 'LetsFLUTssh cannot start.';
 
 Future<void> main() async {
   // `WidgetsFlutterBinding.ensureInitialized()` must be called inside
@@ -422,7 +426,7 @@ Future<void> _mainBody() async {
     );
     runApp(
       FatalErrorApp(
-        summary: 'LetsFLUTssh cannot start.',
+        summary: _fatalStartSummary,
         detail:
             'The settings file at ${e.path} could not be parsed. '
             'Your sessions and saved data are not affected — only '
@@ -479,7 +483,7 @@ Future<void> _mainBody() async {
     );
     runApp(
       FatalErrorApp(
-        summary: 'LetsFLUTssh cannot start.',
+        summary: _fatalStartSummary,
         detail:
             'The settings file at ${e.path} could not be parsed. '
             'Your sessions and saved data are not affected — only '

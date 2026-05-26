@@ -13,6 +13,10 @@ part of 'session_edit_dialog.dart';
 /// and the dirty-bit flags directly without going through a public
 /// surface; `part of` joins the file into the same library so
 /// library-private names stay reachable.
+/// Placeholder shown in a secret field when nothing is stored yet —
+/// eight bullets, the same masked width as a typed secret.
+const _maskedSecretHint = '••••••••';
+
 extension _AuthSection on _SessionEditDialogState {
   /// Auth-section composer for the single-form layout. Renders the
   /// inline `_authError` banner (above the per-kind block) when
@@ -137,7 +141,7 @@ extension _AuthSection on _SessionEditDialogState {
       // SSH `usernameRequired` / `hostRequired` style.
       label: '$baseLabel *',
       controller: _passwordCtrl,
-      hint: hasStored ? l10n.savedTypeToChange : '••••••••',
+      hint: hasStored ? l10n.savedTypeToChange : _maskedSecretHint,
       obscure: _obscurePassword,
       suffixIcon: GestureDetector(
         onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),
@@ -168,7 +172,7 @@ extension _AuthSection on _SessionEditDialogState {
         // marker convention.
         label: '${l10n.s3SecretKey} *',
         controller: _passwordCtrl,
-        hint: hasStored ? l10n.savedTypeToChange : '••••••••',
+        hint: hasStored ? l10n.savedTypeToChange : _maskedSecretHint,
         obscure: _obscurePassword,
         suffixIcon: GestureDetector(
           onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),
@@ -255,7 +259,7 @@ extension _AuthSection on _SessionEditDialogState {
     return StyledFormField(
       label: S.of(context).password,
       controller: _passwordCtrl,
-      hint: hasStored ? S.of(context).savedTypeToChange : '••••••••',
+      hint: hasStored ? S.of(context).savedTypeToChange : _maskedSecretHint,
       obscure: _obscurePassword,
       suffixIcon: GestureDetector(
         onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),
