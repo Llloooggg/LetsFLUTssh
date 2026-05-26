@@ -59,7 +59,7 @@ dependencies:
   # what core/ files actually wanted; `foundation` brings the
   # whole Flutter framework along the way which violates the
   # core/-no-Flutter layering invariant.
-  meta: ^1.16.0
+  meta: ^1.18.0
 
   lfs_frb:
     path: rust_builder
