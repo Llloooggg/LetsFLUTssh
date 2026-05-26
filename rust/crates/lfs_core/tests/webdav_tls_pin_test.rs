@@ -25,10 +25,10 @@ use std::sync::Arc;
 use lfs_core::webdav::auth::{AuthMethod, Credentials};
 use lfs_core::webdav::client::WebDavClient;
 use rcgen::CertifiedKey;
-use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio_rustls::rustls::crypto::CryptoProvider;
+use tokio_rustls::rustls::pki_types::pem::PemObject;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
@@ -79,14 +79,11 @@ fn ensure_crypto_provider_installed() {
 /// cert, no chain, ALPN left default.
 fn server_config_from_pem(cert_pem: &str, key_pem: &str) -> Arc<ServerConfig> {
     ensure_crypto_provider_installed();
-    let cert_chain: Vec<CertificateDer<'static>> = certs(&mut cert_pem.as_bytes())
-        .collect::<Result<_, _>>()
-        .expect("parse server cert");
-    let mut keys: Vec<PrivateKeyDer<'static>> = pkcs8_private_keys(&mut key_pem.as_bytes())
-        .map(|res| res.map(PrivateKeyDer::Pkcs8))
-        .collect::<Result<_, _>>()
-        .expect("parse server key");
-    let key = keys.remove(0);
+    let cert_chain: Vec<CertificateDer<'static>> =
+        CertificateDer::pem_slice_iter(cert_pem.as_bytes())
+            .collect::<Result<_, _>>()
+            .expect("parse server cert");
+    let key = PrivateKeyDer::from_pem_slice(key_pem.as_bytes()).expect("parse server key");
     let config = ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(cert_chain, key)

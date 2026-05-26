@@ -158,7 +158,6 @@ rcgen = "0.13"
 # so a `reqwest::Client` under test exercises a real TLS connect
 # path (not just the builder's success-without-handshake check).
 tokio-rustls = "0.26"
-rustls-pemfile = "2"
 
 # Hardening: deny `unsafe` blocks at the lfs_core level. Transitive
 # crates (russh, tokio, ring, ...) still use `unsafe` internally —
