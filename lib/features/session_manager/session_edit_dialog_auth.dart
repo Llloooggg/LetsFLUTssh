@@ -186,6 +186,14 @@ extension _AuthSection on _SessionEditDialogState {
     ];
   }
 
+  /// Agent-toggle background: accent tint when selected, hover tint on
+  /// hover, resting surface otherwise.
+  Color _agentToggleBg(bool hovered) {
+    if (_useAgent) return AppTheme.accent.withValues(alpha: 0.1);
+    if (hovered) return AppTheme.hover;
+    return AppTheme.bg2;
+  }
+
   /// Renders the "Use system ssh-agent" toggle at the top of the
   /// Auth tab. Selecting it collapses every other auth field — the
   /// running agent (`$SSH_AUTH_SOCK` on Unix, OpenSSH named pipe /
@@ -198,9 +206,7 @@ extension _AuthSection on _SessionEditDialogState {
       builder: (hovered) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: _useAgent
-              ? AppTheme.accent.withValues(alpha: 0.1)
-              : (hovered ? AppTheme.hover : AppTheme.bg2),
+          color: _agentToggleBg(hovered),
           borderRadius: AppTheme.radiusSm,
           border: Border.all(
             color: _useAgent

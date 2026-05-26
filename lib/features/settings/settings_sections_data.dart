@@ -204,9 +204,12 @@ class _RecordingsStorageTileState
     final l10n = S.of(context);
     final cap = ref.watch(recordingsStorageCapBytesProvider);
     final used = _usedBytes;
-    final usedLabel = used == null
-        ? (_usageReadFailed ? '—' : '…')
-        : rust_format.formatSizeIec(bytes: used);
+    final String usedLabel;
+    if (used == null) {
+      usedLabel = _usageReadFailed ? '—' : '…';
+    } else {
+      usedLabel = rust_format.formatSizeIec(bytes: used);
+    }
     final capLabel = rust_format.formatSizeIec(bytes: cap);
 
     // Resolve the dropdown value to the nearest preset so a

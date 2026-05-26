@@ -409,15 +409,21 @@ class _AuthMethodPicker extends StatelessWidget {
               onTap: () => onChanged(m),
               builder: (hovered) {
                 final selected = value == m;
+                final Color bgColor;
+                if (selected) {
+                  bgColor = AppTheme.accent.withValues(alpha: 0.15);
+                } else if (hovered) {
+                  bgColor = AppTheme.hover;
+                } else {
+                  bgColor = Colors.transparent;
+                }
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? AppTheme.accent.withValues(alpha: 0.15)
-                        : (hovered ? AppTheme.hover : Colors.transparent),
+                    color: bgColor,
                     borderRadius: AppTheme.radiusSm,
                     border: Border.all(
                       color: selected ? AppTheme.accent : AppTheme.fgFaint,
