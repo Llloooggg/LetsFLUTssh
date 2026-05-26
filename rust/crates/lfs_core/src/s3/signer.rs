@@ -338,7 +338,9 @@ fn derive_signing_key(secret: &str, date: &str, region: &str, service: &str) -> 
 }
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
-    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC key length");
+    // Construction moved to the `KeyInit` trait in crypto-common 0.2.
+    let mut mac =
+        <HmacSha256 as hmac::digest::KeyInit>::new_from_slice(key).expect("HMAC key length");
     mac.update(data);
     mac.finalize().into_bytes().into()
 }

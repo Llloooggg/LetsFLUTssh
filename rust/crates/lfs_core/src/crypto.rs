@@ -88,11 +88,11 @@ pub fn hkdf_sha256(
 /// existing on-disk blobs across the migration.
 #[must_use]
 pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Zeroizing<Vec<u8>> {
-    // `Mac::new_from_slice` accepts any key length (HMAC's spec
-    // pads/hashes to the block size internally) — the unwrap is safe.
-    // Disambiguate against `KeyInit::new_from_slice` (also in scope
-    // via the `aes_gcm::aead` re-export) so the compiler picks the
-    // HMAC-flavoured trait method.
+    // HMAC accepts any key length (it pads/hashes to the block size
+    // internally) so `new_from_slice` never errors here. Construction
+    // moved to the `KeyInit` trait in crypto-common 0.2; fully-qualify
+    // hmac's `KeyInit` to disambiguate from the `aes_gcm::aead::KeyInit`
+    // (crypto-common 0.1) also in scope.
     //
     // Returns `Zeroizing<Vec<u8>>` so the 32-byte tag is wiped on
     // drop. The tag is keyed on a pepper / salt that is itself
@@ -100,8 +100,8 @@ pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Zeroizing<Vec<u8>> {
     // signing key, T1+pw verification HMAC); leaking the bytes
     // through a heap allocation that lives past the call site
     // would let a memory dump fingerprint the keyed input.
-    let mut mac =
-        <HmacSha256 as Mac>::new_from_slice(key).expect("HMAC-SHA-256 accepts any key length");
+    let mut mac = <HmacSha256 as hmac::digest::KeyInit>::new_from_slice(key)
+        .expect("HMAC-SHA-256 accepts any key length");
     mac.update(message);
     Zeroizing::new(mac.finalize().into_bytes().to_vec())
 }

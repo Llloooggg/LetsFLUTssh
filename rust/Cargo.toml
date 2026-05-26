@@ -92,14 +92,14 @@ subtle = "2"
 # does pure verify on the update-feed signature path. Pinned to the
 # series russh 0.59 already pulls so the resolver doesn't double-stack
 # major versions.
-hkdf = "0.12"
+hkdf = "0.13"
 # HMAC-SHA-256 — needed for the per-tier secret-gating MACs
 # (master-password persisted-rate-limit signature, L2 keychain
 # password gate, L3 hardware-vault PIN auth value). Same version
 # series the `hkdf` crate consumes internally so the resolver
 # doesn't double-stack.
-hmac = "0.12"
-sha2 = "0.10"
+hmac = "0.13"
+sha2 = "0.11"
 ed25519-dalek = { version = "2", default-features = false }
 # AES-256-GCM for Phase 2.1 envelopes (master-password verifier,
 # .lfs export, recorder per-frame). RustCrypto's `aes-gcm = "0.10"`
@@ -239,7 +239,7 @@ quick-xml = "0.40"
 # cryptographically broken but Digest auth requires it. Never
 # used outside that one helper; all real crypto goes through
 # the SHA-2 / AES-GCM / Argon2 stack.
-md-5 = "0.10"
+md-5 = "0.11"
 # RFC 1123 date parser. WebDAV PROPFIND surfaces
 # `<getlastmodified>` in HTTP-date format ("Sun, 06 Nov 1994
 # 08:49:37 GMT"); `httpdate::parse_http_date` is the smallest
