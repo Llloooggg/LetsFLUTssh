@@ -105,12 +105,10 @@ class SessionRecorder {
     required this.terminalShellLabel,
     required this.width,
     required this.height,
-    required bool encrypted,
-    required String handleId,
+    required this._encrypted,
+    required this._handleId,
     required String path,
-  }) : _encrypted = encrypted,
-       _handleId = handleId,
-       _currentPath = path {
+  }) : _currentPath = path {
     _busSub = AppBus.instance.subscribeRecorder(_handleId).listen(_onBusEvent);
   }
 

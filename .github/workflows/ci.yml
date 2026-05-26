@@ -176,7 +176,7 @@ jobs:
           # builds on — a new framework deprecation then fails this gate
           # under `--fatal-infos` for code that compiles fine on the
           # shipped version. Bump together with build-release.yml.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           cache: true
 
       - name: Install Linux build dependencies

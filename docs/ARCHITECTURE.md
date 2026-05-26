@@ -7263,7 +7263,7 @@ The release matrix builds across 7 platform-arch tuples. The Flutter SDK install
 
 | Tuple | Flutter SDK install | Rationale |
 |---|---|---|
-| linux-x64, windows-x64, macos-universal, android, ios-unsigned | `subosito/flutter-action@v2` with `flutter-version: 3.41.9` | Flutter Foundation publishes precompiled tarballs for these (host) platforms; the action's resolver finds them in `releases_<os>.json`. |
+| linux-x64, windows-x64, macos-universal, android, ios-unsigned | `subosito/flutter-action@v2` with `flutter-version: 3.44.0` | Flutter Foundation publishes precompiled tarballs for these (host) platforms; the action's resolver finds them in `releases_<os>.json`. |
 | linux-arm64, windows-arm64 | `git clone --depth 1 + git checkout <pinned-SHA>` of `flutter/flutter` followed by `flutter precache` | Flutter Foundation publishes **zero** ARM64 desktop tarballs (verified against `releases_linux.json` / `releases_windows.json` across stable / beta / dev). The git-clone path is the official documented install on ARM64 hardware (https://docs.flutter.dev/get-started/install/linux). The `FLUTTER_SHA` is pinned by full commit hash inside the workflow — tags are mutable, commit SHAs are not. Cached separately keyed `flutter-arm64-${runner.os}-${SHA}`. |
 
 The `lfs_frb` Rust core uses **`ring`** as russh's crypto backend (overriding russh's default `aws-lc-rs`) — `aws-lc-sys` ships ~200k LOC of vendored AWS-LC C that fails MSVC's `stdalign_check.c` probe on Windows ARM64 *and* added 8-15 minutes of compile wall-clock per release matrix job. `ring` has prebuilt assembly for ARM/ARM64 and produces functionally equivalent SSH crypto.
@@ -7460,8 +7460,8 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 
 ### SDK Constraints
 
-- **Flutter** ≥ 3.41.0 (stable channel)
-- **Dart** ≥ 3.11.3 (ships with Flutter ≥ 3.41.0)
+- **Flutter** ≥ 3.44.0 (stable channel)
+- **Dart** ≥ 3.12.0 (ships with Flutter ≥ 3.44.0)
 
 See `pubspec.yaml` → `environment` section for the canonical constraint. Run `flutter --version` to check.
 

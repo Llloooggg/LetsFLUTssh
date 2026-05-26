@@ -86,7 +86,7 @@ jobs:
           channel: stable
           # Pin to the SDK build-release.yml ships against — same reason
           # as ci.yml. Bump together with build-release.yml.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           cache: true
 
       - name: Install dependencies

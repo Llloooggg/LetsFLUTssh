@@ -57,11 +57,7 @@ class WipeReport {
 /// the migration framework does not track (logs, markers, keychain
 /// aliases), so a stand-alone list keeps the cleanup total.
 class WipeAllService {
-  WipeAllService({
-    bool purgeKeychain = true,
-    Future<void> Function()? credentialCacheEvict,
-  }) : _purgeKeychain = purgeKeychain,
-       _credentialCacheEvict = credentialCacheEvict;
+  WipeAllService({this._purgeKeychain = true, this._credentialCacheEvict});
 
   final bool _purgeKeychain;
 
