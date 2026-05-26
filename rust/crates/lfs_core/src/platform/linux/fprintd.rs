@@ -231,7 +231,11 @@ mod tests {
         let expected = "1ee5fa3a59ee6c0f1ad36f5e74cb24a87f54fbf8d4b95d11f99ee1eb7b6c0eb5";
         let mut hasher = Sha256::new();
         hasher.update(joined.as_bytes());
-        let got = format!("{:x}", hasher.finalize());
+        let got: String = hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
         // The pre-computed hash is illustrative — the real
         // assertion is that sorted+joined+sha256 is the formula
         // both sides use. If this constant ever drifts in CI,

@@ -2,7 +2,7 @@
 # httpd:2.4 so the htdigest file lives inside the image.
 # Username / password / realm hard-coded — local dev only.
 
-FROM httpd:2.4-alpine
+FROM httpd:2.4-alpine@sha256:0136c2d4462f3b8ecc92bea70efdfef4d06523999ae8d7aa533969dea6db4576
 
 # Skip the `htdigest` CLI and write the file directly. Alpine's
 # apache2-utils ships an `apr_password_get` that rejects the test
