@@ -54,10 +54,10 @@ const MULTISTATUS_BODY: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 /// client's `trusted_cert_pem` arg, the key configures the test
 /// listener.
 fn make_self_signed_cert() -> (String, String) {
-    let CertifiedKey { cert, key_pair } =
+    let CertifiedKey { cert, signing_key } =
         rcgen::generate_simple_self_signed(vec!["127.0.0.1".to_string()])
             .expect("rcgen self-signed");
-    (cert.pem(), key_pair.serialize_pem())
+    (cert.pem(), signing_key.serialize_pem())
 }
 
 /// Install the rustls AWS-LC crypto provider exactly once for the

@@ -152,7 +152,7 @@ wiremock = "0.6"
 # surfaces. `rcgen` produces a fresh cert + key per test so the
 # corpus does not carry on-disk PEM fixtures with hard-coded
 # Subject Alternative Names.
-rcgen = "0.13"
+rcgen = "0.14"
 # Loopback TLS listener for the same integration tests. Wraps a
 # raw `tokio::net::TcpStream` with a rustls server-side handshake
 # so a `reqwest::Client` under test exercises a real TLS connect
