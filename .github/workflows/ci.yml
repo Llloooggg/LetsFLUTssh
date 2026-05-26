@@ -133,9 +133,10 @@ jobs:
 
       - name: Upload SonarCloud source artifact
         # Sources only — the coverage uploads above are picked up by
-        # `ci-sonarcloud.yml` from the artefacts named here. PR runs
-        # still upload the source tree so SonarCloud can compute
-        # quality-gate changes, but the Rust lcov is trunk-only.
+        # `ci-sonarcloud.yml` from the artefacts named here. Trunk-
+        # only, same gate as the coverage uploads: SonarCloud scans
+        # main's quality history, so PR runs skip the upload and the
+        # consumer skips PR-triggered CI completions.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -244,10 +245,9 @@ jobs:
 
       - name: Upload Dart coverage artifact
         # Same trunk-only gate as the Rust coverage upload in
-        # `ci-rust`. `ci-sonarcloud.yml` only fires on push to
-        # main / dev (head_branch filter), so PR-time uploads
-        # don't get consumed anywhere — saves a few MB of artefact
-        # storage per PR run.
+        # `ci-rust`. `ci-sonarcloud.yml` only scans `push` CI runs
+        # on main, so PR-time uploads don't get consumed anywhere —
+        # saves a few MB of artefact storage per PR run.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
