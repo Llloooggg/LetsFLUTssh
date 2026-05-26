@@ -1420,6 +1420,35 @@ jobs:
             RANGE="$PREV_TAG..$TAG"
           fi
 
+          # Defensive cap. The per-commit list targets normal release windows
+          # (tens of commits between tags). If a range ever spans hundreds of
+          # commits — a fork point or a missing intermediate tag — enumerating
+          # every entry produces an unreadable wall and can approach GitHub's
+          # release-body size limit. Past the cap, emit per-type counts plus a
+          # compare link instead. Hand-written prose for a milestone release is
+          # edited into the GitHub Release directly, never stored in the repo.
+          COMMIT_COUNT=$(git log "$RANGE" --oneline --no-merges | wc -l | tr -d ' ')
+          if [ "$COMMIT_COUNT" -gt 200 ]; then
+            echo "Range $RANGE has $COMMIT_COUNT commits — emitting summary instead of full list"
+            SUMMARY=$(git log "$RANGE" --format='%s' --no-merges \
+              | sed -E 's/^([a-z]+)(\([a-z0-9-]+\))?!?:.*/\1/' \
+              | grep -E '^(feat|fix|refactor|perf|security|i18n|l10n|revert|chore|build|test|docs|ci|style)$' \
+              | sort | uniq -c | sort -rn \
+              | awk '{printf "- %s: %s\n", $2, $1}')
+            {
+              echo "body<<CHANGELOG_EOF"
+              echo "This release spans ${COMMIT_COUNT} commits. Summary by change type:"
+              echo
+              printf '%s\n' "$SUMMARY"
+              if [ -n "$PREV_TAG" ]; then
+                echo
+                echo "Full commit log: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+              fi
+              echo "CHANGELOG_EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           FEATURES=""
           FIXES=""
           IMPROVEMENTS=""

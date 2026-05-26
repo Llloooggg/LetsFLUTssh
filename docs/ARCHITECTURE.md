@@ -7270,6 +7270,12 @@ The `lfs_frb` Rust core uses **`ring`** as russh's crypto backend (overriding ru
 
 The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-apple-ios`** step before `flutter build ios --no-codesign`. xcodebuild swallows rustc diagnostics — collapses any iOS-cfg compile regression to a single `Error (Xcode): could not compile X (lib) due to N previous errors` line without the `error[Exxxx]` body — so we run cargo directly first to surface the full diagnostic in plain GHA log. The pre-flight runs with `working-directory: rust` so rustup picks up `rust-toolchain.toml` (without it, cargo from repo root resolves to the runner's default-stable toolchain which lacks the iOS targets the composite installed) and `IPHONEOS_DEPLOYMENT_TARGET: '13.0'` so vendored OpenSSL's references to `__chkstk_darwin` (added in iOS 13) resolve at link time.
 
+### Release notes generation
+
+`build-release.yml`'s **Generate changelog** step builds the GitHub Release body by parsing conventional commits in `PREV_TAG..TAG` (previous tag by version order to the one being built) into user-facing buckets (Security, Features, Reverts, Improvements, Fixes, Localization, Dependencies); internal types (`build`/`test`/`docs`/`ci`/`style`) are dropped.
+
+A **defensive cap** guards the per-commit enumeration: a range over 200 commits emits per-type counts plus a `compare` link instead of listing every entry. The per-commit list targets normal release windows (tens of commits between tags); without the cap, a range that unexpectedly spans a fork point or a missing intermediate tag — e.g. `v7.3.3..v8.0.0`, which spans the whole Dart→Rust rewrite because that work forked at `v7.3.1` and the intervening 7.x patch tags are not ancestors of the release commit — would dump an unreadable wall and could approach GitHub's release-body size limit. Hand-written release prose for milestone releases is edited into the GitHub Release directly, not stored in the repo.
+
 ### 15.4 Makefile Targets
 
 Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both languages in sequence. Per-language entry points (`dart-*`, `rust-*`) exist for fast iteration when only one side is in scope.
