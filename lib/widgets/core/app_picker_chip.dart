@@ -47,6 +47,14 @@ class AppPickerChip extends StatelessWidget {
     this.expand = true,
   });
 
+  /// Chip background: accent tint when active, hover tint on hover,
+  /// resting surface otherwise.
+  Color _backgroundColor(bool hovered) {
+    if (active) return AppTheme.accent.withValues(alpha: 0.15);
+    if (hovered) return AppTheme.hover;
+    return AppTheme.bg3;
+  }
+
   @override
   Widget build(BuildContext context) {
     final chip = SelectionContainer.disabled(
@@ -55,9 +63,7 @@ class AppPickerChip extends StatelessWidget {
         builder: (hovered) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: active
-                ? AppTheme.accent.withValues(alpha: 0.15)
-                : (hovered ? AppTheme.hover : AppTheme.bg3),
+            color: _backgroundColor(hovered),
             borderRadius: AppTheme.radiusSm,
             border: Border.all(
               color: active ? AppTheme.accent : AppTheme.borderLight,

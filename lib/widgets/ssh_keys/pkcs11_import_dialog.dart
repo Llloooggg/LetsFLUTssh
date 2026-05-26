@@ -457,20 +457,23 @@ class _Pkcs11ImportDialogState extends State<Pkcs11ImportDialog> {
 
   List<Widget> _actionsForStep(S s) {
     final canBack = _step != Pkcs11WizardStep.module && !_saving;
-    final back = canBack
-        ? AppButton.secondary(
-            label: s.pkcs11WizardBack,
-            onTap: () {
-              final prev = pkcs11PrevStep(
-                _step,
-                protectedAuthPath: _token?.protectedAuthPath ?? false,
-              );
-              setState(() => _step = prev);
-            },
-          )
-        : AppButton.cancel(
-            onTap: _saving ? null : () => Navigator.of(context).pop(),
+    final Widget back;
+    if (canBack) {
+      back = AppButton.secondary(
+        label: s.pkcs11WizardBack,
+        onTap: () {
+          final prev = pkcs11PrevStep(
+            _step,
+            protectedAuthPath: _token?.protectedAuthPath ?? false,
           );
+          setState(() => _step = prev);
+        },
+      );
+    } else {
+      back = AppButton.cancel(
+        onTap: _saving ? null : () => Navigator.of(context).pop(),
+      );
+    }
     if (_step == Pkcs11WizardStep.save) {
       return [
         back,
@@ -851,9 +854,14 @@ class _KeyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S.of(context);
     final algoDetail = pkcs11AlgoDetail(sshKeyType);
-    final algoLabel = algoDetail.algo.isEmpty
-        ? (disabledReason.startsWith('gost') ? s.pkcs11AlgoGost : sshKeyType)
-        : algoDetail.algo;
+    final String algoLabel;
+    if (algoDetail.algo.isEmpty) {
+      algoLabel = disabledReason.startsWith('gost')
+          ? s.pkcs11AlgoGost
+          : sshKeyType;
+    } else {
+      algoLabel = algoDetail.algo;
+    }
     final meta = algoDetail.detail.isEmpty
         ? algoLabel
         : s.pkcs11KeyMetaFormat(algoLabel, algoDetail.detail);

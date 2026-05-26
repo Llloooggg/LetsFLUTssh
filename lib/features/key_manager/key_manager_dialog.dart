@@ -287,6 +287,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     // [Re-generate, Remove] (no copy / cert / delete because the
     // private side is bound to the original device).
     final isStub = entry.importedAsStub;
+    final genSuffix = entry.isGenerated ? '  •  ${s.generated}' : '';
     return Opacity(
       opacity: isStub ? 0.55 : 1.0,
       child: AppDataRow(
@@ -295,8 +296,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         title: entry.label,
         secondary: isStub
             ? s.hardwareKeyStubSubtitle
-            : '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
-                  '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
+            : '${entry.keyType}  •  ${_formatDate(entry.createdAt)}$genSuffix',
         secondaryMono: !isStub,
         tertiary: entry.hasCertificate ? _certTertiary(s, entry) : null,
         trailing: [
