@@ -84,6 +84,9 @@ jobs:
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin to the SDK build-release.yml ships against — same reason
+          # as ci.yml. Bump together with build-release.yml.
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install dependencies
