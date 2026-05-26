@@ -125,7 +125,11 @@ pub fn parse_propfind(xml_body: &[u8]) -> Result<Vec<PropfindEntry>, Error> {
         )));
     }
     let mut reader = Reader::from_reader(xml_body);
-    reader.config_mut().trim_text(true);
+    // No per-event trim: quick-xml reports entity references (`&amp;`,
+    // `&#38;`) as their own events, so trimming each text fragment would
+    // drop the whitespace around an entity inside a value (a display name
+    // like "My Files & Docs"). `read_text` trims the assembled value once
+    // instead. Structural loops ignore stray whitespace text events.
 
     let mut entries: Vec<PropfindEntry> = Vec::new();
     let mut saw_root = false;
@@ -406,7 +410,12 @@ fn read_text<R: std::io::BufRead>(reader: &mut Reader<R>) -> Result<String, Erro
         {
             Event::Text(t) => {
                 let s = t
-                    .unescape()
+                    .decode()
+                    .map_err(|e| Error::WebDav(format!("propfind xml decode: {e}")))?;
+                out.push_str(&s);
+            }
+            Event::GeneralRef(r) => {
+                let s = crate::xml::resolve_general_ref(&r)
                     .map_err(|e| Error::WebDav(format!("propfind xml entity: {e}")))?;
                 out.push_str(&s);
             }
@@ -420,7 +429,10 @@ fn read_text<R: std::io::BufRead>(reader: &mut Reader<R>) -> Result<String, Erro
         }
         buf.clear();
     }
-    Ok(out)
+    // Trim once over the assembled value (replacing the reader's former
+    // per-event trim), so surrounding whitespace is stripped but spaces
+    // around an inner entity are kept.
+    Ok(out.trim().to_string())
 }
 
 /// Strip the namespace prefix (`D:`, `d:`, `a:`, …) and lower-case
@@ -507,6 +519,30 @@ mod tests {
             .find(|e| e.href.ends_with("subdir/"))
             .expect("subdir missing");
         assert!(subdir.is_collection);
+    }
+
+    #[test]
+    fn display_name_resolves_xml_entities() {
+        // quick-xml reports entity references as a separate event from text,
+        // so the parser must reassemble `&amp;` / `&#38;` / `&#x263A;` back
+        // into their characters; a display name with `&` must not truncate.
+        let body = br#"<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/files/q.txt</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>Q&amp;A &#38; &#x263A;</d:displayname>
+        <d:getcontentlength>1</d:getcontentlength>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>"#;
+        let entries = parse_propfind(body).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].display_name.as_deref(), Some("Q&A & ☺"));
     }
 
     #[test]
