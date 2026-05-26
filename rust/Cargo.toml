@@ -98,8 +98,8 @@ hkdf = "0.12"
 # password gate, L3 hardware-vault PIN auth value). Same version
 # series the `hkdf` crate consumes internally so the resolver
 # doesn't double-stack.
-hmac = "0.12"
-sha2 = "0.10"
+hmac = "0.13"
+sha2 = "0.11"
 ed25519-dalek = { version = "2", default-features = false }
 # AES-256-GCM for Phase 2.1 envelopes (master-password verifier,
 # .lfs export, recorder per-frame). RustCrypto's `aes-gcm = "0.10"`
