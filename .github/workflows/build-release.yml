@@ -620,6 +620,24 @@ jobs:
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Enable long paths + short temp (vendored OpenSSL cold build)
+        # SQLCipher's vendored OpenSSL (rusqlite bundled-sqlcipher) compiles
+        # from source under cargokit's deeply-nested target dir. The longest
+        # file's output path overruns MAX_PATH (260) on a cold build, so
+        # MSVC fails with "C1083: Cannot open compiler generated file: ''".
+        # Warm builds never hit this — Swatinem rust-cache restores the
+        # prebuilt openssl-sys and skips the compile entirely. Enable NTFS
+        # long paths so cl.exe (long-path-aware in VS 2022) can create the
+        # output files, and point TMP/TEMP at a short writable dir so the
+        # compiler's temp files keep short paths too.
+        shell: pwsh
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+          git config --system core.longpaths true
+          New-Item -ItemType Directory -Force -Path C:\t | Out-Null
+          "TMP=C:\t" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TEMP=C:\t" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Build Windows
         # Flutter 3.44.0's `flutter build windows` does NOT accept
         # `--target-platform` (that's an Android-build flag); it
