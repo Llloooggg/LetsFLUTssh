@@ -207,48 +207,114 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
         .as_object()
         .ok_or_else(|| Error::Crypto("payload root must be object".into()))?;
 
+    let version = validate_version(obj)?;
+    ensure_non_empty(obj)?;
+
+    let key_map = parse_key_map(obj);
+    let (sessions_json, session_id_remap) = parse_sessions(obj, &key_map);
+
+    Ok(DecodedQrPayload {
+        pending: PendingImport {
+            manifest_json: None,
+            sessions_json,
+            keys_json: parse_manager_keys(obj, &key_map),
+            tags_json: parse_tags(obj),
+            session_tags_json: parse_remapped_session_links(
+                obj,
+                "st",
+                "ti",
+                "tag_id",
+                &session_id_remap,
+            ),
+            folder_tags_json: parse_folder_tags(obj),
+            snippets_json: parse_snippets(obj),
+            session_snippets_json: parse_remapped_session_links(
+                obj,
+                "ss",
+                "ni",
+                "snippet_id",
+                &session_id_remap,
+            ),
+            empty_folders_json: parse_empty_folders(obj),
+            config_json: obj
+                .get("c")
+                .map(|v| serde_json::to_string(v).unwrap_or_default())
+                .filter(|s| !s.is_empty() && s != "null"),
+            known_hosts_text: obj
+                .get("kh")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            // QR / paste-link payloads are bandwidth-bound and ship
+            // only the core subset; the child tables below do not
+            // travel through the QR envelope. Recordings (binary,
+            // MB-scale per recording) travel only inside the `.lfs`
+            // archive pipeline.
+            ssh_key_certificates_json: None,
+            webdav_session_details_json: None,
+            s3_session_details_json: None,
+            sftp_bookmarks_json: None,
+            port_forward_rules_json: None,
+            recordings: Vec::new(),
+        },
+        schema_version: version,
+    })
+}
+
+fn validate_version(obj: &serde_json::Map<String, Value>) -> Result<i64, Error> {
     let version = obj.get("v").and_then(|v| v.as_i64()).unwrap_or(1);
     if version > CURRENT_FORMAT_VERSION {
         return Err(Error::Crypto(format!(
             "payload version too new: v{version} > supported v{CURRENT_FORMAT_VERSION}"
         )));
     }
+    Ok(version)
+}
 
+fn ensure_non_empty(obj: &serde_json::Map<String, Value>) -> Result<(), Error> {
     if !obj.contains_key("s")
         && !obj.contains_key("km")
         && !obj.contains_key("c")
         && !obj.contains_key("kh")
     {
         // No useful payload at all — empty pending. The Dart caller
-        // collapses this to "invalid QR" upstream; mirror that
-        // signal by returning an Err so the caller does not hand a
-        // useless handle to the apply driver.
+        // collapses this to "invalid QR" upstream; mirror that signal
+        // by returning an Err so the caller does not hand a useless
+        // handle to the apply driver.
         return Err(Error::Crypto("payload empty".into()));
     }
+    Ok(())
+}
 
-    let key_map = obj
-        .get("km")
+fn parse_key_map(
+    obj: &serde_json::Map<String, Value>,
+) -> std::collections::HashMap<String, String> {
+    obj.get("km")
         .and_then(|v| v.as_object())
         .map(|m| {
             m.iter()
                 .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
                 .collect::<std::collections::HashMap<String, String>>()
         })
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
 
-    // ---- Sessions + empty folders -----------------------------
-    // Maps the payload's short session id (`s0`, `s1`, … under `i`)
-    // to the fresh UUID `decode_session` mints. The session→tag and
-    // session→snippet link tables reference the short id, so without
-    // this remap the links would point at an id no imported session
-    // carries and every association would be dropped (FK failure).
+/// Decode the sessions array and the short-id → fresh-UUID remap. The
+/// session→tag and session→snippet link tables reference the payload's
+/// short session id (`s0`, `s1`, … under `i`), so without this remap
+/// the links would point at an id no imported session carries and
+/// every association would be dropped (FK failure).
+fn parse_sessions(
+    obj: &serde_json::Map<String, Value>,
+    key_map: &std::collections::HashMap<String, String>,
+) -> (Option<String>, std::collections::HashMap<String, String>) {
     let mut session_id_remap: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
     let mut sessions_out: Vec<Value> = Vec::new();
     if let Some(arr) = obj.get("s").and_then(|v| v.as_array()) {
         for entry in arr {
             if let Some(obj_session) = entry.as_object() {
-                let decoded = decode_session(obj_session, &key_map);
+                let decoded = decode_session(obj_session, key_map);
                 if let (Some(short), Some(new_id)) = (
                     obj_session.get("i").and_then(|v| v.as_str()),
                     decoded.get("id").and_then(|v| v.as_str()),
@@ -259,22 +325,23 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
             }
         }
     }
-    let sessions_json = if sessions_out.is_empty() {
-        None
-    } else {
-        Some(serde_json::to_string(&sessions_out).unwrap_or_default())
-    };
+    (vec_to_json(sessions_out), session_id_remap)
+}
 
-    let empty_folders_json = obj
-        .get("eg")
+fn parse_empty_folders(obj: &serde_json::Map<String, Value>) -> Option<String> {
+    obj.get("eg")
         .and_then(|v| v.as_array())
         .map(|arr| {
             let only_strings: Vec<&str> = arr.iter().filter_map(|x| x.as_str()).collect();
             serde_json::to_string(&only_strings).unwrap_or_default()
         })
-        .filter(|s| !s.is_empty() && s != "[]");
+        .filter(|s| !s.is_empty() && s != "[]")
+}
 
-    // ---- Manager keys -----------------------------------------
+fn parse_manager_keys(
+    obj: &serde_json::Map<String, Value>,
+    key_map: &std::collections::HashMap<String, String>,
+) -> Option<String> {
     let mut keys_out: Vec<Value> = Vec::new();
     if let Some(mk) = obj.get("mk").and_then(|v| v.as_object()) {
         for (short_id, meta) in mk {
@@ -300,13 +367,10 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
             }));
         }
     }
-    let keys_json = if keys_out.is_empty() {
-        None
-    } else {
-        Some(serde_json::to_string(&keys_out).unwrap_or_default())
-    };
+    vec_to_json(keys_out)
+}
 
-    // ---- Tags + session-tag links -----------------------------
+fn parse_tags(obj: &serde_json::Map<String, Value>) -> Option<String> {
     let mut tags_out: Vec<Value> = Vec::new();
     if let Some(arr) = obj.get("tg").and_then(|v| v.as_array()) {
         for t in arr {
@@ -324,36 +388,11 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
             }
         }
     }
-    let tags_json = if tags_out.is_empty() {
-        None
-    } else {
-        Some(serde_json::to_string(&tags_out).unwrap_or_default())
-    };
+    vec_to_json(tags_out)
+}
 
-    let session_tags_json = obj
-        .get("st")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            let pairs: Vec<Value> = arr
-                .iter()
-                .filter_map(|l| {
-                    let o = l.as_object()?;
-                    // `si` is the payload's short session id — remap it
-                    // onto the freshly-minted UUID, dropping links to a
-                    // session that did not ship (or an older payload
-                    // whose sessions carried no short id).
-                    let si = o.get("si").and_then(|v| v.as_str())?;
-                    let mapped = session_id_remap.get(si)?;
-                    let ti = o.get("ti").and_then(|v| v.as_str())?;
-                    Some(json!({"session_id": mapped, "tag_id": ti}))
-                })
-                .collect();
-            serde_json::to_string(&pairs).unwrap_or_default()
-        })
-        .filter(|s| !s.is_empty() && s != "[]");
-
-    let folder_tags_json = obj
-        .get("ft")
+fn parse_folder_tags(obj: &serde_json::Map<String, Value>) -> Option<String> {
+    obj.get("ft")
         .and_then(|v| v.as_array())
         .map(|arr| {
             let pairs: Vec<Value> = arr
@@ -367,9 +406,10 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
                 .collect();
             serde_json::to_string(&pairs).unwrap_or_default()
         })
-        .filter(|s| !s.is_empty() && s != "[]");
+        .filter(|s| !s.is_empty() && s != "[]")
+}
 
-    // ---- Snippets + session-snippet links ---------------------
+fn parse_snippets(obj: &serde_json::Map<String, Value>) -> Option<String> {
     let mut snippets_out: Vec<Value> = Vec::new();
     if let Some(arr) = obj.get("sn").and_then(|v| v.as_array()) {
         for s in arr {
@@ -389,14 +429,23 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
             }
         }
     }
-    let snippets_json = if snippets_out.is_empty() {
-        None
-    } else {
-        Some(serde_json::to_string(&snippets_out).unwrap_or_default())
-    };
+    vec_to_json(snippets_out)
+}
 
-    let session_snippets_json = obj
-        .get("ss")
+/// Decode a session-link table (`st` / `ss`) whose `si` field is the
+/// payload's short session id, remapping it onto the freshly-minted
+/// UUID and dropping links to a session that did not ship (or an
+/// older payload whose sessions carried no short id). `other_in` is
+/// the link's second field in the payload; `other_out` is its name in
+/// the decoded row.
+fn parse_remapped_session_links(
+    obj: &serde_json::Map<String, Value>,
+    key: &str,
+    other_in: &str,
+    other_out: &str,
+    remap: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    obj.get(key)
         .and_then(|v| v.as_array())
         .map(|arr| {
             let pairs: Vec<Value> = arr
@@ -404,56 +453,27 @@ fn parse_payload(json: &Value) -> Result<DecodedQrPayload, Error> {
                 .filter_map(|l| {
                     let o = l.as_object()?;
                     let si = o.get("si").and_then(|v| v.as_str())?;
-                    let mapped = session_id_remap.get(si)?;
-                    let ni = o.get("ni").and_then(|v| v.as_str())?;
-                    Some(json!({"session_id": mapped, "snippet_id": ni}))
+                    let mapped = remap.get(si)?;
+                    let other = o.get(other_in).and_then(|v| v.as_str())?;
+                    let mut row = serde_json::Map::new();
+                    row.insert("session_id".into(), json!(mapped));
+                    row.insert(other_out.to_string(), json!(other));
+                    Some(Value::Object(row))
                 })
                 .collect();
             serde_json::to_string(&pairs).unwrap_or_default()
         })
-        .filter(|s| !s.is_empty() && s != "[]");
+        .filter(|s| !s.is_empty() && s != "[]")
+}
 
-    // ---- Config + known_hosts ---------------------------------
-    let config_json = obj
-        .get("c")
-        .map(|v| serde_json::to_string(v).unwrap_or_default())
-        .filter(|s| !s.is_empty() && s != "null");
-
-    let known_hosts_text = obj
-        .get("kh")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .filter(|s| !s.is_empty());
-
-    Ok(DecodedQrPayload {
-        pending: PendingImport {
-            manifest_json: None,
-            sessions_json,
-            keys_json,
-            tags_json,
-            session_tags_json,
-            folder_tags_json,
-            snippets_json,
-            session_snippets_json,
-            empty_folders_json,
-            config_json,
-            known_hosts_text,
-            // QR / paste-link payloads are bandwidth-bound and ship
-            // only the core subset; the child tables below do not
-            // travel through the QR envelope.
-            ssh_key_certificates_json: None,
-            webdav_session_details_json: None,
-            s3_session_details_json: None,
-            sftp_bookmarks_json: None,
-            port_forward_rules_json: None,
-            // Recordings travel only inside the `.lfs` archive
-            // pipeline (binary payloads, MB-scale per recording);
-            // QR / paste-link envelopes are bandwidth-bound and
-            // skip them entirely.
-            recordings: Vec::new(),
-        },
-        schema_version: version,
-    })
+/// Serialise a row vector to JSON, or None when empty — the shape
+/// every section emits for the `*_json` pending fields.
+fn vec_to_json(items: Vec<Value>) -> Option<String> {
+    if items.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&items).unwrap_or_default())
+    }
 }
 
 fn decode_session(

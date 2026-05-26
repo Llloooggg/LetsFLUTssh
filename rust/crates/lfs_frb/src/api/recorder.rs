@@ -412,113 +412,114 @@ pub async fn recorder_register_from_active(
 /// walk continues — one stuck entry shouldn't block the rest from
 /// migrating.
 pub async fn recorder_migrate_misnamed_files(recordings_root: String) -> Result<u32, String> {
-    tokio::task::spawn_blocking(move || {
-        let root = std::path::PathBuf::from(&recordings_root);
-        if !root.is_dir() {
-            return Ok(0u32);
-        }
-        let mut renamed = 0u32;
-        let mut stack = vec![root];
-        while let Some(dir) = stack.pop() {
-            let entries = match std::fs::read_dir(&dir) {
-                Ok(it) => it,
-                // Best-effort walk — a stuck subdirectory is logged
-                // upstream when the recordings list / playback step
-                // hits it. The migration return value (successful
-                // rename count) is the actionable signal.
-                Err(_) => continue,
+    tokio::task::spawn_blocking(move || migrate_misnamed_in_tree(&recordings_root))
+        .await
+        .map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::GENERIC,
+                &format!("recorder migrate task: {e}"),
+            )
+        })
+}
+
+/// Walk [`recordings_root`] depth-first, migrating each misnamed file
+/// and returning the rename count. Best-effort throughout: a stuck
+/// subdirectory or entry is skipped (it's logged upstream when the
+/// recordings list / playback step hits it) so one snag doesn't block
+/// the rest of the tree.
+fn migrate_misnamed_in_tree(recordings_root: &str) -> u32 {
+    let root = std::path::PathBuf::from(recordings_root);
+    if !root.is_dir() {
+        return 0;
+    }
+    let mut renamed = 0u32;
+    let mut stack = vec![root];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(ty) = entry.file_type() else {
+                continue;
             };
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let ty = match entry.file_type() {
-                    Ok(t) => t,
-                    Err(_) => continue,
-                };
-                if ty.is_dir() {
-                    stack.push(path);
-                    continue;
-                }
-                let file_name = match path.file_name().and_then(|s| s.to_str()) {
-                    Some(n) => n,
-                    None => continue,
-                };
-                // Orphan `.lfsr.idx` sidecar — its `.lfsr` parent has
-                // already been migrated to `.cast` by an earlier
-                // sweep (only the main file moved before this fix
-                // landed), so the playback dialog's scrub probe
-                // hits `<basename>.cast.idx` (absent) and disables
-                // the slider. Rename the orphan in place so the
-                // probe finds the index and re-enables seeking.
-                if file_name.ends_with(".lfsr.idx") {
-                    let cast_main = path.with_file_name(
-                        file_name.trim_end_matches(".lfsr.idx").to_owned() + ".cast",
-                    );
-                    if cast_main.exists() {
-                        let new_idx = cast_main.with_file_name(
-                            file_name.trim_end_matches(".lfsr.idx").to_owned() + ".cast.idx",
-                        );
-                        if std::fs::rename(&path, &new_idx).is_ok() {
-                            renamed += 1;
-                        }
-                    }
-                    continue;
-                }
-                let is_lfsr = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .map(|s| s.eq_ignore_ascii_case("lfsr"))
-                    .unwrap_or(false);
-                if !is_lfsr {
-                    continue;
-                }
-                if !file_starts_with_lfr_magic(&path) {
-                    let renamed_path = path.with_extension("cast");
-                    if std::fs::rename(&path, &renamed_path).is_err() {
-                        // Best-effort — a stuck rename (open handle,
-                        // permission denied) gets retried on next
-                        // migration sweep. Skipping here keeps the
-                        // walk going for the rest of the tree.
-                        continue;
-                    }
-                    // The sidecar lives at `<filename>.idx` —
-                    // `lfs_core::recorder::index_sidecar::sidecar_path`
-                    // appends `.idx` to the full filename, so a
-                    // misnamed `foo.lfsr` ships its index as
-                    // `foo.lfsr.idx`. Without renaming the sidecar
-                    // alongside the main file, the seek lookup for
-                    // the new `foo.cast` would hit `foo.cast.idx`
-                    // (absent) and disable the scrub bar even
-                    // though a valid plaintext index sits right
-                    // next to it. Best-effort: a missing sidecar
-                    // (older recording with no index) silently
-                    // skips; the scrub bar just stays disabled
-                    // for that one file.
-                    let old_idx = {
-                        let mut s = path.clone().into_os_string();
-                        s.push(".idx");
-                        std::path::PathBuf::from(s)
-                    };
-                    if old_idx.exists() {
-                        let new_idx = {
-                            let mut s = renamed_path.clone().into_os_string();
-                            s.push(".idx");
-                            std::path::PathBuf::from(s)
-                        };
-                        let _ = std::fs::rename(&old_idx, &new_idx);
-                    }
-                    renamed += 1;
-                }
+            if ty.is_dir() {
+                stack.push(path);
+                continue;
             }
+            renamed += migrate_recording_file(&path);
         }
-        Ok(renamed)
-    })
-    .await
-    .map_err(|e| {
-        frb_err::wire(
-            frb_err::kind::GENERIC,
-            &format!("recorder migrate task: {e}"),
-        )
-    })?
+    }
+    renamed
+}
+
+/// Migrate a single file, returning 1 when a rename happened. Routes
+/// orphan `.lfsr.idx` sidecars and misnamed `.lfsr` main files; every
+/// other file is left untouched.
+fn migrate_recording_file(path: &std::path::Path) -> u32 {
+    let Some(file_name) = path.file_name().and_then(|s| s.to_str()) else {
+        return 0;
+    };
+    if file_name.ends_with(".lfsr.idx") {
+        return migrate_orphan_idx(path, file_name);
+    }
+    let is_lfsr = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.eq_ignore_ascii_case("lfsr"))
+        .unwrap_or(false);
+    // A fresh-write `.lfsr` file (correct encrypted magic) is left
+    // alone; only an `.lfsr` that lacks the LFR magic is a plaintext
+    // recording misnamed by the registration-race bug.
+    if !is_lfsr || file_starts_with_lfr_magic(path) {
+        return 0;
+    }
+    migrate_lfsr_main(path)
+}
+
+/// Orphan `.lfsr.idx` sidecar — its `.lfsr` parent was already moved
+/// to `.cast` by an earlier sweep (only the main file moved before
+/// this fix landed), so the playback dialog's scrub probe hits
+/// `<basename>.cast.idx` (absent) and disables the slider. Rename the
+/// orphan in place so the probe finds the index and re-enables
+/// seeking. No-op when no migrated `.cast` parent exists.
+fn migrate_orphan_idx(path: &std::path::Path, file_name: &str) -> u32 {
+    let base = file_name.trim_end_matches(".lfsr.idx").to_owned();
+    let cast_main = path.with_file_name(format!("{base}.cast"));
+    if !cast_main.exists() {
+        return 0;
+    }
+    let new_idx = cast_main.with_file_name(format!("{base}.cast.idx"));
+    u32::from(std::fs::rename(path, &new_idx).is_ok())
+}
+
+/// Rename a misnamed plaintext `.lfsr` main file to `.cast`, carrying
+/// its `.idx` sidecar alongside. The sidecar lives at
+/// `<filename>.idx` (`lfs_core::recorder::index_sidecar::sidecar_path`
+/// appends `.idx` to the full filename), so a misnamed `foo.lfsr`
+/// ships its index as `foo.lfsr.idx`; without moving it too, the seek
+/// lookup for the new `foo.cast` would hit the absent `foo.cast.idx`
+/// and disable the scrub bar even though a valid plaintext index sits
+/// right next to it. Best-effort: a stuck rename retries on the next
+/// sweep; a missing sidecar (older recording with no index) skips.
+fn migrate_lfsr_main(path: &std::path::Path) -> u32 {
+    let renamed_path = path.with_extension("cast");
+    if std::fs::rename(path, &renamed_path).is_err() {
+        return 0;
+    }
+    let old_idx = append_idx_suffix(path);
+    if old_idx.exists() {
+        let _ = std::fs::rename(&old_idx, append_idx_suffix(&renamed_path));
+    }
+    1
+}
+
+/// Append a `.idx` suffix to the full filename (not replacing the
+/// extension) — matches `index_sidecar::sidecar_path`.
+fn append_idx_suffix(path: &std::path::Path) -> std::path::PathBuf {
+    let mut s = path.to_path_buf().into_os_string();
+    s.push(".idx");
+    std::path::PathBuf::from(s)
 }
 
 /// Read the first 4 bytes of [`path`] and compare against the
