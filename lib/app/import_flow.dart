@@ -273,23 +273,46 @@ Future<void> showLfsImportDialog(
     'LFS import started: ${filePath.split('/').last}',
     name: 'App',
   );
+  final result = await _promptLfsImport(context, filePath);
+  if (result == null || !context.mounted) return;
+  await _applyLfsImport(context, ref, filePath, result);
+}
+
+/// Classify the archive and prompt for mode + password. Returns null
+/// when the file is not an LFS archive (toast shown) or the user
+/// cancels. Classification happens before the prompt so SAF-picked
+/// non-LFS content is rejected up front and unencrypted plain-ZIP
+/// exports skip the password prompt.
+Future<LfsImportDialogResult?> _promptLfsImport(
+  BuildContext context,
+  String filePath,
+) async {
   final kind = await _seams.probeArchive(filePath);
-  if (!context.mounted) return;
+  if (!context.mounted) return null;
   if (kind == LfsArchiveKind.notLfs) {
     Toast.show(
       context,
       message: S.of(context).errLfsNotArchive,
       level: ToastLevel.error,
     );
-    return;
+    return null;
   }
-  final result = await _seams.showLfsDialog(
+  return _seams.showLfsDialog(
     context,
     filePath: filePath,
     isEncrypted: kind == LfsArchiveKind.encryptedLfs,
   );
-  if (result == null || !context.mounted) return;
+}
 
+/// Open the staged archive, apply the chosen mode, and surface the
+/// outcome. The staged handle is consumed by the apply step on
+/// success or dropped on cancel / failure.
+Future<void> _applyLfsImport(
+  BuildContext context,
+  WidgetRef ref,
+  String filePath,
+  LfsImportDialogResult result,
+) async {
   // Show progress bar while Argon2id + decryption run in isolate and
   // the subsequent per-store writes stream step counts back to the UI.
   final l10n = S.of(context);

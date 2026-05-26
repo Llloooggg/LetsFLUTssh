@@ -163,61 +163,77 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     super.dispose();
   }
 
+  // Focus on the pane gives shortcut hits + cursor movement without
+  // a mouse / touch device. Each helper returns null when the event
+  // is not its concern, so the chain falls through to the next group.
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final reg = AppShortcutRegistry.instance;
+    return _arrowNavResult(event) ??
+        _activateResult(event) ??
+        _edgeNavResult(event) ??
+        _shortcutResult(event) ??
+        KeyEventResult.ignored;
+  }
 
-    // Arrow-key navigation across rows + Enter to open. Focus on
-    // the pane gives shortcut hits + cursor movement without a
-    // mouse / touch device.
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-        event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      final entries = ctrl.entries;
-      if (entries.isEmpty) return KeyEventResult.ignored;
-      final delta = event.logicalKey == LogicalKeyboardKey.arrowDown ? 1 : -1;
-      var idx = entries.indexWhere((e) => ctrl.selected.contains(e.path));
-      if (idx < 0) {
-        idx = delta > 0 ? 0 : entries.length - 1;
-      } else {
-        idx = (idx + delta).clamp(0, entries.length - 1);
-      }
-      ctrl.selectSingle(entries[idx].path);
+  KeyEventResult? _arrowNavResult(KeyEvent event) {
+    final key = event.logicalKey;
+    if (key != LogicalKeyboardKey.arrowDown &&
+        key != LogicalKeyboardKey.arrowUp) {
+      return null;
+    }
+    final entries = ctrl.entries;
+    if (entries.isEmpty) return KeyEventResult.ignored;
+    final delta = key == LogicalKeyboardKey.arrowDown ? 1 : -1;
+    var idx = entries.indexWhere((e) => ctrl.selected.contains(e.path));
+    if (idx < 0) {
+      idx = delta > 0 ? 0 : entries.length - 1;
+    } else {
+      idx = (idx + delta).clamp(0, entries.length - 1);
+    }
+    ctrl.selectSingle(entries[idx].path);
+    return KeyEventResult.handled;
+  }
+
+  KeyEventResult? _activateResult(KeyEvent event) {
+    final key = event.logicalKey;
+    if (key != LogicalKeyboardKey.enter &&
+        key != LogicalKeyboardKey.numpadEnter) {
+      return null;
+    }
+    if (ctrl.selected.length != 1) return KeyEventResult.ignored;
+    final entry = ctrl.selectedEntries.first;
+    if (entry.isDir) {
+      ctrl.navigateTo(entry.path);
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-      if (ctrl.selected.length == 1) {
-        final entry = ctrl.selectedEntries.first;
-        if (entry.isDir) {
-          ctrl.navigateTo(entry.path);
-          return KeyEventResult.handled;
-        }
-        // Plain file — same shape the double-tap path uses: hand
-        // back to the transfer callback the parent wired in. The
-        // pane itself has no in-place "open" surface today; the
-        // double-tap path delegates to onTransfer.
-        if (widget.onTransfer != null) {
-          widget.onTransfer!(entry);
-          return KeyEventResult.handled;
-        }
-      }
-      return KeyEventResult.ignored;
-    }
+    // Plain file — same shape the double-tap path uses: hand back to
+    // the transfer callback the parent wired in. The pane itself has
+    // no in-place "open" surface today.
+    final onTransfer = widget.onTransfer;
+    if (onTransfer == null) return KeyEventResult.ignored;
+    onTransfer(entry);
+    return KeyEventResult.handled;
+  }
+
+  KeyEventResult? _edgeNavResult(KeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.home) {
-      if (ctrl.entries.isNotEmpty) {
-        ctrl.selectSingle(ctrl.entries.first.path);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
+      return _selectEdge(first: true);
     }
     if (event.logicalKey == LogicalKeyboardKey.end) {
-      if (ctrl.entries.isNotEmpty) {
-        ctrl.selectSingle(ctrl.entries.last.path);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
+      return _selectEdge(first: false);
     }
+    return null;
+  }
 
+  KeyEventResult _selectEdge({required bool first}) {
+    final entries = ctrl.entries;
+    if (entries.isEmpty) return KeyEventResult.ignored;
+    ctrl.selectSingle(first ? entries.first.path : entries.last.path);
+    return KeyEventResult.handled;
+  }
+
+  KeyEventResult? _shortcutResult(KeyEvent event) {
+    final reg = AppShortcutRegistry.instance;
     if (reg.matches(AppShortcut.fileSelectAll, event)) {
       ctrl.selectAll();
       return KeyEventResult.handled;
@@ -236,11 +252,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       return KeyEventResult.handled;
     }
     if (reg.matches(AppShortcut.fileRename, event)) {
-      if (ctrl.selected.length == 1) {
-        _showRenameDialog(context, ctrl.selectedEntries.first);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
+      if (ctrl.selected.length != 1) return KeyEventResult.ignored;
+      _showRenameDialog(context, ctrl.selectedEntries.first);
+      return KeyEventResult.handled;
     }
     if (reg.matches(AppShortcut.fileRefresh, event)) {
       ctrl.refresh();
@@ -251,7 +265,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       _openContextMenuFromKeyboard();
       return KeyEventResult.handled;
     }
-    return KeyEventResult.ignored;
+    return null;
   }
 
   /// Anchor the context menu under a keyboard-driven open. Single

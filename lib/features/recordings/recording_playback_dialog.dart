@@ -217,20 +217,7 @@ class _RecordingPlaybackDialogState
         if (_disposed) return;
         if (!sawHeader) {
           sawHeader = true;
-          final header = decodeHeaderLine(line.value);
-          if (header != null) {
-            // Resize the terminal off the recording's authoritative
-            // dims. The header is always the first line of an
-            // asciinema-v2 stream; a recording that has no header
-            // line stays on the `widget.meta` defaults and inherits
-            // the wrap-on-col-80 problem the comment above
-            // describes, but at least the rest of the playback
-            // path keeps working.
-            _terminalCols = header.width;
-            _terminalRows = header.height;
-            _controller.resize(_terminalCols, _terminalRows);
-            continue;
-          }
+          if (_applyHeaderLine(line.value)) continue;
         }
         final frame = decodeEventLine(line.value);
         if (frame == null) continue;
@@ -247,6 +234,25 @@ class _RecordingPlaybackDialogState
       return;
     }
     if (!mounted) return;
+    _onLoadComplete(collected);
+  }
+
+  /// Resize the terminal off the recording's authoritative dims when
+  /// [raw] is the asciinema-v2 header (always the first line). A
+  /// recording with no header line stays on the `widget.meta`
+  /// defaults and inherits the wrap-on-col-80 problem the `_loadAll`
+  /// doc describes, but the rest of the playback path keeps working.
+  /// Returns true when the line was the header.
+  bool _applyHeaderLine(String raw) {
+    final header = decodeHeaderLine(raw);
+    if (header == null) return false;
+    _terminalCols = header.width;
+    _terminalRows = header.height;
+    _controller.resize(_terminalCols, _terminalRows);
+    return true;
+  }
+
+  void _onLoadComplete(List<_Event> collected) {
     setState(() {
       _events = collected;
       _loading = false;
